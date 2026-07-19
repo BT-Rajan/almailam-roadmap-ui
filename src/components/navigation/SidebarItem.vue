@@ -13,7 +13,7 @@ const props = defineProps<{
 const route = useRoute()
 
 const icon = computed(() => ICONS[props.item.icon])
-const isActive = computed(() => route.name === props.item.routeName)
+const isActive = computed(() => route.path.startsWith(props.item.matchPath))
 </script>
 
 <template>

@@ -4,4 +4,5 @@ export interface NavItem {
   label: string
   routeName: RouteNameValue
   icon: string
+  matchPath: string
 }
