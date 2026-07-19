@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { governmentFormService } from '@/services/governmentFormService'
+import type { AuthorityInput, FormInput } from '@/services/governmentFormService'
 import type {
   GovernmentAuthority,
   GovernmentForm,
@@ -112,6 +113,42 @@ export const useGovernmentFormStore = defineStore('governmentForm', {
       this.searchTerm = ''
       this.authorityFilter = 'All'
       this.categoryFilter = 'All'
+    },
+
+    async createForm(input: FormInput): Promise<GovernmentForm> {
+      const form = await governmentFormService.createForm(input)
+      this.forms = [...this.forms, form]
+      return form
+    },
+
+    async updateForm(formId: string, input: FormInput): Promise<GovernmentForm> {
+      const form = await governmentFormService.updateForm(formId, input)
+      this.forms = this.forms.map((existing) => (existing.id === formId ? form : existing))
+      return form
+    },
+
+    async deleteForm(formId: string): Promise<void> {
+      await governmentFormService.deleteForm(formId)
+      this.forms = this.forms.filter((form) => form.id !== formId)
+    },
+
+    async createAuthority(input: AuthorityInput): Promise<GovernmentAuthority> {
+      const authority = await governmentFormService.createAuthority(input)
+      this.authorities = [...this.authorities, authority]
+      return authority
+    },
+
+    async updateAuthority(authorityId: string, input: AuthorityInput): Promise<GovernmentAuthority> {
+      const authority = await governmentFormService.updateAuthority(authorityId, input)
+      this.authorities = this.authorities.map((existing) => (existing.id === authorityId ? authority : existing))
+      return authority
+    },
+
+    async deleteAuthority(authorityId: string): Promise<void> {
+      await governmentFormService.deleteAuthority(authorityId)
+      this.authorities = this.authorities.filter((authority) => authority.id !== authorityId)
+      this.forms = this.forms.filter((form) => form.authorityId !== authorityId)
+      if (this.authorityFilter === authorityId) this.authorityFilter = 'All'
     },
   },
 })

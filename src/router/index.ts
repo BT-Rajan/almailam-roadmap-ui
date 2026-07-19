@@ -277,8 +277,7 @@ const router = createRouter({
     {
       path: '/admin/forms',
       name: ROUTE_NAMES.ADMIN_FORMS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Government Forms Management' },
+      component: () => import('@/pages/AdminFormsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
