@@ -236,6 +236,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin',
+      name: ROUTE_NAMES.ADMIN,
+      component: () => import('@/pages/AdministrationPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Administration' }],
+      },
+    },
+    {
       path: '/admin/users',
       name: ROUTE_NAMES.ADMIN_USERS,
       component: () => import('@/pages/PlaceholderPage.vue'),
@@ -245,7 +255,7 @@ const router = createRouter({
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration' },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Users' },
         ],
       },
@@ -260,7 +270,7 @@ const router = createRouter({
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration' },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Workflows' },
         ],
       },
@@ -275,7 +285,7 @@ const router = createRouter({
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration' },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Forms' },
         ],
       },
@@ -290,7 +300,7 @@ const router = createRouter({
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration' },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'AI' },
         ],
       },
@@ -305,7 +315,7 @@ const router = createRouter({
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration' },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Company' },
         ],
       },

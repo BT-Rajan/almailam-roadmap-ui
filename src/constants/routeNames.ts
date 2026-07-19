@@ -16,6 +16,7 @@ export const ROUTE_NAMES = {
   REPORT_EXECUTIVE: 'report-executive',
   REPORT_PROJECT: 'report-project',
   REPORT_WORKLOAD: 'report-workload',
+  ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
   ADMIN_WORKFLOWS: 'admin-workflows',
   ADMIN_FORMS: 'admin-forms',

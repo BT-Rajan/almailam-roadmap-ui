@@ -15,7 +15,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: 'Reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },
   {
     label: 'Administration',
-    routeName: ROUTE_NAMES.ADMIN_USERS,
+    routeName: ROUTE_NAMES.ADMIN,
     icon: 'Settings',
     matchPath: '/admin',
   },
