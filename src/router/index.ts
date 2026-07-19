@@ -103,8 +103,7 @@ const router = createRouter({
     {
       path: '/government/submissions',
       name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Government Submission Workspace' },
+      component: () => import('@/pages/GovernmentSubmissionsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
