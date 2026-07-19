@@ -26,8 +26,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: ROUTE_NAMES.DASHBOARD,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Executive Dashboard' },
+      component: () => import('@/pages/DashboardPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
