@@ -181,12 +181,53 @@ const router = createRouter({
     {
       path: '/reports',
       name: ROUTE_NAMES.REPORTS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Dashboard Reports' },
+      component: () => import('@/pages/ReportsListPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
         breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Reports' }],
+      },
+    },
+    {
+      path: '/reports/executive',
+      name: ROUTE_NAMES.REPORT_EXECUTIVE,
+      component: () => import('@/pages/ExecutiveReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'Executive Summary' },
+        ],
+      },
+    },
+    {
+      path: '/reports/project',
+      name: ROUTE_NAMES.REPORT_PROJECT,
+      component: () => import('@/pages/ProjectReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'Project Performance' },
+        ],
+      },
+    },
+    {
+      path: '/reports/workload',
+      name: ROUTE_NAMES.REPORT_WORKLOAD,
+      component: () => import('@/pages/WorkloadReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'Team Workload' },
+        ],
       },
     },
     {
