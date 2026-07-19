@@ -263,8 +263,7 @@ const router = createRouter({
     {
       path: '/admin/workflows',
       name: ROUTE_NAMES.ADMIN_WORKFLOWS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Workflow Configuration' },
+      component: () => import('@/pages/AdminWorkflowsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
