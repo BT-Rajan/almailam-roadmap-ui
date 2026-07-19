@@ -3,16 +3,65 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-bg-page: theme('colors.neutral.50');
+    --color-bg-card: theme('colors.neutral.0');
+    --color-bg-secondary: theme('colors.neutral.100');
+    --color-bg-sidebar: theme('colors.neutral.0');
+    --color-bg-header: theme('colors.neutral.0');
+    --color-bg-hover: theme('colors.neutral.100');
+    --color-bg-selected: theme('colors.primary.50');
+
+    --color-text-primary: theme('colors.neutral.800');
+    --color-text-secondary: theme('colors.neutral.500');
+    --color-text-muted: theme('colors.neutral.400');
+    --color-text-inverse: theme('colors.neutral.0');
+    --color-text-link: theme('colors.primary.600');
+
+    --color-border-light: theme('colors.neutral.100');
+    --color-border-default: theme('colors.neutral.200');
+    --color-border-strong: theme('colors.neutral.300');
+    --color-border-focus: theme('colors.primary.500');
+  }
+
+  .dark {
+    --color-bg-page: theme('colors.neutral.900');
+    --color-bg-card: theme('colors.neutral.800');
+    --color-bg-secondary: theme('colors.neutral.800');
+    --color-bg-sidebar: theme('colors.neutral.900');
+    --color-bg-header: theme('colors.neutral.900');
+    --color-bg-hover: theme('colors.neutral.700');
+    --color-bg-selected: theme('colors.primary.900');
+
+    --color-text-primary: theme('colors.neutral.100');
+    --color-text-secondary: theme('colors.neutral.400');
+    --color-text-muted: theme('colors.neutral.500');
+    --color-text-inverse: theme('colors.neutral.900');
+    --color-text-link: theme('colors.primary.400');
+
+    --color-border-light: theme('colors.neutral.800');
+    --color-border-default: theme('colors.neutral.700');
+    --color-border-strong: theme('colors.neutral.600');
+    --color-border-focus: theme('colors.primary.400');
+  }
+
   html {
     @apply antialiased;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-800 font-sans;
+    @apply font-sans transition-colors duration-normal;
+    background-color: var(--color-bg-page);
+    color: var(--color-text-primary);
   }
 
   * {
     scrollbar-width: thin;
     scrollbar-color: theme('colors.neutral.300') transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
   }
 }
