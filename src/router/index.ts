@@ -76,8 +76,7 @@ const router = createRouter({
     {
       path: '/government/forms',
       name: ROUTE_NAMES.GOVERNMENT_FORMS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Government Forms Library' },
+      component: () => import('@/pages/GovernmentFormsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
