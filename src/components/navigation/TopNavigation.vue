@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { Bell, Menu, Moon, Search, Sun, User } from '@lucide/vue'
+import { onMounted } from 'vue'
 
 import { useTheme } from '@/composables/useTheme'
 import { useNavigationStore } from '@/stores/navigationStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 
 const navigationStore = useNavigationStore()
+const notificationStore = useNotificationStore()
 const { isDark, toggleMode } = useTheme()
+
+onMounted(() => {
+  void notificationStore.loadNotifications()
+})
 </script>
 
 <template>
@@ -50,12 +57,16 @@ const { isDark, toggleMode } = useTheme()
         type="button"
         class="relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
         aria-label="Notifications"
+        @click="notificationStore.toggleDrawer"
       >
         <Bell :size="18" />
         <span
-          class="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger-500"
+          v-if="notificationStore.hasUnread"
+          class="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-semibold leading-none text-white"
           aria-hidden="true"
-        />
+        >
+          {{ notificationStore.unreadCount > 9 ? '9+' : notificationStore.unreadCount }}
+        </span>
       </button>
 
       <button

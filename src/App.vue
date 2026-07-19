@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
+import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CustomerPortalLayout from '@/layouts/CustomerPortalLayout.vue'
@@ -19,4 +20,5 @@ const layout = computed(() => {
 <template>
   <component :is="layout" />
   <ToastContainer />
+  <NotificationDrawer />
 </template>
