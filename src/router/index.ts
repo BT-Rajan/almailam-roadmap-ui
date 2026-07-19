@@ -307,8 +307,7 @@ const router = createRouter({
     {
       path: '/admin/company',
       name: ROUTE_NAMES.ADMIN_COMPANY,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Company Settings' },
+      component: () => import('@/pages/AdminCompanyPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
