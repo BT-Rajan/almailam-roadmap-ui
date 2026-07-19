@@ -65,3 +65,9 @@
     outline-offset: 2px;
   }
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

@@ -61,8 +61,7 @@ const router = createRouter({
     {
       path: '/projects/:projectId',
       name: ROUTE_NAMES.PROJECT_WORKSPACE,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Project Workspace' },
+      component: () => import('@/pages/ProjectWorkspacePage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

@@ -29,3 +29,19 @@ export interface Project {
 }
 
 export type ProjectViewMode = 'grid' | 'table'
+
+export type ProjectWorkspaceTabKey =
+  | 'overview'
+  | 'timeline'
+  | 'documents'
+  | 'design'
+  | 'government'
+  | 'quotation'
+  | 'contract'
+  | 'tasks'
+  | 'activity'
+
+export interface ProjectWorkspaceTab {
+  key: ProjectWorkspaceTabKey
+  label: string
+}
