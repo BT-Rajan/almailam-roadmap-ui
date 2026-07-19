@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, LogOut } from '@lucide/vue'
+import { useRouter } from 'vue-router'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { PRIMARY_NAV_ITEMS } from '@/constants/navigation'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useAuthStore } from '@/stores/authStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
+
+function handleLogout(): void {
+  authStore.logout()
+  router.push({ name: ROUTE_NAMES.LOGIN })
+}
 </script>
 
 <template>
@@ -37,6 +47,15 @@ const navigationStore = useNavigationStore()
     </nav>
 
     <div class="border-t border-[var(--color-border-default)] p-3">
+      <button
+        type="button"
+        class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-danger-50 hover:text-danger-500"
+        @click="handleLogout"
+      >
+        <LogOut :size="18" />
+        <span v-if="!navigationStore.isSidebarCollapsed">Logout</span>
+      </button>
+
       <button
         type="button"
         class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"

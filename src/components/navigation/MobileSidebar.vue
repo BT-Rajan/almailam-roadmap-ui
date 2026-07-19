@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue'
+import { LogOut, X } from '@lucide/vue'
+import { useRouter } from 'vue-router'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { PRIMARY_NAV_ITEMS } from '@/constants/navigation'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useAuthStore } from '@/stores/authStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
+
+function handleLogout(): void {
+  navigationStore.closeMobileSidebar()
+  authStore.logout()
+  router.push({ name: ROUTE_NAMES.LOGIN })
+}
 </script>
 
 <template>
@@ -44,6 +55,17 @@ const navigationStore = useNavigationStore()
       <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4" @click="navigationStore.closeMobileSidebar">
         <SidebarItem v-for="item in PRIMARY_NAV_ITEMS" :key="item.routeName" :item="item" />
       </nav>
+
+      <div class="border-t border-[var(--color-border-default)] p-3">
+        <button
+          type="button"
+          class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-danger-50 hover:text-danger-500"
+          @click="handleLogout"
+        >
+          <LogOut :size="18" />
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   </Transition>
 </template>
