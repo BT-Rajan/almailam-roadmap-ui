@@ -46,8 +46,7 @@ const router = createRouter({
     {
       path: '/projects/new',
       name: ROUTE_NAMES.PROJECT_NEW,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'New Project Wizard' },
+      component: () => import('@/pages/NewProjectWizardPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

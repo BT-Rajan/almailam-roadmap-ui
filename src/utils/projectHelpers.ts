@@ -21,3 +21,9 @@ export function getProjectStatusVariant(status: ProjectStatus): BadgeVariant {
 export function getProjectPriorityVariant(priority: ProjectPriority): BadgeVariant {
   return PRIORITY_VARIANTS[priority]
 }
+
+export function generateProjectNo(existingCount: number): string {
+  const year = new Date().getFullYear()
+  const sequence = String(existingCount + 1).padStart(3, '0')
+  return `PRJ-${year}-${sequence}`
+}

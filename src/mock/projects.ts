@@ -1,5 +1,15 @@
 import type { Project } from '@/types/Project'
 
+export const PROJECT_SERVICES: string[] = [
+  'Structural Engineering',
+  'MEP Design',
+  'Architectural Design',
+  'Fire & Safety Engineering',
+  'Civil Engineering',
+]
+
+export const PROJECT_ENGINEERS: string[] = ['Layla Haddad', 'Ahmed Rashid', 'Mohammed Iqbal']
+
 export const PROJECTS: Project[] = [
   {
     id: 'PRJ-2026-001',

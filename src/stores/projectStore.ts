@@ -98,6 +98,10 @@ export const useProjectStore = defineStore('project', {
       this.viewMode = mode
     },
 
+    addProject(project: Project) {
+      this.projects = [project, ...this.projects]
+    },
+
     clearFilters() {
       this.searchTerm = ''
       this.statusFilter = 'All'
