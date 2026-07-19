@@ -121,8 +121,7 @@ const router = createRouter({
     {
       path: '/documents',
       name: ROUTE_NAMES.DOCUMENTS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Document Repository' },
+      component: () => import('@/pages/DocumentsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
