@@ -12,7 +12,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  icon: Inbox,
+  icon: () => Inbox,
   description: undefined,
   actionLabel: undefined,
 })
