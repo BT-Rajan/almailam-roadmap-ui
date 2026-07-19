@@ -131,8 +131,7 @@ const router = createRouter({
     {
       path: '/documents/:documentId',
       name: ROUTE_NAMES.DOCUMENT_VIEWER,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Document Viewer' },
+      component: () => import('@/pages/DocumentViewerPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

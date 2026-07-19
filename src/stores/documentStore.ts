@@ -2,13 +2,16 @@ import { defineStore } from 'pinia'
 
 import { documentService } from '@/services/documentService'
 import { projectService } from '@/services/projectService'
-import type { DocumentStatus, DocumentType, DocumentViewMode, ProjectDocument } from '@/types/Document'
+import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 
 interface DocumentStoreState {
   documents: ProjectDocument[]
   projects: Project[]
+  currentDocument: ProjectDocument | undefined
+  currentVersions: DocumentVersion[]
   isLoading: boolean
+  isDetailLoading: boolean
   error: string | undefined
   searchTerm: string
   typeFilter: DocumentType | 'All'
@@ -20,7 +23,10 @@ export const useDocumentStore = defineStore('document', {
   state: (): DocumentStoreState => ({
     documents: [],
     projects: [],
+    currentDocument: undefined,
+    currentVersions: [],
     isLoading: false,
+    isDetailLoading: false,
     error: undefined,
     searchTerm: '',
     typeFilter: 'All',
@@ -66,6 +72,26 @@ export const useDocumentStore = defineStore('document', {
         this.error = 'Unable to load documents. Please try again.'
       } finally {
         this.isLoading = false
+      }
+    },
+
+    async loadDocumentDetail(documentId: string) {
+      this.isDetailLoading = true
+      this.error = undefined
+      try {
+        const [document, versions] = await Promise.all([
+          documentService.getDocumentById(documentId),
+          documentService.getDocumentVersions(documentId),
+        ])
+        this.currentDocument = document
+        this.currentVersions = versions
+        if (this.projects.length === 0) {
+          this.projects = await projectService.getProjects()
+        }
+      } catch {
+        this.error = 'Unable to load document. Please try again.'
+      } finally {
+        this.isDetailLoading = false
       }
     },
 

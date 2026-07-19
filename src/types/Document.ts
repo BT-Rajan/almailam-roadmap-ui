@@ -15,3 +15,12 @@ export interface ProjectDocument {
 }
 
 export type DocumentViewMode = 'grid' | 'table'
+
+export interface DocumentVersion {
+  id: string
+  documentId: string
+  revision: string
+  uploadedBy: string
+  uploadDate: string
+  notes: string
+}

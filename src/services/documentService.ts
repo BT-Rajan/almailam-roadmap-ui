@@ -1,5 +1,6 @@
 import { DOCUMENTS } from '@/mock/documents'
-import type { ProjectDocument } from '@/types/Document'
+import { DOCUMENT_VERSIONS } from '@/mock/documentVersions'
+import type { DocumentVersion, ProjectDocument } from '@/types/Document'
 import { simulateNetworkDelay } from '@/utils/mockDelay'
 
 async function getDocuments(): Promise<ProjectDocument[]> {
@@ -17,8 +18,14 @@ async function getDocumentsByProject(projectId: string): Promise<ProjectDocument
   return DOCUMENTS.filter((document) => document.projectId === projectId)
 }
 
+async function getDocumentVersions(documentId: string): Promise<DocumentVersion[]> {
+  await simulateNetworkDelay()
+  return DOCUMENT_VERSIONS.filter((version) => version.documentId === documentId)
+}
+
 export const documentService = {
   getDocuments,
   getDocumentById,
   getDocumentsByProject,
+  getDocumentVersions,
 }
