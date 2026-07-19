@@ -10,18 +10,21 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
+import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useTimelineStore } from '@/stores/timelineStore'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
+const timelineStore = useTimelineStore()
 
 const projectId = computed(() => route.params.projectId as string)
 const activeTab = ref<ProjectWorkspaceTabKey>('overview')
@@ -53,8 +56,8 @@ const TAB_COMING_SOON: Record<ProjectWorkspaceTabKey, string> = {
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
-const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading)
-const error = computed(() => projectStore.error ?? quotationStore.error)
+const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading || timelineStore.isLoading)
+const error = computed(() => projectStore.error ?? quotationStore.error ?? timelineStore.error)
 
 const projectDetailItems = computed(() => {
   if (!project.value) return []
@@ -83,7 +86,10 @@ async function loadData(): Promise<void> {
   if (projectStore.projects.length === 0) {
     await projectStore.loadProjects()
   }
-  await quotationStore.loadQuotationsForProject(projectId.value)
+  await Promise.all([
+    quotationStore.loadQuotationsForProject(projectId.value),
+    timelineStore.loadTimelineForProject(projectId.value),
+  ])
 }
 
 onMounted(loadData)
@@ -133,6 +139,10 @@ function handlePrint(): void {
           <DetailPanel title="Project Details" :items="projectDetailItems" />
           <DetailPanel title="Client Details" :items="clientDetailItems" />
         </div>
+      </template>
+
+      <template v-else-if="activeTab === 'timeline'">
+        <ProjectTimeline :events="timelineStore.events" />
       </template>
 
       <template v-else-if="activeTab === 'quotation'">
