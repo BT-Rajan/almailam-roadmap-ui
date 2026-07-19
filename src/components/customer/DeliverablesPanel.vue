@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, CheckCircle2, Clock, AlertCircle, RefreshCw } from '@lucide/vue'
+import { FileText, CheckCircle2, Clock, RefreshCw } from '@lucide/vue'
 import { computed } from 'vue'
 import type { ProjectDeliverable } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'

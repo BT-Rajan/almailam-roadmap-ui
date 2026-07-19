@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CustomerProjectStatus } from '@/types/CustomerPortal'
+import type { BadgeVariant } from '@/types/Ui'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 
@@ -11,7 +12,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const statusVariant = computed(() => {
-  const variants: Record<string, any> = {
+  const variants: Record<string, BadgeVariant> = {
     planning: 'warning',
     active: 'info',
     'on-hold': 'warning',

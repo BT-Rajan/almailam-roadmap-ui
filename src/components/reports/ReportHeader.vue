@@ -9,7 +9,7 @@ interface Props {
   showActions?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   subtitle: undefined,
   generatedDate: undefined,
   showActions: true,

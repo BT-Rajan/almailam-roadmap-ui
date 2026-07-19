@@ -87,7 +87,7 @@ const goBack = () => {
   router.back()
 }
 
-const getRowColor = (member: any) => {
+const getRowColor = (member: (typeof teamMembers)[number]) => {
   if (member.overallocated) return 'bg-danger-50 border-danger-200'
   if (member.allocation >= 90) return 'bg-warning-50 border-warning-200'
   return 'bg-neutral-50'

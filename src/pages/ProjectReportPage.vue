@@ -9,6 +9,7 @@ import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import type { ChartDataPoint } from '@/types/Report'
+import type { BadgeVariant } from '@/types/Ui'
 
 const router = useRouter()
 
@@ -92,7 +93,7 @@ const timelineData = [
 ]
 
 const statusVariant = (status: string) => {
-  const variants: Record<string, any> = {
+  const variants: Record<string, BadgeVariant> = {
     active: 'info',
     completed: 'success',
     'on-hold': 'warning',
