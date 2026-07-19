@@ -1,13 +1,16 @@
 import {
   AlertCircle,
+  AlertTriangle,
   BarChart3,
   Bell,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
   FolderKanban,
   Inbox,
+  Info,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -20,19 +23,23 @@ import {
   Sun,
   User,
   X,
+  XCircle,
 } from '@lucide/vue'
 import type { Component } from 'vue'
 
 export const ICONS: Record<string, Component> = {
   AlertCircle,
+  AlertTriangle,
   BarChart3,
   Bell,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
   FolderKanban,
   Inbox,
+  Info,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -45,4 +52,5 @@ export const ICONS: Record<string, Component> = {
   Sun,
   User,
   X,
+  XCircle,
 }
