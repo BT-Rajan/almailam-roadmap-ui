@@ -5,9 +5,11 @@ import { onMounted } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useSearchStore } from '@/stores/searchStore'
 
 const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
+const searchStore = useSearchStore()
 const { isDark, toggleMode } = useTheme()
 
 onMounted(() => {
@@ -29,17 +31,17 @@ onMounted(() => {
         <Menu :size="20" />
       </button>
 
-      <label class="relative hidden md:block">
-        <Search
-          :size="16"
-          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
-        />
-        <input
-          type="text"
-          placeholder="Search projects, documents, forms..."
-          class="w-72 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
-        />
-      </label>
+      <button
+        type="button"
+        class="relative hidden w-72 items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-left text-sm text-[var(--color-text-muted)] transition-colors duration-fast hover:border-primary-500 md:flex"
+        @click="searchStore.open"
+      >
+        <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+        <span class="flex-1 truncate">Search projects, documents, forms...</span>
+        <kbd class="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+          Ctrl K
+        </kbd>
+      </button>
     </div>
 
     <div class="flex items-center gap-2">
