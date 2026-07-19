@@ -23,5 +23,6 @@ export const ROUTE_NAMES = {
   ADMIN_AI: 'admin-ai',
   ADMIN_COMPANY: 'admin-company',
   CUSTOMER_STATUS: 'customer-status',
+  MESSAGE_CENTRE: 'message-centre',
   NOT_FOUND: 'not-found',
 } as const

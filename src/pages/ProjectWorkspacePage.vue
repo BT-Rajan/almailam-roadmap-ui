@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Building2, Calendar, Layers, Printer, User } from '@lucide/vue'
+import { Building2, Calendar, Layers, MessageSquare, Printer, User } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import AIResponseCard from '@/components/ai/AIResponseCard.vue'
 import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
@@ -20,6 +20,7 @@ import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -28,6 +29,7 @@ import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Projec
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
+const router = useRouter()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const timelineStore = useTimelineStore()
@@ -149,7 +151,19 @@ function handlePrint(): void {
       <template v-if="activeTab === 'overview'">
         <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
           <DetailPanel title="Project Details" :items="projectDetailItems" />
-          <DetailPanel title="Client Details" :items="clientDetailItems" />
+          <div class="flex flex-col gap-3">
+            <DetailPanel title="Client Details" :items="clientDetailItems" />
+            <BaseButton
+              v-if="client"
+              variant="secondary"
+              size="sm"
+              :icon="MessageSquare"
+              class="no-print self-start"
+              @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
+            >
+              Message Client
+            </BaseButton>
+          </div>
         </div>
       </template>
 

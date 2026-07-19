@@ -317,6 +317,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/messages',
+      name: ROUTE_NAMES.MESSAGE_CENTRE,
+      component: () => import('@/pages/MessageCentrePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Message Centre' }],
+      },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: ROUTE_NAMES.NOT_FOUND,
       component: () => import('@/pages/PlaceholderPage.vue'),
