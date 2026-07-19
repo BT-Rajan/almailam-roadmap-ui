@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   BarChart3,
   Bell,
   ChevronDown,
@@ -6,9 +7,11 @@ import {
   ChevronRight,
   FileText,
   FolderKanban,
+  Inbox,
   Landmark,
   LayoutDashboard,
   ListChecks,
+  Loader2,
   LogOut,
   Menu,
   Moon,
@@ -16,10 +19,12 @@ import {
   Settings,
   Sun,
   User,
+  X,
 } from '@lucide/vue'
 import type { Component } from 'vue'
 
 export const ICONS: Record<string, Component> = {
+  AlertCircle,
   BarChart3,
   Bell,
   ChevronDown,
@@ -27,9 +32,11 @@ export const ICONS: Record<string, Component> = {
   ChevronRight,
   FileText,
   FolderKanban,
+  Inbox,
   Landmark,
   LayoutDashboard,
   ListChecks,
+  Loader2,
   LogOut,
   Menu,
   Moon,
@@ -37,4 +44,5 @@ export const ICONS: Record<string, Component> = {
   Settings,
   Sun,
   User,
+  X,
 }
