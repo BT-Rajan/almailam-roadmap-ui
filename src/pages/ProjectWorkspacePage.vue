@@ -1,26 +1,30 @@
 <script setup lang="ts">
-import { Printer } from '@lucide/vue'
+import { Building2, Calendar, Layers, Printer, User } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
+import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
+import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 
 const projectId = computed(() => route.params.projectId as string)
-const activeTab = ref<ProjectWorkspaceTabKey>('quotation')
+const activeTab = ref<ProjectWorkspaceTabKey>('overview')
 
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
@@ -51,6 +55,29 @@ const client = computed(() => (project.value ? projectStore.getClientById(projec
 
 const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading)
 const error = computed(() => projectStore.error ?? quotationStore.error)
+
+const projectDetailItems = computed(() => {
+  if (!project.value) return []
+  return [
+    { label: 'Service', value: project.value.service },
+    { label: 'Responsible Engineer', value: project.value.engineer },
+    { label: 'Start Date', value: formatDate(project.value.startDate) },
+    { label: 'Target Completion Date', value: formatDate(project.value.targetDate) },
+    { label: 'Current Stage', value: project.value.currentStage },
+    { label: 'Priority', value: project.value.priority },
+  ]
+})
+
+const clientDetailItems = computed(() => {
+  if (!client.value) return []
+  return [
+    { label: 'Company Name', value: client.value.companyName },
+    { label: 'Contact Person', value: client.value.contactPerson },
+    { label: 'Mobile', value: client.value.mobile },
+    { label: 'Email', value: client.value.email },
+    { label: 'City', value: client.value.city },
+  ]
+})
 
 async function loadData(): Promise<void> {
   if (projectStore.projects.length === 0) {
@@ -85,9 +112,30 @@ function handlePrint(): void {
     <template v-else>
       <ProjectHeader :project="project" :client="client" />
 
+      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4 no-print">
+        <InfoPanel label="Service" :value="project.service" :icon="Layers" />
+        <InfoPanel label="Client" :value="client?.companyName ?? 'Unassigned'" :icon="Building2" color="info" />
+        <InfoPanel label="Responsible Engineer" :value="project.engineer" :icon="User" color="ai" />
+        <InfoPanel
+          label="Timeline"
+          :value="`${formatDate(project.startDate)} \u2013 ${formatDate(project.targetDate)}`"
+          :icon="Calendar"
+          color="warning"
+        />
+      </div>
+
+      <WorkflowProgress class="no-print" :current-stage="project.currentStage" />
+
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
-      <template v-if="activeTab === 'quotation'">
+      <template v-if="activeTab === 'overview'">
+        <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+          <DetailPanel title="Project Details" :items="projectDetailItems" />
+          <DetailPanel title="Client Details" :items="clientDetailItems" />
+        </div>
+      </template>
+
+      <template v-else-if="activeTab === 'quotation'">
         <div class="flex items-center justify-end">
           <BaseButton
             v-if="quotationStore.selectedQuotation"

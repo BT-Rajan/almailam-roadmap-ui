@@ -1,5 +1,17 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { ProjectPriority, ProjectStatus } from '@/types/Project'
+import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
+
+export const WORKFLOW_STAGES: WorkflowStage[] = [
+  'Enquiry',
+  'Quotation',
+  'Contract',
+  'Design',
+  'Government Submission',
+  'Review',
+  'Correction',
+  'Approval',
+  'Completed',
+]
 
 const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {
   Active: 'success',
