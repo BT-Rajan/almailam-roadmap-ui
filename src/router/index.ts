@@ -291,8 +291,7 @@ const router = createRouter({
     {
       path: '/admin/ai',
       name: ROUTE_NAMES.ADMIN_AI,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'AI Configuration' },
+      component: () => import('@/pages/AdminAIPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
