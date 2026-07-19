@@ -3,18 +3,24 @@ import { Building2, Calendar, Layers, Printer, User } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+import AIResponseCard from '@/components/ai/AIResponseCard.vue'
+import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import ContractList from '@/components/project/ContractList.vue'
+import ContractPreview from '@/components/project/ContractPreview.vue'
+import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
+import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useTimelineStore } from '@/stores/timelineStore'
@@ -25,6 +31,7 @@ const route = useRoute()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const timelineStore = useTimelineStore()
+const contractStore = useContractStore()
 
 const projectId = computed(() => route.params.projectId as string)
 const activeTab = ref<ProjectWorkspaceTabKey>('overview')
@@ -56,8 +63,12 @@ const TAB_COMING_SOON: Record<ProjectWorkspaceTabKey, string> = {
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
-const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading || timelineStore.isLoading)
-const error = computed(() => projectStore.error ?? quotationStore.error ?? timelineStore.error)
+const isLoading = computed(
+  () => projectStore.isLoading || quotationStore.isLoading || timelineStore.isLoading || contractStore.isLoading,
+)
+const error = computed(
+  () => projectStore.error ?? quotationStore.error ?? timelineStore.error ?? contractStore.error,
+)
 
 const projectDetailItems = computed(() => {
   if (!project.value) return []
@@ -89,6 +100,7 @@ async function loadData(): Promise<void> {
   await Promise.all([
     quotationStore.loadQuotationsForProject(projectId.value),
     timelineStore.loadTimelineForProject(projectId.value),
+    contractStore.loadContractsForProject(projectId.value),
   ])
 }
 
@@ -180,6 +192,65 @@ function handlePrint(): void {
               :selected-quotation-id="quotationStore.selectedQuotationId"
               @select="quotationStore.selectQuotation($event)"
             />
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeTab === 'contract'">
+        <div class="flex items-center justify-end">
+          <BaseButton
+            v-if="contractStore.selectedContract"
+            variant="secondary"
+            size="sm"
+            :icon="Printer"
+            class="no-print"
+            @click="handlePrint"
+          >
+            Print Contract
+          </BaseButton>
+        </div>
+
+        <EmptyState
+          v-if="!contractStore.selectedContract"
+          title="No contract selected"
+          description="Select a contract from the list to preview it."
+        />
+
+        <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
+          <div class="flex flex-col gap-6 laptop:col-span-2 print:col-span-3">
+            <ContractPreview
+              :contract="contractStore.selectedContract"
+              :project="project"
+              :client="client"
+            />
+
+            <div class="no-print">
+              <AIResponseCard
+                v-if="contractStore.aiSummary"
+                title="AI Contract Summary"
+                :summary="contractStore.aiSummary.summary"
+                :details="contractStore.aiSummary.details"
+                :confidence="contractStore.aiSummary.confidence"
+              />
+              <div v-else-if="contractStore.isAiSummaryLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
+                <SkeletonLoader :rows="3" />
+              </div>
+            </div>
+
+            <AISuggestionCard
+              v-if="contractStore.aiSummary?.suggestions.length"
+              class="no-print"
+              :suggestions="contractStore.aiSummary.suggestions"
+            />
+          </div>
+
+          <div class="flex flex-col gap-6 no-print">
+            <ContractList
+              :contracts="contractStore.contracts"
+              :selected-contract-id="contractStore.selectedContractId"
+              @select="contractStore.selectContract($event)"
+            />
+            <ContractRevisionHistory :revisions="contractStore.selectedContract.revisions" />
           </div>
         </div>
       </template>
