@@ -17,11 +17,16 @@ const router = createRouter({
       meta: { layout: 'auth' },
     },
     {
-      path: '/status',
-      name: ROUTE_NAMES.CUSTOMER_STATUS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Project Status Tracker' },
-      meta: { layout: 'auth' },
+      path: '/customer-portal',
+      name: 'customer-portal',
+      component: () => import('@/pages/CustomerPortalLoginPage.vue'),
+      meta: { layout: 'customer-portal' },
+    },
+    {
+      path: '/customer-portal/:projectId',
+      name: 'customer-project',
+      component: () => import('@/pages/CustomerProjectViewPage.vue'),
+      meta: { layout: 'customer-portal' },
     },
     {
       path: '/dashboard',
