@@ -15,9 +15,15 @@
       </div>
 
       <div
-        class="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] p-8 shadow-soft"
+        id="main-content"
+        tabindex="-1"
+        class="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] p-8 shadow-soft outline-none"
       >
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
       </div>
 
       <p class="mt-6 text-center text-xs text-[var(--color-text-muted)]">

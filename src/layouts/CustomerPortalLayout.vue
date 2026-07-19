@@ -29,8 +29,12 @@ const goHome = () => {
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1">
-      <RouterView />
+    <main id="main-content" tabindex="-1" class="flex-1 outline-none">
+      <RouterView v-slot="{ Component }">
+        <Transition name="page-fade" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </RouterView>
     </main>
 
     <!-- Footer -->

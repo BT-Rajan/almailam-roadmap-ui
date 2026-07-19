@@ -15,8 +15,12 @@ import PageFooter from '@/components/common/PageFooter.vue'
       <TopNavigation class="no-print" />
       <Breadcrumb class="no-print" />
 
-      <main class="flex-1 overflow-y-auto print:overflow-visible">
-        <RouterView />
+      <main id="main-content" tabindex="-1" class="flex-1 overflow-y-auto outline-none print:overflow-visible">
+        <RouterView v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
       </main>
 
       <PageFooter class="no-print" />
