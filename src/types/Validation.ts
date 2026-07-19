@@ -1,4 +1,4 @@
-export type ValidationRule = (value: any) => string | true
+export type ValidationRule = (value: unknown) => string | true
 
 export interface ValidationRules {
   [fieldName: string]: ValidationRule[]

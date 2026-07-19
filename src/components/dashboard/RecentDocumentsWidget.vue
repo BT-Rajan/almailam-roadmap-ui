@@ -21,9 +21,9 @@ defineEmits<{
 
 
 const displayedDocuments = computed(() =>
-  props.documents
+  [...props.documents]
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
-    .slice(0, props.maxItems)
+    .slice(0, props.maxItems),
 )
 
 const formatSize = (size: string) => size

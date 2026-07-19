@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Task } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import type { Task } from '@/types/Dashboard'
+import type { BadgeVariant } from '@/types/Ui'
 
 interface Props {
   tasks: Task[]
@@ -30,8 +31,8 @@ const displayedTasks = computed(() =>
     .slice(0, props.maxItems)
 )
 
-const priorityColor = (priority: string) => {
-  const colors: Record<string, any> = {
+const priorityColor = (priority: string): BadgeVariant => {
+  const colors: Record<string, BadgeVariant> = {
     urgent: 'danger',
     high: 'warning',
     medium: 'info',

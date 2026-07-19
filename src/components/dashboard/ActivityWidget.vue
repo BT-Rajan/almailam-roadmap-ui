@@ -18,16 +18,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 const displayedActivities = computed(() => props.activities.slice(0, props.maxItems))
 
-const activityColor = computed(() => (type: string) => {
-  const colors: Record<string, string> = {
-    project: 'primary',
-    document: 'info',
-    submission: 'warning',
-    task: 'success',
-    ai: 'ai',
-  }
-  return colors[type] || 'neutral'
-})
+const ACTIVITY_ICON_CLASSES: Record<Activity['type'], string> = {
+  project: 'bg-primary-50 text-primary-600',
+  document: 'bg-info-50 text-info-700',
+  submission: 'bg-warning-50 text-warning-700',
+  task: 'bg-success-50 text-success-700',
+  ai: 'bg-ai-50 text-ai-700',
+}
+
+function activityColor(type: Activity['type']): string {
+  return ACTIVITY_ICON_CLASSES[type] ?? 'bg-bg-secondary text-neutral-500'
+}
 
 const formatTime = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -54,7 +55,11 @@ const formatTime = (timestamp: string) => {
     <div class="space-y-0">
       <div v-for="(activity, index) in displayedActivities" :key="activity.id">
         <div class="py-3 flex gap-3">
-          <div v-if="activity.icon" class="flex-shrink-0 w-8 h-8 rounded-full bg-bg-secondary flex items-center justify-center text-sm">
+          <div
+            v-if="activity.icon"
+            class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm"
+            :class="activityColor(activity.type)"
+          >
             {{ activity.icon }}
           </div>
           <div class="flex-1 min-w-0">

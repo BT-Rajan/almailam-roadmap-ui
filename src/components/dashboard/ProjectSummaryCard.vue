@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ProjectSummary } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import type { ProjectSummary } from '@/types/Dashboard'
+import type { BadgeVariant } from '@/types/Ui'
 
 interface Props {
   project: ProjectSummary
@@ -22,8 +23,8 @@ const progressColor = computed(() => {
   return 'bg-danger-500'
 })
 
-const statusVariant = computed(() => {
-  const variants: Record<string, any> = {
+const statusVariant = computed<BadgeVariant>(() => {
+  const variants: Record<string, BadgeVariant> = {
     draft: 'neutral',
     active: 'info',
     pending: 'warning',

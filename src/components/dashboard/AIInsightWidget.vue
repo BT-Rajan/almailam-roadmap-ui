@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { Lightbulb } from '@lucide/vue'
-import type { AIInsight } from '@/types/Dashboard'
+import { computed } from 'vue'
+
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import type { AIInsight } from '@/types/Dashboard'
+import type { BadgeVariant } from '@/types/Ui'
 
 interface Props {
   insights: AIInsight[]
@@ -20,13 +23,10 @@ defineEmits<{
   'action-click': [insightId: string]
 }>()
 
-
 const displayedInsights = computed(() => props.insights.slice(0, props.maxItems))
 
-import { computed } from 'vue'
-
-const confidenceColor = (confidence: string) => {
-  const colors: Record<string, any> = {
+const confidenceColor = (confidence: string): BadgeVariant => {
+  const colors: Record<string, BadgeVariant> = {
     high: 'success',
     medium: 'warning',
     low: 'info',

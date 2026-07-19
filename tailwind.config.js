@@ -63,6 +63,28 @@ export default {
           500: '#8b5cf6',
           700: '#6d28d9',
         },
+        bg: {
+          page: 'var(--color-bg-page)',
+          card: 'var(--color-bg-card)',
+          secondary: 'var(--color-bg-secondary)',
+          sidebar: 'var(--color-bg-sidebar)',
+          header: 'var(--color-bg-header)',
+          hover: 'var(--color-bg-hover)',
+          selected: 'var(--color-bg-selected)',
+        },
+        border: {
+          light: 'var(--color-border-light)',
+          default: 'var(--color-border-default)',
+          strong: 'var(--color-border-strong)',
+          focus: 'var(--color-border-focus)',
+        },
+        text: {
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)',
+          inverse: 'var(--color-text-inverse)',
+          link: 'var(--color-text-link)',
+        },
       },
       spacing: {
         18: '4.5rem',

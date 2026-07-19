@@ -53,7 +53,7 @@ export const validators = {
     return Number(value) <= maxValue ? true : msg
   },
 
-  match: (fieldValue: any, message = 'Fields do not match'): ValidationRule => (value) => {
+  match: (fieldValue: unknown, message = 'Fields do not match'): ValidationRule => (value) => {
     return value === fieldValue ? true : message
   },
 

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { Plus, FolderPlus, FileUp, Zap } from '@lucide/vue'
+import { Plus, FileUp, Zap } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import Card from '@/components/common/Card.vue'
 import KPIWidget from '@/components/dashboard/KPIWidget.vue'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import QuickActionCard from '@/components/dashboard/QuickActionCard.vue'

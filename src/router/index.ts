@@ -36,8 +36,7 @@ const router = createRouter({
     {
       path: '/projects',
       name: ROUTE_NAMES.PROJECTS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Project Explorer' },
+      component: () => import('@/pages/ProjectsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

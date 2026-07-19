@@ -9,7 +9,7 @@ export function useFormValidation(initialRules?: ValidationRules) {
     Object.assign(rules, newRules)
   }
 
-  const validateField = (fieldName: string, value: any): boolean => {
+  const validateField = (fieldName: string, value: unknown): boolean => {
     const fieldRules = rules[fieldName]
     if (!fieldRules) {
       delete errors[fieldName]
@@ -28,7 +28,7 @@ export function useFormValidation(initialRules?: ValidationRules) {
     return true
   }
 
-  const validateAll = (data: Record<string, any>): boolean => {
+  const validateAll = (data: Record<string, unknown>): boolean => {
     let isValid = true
     for (const fieldName in rules) {
       if (!validateField(fieldName, data[fieldName])) {
