@@ -145,8 +145,7 @@ const router = createRouter({
     {
       path: '/documents/:documentId/review',
       name: ROUTE_NAMES.DOCUMENT_REVIEW,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'AI Document Review' },
+      component: () => import('@/pages/DocumentReviewPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

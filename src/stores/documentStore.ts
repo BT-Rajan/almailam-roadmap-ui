@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 
+import { aiService } from '@/services/aiService'
 import { documentService } from '@/services/documentService'
 import { projectService } from '@/services/projectService'
 import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, ProjectDocument } from '@/types/Document'
+import type { DocumentAIReview } from '@/types/AiReview'
 import type { Project } from '@/types/Project'
 
 interface DocumentStoreState {
@@ -10,9 +12,12 @@ interface DocumentStoreState {
   projects: Project[]
   currentDocument: ProjectDocument | undefined
   currentVersions: DocumentVersion[]
+  currentReview: DocumentAIReview | undefined
   isLoading: boolean
   isDetailLoading: boolean
+  isReviewLoading: boolean
   error: string | undefined
+  reviewError: string | undefined
   searchTerm: string
   typeFilter: DocumentType | 'All'
   statusFilter: DocumentStatus | 'All'
@@ -25,9 +30,12 @@ export const useDocumentStore = defineStore('document', {
     projects: [],
     currentDocument: undefined,
     currentVersions: [],
+    currentReview: undefined,
     isLoading: false,
     isDetailLoading: false,
+    isReviewLoading: false,
     error: undefined,
+    reviewError: undefined,
     searchTerm: '',
     typeFilter: 'All',
     statusFilter: 'All',
@@ -92,6 +100,18 @@ export const useDocumentStore = defineStore('document', {
         this.error = 'Unable to load document. Please try again.'
       } finally {
         this.isDetailLoading = false
+      }
+    },
+
+    async loadDocumentReview(documentId: string) {
+      this.isReviewLoading = true
+      this.reviewError = undefined
+      try {
+        this.currentReview = await aiService.getDocumentReview(documentId)
+      } catch {
+        this.reviewError = 'AI service is currently unavailable. Please try again later.'
+      } finally {
+        this.isReviewLoading = false
       }
     },
 

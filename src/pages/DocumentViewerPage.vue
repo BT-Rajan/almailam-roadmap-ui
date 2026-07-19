@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { MessageSquare } from '@lucide/vue'
+import { MessageSquare, Sparkles } from '@lucide/vue'
 import { computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -11,9 +12,11 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import MetadataPanel from '@/components/document/MetadataPanel.vue'
 import PDFViewer from '@/components/document/PDFViewer.vue'
 import VersionHistory from '@/components/document/VersionHistory.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
 
 const route = useRoute()
+const router = useRouter()
 const documentStore = useDocumentStore()
 
 const documentId = computed(() => route.params.documentId as string)
@@ -28,6 +31,10 @@ function loadData(): void {
 
 onMounted(loadData)
 watch(documentId, loadData)
+
+function openReview(): void {
+  router.push({ name: ROUTE_NAMES.DOCUMENT_REVIEW, params: { documentId: documentId.value } })
+}
 </script>
 
 <template>
@@ -35,7 +42,11 @@ watch(documentId, loadData)
     <PageHeader
       :title="documentStore.currentDocument?.title ?? 'Document Viewer'"
       :subtitle="documentStore.currentDocument ? `${documentStore.currentDocument.type} · ${documentStore.currentDocument.revision}` : undefined"
-    />
+    >
+      <template v-if="documentStore.currentDocument" #actions>
+        <BaseButton :icon="Sparkles" variant="secondary" @click="openReview">AI Review</BaseButton>
+      </template>
+    </PageHeader>
 
     <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="loadData" />
 
