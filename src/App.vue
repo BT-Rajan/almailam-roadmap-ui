@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
+import AIAssistantDrawer from '@/components/ai/AIAssistantDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -24,4 +25,5 @@ const layout = computed(() => {
   <ToastContainer />
   <NotificationDrawer />
   <CommandPalette />
+  <AIAssistantDrawer />
 </template>
