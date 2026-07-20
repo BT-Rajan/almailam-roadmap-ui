@@ -12,6 +12,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Primary application for new construction and major renovation permits.',
     requiredDocuments: ['Architectural Drawings', 'Title Deed', 'Structural Calculations', 'Site Survey'],
     lastUpdated: '2026-05-12',
+    previewUrl: '/forms/kuwait-municipality-forms.html#form-license',
   },
   {
     id: 'FORM-002',
@@ -96,5 +97,19 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Registers a commercial activity within an approved building for licensing.',
     requiredDocuments: ['Lease Contract', 'Civil ID Copy', 'Building Occupancy Certificate'],
     lastUpdated: '2026-04-05',
+  },
+  {
+    id: 'FORM-009',
+    authorityId: 'AUTH-001',
+    formCode: 'MUN-NC-01',
+    title: 'Neighbor Consent Form',
+    version: 'v1.0',
+    language: 'Arabic',
+    category: 'Building Permit',
+    description:
+      'Records neighboring plot owners\u2019 no-objection consent for boundary setbacks during a building permit application, certified by the area Mukhtar.',
+    requiredDocuments: ['Owner Civil ID', 'Neighbor Civil IDs', 'Ownership Documents'],
+    lastUpdated: '2026-06-30',
+    previewUrl: '/forms/kuwait-municipality-forms.html#form-consent',
   },
 ]

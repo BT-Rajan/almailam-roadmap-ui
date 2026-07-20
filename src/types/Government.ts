@@ -31,4 +31,5 @@ export interface GovernmentForm {
   description: string
   requiredDocuments: string[]
   lastUpdated: string
+  previewUrl?: string
 }

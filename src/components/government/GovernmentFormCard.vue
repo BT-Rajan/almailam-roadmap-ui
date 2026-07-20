@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Languages, Sparkles } from '@lucide/vue'
+import { CalendarClock, Eye, Languages, Pencil, Sparkles, Trash2 } from '@lucide/vue'
 import { computed } from 'vue'
 
 import Card from '@/components/common/Card.vue'
@@ -18,6 +18,8 @@ const props = defineProps<{
 
 defineEmits<{
   'ai-help': [form: GovernmentForm]
+  edit: [form: GovernmentForm]
+  delete: [form: GovernmentForm]
 }>()
 
 const authorityIcon = computed(() => (props.authority ? getAuthorityCategoryIcon(props.authority.category) : null))
@@ -25,6 +27,12 @@ const authorityName = computed(() => props.authority?.name ?? 'Unknown Authority
 
 const visibleDocuments = computed(() => props.form.requiredDocuments.slice(0, MAX_VISIBLE_DOCUMENTS))
 const remainingDocumentCount = computed(() => props.form.requiredDocuments.length - visibleDocuments.value.length)
+
+function openPreview(): void {
+  if (props.form.previewUrl) {
+    window.open(props.form.previewUrl, '_blank', 'noopener')
+  }
+}
 </script>
 
 <template>
@@ -62,14 +70,28 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
       </div>
     </div>
 
-    <div class="mt-4 flex items-center justify-between border-t border-border-light pt-3 text-xs text-neutral-500">
-      <div class="flex items-center gap-1.5">
-        <Languages class="h-3.5 w-3.5" />
-        <span>{{ form.language }}</span>
+    <div class="mt-4 flex items-center justify-between border-t border-border-light pt-3">
+      <div class="flex items-center gap-3 text-xs text-neutral-500">
+        <span class="flex items-center gap-1.5">
+          <Languages class="h-3.5 w-3.5" />
+          {{ form.language }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <CalendarClock class="h-3.5 w-3.5" />
+          Updated {{ formatDate(form.lastUpdated) }}
+        </span>
       </div>
-      <div class="flex items-center gap-1.5">
-        <CalendarClock class="h-3.5 w-3.5" />
-        <span>Updated {{ formatDate(form.lastUpdated) }}</span>
+      <div class="flex items-center gap-1">
+        <IconButton
+          v-if="form.previewUrl"
+          :icon="Eye"
+          label="Preview fillable form"
+          variant="ghost"
+          size="sm"
+          @click="openPreview"
+        />
+        <IconButton :icon="Pencil" label="Edit form" variant="ghost" size="sm" @click="$emit('edit', form)" />
+        <IconButton :icon="Trash2" label="Delete form" variant="ghost" size="sm" @click="$emit('delete', form)" />
       </div>
     </div>
   </Card>

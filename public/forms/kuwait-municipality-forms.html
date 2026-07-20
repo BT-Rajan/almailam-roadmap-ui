@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>نماذج بلدية الكويت - Kuwait Municipality Forms</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f0f2f7;
+            font-family: 'Noto Sans Arabic', 'Inter', -apple-system, sans-serif;
+            padding: 40px 24px;
+            color: #1a1a2e;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f1a3a;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .page-subtitle {
+            text-align: center;
+            color: #5a6a7e;
+            font-size: 15px;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #dce1ec;
+            padding-bottom: 20px;
+        }
+
+        /* ---- Form Card ---- */
+        .form-card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+            padding: 36px 40px;
+            margin-bottom: 48px;
+            border: 1px solid #e4e9f2;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .form-card:hover {
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .form-card .form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #eef2f8;
+        }
+
+        .form-card .form-header .title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-card .form-header .form-number {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8a4b2a;
+            background: #f7ede8;
+            padding: 2px 16px;
+            border-radius: 100px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .form-card .form-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f1a3a;
+        }
+
+        .form-card .form-header .meta-fields {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            background: #f8faff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid #e4e9f2;
+        }
+
+        .form-card .form-header .meta-fields .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .form-card .form-header .meta-fields .meta-item label {
+            font-weight: 600;
+            color: #3a4a5e;
+        }
+
+        .form-card .form-header .meta-fields .meta-item .value {
+            color: #1a2a3e;
+            border-bottom: 1px solid #c8d0dd;
+            min-width: 60px;
+            padding: 0 6px;
+        }
+
+        /* ---- Form Fields ---- */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 32px;
+            margin-bottom: 14px;
+        }
+
+        .form-row.three-col {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .form-row.four-col {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+
+        .form-row .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-row .field label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #3a4a5e;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-row .field label .hint {
+            font-weight: 400;
+            color: #7a8a9e;
+            font-size: 12px;
+        }
+
+        .form-row .field input,
+        .form-row .field select {
+            padding: 8px 12px;
+            border: 1px solid #d0d8e4;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #fafcff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .form-row .field input:focus,
+        .form-row .field select:focus {
+            border-color: #3a6ea5;
+            box-shadow: 0 0 0 3px rgba(58, 110, 165, 0.12);
+            outline: none;
+            background: #ffffff;
+        }
+
+        .form-row .field input::placeholder {
+            color: #aab4c6;
+            font-size: 13px;
+        }
+
+        .form-row .field .inline-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .form-row .field .inline-group input {
+            flex: 1;
+            min-width: 60px;
+        }
+
+        .form-row .field .inline-group .label-inline {
+            font-size: 13px;
+            color: #5a6a7e;
+            font-weight: 500;
+        }
+
+        /* ---- Table inside form ---- */
+        .form-table-wrapper {
+            margin: 20px 0 16px 0;
+            border: 1px solid #dce1ec;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .form-table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .form-table-wrapper table th {
+            background: #f4f7fc;
+            padding: 10px 14px;
+            text-align: center;
+            font-weight: 600;
+            color: #2a3a4e;
+            border-bottom: 2px solid #dce1ec;
+            font-size: 13px;
+        }
+
+        .form-table-wrapper table td {
+            padding: 8px 14px;
+            text-align: center;
+            border-bottom: 1px solid #e8ecf4;
+        }
+
+        .form-table-wrapper table td input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #dce1ec;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #fafcff;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .form-table-wrapper table td input:focus {
+            border-color: #3a6ea5;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(58, 110, 165, 0.10);
+            background: #ffffff;
+        }
+
+        .form-table-wrapper table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .form-table-wrapper table .table-label {
+            font-weight: 600;
+            color: #2a3a4e;
+            background: #fafcff;
+        }
+
+        /* ---- Setbacks ---- */
+        .setbacks-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 32px;
+            background: #f8faff;
+            padding: 16px 20px;
+            border-radius: 10px;
+            border: 1px solid #e4e9f2;
+            margin: 12px 0 16px 0;
+        }
+
+        .setbacks-grid .setback-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .setbacks-grid .setback-item label {
+            font-weight: 600;
+            color: #3a4a5e;
+            min-width: 70px;
+        }
+
+        .setbacks-grid .setback-item input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #d0d8e4;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #ffffff;
+        }
+
+        /* ---- Signature section ---- */
+        .signature-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 2px solid #eef2f8;
+        }
+
+        .signature-section .sig-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .signature-section .sig-block label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2a3a4e;
+        }
+
+        .signature-section .sig-block .sig-line {
+            border-bottom: 1px solid #b8c4d4;
+            padding: 8px 0 4px 0;
+            font-size: 14px;
+            color: #5a6a7e;
+            min-height: 40px;
+        }
+
+        .signature-section .sig-block .sig-line .placeholder {
+            color: #aab4c6;
+        }
+
+        /* ---- Neighbor Consent Form specific ---- */
+        .consent-table-wrapper {
+            margin: 18px 0 20px 0;
+            border: 1px solid #dce1ec;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .consent-table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .consent-table-wrapper table th {
+            background: #f4f7fc;
+            padding: 10px 12px;
+            text-align: center;
+            font-weight: 600;
+            color: #2a3a4e;
+            border-bottom: 2px solid #dce1ec;
+            font-size: 12px;
+        }
+
+        .consent-table-wrapper table td {
+            padding: 6px 10px;
+            text-align: center;
+            border-bottom: 1px solid #e8ecf4;
+        }
+
+        .consent-table-wrapper table td input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #dce1ec;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #fafcff;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .consent-table-wrapper table td input:focus {
+            border-color: #3a6ea5;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(58, 110, 165, 0.10);
+            background: #ffffff;
+        }
+
+        .consent-table-wrapper table .row-label {
+            font-weight: 600;
+            color: #2a3a4e;
+            background: #fafcff;
+            font-size: 13px;
+        }
+
+        .notes-list {
+            background: #f8faff;
+            padding: 18px 22px;
+            border-radius: 10px;
+            border: 1px solid #e4e9f2;
+            margin: 16px 0 10px 0;
+        }
+
+        .notes-list .note-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            color: #3a4a5e;
+            padding: 4px 0;
+        }
+
+        .notes-list .note-item .num {
+            font-weight: 700;
+            color: #8a4b2a;
+            min-width: 24px;
+        }
+
+        /* ---- Diagram placeholder ---- */
+        .diagram-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            padding: 16px 20px;
+            background: #f8faff;
+            border: 1px dashed #b8c4d4;
+            border-radius: 10px;
+            margin: 12px 0 16px 0;
+            font-size: 14px;
+            color: #5a6a7e;
+            flex-wrap: wrap;
+        }
+
+        .diagram-box .diagram-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .diagram-box .diagram-item .box {
+            border: 2px solid #4a6a8a;
+            padding: 10px 24px;
+            border-radius: 6px;
+            background: #ffffff;
+            font-weight: 600;
+            color: #0f1a3a;
+            font-size: 13px;
+        }
+
+        /* ---- Translation toggle ---- */
+        .lang-toggle {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .lang-toggle .badge {
+            background: #eef2f8;
+            padding: 2px 14px;
+            border-radius: 100px;
+            color: #5a6a7e;
+            font-weight: 500;
+        }
+
+        .lang-toggle .badge.en {
+            background: #2a4a6a;
+            color: #ffffff;
+        }
+
+        /* ---- Checkbox grid ---- */
+        .checkbox-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 28px;
+            padding: 10px 0;
+        }
+
+        .checkbox-grid label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #2a3a4e;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        .checkbox-grid label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #2a4a6a;
+            cursor: pointer;
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 820px) {
+            .form-card {
+                padding: 24px 18px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .form-row.three-col {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row.four-col {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .setbacks-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .signature-section {
+                grid-template-columns: 1fr;
+            }
+
+            .form-card .form-header {
+                flex-direction: column;
+            }
+
+            .form-card .form-header .meta-fields {
+                width: 100%;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .consent-table-wrapper {
+                overflow-x: auto;
+            }
+
+            .diagram-box {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px 10px;
+            }
+
+            .form-card {
+                padding: 16px 12px;
+            }
+
+            .form-row.four-col {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+        }
+
+        /* ---- Utility ---- */
+        .text-muted {
+            color: #7a8a9e;
+            font-size: 13px;
+        }
+
+        .mt-8 {
+            margin-top: 8px;
+        }
+
+        .mt-16 {
+            margin-top: 16px;
+        }
+
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+
+        .full-width {
+            width: 100%;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bilingual-hint {
+            font-size: 11px;
+            color: #8a9aaa;
+            font-weight: 400;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <h1 class="page-title">🇰🇼 نماذج بلدية الكويت</h1>
+        <p class="page-subtitle">Kuwait Municipality — Official Forms · عرض وتعبئة إلكترونية</p>
+
+        <!-- ========================================================= -->
+        <!-- FORM 1: APPLICATION FOR LICENSE (Page 9)                   -->
+        <!-- ========================================================= -->
+        <div class="form-card" id="form-license">
+            <div class="form-header">
+                <div class="title-group">
+                    <span class="form-number">نموذج رقم (1) · Form No. 1</span>
+                    <h2>طلب رخصة إنشاء</h2>
+                    <span class="text-muted" style="font-size:13px;">Application for Building License</span>
+                </div>
+                <div class="meta-fields">
+                    <div class="meta-item">
+                        <label>التاريخ / Date :</label>
+                        <span class="value">___ / ___ / _____</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>رقم الملف / File No. :</label>
+                        <span class="value">___ / ___</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Owner Info -->
+            <div class="form-row">
+                <div class="field">
+                    <label>اسم المالك / Owner's Name</label>
+                    <input type="text" placeholder="الاسم الكامل" />
+                </div>
+                <div class="field">
+                    <label>الرقم المدني / Civil ID <span class="hint">( )</span></label>
+                    <input type="text" placeholder="٠٠٠٠٠٠٠٠٠" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>عنوان المالك / Address <span class="hint">(طرف المكتب / at the office)</span></label>
+                    <input type="text" placeholder="العنوان" />
+                </div>
+                <div class="field">
+                    <label>تليفون المالك / Phone <span class="hint">(طرف المكتب / at the office)</span></label>
+                    <input type="text" placeholder="رقم الهاتف" />
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="field">
+                    <label>الغاية من استعمال البناء المطلوب إنشاءه / Purpose of Construction</label>
+                    <input type="text" placeholder="نوع الاستخدام" style="width:100%;" />
+                </div>
+            </div>
+
+            <!-- Location -->
+            <div class="form-row three-col">
+                <div class="field">
+                    <label>المحافظة / Governorate</label>
+                    <input type="text" placeholder="المحافظة" />
+                </div>
+                <div class="field">
+                    <label>المنطقة / Area</label>
+                    <input type="text" placeholder="المنطقة" />
+                </div>
+                <div class="field">
+                    <label>قطعة رقم / Block No.</label>
+                    <input type="text" placeholder="رقم القطعة" />
+                </div>
+            </div>
+            <div class="form-row four-col">
+                <div class="field">
+                    <label>شارع / Street</label>
+                    <input type="text" placeholder="رقم الشارع" />
+                </div>
+                <div class="field">
+                    <label>جادة / Avenue</label>
+                    <input type="text" placeholder="رقم الجادة" />
+                </div>
+                <div class="field">
+                    <label>مبنى / Building</label>
+                    <input type="text" placeholder="رقم المبنى" />
+                </div>
+                <div class="field">
+                    <label>المخطط التنظيمي / Zoning Plan</label>
+                    <input type="text" placeholder="رقم المخطط" />
+                </div>
+            </div>
+            <div class="form-row three-col">
+                <div class="field">
+                    <label>رقم القسيمة التنظيمي / Zoning Plot No.</label>
+                    <input type="text" placeholder="الرقم" />
+                </div>
+                <div class="field">
+                    <label>مخطط مساحي / Cadastral Plan</label>
+                    <input type="text" placeholder="رقم المخطط" />
+                </div>
+                <div class="field">
+                    <label>رقم القسيمة المساحي / Cadastral Plot No.</label>
+                    <input type="text" placeholder="الرقم" />
+                </div>
+            </div>
+            <div class="form-row three-col">
+                <div class="field">
+                    <label>سند ملكية / Title Deed</label>
+                    <input type="text" placeholder="رقم السند" />
+                </div>
+                <div class="field">
+                    <label>رقم / No.</label>
+                    <input type="text" placeholder="الرقم" />
+                </div>
+                <div class="field">
+                    <label>صادر بتاريخ / Issued on</label>
+                    <input type="text" placeholder="التاريخ" />
+                </div>
+            </div>
+            <div class="form-row three-col">
+                <div class="field">
+                    <label>مساحة القسيمة / Plot Area <span class="hint">(م²)</span></label>
+                    <input type="text" placeholder="المساحة" />
+                </div>
+                <div class="field">
+                    <label>عدد الأدوار / Number of Floors</label>
+                    <input type="text" placeholder="العدد" />
+                </div>
+                <div class="field">
+                    <label>الارتفاع الكلي / Total Height <span class="hint">(م)</span></label>
+                    <input type="text" placeholder="الارتفاع" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>الارتفاع المسموح به / Permitted Height <span class="hint">(م)</span></label>
+                    <input type="text" placeholder="الارتفاع المسموح" style="width:100%;" />
+                </div>
+            </div>
+
+            <!-- Floor Data Table -->
+            <div style="margin-top:12px; margin-bottom:4px;">
+                <label style="font-weight:600; font-size:15px; color:#0f1a3a;">بيانات الأدوار / Floor Data</label>
+            </div>
+            <div class="form-table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="min-width:100px;">البان / Floor</th>
+                            <th>المساحة (م²) / Area</th>
+                            <th>نسبة البناء (%) / Building Ratio</th>
+                            <th>الارتفاع المرخص (م) / Permitted Height</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="table-label">السرداب / Basement</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="table-label">الأرضي / Ground</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="table-label">الأول / First</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="table-label">الثاني / Second</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="table-label">الإجمالي / Total</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Setbacks -->
+            <div style="margin-top:12px; margin-bottom:4px;">
+                <label style="font-weight:600; font-size:15px; color:#0f1a3a;">الارتدادات / Setbacks</label>
+                <span class="text-muted" style="font-size:13px; margin-right:12px;">(الجهة / وصف الجهة / المسافة)</span>
+            </div>
+            <div class="setbacks-grid">
+                <div class="setback-item">
+                    <label>الشمالية / North</label>
+                    <input type="text" placeholder="ساحة / yard" style="flex:0.8;" />
+                    <span style="color:#5a6a7e;">ـم</span>
+                    <input type="text" placeholder="المسافة" style="flex:0.6;" />
+                </div>
+                <div class="setback-item">
+                    <label>الجنوبية / South</label>
+                    <input type="text" placeholder="شارع / street" style="flex:0.8;" />
+                    <span style="color:#5a6a7e;">ـم</span>
+                    <input type="text" placeholder="المسافة" style="flex:0.6;" />
+                </div>
+                <div class="setback-item">
+                    <label>الشرقية / East</label>
+                    <input type="text" placeholder="جار / neighbor" style="flex:0.8;" />
+                    <span style="color:#5a6a7e;">ـم</span>
+                    <input type="text" placeholder="المسافة" style="flex:0.6;" />
+                </div>
+                <div class="setback-item">
+                    <label>الغربية / West</label>
+                    <input type="text" placeholder="جار / neighbor" style="flex:0.8;" />
+                    <span style="color:#5a6a7e;">ـم</span>
+                    <input type="text" placeholder="المسافة" style="flex:0.6;" />
+                </div>
+            </div>
+
+            <!-- Basement height -->
+            <div class="form-row two-col">
+                <div class="field">
+                    <label>ارتفاع السرداب فوق حجر الرصيف المسموح / Permitted Basement Height Above Curb</label>
+                    <input type="text" placeholder="الارتفاع" />
+                </div>
+                <div class="field">
+                    <label>ارتفاع السرداب فوق حجر الرصيف / Basement Height Above Curb</label>
+                    <input type="text" placeholder="الارتفاع" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>النسبة المئوية لجميع الطوابق بعد الإضافة / Percentage of all floors after addition</label>
+                    <input type="text" placeholder="..." style="width:100%;" />
+                </div>
+            </div>
+
+            <!-- Approval -->
+            <div class="signature-section">
+                <div class="sig-block">
+                    <label>اعتماد المكتب الهندسي / Engineering Office Approval</label>
+                    <div class="sig-line">
+                        <span class="placeholder">............................</span>
+                    </div>
+                    <div style="display:flex; gap:20px; font-size:13px; color:#5a6a7e; margin-top:4px;">
+                        <span>التوقيع / Signature</span>
+                        <span>الختم / Stamp</span>
+                    </div>
+                </div>
+                <div class="sig-block">
+                    <label>تاريخ / Date</label>
+                    <div class="sig-line">
+                        <span class="placeholder">___ / ___ / _____</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- FORM 2: NEIGHBOR CONSENT FORM (Page 58)                    -->
+        <!-- ========================================================= -->
+        <div class="form-card" id="form-consent">
+            <div class="form-header">
+                <div class="title-group">
+                    <span class="form-number">نموذج موافقة الجار · Neighbor Consent Form</span>
+                    <h2>موافقة الجار</h2>
+                    <span class="text-muted" style="font-size:13px;">بموجب توقيع مختار المنطقة</span>
+                </div>
+                <div class="meta-fields">
+                    <div class="meta-item">
+                        <label>التاريخ / Date :</label>
+                        <span class="value">___ / ___ / _____</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Salutation -->
+            <div style="background:#f8faff; padding:12px 18px; border-radius:10px; border:1px solid #e4e9f2; margin-bottom:18px;">
+                <p style="font-size:15px; line-height:1.8; color:#1a2a3e;">
+                    <strong>السيد / مدير عام بلدية الكويت</strong> — تحية طيبة وبعد،،،
+                </p>
+                <p style="font-size:15px; line-height:1.8; color:#1a2a3e; margin-top:6px;">
+                    <strong>نموذج موافقة جار</strong>
+                </p>
+            </div>
+
+            <!-- Consent text -->
+            <div style="background:#fafcff; padding:14px 20px; border-radius:10px; border:1px solid #e4e9f2; margin-bottom:18px; line-height:1.9; font-size:14px; color:#1a2a3e;">
+                <p>
+                    أقر أنا الموقع أدناه بأنه لا مانع لدي من قيام جاري صاحب القسيمة رقم
+                    <input type="text" style="width:80px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    من المخطط المساحي رقم
+                    <input type="text" style="width:80px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="م/......" />
+                    الواقعة بمنطقة
+                    <input type="text" style="width:100px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    قطعة
+                    <input type="text" style="width:60px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    باسم السيد /
+                    <input type="text" style="width:120px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    بالبناء جهة قسيمتي
+                    <input type="text" style="width:80px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="(بارتداد/بدون ارتداد/بارتفاع)" />
+                    وقدره
+                    <input type="text" style="width:60px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    وذلك بالدور
+                    <input type="text" style="width:60px; display:inline; padding:2px 6px; border:1px solid #d0d8e4; border-radius:4px; font-size:13px;" placeholder="......" />
+                    على أن يقوم المذكور أعلاه بتكسية الواجهة المطلة من جهة الجيران بألوان تتناسب مع واجهة الجار شريطة عدم فتح أية شبابيك أو فتحات أخرى من جهة الجار.... وهذا للعلم.
+                </p>
+            </div>
+
+            <!-- Neighbor Table -->
+            <div style="margin-top:12px;">
+                <label style="font-weight:600; font-size:14px; color:#0f1a3a;">بيانات الجيران / Neighbor Data</label>
+            </div>
+            <div class="consent-table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="min-width:70px;">مكان الجار / Location</th>
+                            <th>الاسم / Name</th>
+                            <th>العنوان / Address</th>
+                            <th>رقم البطاقة / Civil ID</th>
+                            <th>التوقيع / Signature</th>
+                            <th>رقم الوثيقة / Document No.</th>
+                            <th>توقيع المختار / Mukhtar's Sig.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-label">القسيمة / Plot</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">القطعة / Block</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">جهة اليمين / Right</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">جهة اليسار / Left</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">جهة الخلف / Rear</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">جهة الأمام / Front</td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                            <td><input type="text" placeholder="..." /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Diagram -->
+            <div style="margin-top:14px;">
+                <label style="font-weight:600; font-size:14px; color:#0f1a3a;">رسم تخطيطي / Diagram</label>
+            </div>
+            <div class="diagram-box">
+                <div class="diagram-item">
+                    <span style="font-weight:600; color:#3a4a5e;">الخلف / Rear</span>
+                    <div class="box" style="border-color:#8a4b2a;">قسمية رقم ( )</div>
+                </div>
+                <div class="diagram-item">
+                    <span style="font-weight:600; color:#3a4a5e;">الجار اليمين / Right Neighbor</span>
+                    <div class="box" style="border-color:#2a6a4a;">شارع الخدمة / Service Street</div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div style="margin-top:18px;">
+                <label style="font-weight:600; font-size:14px; color:#0f1a3a;">ملاحظات / Notes</label>
+            </div>
+            <div class="notes-list">
+                <div class="note-item"><span class="num">1.</span> صورة البطاقة المدنية للمالك (صاحب العلاقة) / Copy of owner's Civil ID.</div>
+                <div class="note-item"><span class="num">2.</span> ارفاق البطاقات المدنية للجيران / Attach neighbors' Civil IDs.</div>
+                <div class="note-item"><span class="num">3.</span> يجب أن تصدق من قبل مختار المنطقة / Must be certified by the Mukhtar.</div>
+                <div class="note-item"><span class="num">4.</span> يخلى طرف البلدية تجاه توقيع الجيران على الموافقة المرفقة وتسند المسؤولية كاملة على مختار المنطقة / Municipality is absolved of responsibility; full responsibility on Mukhtar.</div>
+                <div class="note-item"><span class="num">5.</span> يجب حضور الجيران للتوقيع أمام المختار / Neighbors must sign before the Mukhtar.</div>
+                <div class="note-item"><span class="num">6.</span> يجب احضار صورة وثائق الملكية / Bring copy of ownership documents.</div>
+                <div class="note-item"><span class="num">7.</span> إذا كان البيت ملك ورثة فيجب احضار صورة من حصر الورثة – صورة الوكالة لمن يمثلهم / If owned by heirs, bring inheritance distribution and power of attorney.</div>
+            </div>
+
+            <!-- Signature -->
+            <div class="signature-section" style="margin-top:8px;">
+                <div class="sig-block">
+                    <label>المالك / Owner</label>
+                    <div class="sig-line">
+                        <span class="placeholder">............................</span>
+                    </div>
+                    <div style="display:flex; gap:20px; font-size:13px; color:#5a6a7e; margin-top:4px;">
+                        <span>التوقيع / Signature</span>
+                        <span>الختم / Stamp</span>
+                    </div>
+                </div>
+                <div class="sig-block">
+                    <label>مختار المنطقة / Mukhtar</label>
+                    <div class="sig-line">
+                        <span class="placeholder">............................</span>
+                    </div>
+                    <div style="display:flex; gap:20px; font-size:13px; color:#5a6a7e; margin-top:4px;">
+                        <span>التوقيع / Signature</span>
+                        <span>الختم / Stamp</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top:18px; padding-top:14px; border-top:1px solid #e4e9f2; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:12px; color:#7a8a9e;">
+                <span>مستند إلكتروني — نظام المراسلات الموحد</span>
+                <span>Electronic Document — Unified Correspondence System</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align:center; padding:20px 0 10px 0; border-top:1px solid #dce1ec; margin-top:12px;">
+            <p style="font-size:13px; color:#7a8a9e;">
+                نماذج بلدية الكويت — عرض تعبئة إلكتروني · Kuwait Municipality Forms — Digital Fillable Layout
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>
