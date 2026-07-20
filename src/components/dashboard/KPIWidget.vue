@@ -10,6 +10,10 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {})
 
+defineEmits<{
+  click: []
+}>()
+
 const trendIcon = computed(() => {
   const trend = props.kpi.trend
   if (!trend) return null
@@ -24,7 +28,7 @@ const trendColor = computed(() => {
 </script>
 
 <template>
-  <Card class="hover:shadow-medium transition-shadow">
+  <Card hoverable class="cursor-pointer" @click="$emit('click')">
     <div class="space-y-2">
       <p class="text-sm text-neutral-500">{{ kpi.label }}</p>
       <div class="flex items-baseline justify-between gap-2">

@@ -15,6 +15,9 @@ const props = withDefaults(defineProps<Props>(), {
   maxItems: 5,
 })
 
+defineEmits<{
+  'activity-click': [activity: Activity]
+}>()
 
 const displayedActivities = computed(() => props.activities.slice(0, props.maxItems))
 
@@ -54,7 +57,10 @@ const formatTime = (timestamp: string) => {
 
     <div class="space-y-0">
       <div v-for="(activity, index) in displayedActivities" :key="activity.id">
-        <div class="py-3 flex gap-3">
+        <div
+          class="py-3 flex gap-3 cursor-pointer rounded-lg px-2 -mx-2 transition-colors hover:bg-bg-hover"
+          @click="$emit('activity-click', activity)"
+        >
           <div
             v-if="activity.icon"
             class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm"

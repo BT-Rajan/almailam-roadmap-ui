@@ -315,6 +315,67 @@ const handleProjectClick = (projectId: string) => {
 const handleTaskClick = () => {
   router.push({ name: ROUTE_NAMES.MY_TASKS })
 }
+
+// KPI/Statistics cards link out to the page that best explains that
+// number — keyed by label since these mock summaries don't carry a
+// route of their own.
+const KPI_ROUTES: Record<string, string> = {
+  'Total Projects': ROUTE_NAMES.PROJECTS,
+  'Active Submissions': ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
+  Documents: ROUTE_NAMES.DOCUMENTS,
+  'Team Members': ROUTE_NAMES.ADMIN_USERS,
+}
+
+const STATISTIC_ROUTES: Record<string, string> = {
+  'On Time': ROUTE_NAMES.REPORT_PROJECT,
+  'Pending Review': ROUTE_NAMES.DOCUMENT_REVIEW,
+  'Completed This Month': ROUTE_NAMES.PROJECTS,
+}
+
+const DEADLINE_TYPE_ROUTES: Record<Deadline['type'], string> = {
+  submission: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
+  approval: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
+  review: ROUTE_NAMES.DOCUMENT_REVIEW,
+  delivery: ROUTE_NAMES.PROJECTS,
+}
+
+const ACTIVITY_TYPE_ROUTES: Partial<Record<Activity['type'], string>> = {
+  project: ROUTE_NAMES.PROJECTS,
+  document: ROUTE_NAMES.DOCUMENTS,
+  submission: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
+  task: ROUTE_NAMES.MY_TASKS,
+  // 'ai' has no dedicated insights page yet, so it's left unmapped —
+  // clicking it is a no-op rather than sending someone somewhere odd.
+}
+
+function handleKpiClick(label: string): void {
+  const routeName = KPI_ROUTES[label]
+  if (routeName) router.push({ name: routeName })
+}
+
+function handleStatisticClick(label: string): void {
+  const routeName = STATISTIC_ROUTES[label]
+  if (routeName) router.push({ name: routeName })
+}
+
+function handleDeadlineClick(deadlineId: string): void {
+  const deadline = deadlines.find((item) => item.id === deadlineId)
+  if (!deadline) return
+  router.push({ name: DEADLINE_TYPE_ROUTES[deadline.type] })
+}
+
+function handleDocumentClick(): void {
+  router.push({ name: ROUTE_NAMES.DOCUMENTS })
+}
+
+function handleActivityClick(activity: Activity): void {
+  const routeName = ACTIVITY_TYPE_ROUTES[activity.type]
+  if (routeName) router.push({ name: routeName })
+}
+
+function handleInsightClick(): void {
+  router.push({ name: ROUTE_NAMES.REPORT_EXECUTIVE })
+}
 </script>
 
 <template>
@@ -327,12 +388,12 @@ const handleTaskClick = () => {
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
-      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" />
+      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick(kpi.label)" />
     </div>
 
     <!-- Statistics Row -->
     <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
-      <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" />
+      <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick(stat.label)" />
     </div>
 
     <!-- Quick Actions -->
@@ -358,15 +419,15 @@ const handleTaskClick = () => {
     <div class="grid grid-cols-1 laptop:grid-cols-3 gap-6">
       <!-- Left Column: Activity and Tasks -->
       <div class="laptop:col-span-2 space-y-6">
-        <ActivityWidget :activities="activities" />
+        <ActivityWidget :activities="activities" @activity-click="handleActivityClick" />
         <PendingTasksWidget :tasks="tasks" @task-click="handleTaskClick" />
       </div>
 
       <!-- Right Column: Deadlines, Documents, and AI -->
       <div class="space-y-6">
-        <UpcomingDeadlinesWidget :deadlines="deadlines" />
-        <RecentDocumentsWidget :documents="documents" />
-        <AIInsightWidget :insights="insights" />
+        <UpcomingDeadlinesWidget :deadlines="deadlines" @deadline-click="handleDeadlineClick" />
+        <RecentDocumentsWidget :documents="documents" @document-click="handleDocumentClick" />
+        <AIInsightWidget :insights="insights" @insight-click="handleInsightClick" @action-click="handleInsightClick" />
       </div>
     </div>
   </div>

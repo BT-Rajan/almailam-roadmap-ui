@@ -9,6 +9,10 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {})
 
+defineEmits<{
+  click: []
+}>()
+
 
 const bgColor = computed(() => {
   const colors: Record<string, string> = {
@@ -34,7 +38,7 @@ const textColor = computed(() => {
 </script>
 
 <template>
-  <Card class="hover:shadow-medium transition-shadow">
+  <Card hoverable class="cursor-pointer" @click="$emit('click')">
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 space-y-2">
         <p class="text-xs uppercase tracking-wide text-neutral-500 font-medium">
