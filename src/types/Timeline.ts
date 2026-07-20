@@ -1,4 +1,4 @@
-export type TimelineEventType = 'stage' | 'document' | 'quotation' | 'submission' | 'milestone' | 'task'
+export type TimelineEventType = 'stage' | 'document' | 'quotation' | 'submission' | 'milestone' | 'task' | 'note'
 
 export type TimelineEventStatus = 'completed' | 'in-progress' | 'upcoming'
 

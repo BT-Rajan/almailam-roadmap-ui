@@ -31,5 +31,16 @@ export const useTimelineStore = defineStore('timeline', {
         this.isLoading = false
       }
     },
+
+    addEvent(event: TimelineEvent) {
+      this.events = [...this.events, event].sort((a, b) => a.date.localeCompare(b.date))
+    },
+
+    updateEvent(eventId: string, updates: Partial<Pick<TimelineEvent, 'title' | 'description' | 'status' | 'date'>>) {
+      const event = this.events.find((item) => item.id === eventId)
+      if (!event) return
+      Object.assign(event, updates)
+      this.events = [...this.events].sort((a, b) => a.date.localeCompare(b.date))
+    },
   },
 })

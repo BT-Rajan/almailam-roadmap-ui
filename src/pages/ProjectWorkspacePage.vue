@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Building2, Calendar, Layers, MessageSquare, Printer, Upload, User } from '@lucide/vue'
+import { Building2, Calendar, Layers, MessageSquare, Plus, Printer, Upload, User } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -18,6 +18,7 @@ import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
+import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
@@ -39,6 +40,7 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import type { ProjectDocument } from '@/types/Document'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { TaskPriority, TaskStatus } from '@/types/Task'
+import type { TimelineEvent } from '@/types/Timeline'
 import { formatDate } from '@/utils/dateFormatter'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 
@@ -68,6 +70,8 @@ const TABS: ProjectWorkspaceTab[] = [
 ]
 
 const isDocumentUploadOpen = ref(false)
+const isTimelineDialogOpen = ref(false)
+const editingTimelineEvent = ref<TimelineEvent | undefined>(undefined)
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isSubmissionDrawerOpen = ref(false)
 
@@ -127,6 +131,29 @@ function handleTaskPriorityChange(priority: TaskPriority): void {
 
 function handleTaskReassign(assignee: string): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+}
+
+function openAddTimelineEntry(): void {
+  editingTimelineEvent.value = undefined
+  isTimelineDialogOpen.value = true
+}
+
+function openEditTimelineEntry(event: TimelineEvent): void {
+  editingTimelineEvent.value = event
+  isTimelineDialogOpen.value = true
+}
+
+function handleTimelineSave(event: TimelineEvent): void {
+  if (editingTimelineEvent.value) {
+    timelineStore.updateEvent(event.id, {
+      title: event.title,
+      description: event.description,
+      status: event.status,
+      date: event.date,
+    })
+  } else {
+    timelineStore.addEvent(event)
+  }
 }
 
 function handleDocumentUpload(document: ProjectDocument): void {
@@ -260,7 +287,12 @@ function handlePrint(): void {
       </template>
 
       <template v-else-if="activeTab === 'timeline'">
-        <ProjectTimeline :events="timelineStore.events" />
+        <div class="flex items-center justify-end">
+          <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="openAddTimelineEntry">
+            Add Update
+          </BaseButton>
+        </div>
+        <ProjectTimeline :events="timelineStore.events" editable @edit="openEditTimelineEntry" />
       </template>
 
       <template v-else-if="activeTab === 'quotation'">
@@ -494,8 +526,20 @@ function handlePrint(): void {
       </template>
 
       <template v-else-if="activeTab === 'activity'">
-        <ProjectTimeline :events="activityEvents" />
+        <div class="flex items-center justify-end">
+          <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="openAddTimelineEntry">
+            Add Update
+          </BaseButton>
+        </div>
+        <ProjectTimeline :events="activityEvents" editable @edit="openEditTimelineEntry" />
       </template>
+
+      <TimelineEntryDialog
+        v-model="isTimelineDialogOpen"
+        :project-id="projectId"
+        :event="editingTimelineEvent"
+        @save="handleTimelineSave"
+      />
     </template>
   </div>
 </template>

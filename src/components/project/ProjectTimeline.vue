@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { Pencil } from '@lucide/vue'
+
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { TimelineEvent, TimelineEventStatus } from '@/types/Timeline'
 import { formatDate } from '@/utils/dateFormatter'
@@ -8,9 +11,16 @@ import { getTimelineEventIcon, getTimelineStatusLabel, getTimelineStatusVariant 
 
 interface Props {
   events: TimelineEvent[]
+  editable?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  editable: false,
+})
+
+defineEmits<{
+  edit: [event: TimelineEvent]
+}>()
 
 const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
   completed: 'border-primary-500 bg-primary-500 text-white',
@@ -27,7 +37,7 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
       description="Activity for this project will appear here as it happens."
     />
     <ol v-else class="flex flex-col">
-      <li v-for="(event, index) in events" :key="event.id" class="flex gap-4">
+      <li v-for="(event, index) in events" :key="event.id" class="group flex gap-4">
         <div class="flex flex-col items-center">
           <div
             class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2"
@@ -44,6 +54,14 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
               :label="getTimelineStatusLabel(event.status)"
               :variant="getTimelineStatusVariant(event.status)"
               size="sm"
+            />
+            <IconButton
+              v-if="editable"
+              :icon="Pencil"
+              label="Edit this update"
+              size="sm"
+              class="opacity-0 transition-opacity duration-fast no-print group-hover:opacity-100"
+              @click="$emit('edit', event)"
             />
           </div>
           <p v-if="event.description" class="mt-0.5 text-sm text-neutral-500">{{ event.description }}</p>
