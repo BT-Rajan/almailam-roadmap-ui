@@ -1,0 +1,41 @@
+import type { FinancialAgreement } from '@/types/Payment'
+
+export const FINANCIAL_AGREEMENTS: FinancialAgreement[] = [
+  {
+    id: 'FA-001',
+    projectId: 'PRJ-2026-001',
+    contractAmount: 120000,
+    currency: 'KWD',
+    contractStartDate: '2026-01-01',
+    contractEndDate: '2026-12-01',
+    agreementDate: '2025-12-20',
+    quotationReference: 'QTN-2025-014',
+    contractReference: 'CNT-2026-001',
+    paymentMode: 'Bank Transfer',
+    paymentFrequency: 'Monthly',
+  },
+  {
+    id: 'FA-002',
+    projectId: 'PRJ-2026-002',
+    contractAmount: 45000,
+    currency: 'KWD',
+    contractStartDate: '2026-02-01',
+    contractEndDate: '2026-08-01',
+    agreementDate: '2026-01-15',
+    quotationReference: 'QTN-2025-021',
+    contractReference: 'CNT-2026-002',
+    paymentMode: 'Cheque',
+    paymentFrequency: 'Quarterly',
+  },
+  {
+    id: 'FA-003',
+    projectId: 'PRJ-2026-004',
+    contractAmount: 18000,
+    currency: 'KWD',
+    contractStartDate: '2026-03-01',
+    agreementDate: '2026-02-25',
+    contractReference: 'CNT-2026-004',
+    paymentMode: 'Online Payment',
+    paymentFrequency: 'One-time',
+  },
+]

@@ -27,5 +27,6 @@ export const ROUTE_NAMES = {
   ADMIN_COMPANY: 'admin-company',
   CUSTOMER_STATUS: 'customer-status',
   MESSAGE_CENTRE: 'message-centre',
+  PAYMENTS: 'payments',
   NOT_FOUND: 'not-found',
 } as const

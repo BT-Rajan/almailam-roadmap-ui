@@ -362,6 +362,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/payments',
+      name: ROUTE_NAMES.PAYMENTS,
+      component: () => import('@/pages/PaymentsPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Payments' }],
+      },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: ROUTE_NAMES.NOT_FOUND,
       component: () => import('@/pages/PlaceholderPage.vue'),

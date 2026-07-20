@@ -11,6 +11,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
     icon: 'Landmark',
     matchPath: '/government',
   },
+  { label: 'Payments', routeName: ROUTE_NAMES.PAYMENTS, icon: 'Wallet', matchPath: '/payments' },
   { label: 'Documents', routeName: ROUTE_NAMES.DOCUMENTS, icon: 'FileText', matchPath: '/documents' },
   { label: 'Tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
   { label: 'Reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },

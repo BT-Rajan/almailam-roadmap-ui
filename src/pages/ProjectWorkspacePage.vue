@@ -16,6 +16,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import ContractList from '@/components/project/ContractList.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
+import PaymentWorkspacePanel from '@/components/payment/PaymentWorkspacePanel.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
@@ -33,6 +34,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useTaskStore } from '@/stores/taskStore'
@@ -52,10 +54,15 @@ const timelineStore = useTimelineStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
+const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
 
 const projectId = computed(() => route.params.projectId as string)
-const activeTab = ref<ProjectWorkspaceTabKey>('overview')
+
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'timeline', 'documents', 'design', 'government', 'quotation', 'contract', 'payments', 'tasks', 'activity']
+const queryTab = route.query.tab
+const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
+const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
@@ -65,6 +72,7 @@ const TABS: ProjectWorkspaceTab[] = [
   { key: 'government', label: 'Government' },
   { key: 'quotation', label: 'Quotation' },
   { key: 'contract', label: 'Contract' },
+  { key: 'payments', label: 'Payments' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'activity', label: 'Activity' },
 ]
@@ -201,6 +209,9 @@ const clientDetailItems = computed(() => {
 async function loadData(): Promise<void> {
   if (projectStore.projects.length === 0) {
     await projectStore.loadProjects()
+  }
+  if (paymentStore.agreements.length === 0) {
+    await paymentStore.loadAll()
   }
   await Promise.all([
     quotationStore.loadQuotationsForProject(projectId.value),
@@ -541,6 +552,10 @@ function handlePrint(): void {
           </BaseButton>
         </div>
         <ProjectTimeline :events="activityEvents" editable @edit="openEditTimelineEntry" />
+      </template>
+
+      <template v-else-if="activeTab === 'payments'">
+        <PaymentWorkspacePanel :project-id="projectId" />
       </template>
 
       <TimelineEntryDialog
