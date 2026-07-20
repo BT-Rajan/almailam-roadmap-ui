@@ -1,0 +1,63 @@
+import type { ClientVerification } from '@/types/Client'
+
+export const CLIENT_VERIFICATIONS: ClientVerification[] = [
+  {
+    id: 'VER-001',
+    clientId: 'CLT-001',
+    item: 'Trade licence review',
+    result: 'Verified',
+    verifiedBy: 'Mona Al Zaabi',
+    verifiedDate: '2024-02-12',
+    notes: 'Trade licence confirmed against Abu Dhabi DED registry.',
+  },
+  {
+    id: 'VER-002',
+    clientId: 'CLT-001',
+    item: 'Authorised representative review',
+    result: 'Verified',
+    verifiedBy: 'Mona Al Zaabi',
+    verifiedDate: '2024-02-12',
+  },
+  {
+    id: 'VER-003',
+    clientId: 'CLT-002',
+    item: 'Trade licence review',
+    result: 'Verified',
+    verifiedBy: 'Rashid Al Marzooqi',
+    verifiedDate: '2024-03-24',
+  },
+  {
+    id: 'VER-004',
+    clientId: 'CLT-003',
+    item: 'Representative authorisation review',
+    result: 'Pending',
+    verifiedBy: 'Unassigned',
+    verifiedDate: '2025-01-08',
+    notes: 'Awaiting board resolution confirmation.',
+  },
+  {
+    id: 'VER-005',
+    clientId: 'CLT-004',
+    item: 'Trade licence review',
+    result: 'Verified',
+    verifiedBy: 'Mona Al Zaabi',
+    verifiedDate: '2023-11-05',
+  },
+  {
+    id: 'VER-006',
+    clientId: 'CLT-006',
+    item: 'Identity document review',
+    result: 'Verified',
+    verifiedBy: 'Rashid Al Marzooqi',
+    verifiedDate: '2025-04-17',
+  },
+  {
+    id: 'VER-007',
+    clientId: 'CLT-008',
+    item: 'Establishment order review',
+    result: 'Pending',
+    verifiedBy: 'Unassigned',
+    verifiedDate: '2025-05-19',
+    notes: 'Manual review scheduled with Government Center liaison.',
+  },
+]
