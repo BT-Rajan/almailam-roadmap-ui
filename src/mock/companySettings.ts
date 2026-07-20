@@ -14,7 +14,7 @@ export const COMPANY_SETTINGS: CompanySettings = {
   defaultLanguage: 'English',
   timezone: 'Asia/Dubai (GST, UTC+4)',
   dateFormat: 'DD/MM/YYYY',
-  currency: 'AED',
+  currency: 'KWD',
   defaultPaymentTermsDays: 30,
   defaultQuotationValidityDays: 15,
 }

@@ -23,9 +23,9 @@ const project = {
   endDate: '2026-10-05',
   progress: 42,
   budget: {
-    allocated: 2400000,
-    spent: 1008000,
-    currency: 'AED',
+    allocated: 720000,
+    spent: 302400,
+    currency: 'KWD',
   },
   team: {
     assigned: 4,
@@ -138,7 +138,7 @@ const goBack = () => {
         </div>
         <div>
           <p class="text-xs text-neutral-600 uppercase font-medium">Budget Allocated</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">AED {{ (project.budget.allocated / 1000000).toFixed(2) }}M</p>
+          <p class="text-sm font-medium text-neutral-900 mt-2">KD {{ project.budget.allocated.toLocaleString() }}</p>
         </div>
       </div>
     </Card>
@@ -205,7 +205,7 @@ const goBack = () => {
             <span class="text-lg">⚠</span>
             <div class="flex-1">
               <h3 class="font-semibold text-warning-900">Budget Contingency Low</h3>
-              <p class="text-sm text-warning-800 mt-1">65% of budget spent with 35% of work remaining. Monitor Phase 3 expenditure closely.</p>
+              <p class="text-sm text-warning-800 mt-1">42% of budget spent with 58% of work remaining. Monitor Phase 3 expenditure closely.</p>
             </div>
           </div>
         </div>
@@ -219,15 +219,15 @@ const goBack = () => {
           <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Budget Allocated</span>
-              <span class="font-medium">AED {{ (project.budget.allocated / 1000000).toFixed(2) }}M</span>
+              <span class="font-medium">KD {{ project.budget.allocated.toLocaleString() }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Amount Spent</span>
-              <span class="font-medium text-danger-600">AED {{ (project.budget.spent / 1000000).toFixed(2) }}M</span>
+              <span class="font-medium text-danger-600">KD {{ project.budget.spent.toLocaleString() }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Remaining</span>
-              <span class="font-medium text-success-600">AED {{ ((project.budget.allocated - project.budget.spent) / 1000000).toFixed(2) }}M</span>
+              <span class="font-medium text-success-600">KD {{ (project.budget.allocated - project.budget.spent).toLocaleString() }}</span>
             </div>
           </div>
           <div class="h-2 bg-neutral-200 rounded-full overflow-hidden">
