@@ -42,6 +42,7 @@ const COLUMNS: SmartTableColumn<AgreementTableRow>[] = [
   { key: 'totalPending', label: 'Pending', align: 'right', sortable: true },
   { key: 'totalOverdue', label: 'Overdue', align: 'right', sortable: true },
   { key: 'nextPaymentAmount', label: 'Next Payment', align: 'right' },
+  { key: 'nextPaymentDate', label: 'Next Payment Date' },
   { key: 'nextPaymentStatus', label: 'Status' },
 ]
 
@@ -119,7 +120,19 @@ onMounted(loadData)
         {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
       </template>
       <template #cell-totalOverdue="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+        <span :class="(value as number) > 0 ? 'font-semibold text-danger-600' : ''">
+          {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+        </span>
+      </template>
+      <template #cell-nextPaymentAmount="{ row }">
+        <span :class="(row as AgreementTableRow).nextPaymentStatus === 'Overdue' ? 'font-semibold text-danger-600' : ''">
+          {{ (row as AgreementTableRow).nextPaymentAmount }}
+        </span>
+      </template>
+      <template #cell-nextPaymentDate="{ row }">
+        <span :class="(row as AgreementTableRow).nextPaymentStatus === 'Overdue' ? 'font-semibold text-danger-600' : ''">
+          {{ (row as AgreementTableRow).nextPaymentDate }}
+        </span>
       </template>
       <template #cell-nextPaymentStatus="{ value }">
         <StatusBadge :label="value as string" :variant="getObligationStatusVariant(value as ObligationStatus)" />

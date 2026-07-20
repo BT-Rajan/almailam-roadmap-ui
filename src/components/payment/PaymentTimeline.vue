@@ -66,6 +66,10 @@ function getObligation(row: ObligationRow): PaymentObligation | undefined {
 function isSettled(status: string): boolean {
   return status === 'Paid' || status === 'Cancelled' || status === 'Waived'
 }
+
+function isOverdueRow(status: string): boolean {
+  return status === 'Overdue' || status === 'Partially Overdue'
+}
 </script>
 
 <template>
@@ -75,14 +79,19 @@ function isSettled(status: string): boolean {
     </template>
 
     <SmartTable :columns="COLUMNS" :rows="rows" row-key="id" :searchable="false">
+      <template #cell-dueDate="{ row, value }">
+        <span :class="isOverdueRow((row as ObligationRow).status) ? 'font-semibold text-danger-600' : ''">{{ value }}</span>
+      </template>
       <template #cell-amountDue="{ value }">
         {{ formatCurrency(value as number, currency) }}
       </template>
       <template #cell-amountReceived="{ value }">
         {{ formatCurrency(value as number, currency) }}
       </template>
-      <template #cell-amountPending="{ value }">
-        {{ formatCurrency(value as number, currency) }}
+      <template #cell-amountPending="{ row, value }">
+        <span :class="isOverdueRow((row as ObligationRow).status) ? 'font-semibold text-danger-600' : ''">
+          {{ formatCurrency(value as number, currency) }}
+        </span>
       </template>
       <template #cell-status="{ value }">
         <StatusBadge :label="value as string" :variant="getObligationStatusVariant(value as ObligationStatus)" />
