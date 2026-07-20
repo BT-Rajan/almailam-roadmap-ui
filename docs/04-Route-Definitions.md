@@ -100,6 +100,16 @@ Administration
 
 ---
 
+## Clients
+
+| Route | Page |
+|--------|------|
+| `/clients` | Client Explorer |
+| `/clients/new` | New Client Onboarding Wizard |
+| `/clients/:clientId` | Client Workspace |
+
+---
+
 ## Project Workspace Tabs
 
 Tabs remain within the same page.
@@ -332,6 +342,9 @@ Configuration
 | `/dashboard` | Dashboard |
 | `/projects` | Dashboard > Projects |
 | `/projects/:projectId` | Dashboard > Projects > Project |
+| `/clients` | Dashboard > Clients |
+| `/clients/new` | Dashboard > Clients > New Client |
+| `/clients/:clientId` | Dashboard > Clients > Client |
 | `/government/forms` | Dashboard > Government Center > Forms |
 | `/government/submissions` | Dashboard > Government Center > Submissions |
 | `/documents` | Dashboard > Documents |
@@ -358,6 +371,8 @@ Example
 |----------------|------------|
 | `/projects` | `/api/projects` |
 | `/projects/:projectId` | `/api/projects/{id}` |
+| `/clients` | `/api/clients` |
+| `/clients/:clientId` | `/api/clients/{id}` |
 | `/documents` | `/api/documents` |
 | `/government/forms` | `/api/forms` |
 | `/tasks` | `/api/tasks` |
@@ -403,6 +418,9 @@ Never use
 | projects | `/projects` |
 | project-new | `/projects/new` |
 | project-workspace | `/projects/:projectId` |
+| clients | `/clients` |
+| client-new | `/clients/new` |
+| client-workspace | `/clients/:clientId` |
 | government-forms | `/government/forms` |
 | government-authorities | `/government/authorities` |
 | government-submissions | `/government/submissions` |

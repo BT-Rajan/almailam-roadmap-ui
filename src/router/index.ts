@@ -77,6 +77,44 @@ const router = createRouter({
       },
     },
     {
+      path: '/clients',
+      name: ROUTE_NAMES.CLIENTS,
+      component: () => import('@/pages/ClientsPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Clients' }],
+      },
+    },
+    {
+      path: '/clients/new',
+      name: ROUTE_NAMES.CLIENT_NEW,
+      component: () => import('@/pages/NewClientWizardPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Clients', routeName: ROUTE_NAMES.CLIENTS },
+          { label: 'New Client' },
+        ],
+      },
+    },
+    {
+      path: '/clients/:clientId',
+      name: ROUTE_NAMES.CLIENT_WORKSPACE,
+      component: () => import('@/pages/ClientWorkspacePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Clients', routeName: ROUTE_NAMES.CLIENTS },
+          { label: 'Client' },
+        ],
+      },
+    },
+    {
       path: '/government/forms',
       name: ROUTE_NAMES.GOVERNMENT_FORMS,
       component: () => import('@/pages/GovernmentFormsPage.vue'),

@@ -42,6 +42,10 @@ PASS 11
 New Project Wizard
 Multi-step project creation with reusable form components.
 
+PASS 11A
+Client Onboarding
+Reusable client profiles (individual, company, organisation, government entity), contacts, addresses, identification, client-level documents, configurable onboarding requirements, verification records, consent capture, communication preferences, duplicate detection and full audit trail. Integrated with Project creation and the Project Workspace.
+
 PASS 12
 Project Workspace
 Project header, workflow, overview, reusable project information panels.

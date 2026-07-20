@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -154,14 +154,19 @@ async function submitWizard(): Promise<void> {
           description="Choose the client this engagement is for and the service being delivered."
         >
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <SelectBox
-              v-model="form.clientId"
-              label="Client"
-              placeholder="Select a client"
-              required
-              :options="clientOptions"
-              :error="errors.clientId"
-            />
+            <div class="flex flex-col gap-1.5">
+              <SelectBox
+                v-model="form.clientId"
+                label="Client"
+                placeholder="Select a client"
+                required
+                :options="clientOptions"
+                :error="errors.clientId"
+              />
+              <RouterLink :to="{ name: ROUTE_NAMES.CLIENT_NEW }" class="self-start text-xs font-medium text-primary-600 hover:text-primary-700">
+                + Onboard a new client
+              </RouterLink>
+            </div>
             <SelectBox
               v-model="form.service"
               label="Service"

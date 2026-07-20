@@ -159,6 +159,14 @@ export const useClientStore = defineStore('client', {
       this.contacts = [...this.contacts, contact]
     },
 
+    addAddress(address: ClientAddress) {
+      this.addresses = [...this.addresses, address]
+    },
+
+    addIdentification(identification: ClientIdentification) {
+      this.identifications = [...this.identifications, identification]
+    },
+
     addDocument(document: ClientDocument) {
       this.documents = [document, ...this.documents]
     },
@@ -172,6 +180,10 @@ export const useClientStore = defineStore('client', {
       this.typeFilter = 'All'
       this.statusFilter = 'All'
       this.onboardingFilter = 'All'
+    },
+
+    async findDuplicates(name: string, mobile: string, email: string) {
+      return clientService.findPossibleDuplicates(name, mobile, email)
     },
   },
 })

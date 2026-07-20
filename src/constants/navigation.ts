@@ -3,6 +3,7 @@ import type { NavItem } from '@/types/Navigation'
 
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD, icon: 'LayoutDashboard', matchPath: '/dashboard' },
+  { label: 'Clients', routeName: ROUTE_NAMES.CLIENTS, icon: 'Users', matchPath: '/clients' },
   { label: 'Projects', routeName: ROUTE_NAMES.PROJECTS, icon: 'FolderKanban', matchPath: '/projects' },
   {
     label: 'Government Center',

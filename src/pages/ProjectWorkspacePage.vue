@@ -272,16 +272,25 @@ function handlePrint(): void {
           <DetailPanel title="Project Details" :items="projectDetailItems" />
           <div class="flex flex-col gap-3">
             <DetailPanel title="Client Details" :items="clientDetailItems" />
-            <BaseButton
-              v-if="client"
-              variant="secondary"
-              size="sm"
-              :icon="MessageSquare"
-              class="no-print self-start"
-              @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
-            >
-              Message Client
-            </BaseButton>
+            <div class="flex gap-2 no-print">
+              <BaseButton
+                v-if="client"
+                variant="secondary"
+                size="sm"
+                :icon="MessageSquare"
+                @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
+              >
+                Message Client
+              </BaseButton>
+              <BaseButton
+                v-if="client"
+                variant="ghost"
+                size="sm"
+                @click="router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })"
+              >
+                View Full Profile
+              </BaseButton>
+            </div>
           </div>
         </div>
       </template>
