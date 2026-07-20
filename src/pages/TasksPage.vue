@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { Plus } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -11,15 +12,20 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskDetails from '@/components/task/TaskDetails.vue'
+import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { TEAM_MEMBERS } from '@/constants/team'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import type { TaskInput } from '@/services/taskService'
 import { useTaskStore } from '@/stores/taskStore'
+import { useToastStore } from '@/stores/toastStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
-import type { TaskPriority, TaskStatus } from '@/types/Task'
+import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
 const router = useRouter()
 const taskStore = useTaskStore()
+const toastStore = useToastStore()
+const isCreateDialogOpen = ref(false)
 
 const PRIORITY_OPTIONS: SelectOption[] = [
   { label: 'All Priorities', value: 'All' },
@@ -76,8 +82,17 @@ function handlePriorityChange(priority: TaskPriority): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
 }
 
+function handleSeverityChange(severity: TaskSeverity): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+}
+
 function handleReassign(assignee: string): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+}
+
+async function handleCreateTask(input: TaskInput): Promise<void> {
+  const task = await taskStore.createTask(input)
+  toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
 }
 </script>
 
@@ -88,6 +103,7 @@ function handleReassign(assignee: string): void {
         <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.MY_TASKS })">
           My Tasks
         </BaseButton>
+        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">Add Task</BaseButton>
       </template>
     </PageHeader>
 
@@ -146,8 +162,15 @@ function handleReassign(assignee: string): void {
         :project-name="selectedTaskProjectName"
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
+        @severity-change="handleSeverityChange"
         @reassign="handleReassign"
       />
     </BaseDrawer>
+
+    <TaskFormDialog
+      v-model="isCreateDialogOpen"
+      :projects="taskStore.projects"
+      @create="handleCreateTask"
+    />
   </div>
 </template>

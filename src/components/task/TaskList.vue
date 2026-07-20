@@ -4,9 +4,9 @@ import { ListChecks } from '@lucide/vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
+import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
-import { formatDate } from '@/utils/dateFormatter'
-import { isTaskOverdue } from '@/utils/taskHelpers'
+import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Project } from '@/types/Project'
 import type { Task } from '@/types/Task'
 
@@ -47,12 +47,13 @@ function projectName(projectId: string): string {
 
           <div class="flex shrink-0 items-center gap-3">
             <TaskPriorityBadge :priority="task.priority" />
+            <TaskSeverityBadge :severity="task.severity" />
             <TaskStatusBadge :status="task.status" />
             <span
-              class="w-20 text-right text-xs font-medium"
+              class="w-32 text-right text-xs font-medium"
               :class="isTaskOverdue(task) ? 'text-danger-700' : 'text-neutral-400'"
             >
-              {{ formatDate(task.dueDate) }}
+              {{ formatTaskDueDateTime(task) }}
             </span>
           </div>
         </button>

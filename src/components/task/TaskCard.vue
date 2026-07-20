@@ -5,8 +5,8 @@ import { computed } from 'vue'
 import Avatar from '@/components/common/Avatar.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
-import { getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
-import { formatDate } from '@/utils/dateFormatter'
+import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
+import { formatTaskDueDateTime, getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Task } from '@/types/Task'
 
 const props = defineProps<{
@@ -30,7 +30,10 @@ const nextStatus = computed(() => getNextTaskStatus(props.task.status))
   >
     <div class="flex items-start justify-between gap-2">
       <p class="text-sm font-semibold leading-snug text-neutral-800">{{ task.title }}</p>
-      <TaskPriorityBadge :priority="task.priority" />
+      <div class="flex shrink-0 items-center gap-1">
+        <TaskPriorityBadge :priority="task.priority" />
+        <TaskSeverityBadge :severity="task.severity" />
+      </div>
     </div>
 
     <p class="truncate text-xs text-neutral-500">{{ projectName }}</p>
@@ -42,7 +45,7 @@ const nextStatus = computed(() => getNextTaskStatus(props.task.status))
       </div>
 
       <span class="text-xs font-medium" :class="overdue ? 'text-danger-700' : 'text-neutral-400'">
-        {{ formatDate(task.dueDate) }}
+        {{ formatTaskDueDateTime(task) }}
       </span>
     </div>
 

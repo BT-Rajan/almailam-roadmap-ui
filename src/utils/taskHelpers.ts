@@ -1,10 +1,17 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { Task, TaskPriority, TaskStatus } from '@/types/Task'
+import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
+import { formatDateTime } from '@/utils/dateFormatter'
 
 const PRIORITY_VARIANTS: Record<TaskPriority, BadgeVariant> = {
   High: 'danger',
   Medium: 'warning',
   Low: 'neutral',
+}
+
+const SEVERITY_VARIANTS: Record<TaskSeverity, BadgeVariant> = {
+  Critical: 'danger',
+  Major: 'warning',
+  Minor: 'info',
 }
 
 const STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
@@ -19,6 +26,10 @@ export function getTaskPriorityVariant(priority: TaskPriority): BadgeVariant {
   return PRIORITY_VARIANTS[priority]
 }
 
+export function getTaskSeverityVariant(severity: TaskSeverity): BadgeVariant {
+  return SEVERITY_VARIANTS[severity]
+}
+
 export function getTaskStatusVariant(status: TaskStatus): BadgeVariant {
   return STATUS_VARIANTS[status]
 }
@@ -30,8 +41,10 @@ export function getNextTaskStatus(status: TaskStatus): TaskStatus | undefined {
 
 export function isTaskOverdue(task: Task): boolean {
   if (task.status === 'Completed') return false
-  const dueDate = new Date(task.dueDate)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return dueDate.getTime() < today.getTime()
+  const due = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`)
+  return due.getTime() < Date.now()
+}
+
+export function formatTaskDueDateTime(task: Task): string {
+  return formatDateTime(`${task.dueDate}T${task.dueTime || '00:00'}`)
 }

@@ -7,7 +7,9 @@ export const TASKS: Task[] = [
     title: 'Finalize structural load calculations for Tower B',
     assignedTo: 'Layla Haddad',
     priority: 'High',
+    severity: 'Critical',
     dueDate: '2026-07-24',
+    dueTime: '17:00',
     status: 'In Progress',
   },
   {
@@ -16,7 +18,9 @@ export const TASKS: Task[] = [
     title: 'Coordinate rebar detailing review with structural team',
     assignedTo: 'Rajan Kumar',
     priority: 'Medium',
+    severity: 'Major',
     dueDate: '2026-07-28',
+    dueTime: '15:00',
     status: 'Pending',
   },
   {
@@ -25,7 +29,9 @@ export const TASKS: Task[] = [
     title: 'Submit revised HVAC load report to client',
     assignedTo: 'Ahmed Rashid',
     priority: 'High',
+    severity: 'Major',
     dueDate: '2026-07-22',
+    dueTime: '12:00',
     status: 'In Progress',
   },
   {
@@ -34,7 +40,9 @@ export const TASKS: Task[] = [
     title: 'Prepare firefighting system layout drawings',
     assignedTo: 'Ahmed Rashid',
     priority: 'Medium',
+    severity: 'Minor',
     dueDate: '2026-08-02',
+    dueTime: '17:00',
     status: 'Pending',
   },
   {
@@ -43,7 +51,9 @@ export const TASKS: Task[] = [
     title: 'Schedule site coordination visit with warehouse contractor',
     assignedTo: 'Rajan Kumar',
     priority: 'Low',
+    severity: 'Minor',
     dueDate: '2026-08-05',
+    dueTime: '10:00',
     status: 'Pending',
   },
   {
@@ -52,7 +62,9 @@ export const TASKS: Task[] = [
     title: 'Review 3D visualization package before client presentation',
     assignedTo: 'Layla Haddad',
     priority: 'High',
+    severity: 'Major',
     dueDate: '2026-07-21',
+    dueTime: '09:30',
     status: 'In Progress',
   },
   {
@@ -61,7 +73,9 @@ export const TASKS: Task[] = [
     title: 'Archive final renovation drawings after approval',
     assignedTo: 'Sara Al Mansoori',
     priority: 'Low',
+    severity: 'Minor',
     dueDate: '2026-07-15',
+    dueTime: '16:00',
     status: 'Completed',
   },
   {
@@ -70,7 +84,9 @@ export const TASKS: Task[] = [
     title: 'Compile fire safety compliance checklist for Civil Defense',
     assignedTo: 'Mohammed Iqbal',
     priority: 'High',
+    severity: 'Critical',
     dueDate: '2026-07-25',
+    dueTime: '14:00',
     status: 'Pending',
   },
   {
@@ -79,7 +95,9 @@ export const TASKS: Task[] = [
     title: 'Follow up with Civil Defense on submission status',
     assignedTo: 'Rajan Kumar',
     priority: 'Medium',
+    severity: 'Major',
     dueDate: '2026-07-23',
+    dueTime: '11:00',
     status: 'In Progress',
   },
   {
@@ -88,7 +106,9 @@ export const TASKS: Task[] = [
     title: 'Close out final handover documentation package',
     assignedTo: 'Sara Al Mansoori',
     priority: 'Medium',
+    severity: 'Minor',
     dueDate: '2026-07-10',
+    dueTime: '17:30',
     status: 'Completed',
   },
 ]

@@ -3,8 +3,9 @@ import { defineStore } from 'pinia'
 import { CURRENT_USER_NAME } from '@/constants/team'
 import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
+import type { TaskInput } from '@/services/taskService'
 import type { Project } from '@/types/Project'
-import type { Task, TaskPriority, TaskStatus } from '@/types/Task'
+import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 
 interface TaskStoreState {
   tasks: Task[]
@@ -114,9 +115,20 @@ export const useTaskStore = defineStore('task', {
       if (task) task.priority = priority
     },
 
+    updateTaskSeverity(taskId: string, severity: TaskSeverity) {
+      const task = this.tasks.find((item) => item.id === taskId)
+      if (task) task.severity = severity
+    },
+
     updateTaskAssignee(taskId: string, assignedTo: string) {
       const task = this.tasks.find((item) => item.id === taskId)
       if (task) task.assignedTo = assignedTo
+    },
+
+    async createTask(input: TaskInput): Promise<Task> {
+      const task = await taskService.createTask(input)
+      this.tasks = [task, ...this.tasks]
+      return task
     },
 
     setSearchTerm(term: string) {

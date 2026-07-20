@@ -3,10 +3,10 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
+import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
-import { formatDate } from '@/utils/dateFormatter'
-import { isTaskOverdue } from '@/utils/taskHelpers'
-import type { Task, TaskPriority, TaskStatus } from '@/types/Task'
+import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
+import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
 const props = defineProps<{
@@ -17,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'status-change': [status: TaskStatus]
   'priority-change': [priority: TaskPriority]
+  'severity-change': [severity: TaskSeverity]
   reassign: [assignee: string]
 }>()
 
@@ -32,9 +33,15 @@ const PRIORITY_OPTIONS: SelectOption[] = [
   { label: 'Low', value: 'Low' },
 ]
 
+const SEVERITY_OPTIONS: SelectOption[] = [
+  { label: 'Critical', value: 'Critical' },
+  { label: 'Major', value: 'Major' },
+  { label: 'Minor', value: 'Minor' },
+]
+
 const details = [
   { label: 'Project', value: props.projectName },
-  { label: 'Due Date', value: formatDate(props.task.dueDate) },
+  { label: 'Completion Date & Time', value: formatTaskDueDateTime(props.task) },
 ]
 </script>
 
@@ -43,6 +50,7 @@ const details = [
     <div class="flex flex-wrap items-center gap-2">
       <TaskStatusBadge :status="task.status" />
       <TaskPriorityBadge :priority="task.priority" />
+      <TaskSeverityBadge :severity="task.severity" />
       <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">Overdue</span>
     </div>
 
@@ -64,6 +72,12 @@ const details = [
         :options="PRIORITY_OPTIONS"
         label="Priority"
         @update:model-value="emit('priority-change', $event as TaskPriority)"
+      />
+      <SelectBox
+        :model-value="task.severity"
+        :options="SEVERITY_OPTIONS"
+        label="Severity"
+        @update:model-value="emit('severity-change', $event as TaskSeverity)"
       />
     </div>
   </div>
