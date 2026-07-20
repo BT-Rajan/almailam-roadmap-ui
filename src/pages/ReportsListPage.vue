@@ -13,7 +13,7 @@ const reports = [
     description: 'High-level KPIs, project status distribution, delivery trends, and resource allocation overview.',
     icon: TrendingUp,
     color: 'primary',
-    metrics: ['24 Active Projects', '87% Completion Rate', '92% Team Utilization'],
+    metrics: ['5 Active Projects', '87% Completion Rate', '82% Team Utilization'],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_EXECUTIVE }),
   },
   {
@@ -22,7 +22,7 @@ const reports = [
     description: 'Detailed analysis of a specific project including progress, budget tracking, task status, and risk assessment.',
     icon: BarChart3,
     color: 'info',
-    metrics: ['Metro Rail Phase 2', '65% Complete', 'On Schedule'],
+    metrics: ['Marina Bay Hotel Renovation', '42% Complete', 'On Schedule'],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_PROJECT }),
   },
   {
@@ -31,7 +31,7 @@ const reports = [
     description: 'Team capacity analysis, member allocation details, department utilization, and rebalancing recommendations.',
     icon: Users,
     color: 'success',
-    metrics: ['42 Team Members', '86% Avg Utilization', '14% Capacity Free'],
+    metrics: ['3 Team Members', '82% Avg Utilization', '18% Capacity Free'],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_WORKLOAD }),
   },
 ]

@@ -24,7 +24,7 @@ const reportDate = new Date().toLocaleDateString('en-US', {
 const keyMetrics = [
   {
     label: 'Total Projects',
-    value: 24,
+    value: 5,
     unit: 'active',
     change: { direction: 'up' as const, percentage: 15 },
     color: 'primary',
@@ -37,7 +37,7 @@ const keyMetrics = [
   },
   {
     label: 'Team Utilization',
-    value: '92%',
+    value: '82%',
     change: { direction: 'down' as const, percentage: 2 },
     color: 'info',
   },
@@ -51,27 +51,25 @@ const keyMetrics = [
 
 // Projects by Status
 const projectsByStatus: ChartDataPoint[] = [
-  { label: 'Active', value: 18, color: '#3B82F6' },
-  { label: 'Pending', value: 4, color: '#F59E0B' },
-  { label: 'On Hold', value: 2, color: '#EF4444' },
+  { label: 'Active', value: 4, color: '#3B82F6' },
+  { label: 'Completed', value: 1, color: '#10B981' },
 ]
 
 // Monthly Delivery Trend
 const deliveryTrend: LineChartData[] = [
-  { x: 'Jan', value: 12 },
-  { x: 'Feb', value: 15 },
-  { x: 'Mar', value: 14 },
-  { x: 'Apr', value: 18 },
-  { x: 'May', value: 22 },
-  { x: 'Jun', value: 20 },
+  { x: 'Feb', value: 2 },
+  { x: 'Mar', value: 3 },
+  { x: 'Apr', value: 3 },
+  { x: 'May', value: 4 },
+  { x: 'Jun', value: 5 },
+  { x: 'Jul', value: 5 },
 ]
 
 // Resource Allocation
 const resourceAllocation: ChartDataPoint[] = [
-  { label: 'Development', value: 45, color: '#8B5CF6' },
-  { label: 'QA', value: 25, color: '#06B6D4' },
-  { label: 'Design', value: 15, color: '#EC4899' },
-  { label: 'Management', value: 15, color: '#14B8A6' },
+  { label: 'Structural Engineering', value: 40, color: '#8B5CF6' },
+  { label: 'MEP Engineering', value: 40, color: '#06B6D4' },
+  { label: 'Fire & Safety', value: 20, color: '#F59E0B' },
 ]
 
 const handleExport = () => {
@@ -89,7 +87,7 @@ const goBack = () => {
       <BaseButton variant="ghost" size="sm" @click="goBack"> ← Back </BaseButton>
     </div>
 
-    <ReportHeader title="Executive Summary Report" subtitle="Q2 2024 Performance Overview" :generated-date="reportDate" @download="handleExport" />
+    <ReportHeader title="Executive Summary Report" subtitle="H1 2026 Performance Overview" :generated-date="reportDate" @download="handleExport" />
 
     <!-- Key Metrics Overview -->
     <ReportSection title="Key Performance Indicators" description="High-level metrics for the current period">

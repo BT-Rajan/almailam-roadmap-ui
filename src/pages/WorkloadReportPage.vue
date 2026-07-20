@@ -23,60 +23,50 @@ const reportDate = new Date().toLocaleDateString('en-US', {
 const teamMetrics = [
   {
     label: 'Total Team Members',
-    value: 42,
-    change: { direction: 'up' as const, percentage: 5 },
+    value: 3,
+    change: { direction: 'up' as const, percentage: 0 },
     color: 'primary',
   },
   {
     label: 'Average Utilization',
-    value: '86%',
-    change: { direction: 'up' as const, percentage: 8 },
+    value: '82%',
+    change: { direction: 'up' as const, percentage: 4 },
     color: 'info',
   },
   {
     label: 'Overallocated Staff',
-    value: 5,
+    value: 0,
     unit: 'persons',
-    change: { direction: 'down' as const, percentage: 2 },
+    change: { direction: 'down' as const, percentage: 0 },
     color: 'warning',
   },
   {
     label: 'Capacity Available',
-    value: '14%',
-    change: { direction: 'down' as const, percentage: 8 },
+    value: '18%',
+    change: { direction: 'up' as const, percentage: 6 },
     color: 'neutral',
   },
 ]
 
-// Workload by Department
+// Workload by Discipline
 const workloadByDept: ChartDataPoint[] = [
-  { label: 'Development', value: 18, color: '#8B5CF6' },
-  { label: 'QA & Testing', value: 8, color: '#06B6D4' },
-  { label: 'Design', value: 6, color: '#EC4899' },
-  { label: 'PM & Leadership', value: 4, color: '#14B8A6' },
-  { label: 'Infrastructure', value: 3, color: '#F59E0B' },
-  { label: 'Documentation', value: 3, color: '#EF4444' },
+  { label: 'Structural Engineering', value: 2, color: '#8B5CF6' },
+  { label: 'MEP Engineering', value: 2, color: '#06B6D4' },
+  { label: 'Fire & Safety', value: 1, color: '#F59E0B' },
 ]
 
 // Team Member Allocation
 const teamMembers = [
-  { name: 'Rajesh Kumar', role: 'Senior Developer', department: 'Development', allocation: 95, capacity: 100, projects: 2 },
-  { name: 'Priya Sharma', role: 'QA Lead', department: 'QA & Testing', allocation: 100, capacity: 100, projects: 3, overallocated: true },
-  { name: 'Arjun Singh', role: 'Project Manager', department: 'PM & Leadership', allocation: 85, capacity: 100, projects: 4 },
-  { name: 'Anjali Verma', role: 'UI/UX Designer', department: 'Design', allocation: 90, capacity: 100, projects: 3 },
-  { name: 'Vikram Patel', role: 'DevOps Engineer', department: 'Infrastructure', allocation: 75, capacity: 100, projects: 2 },
-  { name: 'Sneha Gupta', role: 'Backend Developer', department: 'Development', allocation: 105, capacity: 100, projects: 3, overallocated: true },
-  { name: 'Aditya Nair', role: 'Frontend Developer', department: 'Development', allocation: 88, capacity: 100, projects: 2 },
-  { name: 'Divya Reddy', role: 'QA Engineer', department: 'QA & Testing', allocation: 92, capacity: 100, projects: 2 },
+  { name: 'Layla Haddad', role: 'Structural Engineer', department: 'Structural Engineering', allocation: 90, capacity: 100, projects: 2, overallocated: false },
+  { name: 'Ahmed Rashid', role: 'MEP Engineer', department: 'MEP Engineering', allocation: 88, capacity: 100, projects: 2, overallocated: false },
+  { name: 'Mohammed Iqbal', role: 'Fire & Safety Engineer', department: 'Fire & Safety', allocation: 68, capacity: 100, projects: 1, overallocated: false },
 ]
 
-// Department Utilization
+// Discipline Utilization
 const deptUtilization: ChartDataPoint[] = [
-  { label: 'Development', value: 92, color: '#8B5CF6' },
-  { label: 'QA & Testing', value: 96, color: '#06B6D4' },
-  { label: 'Design', value: 85, color: '#EC4899' },
-  { label: 'Infrastructure', value: 78, color: '#14B8A6' },
-  { label: 'Leadership', value: 82, color: '#F59E0B' },
+  { label: 'Structural Engineering', value: 90, color: '#8B5CF6' },
+  { label: 'MEP Engineering', value: 88, color: '#06B6D4' },
+  { label: 'Fire & Safety', value: 68, color: '#F59E0B' },
 ]
 
 const handleExport = () => {
@@ -116,20 +106,20 @@ const getAllocationColor = (allocation: number) => {
     <!-- Overall Team Health -->
     <ReportSection title="Team Capacity Status" fullWidth>
       <div class="grid grid-cols-1 tablet:grid-cols-2 gap-8 justify-items-center">
-        <ProgressChart :value="86" label="Average Utilization" color="#3B82F6" size="md" />
-        <ProgressChart :value="14" label="Capacity Available" color="#10B981" size="md" />
+        <ProgressChart :value="82" label="Average Utilization" color="#3B82F6" size="md" />
+        <ProgressChart :value="18" label="Capacity Available" color="#10B981" size="md" />
       </div>
     </ReportSection>
 
-    <!-- Workload by Department -->
-    <ReportSection title="Headcount by Department" description="Distribution of team members across departments" fullWidth>
+    <!-- Workload by Discipline -->
+    <ReportSection title="Workload by Discipline" description="Active project count by engineering discipline" fullWidth>
       <Card>
         <BarChart :data="workloadByDept" :height="350" />
       </Card>
     </ReportSection>
 
-    <!-- Department Utilization -->
-    <ReportSection title="Department Utilization Rates" description="Allocation percentage by department" fullWidth>
+    <!-- Discipline Utilization -->
+    <ReportSection title="Discipline Utilization Rates" description="Allocation percentage by engineering discipline" fullWidth>
       <Card>
         <BarChart :data="deptUtilization" :height="350" />
       </Card>
@@ -183,20 +173,20 @@ const getAllocationColor = (allocation: number) => {
       <div class="space-y-3">
         <Card class="bg-info-50 border border-info-200">
           <div class="space-y-2">
-            <h3 class="font-semibold text-info-900">ℹ Resource Rebalancing</h3>
-            <p class="text-sm text-info-800">5 team members are over their capacity threshold. Consider redistributing tasks to underutilized team members or pausing non-critical projects.</p>
+            <h3 class="font-semibold text-info-900">ℹ Balanced Workload</h3>
+            <p class="text-sm text-info-800">No engineers are currently over their capacity threshold. Structural and MEP engineering carry the highest load at 88-90% utilization.</p>
           </div>
         </Card>
         <Card class="bg-success-50 border border-success-200">
           <div class="space-y-2">
             <h3 class="font-semibold text-success-900">✓ Hiring Opportunity</h3>
-            <p class="text-sm text-success-800">14% available capacity exists. One additional QA engineer would improve team balance and reduce overallocation risk.</p>
+            <p class="text-sm text-success-800">Fire &amp; Safety has the lowest headcount at 68% utilization. An additional fire safety engineer would support the growing government submission workload.</p>
           </div>
         </Card>
         <Card class="bg-warning-50 border border-warning-200">
           <div class="space-y-2">
-            <h3 class="font-semibold text-warning-900">⚠ Critical Priority</h3>
-            <p class="text-sm text-warning-800">Priya Sharma and Sneha Gupta are working above capacity. Recommend immediate workload review and task reassignment.</p>
+            <h3 class="font-semibold text-warning-900">⚠ Watch List</h3>
+            <p class="text-sm text-warning-800">Layla Haddad and Ahmed Rashid are each carrying two active projects. Monitor upcoming enquiries before assigning further work to either engineer.</p>
           </div>
         </Card>
       </div>

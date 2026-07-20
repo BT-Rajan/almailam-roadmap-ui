@@ -13,23 +13,23 @@ import type { BadgeVariant } from '@/types/Ui'
 
 const router = useRouter()
 
-// Sample Project Data
+// Project Data - sourced from the Marina Bay Hotel Renovation project (PRJ-2026-003)
 const project = {
-  name: 'Metro Rail Phase 2 Expansion',
-  client: 'Municipal Transport Authority',
-  projectId: 'PROJ-2024-001',
+  name: 'Marina Bay Hotel Renovation',
+  client: 'Marina Bay Hospitality Group',
+  projectId: 'PRJ-2026-003',
   status: 'active',
-  startDate: '2024-01-15',
-  endDate: '2024-12-31',
-  progress: 65,
+  startDate: '2026-03-10',
+  endDate: '2026-10-05',
+  progress: 42,
   budget: {
-    allocated: 50000000,
-    spent: 32500000,
-    currency: 'INR',
+    allocated: 2400000,
+    spent: 1008000,
+    currency: 'AED',
   },
   team: {
-    assigned: 28,
-    utilization: 88,
+    assigned: 4,
+    utilization: 90,
   },
   riskScore: 3,
 }
@@ -52,7 +52,7 @@ const projectMetrics = [
   },
   {
     label: 'Budget Utilization',
-    value: '65%',
+    value: '42%',
     change: { direction: 'down' as const, percentage: 3 },
     color: 'info',
   },
@@ -80,9 +80,9 @@ const taskStatus: ChartDataPoint[] = [
 // Deliverables by Category
 const deliverables: ChartDataPoint[] = [
   { label: 'Design & Planning', value: 18, color: '#8B5CF6' },
-  { label: 'Infrastructure', value: 25, color: '#06B6D4' },
-  { label: 'Signaling Systems', value: 15, color: '#EC4899' },
-  { label: 'Testing & QA', value: 10, color: '#14B8A6' },
+  { label: 'Structural Works', value: 12, color: '#06B6D4' },
+  { label: 'MEP Systems', value: 10, color: '#EC4899' },
+  { label: 'Finishing & QA', value: 8, color: '#14B8A6' },
 ]
 
 // Timeline Status
@@ -130,7 +130,7 @@ const goBack = () => {
         </div>
         <div>
           <p class="text-xs text-neutral-600 uppercase font-medium">Duration</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">Jan 15 - Dec 31, 2024</p>
+          <p class="text-sm font-medium text-neutral-900 mt-2">Mar 10 - Oct 5, 2026</p>
         </div>
         <div>
           <p class="text-xs text-neutral-600 uppercase font-medium">Team Size</p>
@@ -138,7 +138,7 @@ const goBack = () => {
         </div>
         <div>
           <p class="text-xs text-neutral-600 uppercase font-medium">Budget Allocated</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">₹{{ (project.budget.allocated / 10000000).toFixed(1) }}Cr</p>
+          <p class="text-sm font-medium text-neutral-900 mt-2">AED {{ (project.budget.allocated / 1000000).toFixed(2) }}M</p>
         </div>
       </div>
     </Card>
@@ -219,15 +219,15 @@ const goBack = () => {
           <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Budget Allocated</span>
-              <span class="font-medium">₹{{ (project.budget.allocated / 10000000).toFixed(1) }}Cr</span>
+              <span class="font-medium">AED {{ (project.budget.allocated / 1000000).toFixed(2) }}M</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Amount Spent</span>
-              <span class="font-medium text-danger-600">₹{{ (project.budget.spent / 10000000).toFixed(1) }}Cr</span>
+              <span class="font-medium text-danger-600">AED {{ (project.budget.spent / 1000000).toFixed(2) }}M</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-neutral-600">Remaining</span>
-              <span class="font-medium text-success-600">₹{{ ((project.budget.allocated - project.budget.spent) / 10000000).toFixed(1) }}Cr</span>
+              <span class="font-medium text-success-600">AED {{ ((project.budget.allocated - project.budget.spent) / 1000000).toFixed(2) }}M</span>
             </div>
           </div>
           <div class="h-2 bg-neutral-200 rounded-full overflow-hidden">
