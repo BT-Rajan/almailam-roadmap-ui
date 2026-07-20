@@ -246,8 +246,7 @@ const router = createRouter({
     {
       path: '/admin/users',
       name: ROUTE_NAMES.ADMIN_USERS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'User Management' },
+      component: () => import('@/pages/UserManagementPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
