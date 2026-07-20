@@ -66,6 +66,11 @@ export const useDocumentStore = defineStore('document', {
     getProjectById(state) {
       return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
     },
+
+    documentsByProject(state) {
+      return (projectId: string): ProjectDocument[] =>
+        state.documents.filter((document) => document.projectId === projectId)
+    },
   },
 
   actions: {

@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { Building2, Calendar, Layers, MessageSquare, Printer, User } from '@lucide/vue'
+import { Building2, Calendar, Layers, MessageSquare, Printer, Upload, User } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import AIResponseCard from '@/components/ai/AIResponseCard.vue'
 import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import ContractList from '@/components/project/ContractList.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
@@ -20,13 +22,25 @@ import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
+import DocumentCard from '@/components/document/DocumentCard.vue'
+import DocumentUploadDialog from '@/components/document/DocumentUploadDialog.vue'
+import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
+import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
+import TaskDetails from '@/components/task/TaskDetails.vue'
+import TaskList from '@/components/task/TaskList.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
+import { useDocumentStore } from '@/stores/documentStore'
+import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useTimelineStore } from '@/stores/timelineStore'
+import type { ProjectDocument } from '@/types/Document'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { TaskPriority, TaskStatus } from '@/types/Task'
 import { formatDate } from '@/utils/dateFormatter'
+import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +48,9 @@ const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const timelineStore = useTimelineStore()
 const contractStore = useContractStore()
+const documentStore = useDocumentStore()
+const governmentSubmissionStore = useGovernmentSubmissionStore()
+const taskStore = useTaskStore()
 
 const projectId = computed(() => route.params.projectId as string)
 const activeTab = ref<ProjectWorkspaceTabKey>('overview')
@@ -50,16 +67,75 @@ const TABS: ProjectWorkspaceTab[] = [
   { key: 'activity', label: 'Activity' },
 ]
 
-const TAB_COMING_SOON: Record<ProjectWorkspaceTabKey, string> = {
-  overview: 'A consolidated project summary will appear here.',
-  timeline: 'Milestones and workflow progress will appear here.',
-  documents: 'Documents linked to this project will appear here.',
-  design: 'Design deliverables for this project will appear here.',
-  government: 'Government submissions for this project will appear here.',
-  quotation: '',
-  contract: 'The contract issued for this project will appear here.',
-  tasks: 'Tasks assigned within this project will appear here.',
-  activity: 'A full audit trail of project activity will appear here.',
+const isDocumentUploadOpen = ref(false)
+const selectedSubmissionId = ref<string | undefined>(undefined)
+const isSubmissionDrawerOpen = ref(false)
+
+const projectDocuments = computed(() => documentStore.documentsByProject(projectId.value))
+const projectDrawings = computed(() => projectDocuments.value.filter((document) => document.type === 'Drawing'))
+const visibleDocuments = computed(() => (activeTab.value === 'documents' ? projectDocuments.value : projectDrawings.value))
+const projectSubmissions = computed(() => governmentSubmissionStore.submissionsByProject(projectId.value))
+const projectTasks = computed(() => taskStore.tasksByProject(projectId.value))
+const activityEvents = computed(() => [...timelineStore.events].sort((a, b) => b.date.localeCompare(a.date)))
+
+const selectedSubmission = computed(() =>
+  projectSubmissions.value.find((submission) => submission.id === selectedSubmissionId.value),
+)
+
+const selectedSubmissionDetails = computed(() => {
+  if (!selectedSubmission.value) return []
+  const authority = governmentSubmissionStore.getAuthorityById(selectedSubmission.value.authorityId)
+  const form = governmentSubmissionStore.getFormById(selectedSubmission.value.formId)
+
+  return [
+    { label: 'Authority', value: authority?.name ?? 'Unknown Authority' },
+    { label: 'Form', value: form?.title ?? 'Unknown Form' },
+    {
+      label: 'Submitted Date',
+      value: selectedSubmission.value.submittedDate
+        ? formatDate(selectedSubmission.value.submittedDate)
+        : 'Not submitted yet',
+    },
+    {
+      label: 'Expected Decision',
+      value: selectedSubmission.value.expectedDecisionDate
+        ? formatDate(selectedSubmission.value.expectedDecisionDate)
+        : 'Not set',
+    },
+  ]
+})
+
+const isTaskDrawerOpen = computed({
+  get: () => Boolean(taskStore.selectedTaskId),
+  set: (value: boolean) => {
+    if (!value) taskStore.clearSelectedTask()
+  },
+})
+
+function openSubmission(submissionId: string): void {
+  selectedSubmissionId.value = submissionId
+  isSubmissionDrawerOpen.value = true
+}
+
+function handleTaskStatusChange(status: TaskStatus): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+}
+
+function handleTaskPriorityChange(priority: TaskPriority): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+}
+
+function handleTaskReassign(assignee: string): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+}
+
+function handleDocumentUpload(document: ProjectDocument): void {
+  documentStore.addDocument(document)
+  isDocumentUploadOpen.value = false
+}
+
+function openDocument(documentId: string): void {
+  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
 }
 
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
@@ -108,6 +184,22 @@ async function loadData(): Promise<void> {
 
 onMounted(loadData)
 watch(projectId, loadData)
+
+watch(
+  activeTab,
+  (tab) => {
+    if ((tab === 'documents' || tab === 'design') && documentStore.documents.length === 0) {
+      documentStore.loadDocuments()
+    }
+    if (tab === 'government' && governmentSubmissionStore.submissions.length === 0) {
+      governmentSubmissionStore.loadSubmissions()
+    }
+    if (tab === 'tasks' && taskStore.tasks.length === 0) {
+      taskStore.loadTasks()
+    }
+  },
+  { immediate: true },
+)
 
 function handlePrint(): void {
   window.print()
@@ -269,11 +361,141 @@ function handlePrint(): void {
         </div>
       </template>
 
-      <EmptyState
-        v-else
-        title="Coming soon"
-        :description="TAB_COMING_SOON[activeTab]"
-      />
+      <template v-else-if="activeTab === 'documents' || activeTab === 'design'">
+        <div class="flex items-center justify-end">
+          <BaseButton
+            v-if="activeTab === 'documents'"
+            variant="secondary"
+            size="sm"
+            :icon="Upload"
+            class="no-print"
+            @click="isDocumentUploadOpen = true"
+          >
+            Upload Document
+          </BaseButton>
+        </div>
+
+        <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+          <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
+            <SkeletonLoader :rows="5" />
+          </div>
+        </div>
+
+        <ErrorState v-else-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
+
+        <EmptyState
+          v-else-if="visibleDocuments.length === 0"
+          title="No documents yet"
+          :description="
+            activeTab === 'documents'
+              ? 'Documents uploaded for this project will appear here.'
+              : 'Design drawings uploaded for this project will appear here.'
+          "
+        />
+
+        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+          <DocumentCard
+            v-for="document in visibleDocuments"
+            :key="document.id"
+            :document="document"
+            :project="project"
+            @open="openDocument"
+          />
+        </div>
+
+        <DocumentUploadDialog
+          v-model="isDocumentUploadOpen"
+          :projects="[project]"
+          @upload="handleDocumentUpload"
+        />
+      </template>
+
+      <template v-else-if="activeTab === 'government'">
+        <div v-if="governmentSubmissionStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
+          <SkeletonLoader :rows="6" />
+        </div>
+
+        <ErrorState
+          v-else-if="governmentSubmissionStore.error"
+          :description="governmentSubmissionStore.error"
+          @retry="governmentSubmissionStore.loadSubmissions"
+        />
+
+        <EmptyState
+          v-else-if="projectSubmissions.length === 0"
+          title="No submissions yet"
+          description="Government submissions filed for this project will appear here."
+        />
+
+        <div v-else class="flex flex-col gap-3">
+          <button
+            v-for="submission in projectSubmissions"
+            :key="submission.id"
+            type="button"
+            class="flex flex-col gap-2 rounded-xl border border-border-light bg-bg-card p-4 text-left shadow-soft transition-colors duration-fast hover:bg-bg-hover tablet:flex-row tablet:items-center tablet:justify-between"
+            @click="openSubmission(submission.id)"
+          >
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-neutral-800">{{ submission.submissionNo }}</p>
+              <p class="truncate text-xs text-neutral-500">
+                {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? 'Unknown Form' }} ·
+                {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? 'Unknown Authority' }}
+              </p>
+            </div>
+            <StatusBadge :label="submission.status" :variant="getSubmissionStatusVariant(submission.status)" />
+          </button>
+        </div>
+
+        <BaseButton variant="ghost" size="sm" class="no-print self-start" @click="router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })">
+          View All Submissions
+        </BaseButton>
+
+        <BaseDrawer v-model="isSubmissionDrawerOpen" :title="selectedSubmission?.submissionNo" width="lg">
+          <div v-if="selectedSubmission" class="flex flex-col gap-6">
+            <SubmissionApprovalStepper :status="selectedSubmission.status" />
+            <DetailPanel title="Submission Details" :items="selectedSubmissionDetails" />
+            <div>
+              <h3 class="mb-2 text-sm font-semibold text-neutral-800">Required Documents</h3>
+              <RequiredDocumentChecklist :documents="selectedSubmission.documents" />
+            </div>
+            <div v-if="selectedSubmission.notes">
+              <h3 class="mb-1 text-sm font-semibold text-neutral-800">Notes</h3>
+              <p class="text-sm text-neutral-600">{{ selectedSubmission.notes }}</p>
+            </div>
+          </div>
+        </BaseDrawer>
+      </template>
+
+      <template v-else-if="activeTab === 'tasks'">
+        <div class="flex items-center justify-end">
+          <BaseButton variant="ghost" size="sm" class="no-print" @click="router.push({ name: ROUTE_NAMES.TASKS })">
+            View Task Board
+          </BaseButton>
+        </div>
+
+        <div v-if="taskStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
+          <SkeletonLoader :rows="6" />
+        </div>
+
+        <ErrorState v-else-if="taskStore.error" :description="taskStore.error" @retry="taskStore.loadTasks" />
+
+        <TaskList v-else :tasks="projectTasks" :get-project-by-id="taskStore.getProjectById" @open="taskStore.selectTask" />
+
+        <BaseDrawer v-model="isTaskDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+          <TaskDetails
+            v-if="taskStore.selectedTask"
+            :task="taskStore.selectedTask"
+            :project-name="project.projectName"
+            @status-change="handleTaskStatusChange"
+            @priority-change="handleTaskPriorityChange"
+            @reassign="handleTaskReassign"
+          />
+        </BaseDrawer>
+      </template>
+
+      <template v-else-if="activeTab === 'activity'">
+        <ProjectTimeline :events="activityEvents" />
+      </template>
     </template>
   </div>
 </template>

@@ -75,6 +75,10 @@ export const useTaskStore = defineStore('task', {
     selectedTask(state): Task | undefined {
       return state.tasks.find((task) => task.id === state.selectedTaskId)
     },
+
+    tasksByProject(state) {
+      return (projectId: string): Task[] => state.tasks.filter((task) => task.projectId === projectId)
+    },
   },
 
   actions: {

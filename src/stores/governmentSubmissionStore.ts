@@ -66,6 +66,11 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     getFormById(state) {
       return (formId: string): GovernmentForm | undefined => state.forms.find((form) => form.id === formId)
     },
+
+    submissionsByProject(state) {
+      return (projectId: string): GovernmentSubmission[] =>
+        state.submissions.filter((submission) => submission.projectId === projectId)
+    },
   },
 
   actions: {
