@@ -42,6 +42,14 @@ async function deleteForm(formId: string): Promise<void> {
   if (index !== -1) GOVERNMENT_FORMS.splice(index, 1)
 }
 
+async function setFormStatus(formId: string, status: GovernmentForm['status']): Promise<GovernmentForm> {
+  await simulateNetworkDelay()
+  const index = GOVERNMENT_FORMS.findIndex((form) => form.id === formId)
+  if (index === -1) throw new Error(`Form ${formId} not found`)
+  GOVERNMENT_FORMS[index] = { ...GOVERNMENT_FORMS[index], status }
+  return GOVERNMENT_FORMS[index]
+}
+
 async function createAuthority(input: AuthorityInput): Promise<GovernmentAuthority> {
   await simulateNetworkDelay()
   const authority: GovernmentAuthority = { ...input, id: nextId('AUTH', GOVERNMENT_AUTHORITIES) }
@@ -74,6 +82,7 @@ export const governmentFormService = {
   createForm,
   updateForm,
   deleteForm,
+  setFormStatus,
   createAuthority,
   updateAuthority,
   deleteAuthority,

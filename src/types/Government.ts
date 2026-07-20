@@ -20,6 +20,8 @@ export type GovernmentFormLanguage = 'English' | 'Arabic' | 'English / Arabic'
 
 export type GovernmentFormViewMode = 'grid' | 'table'
 
+export type GovernmentFormStatus = 'Active' | 'Archived'
+
 export interface GovernmentForm {
   id: string
   authorityId: string
@@ -32,4 +34,5 @@ export interface GovernmentForm {
   requiredDocuments: string[]
   lastUpdated: string
   previewUrl?: string
+  status: GovernmentFormStatus
 }

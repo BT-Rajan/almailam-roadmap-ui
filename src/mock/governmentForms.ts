@@ -12,6 +12,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Primary application for new construction and major renovation permits.',
     requiredDocuments: ['Architectural Drawings', 'Title Deed', 'Structural Calculations', 'Site Survey'],
     lastUpdated: '2026-05-12',
+    status: 'Active',
     previewUrl: '/forms/kuwait-municipality-forms.html#form-license',
   },
   {
@@ -25,6 +26,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Requested once construction is complete to certify the building for occupancy.',
     requiredDocuments: ['Completion Report', 'As-Built Drawings', 'Fire Safety Approval'],
     lastUpdated: '2026-04-20',
+    status: 'Active',
   },
   {
     id: 'FORM-003',
@@ -37,6 +39,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Approval of fire alarm, suppression and evacuation systems prior to occupancy.',
     requiredDocuments: ['Fire System Drawings', 'Equipment Certificates', 'Evacuation Plan'],
     lastUpdated: '2026-06-02',
+    status: 'Active',
   },
   {
     id: 'FORM-004',
@@ -49,6 +52,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Confirms placement and maintenance schedule of portable fire extinguishers.',
     requiredDocuments: ['Extinguisher Layout Plan', 'Maintenance Contract'],
     lastUpdated: '2026-03-15',
+    status: 'Active',
   },
   {
     id: 'FORM-005',
@@ -61,6 +65,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Requests a new electrical load connection and transformer capacity allocation.',
     requiredDocuments: ['Load Calculation Sheet', 'Single Line Diagram', 'Site Plan'],
     lastUpdated: '2026-07-01',
+    status: 'Active',
   },
   {
     id: 'FORM-006',
@@ -73,6 +78,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Applies for a new potable water connection and network capacity approval.',
     requiredDocuments: ['Site Plan', 'Plumbing Layout', 'Title Deed'],
     lastUpdated: '2026-06-18',
+    status: 'Active',
   },
   {
     id: 'FORM-007',
@@ -85,6 +91,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Confirms compliance with environmental standards before construction begins.',
     requiredDocuments: ['Environmental Impact Report', 'Waste Management Plan'],
     lastUpdated: '2026-05-28',
+    status: 'Active',
   },
   {
     id: 'FORM-008',
@@ -97,6 +104,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
     description: 'Registers a commercial activity within an approved building for licensing.',
     requiredDocuments: ['Lease Contract', 'Civil ID Copy', 'Building Occupancy Certificate'],
     lastUpdated: '2026-04-05',
+    status: 'Active',
   },
   {
     id: 'FORM-009',
@@ -110,6 +118,7 @@ export const GOVERNMENT_FORMS: GovernmentForm[] = [
       'Records neighboring plot owners\u2019 no-objection consent for boundary setbacks during a building permit application, certified by the area Mukhtar.',
     requiredDocuments: ['Owner Civil ID', 'Neighbor Civil IDs', 'Ownership Documents'],
     lastUpdated: '2026-06-30',
+    status: 'Active',
     previewUrl: '/forms/kuwait-municipality-forms.html#form-consent',
   },
 ]

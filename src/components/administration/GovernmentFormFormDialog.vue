@@ -41,6 +41,7 @@ function emptyDraft(): FormInput & { requiredDocumentsText: string } {
     requiredDocuments: [],
     requiredDocumentsText: '',
     lastUpdated: new Date().toISOString().slice(0, 10),
+    status: 'Active',
   }
 }
 
@@ -87,6 +88,8 @@ function handleSave(): void {
       .map((line) => line.trim())
       .filter((line) => line.length > 0),
     lastUpdated: draft.value.lastUpdated,
+    status: draft.value.status,
+    previewUrl: draft.value.previewUrl,
   }
 
   emit('save', input)

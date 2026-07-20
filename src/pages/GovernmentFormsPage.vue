@@ -13,9 +13,11 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import GovernmentAuthorityFormDialog from '@/components/administration/GovernmentAuthorityFormDialog.vue'
 import GovernmentFormFormDialog from '@/components/administration/GovernmentFormFormDialog.vue'
 import AuthorityCard from '@/components/government/AuthorityCard.vue'
+import FormDetailDrawer from '@/components/government/FormDetailDrawer.vue'
 import GovernmentFormCard from '@/components/government/GovernmentFormCard.vue'
 import type { AuthorityInput, FormInput } from '@/services/governmentFormService'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
@@ -24,7 +26,7 @@ import type { GovernmentAuthority, GovernmentForm, GovernmentFormCategory } from
 import type { SmartTableColumn } from '@/types/Table'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getFormCategoryVariant } from '@/utils/governmentFormHelpers'
+import { getFormCategoryVariant, printFillableForm, printFormSummary } from '@/utils/governmentFormHelpers'
 
 interface GovernmentFormTableRow {
   [key: string]: unknown
@@ -35,6 +37,7 @@ interface GovernmentFormTableRow {
   language: string
   version: string
   lastUpdated: string
+  status: string
 }
 
 const store = useGovernmentFormStore()
@@ -42,6 +45,7 @@ const toastStore = useToastStore()
 
 const selectedAuthorityId = ref<string | undefined>(undefined)
 const authoritySearchTerm = ref('')
+const showArchived = ref(false)
 
 const isAuthorityDialogOpen = ref(false)
 const editingAuthority = ref<GovernmentAuthority | undefined>(undefined)
@@ -51,7 +55,16 @@ const isFormDialogOpen = ref(false)
 const editingForm = ref<GovernmentForm | undefined>(undefined)
 const isSavingForm = ref(false)
 
-const deleteTarget = ref<{ type: 'authority' | 'form'; id: string; label: string } | undefined>(undefined)
+const isDetailDrawerOpen = ref(false)
+const viewingForm = ref<GovernmentForm | undefined>(undefined)
+
+const isEditWarningOpen = ref(false)
+const pendingEditForm = ref<GovernmentForm | undefined>(undefined)
+
+const archiveTarget = ref<GovernmentForm | undefined>(undefined)
+const isArchiving = ref(false)
+
+const deleteTarget = ref<{ id: string; label: string } | undefined>(undefined)
 const isDeleting = ref(false)
 
 const CATEGORY_OPTIONS: SelectOption[] = [
@@ -70,6 +83,7 @@ const TABLE_COLUMNS: SmartTableColumn<GovernmentFormTableRow>[] = [
   { key: 'category', label: 'Category', sortable: true },
   { key: 'language', label: 'Language', sortable: true },
   { key: 'version', label: 'Version', sortable: true, width: '100px' },
+  { key: 'status', label: 'Status', sortable: true, width: '100px' },
   { key: 'lastUpdated', label: 'Last Updated', sortable: true, align: 'right' },
 ]
 
@@ -79,9 +93,11 @@ const selectedAuthority = computed(() =>
 
 const authorityFormCounts = computed<Record<string, number>>(() => {
   const counts: Record<string, number> = {}
-  store.forms.forEach((form) => {
-    counts[form.authorityId] = (counts[form.authorityId] ?? 0) + 1
-  })
+  store.forms
+    .filter((form) => form.status === 'Active')
+    .forEach((form) => {
+      counts[form.authorityId] = (counts[form.authorityId] ?? 0) + 1
+    })
   return counts
 })
 
@@ -101,10 +117,11 @@ const authorityForms = computed<GovernmentForm[]>(() => {
 
   return store.forms.filter((form) => {
     const matchesAuthority = form.authorityId === selectedAuthorityId.value
+    const matchesArchived = showArchived.value || form.status === 'Active'
     const matchesSearch =
       term.length === 0 || form.title.toLowerCase().includes(term) || form.formCode.toLowerCase().includes(term)
     const matchesCategory = store.categoryFilter === 'All' || form.category === store.categoryFilter
-    return matchesAuthority && matchesSearch && matchesCategory
+    return matchesAuthority && matchesArchived && matchesSearch && matchesCategory
   })
 })
 
@@ -116,6 +133,7 @@ const authorityFormTableRows = computed<GovernmentFormTableRow[]>(() =>
     category: form.category,
     language: form.language,
     version: form.version,
+    status: form.status,
     lastUpdated: form.lastUpdated,
   })),
 )
@@ -137,6 +155,7 @@ onMounted(() => {
 function openAuthority(authority: GovernmentAuthority): void {
   selectedAuthorityId.value = authority.id
   store.clearFilters()
+  showArchived.value = false
 }
 
 function backToAuthorities(): void {
@@ -177,8 +196,17 @@ function openAddForm(): void {
   isFormDialogOpen.value = true
 }
 
-function openEditForm(form: GovernmentForm): void {
-  editingForm.value = form
+// Editing a form affects the shared master copy, so confirm intent first.
+function requestEditForm(form: GovernmentForm): void {
+  pendingEditForm.value = form
+  isEditWarningOpen.value = true
+}
+
+function confirmEditWarning(): void {
+  isEditWarningOpen.value = false
+  isDetailDrawerOpen.value = false
+  editingForm.value = pendingEditForm.value
+  pendingEditForm.value = undefined
   isFormDialogOpen.value = true
 }
 
@@ -201,35 +229,59 @@ async function saveForm(input: FormInput): Promise<void> {
 }
 
 function requestDeleteAuthority(authority: GovernmentAuthority): void {
-  deleteTarget.value = { type: 'authority', id: authority.id, label: authority.name }
+  deleteTarget.value = { id: authority.id, label: authority.name }
 }
 
-function requestDeleteForm(form: GovernmentForm): void {
-  deleteTarget.value = { type: 'form', id: form.id, label: form.title }
-}
-
-async function confirmDelete(): Promise<void> {
+async function confirmDeleteAuthority(): Promise<void> {
   if (!deleteTarget.value) return
   isDeleting.value = true
   try {
-    if (deleteTarget.value.type === 'authority') {
-      await store.deleteAuthority(deleteTarget.value.id)
-      if (selectedAuthorityId.value === deleteTarget.value.id) selectedAuthorityId.value = undefined
-      toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
-    } else {
-      await store.deleteForm(deleteTarget.value.id)
-      toastStore.show('info', 'Form removed', `${deleteTarget.value.label} was removed from the library.`)
-    }
+    await store.deleteAuthority(deleteTarget.value.id)
+    if (selectedAuthorityId.value === deleteTarget.value.id) selectedAuthorityId.value = undefined
+    toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
     deleteTarget.value = undefined
   } catch {
-    toastStore.show('error', 'Unable to delete', 'Please try again.')
+    toastStore.show('error', 'Unable to delete authority', 'Please try again.')
   } finally {
     isDeleting.value = false
   }
 }
 
+function requestArchiveForm(form: GovernmentForm): void {
+  archiveTarget.value = form
+}
+
+async function confirmArchiveForm(): Promise<void> {
+  if (!archiveTarget.value) return
+  isArchiving.value = true
+  try {
+    await store.archiveForm(archiveTarget.value.id)
+    toastStore.show('info', 'Form archived', `${archiveTarget.value.title} was moved to archived forms.`)
+    isDetailDrawerOpen.value = false
+    archiveTarget.value = undefined
+  } catch {
+    toastStore.show('error', 'Unable to archive form', 'Please try again.')
+  } finally {
+    isArchiving.value = false
+  }
+}
+
+async function restoreForm(form: GovernmentForm): Promise<void> {
+  try {
+    await store.restoreForm(form.id)
+    toastStore.show('success', 'Form restored', `${form.title} is active again.`)
+  } catch {
+    toastStore.show('error', 'Unable to restore form', 'Please try again.')
+  }
+}
+
 function formById(formId: string): GovernmentForm | undefined {
   return authorityForms.value.find((form) => form.id === formId)
+}
+
+function viewForm(form: GovernmentForm): void {
+  viewingForm.value = form
+  isDetailDrawerOpen.value = true
 }
 
 function handleAiHelp(form: GovernmentForm): void {
@@ -239,6 +291,14 @@ function handleAiHelp(form: GovernmentForm): void {
     'AI Guidance',
     `Ensure all Required Documents for "${form.title}" are certified copies before submitting to ${authorityName}.`,
   )
+}
+
+function printForm(form: GovernmentForm): void {
+  if (form.previewUrl) {
+    printFillableForm(form.previewUrl)
+  } else {
+    printFormSummary(form, selectedAuthority.value?.name ?? 'Unknown Authority')
+  }
 }
 </script>
 
@@ -336,6 +396,7 @@ function handleAiHelp(form: GovernmentForm): void {
               @update:model-value="store.setCategoryFilter($event as GovernmentFormCategory | 'All')"
             />
           </div>
+          <ToggleSwitch v-model="showArchived" label="Show Archived" />
         </template>
         <template #actions>
           <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">
@@ -371,9 +432,11 @@ function handleAiHelp(form: GovernmentForm): void {
             :key="form.id"
             :form="form"
             :authority="selectedAuthority"
+            @view="viewForm"
             @ai-help="handleAiHelp"
-            @edit="openEditForm"
-            @delete="requestDeleteForm"
+            @edit="requestEditForm"
+            @archive="requestArchiveForm"
+            @restore="restoreForm"
           />
         </div>
       </template>
@@ -386,33 +449,47 @@ function handleAiHelp(form: GovernmentForm): void {
         :searchable="false"
         empty-title="No forms found"
         empty-description="Try adjusting your search or filters, or add a form to this authority."
+        @row-click="(row) => formById(row.id) && viewForm(formById(row.id)!)"
       >
         <template #cell-category="{ value }">
           <StatusBadge :label="value as string" :variant="getFormCategoryVariant(value as GovernmentFormCategory)" />
+        </template>
+        <template #cell-status="{ value }">
+          <StatusBadge :label="value as string" :variant="value === 'Archived' ? 'neutral' : 'success'" />
         </template>
         <template #cell-lastUpdated="{ value }">
           {{ formatDate(value as string) }}
         </template>
         <template #row-actions="{ row }">
-          <div class="flex items-center justify-end gap-1">
+          <div class="flex items-center justify-end gap-1" @click.stop>
             <IconButton
               :icon="Pencil"
               label="Edit form"
               size="sm"
               variant="ghost"
-              @click="formById(row.id) && openEditForm(formById(row.id)!)"
+              @click="formById(row.id) && requestEditForm(formById(row.id)!)"
             />
             <IconButton
               :icon="Trash2"
-              label="Delete form"
+              label="Archive form"
               size="sm"
               variant="ghost"
-              @click="formById(row.id) && requestDeleteForm(formById(row.id)!)"
+              @click="formById(row.id) && requestArchiveForm(formById(row.id)!)"
             />
           </div>
         </template>
       </SmartTable>
     </template>
+
+    <FormDetailDrawer
+      v-model="isDetailDrawerOpen"
+      :form="viewingForm"
+      :authority="selectedAuthority"
+      @edit="requestEditForm"
+      @archive="requestArchiveForm"
+      @restore="restoreForm"
+      @print="printForm"
+    />
 
     <GovernmentAuthorityFormDialog
       v-model="isAuthorityDialogOpen"
@@ -430,6 +507,26 @@ function handleAiHelp(form: GovernmentForm): void {
     />
 
     <ConfirmationDialog
+      :model-value="isEditWarningOpen"
+      title="Edit Master Form"
+      message="You're about to edit the master copy of this form. Changes will apply everywhere this form is referenced. Continue?"
+      confirm-label="Continue to Edit"
+      @update:model-value="isEditWarningOpen = $event"
+      @confirm="confirmEditWarning"
+    />
+
+    <ConfirmationDialog
+      :model-value="!!archiveTarget"
+      title="Archive Form"
+      :message="`Archive '${archiveTarget?.title}'? It will be hidden from the library but can be restored later.`"
+      confirm-label="Archive"
+      confirm-variant="danger"
+      :loading="isArchiving"
+      @update:model-value="archiveTarget = undefined"
+      @confirm="confirmArchiveForm"
+    />
+
+    <ConfirmationDialog
       :model-value="!!deleteTarget"
       title="Confirm Deletion"
       :message="`Are you sure you want to delete '${deleteTarget?.label}'? This cannot be undone.`"
@@ -437,7 +534,7 @@ function handleAiHelp(form: GovernmentForm): void {
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"
-      @confirm="confirmDelete"
+      @confirm="confirmDeleteAuthority"
     />
   </div>
 </template>
