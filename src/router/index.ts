@@ -160,8 +160,7 @@ const router = createRouter({
     {
       path: '/tasks',
       name: ROUTE_NAMES.TASKS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'Task Board' },
+      component: () => import('@/pages/TasksPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
@@ -171,8 +170,7 @@ const router = createRouter({
     {
       path: '/tasks/my',
       name: ROUTE_NAMES.MY_TASKS,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { title: 'My Tasks' },
+      component: () => import('@/pages/MyTasksPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
