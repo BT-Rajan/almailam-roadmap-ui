@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -26,16 +26,3 @@ class ChangePasswordRequest(BaseModel):
         if value.isdigit() or value.isalpha():
             raise ValueError("Password must mix letters, numbers, or symbols.")
         return value
-
-
-class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    username: str
-    email: EmailStr
-    full_name: str
-    phone: str | None
-    role: str
-    department: str | None
-    is_active: bool

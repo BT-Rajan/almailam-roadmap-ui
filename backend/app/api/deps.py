@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import AuthError, PermissionDeniedError
+from app.core.permissions import has_permission
 from app.core.security import decode_token
 from app.models.user import User
 
@@ -43,17 +44,10 @@ def require_role(*allowed_roles: str):
     return _check
 
 
-def require_department(*allowed_departments: str):
-    """admin/manager always pass regardless of their own department --
-    department-scoping unlocks limited write access for staff who'd
-    otherwise have none, it doesn't restrict roles that already have full
-    access."""
-
+def require_permission(module: str, action: str):
     def _check(user: User = Depends(get_current_user)) -> User:
-        if user.role in ("admin", "manager"):
-            return user
-        if user.role == "staff" and user.department in allowed_departments:
-            return user
-        raise PermissionDeniedError()
+        if not has_permission(user.role, module, action):
+            raise PermissionDeniedError()
+        return user
 
     return _check

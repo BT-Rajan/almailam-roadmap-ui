@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.roles import router as roles_router
+from app.api.users import router as users_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import SecurityHeadersMiddleware
@@ -29,6 +31,8 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(roles_router)
 
 
 @app.get("/api/health")

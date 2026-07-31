@@ -7,9 +7,10 @@ CREATE TABLE IF NOT EXISTS users (
     email                   VARCHAR(120) NOT NULL UNIQUE,
     password_hash           VARCHAR(255) NOT NULL,
     full_name               VARCHAR(120) NOT NULL,
-    phone                   VARCHAR(30)  NULL,
-    role                    ENUM('admin','manager','staff','viewer') NOT NULL DEFAULT 'staff',
-    department              ENUM('operations','finance','submissions','management') NULL,
+    designation             VARCHAR(120) NULL,
+    mobile                  VARCHAR(30)  NULL,
+    role                    ENUM('Administrator','Project Manager','Engineer','Document Controller','Viewer')
+                                NOT NULL DEFAULT 'Viewer',
     is_active               TINYINT(1) NOT NULL DEFAULT 1,
     failed_login_attempts   SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     locked_until            DATETIME NULL,

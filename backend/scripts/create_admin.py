@@ -49,7 +49,7 @@ def main() -> None:
                 email=args.email,
                 password_hash=hash_password(password),
                 full_name=args.full_name,
-                role="admin",
+                role="Administrator",
                 is_active=True,
             )
         )

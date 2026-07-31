@@ -9,8 +9,8 @@ from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
     TokenResponse,
-    UserOut,
 )
+from app.schemas.user import UserOut
 from app.services import auth_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -46,4 +46,4 @@ def change_password(
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return UserOut.from_model(current_user)
