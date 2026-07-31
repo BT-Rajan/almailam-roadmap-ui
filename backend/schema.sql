@@ -34,4 +34,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     INDEX idx_refresh_tokens_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS number_series (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    doc_type        VARCHAR(30) NOT NULL,   -- 'QUOTATION', 'CONTRACT', 'GOVERNMENT_SUBMISSION'
+    year            SMALLINT UNSIGNED NOT NULL,
+    prefix          VARCHAR(10) NOT NULL,   -- e.g. 'QUO', 'CON', 'SUB'
+    next_number     INT UNSIGNED NOT NULL DEFAULT 1,
+    padding         TINYINT UNSIGNED NOT NULL DEFAULT 3,  -- QUO-2026-014
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_number_series_doc_type_year (doc_type, year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
