@@ -4,8 +4,10 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.clients import router as clients_router
+from app.api.contracts import router as contracts_router
 from app.api.government import router as government_router
 from app.api.projects import router as projects_router
+from app.api.quotations import router as quotations_router
 from app.api.roles import router as roles_router
 from app.api.submissions import router as submissions_router
 from app.api.users import router as users_router
@@ -41,6 +43,8 @@ app.include_router(clients_router)
 app.include_router(projects_router)
 app.include_router(government_router)
 app.include_router(submissions_router)
+app.include_router(quotations_router)
+app.include_router(contracts_router)
 
 
 @app.get("/api/health")

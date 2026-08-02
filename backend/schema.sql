@@ -237,4 +237,84 @@ CREATE TABLE IF NOT EXISTS submission_documents (
     INDEX idx_submission_documents_submission (submission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS quotations (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    quotation_no        VARCHAR(20) NOT NULL UNIQUE,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    revision            VARCHAR(10) NOT NULL DEFAULT 'R0',
+    issue_date          DATE NOT NULL,
+    validity            DATE NOT NULL,
+    status              ENUM('Draft','Sent','Approved','Rejected','Expired') NOT NULL DEFAULT 'Draft',
+    currency            VARCHAR(10) NOT NULL DEFAULT 'KWD',
+    prepared_by         BIGINT UNSIGNED NOT NULL,
+    tax_rate_percent    DECIMAL(5,2) NOT NULL DEFAULT 0,
+    discount_amount     DECIMAL(12,2) NOT NULL DEFAULT 0,
+    notes               TEXT NULL,
+    terms_and_conditions JSON NOT NULL,
+    amount              DECIMAL(12,2) NOT NULL DEFAULT 0,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    CONSTRAINT fk_quotations_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_quotations_prepared_by FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_quotations_project (project_id),
+    INDEX idx_quotations_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS quotation_line_items (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    quotation_id    BIGINT UNSIGNED NOT NULL,
+    description     VARCHAR(300) NOT NULL,
+    quantity        DECIMAL(10,2) NOT NULL,
+    unit_price      DECIMAL(12,2) NOT NULL,
+    CONSTRAINT fk_quotation_line_items_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE,
+    INDEX idx_quotation_line_items_quotation (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS contracts (
+    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    contract_no             VARCHAR(20) NOT NULL UNIQUE,
+    project_id              BIGINT UNSIGNED NOT NULL,
+    template_name           VARCHAR(150) NOT NULL,
+    revision                VARCHAR(10) NOT NULL DEFAULT 'R0',
+    currency                VARCHAR(10) NOT NULL DEFAULT 'KWD',
+    contract_value          DECIMAL(12,2) NOT NULL,
+    issue_date              DATE NOT NULL,
+    signed_date             DATE NULL,
+    expiry_date             DATE NOT NULL,
+    status                  ENUM('Draft','Sent','Signed','Active','Expired','Terminated') NOT NULL DEFAULT 'Draft',
+    prepared_by             BIGINT UNSIGNED NOT NULL,
+    client_representative   VARCHAR(150) NOT NULL,
+    scope_summary           TEXT NOT NULL,
+    created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at              DATETIME NULL,
+    CONSTRAINT fk_contracts_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_contracts_prepared_by FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_contracts_project (project_id),
+    INDEX idx_contracts_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS contract_clauses (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    contract_id     BIGINT UNSIGNED NOT NULL,
+    title           VARCHAR(150) NOT NULL,
+    content         TEXT NOT NULL,
+    sort_order      INT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_contract_clauses_contract FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE,
+    INDEX idx_contract_clauses_contract (contract_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS contract_revisions (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    contract_id     BIGINT UNSIGNED NOT NULL,
+    revision        VARCHAR(10) NOT NULL,
+    revised_at      DATE NOT NULL,
+    changed_by      BIGINT UNSIGNED NOT NULL,
+    summary         TEXT NOT NULL,
+    CONSTRAINT fk_contract_revisions_contract FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_contract_revisions_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_contract_revisions_contract (contract_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
