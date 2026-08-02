@@ -48,6 +48,49 @@ TASK_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 # trail; everything else is routine day-to-day movement.
 TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 
+# --- Client Onboarding -- src/types/Client.ts: ClientOnboardingState
+#
+# Added here while building Pass B07 (the Client entity) -- B04's
+# original scope only covered submissions/quotations/contracts/tasks/
+# payment overrides and didn't anticipate this one, but it's the same
+# mechanism and belongs in the same table of tables.
+CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Information Required": {"Documents Required"},
+    "Documents Required": {"Verification Required"},
+    "Verification Required": {"Under Review"},
+    "Under Review": {"Ready", "Rejected", "Documents Required"},
+    "Ready": {"Suspended"},
+    "Suspended": {"Under Review", "Rejected"},
+    "Rejected": {"Information Required"},
+}
+CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
+
+# --- Project Workflow Stage -- src/types/Project.ts: WorkflowStage
+#
+# Same story as client onboarding above: discovered while building the
+# Project entity in Pass B07, not anticipated by B04's original scope.
+PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Enquiry": {"Quotation"},
+    "Quotation": {"Contract"},
+    "Contract": {"Design"},
+    "Design": {"Government Submission"},
+    "Government Submission": {"Review"},
+    "Review": {"Correction", "Approval"},
+    "Correction": {"Review"},
+    "Approval": {"Completed"},
+    "Completed": set(),
+}
+PROJECT_STAGE_STATUSES_REQUIRING_REASON = {"Correction"}
+
+# --- Project Status -- src/types/Project.ts: ProjectStatus
+PROJECT_STATUS_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Active": {"On Hold", "Completed", "Cancelled"},
+    "On Hold": {"Active", "Cancelled"},
+    "Completed": set(),
+    "Cancelled": set(),
+}
+PROJECT_STATUS_STATUSES_REQUIRING_REASON = {"On Hold", "Cancelled"}
+
 # --- Payment Obligations -- src/types/Payment.ts: PaymentObligation.manualStatus
 #
 # IMPORTANT: this is NOT the 8-value ObligationStatus shown in the UI

@@ -30,6 +30,7 @@ DOC_TYPE_CONFIG: dict[str, tuple[str, int]] = {
     "QUOTATION": ("QUO", 3),
     "CONTRACT": ("CON", 3),
     "GOVERNMENT_SUBMISSION": ("SUB", 3),
+    "PROJECT": ("PRJ", 3),
 }
 
 
