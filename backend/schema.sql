@@ -45,4 +45,20 @@ CREATE TABLE IF NOT EXISTS number_series (
     UNIQUE KEY uq_number_series_doc_type_year (doc_type, year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS audit_log (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    entity_type     VARCHAR(40)  NOT NULL,   -- 'CLIENT', 'FINANCIAL_AGREEMENT', ...
+    entity_id       BIGINT UNSIGNED NOT NULL,
+    event_label     VARCHAR(120) NOT NULL,   -- 'Client created', 'Payment Received', ...
+    previous_value  TEXT NULL,
+    new_value       TEXT NULL,
+    reason          TEXT NULL,
+    changed_by      BIGINT UNSIGNED NULL,
+    changed_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_audit_log_user
+        FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_audit_log_entity (entity_type, entity_id),
+    INDEX idx_audit_log_changed_at (changed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
