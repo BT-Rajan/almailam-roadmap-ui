@@ -175,4 +175,66 @@ CREATE TABLE IF NOT EXISTS projects (
     INDEX idx_projects_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS government_authorities (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    category        ENUM('Municipality','Fire Department','Electricity','Water','Environment') NOT NULL,
+    website         VARCHAR(200) NOT NULL,
+    description     TEXT NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL,
+    INDEX idx_government_authorities_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS government_forms (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    authority_id        BIGINT UNSIGNED NOT NULL,
+    form_code           VARCHAR(40)  NOT NULL,
+    title               VARCHAR(200) NOT NULL,
+    version             VARCHAR(20)  NOT NULL,
+    language            ENUM('English','Arabic','English / Arabic') NOT NULL,
+    category            ENUM('Building Permit','Occupancy Certificate','Fire Safety Approval','Utility Connection','Environmental Clearance','Business License') NOT NULL,
+    description         TEXT NOT NULL,
+    required_documents  JSON NOT NULL,
+    preview_url         VARCHAR(300) NULL,
+    status              ENUM('Active','Archived') NOT NULL DEFAULT 'Active',
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    CONSTRAINT fk_government_forms_authority FOREIGN KEY (authority_id) REFERENCES government_authorities(id) ON DELETE RESTRICT,
+    INDEX idx_government_forms_authority (authority_id),
+    INDEX idx_government_forms_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS government_submissions (
+    id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    submission_no               VARCHAR(20) NOT NULL UNIQUE,
+    project_id                  BIGINT UNSIGNED NOT NULL,
+    authority_id                BIGINT UNSIGNED NOT NULL,
+    form_id                     BIGINT UNSIGNED NOT NULL,
+    status                      ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected') NOT NULL DEFAULT 'Draft',
+    submitted_date               DATE NULL,
+    expected_decision_date       DATE NULL,
+    decision_date                DATE NULL,
+    notes                        TEXT NULL,
+    created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at                   DATETIME NULL,
+    CONSTRAINT fk_government_submissions_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_government_submissions_authority FOREIGN KEY (authority_id) REFERENCES government_authorities(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_government_submissions_form FOREIGN KEY (form_id) REFERENCES government_forms(id) ON DELETE RESTRICT,
+    INDEX idx_government_submissions_project (project_id),
+    INDEX idx_government_submissions_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS submission_documents (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    submission_id   BIGINT UNSIGNED NOT NULL,
+    name            VARCHAR(150) NOT NULL,
+    status          ENUM('Pending','Uploaded','Verified') NOT NULL DEFAULT 'Pending',
+    CONSTRAINT fk_submission_documents_submission FOREIGN KEY (submission_id) REFERENCES government_submissions(id) ON DELETE CASCADE,
+    INDEX idx_submission_documents_submission (submission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
