@@ -317,4 +317,100 @@ CREATE TABLE IF NOT EXISTS contract_revisions (
     INDEX idx_contract_revisions_contract (contract_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS financial_agreements (
+    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id              BIGINT UNSIGNED NOT NULL,
+    contract_amount         DECIMAL(12,2) NOT NULL,
+    currency                VARCHAR(10) NOT NULL DEFAULT 'KWD',
+    contract_start_date     DATE NOT NULL,
+    contract_end_date       DATE NULL,
+    agreement_date          DATE NOT NULL,
+    quotation_reference     VARCHAR(30) NULL,
+    contract_reference      VARCHAR(30) NULL,
+    payment_mode            ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NOT NULL,
+    payment_frequency       ENUM('One-time','Daily','Weekly','Monthly','Quarterly','Half-yearly','Yearly','Custom') NOT NULL,
+    CONSTRAINT fk_financial_agreements_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    INDEX idx_financial_agreements_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS payment_obligations (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agreement_id        BIGINT UNSIGNED NOT NULL,
+    sequence_number     SMALLINT UNSIGNED NOT NULL,
+    description         VARCHAR(200) NOT NULL,
+    amount_due          DECIMAL(12,2) NOT NULL,
+    due_date            DATE NOT NULL,
+    amount_received     DECIMAL(12,2) NOT NULL DEFAULT 0,
+    manual_status       ENUM('Cancelled','Waived') NULL,
+    date_paid           DATE NULL,
+    payment_method      ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NULL,
+    reference_number    VARCHAR(60) NULL,
+    notes               TEXT NULL,
+    CONSTRAINT fk_payment_obligations_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_payment_obligations_agreement_sequence (agreement_id, sequence_number),
+    INDEX idx_payment_obligations_agreement (agreement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS payments (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agreement_id        BIGINT UNSIGNED NOT NULL,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    amount_received     DECIMAL(12,2) NOT NULL,
+    payment_date        DATE NOT NULL,
+    payment_mode        ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NOT NULL,
+    reference_number    VARCHAR(60) NULL,
+    payer               VARCHAR(150) NOT NULL,
+    receiving_account   VARCHAR(150) NULL,
+    notes               TEXT NULL,
+    created_by          BIGINT UNSIGNED NOT NULL,
+    created_at          DATETIME NOT NULL,
+    CONSTRAINT fk_payments_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_payments_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_payments_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_payments_agreement (agreement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS payment_allocations (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    payment_id          BIGINT UNSIGNED NOT NULL,
+    obligation_id       BIGINT UNSIGNED NOT NULL,
+    amount_allocated    DECIMAL(12,2) NOT NULL,
+    CONSTRAINT fk_payment_allocations_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_payment_allocations_obligation FOREIGN KEY (obligation_id) REFERENCES payment_obligations(id) ON DELETE RESTRICT,
+    INDEX idx_payment_allocations_payment (payment_id),
+    INDEX idx_payment_allocations_obligation (obligation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS refunds (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    payment_id          BIGINT UNSIGNED NULL,
+    agreement_id        BIGINT UNSIGNED NOT NULL,
+    obligation_id       BIGINT UNSIGNED NOT NULL,
+    refund_amount       DECIMAL(12,2) NOT NULL,
+    refund_date         DATE NOT NULL,
+    reason              TEXT NOT NULL,
+    authorising_user    BIGINT UNSIGNED NOT NULL,
+    reference           VARCHAR(60) NULL,
+    CONSTRAINT fk_refunds_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL,
+    CONSTRAINT fk_refunds_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_refunds_obligation FOREIGN KEY (obligation_id) REFERENCES payment_obligations(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_refunds_user FOREIGN KEY (authorising_user) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_refunds_agreement (agreement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS adjustments (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agreement_id        BIGINT UNSIGNED NOT NULL,
+    obligation_id       BIGINT UNSIGNED NOT NULL,
+    type                ENUM('Increase','Decrease','Correction') NOT NULL,
+    amount              DECIMAL(12,2) NOT NULL,
+    reason              TEXT NOT NULL,
+    authorising_user    BIGINT UNSIGNED NOT NULL,
+    adjusted_at         DATE NOT NULL,
+    CONSTRAINT fk_adjustments_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_adjustments_obligation FOREIGN KEY (obligation_id) REFERENCES payment_obligations(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_adjustments_user FOREIGN KEY (authorising_user) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_adjustments_agreement (agreement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
