@@ -10,13 +10,8 @@ import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useAuthStore } from '@/stores/authStore'
+import { ApiError } from '@/services/httpClient'
 import { validators } from '@/utils/validators'
-
-// Demo credentials - hardcoded for prototype purposes only.
-const DEMO_CREDENTIALS = {
-  userId: 'admin',
-  password: 'Almailam@123',
-}
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -38,22 +33,23 @@ const authError = ref<string>()
 const isForgotPasswordOpen = ref(false)
 const isSubmitting = ref(false)
 
-function signIn(): void {
+async function signIn(): Promise<void> {
   authError.value = undefined
 
   if (!validateAll(form)) return
 
   isSubmitting.value = true
 
-  if (form.userId === DEMO_CREDENTIALS.userId && form.password === DEMO_CREDENTIALS.password) {
-    authStore.login()
+  try {
+    await authStore.login(form.userId, form.password)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
-    router.push(redirect ?? { name: ROUTE_NAMES.DASHBOARD })
-  } else {
-    authError.value = 'Invalid User ID or password. Please try again.'
+    await router.push(redirect ?? { name: ROUTE_NAMES.DASHBOARD })
+  } catch (error) {
+    authError.value =
+      error instanceof ApiError ? error.message : 'Unable to sign in. Please try again.'
+  } finally {
+    isSubmitting.value = false
   }
-
-  isSubmitting.value = false
 }
 </script>
 
@@ -101,11 +97,6 @@ function signIn(): void {
         Sign In
       </BaseButton>
     </form>
-
-    <p class="mt-4 text-center text-xs text-[var(--color-text-muted)]">
-      Demo credentials — User ID: <span class="font-medium">admin</span> · Password:
-      <span class="font-medium">Almailam@123</span>
-    </p>
 
     <BaseDialog v-model="isForgotPasswordOpen" title="Forgot Password" size="sm">
       <p class="text-sm text-neutral-600">

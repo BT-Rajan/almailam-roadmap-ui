@@ -17,6 +17,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--username", default="admin")
     parser.add_argument("--email", default="admin@example.com")
     parser.add_argument("--full-name", default="Administrator")
+    parser.add_argument(
+        "--password",
+        default=None,
+        help=(
+            "Set the password non-interactively (e.g. for local/dev seeding). "
+            "Omit to be prompted securely instead."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -42,7 +50,13 @@ def main() -> None:
             print(f"[skip] User '{args.username}' already exists.")
             return
 
-        password = read_password()
+        if args.password is not None:
+            if len(args.password) < 8:
+                print("Password must be at least 8 characters.")
+                return
+            password = args.password
+        else:
+            password = read_password()
         db.add(
             User(
                 username=args.username,

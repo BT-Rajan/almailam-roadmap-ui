@@ -381,8 +381,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
+
+  // Restore the session from the stored refresh token on first navigation
+  // (e.g. after a page reload) before deciding whether to redirect.
+  if (!authStore.isHydrated) {
+    await authStore.hydrate()
+  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: ROUTE_NAMES.LOGIN, query: { redirect: to.fullPath } }
