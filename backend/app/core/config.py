@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
+    UPLOADS_DIR: str = "./uploads"
+    MAX_UPLOAD_SIZE_MB: int = 50
+
     @property
     def database_url(self) -> str:
         return (

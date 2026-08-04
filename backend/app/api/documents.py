@@ -1,0 +1,141 @@
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+
+from app.api.deps import require_permission
+from app.core.database import get_db
+from app.core.file_storage import format_file_size
+from app.models.project import Project
+from app.models.user import User
+from app.schemas.document import (
+    DocumentAIReviewCreate,
+    DocumentAIReviewOut,
+    DocumentOut,
+    DocumentStatusUpdate,
+    DocumentUpdate,
+    DocumentVersionOut,
+)
+from app.services import document_service
+
+router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+can_view = require_permission("Documents", "view")
+can_edit = require_permission("Documents", "edit")
+
+
+def _project_no(db: Session, project_id: int) -> str:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    return project.project_no if project else ""
+
+
+def _document_out(db: Session, document) -> DocumentOut:
+    return DocumentOut.from_model(
+        document,
+        _project_no(db, document.project_id),
+        document_service.user_name(db, document.uploaded_by),
+        format_file_size(document.file_size_bytes),
+    )
+
+
+@router.get("", response_model=list[DocumentOut])
+def list_documents(
+    projectId: str | None = None,
+    status: str | None = None,
+    type: str | None = None,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    documents = document_service.list_documents(db, projectId, status, type)
+    return [_document_out(db, d) for d in documents]
+
+
+@router.get("/{document_no}", response_model=DocumentOut)
+def get_document(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return _document_out(db, document_service.get_document(db, document_no))
+
+
+@router.post("", response_model=DocumentOut, status_code=201)
+def create_document(
+    projectId: str = Form(...),
+    title: str = Form(...),
+    type: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = document_service.create_document(db, projectId, title, type, file, current_user.id)
+    return _document_out(db, document)
+
+
+@router.patch("/{document_no}", response_model=DocumentOut)
+def update_document(
+    document_no: str,
+    payload: DocumentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = document_service.update_document(db, document_no, payload, current_user.id)
+    return _document_out(db, document)
+
+
+@router.patch("/{document_no}/status", response_model=DocumentOut)
+def set_status(
+    document_no: str,
+    payload: DocumentStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = document_service.set_status(db, document_no, payload.status, payload.reason, current_user.id)
+    return _document_out(db, document)
+
+
+@router.get("/{document_no}/download")
+def download_document(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    path, original_filename = document_service.get_download_target(db, document_no)
+    return FileResponse(path, filename=original_filename)
+
+
+@router.get("/{document_no}/versions", response_model=list[DocumentVersionOut])
+def list_versions(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    document = document_service.get_document(db, document_no)
+    versions = document_service.get_versions(db, document.id)
+    return [
+        DocumentVersionOut.from_model(v, document.id, document.document_no, document_service.user_name(db, v.uploaded_by))
+        for v in versions
+    ]
+
+
+@router.post("/{document_no}/versions", response_model=DocumentVersionOut, status_code=201)
+def add_version(
+    document_no: str,
+    file: UploadFile = File(...),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = document_service.get_document(db, document_no)
+    version = document_service.add_version(db, document_no, file, notes, current_user.id)
+    return DocumentVersionOut.from_model(version, document.id, document.document_no, current_user.full_name)
+
+
+@router.get("/{document_no}/ai-review", response_model=DocumentAIReviewOut | None)
+def get_ai_review(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    document = document_service.get_document(db, document_no)
+    review = document_service.get_ai_review(db, document.id)
+    return DocumentAIReviewOut.from_model(review, document_no) if review else None
+
+
+@router.post("/{document_no}/ai-review", response_model=DocumentAIReviewOut, status_code=201)
+def create_ai_review(
+    document_no: str,
+    payload: DocumentAIReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    review = document_service.create_ai_review(db, document_no, payload, current_user.id)
+    return DocumentAIReviewOut.from_model(review, document_no)
+
+
+@router.get("/{document_no}/audit-events")
+def list_audit_events(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return document_service.get_audit_events(db, document_no)

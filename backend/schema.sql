@@ -413,4 +413,54 @@ CREATE TABLE IF NOT EXISTS adjustments (
     INDEX idx_adjustments_agreement (agreement_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS project_documents (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_no         VARCHAR(20) NOT NULL UNIQUE,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    title               VARCHAR(200) NOT NULL,
+    type                ENUM('Drawing','Report','Contract','Quotation','Municipality Form','Calculation Sheet') NOT NULL,
+    revision            VARCHAR(10) NOT NULL DEFAULT 'Rev A',
+    uploaded_by         BIGINT UNSIGNED NOT NULL,
+    upload_date         DATE NOT NULL,
+    status              ENUM('Draft','Under Review','Approved','Rejected') NOT NULL DEFAULT 'Draft',
+    storage_key         VARCHAR(300) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    CONSTRAINT fk_project_documents_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_project_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_project_documents_project (project_id),
+    INDEX idx_project_documents_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS document_versions (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_id         BIGINT UNSIGNED NOT NULL,
+    revision            VARCHAR(10) NOT NULL,
+    uploaded_by         BIGINT UNSIGNED NOT NULL,
+    upload_date         DATE NOT NULL,
+    notes               TEXT NOT NULL,
+    storage_key         VARCHAR(300) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_document_versions_document FOREIGN KEY (document_id) REFERENCES project_documents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_document_versions_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_document_versions_document (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS document_ai_reviews (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_id         BIGINT UNSIGNED NOT NULL,
+    summary             TEXT NOT NULL,
+    details             TEXT NOT NULL,
+    confidence          ENUM('high','medium','low') NOT NULL,
+    extracted_fields    JSON NOT NULL,
+    suggestions         JSON NOT NULL,
+    created_at          DATETIME NOT NULL,
+    CONSTRAINT fk_document_ai_reviews_document FOREIGN KEY (document_id) REFERENCES project_documents(id) ON DELETE CASCADE,
+    INDEX idx_document_ai_reviews_document (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

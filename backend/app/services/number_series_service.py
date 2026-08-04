@@ -31,6 +31,7 @@ DOC_TYPE_CONFIG: dict[str, tuple[str, int]] = {
     "CONTRACT": ("CON", 3),
     "GOVERNMENT_SUBMISSION": ("SUB", 3),
     "PROJECT": ("PRJ", 3),
+    "DOCUMENT": ("DOC", 3),
 }
 
 

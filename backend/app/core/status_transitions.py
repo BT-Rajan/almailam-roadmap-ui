@@ -91,6 +91,18 @@ PROJECT_STATUS_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 }
 PROJECT_STATUS_STATUSES_REQUIRING_REASON = {"On Hold", "Cancelled"}
 
+# --- Document Status -- src/types/Document.ts: DocumentStatus
+#
+# Same story as the client onboarding / project stage / status tables
+# above: discovered while building the Document entity in Pass B11.
+DOCUMENT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Draft": {"Under Review"},
+    "Under Review": {"Approved", "Rejected"},
+    "Approved": set(),
+    "Rejected": {"Draft"},
+}
+DOCUMENT_STATUSES_REQUIRING_REASON = {"Rejected"}
+
 # --- Payment Obligations -- src/types/Payment.ts: PaymentObligation.manualStatus
 #
 # IMPORTANT: this is NOT the 8-value ObligationStatus shown in the UI
