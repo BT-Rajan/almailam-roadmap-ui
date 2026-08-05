@@ -1,10 +1,4 @@
-import { ADJUSTMENTS } from '@/mock/adjustments'
-import { FINANCIAL_AGREEMENTS } from '@/mock/financialAgreements'
-import { FINANCIAL_AUDIT_EVENTS } from '@/mock/financialAuditEvents'
-import { PAYMENT_ALLOCATIONS } from '@/mock/paymentAllocations'
-import { PAYMENT_OBLIGATIONS } from '@/mock/paymentObligations'
-import { PAYMENTS } from '@/mock/payments'
-import { REFUNDS } from '@/mock/refunds'
+import { apiClient } from '@/services/httpClient'
 import type {
   Adjustment,
   AdjustmentType,
@@ -18,26 +12,231 @@ import type {
   RecordPaymentInput,
   Refund,
 } from '@/types/Payment'
-import { generateEvenSchedule } from '@/utils/paymentHelpers'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
-// In-memory working copies — same "mock service holds its own state for
-// the session" convention as messageService/governmentSubmissionService.
-const agreements: FinancialAgreement[] = [...FINANCIAL_AGREEMENTS]
-const obligations: PaymentObligation[] = [...PAYMENT_OBLIGATIONS]
-const payments: Payment[] = [...PAYMENTS]
-const allocations: PaymentAllocation[] = [...PAYMENT_ALLOCATIONS]
-const auditEvents: FinancialAuditEvent[] = [...FINANCIAL_AUDIT_EVENTS]
-const refunds: Refund[] = [...REFUNDS]
-const adjustments: Adjustment[] = [...ADJUSTMENTS]
-
-function nextId(prefix: string, existing: { id: string }[]): string {
-  return `${prefix}-${String(existing.length + 1).padStart(3, '0')}`
+/**
+ * Fetch all financial agreements from backend API
+ */
+async function getFinancialAgreements(): Promise<FinancialAgreement[]> {
+  try {
+    return await apiClient.get<FinancialAgreement[]>('/api/payments/agreements')
+  } catch (error) {
+    console.error('Failed to fetch agreements:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch agreements')
+  }
 }
 
-function logEvent(agreementId: string, eventType: FinancialEventType, user: string, details: Partial<Pick<FinancialAuditEvent, 'previousValue' | 'newValue' | 'reason'>> = {}) {
-  auditEvents.push({
-    id: nextId('FAE', auditEvents),
+/**
+ * Get financial agreement for a specific project from backend API
+ */
+async function getAgreementByProject(projectId: string): Promise<FinancialAgreement | undefined> {
+  try {
+    return await apiClient.get<FinancialAgreement>(`/api/projects/${projectId}/payment-agreement`)
+  } catch (error) {
+    console.error(`Failed to fetch agreement for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch agreement')
+  }
+}
+
+/**
+ * Get payment obligations for an agreement from backend API
+ */
+async function getObligations(agreementId: string): Promise<PaymentObligation[]> {
+  try {
+    return await apiClient.get<PaymentObligation[]>(`/api/payments/agreements/${agreementId}/obligations`)
+  } catch (error) {
+    console.error(`Failed to fetch obligations:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch obligations')
+  }
+}
+
+/**
+ * Get all payment obligations from backend API
+ */
+async function getAllObligations(): Promise<PaymentObligation[]> {
+  try {
+    return await apiClient.get<PaymentObligation[]>('/api/payments/obligations')
+  } catch (error) {
+    console.error('Failed to fetch all obligations:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch obligations')
+  }
+}
+
+/**
+ * Get payments for an agreement from backend API
+ */
+async function getPayments(agreementId: string): Promise<Payment[]> {
+  try {
+    return await apiClient.get<Payment[]>(`/api/payments/agreements/${agreementId}/payments`)
+  } catch (error) {
+    console.error(`Failed to fetch payments:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch payments')
+  }
+}
+
+/**
+ * Get payment allocations for a specific payment from backend API
+ */
+async function getAllocationsForPayment(paymentId: string): Promise<PaymentAllocation[]> {
+  try {
+    return await apiClient.get<PaymentAllocation[]>(`/api/payments/${paymentId}/allocations`)
+  } catch (error) {
+    console.error(`Failed to fetch allocations:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch allocations')
+  }
+}
+
+/**
+ * Get audit events for an agreement from backend API
+ */
+async function getAuditEvents(agreementId: string): Promise<FinancialAuditEvent[]> {
+  try {
+    return await apiClient.get<FinancialAuditEvent[]>(`/api/payments/agreements/${agreementId}/audit-events`)
+  } catch (error) {
+    console.error(`Failed to fetch audit events:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
+  }
+}
+
+/**
+ * Get refunds for an agreement from backend API
+ */
+async function getRefunds(agreementId: string): Promise<Refund[]> {
+  try {
+    return await apiClient.get<Refund[]>(`/api/payments/agreements/${agreementId}/refunds`)
+  } catch (error) {
+    console.error(`Failed to fetch refunds:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch refunds')
+  }
+}
+
+/**
+ * Get adjustments for an agreement from backend API
+ */
+async function getAdjustments(agreementId: string): Promise<Adjustment[]> {
+  try {
+    return await apiClient.get<Adjustment[]>(`/api/payments/agreements/${agreementId}/adjustments`)
+  } catch (error) {
+    console.error(`Failed to fetch adjustments:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch adjustments')
+  }
+}
+
+/**
+ * Create a new financial agreement via backend API
+ */
+async function createAgreement(input: CreateAgreementInput, createdBy: string): Promise<FinancialAgreement> {
+  try {
+    return await apiClient.post<FinancialAgreement>('/api/payments/agreements', {
+      ...input,
+      created_by: createdBy,
+    })
+  } catch (error) {
+    console.error('Failed to create agreement:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create agreement')
+  }
+}
+
+/**
+ * Record a payment via backend API
+ */
+async function recordPayment(input: RecordPaymentInput, createdBy: string): Promise<Payment> {
+  try {
+    return await apiClient.post<Payment>('/api/payments', {
+      ...input,
+      created_by: createdBy,
+    })
+  } catch (error) {
+    console.error('Failed to record payment:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record payment')
+  }
+}
+
+/**
+ * Create a refund via backend API
+ */
+async function createRefund(agreementId: string, amount: number, reason: string, createdBy: string): Promise<Refund> {
+  try {
+    return await apiClient.post<Refund>(`/api/payments/agreements/${agreementId}/refunds`, {
+      amount,
+      reason,
+      created_by: createdBy,
+    })
+  } catch (error) {
+    console.error('Failed to create refund:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create refund')
+  }
+}
+
+/**
+ * Create an adjustment via backend API
+ */
+async function createAdjustment(
+  agreementId: string,
+  type: AdjustmentType,
+  amount: number,
+  reason: string,
+  createdBy: string
+): Promise<Adjustment> {
+  try {
+    return await apiClient.post<Adjustment>(`/api/payments/agreements/${agreementId}/adjustments`, {
+      type,
+      amount,
+      reason,
+      created_by: createdBy,
+    })
+  } catch (error) {
+    console.error('Failed to create adjustment:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create adjustment')
+  }
+}
+
+/**
+ * Cancel a payment obligation via backend API
+ */
+async function cancelObligation(obligationId: string, reason: string, user: string): Promise<void> {
+  try {
+    await apiClient.patch(`/api/payments/obligations/${obligationId}/cancel`, {
+      reason,
+      cancelled_by: user,
+    })
+  } catch (error) {
+    console.error('Failed to cancel obligation:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to cancel obligation')
+  }
+}
+
+/**
+ * Waive a payment obligation via backend API
+ */
+async function waiveObligation(obligationId: string, reason: string, user: string): Promise<void> {
+  try {
+    await apiClient.patch(`/api/payments/obligations/${obligationId}/waive`, {
+      reason,
+      waived_by: user,
+    })
+  } catch (error) {
+    console.error('Failed to waive obligation:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to waive obligation')
+  }
+}
+
+export const paymentService = {
+  getFinancialAgreements,
+  getAgreementByProject,
+  getObligations,
+  getAllObligations,
+  getPayments,
+  getAllocationsForPayment,
+  getAuditEvents,
+  getRefunds,
+  getAdjustments,
+  createAgreement,
+  recordPayment,
+  createRefund,
+  createAdjustment,
+  cancelObligation,
+  waiveObligation,
+}
     agreementId,
     eventType,
     user,
