@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportSection from '@/components/reports/ReportSection.vue'
@@ -7,9 +8,14 @@ import BarChart from '@/components/reports/BarChart.vue'
 import ProgressChart from '@/components/reports/ProgressChart.vue'
 import Card from '@/components/common/Card.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
-import type { ChartDataPoint } from '@/types/Report'
+import ErrorState from '@/components/common/ErrorState.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import { workloadReportService, type WorkloadReportData } from '@/services/workloadReportService'
+import { useToastStore } from '@/stores/toastStore'
+import type { WorkloadTeamMember } from '@/mock/workloadReport'
 
 const router = useRouter()
+const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -19,65 +25,33 @@ const reportDate = new Date().toLocaleDateString('en-US', {
   minute: '2-digit',
 })
 
-// Overall Team Metrics
-const teamMetrics = [
-  {
-    label: 'Total Team Members',
-    value: 3,
-    change: { direction: 'up' as const, percentage: 0 },
-    color: 'primary',
-  },
-  {
-    label: 'Average Utilization',
-    value: '82%',
-    change: { direction: 'up' as const, percentage: 4 },
-    color: 'info',
-  },
-  {
-    label: 'Overallocated Staff',
-    value: 0,
-    unit: 'persons',
-    change: { direction: 'down' as const, percentage: 0 },
-    color: 'warning',
-  },
-  {
-    label: 'Capacity Available',
-    value: '18%',
-    change: { direction: 'up' as const, percentage: 6 },
-    color: 'neutral',
-  },
-]
+const isLoading = ref(true)
+const error = ref<string | undefined>(undefined)
+const data = ref<WorkloadReportData | undefined>(undefined)
 
-// Workload by Discipline
-const workloadByDept: ChartDataPoint[] = [
-  { label: 'Structural Engineering', value: 2, color: '#8B5CF6' },
-  { label: 'MEP Engineering', value: 2, color: '#06B6D4' },
-  { label: 'Fire & Safety', value: 1, color: '#F59E0B' },
-]
+async function loadReport(): Promise<void> {
+  isLoading.value = true
+  error.value = undefined
+  try {
+    data.value = await workloadReportService.getWorkloadReport()
+  } catch {
+    error.value = 'Unable to load the workload report. Please try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
 
-// Team Member Allocation
-const teamMembers = [
-  { name: 'Layla Haddad', role: 'Structural Engineer', department: 'Structural Engineering', allocation: 90, capacity: 100, projects: 2, overallocated: false },
-  { name: 'Ahmed Rashid', role: 'MEP Engineer', department: 'MEP Engineering', allocation: 88, capacity: 100, projects: 2, overallocated: false },
-  { name: 'Mohammed Iqbal', role: 'Fire & Safety Engineer', department: 'Fire & Safety', allocation: 68, capacity: 100, projects: 1, overallocated: false },
-]
-
-// Discipline Utilization
-const deptUtilization: ChartDataPoint[] = [
-  { label: 'Structural Engineering', value: 90, color: '#8B5CF6' },
-  { label: 'MEP Engineering', value: 88, color: '#06B6D4' },
-  { label: 'Fire & Safety', value: 68, color: '#F59E0B' },
-]
+onMounted(loadReport)
 
 const handleExport = () => {
-  console.log('Export would trigger here - PDF generation needs html2pdf library')
+  toastStore.show('info', 'Export not available yet', 'PDF export for this report is coming soon.')
 }
 
 const goBack = () => {
   router.back()
 }
 
-const getRowColor = (member: (typeof teamMembers)[number]) => {
+const getRowColor = (member: WorkloadTeamMember) => {
   if (member.overallocated) return 'bg-danger-50 border-danger-200'
   if (member.allocation >= 90) return 'bg-warning-50 border-warning-200'
   return 'bg-neutral-50'
@@ -98,9 +72,16 @@ const getAllocationColor = (allocation: number) => {
 
     <ReportHeader title="Team Workload Summary" subtitle="Current capacity and allocation analysis" :generated-date="reportDate" @download="handleExport" />
 
+    <ErrorState v-if="error" :description="error" @retry="loadReport" />
+
+    <div v-else-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
+      <SkeletonLoader :rows="6" />
+    </div>
+
+    <template v-else-if="data">
     <!-- Team Overview Metrics -->
     <ReportSection title="Team Overview" description="High-level team capacity and utilization metrics">
-      <ReportMetricCard v-for="(metric, index) in teamMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
+      <ReportMetricCard v-for="(metric, index) in data.teamMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
     </ReportSection>
 
     <!-- Overall Team Health -->
@@ -114,14 +95,14 @@ const getAllocationColor = (allocation: number) => {
     <!-- Workload by Discipline -->
     <ReportSection title="Workload by Discipline" description="Active project count by engineering discipline" fullWidth>
       <Card>
-        <BarChart :data="workloadByDept" :height="350" />
+        <BarChart :data="data.workloadByDepartment" :height="350" />
       </Card>
     </ReportSection>
 
     <!-- Discipline Utilization -->
     <ReportSection title="Discipline Utilization Rates" description="Allocation percentage by engineering discipline" fullWidth>
       <Card>
-        <BarChart :data="deptUtilization" :height="350" />
+        <BarChart :data="data.departmentUtilization" :height="350" />
       </Card>
     </ReportSection>
 
@@ -129,7 +110,7 @@ const getAllocationColor = (allocation: number) => {
     <ReportSection title="Team Member Allocation Details" fullWidth>
       <div class="space-y-3">
         <div
-          v-for="member in teamMembers"
+          v-for="member in data.teamMembers"
           :key="member.name"
           :class="['p-4 rounded-lg border transition-all', getRowColor(member)]"
         >
@@ -191,6 +172,7 @@ const getAllocationColor = (allocation: number) => {
         </Card>
       </div>
     </ReportSection>
+    </template>
 
     <!-- Report Footer -->
     <div class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">

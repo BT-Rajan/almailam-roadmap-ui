@@ -244,7 +244,7 @@ const router = createRouter({
       },
     },
     {
-      path: '/reports/project',
+      path: '/reports/project/:projectId?',
       name: ROUTE_NAMES.REPORT_PROJECT,
       component: () => import('@/pages/ProjectReportPage.vue'),
       meta: {

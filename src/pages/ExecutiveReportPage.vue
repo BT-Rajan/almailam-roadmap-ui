@@ -1,16 +1,21 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportSection from '@/components/reports/ReportSection.vue'
 import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
 import BarChart from '@/components/reports/BarChart.vue'
 import LineChart from '@/components/reports/LineChart.vue'
-import ProgressChart from '@/components/reports/ProgressChart.vue'
 import Card from '@/components/common/Card.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
-import type { ChartDataPoint, LineChartData } from '@/types/Report'
+import ErrorState from '@/components/common/ErrorState.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import { reportService } from '@/services/reportService'
+import { useToastStore } from '@/stores/toastStore'
+import type { ChartDataPoint, LineChartData, ReportMetric } from '@/types/Report'
 
 const router = useRouter()
+const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -20,60 +25,35 @@ const reportDate = new Date().toLocaleDateString('en-US', {
   minute: '2-digit',
 })
 
-// Key Metrics
-const keyMetrics = [
-  {
-    label: 'Total Projects',
-    value: 5,
-    unit: 'active',
-    change: { direction: 'up' as const, percentage: 15 },
-    color: 'primary',
-  },
-  {
-    label: 'Project Completion Rate',
-    value: '87%',
-    change: { direction: 'up' as const, percentage: 8 },
-    color: 'success',
-  },
-  {
-    label: 'Team Utilization',
-    value: '82%',
-    change: { direction: 'down' as const, percentage: 2 },
-    color: 'info',
-  },
-  {
-    label: 'Budget Variance',
-    value: '+5%',
-    change: { direction: 'down' as const, percentage: 12 },
-    color: 'warning',
-  },
-]
+const isLoading = ref(true)
+const error = ref<string | undefined>(undefined)
+const keyMetrics = ref<ReportMetric[]>([])
+const projectsByStatus = ref<ChartDataPoint[]>([])
+const paymentsReceivedTrend = ref<LineChartData[]>([])
+const contractsByStatus = ref<ChartDataPoint[]>([])
 
-// Projects by Status
-const projectsByStatus: ChartDataPoint[] = [
-  { label: 'Active', value: 4, color: '#3B82F6' },
-  { label: 'Completed', value: 1, color: '#10B981' },
-]
+async function loadReport(): Promise<void> {
+  isLoading.value = true
+  error.value = undefined
+  try {
+    ;[keyMetrics.value, projectsByStatus.value, paymentsReceivedTrend.value, contractsByStatus.value] =
+      await Promise.all([
+        reportService.getSummary(),
+        reportService.getProjectsByStatus(),
+        reportService.getPaymentsReceivedByMonth(6),
+        reportService.getContractsByStatus(),
+      ])
+  } catch {
+    error.value = 'Unable to load the executive report. Please try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
 
-// Monthly Delivery Trend
-const deliveryTrend: LineChartData[] = [
-  { x: 'Feb', value: 2 },
-  { x: 'Mar', value: 3 },
-  { x: 'Apr', value: 3 },
-  { x: 'May', value: 4 },
-  { x: 'Jun', value: 5 },
-  { x: 'Jul', value: 5 },
-]
-
-// Resource Allocation
-const resourceAllocation: ChartDataPoint[] = [
-  { label: 'Structural Engineering', value: 40, color: '#8B5CF6' },
-  { label: 'MEP Engineering', value: 40, color: '#06B6D4' },
-  { label: 'Fire & Safety', value: 20, color: '#F59E0B' },
-]
+onMounted(loadReport)
 
 const handleExport = () => {
-  console.log('Export would trigger here - PDF generation needs html2pdf library')
+  toastStore.show('info', 'Export not available yet', 'PDF export for this report is coming soon.')
 }
 
 const goBack = () => {
@@ -87,66 +67,43 @@ const goBack = () => {
       <BaseButton variant="ghost" size="sm" @click="goBack"> ← Back </BaseButton>
     </div>
 
-    <ReportHeader title="Executive Summary Report" subtitle="H1 2026 Performance Overview" :generated-date="reportDate" @download="handleExport" />
+    <ReportHeader title="Executive Summary Report" subtitle="Current Performance Overview" :generated-date="reportDate" @download="handleExport" />
 
-    <!-- Key Metrics Overview -->
-    <ReportSection title="Key Performance Indicators" description="High-level metrics for the current period">
-      <ReportMetricCard v-for="(metric, index) in keyMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
-    </ReportSection>
+    <ErrorState v-if="error" :description="error" @retry="loadReport" />
 
-    <!-- Progress Overview -->
-    <ReportSection title="Overall Health Metrics" fullWidth>
-      <div class="grid grid-cols-1 tablet:grid-cols-3 gap-8 justify-items-center">
-        <ProgressChart :value="87" label="Project Completion" color="#10B981" size="md" />
-        <ProgressChart :value="92" label="Team Utilization" color="#3B82F6" size="md" />
-        <ProgressChart :value="78" label="Budget Tracking" color="#F59E0B" size="md" />
+    <template v-else-if="isLoading">
+      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+        <SkeletonLoader :rows="6" />
       </div>
-    </ReportSection>
+    </template>
 
-    <!-- Projects Status Distribution -->
-    <ReportSection title="Project Status Distribution" description="Breakdown of projects by current status" fullWidth>
-      <Card>
-        <BarChart :data="projectsByStatus" :height="350" />
-      </Card>
-    </ReportSection>
+    <template v-else>
+      <!-- Key Metrics Overview -->
+      <ReportSection title="Key Performance Indicators" description="High-level metrics for the current period">
+        <ReportMetricCard v-for="(metric, index) in keyMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
+      </ReportSection>
 
-    <!-- Delivery Trend -->
-    <ReportSection title="Delivery Trend Analysis" description="Monthly completed deliverables over the past 6 months" fullWidth>
-      <Card>
-        <LineChart :data="deliveryTrend" :height="350" />
-      </Card>
-    </ReportSection>
-
-    <!-- Resource Allocation -->
-    <ReportSection title="Resource Allocation" description="Distribution of team resources across functional areas" fullWidth>
-      <Card>
-        <BarChart :data="resourceAllocation" :height="350" />
-      </Card>
-    </ReportSection>
-
-    <!-- Summary Insights -->
-    <ReportSection title="Key Insights & Recommendations" fullWidth>
-      <div class="space-y-3">
-        <Card class="bg-success-50 border border-success-200">
-          <div class="space-y-2">
-            <h3 class="font-semibold text-success-900">✓ Strong Performance</h3>
-            <p class="text-sm text-success-800">87% project completion rate demonstrates consistent delivery capability and effective project management.</p>
-          </div>
+      <!-- Projects Status Distribution -->
+      <ReportSection title="Project Status Distribution" description="Breakdown of projects by current status" fullWidth>
+        <Card>
+          <BarChart :data="projectsByStatus" :height="350" />
         </Card>
-        <Card class="bg-warning-50 border border-warning-200">
-          <div class="space-y-2">
-            <h3 class="font-semibold text-warning-900">⚠ Resource Optimization Needed</h3>
-            <p class="text-sm text-warning-800">Team utilization at 92% with 4 pending projects. Consider capacity planning for next quarter.</p>
-          </div>
+      </ReportSection>
+
+      <!-- Payments Received Trend -->
+      <ReportSection title="Payments Received Trend" description="Payments received over the past 6 months" fullWidth>
+        <Card>
+          <LineChart :data="paymentsReceivedTrend" :height="350" />
         </Card>
-        <Card class="bg-info-50 border border-info-200">
-          <div class="space-y-2">
-            <h3 class="font-semibold text-info-900">ℹ Budget Status</h3>
-            <p class="text-sm text-info-800">5% positive variance indicates efficient cost management. Current spending aligns with projections.</p>
-          </div>
+      </ReportSection>
+
+      <!-- Contract Pipeline -->
+      <ReportSection title="Contract Pipeline" description="Distribution of contracts by current status" fullWidth>
+        <Card>
+          <BarChart :data="contractsByStatus" :height="350" />
         </Card>
-      </div>
-    </ReportSection>
+      </ReportSection>
+    </template>
 
     <!-- Report Footer -->
     <div class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
