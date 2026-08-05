@@ -1,27 +1,96 @@
-import { CONTRACT_AI_SUMMARIES } from '@/mock/contractAiSummaries'
-import { CONTRACTS } from '@/mock/contracts'
+import { apiClient } from '@/services/httpClient'
 import type { Contract, ContractAISummary } from '@/types/Contract'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
-const AI_THINKING_DELAY_MS = 900
-
+/**
+ * Fetch contracts for a specific project from backend API
+ */
 async function getContractsByProject(projectId: string): Promise<Contract[]> {
-  await simulateNetworkDelay()
-  return CONTRACTS.filter((contract) => contract.projectId === projectId)
+  try {
+    return await apiClient.get<Contract[]>(`/api/projects/${projectId}/contracts`)
+  } catch (error) {
+    console.error(`Failed to fetch contracts for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
+  }
 }
 
+/**
+ * Fetch a specific contract by ID from backend API
+ */
 async function getContractById(contractId: string): Promise<Contract | undefined> {
-  await simulateNetworkDelay()
-  return CONTRACTS.find((contract) => contract.id === contractId)
+  try {
+    return await apiClient.get<Contract>(`/api/contracts/${contractId}`)
+  } catch (error) {
+    console.error(`Failed to fetch contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contract')
+  }
 }
 
+/**
+ * Get AI summary for a contract from backend API
+ */
 async function getContractAISummary(contractId: string): Promise<ContractAISummary | undefined> {
-  await simulateNetworkDelay(AI_THINKING_DELAY_MS)
-  return CONTRACT_AI_SUMMARIES.find((summary) => summary.contractId === contractId)
+  try {
+    return await apiClient.get<ContractAISummary>(`/api/contracts/${contractId}/ai-summary`)
+  } catch (error) {
+    console.error(`Failed to fetch AI summary for contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch AI summary')
+  }
+}
+
+/**
+ * Fetch all contracts from backend API
+ */
+async function getContracts(): Promise<Contract[]> {
+  try {
+    return await apiClient.get<Contract[]>('/api/contracts')
+  } catch (error) {
+    console.error('Failed to fetch contracts:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
+  }
+}
+
+/**
+ * Create a new contract via backend API
+ */
+async function createContract(contractData: Partial<Contract>): Promise<Contract> {
+  try {
+    return await apiClient.post<Contract>('/api/contracts', contractData)
+  } catch (error) {
+    console.error('Failed to create contract:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create contract')
+  }
+}
+
+/**
+ * Update a contract via backend API
+ */
+async function updateContract(contractId: string, contractData: Partial<Contract>): Promise<Contract> {
+  try {
+    return await apiClient.patch<Contract>(`/api/contracts/${contractId}`, contractData)
+  } catch (error) {
+    console.error(`Failed to update contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update contract')
+  }
+}
+
+/**
+ * Delete a contract via backend API
+ */
+async function deleteContract(contractId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/contracts/${contractId}`)
+  } catch (error) {
+    console.error(`Failed to delete contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete contract')
+  }
 }
 
 export const contractService = {
   getContractsByProject,
   getContractById,
   getContractAISummary,
+  getContracts,
+  createContract,
+  updateContract,
+  deleteContract,
 }
