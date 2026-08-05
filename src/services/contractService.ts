@@ -8,7 +8,6 @@ async function getContractsByProject(projectId: string): Promise<Contract[]> {
   try {
     return await apiClient.get<Contract[]>(`/api/projects/${projectId}/contracts`)
   } catch (error) {
-    console.error(`Failed to fetch contracts for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
   }
 }
@@ -20,7 +19,6 @@ async function getContractById(contractId: string): Promise<Contract | undefined
   try {
     return await apiClient.get<Contract>(`/api/contracts/${contractId}`)
   } catch (error) {
-    console.error(`Failed to fetch contract ${contractId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contract')
   }
 }
@@ -32,7 +30,6 @@ async function getContractAISummary(contractId: string): Promise<ContractAISumma
   try {
     return await apiClient.get<ContractAISummary>(`/api/contracts/${contractId}/ai-summary`)
   } catch (error) {
-    console.error(`Failed to fetch AI summary for contract ${contractId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch AI summary')
   }
 }
@@ -44,7 +41,6 @@ async function getContracts(): Promise<Contract[]> {
   try {
     return await apiClient.get<Contract[]>('/api/contracts')
   } catch (error) {
-    console.error('Failed to fetch contracts:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
   }
 }
@@ -56,7 +52,6 @@ async function createContract(contractData: Partial<Contract>): Promise<Contract
   try {
     return await apiClient.post<Contract>('/api/contracts', contractData)
   } catch (error) {
-    console.error('Failed to create contract:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to create contract')
   }
 }
@@ -68,7 +63,6 @@ async function updateContract(contractId: string, contractData: Partial<Contract
   try {
     return await apiClient.patch<Contract>(`/api/contracts/${contractId}`, contractData)
   } catch (error) {
-    console.error(`Failed to update contract ${contractId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update contract')
   }
 }
@@ -80,7 +74,6 @@ async function deleteContract(contractId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/contracts/${contractId}`)
   } catch (error) {
-    console.error(`Failed to delete contract ${contractId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete contract')
   }
 }

@@ -45,7 +45,6 @@ class AuditService {
 
       return await apiClient.get<AuditLog[]>(url)
     } catch (error) {
-      console.error('Failed to fetch audit logs:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit logs')
     }
   }
@@ -59,7 +58,6 @@ class AuditService {
         `/api/audit-logs?entity_type=${entityType}&entity_id=${entityId}`
       )
     } catch (error) {
-      console.error('Failed to fetch entity audit logs:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch entity audit logs')
     }
   }
@@ -73,7 +71,6 @@ class AuditService {
         `/api/audit-logs?changed_by=${userId}&limit=${limit}`
       )
     } catch (error) {
-      console.error('Failed to fetch user audit logs:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch user audit logs')
     }
   }
@@ -85,7 +82,6 @@ class AuditService {
     try {
       return await apiClient.get<AuditLog[]>(`/api/audit-logs?limit=${limit}`)
     } catch (error) {
-      console.error('Failed to fetch recent activity:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch recent activity')
     }
   }
@@ -114,7 +110,6 @@ class AuditService {
 
       return await response.blob()
     } catch (error) {
-      console.error('Failed to export audit logs:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to export audit logs')
     }
   }

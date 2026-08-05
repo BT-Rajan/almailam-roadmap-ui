@@ -8,7 +8,6 @@ async function getDocuments(): Promise<ProjectDocument[]> {
   try {
     return await apiClient.get<ProjectDocument[]>('/api/documents')
   } catch (error) {
-    console.error('Failed to fetch documents:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
   }
 }
@@ -20,7 +19,6 @@ async function getDocumentById(documentId: string): Promise<ProjectDocument | un
   try {
     return await apiClient.get<ProjectDocument>(`/api/documents/${documentId}`)
   } catch (error) {
-    console.error(`Failed to fetch document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch document')
   }
 }
@@ -32,7 +30,6 @@ async function getDocumentsByProject(projectId: string): Promise<ProjectDocument
   try {
     return await apiClient.get<ProjectDocument[]>(`/api/projects/${projectId}/documents`)
   } catch (error) {
-    console.error(`Failed to fetch documents for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
   }
 }
@@ -44,7 +41,6 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
   try {
     return await apiClient.get<DocumentVersion[]>(`/api/documents/${documentId}/versions`)
   } catch (error) {
-    console.error(`Failed to fetch versions for document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch document versions')
   }
 }
@@ -77,7 +73,6 @@ async function uploadDocument(file: File, projectId: string, metadata?: Record<s
 
     return (await response.json()) as ProjectDocument
   } catch (error) {
-    console.error('Failed to upload document:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to upload document')
   }
 }
@@ -89,7 +84,6 @@ async function deleteDocument(documentId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/documents/${documentId}`)
   } catch (error) {
-    console.error(`Failed to delete document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
   }
 }
@@ -112,7 +106,6 @@ async function downloadDocument(documentId: string): Promise<Blob> {
 
     return await response.blob()
   } catch (error) {
-    console.error(`Failed to download document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to download document')
   }
 }

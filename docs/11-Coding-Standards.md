@@ -412,6 +412,8 @@ Inline CSS
 
 Avoid custom CSS whenever possible.
 
+Exception: a runtime-computed value that Tailwind's static utility classes cannot express -- a progress-bar width as a percentage, a color swatch bound to a user-configured setting, a CSS transform driven by a zoom level, an SVG gradient stop, a table column width from data -- may use a `:style` binding for that specific computed property. This is not license for static/decorative styling: if a value is knowable at build time, it belongs in a Tailwind class, not inline.
+
 ---
 
 # Responsive Design
@@ -453,6 +455,8 @@ Always use
 SmartTable
 
 Never build custom tables.
+
+Exception: a fixed, printable document layout (e.g. a quotation or contract line-items table meant for PDF/print output, not on-screen browsing) may use a plain `<table>`. SmartTable's search box, sortable headers, and pagination are wrong for a document that must render as a static printed page.
 
 ---
 

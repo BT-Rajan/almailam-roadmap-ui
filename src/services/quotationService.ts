@@ -8,7 +8,6 @@ async function getQuotationsByProject(projectId: string): Promise<Quotation[]> {
   try {
     return await apiClient.get<Quotation[]>(`/api/projects/${projectId}/quotations`)
   } catch (error) {
-    console.error(`Failed to fetch quotations for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotations')
   }
 }
@@ -20,7 +19,6 @@ async function getQuotationById(quotationId: string): Promise<Quotation | undefi
   try {
     return await apiClient.get<Quotation>(`/api/quotations/${quotationId}`)
   } catch (error) {
-    console.error(`Failed to fetch quotation ${quotationId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotation')
   }
 }
@@ -32,7 +30,6 @@ async function getQuotations(): Promise<Quotation[]> {
   try {
     return await apiClient.get<Quotation[]>('/api/quotations')
   } catch (error) {
-    console.error('Failed to fetch quotations:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotations')
   }
 }
@@ -44,7 +41,6 @@ async function createQuotation(quotationData: Partial<Quotation>): Promise<Quota
   try {
     return await apiClient.post<Quotation>('/api/quotations', quotationData)
   } catch (error) {
-    console.error('Failed to create quotation:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to create quotation')
   }
 }
@@ -56,7 +52,6 @@ async function updateQuotation(quotationId: string, quotationData: Partial<Quota
   try {
     return await apiClient.patch<Quotation>(`/api/quotations/${quotationId}`, quotationData)
   } catch (error) {
-    console.error(`Failed to update quotation ${quotationId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update quotation')
   }
 }
@@ -68,7 +63,6 @@ async function deleteQuotation(quotationId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/quotations/${quotationId}`)
   } catch (error) {
-    console.error(`Failed to delete quotation ${quotationId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete quotation')
   }
 }

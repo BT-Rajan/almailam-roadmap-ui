@@ -18,7 +18,6 @@ async function getClients(): Promise<Client[]> {
   try {
     return await apiClient.get<Client[]>('/api/clients')
   } catch (error) {
-    console.error('Failed to fetch clients:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch clients')
   }
 }
@@ -30,7 +29,6 @@ async function getClientById(clientId: string): Promise<Client | undefined> {
   try {
     return await apiClient.get<Client>(`/api/clients/${clientId}`)
   } catch (error) {
-    console.error(`Failed to fetch client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch client')
   }
 }
@@ -42,7 +40,6 @@ async function getContactsForClient(clientId: string): Promise<ClientContact[]> 
   try {
     return await apiClient.get<ClientContact[]>(`/api/clients/${clientId}/contacts`)
   } catch (error) {
-    console.error(`Failed to fetch contacts for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contacts')
   }
 }
@@ -54,7 +51,6 @@ async function getAddressesForClient(clientId: string): Promise<ClientAddress[]>
   try {
     return await apiClient.get<ClientAddress[]>(`/api/clients/${clientId}/addresses`)
   } catch (error) {
-    console.error(`Failed to fetch addresses for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch addresses')
   }
 }
@@ -66,7 +62,6 @@ async function getIdentificationsForClient(clientId: string): Promise<ClientIden
   try {
     return await apiClient.get<ClientIdentification[]>(`/api/clients/${clientId}/identifications`)
   } catch (error) {
-    console.error(`Failed to fetch identifications for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch identifications')
   }
 }
@@ -78,7 +73,6 @@ async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]
   try {
     return await apiClient.get<ClientDocument[]>(`/api/clients/${clientId}/documents`)
   } catch (error) {
-    console.error(`Failed to fetch documents for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
   }
 }
@@ -90,7 +84,6 @@ async function getVerificationsForClient(clientId: string): Promise<ClientVerifi
   try {
     return await apiClient.get<ClientVerification[]>(`/api/clients/${clientId}/verifications`)
   } catch (error) {
-    console.error(`Failed to fetch verifications for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch verifications')
   }
 }
@@ -102,7 +95,6 @@ async function getConsentsForClient(clientId: string): Promise<ClientConsent[]> 
   try {
     return await apiClient.get<ClientConsent[]>(`/api/clients/${clientId}/consents`)
   } catch (error) {
-    console.error(`Failed to fetch consents for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch consents')
   }
 }
@@ -114,7 +106,6 @@ async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEve
   try {
     return await apiClient.get<ClientAuditEvent[]>(`/api/clients/${clientId}/audit-events`)
   } catch (error) {
-    console.error(`Failed to fetch audit events for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
   }
 }
@@ -135,7 +126,6 @@ async function findPossibleDuplicates(
       email,
     })
   } catch (error) {
-    console.error('Failed to check for duplicate clients:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')
   }
 }
@@ -147,7 +137,6 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
   try {
     return await apiClient.post<Client>('/api/clients', clientData)
   } catch (error) {
-    console.error('Failed to create client:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to create client')
   }
 }
@@ -159,7 +148,6 @@ async function updateClient(clientId: string, clientData: Partial<Client>): Prom
   try {
     return await apiClient.patch<Client>(`/api/clients/${clientId}`, clientData)
   } catch (error) {
-    console.error(`Failed to update client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update client')
   }
 }
@@ -171,7 +159,6 @@ async function deleteClient(clientId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/clients/${clientId}`)
   } catch (error) {
-    console.error(`Failed to delete client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete client')
   }
 }

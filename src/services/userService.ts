@@ -10,7 +10,6 @@ async function getUsers(): Promise<AppUser[]> {
     const response = await apiClient.get<AppUser[]>('/api/users')
     return response || []
   } catch (error) {
-    console.error('Failed to fetch users:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch users')
   }
 }
@@ -23,7 +22,6 @@ async function getRoleDefinitions(): Promise<RoleDefinition[]> {
     const response = await apiClient.get<RoleDefinition[]>('/api/roles')
     return response || []
   } catch (error) {
-    console.error('Failed to fetch roles:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch roles')
   }
 }
@@ -43,7 +41,6 @@ async function createUser(user: Partial<AppUser>): Promise<AppUser> {
     })
     return response
   } catch (error) {
-    console.error('Failed to create user:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to create user')
   }
 }
@@ -61,7 +58,6 @@ async function updateUser(user: AppUser): Promise<AppUser> {
     })
     return response
   } catch (error) {
-    console.error('Failed to update user:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update user')
   }
 }
@@ -75,7 +71,6 @@ async function setUserStatus(userId: string, status: AppUser['status']): Promise
       is_active: status === 'Active',
     })
   } catch (error) {
-    console.error('Failed to set user status:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to set user status')
   }
 }
@@ -87,7 +82,6 @@ async function deleteUser(userId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/users/${userId}`)
   } catch (error) {
-    console.error('Failed to delete user:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete user')
   }
 }
