@@ -1,0 +1,71 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.api.deps import require_permission
+from app.core.database import get_db
+from app.models.project import Project
+from app.models.user import User
+from app.schemas.task import TaskCreate, TaskOut, TaskStatusUpdate, TaskUpdate
+from app.services import task_service
+
+router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+can_view = require_permission("Projects", "view")
+can_edit = require_permission("Projects", "edit")
+
+
+def _project_no(db: Session, project_id: int) -> str:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    return project.project_no if project else ""
+
+
+def _to_out(db: Session, task) -> TaskOut:
+    return TaskOut.from_model(task, _project_no(db, task.project_id), task_service.user_name(db, task.assigned_to))
+
+
+@router.get("", response_model=list[TaskOut])
+def list_tasks(
+    projectId: str | None = None,
+    status: str | None = None,
+    assignedTo: str | None = None,
+    priority: str | None = None,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    tasks = task_service.list_tasks(db, projectId, status, assignedTo, priority)
+    return [_to_out(db, t) for t in tasks]
+
+
+@router.get("/{task_no}", response_model=TaskOut)
+def get_task(task_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return _to_out(db, task_service.get_task(db, task_no))
+
+
+@router.post("", response_model=TaskOut, status_code=201)
+def create_task(payload: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    task = task_service.create_task(db, payload, current_user.id)
+    return _to_out(db, task)
+
+
+@router.patch("/{task_no}", response_model=TaskOut)
+def update_task(
+    task_no: str, payload: TaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    task = task_service.update_task(db, task_no, payload, current_user.id)
+    return _to_out(db, task)
+
+
+@router.patch("/{task_no}/status", response_model=TaskOut)
+def set_status(
+    task_no: str,
+    payload: TaskStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    task = task_service.set_status(db, task_no, payload.status, payload.reason, current_user.id)
+    return _to_out(db, task)
+
+
+@router.get("/{task_no}/audit-events")
+def list_audit_events(task_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return task_service.get_audit_events(db, task_no)

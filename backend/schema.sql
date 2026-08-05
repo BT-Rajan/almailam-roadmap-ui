@@ -463,4 +463,25 @@ CREATE TABLE IF NOT EXISTS document_ai_reviews (
     INDEX idx_document_ai_reviews_document (document_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS tasks (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    task_no         VARCHAR(20) NOT NULL UNIQUE,
+    project_id      BIGINT UNSIGNED NOT NULL,
+    title           VARCHAR(200) NOT NULL,
+    assigned_to     BIGINT UNSIGNED NOT NULL,
+    priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
+    severity        ENUM('Critical','Major','Minor') NOT NULL DEFAULT 'Minor',
+    due_date        DATE NOT NULL,
+    due_time        TIME NOT NULL,
+    status          ENUM('Pending','In Progress','Completed') NOT NULL DEFAULT 'Pending',
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL,
+    CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_tasks_assignee FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_tasks_project (project_id),
+    INDEX idx_tasks_status (status),
+    INDEX idx_tasks_assignee (assigned_to)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

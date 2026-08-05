@@ -12,6 +12,7 @@ from app.api.projects import router as projects_router
 from app.api.quotations import router as quotations_router
 from app.api.roles import router as roles_router
 from app.api.submissions import router as submissions_router
+from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
@@ -49,6 +50,7 @@ app.include_router(quotations_router)
 app.include_router(contracts_router)
 app.include_router(payments_router)
 app.include_router(documents_router)
+app.include_router(tasks_router)
 
 
 @app.get("/api/health")
