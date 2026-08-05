@@ -22,8 +22,14 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Set the password non-interactively (e.g. for local/dev seeding). "
-            "Omit to be prompted securely instead."
+            "Omit to be prompted securely instead. "
+            "Example: --password 'Admin#99' for development."
         ),
+    )
+    parser.add_argument(
+        "--quick-start",
+        action="store_true",
+        help="Quick-start mode: creates admin user with password 'Admin#99' (development only).",
     )
     return parser.parse_args()
 
@@ -50,13 +56,23 @@ def main() -> None:
             print(f"[skip] User '{args.username}' already exists.")
             return
 
-        if args.password is not None:
+        # Determine password based on arguments
+        if args.quick_start:
+            password = "Admin#99"
+            print("[info] Using quick-start password: 'Admin#99' (development only).")
+        elif args.password is not None:
             if len(args.password) < 8:
                 print("Password must be at least 8 characters.")
                 return
             password = args.password
         else:
             password = read_password()
+
+        # Validate password strength
+        if len(password) < 8:
+            print("Password must be at least 8 characters.")
+            return
+
         db.add(
             User(
                 username=args.username,
@@ -68,7 +84,9 @@ def main() -> None:
             )
         )
         db.commit()
-        print(f"[ok] Created admin user '{args.username}'.")
+        print(f"[ok] Created admin user '{args.username}' with role 'Administrator'.")
+        if args.quick_start:
+            print("[warn] ⚠️  This is a development password. Change it in production!")
     except Exception:
         db.rollback()
         raise
