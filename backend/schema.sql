@@ -500,4 +500,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notifications_user_read (user_id, `read`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS message_templates (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    channel         ENUM('Email','SMS','WhatsApp') NOT NULL,
+    body            TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS message_log (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id       BIGINT UNSIGNED NOT NULL,
+    channel         ENUM('Email','SMS','WhatsApp') NOT NULL,
+    template_id     BIGINT UNSIGNED NULL,
+    body            TEXT NOT NULL,
+    project_id      BIGINT UNSIGNED NULL,
+    status          ENUM('Sent','Failed') NOT NULL,
+    sent_at         DATETIME NOT NULL,
+    CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_message_log_template FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE SET NULL,
+    CONSTRAINT fk_message_log_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+    INDEX idx_message_log_client (client_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
