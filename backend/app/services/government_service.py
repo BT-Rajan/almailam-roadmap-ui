@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.models.government import GovernmentAuthority, GovernmentForm
+from app.services import audit_service
+
+AUTHORITY_ENTITY_TYPE = "GOVERNMENT_AUTHORITY"
+FORM_ENTITY_TYPE = "GOVERNMENT_FORM"
 
 
 def _parse_id(raw: str, prefix: str) -> int:
@@ -44,18 +48,26 @@ def get_authority(db: Session, authority_id: int) -> GovernmentAuthority:
     return authority
 
 
-def create_authority(db: Session, payload) -> GovernmentAuthority:
+def create_authority(db: Session, payload, actor_id: int) -> GovernmentAuthority:
     authority = GovernmentAuthority(
         name=payload.name, category=payload.category, website=payload.website, description=payload.description
     )
     db.add(authority)
+    db.flush()
+    audit_service.log_event(
+        db, AUTHORITY_ENTITY_TYPE, authority.id, "Authority created", actor_id, new_value=authority.name
+    )
     db.commit()
     db.refresh(authority)
     return authority
 
 
-def update_authority(db: Session, authority_id: int, payload) -> GovernmentAuthority:
+def update_authority(db: Session, authority_id: int, payload, actor_id: int) -> GovernmentAuthority:
     authority = get_authority(db, authority_id)
+    audit_service.log_event(
+        db, AUTHORITY_ENTITY_TYPE, authority.id, "Authority updated", actor_id,
+        previous_value=authority.name, new_value=payload.name,
+    )
     authority.name = payload.name
     authority.category = payload.category
     authority.website = payload.website
@@ -65,9 +77,12 @@ def update_authority(db: Session, authority_id: int, payload) -> GovernmentAutho
     return authority
 
 
-def delete_authority(db: Session, authority_id: int) -> None:
+def delete_authority(db: Session, authority_id: int, actor_id: int) -> None:
     authority = get_authority(db, authority_id)
     now = datetime.now(timezone.utc)
+    audit_service.log_event(
+        db, AUTHORITY_ENTITY_TYPE, authority.id, "Authority deleted", actor_id, previous_value=authority.name
+    )
     authority.deleted_at = now
     # Mirrors src/services/governmentFormService.ts's deleteAuthority, which
     # removes every form belonging to the authority alongside it -- soft
@@ -102,7 +117,7 @@ def get_form(db: Session, form_id: int) -> GovernmentForm:
     return form
 
 
-def create_form(db: Session, payload) -> GovernmentForm:
+def create_form(db: Session, payload, actor_id: int) -> GovernmentForm:
     get_authority(db, parse_authority_id(payload.authorityId))
     form = GovernmentForm(
         authority_id=parse_authority_id(payload.authorityId),
@@ -116,14 +131,22 @@ def create_form(db: Session, payload) -> GovernmentForm:
         preview_url=payload.previewUrl,
     )
     db.add(form)
+    db.flush()
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Form created", actor_id, new_value=form.title
+    )
     db.commit()
     db.refresh(form)
     return form
 
 
-def update_form(db: Session, form_id: int, payload) -> GovernmentForm:
+def update_form(db: Session, form_id: int, payload, actor_id: int) -> GovernmentForm:
     form = get_form(db, form_id)
     get_authority(db, parse_authority_id(payload.authorityId))
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Form updated", actor_id,
+        previous_value=form.title, new_value=payload.title,
+    )
     form.authority_id = parse_authority_id(payload.authorityId)
     form.form_code = payload.formCode
     form.title = payload.title
@@ -138,14 +161,21 @@ def update_form(db: Session, form_id: int, payload) -> GovernmentForm:
     return form
 
 
-def delete_form(db: Session, form_id: int) -> None:
+def delete_form(db: Session, form_id: int, actor_id: int) -> None:
     form = get_form(db, form_id)
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Form deleted", actor_id, previous_value=form.title
+    )
     form.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 
-def set_form_status(db: Session, form_id: int, status: str) -> GovernmentForm:
+def set_form_status(db: Session, form_id: int, status: str, actor_id: int) -> GovernmentForm:
     form = get_form(db, form_id)
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Status changed", actor_id,
+        previous_value=form.status, new_value=status,
+    )
     form.status = status
     db.commit()
     db.refresh(form)

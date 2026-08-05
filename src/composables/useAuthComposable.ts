@@ -1,6 +1,5 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
-import type { CurrentUser } from '@/services/authService'
 
 /**
  * Composable for accessing authentication state and actions

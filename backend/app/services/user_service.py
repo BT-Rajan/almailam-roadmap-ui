@@ -7,7 +7,9 @@ from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.services import audit_service
 
+ENTITY_TYPE = "USER"
 TEMP_PASSWORD_LENGTH = 14
 
 
@@ -45,7 +47,7 @@ def get_user(db: Session, user_id: int) -> User:
     return user
 
 
-def create_user(db: Session, payload: UserCreate) -> tuple[User, str]:
+def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, str]:
     if db.query(User).filter(User.email == payload.email).first() is not None:
         raise ConflictError("A user with this email already exists.")
 
@@ -63,13 +65,22 @@ def create_user(db: Session, payload: UserCreate) -> tuple[User, str]:
         is_active=True,
     )
     db.add(user)
+    db.flush()
+    audit_service.log_event(
+        db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role
+    )
     db.commit()
     db.refresh(user)
     return user, temporary_password
 
 
-def update_user(db: Session, user_id: int, payload: UserUpdate) -> User:
+def update_user(db: Session, user_id: int, payload: UserUpdate, actor_id: int) -> User:
     user = get_user(db, user_id)
+    if payload.role is not None and payload.role != user.role:
+        audit_service.log_event(
+            db, ENTITY_TYPE, user.id, "Role changed", actor_id,
+            previous_value=user.role, new_value=payload.role,
+        )
     if payload.name is not None:
         user.full_name = payload.name
     if payload.designation is not None:
@@ -83,8 +94,14 @@ def update_user(db: Session, user_id: int, payload: UserUpdate) -> User:
     return user
 
 
-def set_user_status(db: Session, user_id: int, status: str) -> User:
+def set_user_status(db: Session, user_id: int, status: str, actor_id: int) -> User:
     user = get_user(db, user_id)
+    previous_status = "Active" if user.is_active else "Inactive"
+    if previous_status != status:
+        audit_service.log_event(
+            db, ENTITY_TYPE, user.id, "Status changed", actor_id,
+            previous_value=previous_status, new_value=status,
+        )
     user.is_active = status == "Active"
     db.commit()
     db.refresh(user)

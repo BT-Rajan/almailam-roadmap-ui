@@ -57,7 +57,7 @@ async function updateUser(user: AppUser): Promise<AppUser> {
       email: user.email,
       full_name: user.name,
       role: user.role,
-      is_active: user.status === 'active',
+      is_active: user.status === 'Active',
     })
     return response
   } catch (error) {
@@ -72,7 +72,7 @@ async function updateUser(user: AppUser): Promise<AppUser> {
 async function setUserStatus(userId: string, status: AppUser['status']): Promise<void> {
   try {
     await apiClient.patch(`/api/users/${userId}`, {
-      is_active: status === 'active',
+      is_active: status === 'Active',
     })
   } catch (error) {
     console.error('Failed to set user status:', error)
