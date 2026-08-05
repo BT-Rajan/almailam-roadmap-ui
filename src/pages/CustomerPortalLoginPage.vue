@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TextInput from '@/components/common/TextInput.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import Alert from '@/components/common/Alert.vue'
+import { customerPortalAuthService } from '@/services/customerPortalAuthService'
 
 const router = useRouter()
 
@@ -12,6 +13,11 @@ const mobileNumber = ref('')
 const projectId = ref('')
 const loading = ref(false)
 const error = ref('')
+const demoProjects = ref<{ id: string; name: string; phone: string }[]>([])
+
+onMounted(async () => {
+  demoProjects.value = await customerPortalAuthService.getDemoProjects()
+})
 
 const mobileRegex = /^[6-9]\d{9}$/
 
@@ -36,47 +42,32 @@ const handleSubmit = async () => {
 
   loading.value = true
 
-  // Simulate verification delay
-  setTimeout(() => {
-    // Mock verification - in production this would call an API
-    const validProjects: Record<string, string[]> = {
-      'PROJ-2024-001': ['9876543210', '9876543211'],
-      'PROJ-2024-002': ['9876543212', '9876543213'],
-      'PROJ-2024-003': ['9876543214'],
-    }
+  const verified = await customerPortalAuthService.verifyAccess(projectId.value, mobileNumber.value)
 
-    if (validProjects[projectId.value.toUpperCase()]?.includes(mobileNumber.value)) {
-      // Store session
-      localStorage.setItem(
-        'customerPortalSession',
-        JSON.stringify({
-          projectId: projectId.value.toUpperCase(),
-          mobileNumber: mobileNumber.value,
-          lastAccessed: new Date().toISOString(),
-        })
-      )
-
-      router.push({
-        name: 'customer-project',
-        params: { projectId: projectId.value.toUpperCase() },
+  if (verified) {
+    // Store session
+    localStorage.setItem(
+      'customerPortalSession',
+      JSON.stringify({
+        projectId: projectId.value.toUpperCase(),
+        mobileNumber: mobileNumber.value,
+        lastAccessed: new Date().toISOString(),
       })
-    } else {
-      error.value = 'Invalid mobile number or project ID. Please verify and try again.'
-      loading.value = false
-    }
-  }, 800)
+    )
+
+    router.push({
+      name: 'customer-project',
+      params: { projectId: projectId.value.toUpperCase() },
+    })
+  } else {
+    error.value = 'Invalid mobile number or project ID. Please verify and try again.'
+    loading.value = false
+  }
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Enter') handleSubmit()
 }
-
-// Demo projects info
-const demoProjects = [
-  { id: 'PROJ-2024-001', name: 'Metro Rail Phase 2', phone: '+91 9876543210' },
-  { id: 'PROJ-2024-002', name: 'Highway Expansion', phone: '+91 9876543212' },
-  { id: 'PROJ-2024-003', name: 'Water Treatment Plant', phone: '+91 9876543214' },
-]
 </script>
 
 <template>

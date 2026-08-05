@@ -88,8 +88,8 @@ onMounted(async () => {
           <div class="space-y-3 text-sm">
             <div>
               <p class="text-neutral-600 font-medium">Project Manager</p>
-              <p class="text-neutral-900">Rajesh Kumar</p>
-              <p class="text-neutral-500 text-xs">+91 98765 43210</p>
+              <p class="text-neutral-900">{{ projectData.projectManager.name }}</p>
+              <p class="text-neutral-500 text-xs">{{ projectData.projectManager.phone }}</p>
             </div>
             <div class="border-t border-border-light pt-3">
               <p class="text-neutral-600 font-medium">Support Email</p>

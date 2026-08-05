@@ -17,6 +17,7 @@ export const CUSTOMER_PORTAL_PROJECTS: Record<string, CustomerProjectStatus> = {
     progress: 65,
     summary:
       'Phase 2 is progressing well with most design approvals received. Infrastructure construction has commenced on 3 out of 5 sections. We are on track for the planned milestones.',
+    projectManager: { name: 'Rajesh Kumar', phone: '+91 98765 43210' },
   },
   'PROJ-2024-002': {
     projectId: 'PROJ-2024-002',
@@ -29,6 +30,7 @@ export const CUSTOMER_PORTAL_PROJECTS: Record<string, CustomerProjectStatus> = {
     progress: 45,
     summary:
       'Survey and planning phase completed successfully. Environmental clearances obtained. Ready to commence construction activities in Q3.',
+    projectManager: { name: 'Priya Nair', phone: '+91 98450 12233' },
   },
   'PROJ-2024-003': {
     projectId: 'PROJ-2024-003',
@@ -42,6 +44,7 @@ export const CUSTOMER_PORTAL_PROJECTS: Record<string, CustomerProjectStatus> = {
     progress: 100,
     summary:
       'Project successfully completed ahead of schedule. All systems tested and operational. Facility is now processing water at full capacity.',
+    projectManager: { name: 'Arun Menon', phone: '+91 99000 55678' },
   },
 }
 

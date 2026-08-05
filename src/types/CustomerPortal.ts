@@ -9,6 +9,10 @@ export interface CustomerProjectStatus {
   status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled'
   progress: number
   summary: string
+  projectManager: {
+    name: string
+    phone: string
+  }
 }
 
 export interface ProjectMilestone {
