@@ -1,79 +1,115 @@
-import { GOVERNMENT_AUTHORITIES } from '@/mock/governmentAuthorities'
-import { GOVERNMENT_FORMS } from '@/mock/governmentForms'
+import { apiClient } from '@/services/httpClient'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
-
-async function getForms(): Promise<GovernmentForm[]> {
-  await simulateNetworkDelay()
-  return [...GOVERNMENT_FORMS]
-}
-
-async function getAuthorities(): Promise<GovernmentAuthority[]> {
-  await simulateNetworkDelay()
-  return [...GOVERNMENT_AUTHORITIES]
-}
 
 export type FormInput = Omit<GovernmentForm, 'id'>
 export type AuthorityInput = Omit<GovernmentAuthority, 'id'>
 
-function nextId(prefix: string, existing: { id: string }[]): string {
-  const sequence = existing.length + 1
-  return `${prefix}-${String(sequence).padStart(3, '0')}`
+/**
+ * Fetch all government forms from backend API
+ */
+async function getForms(): Promise<GovernmentForm[]> {
+  try {
+    return await apiClient.get<GovernmentForm[]>('/api/government/forms')
+  } catch (error) {
+    console.error('Failed to fetch government forms:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch forms')
+  }
 }
 
+/**
+ * Fetch all government authorities from backend API
+ */
+async function getAuthorities(): Promise<GovernmentAuthority[]> {
+  try {
+    return await apiClient.get<GovernmentAuthority[]>('/api/government/authorities')
+  } catch (error) {
+    console.error('Failed to fetch government authorities:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch authorities')
+  }
+}
+
+/**
+ * Create a new government form via backend API
+ */
 async function createForm(input: FormInput): Promise<GovernmentForm> {
-  await simulateNetworkDelay()
-  const form: GovernmentForm = { ...input, id: nextId('FORM', GOVERNMENT_FORMS) }
-  GOVERNMENT_FORMS.push(form)
-  return form
+  try {
+    return await apiClient.post<GovernmentForm>('/api/government/forms', input)
+  } catch (error) {
+    console.error('Failed to create form:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create form')
+  }
 }
 
+/**
+ * Update a government form via backend API
+ */
 async function updateForm(formId: string, input: FormInput): Promise<GovernmentForm> {
-  await simulateNetworkDelay()
-  const index = GOVERNMENT_FORMS.findIndex((form) => form.id === formId)
-  if (index === -1) throw new Error(`Form ${formId} not found`)
-  GOVERNMENT_FORMS[index] = { ...input, id: formId }
-  return GOVERNMENT_FORMS[index]
+  try {
+    return await apiClient.patch<GovernmentForm>(`/api/government/forms/${formId}`, input)
+  } catch (error) {
+    console.error(`Failed to update form ${formId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update form')
+  }
 }
 
+/**
+ * Delete a government form via backend API
+ */
 async function deleteForm(formId: string): Promise<void> {
-  await simulateNetworkDelay()
-  const index = GOVERNMENT_FORMS.findIndex((form) => form.id === formId)
-  if (index !== -1) GOVERNMENT_FORMS.splice(index, 1)
+  try {
+    await apiClient.delete(`/api/government/forms/${formId}`)
+  } catch (error) {
+    console.error(`Failed to delete form ${formId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete form')
+  }
 }
 
+/**
+ * Set/update government form status via backend API
+ */
 async function setFormStatus(formId: string, status: GovernmentForm['status']): Promise<GovernmentForm> {
-  await simulateNetworkDelay()
-  const index = GOVERNMENT_FORMS.findIndex((form) => form.id === formId)
-  if (index === -1) throw new Error(`Form ${formId} not found`)
-  GOVERNMENT_FORMS[index] = { ...GOVERNMENT_FORMS[index], status }
-  return GOVERNMENT_FORMS[index]
+  try {
+    return await apiClient.patch<GovernmentForm>(`/api/government/forms/${formId}/status`, { status })
+  } catch (error) {
+    console.error(`Failed to update form status:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update status')
+  }
 }
 
+/**
+ * Create a new government authority via backend API
+ */
 async function createAuthority(input: AuthorityInput): Promise<GovernmentAuthority> {
-  await simulateNetworkDelay()
-  const authority: GovernmentAuthority = { ...input, id: nextId('AUTH', GOVERNMENT_AUTHORITIES) }
-  GOVERNMENT_AUTHORITIES.push(authority)
-  return authority
+  try {
+    return await apiClient.post<GovernmentAuthority>('/api/government/authorities', input)
+  } catch (error) {
+    console.error('Failed to create authority:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create authority')
+  }
 }
 
+/**
+ * Update a government authority via backend API
+ */
 async function updateAuthority(authorityId: string, input: AuthorityInput): Promise<GovernmentAuthority> {
-  await simulateNetworkDelay()
-  const index = GOVERNMENT_AUTHORITIES.findIndex((authority) => authority.id === authorityId)
-  if (index === -1) throw new Error(`Authority ${authorityId} not found`)
-  GOVERNMENT_AUTHORITIES[index] = { ...input, id: authorityId }
-  return GOVERNMENT_AUTHORITIES[index]
+  try {
+    return await apiClient.patch<GovernmentAuthority>(`/api/government/authorities/${authorityId}`, input)
+  } catch (error) {
+    console.error(`Failed to update authority ${authorityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update authority')
+  }
 }
 
+/**
+ * Delete a government authority via backend API
+ */
 async function deleteAuthority(authorityId: string): Promise<void> {
-  await simulateNetworkDelay()
-  const index = GOVERNMENT_AUTHORITIES.findIndex((authority) => authority.id === authorityId)
-  if (index !== -1) GOVERNMENT_AUTHORITIES.splice(index, 1)
-  const relatedForms = GOVERNMENT_FORMS.filter((form) => form.authorityId === authorityId)
-  relatedForms.forEach((form) => {
-    const formIndex = GOVERNMENT_FORMS.findIndex((item) => item.id === form.id)
-    if (formIndex !== -1) GOVERNMENT_FORMS.splice(formIndex, 1)
-  })
+  try {
+    await apiClient.delete(`/api/government/authorities/${authorityId}`)
+  } catch (error) {
+    console.error(`Failed to delete authority ${authorityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete authority')
+  }
 }
 
 export const governmentFormService = {

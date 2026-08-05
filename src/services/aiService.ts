@@ -1,12 +1,16 @@
-import { AI_DOCUMENT_REVIEWS } from '@/mock/aiReviews'
+import { apiClient } from '@/services/httpClient'
 import type { DocumentAIReview } from '@/types/AiReview'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
-const AI_THINKING_DELAY_MS = 900
-
+/**
+ * Get AI review for a document from backend API
+ */
 async function getDocumentReview(documentId: string): Promise<DocumentAIReview | undefined> {
-  await simulateNetworkDelay(AI_THINKING_DELAY_MS)
-  return AI_DOCUMENT_REVIEWS.find((review) => review.documentId === documentId)
+  try {
+    return await apiClient.get<DocumentAIReview>(`/api/ai/documents/${documentId}/review`)
+  } catch (error) {
+    console.error(`Failed to fetch document review:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch review')
+  }
 }
 
 export const aiService = {

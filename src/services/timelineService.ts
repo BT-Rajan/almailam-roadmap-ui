@@ -1,12 +1,16 @@
-import { TIMELINE_EVENTS } from '@/mock/timelineEvents'
+import { apiClient } from '@/services/httpClient'
 import type { TimelineEvent } from '@/types/Timeline'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
+/**
+ * Fetch timeline events for a specific project from backend API
+ */
 async function getTimelineForProject(projectId: string): Promise<TimelineEvent[]> {
-  await simulateNetworkDelay()
-  return TIMELINE_EVENTS.filter((event) => event.projectId === projectId).sort((a, b) =>
-    a.date.localeCompare(b.date),
-  )
+  try {
+    return await apiClient.get<TimelineEvent[]>(`/api/projects/${projectId}/timeline`)
+  } catch (error) {
+    console.error(`Failed to fetch timeline for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch timeline')
+  }
 }
 
 export const timelineService = {

@@ -1,42 +1,64 @@
-import { AI_CONFIGURATION } from '@/mock/aiConfiguration'
-import { PROMPT_TEMPLATES } from '@/mock/promptTemplates'
+import { apiClient } from '@/services/httpClient'
 import type { AIConfiguration, AIProviderId, PromptTemplate, ProviderTestResult } from '@/types/AiConfig'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
-const CONNECTION_TEST_DELAY_MS = 1200
-
+/**
+ * Fetch AI configuration from backend API
+ */
 async function getConfiguration(): Promise<AIConfiguration> {
-  await simulateNetworkDelay()
-  return { ...AI_CONFIGURATION, providers: AI_CONFIGURATION.providers.map((provider) => ({ ...provider })) }
-}
-
-async function saveConfiguration(config: AIConfiguration): Promise<AIConfiguration> {
-  await simulateNetworkDelay()
-  return { ...config, providers: config.providers.map((provider) => ({ ...provider })) }
-}
-
-async function testProviderConnection(providerId: AIProviderId): Promise<ProviderTestResult> {
-  await simulateNetworkDelay(CONNECTION_TEST_DELAY_MS)
-
-  const provider = AI_CONFIGURATION.providers.find((item) => item.id === providerId)
-  if (!provider || !provider.apiKeyMasked) {
-    return { success: false, message: 'No API key configured for this provider.' }
+  try {
+    return await apiClient.get<AIConfiguration>('/api/ai/configuration')
+  } catch (error) {
+    console.error('Failed to fetch AI configuration:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch configuration')
   }
-
-  return { success: true, message: `Connected to ${provider.label} successfully.` }
 }
 
+/**
+ * Save AI configuration via backend API
+ */
+async function saveConfiguration(config: AIConfiguration): Promise<AIConfiguration> {
+  try {
+    return await apiClient.post<AIConfiguration>('/api/ai/configuration', config)
+  } catch (error) {
+    console.error('Failed to save AI configuration:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save configuration')
+  }
+}
+
+/**
+ * Test AI provider connection via backend API
+ */
+async function testProviderConnection(providerId: AIProviderId): Promise<ProviderTestResult> {
+  try {
+    return await apiClient.post<ProviderTestResult>(`/api/ai/providers/${providerId}/test-connection`, {})
+  } catch (error) {
+    console.error(`Failed to test provider connection:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to test connection')
+  }
+}
+
+/**
+ * Fetch all prompt templates from backend API
+ */
 async function getPromptTemplates(): Promise<PromptTemplate[]> {
-  await simulateNetworkDelay()
-  return [...PROMPT_TEMPLATES]
+  try {
+    return await apiClient.get<PromptTemplate[]>('/api/ai/prompt-templates')
+  } catch (error) {
+    console.error('Failed to fetch prompt templates:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch templates')
+  }
 }
 
+/**
+ * Save/update a prompt template via backend API
+ */
 async function savePromptTemplate(templateId: string, input: Omit<PromptTemplate, 'id'>): Promise<PromptTemplate> {
-  await simulateNetworkDelay()
-  const index = PROMPT_TEMPLATES.findIndex((template) => template.id === templateId)
-  if (index === -1) throw new Error(`Prompt template ${templateId} not found`)
-  PROMPT_TEMPLATES[index] = { ...input, id: templateId }
-  return PROMPT_TEMPLATES[index]
+  try {
+    return await apiClient.patch<PromptTemplate>(`/api/ai/prompt-templates/${templateId}`, input)
+  } catch (error) {
+    console.error(`Failed to save prompt template:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save template')
+  }
 }
 
 export const aiConfigService = {
