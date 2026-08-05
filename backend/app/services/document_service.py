@@ -13,7 +13,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service
+from app.services import audit_service, notification_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -196,6 +196,11 @@ def create_ai_review(db: Session, document_no: str, payload, user_id: int) -> Do
     )
     db.add(review)
     audit_service.log_event(db, ENTITY_TYPE, document.id, "AI review recorded", user_id)
+    notification_service.create_notification(
+        db, document.uploaded_by, "AI review completed",
+        f"The {document.title} has been reviewed with {payload.confidence} confidence.",
+        "AI", link_route_name="document-viewer", link_params={"documentId": document.document_no},
+    )
     db.commit()
     db.refresh(review)
     return review

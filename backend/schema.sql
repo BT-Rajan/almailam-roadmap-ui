@@ -484,4 +484,20 @@ CREATE TABLE IF NOT EXISTS tasks (
     INDEX idx_tasks_assignee (assigned_to)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    notification_no     VARCHAR(20) NOT NULL UNIQUE,
+    user_id             BIGINT UNSIGNED NOT NULL,
+    title               VARCHAR(150) NOT NULL,
+    message             TEXT NOT NULL,
+    category            ENUM('Project','Task','Government','AI','System') NOT NULL,
+    created_at          DATETIME NOT NULL,
+    `read`              TINYINT(1) NOT NULL DEFAULT 0,
+    link_route_name     VARCHAR(100) NULL,
+    link_params         JSON NULL,
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_notifications_user (user_id),
+    INDEX idx_notifications_user_read (user_id, `read`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

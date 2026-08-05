@@ -6,7 +6,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, user_service
+from app.services import audit_service, notification_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "TASK"
@@ -79,6 +79,10 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     db.flush()
 
     audit_service.log_event(db, ENTITY_TYPE, task.id, "Task created", user_id)
+    notification_service.create_notification(
+        db, assignee_id, "New task assigned", f"You've been assigned: {payload.title}", "Task",
+        link_route_name="tasks",
+    )
     db.commit()
     db.refresh(task)
     return task
@@ -107,6 +111,10 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
         if new_assignee_id != task.assigned_to:
             changes["assigned_to"] = (task.assigned_to, new_assignee_id)
             task.assigned_to = new_assignee_id
+            notification_service.create_notification(
+                db, new_assignee_id, "Task reassigned to you", f"You've been assigned: {task.title}", "Task",
+                link_route_name="tasks",
+            )
 
     audit_service.log_field_changes(db, ENTITY_TYPE, task.id, changes, user_id)
     db.commit()
