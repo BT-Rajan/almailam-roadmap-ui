@@ -23,8 +23,8 @@ from app.services import payment_service
 
 router = APIRouter(prefix="/api", tags=["payments"])
 
-can_view = require_permission("Projects", "view")
-can_edit = require_permission("Projects", "edit")
+can_view = require_permission("Finance", "view")
+can_edit = require_permission("Finance", "edit")
 
 
 def _project_no(db: Session, project_id: int) -> str:
