@@ -11,6 +11,7 @@ from app.api.notifications import router as notifications_router
 from app.api.payments import router as payments_router
 from app.api.projects import router as projects_router
 from app.api.quotations import router as quotations_router
+from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
 from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
@@ -53,6 +54,7 @@ app.include_router(payments_router)
 app.include_router(documents_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)
+app.include_router(reports_router)
 
 
 @app.get("/api/health")
