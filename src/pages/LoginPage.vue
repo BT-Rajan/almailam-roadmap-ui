@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { LogIn } from '@lucide/vue'
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,6 +10,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useAuthStore } from '@/stores/authStore'
+import { useLoginFormClear } from '@/composables/useLoginFormClear'
 import { ApiError } from '@/services/httpClient'
 import { validators } from '@/utils/validators'
 
@@ -17,11 +18,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const form = reactive({
-  userId: '',
-  password: '',
-  rememberMe: false,
-})
+// Use the login form clear composable
+const { form, clearAll } = useLoginFormClear()
 
 const { errors, setRules, validateAll } = useFormValidation()
 setRules({
@@ -50,6 +48,14 @@ async function signIn(): Promise<void> {
   } finally {
     isSubmitting.value = false
   }
+}
+
+/**
+ * Clear login form and session data
+ */
+function clearLogin(): void {
+  authError.value = undefined
+  clearAll()
 }
 </script>
 
@@ -93,9 +99,20 @@ async function signIn(): Promise<void> {
         {{ authError }}
       </p>
 
-      <BaseButton type="submit" :icon="LogIn" :loading="isSubmitting" full-width>
-        Sign In
-      </BaseButton>
+      <div class="flex gap-3">
+        <BaseButton type="submit" :icon="LogIn" :loading="isSubmitting" full-width>
+          Sign In
+        </BaseButton>
+        <BaseButton
+          type="button"
+          variant="secondary"
+          @click="clearLogin"
+          :disabled="isSubmitting"
+          full-width
+        >
+          Clear
+        </BaseButton>
+      </div>
     </form>
 
     <BaseDialog v-model="isForgotPasswordOpen" title="Forgot Password" size="sm">

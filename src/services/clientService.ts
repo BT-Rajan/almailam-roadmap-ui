@@ -1,11 +1,4 @@
-import { CLIENT_ADDRESSES } from '@/mock/clientAddresses'
-import { CLIENT_AUDIT_EVENTS } from '@/mock/clientAuditEvents'
-import { CLIENT_CONSENTS } from '@/mock/clientConsents'
-import { CLIENT_CONTACTS } from '@/mock/clientContacts'
-import { CLIENT_DOCUMENTS } from '@/mock/clientDocuments'
-import { CLIENT_IDENTIFICATIONS } from '@/mock/clientIdentifications'
-import { CLIENT_VERIFICATIONS } from '@/mock/clientVerifications'
-import { CLIENTS } from '@/mock/clients'
+import { apiClient } from '@/services/httpClient'
 import type {
   Client,
   ClientAddress,
@@ -17,88 +10,170 @@ import type {
   ClientIdentification,
   ClientVerification,
 } from '@/types/Client'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
+/**
+ * Fetch all clients from backend API
+ */
 async function getClients(): Promise<Client[]> {
-  await simulateNetworkDelay()
-  return [...CLIENTS]
-}
-
-async function getClientById(clientId: string): Promise<Client | undefined> {
-  await simulateNetworkDelay()
-  return CLIENTS.find((client) => client.id === clientId)
-}
-
-async function getContactsForClient(clientId: string): Promise<ClientContact[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_CONTACTS.filter((contact) => contact.clientId === clientId)
-}
-
-async function getAddressesForClient(clientId: string): Promise<ClientAddress[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_ADDRESSES.filter((address) => address.clientId === clientId)
-}
-
-async function getIdentificationsForClient(clientId: string): Promise<ClientIdentification[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_IDENTIFICATIONS.filter((identification) => identification.clientId === clientId)
-}
-
-async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_DOCUMENTS.filter((document) => document.clientId === clientId)
-}
-
-async function getVerificationsForClient(clientId: string): Promise<ClientVerification[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_VERIFICATIONS.filter((verification) => verification.clientId === clientId)
-}
-
-async function getConsentsForClient(clientId: string): Promise<ClientConsent[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_CONSENTS.filter((consent) => consent.clientId === clientId)
-}
-
-async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEvent[]> {
-  await simulateNetworkDelay(200)
-  return CLIENT_AUDIT_EVENTS.filter((event) => event.clientId === clientId).sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-  )
+  try {
+    return await apiClient.get<Client[]>('/api/clients')
+  } catch (error) {
+    console.error('Failed to fetch clients:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch clients')
+  }
 }
 
 /**
- * Looks for existing clients that share a name, mobile number or email with the
- * supplied values, so the onboarding wizard can warn about possible duplicates
- * before a new client record is confirmed.
+ * Fetch a specific client by ID from backend API
  */
-async function findPossibleDuplicates(name: string, mobile: string, email: string): Promise<ClientDuplicateMatch[]> {
-  await simulateNetworkDelay(250)
+async function getClientById(clientId: string): Promise<Client | undefined> {
+  try {
+    return await apiClient.get<Client>(`/api/clients/${clientId}`)
+  } catch (error) {
+    console.error(`Failed to fetch client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch client')
+  }
+}
 
-  const normalisedName = name.trim().toLowerCase()
-  const normalisedMobile = mobile.replace(/\D/g, '')
-  const normalisedEmail = email.trim().toLowerCase()
+/**
+ * Fetch contacts for a specific client from backend API
+ */
+async function getContactsForClient(clientId: string): Promise<ClientContact[]> {
+  try {
+    return await apiClient.get<ClientContact[]>(`/api/clients/${clientId}/contacts`)
+  } catch (error) {
+    console.error(`Failed to fetch contacts for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contacts')
+  }
+}
 
-  const matches: ClientDuplicateMatch[] = []
+/**
+ * Fetch addresses for a specific client from backend API
+ */
+async function getAddressesForClient(clientId: string): Promise<ClientAddress[]> {
+  try {
+    return await apiClient.get<ClientAddress[]>(`/api/clients/${clientId}/addresses`)
+  } catch (error) {
+    console.error(`Failed to fetch addresses for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch addresses')
+  }
+}
 
-  CLIENTS.forEach((client) => {
-    const matchedOn: string[] = []
+/**
+ * Fetch identifications for a specific client from backend API
+ */
+async function getIdentificationsForClient(clientId: string): Promise<ClientIdentification[]> {
+  try {
+    return await apiClient.get<ClientIdentification[]>(`/api/clients/${clientId}/identifications`)
+  } catch (error) {
+    console.error(`Failed to fetch identifications for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch identifications')
+  }
+}
 
-    if (normalisedName.length > 2 && client.companyName.toLowerCase().includes(normalisedName)) {
-      matchedOn.push('Name')
-    }
-    if (normalisedMobile.length >= 7 && client.mobile.replace(/\D/g, '') === normalisedMobile) {
-      matchedOn.push('Mobile number')
-    }
-    if (normalisedEmail.length > 3 && client.email.toLowerCase() === normalisedEmail) {
-      matchedOn.push('Email')
-    }
+/**
+ * Fetch documents for a specific client from backend API
+ */
+async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]> {
+  try {
+    return await apiClient.get<ClientDocument[]>(`/api/clients/${clientId}/documents`)
+  } catch (error) {
+    console.error(`Failed to fetch documents for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+  }
+}
 
-    if (matchedOn.length > 0) {
-      matches.push({ client, matchedOn })
-    }
-  })
+/**
+ * Fetch verifications for a specific client from backend API
+ */
+async function getVerificationsForClient(clientId: string): Promise<ClientVerification[]> {
+  try {
+    return await apiClient.get<ClientVerification[]>(`/api/clients/${clientId}/verifications`)
+  } catch (error) {
+    console.error(`Failed to fetch verifications for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch verifications')
+  }
+}
 
-  return matches
+/**
+ * Fetch consents for a specific client from backend API
+ */
+async function getConsentsForClient(clientId: string): Promise<ClientConsent[]> {
+  try {
+    return await apiClient.get<ClientConsent[]>(`/api/clients/${clientId}/consents`)
+  } catch (error) {
+    console.error(`Failed to fetch consents for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch consents')
+  }
+}
+
+/**
+ * Fetch audit events for a specific client from backend API
+ */
+async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEvent[]> {
+  try {
+    return await apiClient.get<ClientAuditEvent[]>(`/api/clients/${clientId}/audit-events`)
+  } catch (error) {
+    console.error(`Failed to fetch audit events for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
+  }
+}
+
+/**
+ * Find possible duplicate clients based on name, mobile, and email
+ * Calls backend API to check for duplicates before creating new client
+ */
+async function findPossibleDuplicates(
+  name: string,
+  mobile: string,
+  email: string
+): Promise<ClientDuplicateMatch[]> {
+  try {
+    return await apiClient.post<ClientDuplicateMatch[]>('/api/clients/check-duplicates', {
+      name,
+      mobile,
+      email,
+    })
+  } catch (error) {
+    console.error('Failed to check for duplicate clients:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')
+  }
+}
+
+/**
+ * Create a new client via backend API
+ */
+async function createClient(clientData: Partial<Client>): Promise<Client> {
+  try {
+    return await apiClient.post<Client>('/api/clients', clientData)
+  } catch (error) {
+    console.error('Failed to create client:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create client')
+  }
+}
+
+/**
+ * Update an existing client via backend API
+ */
+async function updateClient(clientId: string, clientData: Partial<Client>): Promise<Client> {
+  try {
+    return await apiClient.patch<Client>(`/api/clients/${clientId}`, clientData)
+  } catch (error) {
+    console.error(`Failed to update client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update client')
+  }
+}
+
+/**
+ * Delete a client via backend API
+ */
+async function deleteClient(clientId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/clients/${clientId}`)
+  } catch (error) {
+    console.error(`Failed to delete client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete client')
+  }
 }
 
 export const clientService = {
@@ -112,4 +187,7 @@ export const clientService = {
   getConsentsForClient,
   getAuditEventsForClient,
   findPossibleDuplicates,
+  createClient,
+  updateClient,
+  deleteClient,
 }
