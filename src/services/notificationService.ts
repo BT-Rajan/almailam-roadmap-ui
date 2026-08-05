@@ -1,27 +1,85 @@
-import { NOTIFICATIONS } from '@/mock/notifications'
+import { apiClient } from '@/services/httpClient'
 import type { AppNotification } from '@/types/Notification'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
+/**
+ * Fetch all notifications for current user from backend API
+ */
 async function getNotifications(): Promise<AppNotification[]> {
-  await simulateNetworkDelay()
-  return [...NOTIFICATIONS].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  try {
+    return await apiClient.get<AppNotification[]>('/api/notifications')
+  } catch (error) {
+    console.error('Failed to fetch notifications:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch notifications')
+  }
 }
 
+/**
+ * Fetch unread notifications only from backend API
+ */
+async function getUnreadNotifications(): Promise<AppNotification[]> {
+  try {
+    return await apiClient.get<AppNotification[]>('/api/notifications?filter=unread')
+  } catch (error) {
+    console.error('Failed to fetch unread notifications:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch notifications')
+  }
+}
+
+/**
+ * Mark a notification as read via backend API
+ */
 async function markAsRead(notificationId: string): Promise<void> {
-  await simulateNetworkDelay(150)
-  const notification = NOTIFICATIONS.find((item) => item.id === notificationId)
-  if (notification) notification.read = true
+  try {
+    await apiClient.patch(`/api/notifications/${notificationId}`, {
+      read: true,
+    })
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to mark as read')
+  }
 }
 
+/**
+ * Mark all notifications as read via backend API
+ */
 async function markAllAsRead(): Promise<void> {
-  await simulateNetworkDelay(150)
-  NOTIFICATIONS.forEach((notification) => {
-    notification.read = true
-  })
+  try {
+    await apiClient.post('/api/notifications/mark-all-read', {})
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to mark all as read')
+  }
+}
+
+/**
+ * Delete a notification via backend API
+ */
+async function deleteNotification(notificationId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/notifications/${notificationId}`)
+  } catch (error) {
+    console.error('Failed to delete notification:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete notification')
+  }
+}
+
+/**
+ * Clear all notifications via backend API
+ */
+async function clearAllNotifications(): Promise<void> {
+  try {
+    await apiClient.post('/api/notifications/clear-all', {})
+  } catch (error) {
+    console.error('Failed to clear all notifications:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to clear notifications')
+  }
 }
 
 export const notificationService = {
   getNotifications,
+  getUnreadNotifications,
   markAsRead,
   markAllAsRead,
+  deleteNotification,
+  clearAllNotifications,
 }

@@ -1,53 +1,94 @@
-import { ROUTE_NAMES } from '@/constants/routeNames'
-import { CLIENTS } from '@/mock/clients'
-import { DOCUMENTS } from '@/mock/documents'
-import { GOVERNMENT_FORMS } from '@/mock/governmentForms'
-import { PROJECTS } from '@/mock/projects'
-import { TASKS } from '@/mock/tasks'
-import { USERS } from '@/mock/users'
+import { apiClient } from '@/services/httpClient'
 import type { SearchResult } from '@/types/Search'
-import { simulateNetworkDelay } from '@/utils/mockDelay'
 
-const RESULTS_PER_CATEGORY = 5
-
-function matches(term: string, ...fields: string[]): boolean {
-  return fields.some((field) => field.toLowerCase().includes(term))
-}
-
-function clientNameFor(clientId: string): string {
-  return CLIENTS.find((client) => client.id === clientId)?.companyName ?? ''
-}
-
+/**
+ * Search across all entities via backend API
+ * Returns results from projects, clients, documents, users, tasks, and forms
+ */
 async function search(query: string): Promise<SearchResult[]> {
-  await simulateNetworkDelay(150)
+  try {
+    if (!query.trim()) {
+      return []
+    }
 
-  const term = query.trim().toLowerCase()
-  if (term.length === 0) return []
+    return await apiClient.get<SearchResult[]>(`/api/search?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to perform search')
+  }
+}
 
-  const projectResults: SearchResult[] = PROJECTS.filter((project) =>
-    matches(term, project.projectName, project.projectNo, clientNameFor(project.clientId)),
-  )
-    .slice(0, RESULTS_PER_CATEGORY)
-    .map((project) => ({
-      id: project.id,
-      category: 'Project',
-      title: project.projectName,
-      subtitle: `${project.projectNo} · ${clientNameFor(project.clientId)}`,
-      routeName: ROUTE_NAMES.PROJECT_WORKSPACE,
-      params: { projectId: project.id },
-    }))
+/**
+ * Search for projects only via backend API
+ */
+async function searchProjects(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
 
-  const documentResults: SearchResult[] = DOCUMENTS.filter((document) =>
-    matches(term, document.title, document.type, document.uploadedBy),
-  )
-    .slice(0, RESULTS_PER_CATEGORY)
-    .map((document) => ({
-      id: document.id,
-      category: 'Document',
-      title: document.title,
-      subtitle: `${document.type} · ${document.revision}`,
-      routeName: ROUTE_NAMES.DOCUMENT_VIEWER,
-      params: { documentId: document.id },
+    return await apiClient.get<SearchResult[]>(`/api/search/projects?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search projects:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search projects')
+  }
+}
+
+/**
+ * Search for clients only via backend API
+ */
+async function searchClients(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/clients?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search clients:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search clients')
+  }
+}
+
+/**
+ * Search for documents only via backend API
+ */
+async function searchDocuments(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/documents?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search documents:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search documents')
+  }
+}
+
+/**
+ * Search for users only via backend API
+ */
+async function searchUsers(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/users?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search users:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search users')
+  }
+}
+
+export const searchService = {
+  search,
+  searchProjects,
+  searchClients,
+  searchDocuments,
+  searchUsers,
+}
     }))
 
   const formResults: SearchResult[] = GOVERNMENT_FORMS.filter((form) =>
