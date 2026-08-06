@@ -27,6 +27,22 @@ function submitNewStage(): void {
   newStageName.value = ''
   newStageDescription.value = ''
 }
+
+// Local drafts of in-progress edits, keyed by stage id, so typing doesn't
+// fire a save (and a store/network round trip) on every keystroke -- only
+// once the field loses focus, and only if the value actually changed.
+const nameDrafts = ref<Record<string, string>>({})
+const descriptionDrafts = ref<Record<string, string>>({})
+
+function commitName(stage: WorkflowStageConfig, value: string): void {
+  delete nameDrafts.value[stage.id]
+  if (value !== stage.name) emit('update', stage.id, { name: value })
+}
+
+function commitDescription(stage: WorkflowStageConfig, value: string): void {
+  delete descriptionDrafts.value[stage.id]
+  if (value !== stage.description) emit('update', stage.id, { description: value })
+}
 </script>
 
 <template>
@@ -43,14 +59,16 @@ function submitNewStage(): void {
 
         <div class="flex flex-1 flex-col gap-2">
           <TextInput
-            :model-value="stage.name"
+            :model-value="nameDrafts[stage.id] ?? stage.name"
             placeholder="Stage name"
-            @update:model-value="emit('update', stage.id, { name: $event })"
+            @update:model-value="nameDrafts[stage.id] = $event"
+            @blur="commitName(stage, $event)"
           />
           <TextInput
-            :model-value="stage.description"
+            :model-value="descriptionDrafts[stage.id] ?? stage.description"
             placeholder="Stage description"
-            @update:model-value="emit('update', stage.id, { description: $event })"
+            @update:model-value="descriptionDrafts[stage.id] = $event"
+            @blur="commitDescription(stage, $event)"
           />
         </div>
 

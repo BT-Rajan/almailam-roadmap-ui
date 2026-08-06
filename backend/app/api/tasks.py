@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.common import PagedResponse
 from app.schemas.task import TaskCreate, TaskOut, TaskStatusUpdate, TaskUpdate
 from app.services import task_service
 
@@ -23,17 +25,39 @@ def _to_out(db: Session, task) -> TaskOut:
     return TaskOut.from_model(task, _project_no(db, task.project_id), task_service.user_name(db, task.assigned_to))
 
 
-@router.get("", response_model=list[TaskOut])
+@router.get("", response_model=PagedResponse[TaskOut])
 def list_tasks(
     projectId: str | None = None,
     status: str | None = None,
     assignedTo: str | None = None,
     priority: str | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    tasks = task_service.list_tasks(db, projectId, status, assignedTo, priority)
-    return [_to_out(db, t) for t in tasks]
+    result = task_service.list_tasks(db, projectId, status, assignedTo, priority, search, sort, page, pageSize)
+    tasks = result["items"]
+
+    project_ids = {t.project_id for t in tasks}
+    project_nos = {
+        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
+    } if project_ids else {}
+
+    assignee_ids = {t.assigned_to for t in tasks}
+    assignee_names = {
+        u.id: u.full_name for u in db.query(User).filter(User.id.in_(assignee_ids)).all()
+    } if assignee_ids else {}
+
+    result["items"] = [
+        TaskOut.from_model(
+            t, project_nos.get(t.project_id, ""), assignee_names.get(t.assigned_to, "Unknown")
+        )
+        for t in tasks
+    ]
+    return result
 
 
 @router.get("/{task_no}", response_model=TaskOut)

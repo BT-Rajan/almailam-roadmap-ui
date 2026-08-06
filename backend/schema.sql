@@ -522,4 +522,24 @@ CREATE TABLE IF NOT EXISTS message_log (
     INDEX idx_message_log_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS workflow_templates (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(120) NOT NULL,
+    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS workflow_stages (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    template_id     BIGINT UNSIGNED NOT NULL,
+    name            VARCHAR(120) NOT NULL,
+    description     TEXT NULL,
+    sequence_number INT NOT NULL,
+    CONSTRAINT fk_workflow_stages_template
+        FOREIGN KEY (template_id) REFERENCES workflow_templates(id) ON DELETE CASCADE,
+    INDEX idx_workflow_stages_template (template_id, sequence_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

@@ -1,6 +1,8 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     PROJECT_STAGE_ALLOWED_TRANSITIONS,
     PROJECT_STAGE_STATUSES_REQUIRING_REASON,
@@ -15,10 +17,32 @@ from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
 
+# Columns the project list can be sorted on via ?sort=field / ?sort=-field.
+# Deliberately limited to real columns on the table -- "clientName" and
+# "engineer" are resolved from other tables per-row and are not sortable
+# without a join, so they're intentionally left out here.
+PROJECT_SORTABLE_FIELDS = {
+    "projectNo": Project.project_no,
+    "projectName": Project.project_name,
+    "status": Project.status,
+    "priority": Project.priority,
+    "currentStage": Project.current_stage,
+    "progress": Project.progress,
+    "targetDate": Project.target_date,
+}
+
 
 def engineer_name(db: Session, engineer_id: int) -> str:
     user = db.query(User).filter(User.id == engineer_id).first()
     return user.full_name if user else "Unknown"
+
+
+def engineer_names(db: Session, engineer_ids: set[int]) -> dict[int, str]:
+    """Batch lookup used by the list endpoint so it doesn't run one query
+    per row (see engineer_name for the single-id version used elsewhere)."""
+    if not engineer_ids:
+        return {}
+    return dict(db.query(User.id, User.full_name).filter(User.id.in_(engineer_ids)).all())
 
 
 def list_projects(
@@ -26,7 +50,12 @@ def list_projects(
     client_id: str | None = None,
     status: str | None = None,
     priority: str | None = None,
-) -> list[Project]:
+    stage: str | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict:
     query = db.query(Project).filter(Project.deleted_at.is_(None))
     if client_id:
         query = query.filter(Project.client_id == client_service.parse_client_id(client_id))
@@ -34,7 +63,22 @@ def list_projects(
         query = query.filter(Project.status == status)
     if priority:
         query = query.filter(Project.priority == priority)
-    return query.order_by(Project.id.asc()).all()
+    if stage:
+        query = query.filter(Project.current_stage == stage)
+    if search:
+        term = f"%{search.strip()}%"
+        conditions = [
+            Project.project_no.ilike(term),
+            Project.project_name.ilike(term),
+            Project.service.ilike(term),
+        ]
+        matching_engineer_ids = [
+            row[0] for row in db.query(User.id).filter(User.full_name.ilike(term)).all()
+        ]
+        if matching_engineer_ids:
+            conditions.append(Project.engineer_id.in_(matching_engineer_ids))
+        query = query.filter(or_(*conditions))
+    return sort_and_paginate(query, Project, PROJECT_SORTABLE_FIELDS, sort, page, page_size)
 
 
 def get_project(db: Session, project_no: str) -> Project:

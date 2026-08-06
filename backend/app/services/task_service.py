@@ -1,6 +1,8 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import TASK_ALLOWED_TRANSITIONS, TASK_STATUSES_REQUIRING_REASON
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
@@ -34,13 +36,26 @@ def _resolve_assignee(db: Session, raw_user_id: str) -> int:
     return user_id
 
 
+TASK_SORTABLE_FIELDS = {
+    "title": Task.title,
+    "status": Task.status,
+    "priority": Task.priority,
+    "severity": Task.severity,
+    "dueDate": Task.due_date,
+}
+
+
 def list_tasks(
     db: Session,
     project_no: str | None = None,
     status: str | None = None,
     assigned_to: str | None = None,
     priority: str | None = None,
-) -> list[Task]:
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict:
     query = db.query(Task).filter(Task.deleted_at.is_(None))
     if project_no:
         project = db.query(Project).filter(Project.project_no == project_no).first()
@@ -51,7 +66,14 @@ def list_tasks(
         query = query.filter(Task.assigned_to == user_service.parse_user_id(assigned_to))
     if priority:
         query = query.filter(Task.priority == priority)
-    return query.order_by(Task.due_date.asc(), Task.due_time.asc()).all()
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(Task.task_no.ilike(term), Task.title.ilike(term)))
+    # Tasks default to soonest-due-first, unlike the id-desc default most
+    # other lists use, so pass an explicit ascending sort when the caller
+    # didn't request one, rather than relying on sort_and_paginate's
+    # (descending) fallback.
+    return sort_and_paginate(query, Task, TASK_SORTABLE_FIELDS, sort or "dueDate", page, page_size)
 
 
 def get_task(db: Session, task_no: str) -> Task:

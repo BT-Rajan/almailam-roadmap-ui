@@ -15,8 +15,8 @@ class PagedResponse(BaseModel, Generic[T]):
     items: list[T]
     total: int
     page: int
-    page_size: int
-    total_pages: int
+    pageSize: int
+    totalPages: int
 
 
 class ListParams(BaseModel):

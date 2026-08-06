@@ -21,7 +21,6 @@ import {
   CLIENT_TYPE_OPTIONS,
 } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { usePagination } from '@/composables/usePagination'
 import { useClientStore } from '@/stores/clientStore'
 import type { ClientOnboardingState, ClientStatus, ClientType } from '@/types/Client'
 import type { SmartTableColumn } from '@/types/Table'
@@ -58,7 +57,7 @@ const TABLE_COLUMNS: SmartTableColumn<ClientTableRow>[] = [
 ]
 
 const tableRows = computed<ClientTableRow[]>(() =>
-  clientStore.filteredClients.map((client) => ({
+  clientStore.pageItems.map((client) => ({
     id: client.id,
     code: client.code,
     name: getClientDisplayName(client),
@@ -71,20 +70,11 @@ const tableRows = computed<ClientTableRow[]>(() =>
   })),
 )
 
-const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize } = usePagination(
-  () => clientStore.filteredClients.length,
-  9,
-)
-
-const paginatedGridClients = computed(() => clientStore.filteredClients.slice(startIndex.value, endIndex.value))
-
 function loadData(): void {
-  clientStore.loadClients()
+  void clientStore.loadClientsPage()
 }
 
-onMounted(() => {
-  if (clientStore.clients.length === 0) loadData()
-})
+onMounted(loadData)
 
 function openClient(clientId: string): void {
   router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId } })
@@ -111,6 +101,7 @@ function createClient(): void {
       search-placeholder="Search by name, mobile or email"
       :has-active-filters="clientStore.hasActiveFilters"
       @update:search-value="clientStore.setSearchTerm"
+      @search="clientStore.applySearch"
       @clear="clientStore.clearFilters"
     >
       <template #filters>
@@ -159,14 +150,14 @@ function createClient(): void {
     <ErrorState v-if="clientStore.error" :description="clientStore.error" @retry="loadData" />
 
     <template v-else-if="clientStore.viewMode === 'grid'">
-      <div v-if="clientStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+      <div v-if="clientStore.isPageLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <div v-for="placeholder in 6" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
           <SkeletonLoader :rows="5" />
         </div>
       </div>
 
       <EmptyState
-        v-else-if="paginatedGridClients.length === 0"
+        v-else-if="clientStore.pageItems.length === 0"
         title="No clients found"
         description="Try adjusting your search or filters, or onboard a new client."
         action-label="New Client"
@@ -175,44 +166,59 @@ function createClient(): void {
 
       <template v-else>
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-          <ClientCard v-for="client in paginatedGridClients" :key="client.id" :client="client" @open="openClient" />
+          <ClientCard v-for="client in clientStore.pageItems" :key="client.id" :client="client" @open="openClient" />
         </div>
         <div class="rounded-xl border border-border-light bg-bg-card">
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :total-items="totalItems"
-            :start-index="startIndex"
-            :end-index="endIndex"
-            :page-size="pageSize"
+            :current-page="clientStore.pagination.page"
+            :total-pages="clientStore.pagination.totalPages"
+            :total-items="clientStore.pagination.total"
+            :start-index="(clientStore.pagination.page - 1) * clientStore.pagination.pageSize"
+            :end-index="Math.min(clientStore.pagination.page * clientStore.pagination.pageSize, clientStore.pagination.total)"
+            :page-size="clientStore.pagination.pageSize"
             :page-size-options="[9, 18, 27]"
-            @page-change="goToPage"
-            @page-size-change="setPageSize"
+            @page-change="clientStore.setPage"
+            @page-size-change="clientStore.setPageSize"
           />
         </div>
       </template>
     </template>
 
-    <SmartTable
-      v-else
-      :columns="TABLE_COLUMNS"
-      :rows="tableRows"
-      row-key="id"
-      :loading="clientStore.isLoading"
-      :searchable="false"
-      empty-title="No clients found"
-      empty-description="Try adjusting your search or filters, or onboard a new client."
-      @row-click="openClient($event.id)"
-    >
-      <template #cell-onboardingState="{ value }">
-        <StatusBadge
-          :label="value as string"
-          :variant="getClientOnboardingStateVariant(value as ClientOnboardingState)"
+    <template v-else>
+      <SmartTable
+        :columns="TABLE_COLUMNS"
+        :rows="tableRows"
+        row-key="id"
+        :loading="clientStore.isPageLoading"
+        :searchable="false"
+        :paginated="false"
+        empty-title="No clients found"
+        empty-description="Try adjusting your search or filters, or onboard a new client."
+        @row-click="openClient($event.id)"
+      >
+        <template #cell-onboardingState="{ value }">
+          <StatusBadge
+            :label="value as string"
+            :variant="getClientOnboardingStateVariant(value as ClientOnboardingState)"
+          />
+        </template>
+        <template #cell-status="{ value }">
+          <StatusBadge :label="value as string" :variant="getClientStatusVariant(value as ClientStatus)" show-dot />
+        </template>
+      </SmartTable>
+      <div class="rounded-xl border border-border-light bg-bg-card">
+        <TablePagination
+          :current-page="clientStore.pagination.page"
+          :total-pages="clientStore.pagination.totalPages"
+          :total-items="clientStore.pagination.total"
+          :start-index="(clientStore.pagination.page - 1) * clientStore.pagination.pageSize"
+          :end-index="Math.min(clientStore.pagination.page * clientStore.pagination.pageSize, clientStore.pagination.total)"
+          :page-size="clientStore.pagination.pageSize"
+          :page-size-options="[10, 25, 50]"
+          @page-change="clientStore.setPage"
+          @page-size-change="clientStore.setPageSize"
         />
-      </template>
-      <template #cell-status="{ value }">
-        <StatusBadge :label="value as string" :variant="getClientStatusVariant(value as ClientStatus)" show-dot />
-      </template>
-    </SmartTable>
+      </div>
+    </template>
   </div>
 </template>

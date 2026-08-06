@@ -131,6 +131,11 @@ def _obligation_display_id(db: Session, obligation_id: int) -> str:
     return f"OBL-{obligation.agreement_id:03d}-{obligation.sequence_number:02d}" if obligation else ""
 
 
+@router.get("/api/obligations", response_model=list[ObligationOut])
+def list_all_obligations(db: Session = Depends(get_db), _=Depends(can_view)):
+    return [_obligation_out(o) for o in payment_service.list_all_obligations(db)]
+
+
 @router.patch("/api/obligations/{obligation_id}/override", response_model=ObligationOut)
 def set_obligation_override(
     obligation_id: str,

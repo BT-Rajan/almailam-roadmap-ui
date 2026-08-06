@@ -25,6 +25,10 @@ const props = withDefaults(
     selectable?: boolean
     exportable?: boolean
     pageSize?: number
+    // Set to false when the caller already paginates `rows` itself (e.g.
+    // server-side pagination) so SmartTable shouldn't slice/paginate again
+    // or render its own (then-redundant) pagination bar.
+    paginated?: boolean
     emptyTitle?: string
     emptyDescription?: string
   }>(),
@@ -37,6 +41,7 @@ const props = withDefaults(
     selectable: false,
     exportable: false,
     pageSize: 10,
+    paginated: true,
     emptyTitle: 'No records found',
     emptyDescription: 'There is nothing to display yet.',
   },
@@ -88,7 +93,7 @@ const sortedRows = computed(() => {
 const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize, resetPage } =
   usePagination(() => sortedRows.value.length, props.pageSize)
 
-const paginatedRows = computed(() => sortedRows.value.slice(startIndex.value, endIndex.value))
+const paginatedRows = computed(() => (props.paginated ? sortedRows.value.slice(startIndex.value, endIndex.value) : sortedRows.value))
 const isEmpty = computed(() => !props.loading && !props.error && sortedRows.value.length === 0)
 const selectedCount = computed(() => selectedKeys.value.size)
 const isAllSelected = computed(
@@ -266,7 +271,7 @@ function clearSelection(): void {
     </div>
 
     <TablePagination
-      v-if="!isEmpty && !error"
+      v-if="paginated && !isEmpty && !error"
       :current-page="currentPage"
       :total-pages="totalPages"
       :total-items="totalItems"

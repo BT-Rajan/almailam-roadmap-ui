@@ -1,10 +1,12 @@
 from datetime import date, datetime, timezone
 
 from fastapi import UploadFile
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
+from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     DOCUMENT_ALLOWED_TRANSITIONS,
     DOCUMENT_STATUSES_REQUIRING_REASON,
@@ -40,9 +42,25 @@ def _next_revision_label(current: str) -> str:
     return "Rev B"
 
 
+DOCUMENT_SORTABLE_FIELDS = {
+    "title": ProjectDocument.title,
+    "type": ProjectDocument.type,
+    "status": ProjectDocument.status,
+    "uploadDate": ProjectDocument.upload_date,
+    "revision": ProjectDocument.revision,
+}
+
+
 def list_documents(
-    db: Session, project_no: str | None = None, status: str | None = None, doc_type: str | None = None
-) -> list[ProjectDocument]:
+    db: Session,
+    project_no: str | None = None,
+    status: str | None = None,
+    doc_type: str | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict:
     query = db.query(ProjectDocument).filter(ProjectDocument.deleted_at.is_(None))
     if project_no:
         project = db.query(Project).filter(Project.project_no == project_no).first()
@@ -51,7 +69,12 @@ def list_documents(
         query = query.filter(ProjectDocument.status == status)
     if doc_type:
         query = query.filter(ProjectDocument.type == doc_type)
-    return query.order_by(ProjectDocument.id.asc()).all()
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(ProjectDocument.document_no.ilike(term), ProjectDocument.title.ilike(term))
+        )
+    return sort_and_paginate(query, ProjectDocument, DOCUMENT_SORTABLE_FIELDS, sort, page, page_size)
 
 
 def get_document(db: Session, document_no: str) -> ProjectDocument:

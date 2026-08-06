@@ -47,6 +47,6 @@ def sort_and_paginate(
         "items": items,
         "total": total,
         "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if page_size else 0,
+        "pageSize": page_size,
+        "totalPages": (total + page_size - 1) // page_size if page_size else 0,
     }

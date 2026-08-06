@@ -14,9 +14,11 @@ from app.api.projects import router as projects_router
 from app.api.quotations import router as quotations_router
 from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
+from app.api.search import router as search_router
 from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
+from app.api.workflows import router as workflows_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import SecurityHeadersMiddleware
@@ -44,6 +46,7 @@ app.add_middleware(
 register_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(workflows_router)
 app.include_router(roles_router)
 app.include_router(clients_router)
 app.include_router(projects_router)
@@ -57,6 +60,7 @@ app.include_router(tasks_router)
 app.include_router(notifications_router)
 app.include_router(reports_router)
 app.include_router(messages_router)
+app.include_router(search_router)
 
 
 @app.get("/api/health")

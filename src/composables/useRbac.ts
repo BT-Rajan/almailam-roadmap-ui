@@ -128,7 +128,7 @@ export function useRbac() {
   const getUserPermissions = (): string[] => {
     if (!user.value) return []
     return Object.entries(PERMISSIONS)
-      .filter(([_, perm]) => perm.roles.includes(user.value!.role as UserRole))
+      .filter(([, perm]) => perm.roles.includes(user.value!.role as UserRole))
       .map(([key]) => key)
   }
 

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
+from app.schemas.common import PagedResponse
 from app.schemas.client import (
     ClientAddressCreate,
     ClientAddressOut,
@@ -28,17 +30,23 @@ can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
 
 
-@router.get("", response_model=list[ClientOut])
+@router.get("", response_model=PagedResponse[ClientOut])
 def list_clients(
     search: str | None = None,
     clientType: str | None = None,
     status: str | None = None,
     onboardingState: str | None = None,
+    sort: str | None = None,
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    clients = client_service.list_clients(db, search, clientType, status, onboardingState)
-    return [ClientOut.from_model(c) for c in clients]
+    result = client_service.list_clients(
+        db, search, clientType, status, onboardingState, sort, page, pageSize
+    )
+    result["items"] = [ClientOut.from_model(c) for c in result["items"]]
+    return result
 
 
 @router.post("/duplicates", response_model=list[ClientDuplicateMatchOut])

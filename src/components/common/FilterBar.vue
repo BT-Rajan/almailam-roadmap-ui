@@ -17,6 +17,7 @@ withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:searchValue': [value: string]
+  search: [value: string]
   clear: []
 }>()
 </script>
@@ -29,6 +30,7 @@ const emit = defineEmits<{
           :model-value="searchValue"
           :placeholder="searchPlaceholder"
           @update:model-value="emit('update:searchValue', $event)"
+          @search="emit('search', $event)"
         />
       </div>
       <div class="flex flex-wrap items-center gap-3">

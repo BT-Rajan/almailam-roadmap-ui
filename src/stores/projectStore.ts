@@ -5,6 +5,13 @@ import { projectService } from '@/services/projectService'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
+interface ProjectPaginationState {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 interface ProjectStoreState {
   projects: Project[]
   clients: Client[]
@@ -15,6 +22,13 @@ interface ProjectStoreState {
   stageFilter: WorkflowStage | 'All'
   priorityFilter: ProjectPriority | 'All'
   viewMode: ProjectViewMode
+  // Server-paginated browse state for ProjectsPage -- separate from
+  // `projects` above, which stays a full, unpaginated cache because other
+  // pages (e.g. the project workspace) look a project up locally by id
+  // rather than fetching it individually.
+  pageItems: Project[]
+  pagination: ProjectPaginationState
+  isPageLoading: boolean
 }
 
 export const useProjectStore = defineStore('project', {
@@ -28,27 +42,12 @@ export const useProjectStore = defineStore('project', {
     stageFilter: 'All',
     priorityFilter: 'All',
     viewMode: 'grid',
+    pageItems: [],
+    pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
+    isPageLoading: false,
   }),
 
   getters: {
-    filteredProjects(state): Project[] {
-      const term = state.searchTerm.trim().toLowerCase()
-
-      return state.projects.filter((project) => {
-        const matchesSearch =
-          term.length === 0 ||
-          project.projectName.toLowerCase().includes(term) ||
-          project.projectNo.toLowerCase().includes(term) ||
-          project.engineer.toLowerCase().includes(term)
-
-        const matchesStatus = state.statusFilter === 'All' || project.status === state.statusFilter
-        const matchesStage = state.stageFilter === 'All' || project.currentStage === state.stageFilter
-        const matchesPriority = state.priorityFilter === 'All' || project.priority === state.priorityFilter
-
-        return matchesSearch && matchesStatus && matchesStage && matchesPriority
-      })
-    },
-
     hasActiveFilters(state): boolean {
       return (
         state.searchTerm.trim().length > 0 ||
@@ -78,20 +77,78 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
+    // Fetches just the current page/filter/sort combination from the
+    // server for the Projects browse table -- the actual pagination fix,
+    // as opposed to loadProjects() above which still loads everything
+    // (safely, in bounded pages) for cross-reference lookups.
+    async loadProjectsPage() {
+      this.isPageLoading = true
+      this.error = undefined
+      try {
+        if (this.clients.length === 0) {
+          this.clients = await clientService.getClients()
+        }
+        const result = await projectService.getProjectsPage({
+          page: this.pagination.page,
+          pageSize: this.pagination.pageSize,
+          search: this.searchTerm.trim() || undefined,
+          status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
+          stage: this.stageFilter !== 'All' ? this.stageFilter : undefined,
+          priority: this.priorityFilter !== 'All' ? this.priorityFilter : undefined,
+        })
+        this.pageItems = result.items
+        this.pagination = {
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+          totalPages: result.totalPages,
+        }
+      } catch {
+        this.error = 'Unable to load projects. Please try again.'
+      } finally {
+        this.isPageLoading = false
+      }
+    },
+
+    setPage(page: number) {
+      this.pagination.page = page
+      void this.loadProjectsPage()
+    },
+
+    setPageSize(size: number) {
+      this.pagination.pageSize = size
+      this.pagination.page = 1
+      void this.loadProjectsPage()
+    },
+
     setSearchTerm(term: string) {
       this.searchTerm = term
     },
 
+    // Called from the search box's debounced @search event, once the
+    // person has paused typing, so we're not firing a request per keystroke.
+    applySearch(term: string) {
+      this.searchTerm = term
+      this.pagination.page = 1
+      void this.loadProjectsPage()
+    },
+
     setStatusFilter(status: ProjectStatus | 'All') {
       this.statusFilter = status
+      this.pagination.page = 1
+      void this.loadProjectsPage()
     },
 
     setStageFilter(stage: WorkflowStage | 'All') {
       this.stageFilter = stage
+      this.pagination.page = 1
+      void this.loadProjectsPage()
     },
 
     setPriorityFilter(priority: ProjectPriority | 'All') {
       this.priorityFilter = priority
+      this.pagination.page = 1
+      void this.loadProjectsPage()
     },
 
     setViewMode(mode: ProjectViewMode) {
@@ -107,6 +164,8 @@ export const useProjectStore = defineStore('project', {
       this.statusFilter = 'All'
       this.stageFilter = 'All'
       this.priorityFilter = 'All'
+      this.pagination.page = 1
+      void this.loadProjectsPage()
     },
   },
 })

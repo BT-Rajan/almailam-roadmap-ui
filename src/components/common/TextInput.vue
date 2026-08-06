@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   'update:modelValue': [value: string]
+  blur: [value: string]
 }>()
 
 const inputId = useId()
@@ -65,6 +66,7 @@ const inputClasses = computed(() => [
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+        @blur="$emit('blur', ($event.target as HTMLInputElement).value)"
       />
     </div>
     <p v-if="error" :id="`${inputId}-error`" class="text-xs text-danger-500">{{ error }}</p>

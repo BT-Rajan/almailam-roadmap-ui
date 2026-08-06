@@ -8,10 +8,8 @@ interface WorkflowStoreState {
   selectedTemplateId: string | undefined
   isLoading: boolean
   error: string | undefined
-}
-
-function generateStageId(): string {
-  return `STG-${Date.now().toString(36).toUpperCase()}`
+  isMutating: boolean
+  mutationError: string | undefined
 }
 
 export const useWorkflowStore = defineStore('workflow', {
@@ -20,6 +18,8 @@ export const useWorkflowStore = defineStore('workflow', {
     selectedTemplateId: undefined,
     isLoading: false,
     error: undefined,
+    isMutating: false,
+    mutationError: undefined,
   }),
 
   getters: {
@@ -48,40 +48,75 @@ export const useWorkflowStore = defineStore('workflow', {
       this.selectedTemplateId = templateId
     },
 
-    addStage(name: string, description: string) {
+    async addStage(name: string, description: string) {
       const template = this.selectedTemplate
       if (!template) return
-      const newStage: WorkflowStageConfig = { id: generateStageId(), name, description }
-      template.stages = [...template.stages, newStage]
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const stage = await workflowService.addStage(template.id, name, description)
+        template.stages = [...template.stages, stage]
+      } catch {
+        this.mutationError = 'Unable to add the stage. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
     },
 
-    updateStage(stageId: string, fields: Partial<Pick<WorkflowStageConfig, 'name' | 'description'>>) {
+    async updateStage(stageId: string, fields: Partial<Pick<WorkflowStageConfig, 'name' | 'description'>>) {
       const template = this.selectedTemplate
       if (!template) return
-      template.stages = template.stages.map((stage) => (stage.id === stageId ? { ...stage, ...fields } : stage))
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await workflowService.updateStage(stageId, fields)
+        template.stages = template.stages.map((stage) => (stage.id === stageId ? updated : stage))
+      } catch {
+        this.mutationError = 'Unable to update the stage. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
     },
 
-    removeStage(stageId: string) {
+    async removeStage(stageId: string) {
       const template = this.selectedTemplate
       if (!template) return
-      template.stages = template.stages.filter((stage) => stage.id !== stageId)
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        await workflowService.removeStage(stageId)
+        template.stages = template.stages.filter((stage) => stage.id !== stageId)
+      } catch {
+        this.mutationError = 'Unable to remove the stage. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
     },
 
-    moveStage(stageId: string, direction: 'up' | 'down') {
+    async moveStage(stageId: string, direction: 'up' | 'down') {
       const template = this.selectedTemplate
       if (!template) return
-      const stages = [...template.stages]
-      const index = stages.findIndex((stage) => stage.id === stageId)
-      const targetIndex = direction === 'up' ? index - 1 : index + 1
-      if (index === -1 || targetIndex < 0 || targetIndex >= stages.length) return
-
-      const [moved] = stages.splice(index, 1)
-      stages.splice(targetIndex, 0, moved!)
-      template.stages = stages
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        template.stages = await workflowService.moveStage(stageId, direction)
+      } catch {
+        this.mutationError = 'Unable to reorder the stages. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
     },
 
-    setDefaultTemplate(templateId: string) {
-      this.templates = this.templates.map((template) => ({ ...template, isDefault: template.id === templateId }))
+    async setDefaultTemplate(templateId: string) {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        this.templates = await workflowService.setDefaultTemplate(templateId)
+      } catch {
+        this.mutationError = 'Unable to change the default workflow. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
     },
   },
 })

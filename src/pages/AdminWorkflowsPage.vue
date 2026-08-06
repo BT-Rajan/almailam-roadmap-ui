@@ -26,14 +26,42 @@ onMounted(() => {
   if (workflowStore.templates.length === 0) loadData()
 })
 
-function handleSave(): void {
-  toastStore.show('success', 'Workflow updated', `${workflowStore.selectedTemplate?.name} has been saved.`)
-}
-
 function handleSetDefault(): void {
   if (!workflowStore.selectedTemplate) return
-  workflowStore.setDefaultTemplate(workflowStore.selectedTemplate.id)
-  toastStore.show('info', 'Default workflow changed', `${workflowStore.selectedTemplate.name} is now the default.`)
+  const name = workflowStore.selectedTemplate.name
+  workflowStore.setDefaultTemplate(workflowStore.selectedTemplate.id).then(() => {
+    if (workflowStore.mutationError) {
+      toastStore.show('error', 'Unable to change default', workflowStore.mutationError)
+    } else {
+      toastStore.show('info', 'Default workflow changed', `${name} is now the default.`)
+    }
+  })
+}
+
+// Stage edits save immediately as they're made (see workflowStore), so the
+// only feedback needed here is a toast if a particular edit failed to save.
+function reportIfFailed(action: Promise<void>): void {
+  action.then(() => {
+    if (workflowStore.mutationError) {
+      toastStore.show('error', 'Change not saved', workflowStore.mutationError)
+    }
+  })
+}
+
+function handleUpdateStage(stageId: string, fields: Parameters<typeof workflowStore.updateStage>[1]): void {
+  reportIfFailed(workflowStore.updateStage(stageId, fields))
+}
+
+function handleRemoveStage(stageId: string): void {
+  reportIfFailed(workflowStore.removeStage(stageId))
+}
+
+function handleMoveStage(stageId: string, direction: 'up' | 'down'): void {
+  reportIfFailed(workflowStore.moveStage(stageId, direction))
+}
+
+function handleAddStage(name: string, description: string): void {
+  reportIfFailed(workflowStore.addStage(name, description))
 }
 </script>
 
@@ -91,17 +119,16 @@ function handleSetDefault(): void {
                   >
                     Set as Default
                   </BaseButton>
-                  <BaseButton size="sm" @click="handleSave">Save Changes</BaseButton>
                 </div>
               </div>
             </template>
 
             <WorkflowStageEditor
               :stages="workflowStore.selectedTemplate.stages"
-              @update="workflowStore.updateStage"
-              @remove="workflowStore.removeStage"
-              @move="workflowStore.moveStage"
-              @add="workflowStore.addStage"
+              @update="handleUpdateStage"
+              @remove="handleRemoveStage"
+              @move="handleMoveStage"
+              @add="handleAddStage"
             />
           </Card>
         </template>

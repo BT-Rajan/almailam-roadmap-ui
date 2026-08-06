@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
     CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON,
@@ -33,13 +34,25 @@ def _digits(value: str) -> str:
     return re.sub(r"\D", "", value)
 
 
+CLIENT_SORTABLE_FIELDS = {
+    "companyName": Client.company_name,
+    "contactPerson": Client.contact_person,
+    "clientType": Client.client_type,
+    "status": Client.status,
+    "onboardingState": Client.onboarding_state,
+}
+
+
 def list_clients(
     db: Session,
     search: str | None = None,
     client_type: str | None = None,
     status: str | None = None,
     onboarding_state: str | None = None,
-) -> list[Client]:
+    sort: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict:
     query = db.query(Client).filter(Client.deleted_at.is_(None))
 
     if search:
@@ -61,7 +74,7 @@ def list_clients(
     if onboarding_state:
         query = query.filter(Client.onboarding_state == onboarding_state)
 
-    return query.order_by(Client.id.asc()).all()
+    return sort_and_paginate(query, Client, CLIENT_SORTABLE_FIELDS, sort, page, page_size)
 
 
 def get_client(db: Session, client_id: int) -> Client:

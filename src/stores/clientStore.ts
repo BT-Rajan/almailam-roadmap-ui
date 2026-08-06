@@ -16,6 +16,13 @@ import type {
   ClientViewMode,
 } from '@/types/Client'
 
+interface ClientPaginationState {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 interface ClientStoreState {
   clients: Client[]
   isLoading: boolean
@@ -34,6 +41,13 @@ interface ClientStoreState {
   auditEvents: ClientAuditEvent[]
   isDetailLoading: boolean
   detailError: string | undefined
+  // Server-paginated browse state for ClientsPage -- separate from
+  // `clients` above, which stays a full, unpaginated cache because other
+  // pages (e.g. the client workspace) look a client up locally by id
+  // rather than fetching it individually.
+  pageItems: Client[]
+  pagination: ClientPaginationState
+  isPageLoading: boolean
 }
 
 export const useClientStore = defineStore('client', {
@@ -55,28 +69,12 @@ export const useClientStore = defineStore('client', {
     auditEvents: [],
     isDetailLoading: false,
     detailError: undefined,
+    pageItems: [],
+    pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
+    isPageLoading: false,
   }),
 
   getters: {
-    filteredClients(state): Client[] {
-      const term = state.searchTerm.trim().toLowerCase()
-
-      return state.clients.filter((client) => {
-        const matchesSearch =
-          term.length === 0 ||
-          client.companyName.toLowerCase().includes(term) ||
-          client.contactPerson.toLowerCase().includes(term) ||
-          client.mobile.replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
-          client.email.toLowerCase().includes(term)
-
-        const matchesType = state.typeFilter === 'All' || client.clientType === state.typeFilter
-        const matchesStatus = state.statusFilter === 'All' || client.status === state.statusFilter
-        const matchesOnboarding = state.onboardingFilter === 'All' || client.onboardingState === state.onboardingFilter
-
-        return matchesSearch && matchesType && matchesStatus && matchesOnboarding
-      })
-    },
-
     hasActiveFilters(state): boolean {
       return (
         state.searchTerm.trim().length > 0 ||
@@ -102,6 +100,47 @@ export const useClientStore = defineStore('client', {
       } finally {
         this.isLoading = false
       }
+    },
+
+    // Fetches just the current page/filter/sort combination from the
+    // server for the Clients browse table -- the actual pagination fix,
+    // as opposed to loadClients() above which still loads everything
+    // (safely, in bounded pages) for cross-reference lookups.
+    async loadClientsPage() {
+      this.isPageLoading = true
+      this.error = undefined
+      try {
+        const result = await clientService.getClientsPage({
+          page: this.pagination.page,
+          pageSize: this.pagination.pageSize,
+          search: this.searchTerm.trim() || undefined,
+          clientType: this.typeFilter !== 'All' ? this.typeFilter : undefined,
+          status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
+          onboardingState: this.onboardingFilter !== 'All' ? this.onboardingFilter : undefined,
+        })
+        this.pageItems = result.items
+        this.pagination = {
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+          totalPages: result.totalPages,
+        }
+      } catch {
+        this.error = 'Unable to load clients. Please try again.'
+      } finally {
+        this.isPageLoading = false
+      }
+    },
+
+    setPage(page: number) {
+      this.pagination.page = page
+      void this.loadClientsPage()
+    },
+
+    setPageSize(size: number) {
+      this.pagination.pageSize = size
+      this.pagination.page = 1
+      void this.loadClientsPage()
     },
 
     async loadClientDetail(clientId: string) {
@@ -135,16 +174,30 @@ export const useClientStore = defineStore('client', {
       this.searchTerm = term
     },
 
+    // Called from the search box's debounced @search event, once the
+    // person has paused typing, so we're not firing a request per keystroke.
+    applySearch(term: string) {
+      this.searchTerm = term
+      this.pagination.page = 1
+      void this.loadClientsPage()
+    },
+
     setTypeFilter(type: ClientType | 'All') {
       this.typeFilter = type
+      this.pagination.page = 1
+      void this.loadClientsPage()
     },
 
     setStatusFilter(status: ClientStatus | 'All') {
       this.statusFilter = status
+      this.pagination.page = 1
+      void this.loadClientsPage()
     },
 
     setOnboardingFilter(state: ClientOnboardingState | 'All') {
       this.onboardingFilter = state
+      this.pagination.page = 1
+      void this.loadClientsPage()
     },
 
     setViewMode(mode: ClientViewMode) {
@@ -180,6 +233,8 @@ export const useClientStore = defineStore('client', {
       this.typeFilter = 'All'
       this.statusFilter = 'All'
       this.onboardingFilter = 'All'
+      this.pagination.page = 1
+      void this.loadClientsPage()
     },
 
     async findDuplicates(name: string, mobile: string, email: string) {

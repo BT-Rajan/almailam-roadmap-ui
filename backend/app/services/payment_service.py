@@ -140,6 +140,14 @@ def get_obligations(db: Session, agreement_id: int) -> list[PaymentObligation]:
     )
 
 
+def list_all_obligations(db: Session) -> list[PaymentObligation]:
+    return (
+        db.query(PaymentObligation)
+        .order_by(PaymentObligation.agreement_id.asc(), PaymentObligation.sequence_number.asc())
+        .all()
+    )
+
+
 def get_obligation_by_display_id(db: Session, raw_id: str) -> PaymentObligation:
     agreement_id, sequence_number = parse_obligation_display_id(raw_id)
     obligation = (

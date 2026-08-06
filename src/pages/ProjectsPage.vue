@@ -17,7 +17,6 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
 import ProjectCard from '@/components/project/ProjectCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { usePagination } from '@/composables/usePagination'
 import { useProjectStore } from '@/stores/projectStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
@@ -83,7 +82,7 @@ const TABLE_COLUMNS: SmartTableColumn<ProjectTableRow>[] = [
 ]
 
 const tableRows = computed<ProjectTableRow[]>(() =>
-  projectStore.filteredProjects.map((project) => ({
+  projectStore.pageItems.map((project) => ({
     id: project.id,
     projectNo: project.projectNo,
     projectName: project.projectName,
@@ -97,20 +96,11 @@ const tableRows = computed<ProjectTableRow[]>(() =>
   })),
 )
 
-const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize } = usePagination(
-  () => projectStore.filteredProjects.length,
-  9,
-)
-
-const paginatedGridProjects = computed(() => projectStore.filteredProjects.slice(startIndex.value, endIndex.value))
-
 function loadData(): void {
-  projectStore.loadProjects()
+  void projectStore.loadProjectsPage()
 }
 
-onMounted(() => {
-  if (projectStore.projects.length === 0) loadData()
-})
+onMounted(loadData)
 
 function openProject(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
@@ -134,6 +124,7 @@ function createProject(): void {
       search-placeholder="Search by project name, number or engineer"
       :has-active-filters="projectStore.hasActiveFilters"
       @update:search-value="projectStore.setSearchTerm"
+      @search="projectStore.applySearch"
       @clear="projectStore.clearFilters"
     >
       <template #filters>
@@ -182,14 +173,14 @@ function createProject(): void {
     <ErrorState v-if="projectStore.error" :description="projectStore.error" @retry="loadData" />
 
     <template v-else-if="projectStore.viewMode === 'grid'">
-      <div v-if="projectStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+      <div v-if="projectStore.isPageLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <div v-for="placeholder in 6" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
           <SkeletonLoader :rows="5" />
         </div>
       </div>
 
       <EmptyState
-        v-else-if="paginatedGridProjects.length === 0"
+        v-else-if="projectStore.pageItems.length === 0"
         title="No projects found"
         description="Try adjusting your search or filters, or create a new project."
         action-label="New Project"
@@ -199,7 +190,7 @@ function createProject(): void {
       <template v-else>
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
           <ProjectCard
-            v-for="project in paginatedGridProjects"
+            v-for="project in projectStore.pageItems"
             :key="project.id"
             :project="project"
             :client="projectStore.getClientById(project.clientId)"
@@ -208,46 +199,61 @@ function createProject(): void {
         </div>
         <div class="rounded-xl border border-border-light bg-bg-card">
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :total-items="totalItems"
-            :start-index="startIndex"
-            :end-index="endIndex"
-            :page-size="pageSize"
+            :current-page="projectStore.pagination.page"
+            :total-pages="projectStore.pagination.totalPages"
+            :total-items="projectStore.pagination.total"
+            :start-index="(projectStore.pagination.page - 1) * projectStore.pagination.pageSize"
+            :end-index="Math.min(projectStore.pagination.page * projectStore.pagination.pageSize, projectStore.pagination.total)"
+            :page-size="projectStore.pagination.pageSize"
             :page-size-options="[9, 18, 27]"
-            @page-change="goToPage"
-            @page-size-change="setPageSize"
+            @page-change="projectStore.setPage"
+            @page-size-change="projectStore.setPageSize"
           />
         </div>
       </template>
     </template>
 
-    <SmartTable
-      v-else
-      :columns="TABLE_COLUMNS"
-      :rows="tableRows"
-      row-key="id"
-      :loading="projectStore.isLoading"
-      :searchable="false"
-      empty-title="No projects found"
-      empty-description="Try adjusting your search or filters, or create a new project."
-      @row-click="openProject($event.id)"
-    >
-      <template #cell-status="{ value }">
-        <StatusBadge :label="value as string" :variant="getProjectStatusVariant(value as ProjectStatus)" show-dot />
-      </template>
-      <template #cell-priority="{ value }">
-        <StatusBadge :label="value as string" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
-      </template>
-      <template #cell-currentStage="{ value }">
-        <StatusBadge :label="value as string" variant="info" />
-      </template>
-      <template #cell-progress="{ value }">
-        <ProgressBar :value="value as number" show-label />
-      </template>
-      <template #cell-targetDate="{ value }">
-        {{ formatDate(value as string) }}
-      </template>
-    </SmartTable>
+    <template v-else>
+      <SmartTable
+        :columns="TABLE_COLUMNS"
+        :rows="tableRows"
+        row-key="id"
+        :loading="projectStore.isPageLoading"
+        :searchable="false"
+        :paginated="false"
+        empty-title="No projects found"
+        empty-description="Try adjusting your search or filters, or create a new project."
+        @row-click="openProject($event.id)"
+      >
+        <template #cell-status="{ value }">
+          <StatusBadge :label="value as string" :variant="getProjectStatusVariant(value as ProjectStatus)" show-dot />
+        </template>
+        <template #cell-priority="{ value }">
+          <StatusBadge :label="value as string" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
+        </template>
+        <template #cell-currentStage="{ value }">
+          <StatusBadge :label="value as string" variant="info" />
+        </template>
+        <template #cell-progress="{ value }">
+          <ProgressBar :value="value as number" show-label />
+        </template>
+        <template #cell-targetDate="{ value }">
+          {{ formatDate(value as string) }}
+        </template>
+      </SmartTable>
+      <div class="rounded-xl border border-border-light bg-bg-card">
+        <TablePagination
+          :current-page="projectStore.pagination.page"
+          :total-pages="projectStore.pagination.totalPages"
+          :total-items="projectStore.pagination.total"
+          :start-index="(projectStore.pagination.page - 1) * projectStore.pagination.pageSize"
+          :end-index="Math.min(projectStore.pagination.page * projectStore.pagination.pageSize, projectStore.pagination.total)"
+          :page-size="projectStore.pagination.pageSize"
+          :page-size-options="[10, 25, 50]"
+          @page-change="projectStore.setPage"
+          @page-size-change="projectStore.setPageSize"
+        />
+      </div>
+    </template>
   </div>
 </template>

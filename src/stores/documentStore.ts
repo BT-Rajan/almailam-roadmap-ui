@@ -7,6 +7,13 @@ import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, P
 import type { DocumentAIReview } from '@/types/AiReview'
 import type { Project } from '@/types/Project'
 
+interface DocumentPaginationState {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 interface DocumentStoreState {
   documents: ProjectDocument[]
   projects: Project[]
@@ -22,6 +29,12 @@ interface DocumentStoreState {
   typeFilter: DocumentType | 'All'
   statusFilter: DocumentStatus | 'All'
   viewMode: DocumentViewMode
+  // Server-paginated browse state for DocumentsPage -- separate from
+  // `documents` above, which stays a full, unpaginated cache because other
+  // pages (e.g. a project's Documents tab) filter it locally by project id.
+  pageItems: ProjectDocument[]
+  pagination: DocumentPaginationState
+  isPageLoading: boolean
 }
 
 export const useDocumentStore = defineStore('document', {
@@ -40,25 +53,12 @@ export const useDocumentStore = defineStore('document', {
     typeFilter: 'All',
     statusFilter: 'All',
     viewMode: 'grid',
+    pageItems: [],
+    pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
+    isPageLoading: false,
   }),
 
   getters: {
-    filteredDocuments(state): ProjectDocument[] {
-      const term = state.searchTerm.trim().toLowerCase()
-
-      return state.documents.filter((document) => {
-        const matchesSearch =
-          term.length === 0 ||
-          document.title.toLowerCase().includes(term) ||
-          document.uploadedBy.toLowerCase().includes(term)
-
-        const matchesType = state.typeFilter === 'All' || document.type === state.typeFilter
-        const matchesStatus = state.statusFilter === 'All' || document.status === state.statusFilter
-
-        return matchesSearch && matchesType && matchesStatus
-      })
-    },
-
     hasActiveFilters(state): boolean {
       return state.searchTerm.trim().length > 0 || state.typeFilter !== 'All' || state.statusFilter !== 'All'
     },
@@ -86,6 +86,49 @@ export const useDocumentStore = defineStore('document', {
       } finally {
         this.isLoading = false
       }
+    },
+
+    // Fetches just the current page/filter/sort combination from the
+    // server for the Documents browse table -- the actual pagination fix,
+    // as opposed to loadDocuments() above which still loads everything
+    // (safely, in bounded pages) for cross-reference lookups.
+    async loadDocumentsPage() {
+      this.isPageLoading = true
+      this.error = undefined
+      try {
+        if (this.projects.length === 0) {
+          this.projects = await projectService.getProjects()
+        }
+        const result = await documentService.getDocumentsPage({
+          page: this.pagination.page,
+          pageSize: this.pagination.pageSize,
+          search: this.searchTerm.trim() || undefined,
+          type: this.typeFilter !== 'All' ? this.typeFilter : undefined,
+          status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
+        })
+        this.pageItems = result.items
+        this.pagination = {
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+          totalPages: result.totalPages,
+        }
+      } catch {
+        this.error = 'Unable to load documents. Please try again.'
+      } finally {
+        this.isPageLoading = false
+      }
+    },
+
+    setPage(page: number) {
+      this.pagination.page = page
+      void this.loadDocumentsPage()
+    },
+
+    setPageSize(size: number) {
+      this.pagination.pageSize = size
+      this.pagination.page = 1
+      void this.loadDocumentsPage()
     },
 
     async loadDocumentDetail(documentId: string) {
@@ -128,12 +171,24 @@ export const useDocumentStore = defineStore('document', {
       this.searchTerm = term
     },
 
+    // Called from the search box's debounced @search event, once the
+    // person has paused typing, so we're not firing a request per keystroke.
+    applySearch(term: string) {
+      this.searchTerm = term
+      this.pagination.page = 1
+      void this.loadDocumentsPage()
+    },
+
     setTypeFilter(type: DocumentType | 'All') {
       this.typeFilter = type
+      this.pagination.page = 1
+      void this.loadDocumentsPage()
     },
 
     setStatusFilter(status: DocumentStatus | 'All') {
       this.statusFilter = status
+      this.pagination.page = 1
+      void this.loadDocumentsPage()
     },
 
     setViewMode(mode: DocumentViewMode) {
@@ -144,6 +199,8 @@ export const useDocumentStore = defineStore('document', {
       this.searchTerm = ''
       this.typeFilter = 'All'
       this.statusFilter = 'All'
+      this.pagination.page = 1
+      void this.loadDocumentsPage()
     },
   },
 })

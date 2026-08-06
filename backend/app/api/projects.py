@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
+from app.schemas.common import PagedResponse
 from app.schemas.project import (
     ProjectCreate,
     ProjectOut,
@@ -19,16 +21,26 @@ can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
 
 
-@router.get("", response_model=list[ProjectOut])
+@router.get("", response_model=PagedResponse[ProjectOut])
 def list_projects(
     clientId: str | None = None,
     status: str | None = None,
     priority: str | None = None,
+    stage: str | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    projects = project_service.list_projects(db, clientId, status, priority)
-    return [ProjectOut.from_model(p, project_service.engineer_name(db, p.engineer_id)) for p in projects]
+    result = project_service.list_projects(db, clientId, status, priority, stage, search, sort, page, pageSize)
+    engineer_ids = {p.engineer_id for p in result["items"]}
+    names = project_service.engineer_names(db, engineer_ids)
+    result["items"] = [
+        ProjectOut.from_model(p, names.get(p.engineer_id, "Unknown")) for p in result["items"]
+    ]
+    return result
 
 
 @router.get("/{project_no}", response_model=ProjectOut)

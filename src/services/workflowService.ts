@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { WorkflowTemplate } from '@/types/Workflow'
+import type { WorkflowStageConfig, WorkflowTemplate } from '@/types/Workflow'
 
 /**
  * Fetch all workflow templates from backend API
@@ -14,48 +14,78 @@ async function getTemplates(): Promise<WorkflowTemplate[]> {
 }
 
 /**
- * Get a specific workflow template by ID from backend API
+ * Add a new stage to a workflow template via backend API
  */
-async function getTemplateById(templateId: string): Promise<WorkflowTemplate | undefined> {
+async function addStage(templateId: string, name: string, description: string): Promise<WorkflowStageConfig> {
   try {
-    return await apiClient.get<WorkflowTemplate>(`/api/workflows/templates/${templateId}`)
-  } catch (error) {
-    console.error(`Failed to fetch template ${templateId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch template')
-  }
-}
-
-/**
- * Create a new workflow instance via backend API
- */
-async function createWorkflow(templateId: string, entityType: string, entityId: string): Promise<any> {
-  try {
-    return await apiClient.post('/api/workflows', {
-      template_id: templateId,
-      entity_type: entityType,
-      entity_id: entityId,
+    return await apiClient.post<WorkflowStageConfig>(`/api/workflows/templates/${templateId}/stages`, {
+      name,
+      description,
     })
   } catch (error) {
-    console.error('Failed to create workflow:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create workflow')
+    console.error('Failed to add workflow stage:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add stage')
   }
 }
 
 /**
- * Advance workflow to next stage via backend API
+ * Update a workflow stage's name and/or description via backend API
  */
-async function advanceStage(workflowId: string): Promise<any> {
+async function updateStage(
+  stageId: string,
+  fields: Partial<Pick<WorkflowStageConfig, 'name' | 'description'>>,
+): Promise<WorkflowStageConfig> {
   try {
-    return await apiClient.post(`/api/workflows/${workflowId}/advance-stage`, {})
+    return await apiClient.patch<WorkflowStageConfig>(`/api/workflows/stages/${stageId}`, fields)
   } catch (error) {
-    console.error('Failed to advance workflow stage:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to advance stage')
+    console.error(`Failed to update stage ${stageId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update stage')
+  }
+}
+
+/**
+ * Remove a stage from a workflow template via backend API
+ */
+async function removeStage(stageId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workflows/stages/${stageId}`)
+  } catch (error) {
+    console.error(`Failed to remove stage ${stageId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to remove stage')
+  }
+}
+
+/**
+ * Move a stage up or down within its template via backend API. Returns the
+ * template's full, re-sequenced stage list.
+ */
+async function moveStage(stageId: string, direction: 'up' | 'down'): Promise<WorkflowStageConfig[]> {
+  try {
+    return await apiClient.post<WorkflowStageConfig[]>(`/api/workflows/stages/${stageId}/move`, { direction })
+  } catch (error) {
+    console.error(`Failed to move stage ${stageId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to move stage')
+  }
+}
+
+/**
+ * Mark a workflow template as the default via backend API. Returns every
+ * template so the caller can refresh isDefault flags across the board.
+ */
+async function setDefaultTemplate(templateId: string): Promise<WorkflowTemplate[]> {
+  try {
+    return await apiClient.post<WorkflowTemplate[]>(`/api/workflows/templates/${templateId}/set-default`)
+  } catch (error) {
+    console.error(`Failed to set default template ${templateId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to set default template')
   }
 }
 
 export const workflowService = {
   getTemplates,
-  getTemplateById,
-  createWorkflow,
-  advanceStage,
+  addStage,
+  updateStage,
+  removeStage,
+  moveStage,
+  setDefaultTemplate,
 }

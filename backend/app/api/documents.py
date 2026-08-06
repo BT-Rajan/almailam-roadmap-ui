@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.file_storage import format_file_size
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.common import PagedResponse
 from app.schemas.document import (
     DocumentAIReviewCreate,
     DocumentAIReviewOut,
@@ -37,16 +39,41 @@ def _document_out(db: Session, document) -> DocumentOut:
     )
 
 
-@router.get("", response_model=list[DocumentOut])
+@router.get("", response_model=PagedResponse[DocumentOut])
 def list_documents(
     projectId: str | None = None,
     status: str | None = None,
     type: str | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    documents = document_service.list_documents(db, projectId, status, type)
-    return [_document_out(db, d) for d in documents]
+    result = document_service.list_documents(db, projectId, status, type, search, sort, page, pageSize)
+    documents = result["items"]
+
+    project_ids = {d.project_id for d in documents}
+    project_nos = {
+        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
+    } if project_ids else {}
+
+    uploader_ids = {d.uploaded_by for d in documents}
+    uploader_names = {
+        u.id: u.full_name for u in db.query(User).filter(User.id.in_(uploader_ids)).all()
+    } if uploader_ids else {}
+
+    result["items"] = [
+        DocumentOut.from_model(
+            d,
+            project_nos.get(d.project_id, ""),
+            uploader_names.get(d.uploaded_by, "Unknown"),
+            format_file_size(d.file_size_bytes),
+        )
+        for d in documents
+    ]
+    return result
 
 
 @router.get("/{document_no}", response_model=DocumentOut)

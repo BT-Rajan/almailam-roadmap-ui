@@ -10,17 +10,52 @@ import type {
   ClientIdentification,
   ClientVerification,
 } from '@/types/Client'
+import type { PagedResponse, PageParams } from '@/types/Pagination'
+import { fetchAllPages } from '@/utils/fetchAllPages'
+
+function buildQuery(params: Record<string, string | number | undefined>): string {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') query.set(key, String(value))
+  }
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
 
 /**
- * Fetch all clients from backend API
+ * Fetch a single page of clients from the backend API. Prefer this over
+ * getClients() for any UI that displays/paginates the list directly, since
+ * it only asks the server for one page at a time instead of the whole table.
  */
-async function getClients(): Promise<Client[]> {
+async function getClientsPage(
+  params: PageParams & { clientType?: string; status?: string; onboardingState?: string } = {},
+): Promise<PagedResponse<Client>> {
   try {
-    return await apiClient.get<Client[]>('/api/clients')
+    const query = buildQuery({
+      search: params.search,
+      clientType: params.clientType,
+      status: params.status,
+      onboardingState: params.onboardingState,
+      sort: params.sort,
+      page: params.page,
+      pageSize: params.pageSize,
+    })
+    return await apiClient.get<PagedResponse<Client>>(`/api/clients${query}`)
   } catch (error) {
     console.error('Failed to fetch clients:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch clients')
   }
+}
+
+/**
+ * Fetch every client from the backend API as a flat array. Internally
+ * walks the paginated endpoint page by page (each request is still bounded
+ * server-side) so existing callers that need the full list -- e.g. cross-
+ * reference lookups like resolving a project's client name elsewhere in the
+ * app -- don't have to change.
+ */
+async function getClients(): Promise<Client[]> {
+  return fetchAllPages<Client>((page, pageSize) => getClientsPage({ page, pageSize }))
 }
 
 /**
@@ -178,6 +213,7 @@ async function deleteClient(clientId: string): Promise<void> {
 
 export const clientService = {
   getClients,
+  getClientsPage,
   getClientById,
   getContactsForClient,
   getAddressesForClient,

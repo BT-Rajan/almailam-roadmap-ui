@@ -17,7 +17,6 @@ import TablePagination from '@/components/common/TablePagination.vue'
 import DocumentCard from '@/components/document/DocumentCard.vue'
 import DocumentUploadDialog from '@/components/document/DocumentUploadDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { usePagination } from '@/composables/usePagination'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
@@ -73,7 +72,7 @@ const TABLE_COLUMNS: SmartTableColumn<DocumentTableRow>[] = [
 ]
 
 const tableRows = computed<DocumentTableRow[]>(() =>
-  documentStore.filteredDocuments.map((document) => ({
+  documentStore.pageItems.map((document) => ({
     id: document.id,
     title: document.title,
     type: document.type,
@@ -85,20 +84,11 @@ const tableRows = computed<DocumentTableRow[]>(() =>
   })),
 )
 
-const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize } = usePagination(
-  () => documentStore.filteredDocuments.length,
-  9,
-)
-
-const paginatedGridDocuments = computed(() => documentStore.filteredDocuments.slice(startIndex.value, endIndex.value))
-
 function loadData(): void {
-  documentStore.loadDocuments()
+  void documentStore.loadDocumentsPage()
 }
 
-onMounted(() => {
-  if (documentStore.documents.length === 0) loadData()
-})
+onMounted(loadData)
 
 function openDocument(documentId: string): void {
   router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
@@ -107,6 +97,7 @@ function openDocument(documentId: string): void {
 function handleUpload(document: ProjectDocument): void {
   documentStore.addDocument(document)
   toastStore.show('success', 'Document uploaded', `${document.title} was added to the repository.`)
+  void documentStore.loadDocumentsPage()
 }
 </script>
 
@@ -123,6 +114,7 @@ function handleUpload(document: ProjectDocument): void {
       search-placeholder="Search by document title or uploader"
       :has-active-filters="documentStore.hasActiveFilters"
       @update:search-value="documentStore.setSearchTerm"
+      @search="documentStore.applySearch"
       @clear="documentStore.clearFilters"
     >
       <template #filters>
@@ -164,14 +156,14 @@ function handleUpload(document: ProjectDocument): void {
     <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="loadData" />
 
     <template v-else-if="documentStore.viewMode === 'grid'">
-      <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+      <div v-if="documentStore.isPageLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <div v-for="placeholder in 6" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
           <SkeletonLoader :rows="5" />
         </div>
       </div>
 
       <EmptyState
-        v-else-if="paginatedGridDocuments.length === 0"
+        v-else-if="documentStore.pageItems.length === 0"
         title="No documents found"
         description="Try adjusting your search or filters, or upload a new document."
         action-label="Upload Document"
@@ -181,7 +173,7 @@ function handleUpload(document: ProjectDocument): void {
       <template v-else>
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
           <DocumentCard
-            v-for="document in paginatedGridDocuments"
+            v-for="document in documentStore.pageItems"
             :key="document.id"
             :document="document"
             :project="documentStore.getProjectById(document.projectId)"
@@ -190,41 +182,56 @@ function handleUpload(document: ProjectDocument): void {
         </div>
         <div class="rounded-xl border border-border-light bg-bg-card">
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :total-items="totalItems"
-            :start-index="startIndex"
-            :end-index="endIndex"
-            :page-size="pageSize"
+            :current-page="documentStore.pagination.page"
+            :total-pages="documentStore.pagination.totalPages"
+            :total-items="documentStore.pagination.total"
+            :start-index="(documentStore.pagination.page - 1) * documentStore.pagination.pageSize"
+            :end-index="Math.min(documentStore.pagination.page * documentStore.pagination.pageSize, documentStore.pagination.total)"
+            :page-size="documentStore.pagination.pageSize"
             :page-size-options="[9, 18, 27]"
-            @page-change="goToPage"
-            @page-size-change="setPageSize"
+            @page-change="documentStore.setPage"
+            @page-size-change="documentStore.setPageSize"
           />
         </div>
       </template>
     </template>
 
-    <SmartTable
-      v-else
-      :columns="TABLE_COLUMNS"
-      :rows="tableRows"
-      row-key="id"
-      :loading="documentStore.isLoading"
-      :searchable="false"
-      empty-title="No documents found"
-      empty-description="Try adjusting your search or filters, or upload a new document."
-      @row-click="openDocument($event.id)"
-    >
-      <template #cell-type="{ value }">
-        <StatusBadge :label="value as string" variant="info" />
-      </template>
-      <template #cell-status="{ value }">
-        <StatusBadge :label="value as string" :variant="getDocumentStatusVariant(value as DocumentStatus)" show-dot />
-      </template>
-      <template #cell-uploadDate="{ value }">
-        {{ formatDate(value as string) }}
-      </template>
-    </SmartTable>
+    <template v-else>
+      <SmartTable
+        :columns="TABLE_COLUMNS"
+        :rows="tableRows"
+        row-key="id"
+        :loading="documentStore.isPageLoading"
+        :searchable="false"
+        :paginated="false"
+        empty-title="No documents found"
+        empty-description="Try adjusting your search or filters, or upload a new document."
+        @row-click="openDocument($event.id)"
+      >
+        <template #cell-type="{ value }">
+          <StatusBadge :label="value as string" variant="info" />
+        </template>
+        <template #cell-status="{ value }">
+          <StatusBadge :label="value as string" :variant="getDocumentStatusVariant(value as DocumentStatus)" show-dot />
+        </template>
+        <template #cell-uploadDate="{ value }">
+          {{ formatDate(value as string) }}
+        </template>
+      </SmartTable>
+      <div class="rounded-xl border border-border-light bg-bg-card">
+        <TablePagination
+          :current-page="documentStore.pagination.page"
+          :total-pages="documentStore.pagination.totalPages"
+          :total-items="documentStore.pagination.total"
+          :start-index="(documentStore.pagination.page - 1) * documentStore.pagination.pageSize"
+          :end-index="Math.min(documentStore.pagination.page * documentStore.pagination.pageSize, documentStore.pagination.total)"
+          :page-size="documentStore.pagination.pageSize"
+          :page-size-options="[10, 25, 50]"
+          @page-change="documentStore.setPage"
+          @page-size-change="documentStore.setPageSize"
+        />
+      </div>
+    </template>
 
     <DocumentUploadDialog v-model="isUploadDialogOpen" :projects="documentStore.projects" @upload="handleUpload" />
   </div>
