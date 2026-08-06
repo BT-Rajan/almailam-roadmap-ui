@@ -1,295 +1,169 @@
 <script setup lang="ts">
 import { Plus, FileUp, Zap } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import KPIWidget from '@/components/dashboard/KPIWidget.vue'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import QuickActionCard from '@/components/dashboard/QuickActionCard.vue'
 import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue'
-import ActivityWidget from '@/components/dashboard/ActivityWidget.vue'
 import PendingTasksWidget from '@/components/dashboard/PendingTasksWidget.vue'
 import UpcomingDeadlinesWidget from '@/components/dashboard/UpcomingDeadlinesWidget.vue'
 import RecentDocumentsWidget from '@/components/dashboard/RecentDocumentsWidget.vue'
-import AIInsightWidget from '@/components/dashboard/AIInsightWidget.vue'
-import type { KPI, StatisticItem, ProjectSummary, Task, Activity, Deadline, DocumentItem, AIInsight } from '@/types/Dashboard'
+import { reportService } from '@/services/reportService'
+import { useDocumentStore } from '@/stores/documentStore'
+import { useProjectStore } from '@/stores/projectStore'
+import { useTaskStore } from '@/stores/taskStore'
+import type { KPI, StatisticItem, ProjectSummary, Task, Deadline, DocumentItem } from '@/types/Dashboard'
+import type { ReportMetric } from '@/types/Report'
+import type { ProjectStatus } from '@/types/Project'
+import type { TaskPriority, TaskStatus } from '@/types/Task'
 
 const router = useRouter()
+const projectStore = useProjectStore()
+const taskStore = useTaskStore()
+const documentStore = useDocumentStore()
 
-// Mock data
-const kpis: KPI[] = [
-  {
-    id: '1',
-    label: 'Total Projects',
-    value: 5,
-    trend: { direction: 'up', percentage: 15, period: 'vs last month' },
-  },
-  {
-    id: '2',
-    label: 'Active Submissions',
-    value: 3,
-    trend: { direction: 'stable', percentage: 0, period: 'vs last month' },
-  },
+const summaryMetrics = ref<ReportMetric[]>([])
+const isLoading = ref(true)
+
+onMounted(async () => {
+  try {
+    const [metrics] = await Promise.all([
+      reportService.getSummary(),
+      projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+      taskStore.tasks.length === 0 ? taskStore.loadTasks() : Promise.resolve(),
+      documentStore.documents.length === 0 ? documentStore.loadDocuments() : Promise.resolve(),
+    ])
+    summaryMetrics.value = metrics
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function metricValue(label: string): string | number {
+  return summaryMetrics.value.find((metric) => metric.label === label)?.value ?? '—'
+}
+
+// Real KPI/statistics figures, computed from the same /api/reports/summary
+// endpoint the Executive Report page uses -- this used to be hardcoded
+// mock data (Total Projects: 5, Documents: 47, ...) that never changed no
+// matter what was actually in the system.
+const kpis = computed<KPI[]>(() => [
+  { id: '1', label: 'Total Projects', value: metricValue('Total Projects') },
+  { id: '2', label: 'Active Projects', value: metricValue('Active Projects') },
+  { id: '3', label: 'Total Clients', value: metricValue('Total Clients') },
+  { id: '4', label: 'Open Tasks', value: metricValue('Open Tasks') },
+])
+
+const statistics = computed<StatisticItem[]>(() => [
+  { id: '1', label: 'Completed Projects', value: metricValue('Completed Projects'), icon: '✓', color: 'success' },
+  { id: '2', label: 'Overdue Tasks', value: metricValue('Overdue Tasks'), icon: '⏱', color: 'danger' },
   {
     id: '3',
-    label: 'Documents',
-    value: 47,
-    trend: { direction: 'up', percentage: 23, period: 'vs last month' },
-  },
-  {
-    id: '4',
-    label: 'Team Members',
-    value: 3,
-    trend: { direction: 'up', percentage: 8, period: 'vs last month' },
-  },
-]
-
-const statistics: StatisticItem[] = [
-  {
-    id: '1',
-    label: 'On Time',
-    value: '92%',
-    icon: '✓',
-    color: 'success',
-  },
-  {
-    id: '2',
-    label: 'Pending Review',
-    value: 2,
-    icon: '⏱',
-    color: 'warning',
-  },
-  {
-    id: '3',
-    label: 'Completed This Month',
-    value: 1,
+    label: 'Total Received',
+    value: (() => {
+      const metric = summaryMetrics.value.find((m) => m.label === 'Total Received')
+      if (!metric) return '—'
+      const amount = typeof metric.value === 'number' ? metric.value.toLocaleString() : metric.value
+      return metric.unit ? `${amount} ${metric.unit}` : amount
+    })(),
     icon: '📊',
     color: 'info',
   },
-]
+])
 
-const projects: ProjectSummary[] = [
-  {
-    id: 'PRJ-2026-001',
-    name: 'Al Reem Residential Tower',
-    client: 'Al Reem Real Estate Development',
-    status: 'active',
-    progress: 8,
-    dueDate: '2026-12-18',
-  },
-  {
-    id: 'PRJ-2026-002',
-    name: 'Falcon Heights Warehouse Expansion',
-    client: 'Falcon Heights Contracting LLC',
-    status: 'active',
-    progress: 18,
-    dueDate: '2026-11-30',
-  },
-  {
-    id: 'PRJ-2026-003',
-    name: 'Marina Bay Hotel Renovation',
-    client: 'Marina Bay Hospitality Group',
-    status: 'active',
-    progress: 42,
-    dueDate: '2026-10-05',
-  },
-  {
-    id: 'PRJ-2026-004',
-    name: 'Sharjah Industrial Facility',
-    client: 'Sharjah Industrial Holdings',
-    status: 'pending',
-    progress: 68,
-    dueDate: '2026-08-15',
-  },
-]
+const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
+  Active: 'active',
+  'On Hold': 'on-hold',
+  Completed: 'completed',
+  Cancelled: 'completed',
+}
 
-const tasks: Task[] = [
-  {
-    id: '1',
-    title: 'Review soil investigation report',
-    project: 'Al Reem Residential Tower',
-    priority: 'high',
-    assignee: 'Layla Haddad',
-    dueDate: '2026-07-24',
-    status: 'in-progress',
-  },
-  {
-    id: '2',
-    title: 'Prepare civil defence submission',
-    project: 'Sharjah Industrial Facility',
-    priority: 'urgent',
-    assignee: 'Mohammed Iqbal',
-    dueDate: '2026-07-22',
-    status: 'review',
-  },
-  {
-    id: '3',
-    title: 'Update project timeline',
-    project: 'Marina Bay Hotel Renovation',
-    priority: 'medium',
-    assignee: 'Layla Haddad',
-    dueDate: '2026-07-28',
-    status: 'todo',
-  },
-  {
-    id: '4',
-    title: 'Client presentation materials',
-    project: 'Falcon Heights Warehouse Expansion',
-    priority: 'medium',
-    assignee: 'You',
-    dueDate: '2026-07-25',
-    status: 'todo',
-  },
-]
+// Most recently created projects (higher id = created later), not a fixed
+// mock list -- real data, so this genuinely changes as projects are added.
+const recentProjects = computed<ProjectSummary[]>(() =>
+  [...projectStore.projects]
+    .slice(-8)
+    .reverse()
+    .map((project) => ({
+      id: project.id,
+      name: project.projectName,
+      client: projectStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client',
+      status: PROJECT_STATUS_MAP[project.status],
+      progress: project.progress,
+      dueDate: project.targetDate,
+    })),
+)
 
-const activities: Activity[] = [
-  {
-    id: '1',
-    type: 'project',
-    title: 'Al Reem Residential Tower updated',
-    description: 'Project status changed to active',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    user: 'Layla Haddad',
-    icon: '📁',
-  },
-  {
-    id: '2',
-    type: 'document',
-    title: 'New document uploaded',
-    description: 'Soil Investigation Report added to Al Reem Residential Tower',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    user: 'Layla Haddad',
-    icon: '📄',
-  },
-  {
-    id: '3',
-    type: 'submission',
-    title: 'Government submission approved',
-    description: 'Fire Suppression System Report approved by Fire Department',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    user: 'Fire Department',
-    icon: '✓',
-  },
-  {
-    id: '4',
-    type: 'ai',
-    title: 'AI analysis completed',
-    description: 'Document review for Sharjah Industrial Facility ready',
-    timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    user: 'Claude AI',
-    icon: '🤖',
-  },
-  {
-    id: '5',
-    type: 'task',
-    title: 'Task assigned to you',
-    description: 'Review client presentation materials',
-    timestamp: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
-    user: 'Mohammed Iqbal',
-    icon: '✋',
-  },
-]
+const TASK_STATUS_MAP: Record<TaskStatus, Task['status']> = {
+  Pending: 'todo',
+  'In Progress': 'in-progress',
+  Completed: 'done',
+}
+const TASK_PRIORITY_MAP: Record<TaskPriority, Task['priority']> = {
+  High: 'high',
+  Medium: 'medium',
+  Low: 'low',
+}
 
-const deadlines: Deadline[] = [
-  {
-    id: '1',
-    title: 'Falcon Heights - Quotation Follow-up',
-    project: 'Falcon Heights Warehouse Expansion',
-    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    priority: 'high',
-    type: 'submission',
-  },
-  {
-    id: '2',
-    title: 'Sharjah Industrial - Final Approval',
-    project: 'Sharjah Industrial Facility',
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    priority: 'medium',
-    type: 'approval',
-  },
-  {
-    id: '3',
-    title: 'Marina Bay Hotel - Progress Report Due',
-    project: 'Marina Bay Hotel Renovation',
-    dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-    priority: 'medium',
-    type: 'delivery',
-  },
-]
+function projectNameFor(projectId: string): string {
+  return projectStore.projects.find((project) => project.id === projectId)?.projectName ?? 'Unknown Project'
+}
 
-const documents: DocumentItem[] = [
-  {
-    id: '1',
-    name: 'Soil Investigation Report',
-    project: 'Al Reem Residential Tower',
-    type: 'PDF',
-    uploadedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    uploadedBy: 'Layla Haddad',
-    size: '2.8 MB',
-  },
-  {
-    id: '2',
-    name: 'MEP Design Services Agreement',
-    project: 'Falcon Heights Warehouse Expansion',
-    type: 'PDF',
-    uploadedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    uploadedBy: 'Ahmed Rashid',
-    size: '1.1 MB',
-  },
-  {
-    id: '3',
-    name: 'HVAC Load Calculation Sheet',
-    project: 'Marina Bay Hotel Renovation',
-    type: 'DOCX',
-    uploadedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    uploadedBy: 'Mohammed Iqbal',
-    size: '890 KB',
-  },
-  {
-    id: '4',
-    name: 'Fire Safety Municipality Submission Form',
-    project: 'Sharjah Industrial Facility',
-    type: 'PDF',
-    uploadedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    uploadedBy: 'Mohammed Iqbal',
-    size: '1.4 MB',
-  },
-  {
-    id: '5',
-    name: 'Budget Report - Monthly',
-    project: 'All Projects',
-    type: 'XLSX',
-    uploadedAt: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
-    uploadedBy: 'Finance Team',
-    size: '568 KB',
-  },
-]
+const pendingTasks = computed<Task[]>(() =>
+  taskStore.tasks
+    .filter((task) => task.status !== 'Completed')
+    .slice(0, 6)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      project: projectNameFor(task.projectId),
+      priority: TASK_PRIORITY_MAP[task.priority],
+      assignee: task.assignedTo,
+      dueDate: task.dueDate,
+      status: TASK_STATUS_MAP[task.status],
+    })),
+)
 
-const insights: AIInsight[] = [
-  {
-    id: '1',
-    title: 'Schedule Risk Detected',
-    description: 'Falcon Heights Warehouse Expansion project may face 3-4 week delay based on current submission timelines.',
-    confidence: 'high',
-    action: 'View Analysis',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Document Compliance Alert',
-    description: 'Sharjah Industrial Facility documents require additional certifications per latest authority guidelines.',
-    confidence: 'high',
-    action: 'View Details',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Resource Optimization Opportunity',
-    description: 'Team member availability suggests opportunity to accelerate Marina Bay Hotel Renovation deliverables.',
-    confidence: 'medium',
-    action: 'Explore',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
+// Upcoming deadlines are derived from real task due dates within the next
+// 14 days -- there is no separate "deadlines" concept in the backend, so
+// rather than invent one, this reuses the same task data as above.
+const upcomingDeadlines = computed<Deadline[]>(() => {
+  const now = Date.now()
+  const twoWeeksFromNow = now + 14 * 24 * 60 * 60 * 1000
+  return taskStore.tasks
+    .filter((task) => task.status !== 'Completed')
+    .filter((task) => {
+      const due = new Date(task.dueDate).getTime()
+      return due >= now && due <= twoWeeksFromNow
+    })
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 5)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      project: projectNameFor(task.projectId),
+      dueDate: task.dueDate,
+      priority: task.priority === 'High' ? 'high' : task.priority === 'Medium' ? 'medium' : 'low',
+      type: 'review' as const,
+    }))
+})
+
+const recentDocuments = computed<DocumentItem[]>(() =>
+  [...documentStore.documents]
+    .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))
+    .slice(0, 5)
+    .map((document) => ({
+      id: document.id,
+      name: document.title,
+      project: projectNameFor(document.projectId),
+      type: document.type,
+      uploadedAt: document.uploadDate,
+      uploadedBy: document.uploadedBy,
+      size: document.fileSize,
+    })),
+)
 
 const handleQuickAction = (action: string) => {
   switch (action) {
@@ -317,35 +191,19 @@ const handleTaskClick = () => {
 }
 
 // KPI/Statistics cards link out to the page that best explains that
-// number — keyed by label since these mock summaries don't carry a
+// number -- keyed by label since these report metrics don't carry a
 // route of their own.
 const KPI_ROUTES: Record<string, string> = {
   'Total Projects': ROUTE_NAMES.PROJECTS,
-  'Active Submissions': ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
-  Documents: ROUTE_NAMES.DOCUMENTS,
-  'Team Members': ROUTE_NAMES.ADMIN_USERS,
+  'Active Projects': ROUTE_NAMES.PROJECTS,
+  'Total Clients': ROUTE_NAMES.CLIENTS,
+  'Open Tasks': ROUTE_NAMES.TASKS,
 }
 
 const STATISTIC_ROUTES: Record<string, string> = {
-  'On Time': ROUTE_NAMES.REPORT_PROJECT,
-  'Pending Review': ROUTE_NAMES.DOCUMENT_REVIEW,
-  'Completed This Month': ROUTE_NAMES.PROJECTS,
-}
-
-const DEADLINE_TYPE_ROUTES: Record<Deadline['type'], string> = {
-  submission: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
-  approval: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
-  review: ROUTE_NAMES.DOCUMENT_REVIEW,
-  delivery: ROUTE_NAMES.PROJECTS,
-}
-
-const ACTIVITY_TYPE_ROUTES: Partial<Record<Activity['type'], string>> = {
-  project: ROUTE_NAMES.PROJECTS,
-  document: ROUTE_NAMES.DOCUMENTS,
-  submission: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS,
-  task: ROUTE_NAMES.MY_TASKS,
-  // 'ai' has no dedicated insights page yet, so it's left unmapped —
-  // clicking it is a no-op rather than sending someone somewhere odd.
+  'Completed Projects': ROUTE_NAMES.PROJECTS,
+  'Overdue Tasks': ROUTE_NAMES.TASKS,
+  'Total Received': ROUTE_NAMES.REPORT_EXECUTIVE,
 }
 
 function handleKpiClick(label: string): void {
@@ -359,22 +217,13 @@ function handleStatisticClick(label: string): void {
 }
 
 function handleDeadlineClick(deadlineId: string): void {
-  const deadline = deadlines.find((item) => item.id === deadlineId)
+  const deadline = upcomingDeadlines.value.find((item) => item.id === deadlineId)
   if (!deadline) return
-  router.push({ name: DEADLINE_TYPE_ROUTES[deadline.type] })
+  router.push({ name: ROUTE_NAMES.TASKS })
 }
 
 function handleDocumentClick(): void {
   router.push({ name: ROUTE_NAMES.DOCUMENTS })
-}
-
-function handleActivityClick(activity: Activity): void {
-  const routeName = ACTIVITY_TYPE_ROUTES[activity.type]
-  if (routeName) router.push({ name: routeName })
-}
-
-function handleInsightClick(): void {
-  router.push({ name: ROUTE_NAMES.REPORT_EXECUTIVE })
 }
 </script>
 
@@ -408,26 +257,24 @@ function handleInsightClick(): void {
     </div>
 
     <!-- Projects Grid -->
-    <div>
+    <div v-if="!isLoading && recentProjects.length > 0">
       <h2 class="text-lg font-semibold text-neutral-900 mb-4">Recent Projects</h2>
       <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
-        <ProjectSummaryCard v-for="project in projects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
+        <ProjectSummaryCard v-for="project in recentProjects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
       </div>
     </div>
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 laptop:grid-cols-3 gap-6">
-      <!-- Left Column: Activity and Tasks -->
+      <!-- Left Column: Tasks -->
       <div class="laptop:col-span-2 space-y-6">
-        <ActivityWidget :activities="activities" @activity-click="handleActivityClick" />
-        <PendingTasksWidget :tasks="tasks" @task-click="handleTaskClick" />
+        <PendingTasksWidget :tasks="pendingTasks" @task-click="handleTaskClick" />
       </div>
 
-      <!-- Right Column: Deadlines, Documents, and AI -->
+      <!-- Right Column: Deadlines and Documents -->
       <div class="space-y-6">
-        <UpcomingDeadlinesWidget :deadlines="deadlines" @deadline-click="handleDeadlineClick" />
-        <RecentDocumentsWidget :documents="documents" @document-click="handleDocumentClick" />
-        <AIInsightWidget :insights="insights" @insight-click="handleInsightClick" @action-click="handleInsightClick" />
+        <UpcomingDeadlinesWidget :deadlines="upcomingDeadlines" @deadline-click="handleDeadlineClick" />
+        <RecentDocumentsWidget :documents="recentDocuments" @document-click="handleDocumentClick" />
       </div>
     </div>
   </div>

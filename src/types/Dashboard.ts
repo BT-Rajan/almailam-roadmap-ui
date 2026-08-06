@@ -39,16 +39,6 @@ export interface Task {
   status: 'todo' | 'in-progress' | 'review' | 'done'
 }
 
-export interface Activity {
-  id: string
-  type: 'project' | 'document' | 'submission' | 'task' | 'ai'
-  title: string
-  description?: string
-  timestamp: string
-  user: string
-  icon?: string
-}
-
 export interface Deadline {
   id: string
   title: string
@@ -66,13 +56,4 @@ export interface DocumentItem {
   uploadedAt: string
   uploadedBy: string
   size: string
-}
-
-export interface AIInsight {
-  id: string
-  title: string
-  description: string
-  confidence: 'high' | 'medium' | 'low'
-  action?: string
-  timestamp: string
 }
