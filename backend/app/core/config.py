@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     UPLOADS_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
 
+    # Real LLM provider credentials -- deliberately environment-only, never
+    # stored in the database (see ai_provider_configs, which only ever
+    # stores a masked hint of a key, not the key itself). Empty by default;
+    # AI features honestly report themselves as unavailable until one of
+    # these is set. See app/services/ai_service.py.
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-5"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+
     @property
     def database_url(self) -> str:
         return (

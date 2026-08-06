@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.ai_review import ContractAISummaryOut
 from app.schemas.contract import (
     ContractCreate,
     ContractOut,
@@ -102,3 +103,17 @@ def list_audit_events(contract_no: str, db: Session = Depends(get_db), _=Depends
 @router.delete("/{contract_no}", status_code=204)
 def delete_contract(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
     contract_service.delete_contract(db, contract_no, current_user.id)
+
+
+@router.get("/{contract_no}/ai-summary", response_model=ContractAISummaryOut)
+async def get_contract_ai_summary(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    from app.models.project import Project
+    from app.services import ai_service
+
+    contract = contract_service.get_contract(db, contract_no)
+    clauses = contract_service.get_clauses(db, contract.id)
+    project = db.query(Project).filter(Project.id == contract.project_id).first()
+    try:
+        return await ai_service.get_contract_summary(db, contract, clauses, project)
+    except ai_service.AIUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
