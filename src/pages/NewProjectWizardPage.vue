@@ -13,10 +13,11 @@ import Stepper from '@/components/common/Stepper.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { PROJECT_SERVICES } from '@/constants/projectOptions'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { PROJECT_ENGINEERS, PROJECT_SERVICES } from '@/mock/projects'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
@@ -26,6 +27,7 @@ import { validators } from '@/utils/validators'
 const router = useRouter()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+const userStore = useUserStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
@@ -66,13 +68,20 @@ setRules({
 
 const clientOptions = ref<SelectOption[]>([])
 const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ label: service, value: service }))
-const engineerOptions: SelectOption[] = PROJECT_ENGINEERS.map((engineer) => ({ label: engineer, value: engineer }))
+const engineerOptions = ref<SelectOption[]>([])
 
 onMounted(async () => {
   if (projectStore.clients.length === 0) {
     await projectStore.loadProjects()
   }
   clientOptions.value = projectStore.clients.map((client) => ({ label: client.companyName, value: client.id }))
+
+  if (userStore.users.length === 0) {
+    await userStore.loadUsers()
+  }
+  engineerOptions.value = userStore.users
+    .filter((user) => user.role === 'Engineer' && user.status === 'Active')
+    .map((user) => ({ label: user.name, value: user.name }))
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
