@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -163,3 +165,10 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
 def get_audit_events(db: Session, task_no: str) -> list[dict]:
     task = get_task(db, task_no)
     return audit_service.get_history(db, ENTITY_TYPE, task.id)
+
+
+def delete_task(db: Session, task_no: str, actor_id: int) -> None:
+    task = get_task(db, task_no)
+    audit_service.log_event(db, ENTITY_TYPE, task.id, "Task deleted", actor_id, previous_value=task.title)
+    task.deleted_at = datetime.now(timezone.utc)
+    db.commit()

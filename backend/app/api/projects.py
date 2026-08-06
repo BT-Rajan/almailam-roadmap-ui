@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
+can_delete = require_permission("Projects", "delete")
 
 
 @router.get("", response_model=PagedResponse[ProjectOut])
@@ -132,3 +133,8 @@ def update_timeline_event(
 ):
     event = timeline_service.update_event(db, project_no, event_id, payload)
     return TimelineEventOut.from_model(event, project_no, timeline_service.user_name(db, event.created_by))
+
+
+@router.delete("/{project_no}", status_code=204)
+def delete_project(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    project_service.delete_project(db, project_no, current_user.id)

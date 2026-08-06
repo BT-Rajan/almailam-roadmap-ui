@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -173,3 +173,10 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
 def get_audit_events(db: Session, quotation_no: str) -> list[dict]:
     quotation = get_quotation(db, quotation_no)
     return audit_service.get_history(db, ENTITY_TYPE, quotation.id)
+
+
+def delete_quotation(db: Session, quotation_no: str, actor_id: int) -> None:
+    quotation = get_quotation(db, quotation_no)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation deleted", actor_id, previous_value=quotation.quotation_no)
+    quotation.deleted_at = datetime.now(timezone.utc)
+    db.commit()

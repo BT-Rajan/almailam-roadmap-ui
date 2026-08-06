@@ -360,3 +360,10 @@ def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
         .order_by(ClientVerification.id.desc())
         .all()
     )
+
+
+def delete_client(db: Session, client_id: int, actor_id: int) -> None:
+    client = get_client(db, client_id)
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client deleted", actor_id, previous_value=client.company_name)
+    client.deleted_at = datetime.now(timezone.utc)
+    db.commit()

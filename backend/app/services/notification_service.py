@@ -54,3 +54,17 @@ def mark_all_as_read(db: Session, user_id: int) -> None:
         {"read": True}
     )
     db.commit()
+
+
+def delete_notification(db: Session, user_id: int, notification_no: str) -> None:
+    # Scoped to the requesting user's own notifications -- notification_no
+    # alone isn't checked against ownership by the caller, so this must be.
+    db.query(Notification).filter(
+        Notification.user_id == user_id, Notification.notification_no == notification_no
+    ).delete()
+    db.commit()
+
+
+def clear_all(db: Session, user_id: int) -> None:
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.commit()

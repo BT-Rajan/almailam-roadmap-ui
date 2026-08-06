@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/quotations", tags=["quotations"])
 
 can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
+can_delete = require_permission("Projects", "delete")
 
 
 def _user_name(db: Session, user_id: int) -> str:
@@ -83,3 +84,8 @@ def set_status(
 @router.get("/{quotation_no}/audit-events")
 def list_audit_events(quotation_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return quotation_service.get_audit_events(db, quotation_no)
+
+
+@router.delete("/{quotation_no}", status_code=204)
+def delete_quotation(quotation_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    quotation_service.delete_quotation(db, quotation_no, current_user.id)

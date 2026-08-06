@@ -51,9 +51,6 @@ async function markAllAsRead(): Promise<void> {
 
 /**
  * Delete a notification via backend API
- *
- * NOTE: the backend does not currently expose a delete endpoint for
- * notifications. This function is unused; calling it will 404.
  */
 async function deleteNotification(notificationId: string): Promise<void> {
   try {
@@ -66,13 +63,10 @@ async function deleteNotification(notificationId: string): Promise<void> {
 
 /**
  * Clear all notifications via backend API
- *
- * NOTE: the backend does not currently expose a clear-all endpoint. This
- * function is unused; calling it will 404.
  */
 async function clearAllNotifications(): Promise<void> {
   try {
-    await apiClient.post('/api/notifications/clear-all', {})
+    await apiClient.delete('/api/notifications/clear-all')
   } catch (error) {
     console.error('Failed to clear all notifications:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to clear notifications')

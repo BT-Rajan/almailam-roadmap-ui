@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -178,3 +178,10 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
 def get_audit_events(db: Session, contract_no: str) -> list[dict]:
     contract = get_contract(db, contract_no)
     return audit_service.get_history(db, ENTITY_TYPE, contract.id)
+
+
+def delete_contract(db: Session, contract_no: str, actor_id: int) -> None:
+    contract = get_contract(db, contract_no)
+    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract deleted", actor_id, previous_value=contract.contract_no)
+    contract.deleted_at = datetime.now(timezone.utc)
+    db.commit()

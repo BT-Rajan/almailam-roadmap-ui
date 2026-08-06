@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 can_view = require_permission("Administration", "view")
 can_edit = require_permission("Administration", "edit")
+can_delete = require_permission("Administration", "delete")
 
 
 @router.get("", response_model=list[UserOut])
@@ -58,3 +59,8 @@ def set_user_status(
         db, user_service.parse_user_id(user_id), payload.status, current_user.id
     )
     return UserOut.from_model(user)
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    user_service.delete_user(db, user_service.parse_user_id(user_id), current_user.id)

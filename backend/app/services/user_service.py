@@ -1,5 +1,6 @@
 import secrets
 import string
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -106,3 +107,12 @@ def set_user_status(db: Session, user_id: int, status: str, actor_id: int) -> Us
     db.commit()
     db.refresh(user)
     return user
+
+
+def delete_user(db: Session, user_id: int, actor_id: int) -> None:
+    if user_id == actor_id:
+        raise ValidationAppError("You cannot delete your own account.")
+    user = get_user(db, user_id)
+    audit_service.log_event(db, ENTITY_TYPE, user.id, "User deleted", actor_id, previous_value=user.full_name)
+    user.deleted_at = datetime.now(timezone.utc)
+    db.commit()

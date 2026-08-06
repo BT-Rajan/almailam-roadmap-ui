@@ -232,3 +232,10 @@ def create_ai_review(db: Session, document_no: str, payload, user_id: int) -> Do
 def get_audit_events(db: Session, document_no: str) -> list[dict]:
     document = get_document(db, document_no)
     return audit_service.get_history(db, ENTITY_TYPE, document.id)
+
+
+def delete_document(db: Session, document_no: str, actor_id: int) -> None:
+    document = get_document(db, document_no)
+    audit_service.log_event(db, ENTITY_TYPE, document.id, "Document deleted", actor_id, previous_value=document.title)
+    document.deleted_at = datetime.now(timezone.utc)
+    db.commit()

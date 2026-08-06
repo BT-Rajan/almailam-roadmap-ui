@@ -31,6 +31,7 @@ router = APIRouter(prefix="/api/clients", tags=["clients"])
 
 can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
+can_delete = require_permission("Projects", "delete")
 
 
 @router.get("", response_model=PagedResponse[ClientOut])
@@ -225,3 +226,8 @@ def list_verifications(client_id: str, db: Session = Depends(get_db), _=Depends(
     return [
         ClientVerificationOut.from_model(v, names.get(v.verified_by, "Unknown")) for v in verifications
     ]
+
+
+@router.delete("/{client_id}", status_code=204)
+def delete_client(client_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    client_service.delete_client(db, client_service.parse_client_id(client_id), current_user.id)

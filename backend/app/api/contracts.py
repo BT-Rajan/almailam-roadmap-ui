@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
 can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
+can_delete = require_permission("Projects", "delete")
 
 
 def _user_name(db: Session, user_id: int) -> str:
@@ -96,3 +97,8 @@ def add_revision(
 @router.get("/{contract_no}/audit-events")
 def list_audit_events(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return contract_service.get_audit_events(db, contract_no)
+
+
+@router.delete("/{contract_no}", status_code=204)
+def delete_contract(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    contract_service.delete_contract(db, contract_no, current_user.id)

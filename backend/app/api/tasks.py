@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 can_view = require_permission("Projects", "view")
 can_edit = require_permission("Projects", "edit")
+can_delete = require_permission("Projects", "delete")
 
 
 def _project_no(db: Session, project_id: int) -> str:
@@ -93,3 +94,8 @@ def set_status(
 @router.get("/{task_no}/audit-events")
 def list_audit_events(task_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return task_service.get_audit_events(db, task_no)
+
+
+@router.delete("/{task_no}", status_code=204)
+def delete_task(task_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    task_service.delete_task(db, task_no, current_user.id)

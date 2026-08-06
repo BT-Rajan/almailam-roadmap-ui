@@ -23,6 +23,7 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 can_view = require_permission("Documents", "view")
 can_edit = require_permission("Documents", "edit")
+can_delete = require_permission("Documents", "delete")
 
 
 def _project_no(db: Session, project_id: int) -> str:
@@ -166,3 +167,8 @@ def create_ai_review(
 @router.get("/{document_no}/audit-events")
 def list_audit_events(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return document_service.get_audit_events(db, document_no)
+
+
+@router.delete("/{document_no}", status_code=204)
+def delete_document(document_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    document_service.delete_document(db, document_no, current_user.id)
