@@ -6,7 +6,7 @@ import type { Quotation } from '@/types/Quotation'
  */
 async function getQuotationsByProject(projectId: string): Promise<Quotation[]> {
   try {
-    return await apiClient.get<Quotation[]>(`/api/projects/${projectId}/quotations`)
+    return await apiClient.get<Quotation[]>(`/api/quotations?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch quotations for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotations')

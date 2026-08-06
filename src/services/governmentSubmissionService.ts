@@ -6,7 +6,7 @@ import type { GovernmentSubmission } from '@/types/Submission'
  */
 async function getSubmissions(): Promise<GovernmentSubmission[]> {
   try {
-    return await apiClient.get<GovernmentSubmission[]>('/api/government/submissions')
+    return await apiClient.get<GovernmentSubmission[]>('/api/submissions')
   } catch (error) {
     console.error('Failed to fetch submissions:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch submissions')
@@ -18,7 +18,7 @@ async function getSubmissions(): Promise<GovernmentSubmission[]> {
  */
 async function getSubmissionsByProject(projectId: string): Promise<GovernmentSubmission[]> {
   try {
-    return await apiClient.get<GovernmentSubmission[]>(`/api/projects/${projectId}/government-submissions`)
+    return await apiClient.get<GovernmentSubmission[]>(`/api/submissions?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch submissions for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch submissions')
@@ -30,7 +30,7 @@ async function getSubmissionsByProject(projectId: string): Promise<GovernmentSub
  */
 async function createSubmission(submissionData: Partial<GovernmentSubmission>): Promise<GovernmentSubmission> {
   try {
-    return await apiClient.post<GovernmentSubmission>('/api/government/submissions', submissionData)
+    return await apiClient.post<GovernmentSubmission>('/api/submissions', submissionData)
   } catch (error) {
     console.error('Failed to create submission:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to create submission')
@@ -42,7 +42,7 @@ async function createSubmission(submissionData: Partial<GovernmentSubmission>): 
  */
 async function updateSubmission(submissionId: string, submissionData: Partial<GovernmentSubmission>): Promise<GovernmentSubmission> {
   try {
-    return await apiClient.patch<GovernmentSubmission>(`/api/government/submissions/${submissionId}`, submissionData)
+    return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}`, submissionData)
   } catch (error) {
     console.error(`Failed to update submission ${submissionId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update submission')
@@ -51,10 +51,16 @@ async function updateSubmission(submissionId: string, submissionData: Partial<Go
 
 /**
  * Delete a government submission via backend API
+ *
+ * NOTE: the backend does not expose a delete endpoint for submissions (by
+ * design -- submissions are an audited government-facing record, so they're
+ * cancelled/withdrawn via a status change rather than removed). This
+ * function is currently unused; calling it will 404 until/unless a real
+ * withdrawal workflow is built.
  */
 async function deleteSubmission(submissionId: string): Promise<void> {
   try {
-    await apiClient.delete(`/api/government/submissions/${submissionId}`)
+    await apiClient.delete(`/api/submissions/${submissionId}`)
   } catch (error) {
     console.error(`Failed to delete submission ${submissionId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete submission')

@@ -164,11 +164,8 @@ async function findPossibleDuplicates(
   email: string
 ): Promise<ClientDuplicateMatch[]> {
   try {
-    return await apiClient.post<ClientDuplicateMatch[]>('/api/clients/check-duplicates', {
-      name,
-      mobile,
-      email,
-    })
+    const query = new URLSearchParams({ name, mobile, email }).toString()
+    return await apiClient.post<ClientDuplicateMatch[]>(`/api/clients/duplicates?${query}`)
   } catch (error) {
     console.error('Failed to check for duplicate clients:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')

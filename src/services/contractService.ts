@@ -6,7 +6,7 @@ import type { Contract, ContractAISummary } from '@/types/Contract'
  */
 async function getContractsByProject(projectId: string): Promise<Contract[]> {
   try {
-    return await apiClient.get<Contract[]>(`/api/projects/${projectId}/contracts`)
+    return await apiClient.get<Contract[]>(`/api/contracts?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch contracts for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
