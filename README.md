@@ -2,17 +2,17 @@
 
 > **Status**: ✅ Production Ready | **Version**: 1.0.0 | **Last Updated**: August 2024
 
-This document is your guide to all the documentation files created for the ServiceOS backend-frontend integration project.
+This document is your guide to all the documentation files created for the ServiceOS backend-frontend integration project. The files themselves live in [`docs/history/`](docs/history/) — this index stayed at the repo root so it's still the first thing anyone finds.
 
 ---
 
 ## 🎯 Quick Navigation
 
 ### Start Here
-- **New to the project?** → [`FINAL_SUMMARY.md`](#final_summarymd)
-- **Ready to set up?** → [`QUICK_REFERENCE.md`](#quick_referencemd) (copy-paste setup)
-- **Need step-by-step?** → [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd)
-- **Going through checklist?** → [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd)
+- **New to the project?** → [`FINAL_SUMMARY.md`](docs/history/FINAL_SUMMARY.md)
+- **Ready to set up?** → [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) (copy-paste setup)
+- **Need step-by-step?** → [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md)
+- **Going through checklist?** → [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md)
 - **Trouble?** → See [Troubleshooting Guide](#troubleshooting-quick-links)
 
 ---
@@ -149,27 +149,27 @@ Original integration documentation (still valid, some overlap with other docs).
 ## 🚀 Recommended Reading Order
 
 ### For New Developers
-1. [`FINAL_SUMMARY.md`](#final_summarymd) - Get overview (5 min)
-2. [`QUICK_REFERENCE.md`](#quick_referencemd) - Run quick start (10 min)
-3. [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd) - Verify it works (20 min)
+1. [`FINAL_SUMMARY.md`](docs/history/FINAL_SUMMARY.md) - Get overview (5 min)
+2. [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) - Run quick start (10 min)
+3. [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md) - Verify it works (20 min)
 4. Start coding! 🎉
 
 ### For DevOps/Deployment
-1. [`FINAL_SUMMARY.md`](#final_summarymd) - Get overview (5 min)
-2. [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) - Production deployment (20 min)
-3. [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd) - Pre-deployment checklist (20 min)
+1. [`FINAL_SUMMARY.md`](docs/history/FINAL_SUMMARY.md) - Get overview (5 min)
+2. [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) - Production deployment (20 min)
+3. [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md) - Pre-deployment checklist (20 min)
 4. Deploy! 🚀
 
 ### For Code Review/Audit
-1. [`IMPLEMENTATION_SUMMARY.md`](#implementation_summarymd) - Technical details (15 min)
-2. [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) - Security section (10 min)
-3. [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd) - Code review phase (10 min)
+1. [`IMPLEMENTATION_SUMMARY.md`](docs/history/IMPLEMENTATION_SUMMARY.md) - Technical details (15 min)
+2. [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) - Security section (10 min)
+3. [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md) - Code review phase (10 min)
 4. Review code! 👀
 
 ### For Maintenance/Support
-1. [`QUICK_REFERENCE.md`](#quick_referencemd) - Quick fixes (3 min)
-2. [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) - Troubleshooting (10 min)
-3. [`INTEGRATION_GUIDE.md`](#integration_guidemd) - Reference (12 min)
+1. [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) - Quick fixes (3 min)
+2. [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) - Troubleshooting (10 min)
+3. [`INTEGRATION_GUIDE.md`](docs/history/INTEGRATION_GUIDE.md) - Reference (12 min)
 
 ---
 
@@ -203,50 +203,50 @@ Role: Administrator
 ## 🎯 Quick Answers
 
 ### "How do I get started?"
-→ Read [`QUICK_REFERENCE.md`](#quick_referencemd) Quick Start section
+→ Read [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Quick Start section
 
 ### "Where is the step-by-step guide?"
-→ Read [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Phase 1-4
+→ Read [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Phase 1-4
 
 ### "How do I verify everything works?"
-→ Follow [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd)
+→ Follow [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md)
 
 ### "What was built?"
-→ Read [`FINAL_SUMMARY.md`](#final_summarymd)
+→ Read [`FINAL_SUMMARY.md`](docs/history/FINAL_SUMMARY.md)
 
 ### "How do I troubleshoot an issue?"
-→ Check [`QUICK_REFERENCE.md`](#quick_referencemd) Troubleshooting section
-→ Or [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Troubleshooting section
+→ Check [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Troubleshooting section
+→ Or [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Troubleshooting section
 
 ### "What are the default credentials?"
 → See [Default Credentials](#-default-credentials) above or any guide's "Credentials" section
 
 ### "How do I deploy to production?"
-→ Read [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) "Production Deployment" section
+→ Read [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) "Production Deployment" section
 
 ### "What's the architecture?"
-→ Read [`FINAL_SUMMARY.md`](#final_summarymd) "Architecture Overview" or [`IMPLEMENTATION_SUMMARY.md`](#implementation_summarymd)
+→ Read [`FINAL_SUMMARY.md`](docs/history/FINAL_SUMMARY.md) "Architecture Overview" or [`IMPLEMENTATION_SUMMARY.md`](docs/history/IMPLEMENTATION_SUMMARY.md)
 
 ### "How do I change the admin password?"
-→ Read [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) "Security Best Practices"
+→ Read [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) "Security Best Practices"
 
 ---
 
 ## 🛠️ Troubleshooting Quick Links
 
 ### Backend Issues
-- Backend won't start → [`QUICK_REFERENCE.md`](#quick_referencemd) Troubleshooting
-- Database connection fails → [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Troubleshooting
-- Port already in use → [`QUICK_REFERENCE.md`](#quick_referencemd) Troubleshooting
+- Backend won't start → [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Troubleshooting
+- Database connection fails → [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Troubleshooting
+- Port already in use → [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Troubleshooting
 
 ### Frontend Issues
-- Can't reach backend → [`QUICK_REFERENCE.md`](#quick_referencemd) Troubleshooting
-- Can't login → [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Troubleshooting
-- Tokens not persisting → [`QUICK_REFERENCE.md`](#quick_referencemd) Troubleshooting
+- Can't reach backend → [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Troubleshooting
+- Can't login → [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Troubleshooting
+- Tokens not persisting → [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md) Troubleshooting
 
 ### General Issues
-- Setup failure → [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd) Verification
-- Performance issues → [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Performance Check
+- Setup failure → [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md) Verification
+- Performance issues → [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Performance Check
 
 ---
 
@@ -374,8 +374,8 @@ src/
 
 ### Immediate Help
 1. Check the document index above
-2. Search for your issue in [`QUICK_REFERENCE.md`](#quick_referencemd)
-3. Read [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd) Troubleshooting section
+2. Search for your issue in [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md)
+3. Read [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md) Troubleshooting section
 
 ### Need More Help?
 1. Review the relevant documentation file
@@ -443,10 +443,10 @@ You'll know the setup is successful when:
 ## 🚀 Next Steps
 
 1. **Pick a starting document** based on your role (see [Recommended Reading Order](#-recommended-reading-order))
-2. **Follow the Quick Start** in [`QUICK_REFERENCE.md`](#quick_referencemd)
-3. **Work through the checklist** in [`IMPLEMENTATION_CHECKLIST.md`](#implementation_checklistmd)
+2. **Follow the Quick Start** in [`QUICK_REFERENCE.md`](docs/history/QUICK_REFERENCE.md)
+3. **Work through the checklist** in [`IMPLEMENTATION_CHECKLIST.md`](docs/history/IMPLEMENTATION_CHECKLIST.md)
 4. **Consult documentation** as needed
-5. **Deploy to production** using [`COMPLETE_SETUP_GUIDE.md`](#complete_setup_guidemd)
+5. **Deploy to production** using [`COMPLETE_SETUP_GUIDE.md`](docs/history/COMPLETE_SETUP_GUIDE.md)
 
 ---
 
