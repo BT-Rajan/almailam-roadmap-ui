@@ -11,8 +11,12 @@ router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
 @router.get("", response_model=list[NotificationOut])
-def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    notifications = notification_service.list_for_user(db, current_user.id)
+def list_notifications(
+    filter: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    notifications = notification_service.list_for_user(db, current_user.id, unread_only=filter == "unread")
     return [NotificationOut.from_model(n) for n in notifications]
 
 

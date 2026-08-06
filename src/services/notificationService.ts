@@ -30,9 +30,7 @@ async function getUnreadNotifications(): Promise<AppNotification[]> {
  */
 async function markAsRead(notificationId: string): Promise<void> {
   try {
-    await apiClient.patch(`/api/notifications/${notificationId}`, {
-      read: true,
-    })
+    await apiClient.patch(`/api/notifications/${notificationId}/read`)
   } catch (error) {
     console.error('Failed to mark notification as read:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to mark as read')
@@ -44,7 +42,7 @@ async function markAsRead(notificationId: string): Promise<void> {
  */
 async function markAllAsRead(): Promise<void> {
   try {
-    await apiClient.post('/api/notifications/mark-all-read', {})
+    await apiClient.patch('/api/notifications/read-all')
   } catch (error) {
     console.error('Failed to mark all notifications as read:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to mark all as read')
@@ -53,6 +51,9 @@ async function markAllAsRead(): Promise<void> {
 
 /**
  * Delete a notification via backend API
+ *
+ * NOTE: the backend does not currently expose a delete endpoint for
+ * notifications. This function is unused; calling it will 404.
  */
 async function deleteNotification(notificationId: string): Promise<void> {
   try {
@@ -65,6 +66,9 @@ async function deleteNotification(notificationId: string): Promise<void> {
 
 /**
  * Clear all notifications via backend API
+ *
+ * NOTE: the backend does not currently expose a clear-all endpoint. This
+ * function is unused; calling it will 404.
  */
 async function clearAllNotifications(): Promise<void> {
   try {

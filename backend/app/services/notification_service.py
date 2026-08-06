@@ -35,13 +35,11 @@ def create_notification(
     return notification
 
 
-def list_for_user(db: Session, user_id: int) -> list[Notification]:
-    return (
-        db.query(Notification)
-        .filter(Notification.user_id == user_id)
-        .order_by(Notification.created_at.desc())
-        .all()
-    )
+def list_for_user(db: Session, user_id: int, unread_only: bool = False) -> list[Notification]:
+    query = db.query(Notification).filter(Notification.user_id == user_id)
+    if unread_only:
+        query = query.filter(Notification.read.is_(False))
+    return query.order_by(Notification.created_at.desc()).all()
 
 
 def mark_as_read(db: Session, user_id: int, notification_no: str) -> None:

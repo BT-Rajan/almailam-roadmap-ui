@@ -11,6 +11,7 @@ interface ContractStoreState {
   isLoading: boolean
   isAiSummaryLoading: boolean
   error: string | undefined
+  aiSummaryError: string | undefined
 }
 
 export const useContractStore = defineStore('contract', {
@@ -22,6 +23,7 @@ export const useContractStore = defineStore('contract', {
     isLoading: false,
     isAiSummaryLoading: false,
     error: undefined,
+    aiSummaryError: undefined,
   }),
 
   getters: {
@@ -58,9 +60,15 @@ export const useContractStore = defineStore('contract', {
     async selectContract(contractId: string) {
       this.selectedContractId = contractId
       this.aiSummary = undefined
+      // AI summary is a supplementary enhancement, not core to viewing a
+      // contract, so a failure here must never break contract loading or
+      // selection -- it's caught and surfaced separately.
+      this.aiSummaryError = undefined
       this.isAiSummaryLoading = true
       try {
         this.aiSummary = await contractService.getContractAISummary(contractId)
+      } catch {
+        this.aiSummaryError = 'AI summary is currently unavailable.'
       } finally {
         this.isAiSummaryLoading = false
       }
