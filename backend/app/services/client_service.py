@@ -16,7 +16,9 @@ from app.models.client import (
     ClientAddress,
     ClientConsent,
     ClientContact,
+    ClientDocument,
     ClientIdentification,
+    ClientVerification,
 )
 from app.services import audit_service
 
@@ -318,3 +320,43 @@ def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> Cl
     db.commit()
     db.refresh(consent)
     return consent
+
+
+def list_documents(db: Session, client_id: int) -> list[ClientDocument]:
+    return (
+        db.query(ClientDocument)
+        .filter(ClientDocument.client_id == client_id)
+        .order_by(ClientDocument.id.desc())
+        .all()
+    )
+
+
+def create_document(db: Session, client_id: int, payload, uploaded_by: int) -> ClientDocument:
+    get_client(db, client_id)
+    document = ClientDocument(
+        client_id=client_id,
+        category=payload.category,
+        title=payload.title,
+        issue_date=payload.issueDate,
+        expiry_date=payload.expiryDate,
+        issuing_authority=payload.issuingAuthority,
+        version=1,
+        verification_status="Pending",
+        uploaded_by=uploaded_by,
+        upload_date=datetime.now(timezone.utc),
+    )
+    db.add(document)
+    db.flush()
+    audit_service.log_event(db, ENTITY_TYPE, client_id, "Document uploaded", uploaded_by, new_value=document.title)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
+    return (
+        db.query(ClientVerification)
+        .filter(ClientVerification.client_id == client_id)
+        .order_by(ClientVerification.id.desc())
+        .all()
+    )

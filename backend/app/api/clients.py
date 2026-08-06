@@ -14,6 +14,8 @@ from app.schemas.client import (
     ClientContactCreate,
     ClientContactOut,
     ClientCreate,
+    ClientDocumentCreate,
+    ClientDocumentOut,
     ClientDuplicateMatchOut,
     ClientIdentificationCreate,
     ClientIdentificationOut,
@@ -21,6 +23,7 @@ from app.schemas.client import (
     ClientOut,
     ClientStatusUpdate,
     ClientUpdate,
+    ClientVerificationOut,
 )
 from app.services import client_service
 
@@ -189,3 +192,36 @@ def create_consent(
 @router.get("/{client_id}/audit-events")
 def list_audit_events(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return client_service.get_audit_events(db, client_service.parse_client_id(client_id))
+
+
+@router.get("/{client_id}/documents", response_model=list[ClientDocumentOut])
+def list_documents(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    documents = client_service.list_documents(db, client_service.parse_client_id(client_id))
+    names = {u.id: u.full_name for u in db.query(User).filter(
+        User.id.in_({d.uploaded_by for d in documents})
+    ).all()} if documents else {}
+    return [ClientDocumentOut.from_model(d, names.get(d.uploaded_by, "Unknown")) for d in documents]
+
+
+@router.post("/{client_id}/documents", response_model=ClientDocumentOut, status_code=201)
+def create_document(
+    client_id: str,
+    payload: ClientDocumentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = client_service.create_document(
+        db, client_service.parse_client_id(client_id), payload, current_user.id
+    )
+    return ClientDocumentOut.from_model(document, current_user.full_name)
+
+
+@router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])
+def list_verifications(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    verifications = client_service.list_verifications(db, client_service.parse_client_id(client_id))
+    names = {u.id: u.full_name for u in db.query(User).filter(
+        User.id.in_({v.verified_by for v in verifications})
+    ).all()} if verifications else {}
+    return [
+        ClientVerificationOut.from_model(v, names.get(v.verified_by, "Unknown")) for v in verifications
+    ]

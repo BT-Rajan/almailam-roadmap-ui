@@ -13,17 +13,9 @@ import Stepper from '@/components/common/Stepper.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useToastStore } from '@/stores/toastStore'
-import type {
-  Client,
-  ClientAddress,
-  ClientConsent,
-  ClientContact,
-  ClientDocument,
-  ClientDuplicateMatch,
-  ClientIdentification,
-} from '@/types/Client'
+import type { ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
-import { calculateOnboardingState, generateClientCode, getClientDisplayName } from '@/utils/clientHelpers'
+import { getClientDisplayName } from '@/utils/clientHelpers'
 
 const router = useRouter()
 const clientStore = useClientStore()
@@ -79,114 +71,113 @@ function cancelWizard(): void {
 async function submitWizard(): Promise<void> {
   isSubmitting.value = true
 
-  const code = generateClientCode(clientStore.clients.length)
-  const isIndividual = form.value.clientType === 'Individual'
-  const primaryContact = form.value.contacts[0]
+  try {
+    const isIndividual = form.value.clientType === 'Individual'
+    const primaryContact = form.value.contacts[0]
 
-  const client: Client = {
-    id: code,
-    code,
-    clientType: form.value.clientType,
-    companyName: isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
-    contactPerson: primaryContact?.name || (isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName),
-    mobile: form.value.mobile,
-    email: form.value.email,
-    city: form.value.city,
-    status: 'Active',
-    onboardingState: 'Under Review',
-    createdDate: new Date().toISOString().slice(0, 10),
-    individualProfile: isIndividual ? { ...form.value.individualProfile } : undefined,
-    organisationProfile: !isIndividual ? { ...form.value.organisationProfile } : undefined,
-    communicationPreference: { ...form.value.communicationPreference },
-  }
+    // Create the client first -- everything below depends on the real,
+    // backend-assigned client id (previously this whole wizard generated
+    // a fake id client-side and never called the backend at all, so
+    // nothing survived a page refresh).
+    const client = await clientStore.createClient({
+      clientType: form.value.clientType,
+      companyName: isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
+      contactPerson: primaryContact?.name || (isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName),
+      mobile: form.value.mobile,
+      email: form.value.email,
+      city: form.value.city,
+      individualProfile: isIndividual ? { ...form.value.individualProfile } : undefined,
+      organisationProfile: !isIndividual ? { ...form.value.organisationProfile } : undefined,
+      communicationPreference: { ...form.value.communicationPreference },
+    })
 
-  const documents: ClientDocument[] = form.value.hasUploadedFile
-    ? [
-        {
-          id: `CDOC-${Date.now()}`,
-          clientId: client.id,
+    const subRecordRequests: Promise<unknown>[] = []
+
+    for (const contact of form.value.contacts.filter((c) => c.name.trim().length > 0)) {
+      subRecordRequests.push(
+        clientStore.createContact(client.id, {
+          name: contact.name,
+          contactType: contact.contactType,
+          mobile: contact.mobile,
+          email: contact.email,
+          isAuthorisedRepresentative: contact.isAuthorisedRepresentative,
+        }),
+      )
+    }
+
+    if (form.value.address.city.trim().length > 0) {
+      subRecordRequests.push(
+        clientStore.createAddress(client.id, {
+          addressType: form.value.address.addressType,
+          country: form.value.address.country,
+          state: form.value.address.state,
+          city: form.value.address.city,
+          area: form.value.address.area || undefined,
+          street: form.value.address.street || undefined,
+          building: form.value.address.building || undefined,
+        }),
+      )
+    }
+
+    if (form.value.identification.documentNumber.trim().length > 0) {
+      subRecordRequests.push(
+        clientStore.createIdentification(client.id, {
+          documentType: form.value.identification.documentType,
+          documentNumber: form.value.identification.documentNumber,
+          issueDate: form.value.identification.issueDate,
+          expiryDate: form.value.identification.expiryDate,
+          issuingCountry: form.value.identification.issuingCountry,
+        }),
+      )
+    }
+
+    if (form.value.hasUploadedFile) {
+      subRecordRequests.push(
+        clientStore.createDocument(client.id, {
           category: 'Identity Document',
           title: `${form.value.identification.documentType} - ${getClientDisplayName(client)}`,
           issueDate: form.value.identification.issueDate || undefined,
           expiryDate: form.value.identification.expiryDate || undefined,
           issuingAuthority: form.value.identification.issuingCountry,
-          version: 1,
-          verificationStatus: 'Pending',
-          uploadedBy: 'You',
-          uploadDate: new Date().toISOString(),
-        },
-      ]
-    : []
-
-  client.onboardingState = calculateOnboardingState(client, documents, [], Boolean(client.companyName && client.mobile))
-
-  clientStore.addClient(client)
-
-  form.value.contacts
-    .filter((contact) => contact.name.trim().length > 0)
-    .forEach((contact, index) => {
-      const clientContact: ClientContact = {
-        id: `CTC-${Date.now()}-${index}`,
-        clientId: client.id,
-        name: contact.name,
-        contactType: contact.contactType,
-        mobile: contact.mobile,
-        email: contact.email,
-        isAuthorisedRepresentative: contact.isAuthorisedRepresentative,
-      }
-      clientStore.addContact(clientContact)
-    })
-
-  if (form.value.address.city.trim().length > 0) {
-    const address: ClientAddress = {
-      id: `ADR-${Date.now()}`,
-      clientId: client.id,
-      addressType: form.value.address.addressType,
-      country: form.value.address.country,
-      state: form.value.address.state,
-      city: form.value.address.city,
-      area: form.value.address.area || undefined,
-      street: form.value.address.street || undefined,
-      building: form.value.address.building || undefined,
+        }),
+      )
     }
-    clientStore.addAddress(address)
-  }
 
-  if (form.value.identification.documentNumber.trim().length > 0) {
-    const identification: ClientIdentification = {
-      id: `IDN-${Date.now()}`,
-      clientId: client.id,
-      documentType: form.value.identification.documentType,
-      documentNumber: form.value.identification.documentNumber,
-      issueDate: form.value.identification.issueDate,
-      expiryDate: form.value.identification.expiryDate,
-      issuingCountry: form.value.identification.issuingCountry,
+    for (const [consentType, granted] of Object.entries(form.value.consents)) {
+      if (!granted) continue
+      subRecordRequests.push(
+        clientStore.createConsent(client.id, {
+          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Receive Notifications' | 'Process Documents',
+          version: 'v1.0',
+          granted: true,
+          method: 'Onboarding wizard',
+        }),
+      )
     }
-    clientStore.addIdentification(identification)
+
+    // Sub-records are independent of one another, so run them concurrently
+    // once the client itself exists. A failure here is surfaced but
+    // doesn't roll back the client -- it already exists in the system and
+    // is visible/editable from its workspace page.
+    const results = await Promise.allSettled(subRecordRequests)
+    const failures = results.filter((result) => result.status === 'rejected').length
+
+    if (failures > 0) {
+      toastStore.show(
+        'error',
+        'Client onboarded with some issues',
+        `${getClientDisplayName(client)} was created, but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`,
+      )
+    } else {
+      toastStore.show('success', 'Client onboarded', `${getClientDisplayName(client)} was added as a reusable client profile.`)
+    }
+
+    await router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })
+  } catch {
+    toastStore.show('error', 'Failed to onboard client', 'Please check the form and try again.')
+  } finally {
+    isSubmitting.value = false
   }
-
-  documents.forEach((document) => clientStore.addDocument(document))
-
-  Object.entries(form.value.consents)
-    .filter(([, granted]) => granted)
-    .forEach(([consentType]) => {
-      const consent: ClientConsent = {
-        id: `CNS-${Date.now()}-${consentType}`,
-        clientId: client.id,
-        consentType: consentType as ClientConsent['consentType'],
-        version: 'v1.0',
-        granted: true,
-        dateTime: new Date().toISOString(),
-        method: 'Onboarding wizard',
-        recordedBy: 'You',
-      }
-      clientStore.recordConsent(consent)
-    })
-
-  toastStore.show('success', 'Client onboarded', `${getClientDisplayName(client)} was added as a reusable client profile.`)
-
-  await router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })
-  isSubmitting.value = false
 }
 </script>
 

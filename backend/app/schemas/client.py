@@ -4,9 +4,11 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.client import (
     ADDRESS_TYPES,
+    CLIENT_DOCUMENT_CATEGORIES,
     CLIENT_ONBOARDING_STATES,
     CLIENT_STATUSES,
     CLIENT_TYPES,
+    CLIENT_VERIFICATION_RESULTS,
     CONSENT_TYPES,
     CONTACT_TYPES,
     IDENTIFICATION_TYPES,
@@ -345,3 +347,64 @@ class ClientConsentCreate(BaseModel):
     granted: bool
     method: str = Field(min_length=1, max_length=150)
     _check = field_validator("consentType")(_enum_validator(CONSENT_TYPES, "consentType"))
+
+
+class ClientDocumentOut(BaseModel):
+    id: str
+    clientId: str
+    category: str
+    title: str
+    issueDate: date | None = None
+    expiryDate: date | None = None
+    issuingAuthority: str | None = None
+    version: int
+    verificationStatus: str
+    uploadedBy: str
+    uploadDate: datetime
+
+    @staticmethod
+    def from_model(document, uploaded_by_name: str) -> "ClientDocumentOut":
+        return ClientDocumentOut(
+            id=f"CDOC-{document.id:03d}",
+            clientId=f"CLT-{document.client_id:03d}",
+            category=document.category,
+            title=document.title,
+            issueDate=document.issue_date,
+            expiryDate=document.expiry_date,
+            issuingAuthority=document.issuing_authority,
+            version=document.version,
+            verificationStatus=document.verification_status,
+            uploadedBy=uploaded_by_name,
+            uploadDate=document.upload_date,
+        )
+
+
+class ClientDocumentCreate(BaseModel):
+    category: str
+    title: str = Field(min_length=1, max_length=150)
+    issueDate: date | None = None
+    expiryDate: date | None = None
+    issuingAuthority: str | None = Field(default=None, max_length=150)
+    _check = field_validator("category")(_enum_validator(CLIENT_DOCUMENT_CATEGORIES, "category"))
+
+
+class ClientVerificationOut(BaseModel):
+    id: str
+    clientId: str
+    item: str
+    result: str
+    verifiedBy: str
+    verifiedDate: datetime
+    notes: str | None = None
+
+    @staticmethod
+    def from_model(verification, verified_by_name: str) -> "ClientVerificationOut":
+        return ClientVerificationOut(
+            id=f"VER-{verification.id:03d}",
+            clientId=f"CLT-{verification.client_id:03d}",
+            item=verification.item,
+            result=verification.result,
+            verifiedBy=verified_by_name,
+            verifiedDate=verification.verified_date,
+            notes=verification.notes,
+        )

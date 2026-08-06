@@ -82,6 +82,20 @@ async function getContactsForClient(clientId: string): Promise<ClientContact[]> 
   }
 }
 
+export type ClientContactInput = Omit<ClientContact, 'id' | 'clientId'>
+
+/**
+ * Record a new client contact via backend API
+ */
+async function createContact(clientId: string, input: ClientContactInput): Promise<ClientContact> {
+  try {
+    return await apiClient.post<ClientContact>(`/api/clients/${clientId}/contacts`, input)
+  } catch (error) {
+    console.error(`Failed to record contact for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record contact')
+  }
+}
+
 /**
  * Fetch addresses for a specific client from backend API
  */
@@ -91,6 +105,20 @@ async function getAddressesForClient(clientId: string): Promise<ClientAddress[]>
   } catch (error) {
     console.error(`Failed to fetch addresses for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch addresses')
+  }
+}
+
+export type ClientAddressInput = Omit<ClientAddress, 'id' | 'clientId'>
+
+/**
+ * Record a new client address via backend API
+ */
+async function createAddress(clientId: string, input: ClientAddressInput): Promise<ClientAddress> {
+  try {
+    return await apiClient.post<ClientAddress>(`/api/clients/${clientId}/addresses`, input)
+  } catch (error) {
+    console.error(`Failed to record address for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record address')
   }
 }
 
@@ -106,6 +134,23 @@ async function getIdentificationsForClient(clientId: string): Promise<ClientIden
   }
 }
 
+export type ClientIdentificationInput = Omit<ClientIdentification, 'id' | 'clientId'>
+
+/**
+ * Record a new client identification document via backend API
+ */
+async function createIdentification(
+  clientId: string,
+  input: ClientIdentificationInput,
+): Promise<ClientIdentification> {
+  try {
+    return await apiClient.post<ClientIdentification>(`/api/clients/${clientId}/identifications`, input)
+  } catch (error) {
+    console.error(`Failed to record identification for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record identification')
+  }
+}
+
 /**
  * Fetch documents for a specific client from backend API
  */
@@ -115,6 +160,26 @@ async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]
   } catch (error) {
     console.error(`Failed to fetch documents for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+  }
+}
+
+export type ClientDocumentInput = {
+  category: ClientDocument['category']
+  title: string
+  issueDate?: string
+  expiryDate?: string
+  issuingAuthority?: string
+}
+
+/**
+ * Record a new client document via backend API
+ */
+async function createDocument(clientId: string, input: ClientDocumentInput): Promise<ClientDocument> {
+  try {
+    return await apiClient.post<ClientDocument>(`/api/clients/${clientId}/documents`, input)
+  } catch (error) {
+    console.error(`Failed to record document for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record document')
   }
 }
 
@@ -139,6 +204,20 @@ async function getConsentsForClient(clientId: string): Promise<ClientConsent[]> 
   } catch (error) {
     console.error(`Failed to fetch consents for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch consents')
+  }
+}
+
+export type ClientConsentInput = Pick<ClientConsent, 'consentType' | 'version' | 'granted' | 'method'>
+
+/**
+ * Record a new client consent via backend API
+ */
+async function createConsent(clientId: string, input: ClientConsentInput): Promise<ClientConsent> {
+  try {
+    return await apiClient.post<ClientConsent>(`/api/clients/${clientId}/consents`, input)
+  } catch (error) {
+    console.error(`Failed to record consent for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record consent')
   }
 }
 
@@ -213,11 +292,16 @@ export const clientService = {
   getClientsPage,
   getClientById,
   getContactsForClient,
+  createContact,
   getAddressesForClient,
+  createAddress,
   getIdentificationsForClient,
+  createIdentification,
   getDocumentsForClient,
+  createDocument,
   getVerificationsForClient,
   getConsentsForClient,
+  createConsent,
   getAuditEventsForClient,
   findPossibleDuplicates,
   createClient,

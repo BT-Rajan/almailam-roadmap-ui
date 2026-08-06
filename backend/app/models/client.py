@@ -145,3 +145,58 @@ class ClientConsent(Base):
     recorded_by: Mapped[int] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
+
+
+CLIENT_DOCUMENT_CATEGORIES = (
+    "Identity Document",
+    "Passport",
+    "Trade Licence",
+    "Registration Document",
+    "Authorisation Document",
+    "Other",
+)
+CLIENT_VERIFICATION_RESULTS = ("Pending", "Verified", "Rejected")
+
+
+class ClientDocument(Base):
+    __tablename__ = "client_documents"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    client_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    category: Mapped[str] = mapped_column(
+        Enum(*CLIENT_DOCUMENT_CATEGORIES, name="client_document_category"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(150), nullable=False)
+    issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    issuing_authority: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    version: Mapped[int] = mapped_column(nullable=False, default=1)
+    verification_status: Mapped[str] = mapped_column(
+        Enum(*CLIENT_VERIFICATION_RESULTS, name="client_verification_result"),
+        nullable=False,
+        default="Pending",
+    )
+    uploaded_by: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    upload_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ClientVerification(Base):
+    __tablename__ = "client_verifications"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    client_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    item: Mapped[str] = mapped_column(String(150), nullable=False)
+    result: Mapped[str] = mapped_column(
+        Enum(*CLIENT_VERIFICATION_RESULTS, name="client_verification_result_2"), nullable=False
+    )
+    verified_by: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    verified_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)

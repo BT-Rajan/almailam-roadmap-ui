@@ -151,6 +151,36 @@ CREATE TABLE IF NOT EXISTS client_consents (
     INDEX idx_client_consents_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS client_documents (
+    id                   BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id            BIGINT UNSIGNED NOT NULL,
+    category             ENUM('Identity Document','Passport','Trade Licence','Registration Document','Authorisation Document','Other') NOT NULL,
+    title                VARCHAR(150) NOT NULL,
+    issue_date           DATE NULL,
+    expiry_date          DATE NULL,
+    issuing_authority    VARCHAR(150) NULL,
+    version              INT UNSIGNED NOT NULL DEFAULT 1,
+    verification_status  ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
+    uploaded_by           BIGINT UNSIGNED NOT NULL,
+    upload_date          DATETIME NOT NULL,
+    CONSTRAINT fk_client_documents_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_client_documents_client (client_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS client_verifications (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id       BIGINT UNSIGNED NOT NULL,
+    item            VARCHAR(150) NOT NULL,
+    result          ENUM('Pending','Verified','Rejected') NOT NULL,
+    verified_by     BIGINT UNSIGNED NOT NULL,
+    verified_date   DATETIME NOT NULL,
+    notes           VARCHAR(1000) NULL,
+    CONSTRAINT fk_client_verifications_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client_verifications_user FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_client_verifications_client (client_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS projects (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_no      VARCHAR(20)  NOT NULL UNIQUE,

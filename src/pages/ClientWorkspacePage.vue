@@ -101,15 +101,9 @@ watch(clientId, loadData)
 
 function handleDocumentUpload(payload: { category: ClientDocumentCategory; title: string }): void {
   if (!client.value) return
-  clientStore.addDocument({
-    id: `CDOC-${Date.now()}`,
-    clientId: client.value.id,
+  clientStore.createDocument(client.value.id, {
     category: payload.category,
     title: payload.title,
-    version: 1,
-    verificationStatus: 'Pending',
-    uploadedBy: 'You',
-    uploadDate: new Date().toISOString(),
   })
 }
 
