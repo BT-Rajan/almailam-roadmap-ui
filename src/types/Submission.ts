@@ -1,4 +1,11 @@
-export type SubmissionStatus = 'Draft' | 'Submitted' | 'Under Review' | 'Comments Received' | 'Approved' | 'Rejected'
+export type SubmissionStatus =
+  | 'Draft'
+  | 'Submitted'
+  | 'Under Review'
+  | 'Comments Received'
+  | 'Approved'
+  | 'Rejected'
+  | 'Withdrawn'
 
 export type RequiredDocumentStatus = 'Pending' | 'Uploaded' | 'Verified'
 

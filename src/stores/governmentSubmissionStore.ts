@@ -17,6 +17,8 @@ interface GovernmentSubmissionStoreState {
   searchTerm: string
   statusFilter: SubmissionStatus | 'All'
   authorityFilter: string | 'All'
+  isMutating: boolean
+  mutationError: string | undefined
 }
 
 export const useGovernmentSubmissionStore = defineStore('governmentSubmission', {
@@ -30,6 +32,8 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     searchTerm: '',
     statusFilter: 'All',
     authorityFilter: 'All',
+    isMutating: false,
+    mutationError: undefined,
   }),
 
   getters: {
@@ -111,6 +115,27 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       this.searchTerm = ''
       this.statusFilter = 'All'
       this.authorityFilter = 'All'
+    },
+
+    // Moves a submission to a new status (e.g. Withdrawn) via the real
+    // state-machine-enforced backend endpoint. Returns true on success so
+    // callers can react (close a dialog, show a toast) without needing to
+    // inspect store state.
+    async setSubmissionStatus(submissionId: string, status: SubmissionStatus, reason?: string): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.setSubmissionStatus(submissionId, status, reason)
+        this.submissions = this.submissions.map((submission) =>
+          submission.id === submissionId ? updated : submission,
+        )
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to update the submission status.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
     },
   },
 })

@@ -126,6 +126,9 @@ def list_all(
         row["user"] = names.get(row.pop("changed_by"), "System")
 
     return rows, total
+
+
+def get_history(db: Session, entity_type: str, entity_id: int) -> list[dict]:
     """Every future history endpoint calls this one function, so
     resolving changed_by to a display name here (in bulk, one query)
     benefits all of them rather than each endpoint doing its own

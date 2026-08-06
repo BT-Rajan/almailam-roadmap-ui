@@ -8,14 +8,15 @@ core/workflow.assert_transition_allowed / assert_reason_given.
 
 # --- Government Submissions -- src/types/Submission.ts: SubmissionStatus
 SUBMISSION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Draft": {"Submitted"},
-    "Submitted": {"Under Review"},
-    "Under Review": {"Comments Received", "Approved", "Rejected"},
-    "Comments Received": {"Submitted", "Under Review", "Rejected"},
+    "Draft": {"Submitted", "Withdrawn"},
+    "Submitted": {"Under Review", "Withdrawn"},
+    "Under Review": {"Comments Received", "Approved", "Rejected", "Withdrawn"},
+    "Comments Received": {"Submitted", "Under Review", "Rejected", "Withdrawn"},
     "Approved": set(),
     "Rejected": {"Draft"},
+    "Withdrawn": set(),
 }
-SUBMISSION_STATUSES_REQUIRING_REASON = {"Rejected", "Comments Received"}
+SUBMISSION_STATUSES_REQUIRING_REASON = {"Rejected", "Comments Received", "Withdrawn"}
 
 # --- Quotations -- src/types/Quotation.ts: QuotationStatus
 QUOTATION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {

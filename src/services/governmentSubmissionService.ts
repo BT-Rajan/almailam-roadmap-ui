@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { GovernmentSubmission } from '@/types/Submission'
+import type { GovernmentSubmission, SubmissionStatus } from '@/types/Submission'
 
 /**
  * Fetch all government submissions from backend API
@@ -38,9 +38,14 @@ async function createSubmission(submissionData: Partial<GovernmentSubmission>): 
 }
 
 /**
- * Update a government submission via backend API
+ * Update a government submission's editable fields (expected decision date,
+ * notes) via backend API. Does NOT change status -- use setSubmissionStatus
+ * for that, which goes through the real state-machine-enforced endpoint.
  */
-async function updateSubmission(submissionId: string, submissionData: Partial<GovernmentSubmission>): Promise<GovernmentSubmission> {
+async function updateSubmission(
+  submissionId: string,
+  submissionData: { expectedDecisionDate?: string; notes?: string },
+): Promise<GovernmentSubmission> {
   try {
     return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}`, submissionData)
   } catch (error) {
@@ -50,20 +55,26 @@ async function updateSubmission(submissionId: string, submissionData: Partial<Go
 }
 
 /**
- * Delete a government submission via backend API
- *
- * NOTE: the backend does not expose a delete endpoint for submissions (by
- * design -- submissions are an audited government-facing record, so they're
- * cancelled/withdrawn via a status change rather than removed). This
- * function is currently unused; calling it will 404 until/unless a real
- * withdrawal workflow is built.
+ * Move a submission to a new status (Submitted, Under Review, Approved,
+ * Rejected, Withdrawn, ...) via the backend's state-machine-enforced
+ * status endpoint. A reason is required for Rejected, Comments Received,
+ * and Withdrawn -- the backend validates this and returns a 422 if it's
+ * missing, or if the transition itself isn't a valid one from the
+ * submission's current status.
  */
-async function deleteSubmission(submissionId: string): Promise<void> {
+async function setSubmissionStatus(
+  submissionId: string,
+  status: SubmissionStatus,
+  reason?: string,
+): Promise<GovernmentSubmission> {
   try {
-    await apiClient.delete(`/api/submissions/${submissionId}`)
+    return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}/status`, {
+      status,
+      reason,
+    })
   } catch (error) {
-    console.error(`Failed to delete submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete submission')
+    console.error(`Failed to update status for submission ${submissionId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update submission status')
   }
 }
 
@@ -72,5 +83,5 @@ export const governmentSubmissionService = {
   getSubmissionsByProject,
   createSubmission,
   updateSubmission,
-  deleteSubmission,
+  setSubmissionStatus,
 }

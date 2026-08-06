@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -9,9 +11,11 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SubmissionStatus } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
@@ -31,8 +35,15 @@ interface SubmissionTableRow {
 }
 
 const submissionStore = useGovernmentSubmissionStore()
+const toastStore = useToastStore()
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
+const isWithdrawDialogOpen = ref(false)
+const withdrawReason = ref('')
+
+// A submission can be withdrawn any time before a final decision has been
+// made -- once Approved or Rejected (or already Withdrawn), it's terminal.
+const NON_TERMINAL_STATUSES: SubmissionStatus[] = ['Draft', 'Submitted', 'Under Review', 'Comments Received']
 
 const STATUS_OPTIONS: SelectOption[] = [
   { label: 'All Statuses', value: 'All' },
@@ -42,6 +53,7 @@ const STATUS_OPTIONS: SelectOption[] = [
   { label: 'Comments Received', value: 'Comments Received' },
   { label: 'Approved', value: 'Approved' },
   { label: 'Rejected', value: 'Rejected' },
+  { label: 'Withdrawn', value: 'Withdrawn' },
 ]
 
 const authorityOptions = computed<SelectOption[]>(() => [
@@ -112,6 +124,30 @@ onMounted(() => {
 function openSubmission(row: SubmissionTableRow): void {
   selectedSubmissionId.value = row.id
   isDrawerOpen.value = true
+}
+
+const canWithdrawSelected = computed(
+  () => !!selectedSubmission.value && NON_TERMINAL_STATUSES.includes(selectedSubmission.value.status),
+)
+
+function openWithdrawDialog(): void {
+  withdrawReason.value = ''
+  isWithdrawDialogOpen.value = true
+}
+
+async function confirmWithdraw(): Promise<void> {
+  if (!selectedSubmission.value || !withdrawReason.value.trim()) return
+  const success = await submissionStore.setSubmissionStatus(
+    selectedSubmission.value.id,
+    'Withdrawn',
+    withdrawReason.value.trim(),
+  )
+  if (success) {
+    isWithdrawDialogOpen.value = false
+    toastStore.show('success', 'Submission withdrawn', `${selectedSubmission.value.submissionNo} has been withdrawn.`)
+  } else {
+    toastStore.show('error', 'Unable to withdraw', submissionStore.mutationError ?? 'Please try again.')
+  }
 }
 </script>
 
@@ -186,7 +222,37 @@ function openSubmission(row: SubmissionTableRow): void {
           <h3 class="mb-1 text-sm font-semibold text-neutral-800">Notes</h3>
           <p class="text-sm text-neutral-600">{{ selectedSubmission.notes }}</p>
         </div>
+
+        <div v-if="canWithdrawSelected" class="border-t border-border-light pt-4">
+          <BaseButton variant="danger" size="sm" @click="openWithdrawDialog">Withdraw Submission</BaseButton>
+        </div>
       </div>
     </BaseDrawer>
+
+    <BaseDialog v-model="isWithdrawDialogOpen" title="Withdraw Submission" size="sm">
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-neutral-600">
+          Withdrawing {{ selectedSubmission?.submissionNo }} tells the authority this submission is no longer being
+          pursued. This can't be undone from here -- a new submission would need to be created to resume.
+        </p>
+        <TextArea
+          v-model="withdrawReason"
+          label="Reason for withdrawal"
+          placeholder="e.g. Project scope changed, submitting a revised application instead"
+          :rows="3"
+        />
+        <div class="flex justify-end gap-2">
+          <BaseButton variant="ghost" @click="isWithdrawDialogOpen = false">Cancel</BaseButton>
+          <BaseButton
+            variant="danger"
+            :disabled="!withdrawReason.trim()"
+            :loading="submissionStore.isMutating"
+            @click="confirmWithdraw"
+          >
+            Withdraw
+          </BaseButton>
+        </div>
+      </div>
+    </BaseDialog>
   </div>
 </template>

@@ -18,7 +18,7 @@ FORM_CATEGORIES = (
 )
 FORM_LANGUAGES = ("English", "Arabic", "English / Arabic")
 FORM_STATUSES = ("Active", "Archived")
-SUBMISSION_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected")
+SUBMISSION_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected", "Withdrawn")
 REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
 
 

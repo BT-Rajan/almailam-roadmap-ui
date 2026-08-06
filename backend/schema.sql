@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     project_id                  BIGINT UNSIGNED NOT NULL,
     authority_id                BIGINT UNSIGNED NOT NULL,
     form_id                     BIGINT UNSIGNED NOT NULL,
-    status                      ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected') NOT NULL DEFAULT 'Draft',
+    status                      ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected','Withdrawn') NOT NULL DEFAULT 'Draft',
     submitted_date               DATE NULL,
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,

@@ -16,6 +16,7 @@ const STATUS_VARIANTS: Record<SubmissionStatus, BadgeVariant> = {
   'Comments Received': 'warning',
   Approved: 'success',
   Rejected: 'danger',
+  Withdrawn: 'neutral',
 }
 
 const DOCUMENT_STATUS_VARIANTS: Record<RequiredDocumentStatus, BadgeVariant> = {
