@@ -13,7 +13,8 @@ from app.schemas.project import (
     ProjectStatusUpdate,
     ProjectUpdate,
 )
-from app.services import project_service
+from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
+from app.services import project_service, timeline_service
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -99,3 +100,35 @@ def set_status(
 @router.get("/{project_no}/audit-events")
 def list_audit_events(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return project_service.get_audit_events(db, project_no)
+
+
+@router.get("/{project_no}/timeline", response_model=list[TimelineEventOut])
+def list_timeline(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    events = timeline_service.list_for_project(db, project_no)
+    return [
+        TimelineEventOut.from_model(e, project_no, timeline_service.user_name(db, e.created_by))
+        for e in events
+    ]
+
+
+@router.post("/{project_no}/timeline", response_model=TimelineEventOut, status_code=201)
+def create_timeline_event(
+    project_no: str,
+    payload: TimelineEventCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    event = timeline_service.create_event(db, project_no, payload, current_user.id)
+    return TimelineEventOut.from_model(event, project_no, current_user.full_name)
+
+
+@router.patch("/{project_no}/timeline/{event_id}", response_model=TimelineEventOut)
+def update_timeline_event(
+    project_no: str,
+    event_id: str,
+    payload: TimelineEventUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    event = timeline_service.update_event(db, project_no, event_id, payload)
+    return TimelineEventOut.from_model(event, project_no, timeline_service.user_name(db, event.created_by))

@@ -572,4 +572,77 @@ CREATE TABLE IF NOT EXISTS workflow_stages (
     INDEX idx_workflow_stages_template (template_id, sequence_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS company_settings (
+    id                                  INT PRIMARY KEY DEFAULT 1,
+    company_name                       VARCHAR(150) NOT NULL DEFAULT 'Al Mailam Consulting',
+    tagline                            VARCHAR(200) NOT NULL DEFAULT '',
+    trade_license_number               VARCHAR(80)  NOT NULL DEFAULT '',
+    email                              VARCHAR(150) NOT NULL DEFAULT '',
+    phone                              VARCHAR(30)  NOT NULL DEFAULT '',
+    website                            VARCHAR(150) NOT NULL DEFAULT '',
+    address                            VARCHAR(250) NOT NULL DEFAULT '',
+    city                               VARCHAR(80)  NOT NULL DEFAULT '',
+    country                            VARCHAR(80)  NOT NULL DEFAULT '',
+    brand_color                        VARCHAR(20)  NOT NULL DEFAULT '#1D4ED8',
+    default_language                   VARCHAR(20)  NOT NULL DEFAULT 'English',
+    timezone                           VARCHAR(60)  NOT NULL DEFAULT 'Asia/Dubai',
+    date_format                        VARCHAR(20)  NOT NULL DEFAULT 'DD/MM/YYYY',
+    currency                           VARCHAR(10)  NOT NULL DEFAULT 'AED',
+    default_payment_terms_days         INT UNSIGNED NOT NULL DEFAULT 30,
+    default_quotation_validity_days    INT UNSIGNED NOT NULL DEFAULT 14,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_company_settings_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS project_timeline_events (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id      BIGINT UNSIGNED NOT NULL,
+    type            ENUM('stage','document','quotation','submission','milestone','task','note') NOT NULL,
+    title           VARCHAR(200) NOT NULL,
+    description     TEXT NULL,
+    event_date      DATE NOT NULL,
+    status          ENUM('completed','in-progress','upcoming') NOT NULL,
+    created_by      BIGINT UNSIGNED NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_timeline_events_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_timeline_events_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_project_timeline_events_project (project_id, event_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ai_configuration (
+    id                          INT PRIMARY KEY DEFAULT 1,
+    is_enabled                  TINYINT(1) NOT NULL DEFAULT 0,
+    default_provider            VARCHAR(20) NOT NULL DEFAULT 'claude',
+    provider_priority           JSON NOT NULL,
+    timeout_seconds             INT UNSIGNED NOT NULL DEFAULT 30,
+    max_tokens                  INT UNSIGNED NOT NULL DEFAULT 2000,
+    temperature                 DECIMAL(3,2) NOT NULL DEFAULT 0.30,
+    cache_duration_minutes      INT UNSIGNED NOT NULL DEFAULT 15,
+    retry_limit                 INT UNSIGNED NOT NULL DEFAULT 2,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_ai_configuration_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ai_provider_configs (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    provider_id     VARCHAR(20) NOT NULL UNIQUE,
+    label           VARCHAR(80) NOT NULL,
+    model           VARCHAR(120) NOT NULL DEFAULT '',
+    has_api_key     TINYINT(1) NOT NULL DEFAULT 0,
+    api_key_hint    VARCHAR(4) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ai_prompt_templates (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    description     VARCHAR(300) NOT NULL DEFAULT '',
+    module          VARCHAR(50) NOT NULL,
+    template        TEXT NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

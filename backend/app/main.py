@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.ai import router as ai_router
 from app.api.clients import router as clients_router
+from app.api.company import router as company_router
 from app.api.contracts import router as contracts_router
 from app.api.documents import router as documents_router
 from app.api.government import router as government_router
@@ -45,10 +47,12 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(auth_router)
+app.include_router(ai_router)
 app.include_router(users_router)
 app.include_router(workflows_router)
 app.include_router(roles_router)
 app.include_router(clients_router)
+app.include_router(company_router)
 app.include_router(projects_router)
 app.include_router(government_router)
 app.include_router(submissions_router)

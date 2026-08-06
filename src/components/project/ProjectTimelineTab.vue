@@ -30,14 +30,19 @@ function openEdit(event: TimelineEvent): void {
 
 function handleSave(event: TimelineEvent): void {
   if (editingEvent.value) {
-    timelineStore.updateEvent(event.id, {
+    void timelineStore.saveEventUpdate(props.projectId, event.id, {
       title: event.title,
       description: event.description,
       status: event.status,
       date: event.date,
     })
   } else {
-    timelineStore.addEvent(event)
+    void timelineStore.createEvent(props.projectId, {
+      title: event.title,
+      description: event.description,
+      status: event.status,
+      date: event.date,
+    })
   }
 }
 </script>
