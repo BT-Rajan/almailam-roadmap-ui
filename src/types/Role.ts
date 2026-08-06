@@ -1,6 +1,6 @@
 import type { UserRole } from '@/types/User'
 
-export type PermissionModule = 'Projects' | 'Documents' | 'Government' | 'Reports' | 'Administration'
+export type PermissionModule = 'Projects' | 'Documents' | 'Government' | 'Finance' | 'Reports' | 'Administration'
 
 export interface RolePermission {
   module: PermissionModule

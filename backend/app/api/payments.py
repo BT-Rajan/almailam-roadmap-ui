@@ -21,10 +21,10 @@ from app.schemas.payment import (
 )
 from app.services import payment_service
 
-router = APIRouter(tags=["payments"])
+router = APIRouter(prefix="/api", tags=["payments"])
 
-can_view = require_permission("Projects", "view")
-can_edit = require_permission("Projects", "edit")
+can_view = require_permission("Finance", "view")
+can_edit = require_permission("Finance", "edit")
 
 
 def _project_no(db: Session, project_id: int) -> str:
@@ -50,18 +50,18 @@ def _payment_out(db: Session, payment) -> PaymentOut:
     )
 
 
-@router.get("/api/financial-agreements", response_model=list[FinancialAgreementOut])
+@router.get("/financial-agreements", response_model=list[FinancialAgreementOut])
 def list_agreements(db: Session = Depends(get_db), _=Depends(can_view)):
     return [_agreement_out(db, a) for a in payment_service.list_agreements(db)]
 
 
-@router.get("/api/financial-agreements/by-project/{project_no}", response_model=FinancialAgreementOut | None)
+@router.get("/financial-agreements/by-project/{project_no}", response_model=FinancialAgreementOut | None)
 def get_agreement_by_project(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     agreement = payment_service.get_agreement_by_project(db, project_no)
     return _agreement_out(db, agreement) if agreement else None
 
 
-@router.post("/api/financial-agreements", response_model=FinancialAgreementOut, status_code=201)
+@router.post("/financial-agreements", response_model=FinancialAgreementOut, status_code=201)
 def create_agreement(
     payload: FinancialAgreementCreate, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
 ):
@@ -69,19 +69,19 @@ def create_agreement(
     return _agreement_out(db, agreement)
 
 
-@router.get("/api/financial-agreements/{agreement_id}", response_model=FinancialAgreementOut)
+@router.get("/financial-agreements/{agreement_id}", response_model=FinancialAgreementOut)
 def get_agreement(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     agreement = payment_service.get_agreement(db, payment_service.parse_agreement_id(agreement_id))
     return _agreement_out(db, agreement)
 
 
-@router.get("/api/financial-agreements/{agreement_id}/obligations", response_model=list[ObligationOut])
+@router.get("/financial-agreements/{agreement_id}/obligations", response_model=list[ObligationOut])
 def list_obligations(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     obligations = payment_service.get_obligations(db, payment_service.parse_agreement_id(agreement_id))
     return [_obligation_out(o) for o in obligations]
 
 
-@router.get("/api/financial-agreements/{agreement_id}/summary", response_model=FinancialSummaryOut)
+@router.get("/financial-agreements/{agreement_id}/summary", response_model=FinancialSummaryOut)
 def get_summary(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     summary = payment_service.get_financial_summary(db, payment_service.parse_agreement_id(agreement_id))
     next_obligation = summary["nextPaymentObligation"]
@@ -96,13 +96,13 @@ def get_summary(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_
     )
 
 
-@router.get("/api/financial-agreements/{agreement_id}/payments", response_model=list[PaymentOut])
+@router.get("/financial-agreements/{agreement_id}/payments", response_model=list[PaymentOut])
 def list_payments(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     payments = payment_service.get_payments(db, payment_service.parse_agreement_id(agreement_id))
     return [_payment_out(db, p) for p in payments]
 
 
-@router.post("/api/payments", response_model=PaymentOut, status_code=201)
+@router.post("/payments", response_model=PaymentOut, status_code=201)
 def record_payment(
     payload: RecordPaymentInput, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
 ):
@@ -110,7 +110,7 @@ def record_payment(
     return _payment_out(db, payment)
 
 
-@router.get("/api/payments/{payment_id}/allocations", response_model=list[PaymentAllocationOut])
+@router.get("/payments/{payment_id}/allocations", response_model=list[PaymentAllocationOut])
 def get_allocations(payment_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     allocations = payment_service.get_allocations_for_payment(db, payment_service.parse_payment_id(payment_id))
     return [
@@ -131,12 +131,12 @@ def _obligation_display_id(db: Session, obligation_id: int) -> str:
     return f"OBL-{obligation.agreement_id:03d}-{obligation.sequence_number:02d}" if obligation else ""
 
 
-@router.get("/api/obligations", response_model=list[ObligationOut])
+@router.get("/obligations", response_model=list[ObligationOut])
 def list_all_obligations(db: Session = Depends(get_db), _=Depends(can_view)):
     return [_obligation_out(o) for o in payment_service.list_all_obligations(db)]
 
 
-@router.patch("/api/obligations/{obligation_id}/override", response_model=ObligationOut)
+@router.patch("/obligations/{obligation_id}/override", response_model=ObligationOut)
 def set_obligation_override(
     obligation_id: str,
     payload: ObligationOverrideUpdate,
@@ -149,7 +149,7 @@ def set_obligation_override(
     return _obligation_out(obligation)
 
 
-@router.get("/api/financial-agreements/{agreement_id}/refunds", response_model=list[RefundOut])
+@router.get("/financial-agreements/{agreement_id}/refunds", response_model=list[RefundOut])
 def list_refunds(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     numeric_id = payment_service.parse_agreement_id(agreement_id)
     refunds = payment_service.get_refunds(db, numeric_id)
@@ -168,7 +168,7 @@ def list_refunds(agreement_id: str, db: Session = Depends(get_db), _=Depends(can
     ]
 
 
-@router.post("/api/financial-agreements/{agreement_id}/refunds", response_model=RefundOut, status_code=201)
+@router.post("/financial-agreements/{agreement_id}/refunds", response_model=RefundOut, status_code=201)
 def create_refund(
     agreement_id: str,
     payload: RefundCreate,
@@ -189,7 +189,7 @@ def create_refund(
     )
 
 
-@router.get("/api/financial-agreements/{agreement_id}/adjustments", response_model=list[AdjustmentOut])
+@router.get("/financial-agreements/{agreement_id}/adjustments", response_model=list[AdjustmentOut])
 def list_adjustments(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     numeric_id = payment_service.parse_agreement_id(agreement_id)
     adjustments = payment_service.get_adjustments(db, numeric_id)
@@ -207,7 +207,7 @@ def list_adjustments(agreement_id: str, db: Session = Depends(get_db), _=Depends
     ]
 
 
-@router.post("/api/financial-agreements/{agreement_id}/adjustments", response_model=AdjustmentOut, status_code=201)
+@router.post("/financial-agreements/{agreement_id}/adjustments", response_model=AdjustmentOut, status_code=201)
 def create_adjustment(
     agreement_id: str,
     payload: AdjustmentCreate,
@@ -227,6 +227,6 @@ def create_adjustment(
     )
 
 
-@router.get("/api/financial-agreements/{agreement_id}/audit-events")
+@router.get("/financial-agreements/{agreement_id}/audit-events")
 def list_audit_events(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return payment_service.get_audit_events(db, payment_service.parse_agreement_id(agreement_id))

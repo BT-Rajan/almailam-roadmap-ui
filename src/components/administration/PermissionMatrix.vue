@@ -1,41 +1,49 @@
 <script setup lang="ts">
 import { Check, Minus } from '@lucide/vue'
+import { computed } from 'vue'
 
+import SmartTable from '@/components/common/SmartTable.vue'
 import type { RolePermission } from '@/types/Role'
+import type { SmartTableColumn } from '@/types/Table'
+
+interface PermissionRow extends RolePermission {
+  [key: string]: unknown
+}
 
 interface Props {
   permissions: RolePermission[]
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+const rows = computed<PermissionRow[]>(() => props.permissions as PermissionRow[])
+
+const COLUMNS: SmartTableColumn<PermissionRow>[] = [
+  { key: 'module', label: 'Module' },
+  { key: 'view', label: 'View', align: 'center', width: '90px' },
+  { key: 'edit', label: 'Edit', align: 'center', width: '90px' },
+  { key: 'delete', label: 'Delete', align: 'center', width: '90px' },
+]
 </script>
 
 <template>
-  <table class="w-full border-collapse text-sm">
-    <thead>
-      <tr class="border-b border-border-light">
-        <th class="py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">Module</th>
-        <th class="py-2 text-center text-xs font-semibold uppercase tracking-wide text-neutral-500">View</th>
-        <th class="py-2 text-center text-xs font-semibold uppercase tracking-wide text-neutral-500">Edit</th>
-        <th class="py-2 text-center text-xs font-semibold uppercase tracking-wide text-neutral-500">Delete</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="permission in permissions" :key="permission.module" class="border-b border-border-light last:border-0">
-        <td class="py-2 text-neutral-700">{{ permission.module }}</td>
-        <td class="py-2 text-center">
-          <Check v-if="permission.view" :size="15" class="mx-auto text-success-600" />
-          <Minus v-else :size="15" class="mx-auto text-neutral-300" />
-        </td>
-        <td class="py-2 text-center">
-          <Check v-if="permission.edit" :size="15" class="mx-auto text-success-600" />
-          <Minus v-else :size="15" class="mx-auto text-neutral-300" />
-        </td>
-        <td class="py-2 text-center">
-          <Check v-if="permission.delete" :size="15" class="mx-auto text-success-600" />
-          <Minus v-else :size="15" class="mx-auto text-neutral-300" />
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <SmartTable
+    :columns="COLUMNS"
+    :rows="rows"
+    row-key="module"
+    :searchable="false"
+    empty-title="No permissions defined"
+  >
+    <template #cell-view="{ value }">
+      <Check v-if="value" :size="15" class="mx-auto text-success-600" />
+      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+    </template>
+    <template #cell-edit="{ value }">
+      <Check v-if="value" :size="15" class="mx-auto text-success-600" />
+      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+    </template>
+    <template #cell-delete="{ value }">
+      <Check v-if="value" :size="15" class="mx-auto text-success-600" />
+      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+    </template>
+  </SmartTable>
 </template>
