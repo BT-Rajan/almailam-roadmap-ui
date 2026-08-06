@@ -352,6 +352,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/activity-calendar',
+      name: ROUTE_NAMES.ADMIN_ACTIVITY_CALENDAR,
+      component: () => import('@/pages/AdminActivityCalendarPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Activity Calendar' },
+        ],
+      },
+    },
+    {
       path: '/messages',
       name: ROUTE_NAMES.MESSAGE_CENTRE,
       component: () => import('@/pages/MessageCentrePage.vue'),

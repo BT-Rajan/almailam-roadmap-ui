@@ -39,4 +39,10 @@ export const ADMINISTRATION_MODULES: AdministrationModule[] = [
     icon: 'Building2',
     routeName: ROUTE_NAMES.ADMIN_COMPANY,
   },
+  {
+    label: 'Activity Calendar',
+    description: 'View team activities, updates, and changes across projects in calendar view.',
+    icon: 'Calendar',
+    routeName: ROUTE_NAMES.ADMIN_ACTIVITY_CALENDAR,
+  },
 ]
