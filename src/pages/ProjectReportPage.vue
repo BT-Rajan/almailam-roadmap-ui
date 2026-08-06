@@ -1,38 +1,28 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportSection from '@/components/reports/ReportSection.vue'
 import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
-import BarChart from '@/components/reports/BarChart.vue'
 import ProgressChart from '@/components/reports/ProgressChart.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
-import type { ChartDataPoint } from '@/types/Report'
+import ErrorState from '@/components/common/ErrorState.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import { reportService } from '@/services/reportService'
+import { useProjectStore } from '@/stores/projectStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { Client } from '@/types/Client'
+import type { Project } from '@/types/Project'
+import type { ReportSection as ReportSectionData } from '@/types/Report'
 import type { BadgeVariant } from '@/types/Ui'
+import { formatDate } from '@/utils/dateFormatter'
 
+const route = useRoute()
 const router = useRouter()
-
-// Project Data - sourced from the Marina Bay Hotel Renovation project (PRJ-2026-003)
-const project = {
-  name: 'Marina Bay Hotel Renovation',
-  client: 'Marina Bay Hospitality Group',
-  projectId: 'PRJ-2026-003',
-  status: 'active',
-  startDate: '2026-03-10',
-  endDate: '2026-10-05',
-  progress: 42,
-  budget: {
-    allocated: 720000,
-    spent: 302400,
-    currency: 'KWD',
-  },
-  team: {
-    assigned: 4,
-    utilization: 90,
-  },
-  riskScore: 3,
-}
+const projectStore = useProjectStore()
+const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -42,68 +32,54 @@ const reportDate = new Date().toLocaleDateString('en-US', {
   minute: '2-digit',
 })
 
-// Project Overview Metrics
-const projectMetrics = [
-  {
-    label: 'Overall Progress',
-    value: `${project.progress}%`,
-    change: { direction: 'up' as const, percentage: 12 },
-    color: 'primary',
-  },
-  {
-    label: 'Budget Utilization',
-    value: '42%',
-    change: { direction: 'down' as const, percentage: 3 },
-    color: 'info',
-  },
-  {
-    label: 'Team Utilization',
-    value: `${project.team.utilization}%`,
-    change: { direction: 'up' as const, percentage: 8 },
-    color: 'success',
-  },
-  {
-    label: 'Risk Level',
-    value: 'Medium',
-    color: 'warning',
-  },
-]
+const isLoading = ref(true)
+const error = ref<string | undefined>(undefined)
+const project = ref<Project | undefined>(undefined)
+const client = ref<Client | undefined>(undefined)
+const sections = ref<ReportSectionData[]>([])
 
-// Task Completion Status
-const taskStatus: ChartDataPoint[] = [
-  { label: 'Completed', value: 42, color: '#10B981' },
-  { label: 'In Progress', value: 28, color: '#3B82F6' },
-  { label: 'Pending', value: 15, color: '#F59E0B' },
-  { label: 'Blocked', value: 5, color: '#EF4444' },
-]
+async function loadReport(): Promise<void> {
+  isLoading.value = true
+  error.value = undefined
+  try {
+    if (projectStore.projects.length === 0) {
+      await projectStore.loadProjects()
+    }
+    const requestedId = route.params.projectId as string | undefined
+    const resolved = requestedId
+      ? projectStore.projects.find((item) => item.id === requestedId)
+      : (projectStore.projects.find((item) => item.status === 'Active') ?? projectStore.projects[0])
 
-// Deliverables by Category
-const deliverables: ChartDataPoint[] = [
-  { label: 'Design & Planning', value: 18, color: '#8B5CF6' },
-  { label: 'Structural Works', value: 12, color: '#06B6D4' },
-  { label: 'MEP Systems', value: 10, color: '#EC4899' },
-  { label: 'Finishing & QA', value: 8, color: '#14B8A6' },
-]
+    if (!resolved) {
+      error.value = 'No project is available to report on yet.'
+      return
+    }
 
-// Timeline Status
-const timelineData = [
-  { phase: 'Phase 1', completedDays: 85, totalDays: 90, status: 'Completed' },
-  { phase: 'Phase 2', completedDays: 45, totalDays: 60, status: 'In Progress' },
-  { phase: 'Phase 3', completedDays: 0, totalDays: 40, status: 'Pending' },
-]
+    project.value = resolved
+    client.value = projectStore.getClientById(resolved.clientId)
+    sections.value = await reportService.getProjectReport(resolved.id)
+  } catch {
+    error.value = 'Unable to load the project report. Please try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadReport)
+watch(() => route.params.projectId, loadReport)
 
 const statusVariant = (status: string) => {
   const variants: Record<string, BadgeVariant> = {
-    active: 'info',
-    completed: 'success',
-    'on-hold': 'warning',
-    blocked: 'danger',
+    Active: 'info',
+    Completed: 'success',
+    'On Hold': 'warning',
+    Cancelled: 'danger',
   }
   return variants[status] || 'neutral'
 }
 
 const handleExport = () => {
-  console.log('Export would trigger here - PDF generation needs html2pdf library')
+  toastStore.show('info', 'Export not available yet', 'PDF export for this report is coming soon.')
 }
 
 const goBack = () => {
@@ -117,129 +93,80 @@ const goBack = () => {
       <BaseButton variant="ghost" size="sm" @click="goBack"> ← Back </BaseButton>
     </div>
 
-    <ReportHeader :title="project.name" :subtitle="`Client: ${project.client} | ID: ${project.projectId}`" :generated-date="reportDate" @download="handleExport" />
+    <ErrorState v-if="error" :description="error" @retry="loadReport" />
 
-    <!-- Project Status Summary -->
-    <Card>
-      <div class="grid grid-cols-1 tablet:grid-cols-4 gap-4">
-        <div>
-          <p class="text-xs text-neutral-600 uppercase font-medium">Status</p>
-          <div class="mt-2">
-            <StatusBadge :label="project.status" :variant="statusVariant(project.status)" />
-          </div>
-        </div>
-        <div>
-          <p class="text-xs text-neutral-600 uppercase font-medium">Duration</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">Mar 10 - Oct 5, 2026</p>
-        </div>
-        <div>
-          <p class="text-xs text-neutral-600 uppercase font-medium">Team Size</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">{{ project.team.assigned }} Members</p>
-        </div>
-        <div>
-          <p class="text-xs text-neutral-600 uppercase font-medium">Budget Allocated</p>
-          <p class="text-sm font-medium text-neutral-900 mt-2">KD {{ project.budget.allocated.toLocaleString() }}</p>
-        </div>
+    <template v-else-if="isLoading">
+      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+        <SkeletonLoader :rows="6" />
       </div>
-    </Card>
+    </template>
 
-    <!-- Key Performance Metrics -->
-    <ReportSection title="Key Performance Indicators" description="Project health and progress metrics">
-      <ReportMetricCard v-for="(metric, index) in projectMetrics" :key="index" :label="metric.label" :value="metric.value" :change="metric.change" :color="metric.color" />
-    </ReportSection>
+    <template v-else-if="project">
+      <ReportHeader
+        :title="project.projectName"
+        :subtitle="`Client: ${client?.companyName ?? 'Unassigned'} | ID: ${project.projectNo}`"
+        :generated-date="reportDate"
+        @download="handleExport"
+      />
 
-    <!-- Progress Visualization -->
-    <ReportSection title="Project Progress" fullWidth>
-      <div class="grid grid-cols-1 tablet:grid-cols-3 gap-8 justify-items-center">
-        <ProgressChart :value="project.progress" label="Overall Completion" color="#3B82F6" size="md" />
-        <ProgressChart :value="Math.round(project.budget.spent / (project.budget.allocated / 100))" label="Budget Spent" color="#F59E0B" size="md" />
-        <ProgressChart :value="project.team.utilization" label="Team Utilization" color="#10B981" size="md" />
-      </div>
-    </ReportSection>
-
-    <!-- Task Status -->
-    <ReportSection title="Task Status Breakdown" description="Distribution of tasks by current status" fullWidth>
+      <!-- Project Status Summary -->
       <Card>
-        <BarChart :data="taskStatus" :height="350" />
-      </Card>
-    </ReportSection>
-
-    <!-- Deliverables -->
-    <ReportSection title="Deliverables by Category" description="Work items distribution across project components" fullWidth>
-      <Card>
-        <BarChart :data="deliverables" :height="350" />
-      </Card>
-    </ReportSection>
-
-    <!-- Timeline Phases -->
-    <ReportSection title="Project Phases Timeline" fullWidth>
-      <div class="space-y-4">
-        <div v-for="phase in timelineData" :key="phase.phase" class="space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-neutral-900">{{ phase.phase }}</span>
-            <span class="text-xs text-neutral-500">{{ phase.completedDays }}/{{ phase.totalDays }} days</span>
-          </div>
-          <div class="relative h-2 bg-neutral-200 rounded-full overflow-hidden">
-            <div class="absolute inset-y-0 left-0 bg-primary-500 rounded-full transition-all" :style="{ width: `${(phase.completedDays / phase.totalDays) * 100}%` }" />
-          </div>
-          <div class="flex justify-between text-xs text-neutral-500">
-            <span>Progress: {{ Math.round((phase.completedDays / phase.totalDays) * 100) }}%</span>
-            <span>{{ phase.status }}</span>
-          </div>
-        </div>
-      </div>
-    </ReportSection>
-
-    <!-- Risk Assessment -->
-    <ReportSection title="Risk Assessment" fullWidth>
-      <Card class="bg-warning-50 border border-warning-200">
-        <div class="space-y-3">
-          <div class="flex items-start gap-3">
-            <span class="text-lg">⚠</span>
-            <div class="flex-1">
-              <h3 class="font-semibold text-warning-900">Potential Schedule Slip</h3>
-              <p class="text-sm text-warning-800 mt-1">Phase 2 running 5 days behind. Recommend resource reallocation to maintain Q4 delivery.</p>
+        <div class="grid grid-cols-1 tablet:grid-cols-4 gap-4">
+          <div>
+            <p class="text-xs text-neutral-600 uppercase font-medium">Status</p>
+            <div class="mt-2">
+              <StatusBadge :label="project.status" :variant="statusVariant(project.status)" />
             </div>
           </div>
-          <div class="flex items-start gap-3">
-            <span class="text-lg">⚠</span>
-            <div class="flex-1">
-              <h3 class="font-semibold text-warning-900">Budget Contingency Low</h3>
-              <p class="text-sm text-warning-800 mt-1">42% of budget spent with 58% of work remaining. Monitor Phase 3 expenditure closely.</p>
-            </div>
+          <div>
+            <p class="text-xs text-neutral-600 uppercase font-medium">Duration</p>
+            <p class="text-sm font-medium text-neutral-900 mt-2">
+              {{ formatDate(project.startDate) }} – {{ formatDate(project.targetDate) }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-neutral-600 uppercase font-medium">Current Stage</p>
+            <p class="text-sm font-medium text-neutral-900 mt-2">{{ project.currentStage }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-neutral-600 uppercase font-medium">Responsible Engineer</p>
+            <p class="text-sm font-medium text-neutral-900 mt-2">{{ project.engineer }}</p>
           </div>
         </div>
       </Card>
-    </ReportSection>
 
-    <!-- Budget Analysis -->
-    <ReportSection title="Budget Analysis" fullWidth>
-      <Card>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-neutral-600">Budget Allocated</span>
-              <span class="font-medium">KD {{ project.budget.allocated.toLocaleString() }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-neutral-600">Amount Spent</span>
-              <span class="font-medium text-danger-600">KD {{ project.budget.spent.toLocaleString() }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-neutral-600">Remaining</span>
-              <span class="font-medium text-success-600">KD {{ (project.budget.allocated - project.budget.spent).toLocaleString() }}</span>
-            </div>
-          </div>
-          <div class="h-2 bg-neutral-200 rounded-full overflow-hidden">
-            <div class="h-full bg-danger-500 rounded-full" :style="{ width: `${(project.budget.spent / project.budget.allocated) * 100}%` }" />
-          </div>
+      <!-- Overall Progress -->
+      <ReportSection title="Overall Progress" fullWidth>
+        <div class="grid grid-cols-1 tablet:grid-cols-3 gap-8 justify-items-center">
+          <ProgressChart :value="project.progress" label="Overall Completion" color="#3B82F6" size="md" />
         </div>
-      </Card>
-    </ReportSection>
+      </ReportSection>
+
+      <!-- Backend-provided sections: task/document/submission breakdowns and
+           finance (when a financial agreement exists). "Project Overview" is
+           skipped here since its fields are already in the status card above. -->
+      <ReportSection
+        v-for="section in sections.filter((s) => s.title !== 'Project Overview')"
+        :key="section.title"
+        :title="section.title"
+        :description="section.description"
+        fullWidth
+      >
+        <ReportMetricCard
+          v-for="(metric, index) in section.metrics"
+          :key="index"
+          :label="metric.label"
+          :value="metric.value"
+          :unit="metric.unit"
+          :change="metric.change"
+          :color="metric.color"
+        />
+      </ReportSection>
+    </template>
 
     <!-- Report Footer -->
-    <div class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
-      <p>Project Report for {{ project.name }}</p>
+    <div v-if="project" class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
+      <p>Project Report for {{ project.projectName }}</p>
       <p class="mt-1">Generated on {{ reportDate }}</p>
     </div>
   </div>
