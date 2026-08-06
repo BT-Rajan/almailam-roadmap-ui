@@ -24,12 +24,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
+def create_access_token(
+    subject: str, extra_claims: dict | None = None, expire_minutes: int | None = None
+) -> str:
     now = datetime.now(timezone.utc)
+    minutes = expire_minutes if expire_minutes is not None else settings.ACCESS_TOKEN_EXPIRE_MINUTES
     payload = {
         "sub": subject,
         "iat": now,
-        "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        "exp": now + timedelta(minutes=minutes),
         "type": "access",
     }
     if extra_claims:
