@@ -26,6 +26,7 @@ export const ROUTE_NAMES = {
   ADMIN_AI: 'admin-ai',
   ADMIN_COMPANY: 'admin-company',
   ADMIN_AUDIT_LOG: 'admin-audit-log',
+  ADMIN_ACTIVITY_CALENDAR: 'admin-activity-calendar',
   CUSTOMER_STATUS: 'customer-status',
   MESSAGE_CENTRE: 'message-centre',
   PAYMENTS: 'payments',
