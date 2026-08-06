@@ -4,6 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
+from app.api.audit_logs import router as audit_logs_router
 from app.api.clients import router as clients_router
 from app.api.company import router as company_router
 from app.api.contracts import router as contracts_router
@@ -48,6 +49,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(auth_router)
+app.include_router(audit_logs_router)
 app.include_router(ai_router)
 app.include_router(users_router)
 app.include_router(workflows_router)

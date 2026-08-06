@@ -67,7 +67,65 @@ def log_field_changes(
         )
 
 
-def get_history(db: Session, entity_type: str, entity_id: int) -> list[dict]:
+def list_all(
+    db: Session,
+    entity_type: str | None = None,
+    entity_id: int | None = None,
+    changed_by: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    page: int = 1,
+    page_size: int = 25,
+) -> tuple[list[dict], int]:
+    """Global, filterable audit log listing for the Administration audit
+    viewer -- distinct from get_history() above, which is scoped to one
+    entity and used by every entity's own "Audit Trail" tab."""
+    conditions = []
+    params: dict = {}
+    if entity_type:
+        conditions.append("entity_type = :entity_type")
+        params["entity_type"] = entity_type
+    if entity_id is not None:
+        conditions.append("entity_id = :entity_id")
+        params["entity_id"] = entity_id
+    if changed_by is not None:
+        conditions.append("changed_by = :changed_by")
+        params["changed_by"] = changed_by
+    if start_date:
+        conditions.append("changed_at >= :start_date")
+        params["start_date"] = start_date
+    if end_date:
+        conditions.append("changed_at <= :end_date")
+        params["end_date"] = end_date
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM audit_log {where}"), params).scalar() or 0
+
+    page = max(page, 1)
+    page_size = max(min(page_size, 200), 1)
+    offset = (page - 1) * page_size
+    result = db.execute(
+        text(
+            "SELECT id, entity_type, entity_id, event_label, previous_value, new_value, "
+            f"reason, changed_by, changed_at FROM audit_log {where} "
+            "ORDER BY changed_at DESC, id DESC LIMIT :limit OFFSET :offset"
+        ),
+        {**params, "limit": page_size, "offset": offset},
+    )
+    rows = [dict(row._mapping) for row in result]
+
+    user_ids = {row["changed_by"] for row in rows if row["changed_by"] is not None}
+    names: dict[int, str] = {}
+    if user_ids:
+        from app.models.user import User
+
+        for user_id, full_name in db.query(User.id, User.full_name).filter(User.id.in_(user_ids)).all():
+            names[user_id] = full_name
+
+    for row in rows:
+        row["user"] = names.get(row.pop("changed_by"), "System")
+
+    return rows, total
     """Every future history endpoint calls this one function, so
     resolving changed_by to a display name here (in bulk, one query)
     benefits all of them rather than each endpoint doing its own

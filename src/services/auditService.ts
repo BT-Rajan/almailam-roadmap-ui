@@ -1,49 +1,52 @@
 import { apiClient } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
+import type { PagedResponse } from '@/types/Pagination'
 
 export interface AuditLog {
   id: string
-  entity_type: string
-  entity_id: string
-  event_label: string
-  previous_value?: string
-  new_value?: string
+  entityType: string
+  entityId: string
+  eventLabel: string
+  previousValue?: string
+  newValue?: string
   reason?: string
-  changed_by: string
-  changed_at: string
+  changedBy: string
+  changedAt: string
 }
 
 export interface AuditLogQuery {
-  entity_type?: string
-  entity_id?: string
-  changed_by?: string
-  start_date?: string
-  end_date?: string
-  limit?: number
-  offset?: number
+  entityType?: string
+  entityId?: string
+  changedBy?: string
+  startDate?: string
+  endDate?: string
+  page?: number
+  pageSize?: number
+}
+
+function buildQuery(query: AuditLogQuery = {}): string {
+  const params = new URLSearchParams()
+  if (query.entityType) params.set('entity_type', query.entityType)
+  if (query.entityId) params.set('entity_id', query.entityId)
+  if (query.changedBy) params.set('changed_by', query.changedBy)
+  if (query.startDate) params.set('start_date', query.startDate)
+  if (query.endDate) params.set('end_date', query.endDate)
+  if (query.page) params.set('page', String(query.page))
+  if (query.pageSize) params.set('pageSize', String(query.pageSize))
+  const queryString = params.toString()
+  return queryString ? `?${queryString}` : ''
 }
 
 /**
- * Audit logging service for tracking all user actions in the system
+ * Audit logging service for the Administration audit log viewer
  */
 class AuditService {
   /**
-   * Get audit logs with optional filtering
+   * Get a page of audit logs with optional filtering
    */
-  async getLogs(query?: AuditLogQuery): Promise<AuditLog[]> {
+  async getLogs(query?: AuditLogQuery): Promise<PagedResponse<AuditLog>> {
     try {
-      const params = new URLSearchParams()
-      if (query?.entity_type) params.append('entity_type', query.entity_type)
-      if (query?.entity_id) params.append('entity_id', query.entity_id)
-      if (query?.changed_by) params.append('changed_by', query.changed_by)
-      if (query?.start_date) params.append('start_date', query.start_date)
-      if (query?.end_date) params.append('end_date', query.end_date)
-      if (query?.limit) params.append('limit', String(query.limit))
-      if (query?.offset) params.append('offset', String(query.offset))
-
-      const queryString = params.toString()
-      const url = queryString ? `/api/audit-logs?${queryString}` : '/api/audit-logs'
-
-      return await apiClient.get<AuditLog[]>(url)
+      return await apiClient.get<PagedResponse<AuditLog>>(`/api/audit-logs${buildQuery(query)}`)
     } catch (error) {
       console.error('Failed to fetch audit logs:', error)
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit logs')
@@ -54,57 +57,41 @@ class AuditService {
    * Get audit logs for a specific entity
    */
   async getEntityLogs(entityType: string, entityId: string): Promise<AuditLog[]> {
-    try {
-      return await apiClient.get<AuditLog[]>(
-        `/api/audit-logs?entity_type=${entityType}&entity_id=${entityId}`
-      )
-    } catch (error) {
-      console.error('Failed to fetch entity audit logs:', error)
-      throw new Error(error instanceof Error ? error.message : 'Failed to fetch entity audit logs')
-    }
+    const result = await this.getLogs({ entityType, entityId, pageSize: 200 })
+    return result.items
   }
 
   /**
    * Get audit logs for a specific user
    */
-  async getUserLogs(userId: string, limit = 50): Promise<AuditLog[]> {
-    try {
-      return await apiClient.get<AuditLog[]>(
-        `/api/audit-logs?changed_by=${userId}&limit=${limit}`
-      )
-    } catch (error) {
-      console.error('Failed to fetch user audit logs:', error)
-      throw new Error(error instanceof Error ? error.message : 'Failed to fetch user audit logs')
-    }
+  async getUserLogs(userId: string, pageSize = 50): Promise<AuditLog[]> {
+    const result = await this.getLogs({ changedBy: userId, pageSize })
+    return result.items
   }
 
   /**
    * Get recent activity (last N logs)
    */
-  async getRecentActivity(limit = 20): Promise<AuditLog[]> {
-    try {
-      return await apiClient.get<AuditLog[]>(`/api/audit-logs?limit=${limit}`)
-    } catch (error) {
-      console.error('Failed to fetch recent activity:', error)
-      throw new Error(error instanceof Error ? error.message : 'Failed to fetch recent activity')
-    }
+  async getRecentActivity(pageSize = 20): Promise<AuditLog[]> {
+    const result = await this.getLogs({ pageSize })
+    return result.items
   }
 
   /**
-   * Export audit logs (backend should handle CSV/JSON generation)
+   * Export audit logs as a CSV file (backend generates the CSV)
    */
-  async exportLogs(format: 'csv' | 'json' = 'csv', query?: AuditLogQuery): Promise<Blob> {
+  async exportLogs(query?: Pick<AuditLogQuery, 'entityType' | 'startDate' | 'endDate'>): Promise<Blob> {
     try {
+      const authStore = useAuthStore()
       const params = new URLSearchParams()
-      params.append('format', format)
-      if (query?.entity_type) params.append('entity_type', query.entity_type)
-      if (query?.start_date) params.append('start_date', query.start_date)
-      if (query?.end_date) params.append('end_date', query.end_date)
+      if (query?.entityType) params.set('entity_type', query.entityType)
+      if (query?.startDate) params.set('start_date', query.startDate)
+      if (query?.endDate) params.set('end_date', query.endDate)
 
       const response = await fetch(`/api/audit-logs/export?${params.toString()}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
+          Authorization: `Bearer ${authStore.accessToken ?? ''}`,
         },
       })
 

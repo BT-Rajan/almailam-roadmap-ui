@@ -39,4 +39,10 @@ export const ADMINISTRATION_MODULES: AdministrationModule[] = [
     icon: 'Building2',
     routeName: ROUTE_NAMES.ADMIN_COMPANY,
   },
+  {
+    label: 'Audit Log',
+    description: 'Review every tracked change across the system, who made it, and when.',
+    icon: 'History',
+    routeName: ROUTE_NAMES.ADMIN_AUDIT_LOG,
+  },
 ]

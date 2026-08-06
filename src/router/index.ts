@@ -352,6 +352,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/audit-log',
+      name: ROUTE_NAMES.ADMIN_AUDIT_LOG,
+      component: () => import('@/pages/AdminAuditLogPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Audit Log' },
+        ],
+      },
+    },
+    {
       path: '/messages',
       name: ROUTE_NAMES.MESSAGE_CENTRE,
       component: () => import('@/pages/MessageCentrePage.vue'),
