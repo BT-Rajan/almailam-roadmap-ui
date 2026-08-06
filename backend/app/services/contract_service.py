@@ -98,7 +98,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
             )
         )
 
-    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract created", user_id, new_value=contract.contract_no)
     db.commit()
     db.refresh(contract)
     return contract

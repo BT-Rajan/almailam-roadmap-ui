@@ -121,7 +121,7 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
 
     db.add(client)
     db.flush()  # assign client.id before the audit row references it
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client created", user_id, new_value=client.company_name)
     db.commit()
     db.refresh(client)
     return client

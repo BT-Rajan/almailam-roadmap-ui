@@ -98,7 +98,7 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
             )
         )
 
-    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation created", user_id, new_value=quotation.quotation_no)
     db.commit()
     db.refresh(quotation)
     return quotation

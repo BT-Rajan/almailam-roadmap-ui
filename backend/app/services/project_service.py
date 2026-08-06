@@ -118,7 +118,7 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     )
     db.add(project)
     db.flush()
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
     db.refresh(project)
     return project

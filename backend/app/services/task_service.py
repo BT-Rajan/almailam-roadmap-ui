@@ -102,7 +102,7 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     db.add(task)
     db.flush()
 
-    audit_service.log_event(db, ENTITY_TYPE, task.id, "Task created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, task.id, "Task created", user_id, new_value=task.title)
     notification_service.create_notification(
         db, assignee_id, "New task assigned", f"You've been assigned: {payload.title}", "Task",
         link_route_name="tasks",

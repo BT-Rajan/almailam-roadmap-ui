@@ -81,7 +81,7 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
     for document_name in form.required_documents:
         db.add(SubmissionDocument(submission_id=submission.id, name=document_name, status="Pending"))
 
-    audit_service.log_event(db, ENTITY_TYPE, submission.id, "Submission created", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, submission.id, "Submission created", user_id, new_value=submission.submission_no)
     db.commit()
     db.refresh(submission)
     return submission
