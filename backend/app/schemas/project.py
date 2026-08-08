@@ -73,12 +73,29 @@ class ProjectUpdate(BaseModel):
     priority: str | None = None
     progress: int | None = Field(default=None, ge=0, le=100)
     targetDate: date | None = None
+    status: str | None = None
+    currentStage: str | None = None
+    reason: str | None = None
 
     @field_validator("priority")
     @classmethod
     def check_priority(cls, value: str | None) -> str | None:
         if value is not None and value not in PROJECT_PRIORITIES:
             raise ValueError(f"priority must be one of {PROJECT_PRIORITIES}")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in PROJECT_STATUSES:
+            raise ValueError(f"status must be one of {PROJECT_STATUSES}")
+        return value
+
+    @field_validator("currentStage")
+    @classmethod
+    def check_current_stage(cls, value: str | None) -> str | None:
+        if value is not None and value not in WORKFLOW_STAGES:
+            raise ValueError(f"currentStage must be one of {WORKFLOW_STAGES}")
         return value
 
 

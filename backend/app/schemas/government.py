@@ -159,6 +159,15 @@ class SubmissionCreate(BaseModel):
 class SubmissionUpdate(BaseModel):
     expectedDecisionDate: date | None = None
     notes: str | None = None
+    status: str | None = None
+    reason: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in SUBMISSION_STATUSES:
+            raise ValueError(f"status must be one of {SUBMISSION_STATUSES}")
+        return value
 
 
 class SubmissionStatusUpdate(BaseModel):

@@ -156,6 +156,12 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
     audit_service.log_field_changes(db, ENTITY_TYPE, client.id, changes, user_id)
     db.commit()
     db.refresh(client)
+
+    if payload.status is not None and payload.status != client.status:
+        client = set_status(db, client_id, payload.status, user_id)
+    if payload.onboardingState is not None and payload.onboardingState != client.onboarding_state:
+        client = set_onboarding_state(db, client_id, payload.onboardingState, payload.reason, user_id)
+
     return client
 
 

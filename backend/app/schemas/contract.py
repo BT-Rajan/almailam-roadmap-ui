@@ -111,6 +111,15 @@ class ContractUpdate(BaseModel):
     clientRepresentative: str | None = Field(default=None, min_length=1, max_length=150)
     scopeSummary: str | None = None
     clauses: list[ContractClauseIn] | None = None
+    status: str | None = None
+    reason: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in CONTRACT_STATUSES:
+            raise ValueError(f"status must be one of {CONTRACT_STATUSES}")
+        return value
 
 
 class ContractStatusUpdate(BaseModel):

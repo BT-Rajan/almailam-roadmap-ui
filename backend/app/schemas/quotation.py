@@ -92,6 +92,15 @@ class QuotationUpdate(BaseModel):
     notes: str | None = None
     termsAndConditions: list[str] | None = None
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
+    status: str | None = None
+    reason: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in QUOTATION_STATUSES:
+            raise ValueError(f"status must be one of {QUOTATION_STATUSES}")
+        return value
 
 
 class QuotationStatusUpdate(BaseModel):

@@ -60,6 +60,8 @@ class TaskUpdate(BaseModel):
     severity: str | None = None
     dueDate: date | None = None
     dueTime: time | None = None
+    status: str | None = None
+    reason: str | None = None
 
     @field_validator("priority")
     @classmethod
@@ -73,6 +75,13 @@ class TaskUpdate(BaseModel):
     def check_severity(cls, value: str | None) -> str | None:
         if value is not None and value not in TASK_SEVERITIES:
             raise ValueError(f"severity must be one of {TASK_SEVERITIES}")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in TASK_STATUSES:
+            raise ValueError(f"status must be one of {TASK_STATUSES}")
         return value
 
 

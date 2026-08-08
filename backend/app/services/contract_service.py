@@ -134,6 +134,10 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
     audit_service.log_field_changes(db, ENTITY_TYPE, contract.id, changes, user_id)
     db.commit()
     db.refresh(contract)
+
+    if payload.status is not None and payload.status != contract.status:
+        contract = set_status(db, contract_no, payload.status, payload.reason, user_id)
+
     return contract
 
 

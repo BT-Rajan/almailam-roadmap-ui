@@ -155,6 +155,12 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     audit_service.log_field_changes(db, ENTITY_TYPE, project.id, changes, user_id)
     db.commit()
     db.refresh(project)
+
+    if payload.currentStage is not None and payload.currentStage != project.current_stage:
+        project = set_stage(db, project_no, payload.currentStage, payload.reason, user_id)
+    if payload.status is not None and payload.status != project.status:
+        project = set_status(db, project_no, payload.status, payload.reason, user_id)
+
     return project
 
 

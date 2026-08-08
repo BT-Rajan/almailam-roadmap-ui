@@ -151,6 +151,10 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
     audit_service.log_field_changes(db, ENTITY_TYPE, quotation.id, changes, user_id)
     db.commit()
     db.refresh(quotation)
+
+    if payload.status is not None and payload.status != quotation.status:
+        quotation = set_status(db, quotation_no, payload.status, payload.reason, user_id)
+
     return quotation
 
 

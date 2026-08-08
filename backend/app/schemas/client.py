@@ -167,6 +167,8 @@ class ClientCreate(BaseModel):
         client_type = info.data.get("clientType")
         if client_type == "Individual" and value is not None:
             raise ValueError("organisationProfile must not be set when clientType is Individual")
+        if client_type is not None and client_type != "Individual" and value is None:
+            raise ValueError("organisationProfile is required unless clientType is Individual")
         return value
 
     @field_validator("individualProfile")
@@ -187,6 +189,23 @@ class ClientUpdate(BaseModel):
     email: EmailStr | None = None
     city: str | None = Field(default=None, min_length=1, max_length=80)
     communicationPreference: CommunicationPreference | None = None
+    status: str | None = None
+    onboardingState: str | None = None
+    reason: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in CLIENT_STATUSES:
+            raise ValueError(f"status must be one of {CLIENT_STATUSES}")
+        return value
+
+    @field_validator("onboardingState")
+    @classmethod
+    def check_onboarding_state(cls, value: str | None) -> str | None:
+        if value is not None and value not in CLIENT_ONBOARDING_STATES:
+            raise ValueError(f"onboardingState must be one of {CLIENT_ONBOARDING_STATES}")
+        return value
 
 
 class ClientStatusUpdate(BaseModel):
