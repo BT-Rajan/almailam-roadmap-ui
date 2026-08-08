@@ -26,7 +26,6 @@ export function useAuth() {
     isAuthenticated: computed(() => authStore.isAuthenticated),
     user: computed(() => authStore.user),
     accessToken: computed(() => authStore.accessToken),
-    refreshToken: computed(() => authStore.refreshToken),
 
     // Computed user info
     username: computed(() => authStore.user?.name),

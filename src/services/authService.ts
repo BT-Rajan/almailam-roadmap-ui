@@ -2,7 +2,6 @@ import { apiClient } from '@/services/httpClient'
 
 export interface TokenResponse {
   access_token: string
-  refresh_token: string
   token_type: string
 }
 
@@ -25,16 +24,12 @@ function login(username: string, password: string): Promise<TokenResponse> {
   )
 }
 
-function refresh(refreshToken: string): Promise<TokenResponse> {
-  return apiClient.post<TokenResponse>(
-    '/api/auth/refresh',
-    { refresh_token: refreshToken },
-    { skipAuth: true },
-  )
+function refresh(): Promise<TokenResponse> {
+  return apiClient.post<TokenResponse>('/api/auth/refresh', undefined, { skipAuth: true })
 }
 
-function logout(refreshToken: string): Promise<void> {
-  return apiClient.post<void>('/api/auth/logout', { refresh_token: refreshToken })
+function logout(): Promise<void> {
+  return apiClient.post<void>('/api/auth/logout')
 }
 
 function me(): Promise<CurrentUser> {

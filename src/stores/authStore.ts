@@ -2,11 +2,8 @@ import { defineStore } from 'pinia'
 
 import { authService, type CurrentUser } from '@/services/authService'
 
-const REFRESH_STORAGE_KEY = 'almailam-refresh-token'
-
 interface AuthState {
   accessToken: string | null
-  refreshToken: string | null
   user: CurrentUser | null
   /** Tracks whether we've attempted to restore a session from storage yet. */
   isHydrated: boolean
@@ -15,7 +12,6 @@ interface AuthState {
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     accessToken: null,
-    refreshToken: localStorage.getItem(REFRESH_STORAGE_KEY),
     user: null,
     isHydrated: false,
   }),
@@ -27,61 +23,54 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(username: string, password: string) {
       const tokens = await authService.login(username, password)
-      this._setTokens(tokens.access_token, tokens.refresh_token)
+      this._setToken(tokens.access_token)
       this.user = await authService.me()
     },
 
     async logout() {
-      if (this.refreshToken) {
-        try {
-          await authService.logout(this.refreshToken)
-        } catch {
-          // Best-effort server-side revoke; clear local state regardless.
-        }
+      try {
+        await authService.logout()
+      } catch {
+        // Best-effort server-side revoke; clear local state regardless.
       }
-      this._clearTokens()
+      this._clearToken()
     },
 
-    /** Attempts to exchange the stored refresh token for a new access token. Returns success. */
+    /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success. */
     async tryRefresh(): Promise<boolean> {
-      if (!this.refreshToken) return false
       try {
-        const tokens = await authService.refresh(this.refreshToken)
-        this._setTokens(tokens.access_token, tokens.refresh_token)
+        const tokens = await authService.refresh()
+        this._setToken(tokens.access_token)
         return true
       } catch {
-        this._clearTokens()
+        this._clearToken()
         return false
       }
     },
 
-    /** Call once on app startup to silently restore a session from the stored refresh token. */
+    /** Call once on app startup to silently restore a session from the refresh cookie, if any.
+     * The cookie is httpOnly, so there's no way to check for it up front -- attempting the
+     * refresh is the only way to find out, and a 401 here just means there wasn't one. */
     async hydrate() {
       if (this.isHydrated) return
-      if (this.refreshToken) {
-        const refreshed = await this.tryRefresh()
-        if (refreshed) {
-          try {
-            this.user = await authService.me()
-          } catch {
-            this._clearTokens()
-          }
+      const refreshed = await this.tryRefresh()
+      if (refreshed) {
+        try {
+          this.user = await authService.me()
+        } catch {
+          this._clearToken()
         }
       }
       this.isHydrated = true
     },
 
-    _setTokens(accessToken: string, refreshToken: string) {
+    _setToken(accessToken: string) {
       this.accessToken = accessToken
-      this.refreshToken = refreshToken
-      localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken)
     },
 
-    _clearTokens() {
+    _clearToken() {
       this.accessToken = null
-      this.refreshToken = null
       this.user = null
-      localStorage.removeItem(REFRESH_STORAGE_KEY)
     },
   },
 })

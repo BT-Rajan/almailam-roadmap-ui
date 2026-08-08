@@ -42,6 +42,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
+    // The refresh token now lives in an httpOnly cookie (never touched by
+    // this code) instead of localStorage -- 'include' is what makes the
+    // browser actually send/accept it, same-origin or cross-origin.
+    credentials: 'include',
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   })
 
