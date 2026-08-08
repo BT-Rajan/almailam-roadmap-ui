@@ -26,7 +26,7 @@ from app.api.users import router as users_router
 from app.api.workflows import router as workflows_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
-from app.core.middleware import SecurityHeadersMiddleware
+from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 
 settings = get_settings()
 
@@ -40,6 +40,7 @@ app = FastAPI(
 
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
