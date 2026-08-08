@@ -13,6 +13,23 @@ ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".txt", ".csv",
 }
 
+# Magic-byte signatures for extensions where forging the content is easy
+# (renaming an .exe to .pdf, etc). Checked against the actual bytes after
+# read, so the extension allowlist alone can never be the only gate.
+# DWG/DXF/TXT/CSV are plain-text-ish or have loosely-defined headers across
+# versions, so they're intentionally left to the extension check -- a
+# forged file there doesn't gain code execution, only a mislabeled file.
+_SIGNATURES: dict[str, tuple[bytes, ...]] = {
+    ".pdf": (b"%PDF-",),
+    ".png": (b"\x89PNG\r\n\x1a\n",),
+    ".jpg": (b"\xff\xd8\xff",),
+    ".jpeg": (b"\xff\xd8\xff",),
+    ".doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),  # legacy OLE2 container
+    ".xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
+    ".docx": (b"PK\x03\x04",),  # OOXML is a zip archive
+    ".xlsx": (b"PK\x03\x04",),
+}
+
 
 def _safe_extension(filename: str) -> str:
     suffix = Path(filename).suffix.lower()
@@ -21,6 +38,16 @@ def _safe_extension(filename: str) -> str:
             f"File type '{suffix or 'unknown'}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
     return suffix
+
+
+def _verify_signature(extension: str, contents: bytes) -> None:
+    signatures = _SIGNATURES.get(extension)
+    if signatures is None:
+        return
+    if not any(contents.startswith(sig) for sig in signatures):
+        raise ValidationAppError(
+            f"File content doesn't match its '{extension}' extension."
+        )
 
 
 def save_upload(file: UploadFile, subdirectory: str) -> tuple[str, str, int]:
@@ -36,6 +63,7 @@ def save_upload(file: UploadFile, subdirectory: str) -> tuple[str, str, int]:
         raise ValidationAppError(f"File exceeds the {settings.MAX_UPLOAD_SIZE_MB} MB upload limit.")
     if not contents:
         raise ValidationAppError("Uploaded file is empty.")
+    _verify_signature(extension, contents)
 
     directory = Path(settings.UPLOADS_DIR) / subdirectory
     directory.mkdir(parents=True, exist_ok=True)
