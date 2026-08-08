@@ -149,6 +149,13 @@ def list_all_obligations(db: Session) -> list[PaymentObligation]:
 
 
 def get_obligation_by_display_id(db: Session, raw_id: str) -> PaymentObligation:
+    """Locks the row (SELECT ... FOR UPDATE) for the remainder of the
+    caller's transaction. Every call site mutates amount_received/
+    amount_due and commits right after -- without this, two concurrent
+    requests touching the same obligation (two payments, or a payment
+    racing a refund/adjustment) can each read the same starting balance
+    and one write silently clobbers the other on commit. Mirrors the
+    same pattern already used correctly in number_series_service.py."""
     agreement_id, sequence_number = parse_obligation_display_id(raw_id)
     obligation = (
         db.query(PaymentObligation)
@@ -156,6 +163,7 @@ def get_obligation_by_display_id(db: Session, raw_id: str) -> PaymentObligation:
             PaymentObligation.agreement_id == agreement_id,
             PaymentObligation.sequence_number == sequence_number,
         )
+        .with_for_update()
         .first()
     )
     if obligation is None:
@@ -206,7 +214,12 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
 
     allocation_targets: list[tuple[PaymentObligation, float]] = []
     total_allocated = Decimal("0")
-    for allocation_input in payload.allocations:
+    # Sorted by obligationId (not payload order) before locking any of
+    # them: a payment can touch several obligations at once, and if two
+    # concurrent payments lock the same set in different orders, MySQL
+    # can deadlock instead of one just waiting for the other. A fixed,
+    # consistent lock-acquisition order avoids that.
+    for allocation_input in sorted(payload.allocations, key=lambda a: a.obligationId):
         obligation = get_obligation_by_display_id(db, allocation_input.obligationId)
         if obligation.agreement_id != agreement.id:
             raise ValidationAppError("An allocation targets an obligation from a different agreement.")
