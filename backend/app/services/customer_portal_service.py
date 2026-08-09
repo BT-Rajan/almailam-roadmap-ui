@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthError, NotFoundError
+from app.core.lockout import LockoutTracker
 from app.core.security import create_access_token, decode_token
 from app.models.client import Client, ClientContact
 from app.models.document import ProjectDocument
@@ -19,6 +20,15 @@ from app.services import company_service
 # get_current_user (app/api/deps.py) only accepts type == "access".
 CUSTOMER_PORTAL_TOKEN_TYPE = "customer_portal"
 CUSTOMER_PORTAL_TOKEN_EXPIRE_MINUTES = 60
+
+# Unlike staff login (5 attempts / 15 min, persisted on the user row via
+# failed_login_attempts/locked_until), there's no account row per portal
+# visitor to persist a counter on -- this is keyed by project instead,
+# in-memory, same trade-off as core/rate_limit.py. Without this, the
+# only thing standing between an attacker and brute-forcing the last-9-
+# digits mobile match for a known project ID was the blanket 300 req/min
+# IP limiter, which is far too loose for a single-field guessing attack.
+_verify_lockout = LockoutTracker(max_attempts=5, lockout_seconds=15 * 60)
 
 
 def _digits(value: str) -> str:
@@ -39,13 +49,24 @@ def verify_and_issue_token(db: Session, project_no: str, mobile_number: str) -> 
     None. Deliberately does not distinguish "project not found" from
     "mobile didn't match" in what it returns, mirroring the generic
     failure message auth_service.py uses for staff login -- so this
-    can't be used to enumerate valid project IDs."""
+    can't be used to enumerate valid project IDs.
+
+    Lockout is only tracked once a real project is resolved: a made-up
+    project_no can't grow the tracker or lock anything, since there's
+    nothing real to protect there."""
     project = db.query(Project).filter(Project.project_no == project_no, Project.deleted_at.is_(None)).first()
     if not project:
         return None
 
+    lockout_key = f"portal-verify:{project.id}"
+    seconds_locked = _verify_lockout.seconds_locked(lockout_key)
+    if seconds_locked:
+        minutes = max(1, int(seconds_locked // 60) + 1)
+        raise AuthError(f"Too many failed attempts. Try again in {minutes} minute(s).")
+
     client = db.query(Client).filter(Client.id == project.client_id, Client.deleted_at.is_(None)).first()
     if not client:
+        _verify_lockout.register_failure(lockout_key)
         return None
 
     candidates = [client.mobile]
@@ -53,7 +74,10 @@ def verify_and_issue_token(db: Session, project_no: str, mobile_number: str) -> 
     candidates.extend(contact.mobile for contact in contacts)
 
     if not any(_mobile_matches(candidate, mobile_number) for candidate in candidates):
+        _verify_lockout.register_failure(lockout_key)
         return None
+
+    _verify_lockout.register_success(lockout_key)
 
     return create_access_token(
         subject=str(project.id),
