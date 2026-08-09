@@ -78,6 +78,8 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
 def update_user(db: Session, user_id: int, payload: UserUpdate, actor_id: int) -> User:
     user = get_user(db, user_id)
     if payload.role is not None and payload.role != user.role:
+        if user_id == actor_id:
+            raise ValidationAppError("You cannot change your own role.")
         audit_service.log_event(
             db, ENTITY_TYPE, user.id, "Role changed", actor_id,
             previous_value=user.role, new_value=payload.role,
@@ -99,6 +101,8 @@ def set_user_status(db: Session, user_id: int, status: str, actor_id: int) -> Us
     user = get_user(db, user_id)
     previous_status = "Active" if user.is_active else "Inactive"
     if previous_status != status:
+        if user_id == actor_id and status == "Inactive":
+            raise ValidationAppError("You cannot deactivate your own account.")
         audit_service.log_event(
             db, ENTITY_TYPE, user.id, "Status changed", actor_id,
             previous_value=previous_status, new_value=status,
