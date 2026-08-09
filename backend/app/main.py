@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
@@ -77,3 +81,32 @@ app.include_router(search_router)
 @app.get("/api/health")
 def health_check() -> dict:
     return {"status": "ok", "env": settings.ENV}
+
+
+# ---------------------------------------------------------------------------
+# Single-process, single-port frontend serving
+# ---------------------------------------------------------------------------
+# In production the installer builds the Vue app (npm run build) and this
+# process serves the result directly, so there is exactly one process and
+# one port for the whole system -- no separate vite dev server. Every /api/*
+# route above still wins; anything else falls back to the SPA's index.html
+# so client-side (Vue Router) routes work on refresh/deep-link. If the
+# frontend hasn't been built (e.g. local API-only development), this block
+# is skipped and only the API is served.
+_frontend_dist = (Path(__file__).resolve().parent.parent / settings.FRONTEND_DIST_DIR).resolve()
+
+if _frontend_dist.is_dir():
+    _assets_dir = _frontend_dist / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend-assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str) -> FileResponse:
+        candidate = (_frontend_dist / full_path).resolve()
+        if (
+            full_path
+            and candidate.is_file()
+            and str(candidate).startswith(str(_frontend_dist))
+        ):
+            return FileResponse(candidate)
+        return FileResponse(_frontend_dist / "index.html")

@@ -10,6 +10,19 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = False
 
+    # Single-process deployment: the backend serves both the API (under
+    # /api) and the built frontend (frontend/dist) on this one port. The
+    # installer writes this value and it is the only port anything in the
+    # system needs to know about.
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+
+    # Path to the built frontend (output of `npm run build`, i.e. the repo's
+    # dist/ directory), resolved relative to the backend/ working directory
+    # by default. When present, main.py mounts it and serves index.html for
+    # any non-/api route so the whole app runs as one process on one port.
+    FRONTEND_DIST_DIR: str = "../dist"
+
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "serviceos_user"
@@ -50,7 +63,13 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        configured = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        # Same-origin requests (frontend served by this same process) don't
+        # need CORS at all, but these are added defensively so the app still
+        # works if something reaches the API from localhost:<PORT> under a
+        # scheme/host combination not already listed in .env.
+        implied = [f"http://localhost:{self.PORT}", f"http://127.0.0.1:{self.PORT}"]
+        return list(dict.fromkeys(configured + implied))
 
     @property
     def is_production(self) -> bool:
