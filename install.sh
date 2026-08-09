@@ -86,10 +86,48 @@ set_env_var() {
 # ===========================================================================
 # 1. System packages
 # ===========================================================================
-log "Installing system packages (git, python3, mysql-server, build tools)"
+log "Installing base system packages (git, python3, build tools)"
 sudo apt update
-sudo apt install -y git python3 python3-venv python3-pip build-essential \
-  curl mysql-server
+sudo apt install -y git python3 python3-venv python3-pip build-essential curl
+
+# ---------------------------------------------------------------------------
+# MySQL-compatible database server
+# ---------------------------------------------------------------------------
+# Some hosts (and most cloud images) ship MariaDB, which is a drop-in
+# replacement and already provides the `mysql` client + a MySQL-protocol
+# server -- installing mysql-server on top of it is unnecessary and some
+# providers actively block it. Only install mysql-server if neither MySQL
+# nor MariaDB is already present; otherwise use whatever's already there.
+DB_SERVICE=""
+if require_cmd mysql || require_cmd mariadb; then
+  log "MySQL-compatible server already present ($(mysql --version 2>/dev/null || mariadb --version)) — skipping mysql-server install"
+elif dpkg -l 2>/dev/null | grep -qE '^ii\s+(mariadb-server|mysql-server)'; then
+  log "Database server package already installed — skipping mysql-server install"
+else
+  log "Installing mysql-server"
+  sudo apt install -y mysql-server
+fi
+
+for candidate in mysql mariadb; do
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${candidate}.service"; then
+    DB_SERVICE="$candidate"
+    break
+  fi
+done
+if [ -z "$DB_SERVICE" ]; then
+  err "Could not find a mysql.service or mariadb.service to manage. Make sure a MySQL-compatible server is installed and try again."
+  exit 1
+fi
+log "Using ${DB_SERVICE} as the database service"
+
+if require_cmd mysql; then
+  DB_CLIENT="mysql"
+elif require_cmd mariadb; then
+  DB_CLIENT="mariadb"
+else
+  err "No mysql or mariadb client binary found after install. Install one (e.g. mariadb-client) and re-run."
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Node.js via nvm
@@ -179,7 +217,7 @@ fi
 
 MYSQL_PWD_INPUT=""
 if [ "$DB_MODE" != "reuse" ]; then
-  sudo systemctl enable --now mysql
+  sudo systemctl enable --now "$DB_SERVICE"
   read -rsp "MySQL root password (blank if none set yet): " MYSQL_PWD_INPUT
   echo
   if [ -n "$MYSQL_PWD_INPUT" ]; then
@@ -188,18 +226,18 @@ if [ "$DB_MODE" != "reuse" ]; then
     MYSQL_AUTH=(-u root)
   fi
 
-  sudo mysql "${MYSQL_AUTH[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARSET=utf8mb4;"
+  sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARSET=utf8mb4;"
 
   case "$DB_MODE" in
     fresh)
       log "Loading schema into '${DB_NAME}'"
-      sudo mysql "${MYSQL_AUTH[@]}" "${DB_NAME}" < backend/schema.sql
+      sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < backend/schema.sql
       if [ "$WITH_TESTDATA" = false ] && [ "$ASSUME_YES" = false ]; then
         [ "$(ask "Load sample test data too? [y/N]: " "n")" =~ ^[Yy] ] && WITH_TESTDATA=true
       fi
       if [ "$WITH_TESTDATA" = true ]; then
         log "Loading test data"
-        sudo mysql "${MYSQL_AUTH[@]}" "${DB_NAME}" < backend/testdata.sql
+        sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < backend/testdata.sql
       fi
       ;;
     dump)
@@ -215,7 +253,7 @@ if [ "$DB_MODE" != "reuse" ]; then
         exit 1
       fi
       log "Restoring dump into '${DB_NAME}' (this replaces existing data in that database)"
-      sudo mysql "${MYSQL_AUTH[@]}" "${DB_NAME}" < "$DUMP_FILE"
+      sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < "$DUMP_FILE"
       ;;
   esac
 else
