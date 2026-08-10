@@ -111,6 +111,51 @@
   }
 
   /*
+   * Dark-mode "bold multicolor" icon badges. Icon chips across the app
+   * (dashboard widgets, admin cards, status badges) pair a pale *-50
+   * background with a *-600 icon colour. In dark mode the *-50 background
+   * stayed a near-white swatch regardless of theme -- a glaring white box
+   * around every icon -- so give these badges a vivid, saturated tinted
+   * fill instead, and brighten the icon colour to match.
+   */
+  .dark .bg-primary-50 {
+    background-color: color-mix(in srgb, theme('colors.accent.500') 22%, transparent);
+  }
+  .dark .bg-success-50 {
+    background-color: color-mix(in srgb, theme('colors.success.500') 20%, transparent);
+  }
+  .dark .bg-warning-50 {
+    background-color: color-mix(in srgb, theme('colors.warning.500') 20%, transparent);
+  }
+  .dark .bg-danger-50 {
+    background-color: color-mix(in srgb, theme('colors.danger.500') 20%, transparent);
+  }
+  .dark .bg-info-50 {
+    background-color: color-mix(in srgb, theme('colors.info.500') 20%, transparent);
+  }
+  .dark .bg-ai-50 {
+    background-color: color-mix(in srgb, theme('colors.ai.500') 22%, transparent);
+  }
+  .dark .text-primary-600 {
+    color: theme('colors.accent.400');
+  }
+  .dark .text-success-600 {
+    color: theme('colors.success.500');
+  }
+  .dark .text-warning-600 {
+    color: theme('colors.warning.500');
+  }
+  .dark .text-danger-600 {
+    color: theme('colors.danger.500');
+  }
+  .dark .text-info-600 {
+    color: theme('colors.info.500');
+  }
+  .dark .text-ai-600 {
+    color: theme('colors.ai.400');
+  }
+
+  /*
    * Blanket glassmorphism hook — these are the generated Tailwind class
    * names for the bg.card / bg.secondary / bg.sidebar / bg.header tokens.
    * Every component that already uses e.g. `bg-bg-card` (52+ across the

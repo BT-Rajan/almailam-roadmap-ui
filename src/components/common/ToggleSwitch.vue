@@ -21,7 +21,7 @@ defineEmits<{
 const toggleId = useId()
 
 const toggleClasses = computed(() => [
-  'h-6 w-11 rounded-full transition-colors duration-fast',
+  'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast',
   props.modelValue ? 'bg-primary-500' : 'bg-neutral-300',
   props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
 ])
@@ -33,8 +33,12 @@ const thumbClasses = computed(() => [
 </script>
 
 <template>
-  <div class="flex items-start gap-3">
-    <div class="flex items-center">
+  <label
+    :for="toggleId"
+    class="flex items-start gap-3"
+    :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+  >
+    <span class="flex items-center">
       <input
         :id="toggleId"
         type="checkbox"
@@ -43,15 +47,15 @@ const thumbClasses = computed(() => [
         class="sr-only"
         @change="$emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
       />
-      <div :class="toggleClasses">
-        <div :class="thumbClasses" />
-      </div>
-    </div>
-    <div v-if="label || hint" class="flex flex-col gap-0.5">
-      <label :for="toggleId" class="text-sm font-medium text-neutral-700 cursor-pointer" :class="disabled ? 'text-neutral-400' : ''">
+      <span :class="toggleClasses">
+        <span :class="thumbClasses" />
+      </span>
+    </span>
+    <span v-if="label || hint" class="flex flex-col gap-0.5">
+      <span class="text-sm font-medium text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
         {{ label }}
-      </label>
-      <p v-if="hint" class="text-xs text-neutral-400">{{ hint }}</p>
-    </div>
-  </div>
+      </span>
+      <span v-if="hint" class="text-xs text-neutral-400">{{ hint }}</span>
+    </span>
+  </label>
 </template>
