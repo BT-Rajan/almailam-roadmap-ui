@@ -2,12 +2,12 @@
 
 <template>
   <div
-    class="flex min-h-screen items-center justify-center bg-[var(--color-bg-page)] px-4 py-12"
+    class="flex min-h-screen items-center justify-center px-4 py-12"
   >
     <div class="w-full max-w-md">
       <div class="mb-8 flex items-center justify-center gap-2">
         <div
-          class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 text-sm font-semibold text-white"
+          class="gradient-luxe flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
         >
           SO
         </div>
@@ -17,7 +17,7 @@
       <div
         id="main-content"
         tabindex="-1"
-        class="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] p-8 shadow-soft outline-none"
+        class="glass-panel rounded-xl p-8 shadow-glass outline-none"
       >
         <RouterView v-slot="{ Component }">
           <Transition name="page-fade" mode="out-in">

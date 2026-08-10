@@ -17,8 +17,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const variantClasses: Record<BadgeVariant, string> = {
-  neutral: 'bg-neutral-100 text-neutral-600',
-  primary: 'bg-primary-50 text-primary-700',
+  neutral: 'bg-neutral-500/10 text-neutral-600',
+  primary: 'bg-accent-500/12 text-accent-700',
   success: 'bg-success-50 text-success-700',
   warning: 'bg-warning-50 text-warning-700',
   danger: 'bg-danger-50 text-danger-700',
@@ -28,7 +28,7 @@ const variantClasses: Record<BadgeVariant, string> = {
 
 const dotClasses: Record<BadgeVariant, string> = {
   neutral: 'bg-neutral-400',
-  primary: 'bg-primary-500',
+  primary: 'bg-accent-500',
   success: 'bg-success-500',
   warning: 'bg-warning-500',
   danger: 'bg-danger-500',

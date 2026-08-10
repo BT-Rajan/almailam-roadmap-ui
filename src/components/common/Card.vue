@@ -12,8 +12,8 @@ withDefaults(defineProps<Props>(), {
 
 <template>
   <div
-    class="rounded-xl border border-border-light bg-bg-card shadow-soft transition-shadow duration-normal"
-    :class="hoverable ? 'hover:shadow-medium' : ''"
+    class="rounded-xl border border-border-light bg-bg-card shadow-glass-sm transition-shadow duration-normal"
+    :class="hoverable ? 'hover:shadow-glass' : ''"
   >
     <div v-if="$slots.header" class="border-b border-border-light px-5 py-4">
       <slot name="header" />

@@ -20,12 +20,12 @@ function handleLogout(): void {
 
 <template>
   <aside
-    class="hidden shrink-0 flex-col border-r border-[var(--color-border-default)] bg-[var(--color-bg-sidebar)] transition-all duration-normal lg:flex"
+    class="hidden shrink-0 flex-col border-r border-[var(--color-border-default)] bg-bg-sidebar shadow-glass-sm transition-all duration-normal lg:flex"
     :class="navigationStore.isSidebarCollapsed ? 'w-18' : 'w-70'"
   >
     <div class="flex h-16 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
       <div
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-semibold text-white"
+        class="gradient-luxe flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
       >
         SO
       </div>
@@ -49,7 +49,7 @@ function handleLogout(): void {
     <div class="border-t border-[var(--color-border-default)] p-3">
       <button
         type="button"
-        class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-danger-50 hover:text-danger-500"
+        class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-danger-50/70 hover:text-danger-500"
         @click="handleLogout"
       >
         <LogOut :size="18" />

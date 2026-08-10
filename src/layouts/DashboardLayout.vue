@@ -7,7 +7,7 @@ import PageFooter from '@/components/common/PageFooter.vue'
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-[var(--color-bg-page)] print:h-auto print:overflow-visible">
+  <div class="flex h-screen overflow-hidden print:h-auto print:overflow-visible">
     <Sidebar class="no-print" />
     <MobileSidebar class="no-print" />
 

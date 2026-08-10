@@ -45,7 +45,7 @@ const formatDate = (date: string) =>
 </script>
 
 <template>
-  <Card class="bg-white">
+  <Card>
     <div class="space-y-6">
       <!-- Title and Status -->
       <div class="flex items-start justify-between gap-4">

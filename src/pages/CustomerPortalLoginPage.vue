@@ -72,7 +72,7 @@ const handleKeydown = (e: KeyboardEvent) => {
       </div>
 
       <!-- Login Card -->
-      <Card class="bg-white shadow-lg">
+      <Card class="shadow-glass">
         <div class="space-y-6">
           <div>
             <h2 class="text-xl font-semibold text-neutral-900">Verify Your Access</h2>

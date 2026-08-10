@@ -209,7 +209,7 @@ function closeDetailsPanel() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen">
     <PageHeader
       title="Activity Calendar"
       subtitle="View all updates by team members across projects"
@@ -218,7 +218,7 @@ function closeDetailsPanel() {
 
     <div class="p-6 space-y-6">
       <!-- Controls -->
-      <div class="bg-white rounded-lg shadow p-6">
+      <div class="bg-bg-card rounded-lg shadow-glass-sm p-6">
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <!-- View Mode -->
           <div>
@@ -288,7 +288,7 @@ function closeDetailsPanel() {
       </div>
 
       <!-- Month View (Main Content) -->
-      <div v-if="viewMode === 'month'" class="bg-white rounded-lg shadow overflow-hidden">
+      <div v-if="viewMode === 'month'" class="bg-bg-card rounded-lg shadow-glass-sm overflow-hidden">
         <div class="p-6">
           <h2 class="text-2xl font-bold text-gray-900 mb-6">
             {{ formatMonthTitle(selectedDate) }}
@@ -385,9 +385,9 @@ function closeDetailsPanel() {
       <transition name="slide">
         <div
           v-if="isDetailsPanelOpen"
-          class="fixed right-0 top-0 h-screen w-full sm:w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+          class="fixed right-0 top-0 h-screen w-full sm:w-96 glass-panel shadow-glass z-50 overflow-y-auto"
         >
-          <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
+          <div class="sticky top-0 bg-bg-card border-b border-gray-200 p-6 flex justify-between items-center">
             <div>
               <h3 class="text-xl font-bold text-gray-900">Activities</h3>
               <p class="text-sm text-gray-600">{{ selectedDateStr }}</p>

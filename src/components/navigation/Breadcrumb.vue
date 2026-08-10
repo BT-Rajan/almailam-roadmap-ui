@@ -9,7 +9,7 @@ const route = useRoute()
   <nav
     v-if="route.meta.breadcrumbs?.length"
     aria-label="Breadcrumb"
-    class="flex h-11 shrink-0 items-center gap-1.5 border-b border-[var(--color-border-default)] bg-[var(--color-bg-page)] px-4 text-sm lg:px-6"
+    class="flex h-11 shrink-0 items-center gap-1.5 border-b border-[var(--color-border-light)] bg-bg-secondary px-4 text-sm lg:px-6"
   >
     <template v-for="(crumb, index) in route.meta.breadcrumbs" :key="`${crumb.label}-${index}`">
       <ChevronRight

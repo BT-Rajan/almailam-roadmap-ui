@@ -58,9 +58,9 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div v-if="modelValue" class="fixed inset-0 z-modal flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-neutral-900/50" @click="closeDialog" />
+      <div class="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" @click="closeDialog" />
       <div
-        class="relative w-full rounded-xl bg-bg-card p-6 shadow-elevated"
+        class="glass-panel relative w-full rounded-xl p-6 shadow-elevated"
         :class="sizeClasses[size]"
         role="dialog"
         aria-modal="true"

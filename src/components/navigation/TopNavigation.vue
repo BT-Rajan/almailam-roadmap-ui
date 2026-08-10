@@ -27,7 +27,7 @@ onMounted(() => {
 
 <template>
   <header
-    class="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-header)] px-4 lg:px-6"
+    class="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border-default)] bg-bg-header px-4 shadow-glass-sm lg:px-6"
   >
     <div class="flex items-center gap-3">
       <button
@@ -41,7 +41,7 @@ onMounted(() => {
 
       <button
         type="button"
-        class="relative hidden w-72 items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-left text-sm text-[var(--color-text-muted)] transition-colors duration-fast hover:border-primary-500 md:flex"
+        class="relative hidden w-72 items-center rounded-lg border border-[var(--color-border-default)] bg-bg-secondary py-2 pl-9 pr-3 text-left text-sm text-[var(--color-text-muted)] transition-colors duration-fast hover:border-accent-400 md:flex"
         @click="searchStore.open"
       >
         <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
@@ -103,7 +103,7 @@ onMounted(() => {
         class="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
       >
         <span
-          class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700"
+          class="gradient-luxe-accent flex h-7 w-7 items-center justify-center rounded-full text-white"
         >
           <User :size="16" />
         </span>

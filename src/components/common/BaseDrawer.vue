@@ -56,9 +56,9 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div v-if="modelValue" class="fixed inset-0 z-drawer flex" :class="side === 'left' ? '' : 'justify-end'">
-      <div class="absolute inset-0 bg-neutral-900/50" @click="closeDrawer" />
+      <div class="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" @click="closeDrawer" />
       <div
-        class="relative flex h-full w-full flex-col bg-bg-card shadow-elevated"
+        class="glass-panel relative flex h-full w-full flex-col shadow-elevated"
         :class="widthClasses[width]"
       >
         <div v-if="title" class="flex items-center justify-between border-b border-border-light px-5 py-4">

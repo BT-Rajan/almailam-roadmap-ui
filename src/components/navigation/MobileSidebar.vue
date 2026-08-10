@@ -31,12 +31,12 @@ function handleLogout(): void {
   <Transition name="slide">
     <aside
       v-if="navigationStore.isMobileSidebarOpen"
-      class="fixed inset-y-0 left-0 z-drawer flex w-70 flex-col bg-[var(--color-bg-sidebar)] lg:hidden"
+      class="fixed inset-y-0 left-0 z-drawer flex w-70 flex-col bg-bg-sidebar shadow-glass lg:hidden"
     >
       <div class="flex h-16 items-center justify-between border-b border-[var(--color-border-default)] px-4">
         <div class="flex items-center gap-2">
           <div
-            class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600 text-sm font-semibold text-white"
+            class="gradient-luxe flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
           >
             SO
           </div>
