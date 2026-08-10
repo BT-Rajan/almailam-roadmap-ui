@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FilePlus, MessageSquare } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -9,17 +9,20 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
-import ClientAuditTrail from '@/components/client/ClientAuditTrail.vue'
-import ClientConsentList from '@/components/client/ClientConsentList.vue'
-import ClientContactList from '@/components/client/ClientContactList.vue'
-import ClientDocumentCard from '@/components/client/ClientDocumentCard.vue'
-import ClientDocumentUploadDialog from '@/components/client/ClientDocumentUploadDialog.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
-import ClientVerificationList from '@/components/client/ClientVerificationList.vue'
 import ClientWorkspaceTabs from '@/components/client/ClientWorkspaceTabs.vue'
-import ProjectCard from '@/components/project/ProjectCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+
+// Lazy-loaded: only fetched when the user opens that tab (see ProjectWorkspacePage
+// for the same pattern applied to the project workspace).
+const ClientContactList = defineAsyncComponent(() => import('@/components/client/ClientContactList.vue'))
+const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
+const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
+const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
+const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
+const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/ClientAuditTrail.vue'))
+const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { ClientDocumentCategory, ClientWorkspaceTab, ClientWorkspaceTabKey } from '@/types/Client'

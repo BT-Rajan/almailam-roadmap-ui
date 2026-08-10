@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import { Building2, Calendar, Layers, User } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import PaymentWorkspacePanel from '@/components/payment/PaymentWorkspacePanel.vue'
-import ProjectContractTab from '@/components/project/ProjectContractTab.vue'
-import ProjectDocumentsTab from '@/components/project/ProjectDocumentsTab.vue'
-import ProjectGovernmentTab from '@/components/project/ProjectGovernmentTab.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverviewTab from '@/components/project/ProjectOverviewTab.vue'
-import ProjectQuotationTab from '@/components/project/ProjectQuotationTab.vue'
-import ProjectTasksTab from '@/components/project/ProjectTasksTab.vue'
-import ProjectTimelineTab from '@/components/project/ProjectTimelineTab.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
+
+// Lazy-loaded: only fetched when the user actually opens that tab, instead of
+// shipping with the page on first load.
+const ProjectTimelineTab = defineAsyncComponent(() => import('@/components/project/ProjectTimelineTab.vue'))
+const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
+const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
+const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
+const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
+const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
+const PaymentWorkspacePanel = defineAsyncComponent(() => import('@/components/payment/PaymentWorkspacePanel.vue'))
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
