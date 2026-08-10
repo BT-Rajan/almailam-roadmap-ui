@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { onBeforeUnmount, watch } from 'vue'
+import type { Component } from 'vue'
 
 import IconButton from '@/components/common/IconButton.vue'
 
 interface Props {
   modelValue: boolean
   title?: string
+  icon?: Component
   side?: 'left' | 'right'
   width?: 'sm' | 'md' | 'lg'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: undefined,
+  icon: undefined,
   side: 'right',
   width: 'md',
 })
@@ -62,7 +65,15 @@ onBeforeUnmount(() => {
         :class="widthClasses[width]"
       >
         <div v-if="title" class="flex items-center justify-between border-b border-border-light px-5 py-4">
-          <h2 class="text-lg font-semibold text-neutral-800">{{ title }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-semibold text-neutral-800">
+            <span
+              v-if="icon"
+              class="gradient-luxe-accent flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white"
+            >
+              <component :is="icon" :size="15" />
+            </span>
+            {{ title }}
+          </h2>
           <IconButton :icon="X" label="Close" size="sm" @click="closeDrawer" />
         </div>
         <div class="flex-1 overflow-y-auto px-5 py-4">
