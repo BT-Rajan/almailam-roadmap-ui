@@ -46,7 +46,6 @@ function handleSuggestionSelect(suggestion: string): void {
   <BaseDrawer
     :model-value="aiAssistantStore.isOpen"
     title="AI Assistant"
-    :icon="Sparkles"
     width="lg"
     @update:model-value="aiAssistantStore.close"
   >

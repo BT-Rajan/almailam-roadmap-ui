@@ -213,7 +213,6 @@ function closeDetailsPanel() {
     <PageHeader
       title="Activity Calendar"
       subtitle="View all updates by team members across projects"
-      icon="calendar"
     />
 
     <div class="p-6 space-y-6">

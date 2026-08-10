@@ -89,6 +89,28 @@
   }
 
   /*
+   * Blanket dark-mode text fix — a large number of components hardcode
+   * text-neutral-700/800/900 (and the odd text-gray-700/800/900) as their
+   * "default dark text" colour instead of the text-primary/secondary
+   * tokens, so in dark mode that text stayed near-black and merged into
+   * the dark background. Overriding the generated Tailwind class names
+   * directly fixes every one of those components without touching each
+   * file individually (same approach as the bg-bg-card glass hook above).
+   */
+  .dark .text-neutral-700,
+  .dark .text-gray-700 {
+    color: theme('colors.neutral.300');
+  }
+  .dark .text-neutral-800,
+  .dark .text-gray-800 {
+    color: theme('colors.neutral.100');
+  }
+  .dark .text-neutral-900,
+  .dark .text-gray-900 {
+    color: theme('colors.neutral.50');
+  }
+
+  /*
    * Blanket glassmorphism hook — these are the generated Tailwind class
    * names for the bg.card / bg.secondary / bg.sidebar / bg.header tokens.
    * Every component that already uses e.g. `bg-bg-card` (52+ across the
