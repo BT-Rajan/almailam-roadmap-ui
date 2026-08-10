@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { defineAsyncComponent, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import ClientBasicInfoStep from '@/components/client/ClientBasicInfoStep.vue'
-import ClientConsentStep from '@/components/client/ClientConsentStep.vue'
-import ClientContactAddressStep from '@/components/client/ClientContactAddressStep.vue'
-import ClientIdentificationStep from '@/components/client/ClientIdentificationStep.vue'
-import ClientReviewStep from '@/components/client/ClientReviewStep.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Stepper from '@/components/common/Stepper.vue'
+
+// Lazy-loaded: only one wizard step is visible at a time.
+const ClientBasicInfoStep = defineAsyncComponent(() => import('@/components/client/ClientBasicInfoStep.vue'))
+const ClientConsentStep = defineAsyncComponent(() => import('@/components/client/ClientConsentStep.vue'))
+const ClientContactAddressStep = defineAsyncComponent(() => import('@/components/client/ClientContactAddressStep.vue'))
+const ClientIdentificationStep = defineAsyncComponent(() => import('@/components/client/ClientIdentificationStep.vue'))
+const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useToastStore } from '@/stores/toastStore'
