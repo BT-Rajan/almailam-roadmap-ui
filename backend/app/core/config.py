@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Controls the `Secure` attribute on the refresh-token cookie. Left
+    # unset (None) by default, in which case it falls back to is_production
+    # -- but browsers silently drop Secure cookies over plain HTTP, so any
+    # box that is ENV=production but served without TLS (e.g. a bare IP
+    # deployment) needs to explicitly set COOKIE_SECURE=false in its .env.
+    # Deliberately decoupled from ENV/is_production, which also gates the
+    # JWT_SECRET_KEY strength check below and shouldn't be weakened just to
+    # work around a transport issue.
+    COOKIE_SECURE: bool | None = None
+
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
@@ -74,6 +84,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENV.lower() == "production"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.is_production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
 
 
 @lru_cache

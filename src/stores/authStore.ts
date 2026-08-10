@@ -7,6 +7,16 @@ interface AuthState {
   user: CurrentUser | null
   /** Tracks whether we've attempted to restore a session from storage yet. */
   isHydrated: boolean
+  /**
+   * In-flight refresh call, shared across concurrent 401s.
+   * The backend rotates (single-use) refresh tokens, so if several
+   * requests 401 around the same time (e.g. several dashboard widgets
+   * loading after the access token expired) and each independently calls
+   * /api/auth/refresh, only the first succeeds -- the rest arrive with an
+   * already-revoked token and force a logout. This makes every concurrent
+   * caller await the same request instead of firing their own.
+   */
+  refreshPromise: Promise<boolean> | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -14,6 +24,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null,
     user: null,
     isHydrated: false,
+    refreshPromise: null,
   }),
 
   getters: {
@@ -36,16 +47,25 @@ export const useAuthStore = defineStore('auth', {
       this._clearToken()
     },
 
-    /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success. */
+    /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success.
+     * Safe to call concurrently -- overlapping calls share a single in-flight request. */
     async tryRefresh(): Promise<boolean> {
-      try {
-        const tokens = await authService.refresh()
-        this._setToken(tokens.access_token)
-        return true
-      } catch {
-        this._clearToken()
-        return false
-      }
+      if (this.refreshPromise) return this.refreshPromise
+
+      this.refreshPromise = (async () => {
+        try {
+          const tokens = await authService.refresh()
+          this._setToken(tokens.access_token)
+          return true
+        } catch {
+          this._clearToken()
+          return false
+        } finally {
+          this.refreshPromise = null
+        }
+      })()
+
+      return this.refreshPromise
     },
 
     /** Call once on app startup to silently restore a session from the refresh cookie, if any.
