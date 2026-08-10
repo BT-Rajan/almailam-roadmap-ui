@@ -366,15 +366,17 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin/activity-calendar',
+      // Not nested under /admin -- every authenticated user lands here
+      // (from the header icon), and the page itself shows only their own
+      // activity unless they're an Administrator. See ActivityCalendarPage.vue.
+      path: '/activity-calendar',
       name: ROUTE_NAMES.ADMIN_ACTIVITY_CALENDAR,
-      component: () => import('@/pages/AdminActivityCalendarPage.vue'),
+      component: () => import('@/pages/ActivityCalendarPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Activity Calendar' },
         ],
       },

@@ -76,7 +76,9 @@ export interface ActivityFilter {
 }
 
 /**
- * Fetch activity summary for a specific date
+ * Fetch activity summary for a specific date, across ALL users.
+ * Admin-only -- backed by /api/admin/activity/*, which the backend must
+ * reject for non-Administrator roles regardless of what the UI does.
  */
 async function getDayActivity(date: string): Promise<DailySummary> {
   try {
@@ -88,7 +90,8 @@ async function getDayActivity(date: string): Promise<DailySummary> {
 }
 
 /**
- * Fetch activity summary for a month
+ * Fetch activity summary for a month, across ALL users. Admin-only, see
+ * getDayActivity.
  */
 async function getMonthActivity(month: string): Promise<DailySummary[]> {
   try {
@@ -96,6 +99,32 @@ async function getMonthActivity(month: string): Promise<DailySummary[]> {
     return await apiClient.get<DailySummary[]>(`/api/admin/activity/month/${month}`)
   } catch (error) {
     console.error(`Failed to fetch month activity for ${month}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch month activity')
+  }
+}
+
+/**
+ * Fetch the CURRENT user's own activity for a specific date. Any
+ * authenticated user can call this -- the backend scopes results to the
+ * caller's own userId from the auth token, it never takes a userId param.
+ */
+async function getMyDayActivity(date: string): Promise<DailySummary> {
+  try {
+    return await apiClient.get<DailySummary>(`/api/activity/day/${date}`)
+  } catch (error) {
+    console.error(`Failed to fetch own day activity for ${date}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch day activity')
+  }
+}
+
+/**
+ * Fetch the CURRENT user's own activity for a month. See getMyDayActivity.
+ */
+async function getMyMonthActivity(month: string): Promise<DailySummary[]> {
+  try {
+    return await apiClient.get<DailySummary[]>(`/api/activity/month/${month}`)
+  } catch (error) {
+    console.error(`Failed to fetch own month activity for ${month}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch month activity')
   }
 }
@@ -175,6 +204,8 @@ async function exportActivitiesCSV(filter: ActivityFilter): Promise<Blob> {
 export const activityCalendarService = {
   getDayActivity,
   getMonthActivity,
+  getMyDayActivity,
+  getMyMonthActivity,
   getFilteredActivities,
   getProjectsForFiltering,
   getUsersForFiltering,

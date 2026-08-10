@@ -26,7 +26,11 @@ export const ROUTE_NAMES = {
   ADMIN_AI: 'admin-ai',
   ADMIN_COMPANY: 'admin-company',
   ADMIN_AUDIT_LOG: 'admin-audit-log',
-  ADMIN_ACTIVITY_CALENDAR: 'admin-activity-calendar',
+  // Shared with every authenticated user, not just admins -- see
+  // ActivityCalendarPage.vue. Kept the ADMIN_ACTIVITY_CALENDAR name so the
+  // Administration module tile (administrationModules.ts) doesn't need a
+  // second route pointing at the same page.
+  ADMIN_ACTIVITY_CALENDAR: 'activity-calendar',
   CUSTOMER_STATUS: 'customer-status',
   MESSAGE_CENTRE: 'message-centre',
   PAYMENTS: 'payments',

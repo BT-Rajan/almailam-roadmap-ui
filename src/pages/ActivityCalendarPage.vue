@@ -2,11 +2,22 @@
 import { computed, onMounted, ref } from 'vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import { useRbac } from '@/composables/useRbac'
 import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType } from '@/services/activityCalendarService'
+import { projectService } from '@/services/projectService'
 import { useToastStore } from '@/stores/toastStore'
+import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 
 const toastStore = useToastStore()
+const { can } = useRbac()
+
+// Only Administrators may browse other users' activity. Everyone else only
+// ever sees their own -- this flag decides which endpoints/filters are used
+// below, but the actual enforcement has to live on the backend too: the
+// /api/admin/activity/* endpoints this calls in admin mode must reject
+// non-Administrator callers regardless of what this page sends.
+const canViewAll = computed(() => can('activity.viewAll'))
 
 // This page needs a couple of specific date formats (month/year title,
 // yyyy-MM-dd date keys, HH:mm timestamps) that the shared formatDate()
@@ -70,20 +81,30 @@ onMounted(async () => {
 
 async function loadFilterOptions() {
   try {
-    const [projects, users] = await Promise.all([
-      activityCalendarService.getProjectsForFiltering(),
-      activityCalendarService.getUsersForFiltering(),
-    ])
-
-    projectOptions.value = [
-      { label: 'All Projects', value: '' },
-      ...projects.map((p) => ({ label: p.name, value: p.id })),
-    ]
-
-    userOptions.value = [
-      { label: 'All Users', value: '' },
-      ...users.map((u) => ({ label: u.name, value: u.id })),
-    ]
+    if (canViewAll.value) {
+      const [projects, users] = await Promise.all([
+        activityCalendarService.getProjectsForFiltering(),
+        activityCalendarService.getUsersForFiltering(),
+      ])
+      projectOptions.value = [
+        { label: 'All Projects', value: '' },
+        ...projects.map((p) => ({ label: p.name, value: p.id })),
+      ]
+      userOptions.value = [
+        { label: 'All Users', value: '' },
+        ...users.map((u) => ({ label: u.name, value: u.id })),
+      ]
+    } else {
+      // Non-admins only filter within their own projects -- reuse the
+      // regular projects list (already scoped server-side to what this
+      // user can see) rather than the admin-only filter endpoint. No user
+      // dropdown at all: this page never shows anyone else's activity.
+      const page = await projectService.getProjectsPage({ pageSize: 200 })
+      projectOptions.value = [
+        { label: 'All Projects', value: '' },
+        ...page.items.map((p: Project) => ({ label: p.projectName, value: p.id })),
+      ]
+    }
   } catch (error) {
     console.error('Failed to load filter options:', error)
     toastStore.show('error', 'Failed to load filter options')
@@ -93,7 +114,9 @@ async function loadFilterOptions() {
 async function loadMonthActivities() {
   isLoading.value = true
   try {
-    const activities = await activityCalendarService.getMonthActivity(currentMonth.value)
+    const activities = canViewAll.value
+      ? await activityCalendarService.getMonthActivity(currentMonth.value)
+      : await activityCalendarService.getMyMonthActivity(currentMonth.value)
     dailyActivities.value.clear()
     activities.forEach((summary) => {
       dailyActivities.value.set(summary.date, summary)
@@ -144,7 +167,7 @@ const filteredActivities = computed(() => {
     activities = activities.filter((a) => a.projectId === selectedProject.value)
   }
 
-  if (selectedUser.value) {
+  if (canViewAll.value && selectedUser.value) {
     activities = activities.filter((a) => a.userId === selectedUser.value)
   }
 
@@ -212,13 +235,16 @@ function closeDetailsPanel() {
   <div class="min-h-screen">
     <PageHeader
       title="Activity Calendar"
-      subtitle="View all updates by team members across projects"
+      :subtitle="canViewAll ? 'View all updates by team members across projects' : 'View your updates across projects'"
     />
 
     <div class="p-6 space-y-6">
       <!-- Controls -->
       <div class="bg-bg-card rounded-lg shadow-glass-sm p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div
+          class="grid grid-cols-1 gap-4"
+          :class="canViewAll ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-2 lg:grid-cols-3'"
+        >
           <!-- View Mode -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">View Mode</label>
@@ -236,8 +262,8 @@ function closeDetailsPanel() {
             <SelectBox v-model="selectedProject" :options="projectOptions" />
           </div>
 
-          <!-- User Filter -->
-          <div>
+          <!-- User Filter (Administrators only -- everyone else only ever sees their own activity) -->
+          <div v-if="canViewAll">
             <label class="block text-sm font-medium text-gray-700 mb-2">User</label>
             <SelectBox v-model="selectedUser" :options="userOptions" />
           </div>
@@ -252,8 +278,8 @@ function closeDetailsPanel() {
             />
           </div>
 
-          <!-- Export Button -->
-          <div class="flex items-end">
+          <!-- Export Button (Administrators only) -->
+          <div v-if="canViewAll" class="flex items-end">
             <button
               @click="exportToCSV"
               class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
@@ -424,7 +450,7 @@ function closeDetailsPanel() {
                 <p class="text-sm text-gray-700 mb-2">{{ activity.description }}</p>
 
                 <div class="flex justify-between text-xs text-gray-500">
-                  <span>By {{ activity.userName }}</span>
+                  <span v-if="canViewAll">By {{ activity.userName }}</span>
                   <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
                 </div>
               </div>
