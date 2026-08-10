@@ -152,7 +152,7 @@
     color: theme('colors.info.500');
   }
   .dark .text-ai-600 {
-    color: theme('colors.ai.400');
+    color: theme('colors.ai.500');
   }
 
   /*

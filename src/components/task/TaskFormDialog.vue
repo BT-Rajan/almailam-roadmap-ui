@@ -29,6 +29,7 @@ const props = defineProps<{
   modelValue: boolean
   projects: Project[]
   defaultProjectId?: string
+  defaultTitle?: string
 }>()
 
 const emit = defineEmits<{
@@ -64,7 +65,10 @@ const canSubmit = computed(
 watch(
   () => props.modelValue,
   (isOpen) => {
-    if (isOpen) projectId.value = props.defaultProjectId ?? props.projects[0]?.id ?? ''
+    if (isOpen) {
+      projectId.value = props.defaultProjectId ?? props.projects[0]?.id ?? ''
+      title.value = props.defaultTitle ?? ''
+    }
   },
 )
 

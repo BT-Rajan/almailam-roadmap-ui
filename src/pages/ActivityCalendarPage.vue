@@ -1,15 +1,31 @@
 <script setup lang="ts">
+import { ClipboardPlus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import TaskDetails from '@/components/task/TaskDetails.vue'
+import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { useRbac } from '@/composables/useRbac'
-import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType } from '@/services/activityCalendarService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType, EntityType } from '@/services/activityCalendarService'
+import type { TaskInput } from '@/services/taskService'
 import { projectService } from '@/services/projectService'
+import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { BadgeVariant } from '@/types/Ui'
 import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 
+const router = useRouter()
 const toastStore = useToastStore()
+const taskStore = useTaskStore()
 const { can } = useRbac()
 
 // Only Administrators may browse other users' activity. Everyone else only
@@ -61,16 +77,18 @@ const selectedDateStr = ref('')
 const isLoading = ref(false)
 const isDetailsPanelOpen = ref(false)
 
-// Activity type colors for badges
-const activityTypeColors: Record<ActivityType, string> = {
-  [ActivityType.NEW]: 'bg-green-100 text-green-800',
-  [ActivityType.UPDATED]: 'bg-blue-100 text-blue-800',
-  [ActivityType.DELAYED]: 'bg-red-100 text-red-800',
-  [ActivityType.COMPLETED]: 'bg-emerald-100 text-emerald-800',
-  [ActivityType.ASSIGNED]: 'bg-purple-100 text-purple-800',
-  [ActivityType.COMMENTED]: 'bg-yellow-100 text-yellow-800',
-  [ActivityType.APPROVED]: 'bg-green-100 text-green-800',
-  [ActivityType.REJECTED]: 'bg-red-100 text-red-800',
+// Activity type -> the site's shared badge palette (StatusBadge), not raw
+// Tailwind colors, so this reads consistently with every other status
+// badge in the app.
+const activityTypeVariants: Record<ActivityType, BadgeVariant> = {
+  [ActivityType.NEW]: 'success',
+  [ActivityType.UPDATED]: 'info',
+  [ActivityType.DELAYED]: 'danger',
+  [ActivityType.COMPLETED]: 'success',
+  [ActivityType.ASSIGNED]: 'ai',
+  [ActivityType.COMMENTED]: 'warning',
+  [ActivityType.APPROVED]: 'success',
+  [ActivityType.REJECTED]: 'danger',
 }
 
 // Initialize
@@ -229,6 +247,69 @@ function closeDetailsPanel() {
   selectedDayActivities.value = []
   selectedDateStr.value = ''
 }
+
+// --- Task Management integration -----------------------------------------
+// Every activity either already IS a task, or can spin one off. Both paths
+// go through the exact same store/components as the Task Board at /tasks
+// (see TasksPage.vue) rather than a parallel implementation here, so
+// editing status/priority/severity or creating a task behaves identically
+// wherever it's opened from.
+
+const tasksLoaded = ref(false)
+async function ensureTasksLoaded() {
+  if (tasksLoaded.value) return
+  await taskStore.loadTasks()
+  tasksLoaded.value = true
+}
+
+const isTaskDrawerOpen = computed({
+  get: () => Boolean(taskStore.selectedTaskId),
+  set: (value: boolean) => {
+    if (!value) taskStore.clearSelectedTask()
+  },
+})
+
+const selectedTaskProjectName = computed(
+  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? 'Unknown Project',
+)
+
+const isCreateTaskDialogOpen = ref(false)
+const createTaskDefaultProjectId = ref<string>()
+const createTaskDefaultTitle = ref<string>()
+
+async function handleActivityClick(activity: ActivityRecord) {
+  if (activity.entityType === EntityType.TASK) {
+    await ensureTasksLoaded()
+    if (taskStore.tasks.some((task) => task.id === activity.entityId)) {
+      taskStore.selectTask(activity.entityId)
+      return
+    }
+  }
+  // Not a task, or the task couldn't be found (e.g. deleted) -- offer to
+  // spin up a follow-up task from this activity instead.
+  await ensureTasksLoaded()
+  createTaskDefaultProjectId.value = activity.projectId
+  createTaskDefaultTitle.value = activity.description || activity.entityName
+  isCreateTaskDialogOpen.value = true
+}
+
+function handleStatusChange(status: Parameters<typeof taskStore.updateTaskStatus>[1]): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+}
+function handlePriorityChange(priority: Parameters<typeof taskStore.updateTaskPriority>[1]): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+}
+function handleSeverityChange(severity: Parameters<typeof taskStore.updateTaskSeverity>[1]): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+}
+function handleReassign(assignee: string): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+}
+
+async function handleCreateTask(input: TaskInput): Promise<void> {
+  const task = await taskStore.createTask(input)
+  toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+}
 </script>
 
 <template>
@@ -236,106 +317,86 @@ function closeDetailsPanel() {
     <PageHeader
       title="Activity Calendar"
       :subtitle="canViewAll ? 'View all updates by team members across projects' : 'View your updates across projects'"
-    />
+    >
+      <template #actions>
+        <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.TASKS })">
+          Open Task Board
+        </BaseButton>
+      </template>
+    </PageHeader>
 
-    <div class="p-6 space-y-6">
+    <div class="mt-6 flex flex-col gap-6">
       <!-- Controls -->
-      <div class="bg-bg-card rounded-lg shadow-glass-sm p-6">
+      <Card>
         <div
           class="grid grid-cols-1 gap-4"
           :class="canViewAll ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-2 lg:grid-cols-3'"
         >
           <!-- View Mode -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">View Mode</label>
-            <SelectBox v-model="viewMode" :options="[
+          <SelectBox
+            v-model="viewMode"
+            label="View Mode"
+            :options="[
               { label: 'Monthly', value: 'month' },
               { label: 'Weekly', value: 'week' },
               { label: 'Daily', value: 'day' },
               { label: 'List', value: 'list' },
-            ]" />
-          </div>
+            ]"
+          />
 
           <!-- Project Filter -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Project</label>
-            <SelectBox v-model="selectedProject" :options="projectOptions" />
-          </div>
+          <SelectBox v-model="selectedProject" label="Project" placeholder="All Projects" :options="projectOptions" />
 
           <!-- User Filter (Administrators only -- everyone else only ever sees their own activity) -->
-          <div v-if="canViewAll">
-            <label class="block text-sm font-medium text-gray-700 mb-2">User</label>
-            <SelectBox v-model="selectedUser" :options="userOptions" />
-          </div>
+          <SelectBox
+            v-if="canViewAll"
+            v-model="selectedUser"
+            label="User"
+            placeholder="All Users"
+            :options="userOptions"
+          />
 
           <!-- Date Picker -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-neutral-700">Date</label>
             <input
               v-model="currentMonth"
               type="month"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              class="h-10 w-full rounded-lg border border-border-default bg-bg-card px-3 text-sm text-neutral-800 transition-colors duration-fast focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
           </div>
 
           <!-- Export Button (Administrators only) -->
           <div v-if="canViewAll" class="flex items-end">
-            <button
-              @click="exportToCSV"
-              class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              📥 Export CSV
-            </button>
+            <BaseButton full-width @click="exportToCSV">Export CSV</BaseButton>
           </div>
         </div>
 
         <!-- Navigation Buttons -->
-        <div class="flex justify-between items-center mt-4">
-          <button
-            @click="goToPreviousMonth"
-            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-          >
-            ← Previous
-          </button>
-          <button
-            @click="goToToday"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            📅 Today
-          </button>
-          <button
-            @click="goToNextMonth"
-            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-          >
-            Next →
-          </button>
+        <div class="mt-4 flex items-center justify-between">
+          <BaseButton variant="secondary" @click="goToPreviousMonth">← Previous</BaseButton>
+          <BaseButton @click="goToToday">Today</BaseButton>
+          <BaseButton variant="secondary" @click="goToNextMonth">Next →</BaseButton>
         </div>
-      </div>
+      </Card>
 
       <!-- Month View (Main Content) -->
-      <div v-if="viewMode === 'month'" class="bg-bg-card rounded-lg shadow-glass-sm overflow-hidden">
+      <Card v-if="viewMode === 'month'" :padded="false">
         <div class="p-6">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">
+          <h2 class="mb-6 text-2xl font-semibold text-neutral-800">
             {{ formatMonthTitle(selectedDate) }}
           </h2>
 
           <!-- Loading State -->
-          <div v-if="isLoading" class="text-center py-12">
-            <div class="inline-block">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-            <p class="mt-4 text-gray-600">Loading activities...</p>
+          <div v-if="isLoading" class="grid grid-cols-7 gap-1">
+            <div v-for="cell in 35" :key="cell" class="aspect-square rounded-lg bg-bg-secondary animate-pulse" />
           </div>
 
           <!-- Calendar Grid -->
           <div v-else>
             <!-- Weekday Headers -->
-            <div class="grid grid-cols-7 gap-1 mb-2">
-              <div
-                v-for="day in weekDays"
-                :key="day"
-                class="text-center font-semibold text-gray-600 py-2"
-              >
+            <div class="mb-2 grid grid-cols-7 gap-1">
+              <div v-for="day in weekDays" :key="day" class="py-2 text-center text-sm font-semibold text-neutral-500">
                 {{ day }}
               </div>
             </div>
@@ -345,11 +406,11 @@ function closeDetailsPanel() {
               <div
                 v-for="(day, index) in calendarDays"
                 :key="index"
-                class="aspect-square border border-gray-200 rounded-lg p-2 hover:shadow-md transition cursor-pointer relative"
+                class="relative aspect-square cursor-pointer rounded-lg border border-border-light p-2 transition-shadow duration-fast hover:shadow-glass-sm"
                 :class="{
-                  'bg-gray-50': day.getMonth() !== selectedDate.getMonth(),
-                  'bg-white': day.getMonth() === selectedDate.getMonth(),
-                  'bg-blue-50': formatDateKey(day) === formatDateKey(new Date()),
+                  'bg-bg-secondary': day.getMonth() !== selectedDate.getMonth(),
+                  'bg-bg-card': day.getMonth() === selectedDate.getMonth() && formatDateKey(day) !== formatDateKey(new Date()),
+                  'bg-accent-500/10 border-accent-400': formatDateKey(day) === formatDateKey(new Date()),
                 }"
                 @click="
                   () => {
@@ -359,122 +420,113 @@ function closeDetailsPanel() {
                   }
                 "
               >
-                <div class="flex justify-between items-start mb-1">
+                <div class="mb-1 flex items-start justify-between">
                   <span
                     class="text-sm font-semibold"
-                    :class="{
-                      'text-gray-400': day.getMonth() !== selectedDate.getMonth(),
-                      'text-gray-900': day.getMonth() === selectedDate.getMonth(),
-                    }"
+                    :class="day.getMonth() !== selectedDate.getMonth() ? 'text-neutral-400' : 'text-neutral-800'"
                   >
                     {{ day.getDate() }}
                   </span>
-                  <div v-if="day.getMonth() === selectedDate.getMonth()" class="text-xs">
+                  <span v-if="day.getMonth() === selectedDate.getMonth()" class="text-xs text-neutral-400">
                     {{ getDaySummary(day.getDate())?.total || 0 }}
-                  </div>
-                </div>
-
-                <!-- Activity Badges -->
-                <div v-if="day.getMonth() === selectedDate.getMonth()" class="space-y-1">
-                  <div v-if="getDaySummary(day.getDate())?.new" class="text-xs">
-                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">
-                      📌 {{ getDaySummary(day.getDate())?.new }}
-                    </span>
-                  </div>
-                  <div v-if="getDaySummary(day.getDate())?.updated" class="text-xs">
-                    <span class="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold">
-                      ✏️ {{ getDaySummary(day.getDate())?.updated }}
-                    </span>
-                  </div>
-                  <div v-if="getDaySummary(day.getDate())?.delayed" class="text-xs">
-                    <span class="inline-block px-2 py-0.5 rounded bg-red-100 text-red-700 font-semibold">
-                      ⏰ {{ getDaySummary(day.getDate())?.delayed }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Details Panel (Side Sheet) -->
-      <transition name="slide">
-        <div
-          v-if="isDetailsPanelOpen"
-          class="fixed inset-0 bg-black/50 z-40"
-          @click="closeDetailsPanel"
-        ></div>
-      </transition>
-
-      <transition name="slide">
-        <div
-          v-if="isDetailsPanelOpen"
-          class="fixed right-0 top-0 h-screen w-full sm:w-96 glass-panel shadow-glass z-50 overflow-y-auto"
-        >
-          <div class="sticky top-0 bg-bg-card border-b border-gray-200 p-6 flex justify-between items-center">
-            <div>
-              <h3 class="text-xl font-bold text-gray-900">Activities</h3>
-              <p class="text-sm text-gray-600">{{ selectedDateStr }}</p>
-            </div>
-            <button
-              @click="closeDetailsPanel"
-              class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div class="p-6 space-y-4">
-            <!-- No Activities Message -->
-            <div v-if="filteredActivities.length === 0" class="text-center py-8">
-              <p class="text-gray-500">No activities on this day</p>
-            </div>
-
-            <!-- Activity List -->
-            <div v-else class="space-y-4">
-              <div v-for="activity in filteredActivities" :key="activity.id" class="border border-gray-200 rounded-lg p-4">
-                <div class="flex items-start justify-between mb-2">
-                  <div>
-                    <p class="font-semibold text-gray-900">{{ activity.entityName }}</p>
-                    <p class="text-sm text-gray-600">{{ activity.projectName }}</p>
-                  </div>
-                  <span
-                    :class="activityTypeColors[activity.type]"
-                    class="text-xs font-semibold px-2 py-1 rounded"
-                  >
-                    {{ activity.type.toUpperCase() }}
                   </span>
                 </div>
 
-                <p class="text-sm text-gray-700 mb-2">{{ activity.description }}</p>
-
-                <div class="flex justify-between text-xs text-gray-500">
-                  <span v-if="canViewAll">By {{ activity.userName }}</span>
-                  <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
+                <!-- Activity Badges -->
+                <div v-if="day.getMonth() === selectedDate.getMonth()" class="flex flex-col gap-1">
+                  <StatusBadge
+                    v-if="getDaySummary(day.getDate())?.new"
+                    size="sm"
+                    variant="success"
+                    :label="`${getDaySummary(day.getDate())?.new} new`"
+                  />
+                  <StatusBadge
+                    v-if="getDaySummary(day.getDate())?.updated"
+                    size="sm"
+                    variant="info"
+                    :label="`${getDaySummary(day.getDate())?.updated} updated`"
+                  />
+                  <StatusBadge
+                    v-if="getDaySummary(day.getDate())?.delayed"
+                    size="sm"
+                    variant="danger"
+                    :label="`${getDaySummary(day.getDate())?.delayed} delayed`"
+                  />
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </transition>
+      </Card>
+
+      <!-- Other view modes not yet built out -- Monthly is the only one currently backed by data. -->
+      <Card v-else>
+        <EmptyState title="Coming soon" :description="`The ${viewMode} view isn't available yet -- switch to Monthly.`" />
+      </Card>
     </div>
+
+    <!-- Day Activity Details -->
+    <BaseDrawer v-model="isDetailsPanelOpen" :title="selectedDateStr" width="md" @close="closeDetailsPanel">
+      <div v-if="filteredActivities.length === 0">
+        <EmptyState title="No activities on this day" />
+      </div>
+
+      <div v-else class="flex flex-col gap-3">
+        <Card
+          v-for="activity in filteredActivities"
+          :key="activity.id"
+          hoverable
+          class="cursor-pointer"
+          @click="handleActivityClick(activity)"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p class="font-semibold text-neutral-800">{{ activity.entityName }}</p>
+              <p class="text-sm text-neutral-500">{{ activity.projectName }}</p>
+            </div>
+            <StatusBadge :variant="activityTypeVariants[activity.type]" :label="activity.type.toUpperCase()" />
+          </div>
+
+          <p class="mt-2 text-sm text-neutral-700">{{ activity.description }}</p>
+
+          <div class="mt-2 flex items-center justify-between text-xs text-neutral-400">
+            <span v-if="canViewAll">By {{ activity.userName }}</span>
+            <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
+          </div>
+
+          <div class="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary-600">
+            <template v-if="activity.entityType === EntityType.TASK">
+              View task details
+            </template>
+            <template v-else>
+              <ClipboardPlus class="h-3.5 w-3.5" />
+              Create follow-up task
+            </template>
+          </div>
+        </Card>
+      </div>
+    </BaseDrawer>
+
+    <!-- Task Details -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
+    <BaseDrawer v-model="isTaskDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+      <TaskDetails
+        v-if="taskStore.selectedTask"
+        :task="taskStore.selectedTask"
+        :project-name="selectedTaskProjectName"
+        @status-change="handleStatusChange"
+        @priority-change="handlePriorityChange"
+        @severity-change="handleSeverityChange"
+        @reassign="handleReassign"
+      />
+    </BaseDrawer>
+
+    <!-- Create Task -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
+    <TaskFormDialog
+      v-model="isCreateTaskDialogOpen"
+      :projects="taskStore.projects"
+      :default-project-id="createTaskDefaultProjectId"
+      :default-title="createTaskDefaultTitle"
+      @create="handleCreateTask"
+    />
   </div>
 </template>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-enter-from {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.slide-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-</style>
