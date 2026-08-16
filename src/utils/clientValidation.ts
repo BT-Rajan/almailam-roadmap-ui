@@ -170,3 +170,72 @@ export function validateIdentification(identification: ClientWizardIdentificatio
 export function hasErrors(errors: FieldErrors): boolean {
   return Object.keys(errors).length > 0
 }
+
+/**
+ * Form shape for ClientEditDialog.vue -- editing an existing client's
+ * contact details and, depending on clientType, exactly one of the two
+ * profile blocks (matches backend/app/schemas/client.py's ClientUpdate,
+ * which rejects setting the profile that doesn't match the client's type).
+ */
+export interface ClientEditForm {
+  contactPerson: string
+  mobile: string
+  email: string
+  city: string
+  individualProfile: {
+    fullLegalName: string
+    preferredName: string
+    nationality: string
+    dateOfBirth: string
+    countryOfResidence: string
+  }
+  organisationProfile: {
+    legalName: string
+    tradeName: string
+    organisationType: string
+    registrationNumber: string
+    tradeLicenceNumber: string
+    taxIdentificationNumber: string
+    countryOfRegistration: string
+    dateOfIncorporation: string
+    website: string
+  }
+}
+
+/**
+ * Validates the edit dialog's contact-details fields plus whichever
+ * profile block applies to this client's type -- same required/format
+ * rules as onboarding (validateBasicInfo above), reapplied here since an
+ * edit can just as easily introduce an invalid value as the original
+ * onboarding could.
+ */
+export function validateClientEditForm(form: ClientEditForm, clientType: 'Individual' | string): FieldErrors {
+  const errors: FieldErrors = {}
+
+  if (!form.contactPerson.trim()) errors.contactPerson = 'Contact person is required'
+  if (!form.mobile.trim()) errors.mobile = 'Mobile number is required'
+  else if (!isValidPhone(form.mobile)) errors.mobile = 'Enter a valid phone number (at least 7 digits)'
+  if (!form.email.trim()) errors.email = 'Email address is required'
+  else if (validators.email()(form.email) !== true) errors.email = 'Enter a valid email address'
+  if (!form.city.trim()) errors.city = 'City is required'
+
+  if (clientType === 'Individual') {
+    const p = form.individualProfile
+    if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
+    if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
+    if (!p.countryOfResidence.trim()) errors.countryOfResidence = 'Country of residence is required'
+    if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
+    else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
+  } else {
+    const p = form.organisationProfile
+    if (!p.legalName.trim()) errors.legalName = 'Legal name is required'
+    if (!p.organisationType.trim()) errors.organisationType = 'Organisation type is required'
+    if (!p.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required'
+    if (!p.countryOfRegistration.trim()) errors.countryOfRegistration = 'Country of registration is required'
+    if (!p.dateOfIncorporation.trim()) errors.dateOfIncorporation = 'Date of incorporation is required'
+    else if (isFutureDate(p.dateOfIncorporation)) errors.dateOfIncorporation = 'Date of incorporation cannot be in the future'
+    if (p.website.trim() && !WEBSITE_PATTERN.test(p.website.trim())) errors.website = 'Enter a valid website address'
+  }
+
+  return errors
+}

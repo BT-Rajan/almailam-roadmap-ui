@@ -244,6 +244,8 @@ class ClientUpdate(BaseModel):
     email: EmailStr | None = None
     city: str | None = Field(default=None, min_length=1, max_length=80)
     communicationPreference: CommunicationPreference | None = None
+    individualProfile: IndividualProfileIn | None = None
+    organisationProfile: OrganisationProfileIn | None = None
     status: str | None = None
     onboardingState: str | None = None
     reason: str | None = None

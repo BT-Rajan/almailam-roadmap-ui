@@ -9,6 +9,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
+import ClientEditDialog from '@/components/client/ClientEditDialog.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
 import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
@@ -30,6 +31,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument, ClientDocumentCategory, ClientOnboardingState, ClientVerificationResult, ClientWorkspaceTab, ClientWorkspaceTabKey } from '@/types/Client'
+import type { ClientEditForm } from '@/utils/clientValidation'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
@@ -46,6 +48,8 @@ const isOnboardingStateSaving = ref(false)
 const isVerificationDialogOpen = ref(false)
 const isVerificationSaving = ref(false)
 const verificationDialogTarget = ref<ClientDocument | null>(null)
+const isEditDialogOpen = ref(false)
+const isEditSaving = ref(false)
 
 const TABS: ClientWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
@@ -187,6 +191,49 @@ async function handleConfirmVerification(payload: {
   }
 }
 
+async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
+  if (!client.value) return
+  isEditSaving.value = true
+  try {
+    const isIndividual = client.value.clientType === 'Individual'
+    await clientStore.updateClient(client.value.id, {
+      contactPerson: payload.contactPerson,
+      mobile: payload.mobile,
+      email: payload.email,
+      city: payload.city,
+      individualProfile: isIndividual
+        ? {
+            fullLegalName: payload.individualProfile.fullLegalName,
+            preferredName: payload.individualProfile.preferredName || undefined,
+            nationality: payload.individualProfile.nationality,
+            dateOfBirth: payload.individualProfile.dateOfBirth,
+            countryOfResidence: payload.individualProfile.countryOfResidence,
+          }
+        : undefined,
+      organisationProfile: !isIndividual
+        ? {
+            legalName: payload.organisationProfile.legalName,
+            tradeName: payload.organisationProfile.tradeName || undefined,
+            organisationType: payload.organisationProfile.organisationType,
+            registrationNumber: payload.organisationProfile.registrationNumber,
+            tradeLicenceNumber: payload.organisationProfile.tradeLicenceNumber || undefined,
+            taxIdentificationNumber: payload.organisationProfile.taxIdentificationNumber || undefined,
+            countryOfRegistration: payload.organisationProfile.countryOfRegistration,
+            dateOfIncorporation: payload.organisationProfile.dateOfIncorporation,
+            website: payload.organisationProfile.website || undefined,
+          }
+        : undefined,
+    })
+    toastStore.show('success', 'Client updated', 'Changes were saved successfully.')
+    isEditDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update client', detail)
+  } finally {
+    isEditSaving.value = false
+  }
+}
+
 function openProject(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
 }
@@ -212,7 +259,7 @@ function openProject(projectId: string): void {
     />
 
     <template v-else>
-      <ClientHeader :client="client" />
+      <ClientHeader :client="client" @edit="isEditDialogOpen = true" />
 
       <ClientWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
@@ -327,6 +374,12 @@ function openProject(projectId: string): void {
         :document-id="verificationDialogTarget?.id"
         :loading="isVerificationSaving"
         @confirm="handleConfirmVerification"
+      />
+      <ClientEditDialog
+        v-model="isEditDialogOpen"
+        :client="client"
+        :loading="isEditSaving"
+        @confirm="handleConfirmEdit"
       />
     </template>
   </div>

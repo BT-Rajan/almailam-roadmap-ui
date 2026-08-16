@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { Building2, Phone, User } from '@lucide/vue'
+import { Building2, Pencil, Phone, User } from '@lucide/vue'
 import { computed } from 'vue'
 
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
 import { getClientDisplayName, getClientOnboardingStateVariant, getClientStatusVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
   client: Client
+}>()
+
+defineEmits<{
+  edit: []
 }>()
 
 const displayName = computed(() => getClientDisplayName(props.client))
@@ -35,6 +40,7 @@ const typeIcon = computed(() => (props.client.clientType === 'Individual' ? User
       <div class="flex shrink-0 items-center gap-2">
         <StatusBadge :label="client.onboardingState" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
         <StatusBadge :label="client.status" :variant="getClientStatusVariant(client.status)" />
+        <IconButton :icon="Pencil" label="Edit client" size="sm" @click="$emit('edit')" />
       </div>
     </div>
   </div>

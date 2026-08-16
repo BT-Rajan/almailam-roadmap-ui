@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { clientService } from '@/services/clientService'
-import type { ClientAddressInput, ClientConsentInput, ClientContactInput, ClientDocumentInput, ClientIdentificationInput, ClientVerificationInput } from '@/services/clientService'
+import type { ClientAddressInput, ClientConsentInput, ClientContactInput, ClientDocumentInput, ClientIdentificationInput, ClientUpdateInput, ClientVerificationInput } from '@/services/clientService'
 import type {
   Client,
   ClientAddress,
@@ -218,6 +218,16 @@ export const useClientStore = defineStore('client', {
       const client = await clientService.createClient(clientData)
       this.clients = [client, ...this.clients]
       return client
+    },
+
+    // Persists an edit to an existing client's profile via the backend
+    // API and updates the cached copy in both `clients` (workspace page)
+    // and `pageItems` (browse table) so the change shows up immediately.
+    async updateClient(clientId: string, input: ClientUpdateInput) {
+      const updated = await clientService.updateClient(clientId, input)
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
     },
 
     addContact(contact: ClientContact) {

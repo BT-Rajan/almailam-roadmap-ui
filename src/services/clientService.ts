@@ -4,12 +4,15 @@ import type {
   Client,
   ClientAddress,
   ClientAuditEvent,
+  ClientCommunicationPreference,
   ClientConsent,
   ClientContact,
   ClientDocument,
   ClientDuplicateMatch,
   ClientIdentification,
+  ClientIndividualProfile,
   ClientOnboardingState,
+  ClientOrganisationProfile,
   ClientVerification,
   ClientVerificationResult,
 } from '@/types/Client'
@@ -368,10 +371,25 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
   }
 }
 
+export type ClientUpdateInput = {
+  companyName?: string
+  contactPerson?: string
+  mobile?: string
+  email?: string
+  city?: string
+  communicationPreference?: ClientCommunicationPreference
+  individualProfile?: ClientIndividualProfile
+  organisationProfile?: ClientOrganisationProfile
+}
+
 /**
- * Update an existing client via backend API
+ * Update an existing client's profile via backend API. Deliberately typed
+ * to only the fields the backend's ClientUpdate schema actually accepts --
+ * status and onboardingState changes go through their own dedicated,
+ * reason-validated endpoints (setStatus / updateOnboardingState above)
+ * rather than this general-purpose one.
  */
-async function updateClient(clientId: string, clientData: Partial<Client>): Promise<Client> {
+async function updateClient(clientId: string, clientData: ClientUpdateInput): Promise<Client> {
   try {
     return await apiClient.patch<Client>(`/api/clients/${clientId}`, clientData)
   } catch (error) {

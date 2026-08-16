@@ -169,6 +169,44 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
                 changes[attr] = (old, value)
             setattr(client, attr, value)
 
+    if payload.individualProfile is not None:
+        if client.client_type != "Individual":
+            raise ValidationAppError("This client is not an Individual; cannot set individualProfile.")
+        p = payload.individualProfile
+        profile_map = {
+            "ind_full_legal_name": p.fullLegalName,
+            "ind_preferred_name": p.preferredName,
+            "ind_nationality": p.nationality,
+            "ind_date_of_birth": p.dateOfBirth,
+            "ind_country_of_residence": p.countryOfResidence,
+        }
+        for attr, value in profile_map.items():
+            old = getattr(client, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(client, attr, value)
+
+    if payload.organisationProfile is not None:
+        if client.client_type == "Individual":
+            raise ValidationAppError("This client is an Individual; cannot set organisationProfile.")
+        p = payload.organisationProfile
+        profile_map = {
+            "org_legal_name": p.legalName,
+            "org_trade_name": p.tradeName,
+            "org_organisation_type": p.organisationType,
+            "org_registration_number": p.registrationNumber,
+            "org_trade_licence_number": p.tradeLicenceNumber,
+            "org_tax_identification_number": p.taxIdentificationNumber,
+            "org_country_of_registration": p.countryOfRegistration,
+            "org_date_of_incorporation": p.dateOfIncorporation,
+            "org_website": p.website,
+        }
+        for attr, value in profile_map.items():
+            old = getattr(client, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(client, attr, value)
+
     if payload.communicationPreference is not None:
         cp = payload.communicationPreference
         client.preferred_language = cp.preferredLanguage
