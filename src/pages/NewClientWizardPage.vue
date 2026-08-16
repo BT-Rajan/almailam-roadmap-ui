@@ -2,6 +2,8 @@
 import { defineAsyncComponent, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Stepper from '@/components/common/Stepper.vue'
@@ -15,7 +17,7 @@ const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ClientDuplicateMatch } from '@/types/Client'
+import type { Client, ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 
@@ -36,6 +38,13 @@ const isSubmitting = ref(false)
 const form = ref(createEmptyClientWizardForm())
 const duplicates = ref<ClientDuplicateMatch[]>([])
 let duplicateCheckTimeout: ReturnType<typeof setTimeout> | undefined
+
+// Shown after a successful create so the user gets an explicit
+// confirmation (with the assigned client code) instead of a toast that
+// can be missed while the page is already navigating away.
+const showConfirmation = ref(false)
+const createdClient = ref<Client | null>(null)
+const confirmationNote = ref('')
 
 async function checkForDuplicates(): Promise<void> {
   const name = form.value.clientType === 'Individual' ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
@@ -205,22 +214,31 @@ async function submitWizard(): Promise<void> {
     const failures = results.filter((result) => result.status === 'rejected').length
 
     if (failures > 0) {
+      confirmationNote.value = `but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`
       toastStore.show(
         'error',
         'Client onboarded with some issues',
         `${getClientDisplayName(client)} was created, but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`,
       )
     } else {
+      confirmationNote.value = ''
       toastStore.show('success', 'Client onboarded', `${getClientDisplayName(client)} was added as a reusable client profile.`)
     }
 
-    await router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })
+    createdClient.value = client
+    showConfirmation.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
     toastStore.show('error', 'Failed to onboard client', detail)
   } finally {
     isSubmitting.value = false
   }
+}
+
+function goToCreatedClient(): void {
+  if (!createdClient.value) return
+  showConfirmation.value = false
+  router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: createdClient.value.id } })
 }
 </script>
 
@@ -257,5 +275,18 @@ async function submitWizard(): Promise<void> {
         />
       </div>
     </div>
+
+    <BaseDialog :model-value="showConfirmation" title="Client Onboarded" size="sm" :closable="false">
+      <p class="text-sm text-neutral-600">
+        <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
+        was successfully created as client
+        <strong>{{ createdClient?.code }}</strong>.
+        <span v-if="confirmationNote"> {{ confirmationNote }}</span>
+      </p>
+
+      <template #footer>
+        <BaseButton variant="primary" @click="goToCreatedClient">View Client Workspace</BaseButton>
+      </template>
+    </BaseDialog>
   </div>
 </template>
