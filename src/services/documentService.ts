@@ -1,5 +1,6 @@
+import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
-import type { DocumentVersion, ProjectDocument } from '@/types/Document'
+import type { DocumentType, DocumentVersion, ProjectDocument } from '@/types/Document'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -83,26 +84,43 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
  * Upload a new document via backend API
  * Note: This uses multipart/form-data, handled specially by the API client
  */
-async function uploadDocument(file: File, projectId: string, metadata?: Record<string, string>): Promise<ProjectDocument> {
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('project_id', projectId)
-    if (metadata) {
-      formData.append('metadata', JSON.stringify(metadata))
-    }
+// Uploads a document via the backend API. Was previously pointed at a
+// nonexistent /api/documents/upload route with mismatched form field names
+// (project_id instead of projectId, no title/type at all) and read its auth
+// token from a localStorage key this app never writes to -- so calling it
+// would always have failed with a 401/404. It was also never actually
+// wired up: DocumentUploadDialog.vue fabricated a fake client-side id and
+// never called this function at all, so uploaded documents never persisted
+// and didn't have a real, unique, server-issued id.
+async function uploadDocument(file: File, projectId: string, title: string, type: DocumentType): Promise<ProjectDocument> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('projectId', projectId)
+  formData.append('title', title)
+  formData.append('type', type)
+  formData.append('file', file)
 
-    // Use fetch directly for file upload since apiClient assumes JSON
-    const response = await fetch('/api/documents/upload', {
+  const doRequest = () =>
+    fetch('/api/documents', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
-      },
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
       body: formData,
     })
 
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) {
+        response = await doRequest()
+      }
+    }
+
     if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`)
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
     }
 
     return (await response.json()) as ProjectDocument

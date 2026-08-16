@@ -11,6 +11,7 @@ import DocumentCard from '@/components/document/DocumentCard.vue'
 import DocumentUploadDialog from '@/components/document/DocumentUploadDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 
@@ -21,6 +22,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const documentStore = useDocumentStore()
+const toastStore = useToastStore()
 
 const isUploadOpen = ref(false)
 
@@ -32,7 +34,7 @@ const visibleDocuments = computed(() =>
 )
 
 function handleUpload(document: ProjectDocument): void {
-  documentStore.addDocument(document)
+  toastStore.show('success', 'Document uploaded', `${document.title} was added to the repository.`)
   isUploadOpen.value = false
 }
 

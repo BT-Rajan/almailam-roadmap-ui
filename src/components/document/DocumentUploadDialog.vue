@@ -6,6 +6,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
+import { useDocumentStore } from '@/stores/documentStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { DocumentType, ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
@@ -29,18 +31,27 @@ const emit = defineEmits<{
   upload: [document: ProjectDocument]
 }>()
 
+const documentStore = useDocumentStore()
+const toastStore = useToastStore()
+
 const title = ref('')
 const documentType = ref<DocumentType | ''>('')
 const projectId = ref('')
 const selectedFile = ref<File>()
 const titleError = ref<string>()
+const fileError = ref<string>()
+const isUploading = ref(false)
 
 const projectOptions = computed<SelectOption[]>(() =>
   props.projects.map((project) => ({ label: project.projectName, value: project.id })),
 )
 
 const canSubmit = computed(
-  () => title.value.trim().length > 0 && documentType.value.length > 0 && projectId.value.length > 0,
+  () =>
+    title.value.trim().length > 0 &&
+    documentType.value.length > 0 &&
+    projectId.value.length > 0 &&
+    Boolean(selectedFile.value),
 )
 
 function resetForm(): void {
@@ -49,38 +60,44 @@ function resetForm(): void {
   projectId.value = ''
   selectedFile.value = undefined
   titleError.value = undefined
+  fileError.value = undefined
 }
 
 function closeDialog(): void {
+  if (isUploading.value) return
   emit('update:modelValue', false)
   resetForm()
 }
 
-function submitUpload(): void {
-  if (!canSubmit.value) {
-    titleError.value = title.value.trim().length === 0 ? 'Document title is required' : undefined
-    return
-  }
+async function submitUpload(): Promise<void> {
+  titleError.value = title.value.trim().length === 0 ? 'Document title is required' : undefined
+  fileError.value = selectedFile.value ? undefined : 'Please select a file to upload'
+  if (!canSubmit.value) return
 
-  const newDocument: ProjectDocument = {
-    id: `DOC-2026-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
-    projectId: projectId.value,
-    title: title.value.trim(),
-    type: documentType.value as DocumentType,
-    revision: 'Rev A',
-    uploadedBy: 'You',
-    uploadDate: new Date().toISOString().slice(0, 10),
-    status: 'Draft',
-    fileSize: selectedFile.value ? `${(selectedFile.value.size / 1024).toFixed(0)} KB` : '—',
+  isUploading.value = true
+  try {
+    const document = await documentStore.uploadDocument(
+      selectedFile.value as File,
+      projectId.value,
+      title.value.trim(),
+      documentType.value as DocumentType,
+    )
+    emit('upload', document)
+    closeDialog()
+  } catch (error) {
+    toastStore.show(
+      'error',
+      'Upload failed',
+      error instanceof Error && error.message ? error.message : 'Please try again.',
+    )
+  } finally {
+    isUploading.value = false
   }
-
-  emit('upload', newDocument)
-  closeDialog()
 }
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Upload Document" size="md" @update:model-value="closeDialog">
+  <BaseDialog :model-value="modelValue" title="Upload Document" size="md" :closable="!isUploading" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
       <TextInput v-model="title" label="Document Title" placeholder="e.g. Structural Drawing" required :error="titleError" />
 
@@ -95,12 +112,15 @@ function submitUpload(): void {
         @update:model-value="documentType = $event as DocumentType"
       />
 
-      <FileUploader @select="selectedFile = $event" />
+      <div class="flex flex-col gap-1.5">
+        <FileUploader @select="selectedFile = $event" />
+        <p v-if="fileError" class="text-xs text-danger-500">{{ fileError }}</p>
+      </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" @click="submitUpload">Upload Document</BaseButton>
+      <BaseButton variant="secondary" :disabled="isUploading" @click="closeDialog">Cancel</BaseButton>
+      <BaseButton :disabled="!canSubmit" :loading="isUploading" @click="submitUpload">Upload Document</BaseButton>
     </template>
   </BaseDialog>
 </template>

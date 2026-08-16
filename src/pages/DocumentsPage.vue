@@ -95,7 +95,6 @@ function openDocument(documentId: string): void {
 }
 
 function handleUpload(document: ProjectDocument): void {
-  documentStore.addDocument(document)
   toastStore.show('success', 'Document uploaded', `${document.title} was added to the repository.`)
   void documentStore.loadDocumentsPage()
 }
