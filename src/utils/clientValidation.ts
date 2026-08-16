@@ -1,4 +1,5 @@
 import type { ClientWizardAddressDraft, ClientWizardContactDraft, ClientWizardForm, ClientWizardIdentificationDraft } from '@/types/ClientWizard'
+import type { ClientPreferredChannel } from '@/types/Client'
 import { validators } from '@/utils/validators'
 
 export type FieldErrors = Record<string, string>
@@ -182,6 +183,8 @@ export interface ClientEditForm {
   mobile: string
   email: string
   city: string
+  preferredLanguage: string
+  preferredChannel: ClientPreferredChannel
   individualProfile: {
     fullLegalName: string
     preferredName: string

@@ -21,7 +21,7 @@ export type ClientContactType =
 
 export type ClientAddressType = 'Registered' | 'Operating' | 'Residential' | 'Mailing'
 
-export type ClientIdentificationType = 'Emirates ID' | 'Passport' | 'Trade Licence' | 'Other'
+export type ClientIdentificationType = 'Civil ID' | 'Passport' | 'Trade Licence' | 'Other'
 
 export type ClientDocumentCategory =
   | 'Identity Document'
@@ -134,10 +134,18 @@ export interface ClientDocument {
   fileSize: string
 }
 
+export interface OnboardingCheckContext {
+  client: Client
+  documents: ClientDocument[]
+  contacts: ClientContact[]
+  addresses: ClientAddress[]
+}
+
 export interface ClientOnboardingRequirement {
   label: string
   category: 'Information' | 'Document'
   required: boolean
+  isSatisfied: (ctx: OnboardingCheckContext) => boolean
 }
 
 export interface ClientVerification {

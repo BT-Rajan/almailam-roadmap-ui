@@ -152,8 +152,6 @@ const contactDetailItems = computed(() => {
   ]
 })
 
-const hasCompleteProfile = computed(() => profileDetailItems.value.every((item) => item.value !== '—'))
-
 async function loadData(): Promise<void> {
   if (clientStore.clients.length === 0) {
     await clientStore.loadClients()
@@ -261,6 +259,18 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
       mobile: payload.mobile,
       email: payload.email,
       city: payload.city,
+      // Consent flags are deliberately NOT sourced from this form -- they
+      // must only ever change via the audited "Record Consent" flow
+      // (see clientStore.createConsent), never a casual profile edit.
+      // Resending the client's current values here keeps them untouched
+      // rather than accidentally resetting them to a Pydantic default.
+      communicationPreference: {
+        preferredLanguage: payload.preferredLanguage,
+        preferredChannel: payload.preferredChannel,
+        emailConsent: client.value.communicationPreference.emailConsent,
+        whatsappConsent: client.value.communicationPreference.whatsappConsent,
+        smsConsent: client.value.communicationPreference.smsConsent,
+      },
       individualProfile: isIndividual
         ? {
             fullLegalName: payload.individualProfile.fullLegalName,
@@ -563,15 +573,17 @@ function openProject(projectId: string): void {
             </BaseButton>
           </div>
           <ClientOnboardingProgress
-            :client-type="client.clientType"
+            :client="client"
             :documents="clientStore.documents"
-            :has-complete-profile="hasCompleteProfile"
+            :contacts="clientStore.contacts"
+            :addresses="clientStore.addresses"
           />
           <ClientOnboardingActions
             :client="client"
             :documents="clientStore.documents"
+            :contacts="clientStore.contacts"
+            :addresses="clientStore.addresses"
             :verifications="clientStore.verifications"
-            :has-complete-profile="hasCompleteProfile"
             :loading="isOnboardingStateSaving"
             @advance="handleAdvanceOnboarding"
             @change-status="isStatusDialogOpen = true"

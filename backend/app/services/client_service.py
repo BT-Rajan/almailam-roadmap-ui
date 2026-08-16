@@ -204,6 +204,10 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
                 changes[attr] = (old, value)
             setattr(client, attr, value)
 
+        if client.company_name != p.fullLegalName:
+            changes["company_name"] = (client.company_name, p.fullLegalName)
+        client.company_name = p.fullLegalName
+
     if payload.organisationProfile is not None:
         if client.client_type == "Individual":
             raise ValidationAppError("This client is an Individual; cannot set organisationProfile.")
@@ -224,6 +228,15 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
             if old != value:
                 changes[attr] = (old, value)
             setattr(client, attr, value)
+
+        # company_name is a denormalized copy of the profile's legal name,
+        # used directly by search (list_clients) and duplicate detection
+        # (find_possible_duplicates) -- keep it in sync whenever the real
+        # source of truth changes, or those would silently start working
+        # off a stale name after any edit.
+        if client.company_name != p.legalName:
+            changes["company_name"] = (client.company_name, p.legalName)
+        client.company_name = p.legalName
 
     if payload.communicationPreference is not None:
         cp = payload.communicationPreference
@@ -613,7 +626,7 @@ def list_consents(db: Session, client_id: int) -> list[ClientConsent]:
 
 
 def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> ClientConsent:
-    get_client(db, client_id)
+    client = get_client(db, client_id)
     consent = ClientConsent(
         client_id=client_id,
         consent_type=payload.consentType,
@@ -625,6 +638,21 @@ def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> Cl
     )
     db.add(consent)
     db.flush()
+
+    # "Electronic Communication" consent is the single formal, audited
+    # decision that covers all three channels (its own description says
+    # so: "Allow communication by email, WhatsApp and SMS"). The client
+    # row's email_consent/whatsapp_consent/sms_consent flags exist so
+    # other features can cheaply check "can we message this client" --
+    # this is the one place that keeps them equal to the real decision,
+    # rather than leaving them permanently stuck at their creation-time
+    # default with no connection to consent actually being granted or
+    # withdrawn.
+    if payload.consentType == "Electronic Communication":
+        client.email_consent = payload.granted
+        client.whatsapp_consent = payload.granted
+        client.sms_consent = payload.granted
+
     audit_service.log_event(
         db, ENTITY_TYPE, client_id, "Consent recorded", recorded_by,
         new_value=f"{payload.consentType}: {'Granted' if payload.granted else 'Declined'}",

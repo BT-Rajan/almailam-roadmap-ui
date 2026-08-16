@@ -5,6 +5,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormSection from '@/components/common/FormSection.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import type { Client } from '@/types/Client'
 import type { ClientEditForm, FieldErrors } from '@/utils/clientValidation'
@@ -23,12 +24,25 @@ const emit = defineEmits<{
 
 const maxDate = todayIso()
 
+const LANGUAGE_OPTIONS = [
+  { label: 'English', value: 'English' },
+  { label: 'Arabic', value: 'Arabic' },
+]
+const CHANNEL_OPTIONS = [
+  { label: 'Email', value: 'Email' },
+  { label: 'WhatsApp', value: 'WhatsApp' },
+  { label: 'SMS', value: 'SMS' },
+  { label: 'Phone', value: 'Phone' },
+]
+
 function emptyForm(): ClientEditForm {
   return {
     contactPerson: '',
     mobile: '',
     email: '',
     city: '',
+    preferredLanguage: 'English',
+    preferredChannel: 'Email',
     individualProfile: { fullLegalName: '', preferredName: '', nationality: '', dateOfBirth: '', countryOfResidence: '' },
     organisationProfile: {
       legalName: '',
@@ -60,6 +74,8 @@ watch(
     form.mobile = props.client.mobile
     form.email = props.client.email
     form.city = props.client.city
+    form.preferredLanguage = props.client.communicationPreference.preferredLanguage
+    form.preferredChannel = props.client.communicationPreference.preferredChannel
 
     if (props.client.individualProfile) {
       Object.assign(form.individualProfile, {
@@ -109,7 +125,12 @@ function handleConfirm(): void {
           <TextInput v-model="form.mobile" label="Mobile Number" required :error="errors.mobile" />
           <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
           <TextInput v-model="form.city" label="City" required :error="errors.city" />
+          <SelectBox v-model="form.preferredLanguage" label="Preferred Language" :options="LANGUAGE_OPTIONS" />
+          <SelectBox v-model="form.preferredChannel" label="Preferred Contact Channel" :options="CHANNEL_OPTIONS" />
         </div>
+        <p class="text-xs text-neutral-400">
+          Communication consent (email/WhatsApp/SMS) is managed separately via "Record Consent" on the Consent tab, not here.
+        </p>
       </FormSection>
 
       <FormSection v-if="client.clientType === 'Individual'" title="Personal Information">

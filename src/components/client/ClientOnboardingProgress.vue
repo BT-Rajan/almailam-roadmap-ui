@@ -5,23 +5,29 @@ import { computed } from 'vue'
 import Card from '@/components/common/Card.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import { CLIENT_ONBOARDING_REQUIREMENTS } from '@/constants/clientOptions'
-import type { ClientDocument, ClientType } from '@/types/Client'
+import type { Client, ClientAddress, ClientContact, ClientDocument } from '@/types/Client'
 import { evaluateOnboardingRequirements } from '@/utils/clientHelpers'
 
 const props = defineProps<{
-  clientType: ClientType
+  client: Client
   documents: ClientDocument[]
-  hasCompleteProfile: boolean
+  contacts: ClientContact[]
+  addresses: ClientAddress[]
 }>()
 
-const requirements = computed(() => CLIENT_ONBOARDING_REQUIREMENTS[props.clientType])
+const requirements = computed(() => CLIENT_ONBOARDING_REQUIREMENTS[props.client.clientType])
 
 const summary = computed(() =>
-  evaluateOnboardingRequirements(props.clientType, props.documents, props.hasCompleteProfile),
+  evaluateOnboardingRequirements({
+    client: props.client,
+    documents: props.documents,
+    contacts: props.contacts,
+    addresses: props.addresses,
+  }),
 )
 
 function isRequirementMet(label: string): boolean {
-  return !summary.value.missingItems.includes(label)
+  return summary.value.satisfiedByLabel[label] ?? false
 }
 </script>
 

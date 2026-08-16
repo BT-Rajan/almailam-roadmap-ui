@@ -6,14 +6,15 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS } from '@/constants/clientOptions'
-import type { Client, ClientDocument, ClientOnboardingState, ClientVerification } from '@/types/Client'
+import type { Client, ClientAddress, ClientContact, ClientDocument, ClientOnboardingState, ClientVerification } from '@/types/Client'
 import { calculateOnboardingState, getClientOnboardingStateVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
   client: Client
   documents: ClientDocument[]
+  contacts: ClientContact[]
+  addresses: ClientAddress[]
   verifications: ClientVerification[]
-  hasCompleteProfile: boolean
   loading?: boolean
 }>()
 
@@ -22,11 +23,12 @@ const emit = defineEmits<{
   changeStatus: []
 }>()
 
-// What the actual documents/verifications/profile on file say the state
-// should be -- calculated fresh from real data rather than trusted from
-// whatever onboardingState happens to be stored (see utils/clientHelpers).
+// What the actual contacts/addresses/documents/verifications on file say
+// the state should be -- calculated fresh from real data rather than
+// trusted from whatever onboardingState happens to be stored (see
+// utils/clientHelpers).
 const recommendedState = computed(() =>
-  calculateOnboardingState(props.client, props.documents, props.verifications, props.hasCompleteProfile),
+  calculateOnboardingState(props.client, props.documents, props.contacts, props.addresses, props.verifications),
 )
 
 const availableTransitions = computed(
