@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { clientService } from '@/services/clientService'
 import { projectService } from '@/services/projectService'
+import type { ProjectCreateInput } from '@/services/projectService'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
@@ -157,6 +158,18 @@ export const useProjectStore = defineStore('project', {
 
     addProject(project: Project) {
       this.projects = [project, ...this.projects]
+    },
+
+    // Persists a project via the backend API. Prefer this over addProject()
+    // above, which only mutates local state and was previously the only
+    // path the New Project wizard used -- meaning projects never survived
+    // a page refresh and their "project number" was just a client-side
+    // guess based on the current in-memory list length (collision-prone
+    // and never checked against the server).
+    async createProject(projectData: ProjectCreateInput): Promise<Project> {
+      const project = await projectService.createProject(projectData)
+      this.projects = [project, ...this.projects]
+      return project
     },
 
     clearFilters() {

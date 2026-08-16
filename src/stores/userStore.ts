@@ -81,9 +81,15 @@ export const useUserStore = defineStore('user', {
       }
     },
 
+    // Persist first, then store the backend-assigned user (including its
+    // real id) -- previously this stored the caller's locally-generated
+    // placeholder id (see UserDialog.vue) and discarded what the backend
+    // actually created, so the id shown in the UI right after creating a
+    // user didn't match the one it would have after a refresh.
     async addUser(user: AppUser) {
-      this.users = [user, ...this.users]
-      await userService.createUser(user)
+      const created = await userService.createUser(user)
+      this.users = [created, ...this.users]
+      return created
     },
 
     async saveUser(user: AppUser) {

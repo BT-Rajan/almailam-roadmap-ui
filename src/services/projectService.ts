@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectPriority } from '@/types/Project'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
 function buildQuery(params: Record<string, string | number | undefined>): string {
@@ -68,10 +68,20 @@ async function getProjectsByClient(clientId: string): Promise<Project[]> {
   return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
 }
 
+export interface ProjectCreateInput {
+  projectName: string
+  clientId: string
+  service: string
+  engineerId: string
+  priority: ProjectPriority
+  startDate: string
+  targetDate: string
+}
+
 /**
  * Create a new project via backend API
  */
-async function createProject(projectData: Partial<Project>): Promise<Project> {
+async function createProject(projectData: ProjectCreateInput): Promise<Project> {
   try {
     return await apiClient.post<Project>('/api/projects', projectData)
   } catch (error) {

@@ -2,6 +2,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
@@ -21,7 +23,7 @@ import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { generateProjectNo, getProjectPriorityVariant } from '@/utils/projectHelpers'
+import { getProjectPriorityVariant } from '@/utils/projectHelpers'
 import { validators } from '@/utils/validators'
 
 const router = useRouter()
@@ -43,6 +45,8 @@ const PRIORITY_OPTIONS: SelectOption[] = [
 
 const currentStep = ref(0)
 const isSubmitting = ref(false)
+const showConfirmation = ref(false)
+const createdProject = ref<Project | null>(null)
 
 const form = reactive({
   clientId: '',
@@ -81,7 +85,7 @@ onMounted(async () => {
   }
   engineerOptions.value = userStore.users
     .filter((user) => user.role === 'Engineer' && user.status === 'Active')
-    .map((user) => ({ label: user.name, value: user.name }))
+    .map((user) => ({ label: user.name, value: user.id }))
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
@@ -117,6 +121,10 @@ function selectedClientName(): string {
   return projectStore.clients.find((client) => client.id === form.clientId)?.companyName ?? 'Not selected'
 }
 
+function selectedEngineerName(): string {
+  return userStore.users.find((user) => user.id === form.engineer)?.name ?? 'Not selected'
+}
+
 async function submitWizard(): Promise<void> {
   if (!validateStep(0) || !validateStep(1)) {
     currentStep.value = 0
@@ -125,27 +133,32 @@ async function submitWizard(): Promise<void> {
 
   isSubmitting.value = true
 
-  const projectNo = generateProjectNo(projectStore.projects.length)
-  const project: Project = {
-    id: projectNo,
-    projectNo,
-    projectName: form.projectName,
-    clientId: form.clientId,
-    service: form.service,
-    engineer: form.engineer,
-    currentStage: 'Enquiry',
-    progress: 0,
-    priority: form.priority,
-    startDate: form.startDate,
-    targetDate: form.targetDate,
-    status: 'Active',
+  try {
+    const project = await projectStore.createProject({
+      projectName: form.projectName,
+      clientId: form.clientId,
+      service: form.service,
+      engineerId: form.engineer,
+      priority: form.priority,
+      startDate: form.startDate,
+      targetDate: form.targetDate,
+    })
+
+    toastStore.show('success', 'Project created', `${project.projectName} was added to the pipeline.`)
+    createdProject.value = project
+    showConfirmation.value = true
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
+    toastStore.show('error', 'Failed to create project', detail)
+  } finally {
+    isSubmitting.value = false
   }
+}
 
-  projectStore.addProject(project)
-  toastStore.show('success', 'Project created', `${project.projectName} was added to the pipeline.`)
-
-  await router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.id } })
-  isSubmitting.value = false
+function goToCreatedProject(): void {
+  if (!createdProject.value) return
+  showConfirmation.value = false
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: createdProject.value.id } })
 }
 </script>
 
@@ -227,7 +240,7 @@ async function submitWizard(): Promise<void> {
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Responsible Engineer</p>
-              <p class="text-sm text-neutral-800">{{ form.engineer || 'Not selected' }}</p>
+              <p class="text-sm text-neutral-800">{{ selectedEngineerName() }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Priority</p>
@@ -278,5 +291,18 @@ async function submitWizard(): Promise<void> {
         />
       </div>
     </div>
+
+    <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
+      <p class="text-sm text-neutral-600">
+        <strong>{{ createdProject?.projectName }}</strong>
+        was successfully created as project
+        <strong>{{ createdProject?.projectNo }}</strong>
+        for <strong>{{ selectedClientName() }}</strong>.
+      </p>
+
+      <template #footer>
+        <BaseButton variant="primary" @click="goToCreatedProject">View Project Workspace</BaseButton>
+      </template>
+    </BaseDialog>
   </div>
 </template>
