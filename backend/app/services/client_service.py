@@ -739,6 +739,11 @@ def replace_document_file(db: Session, client_id: int, document_id: int, file: U
 
 def get_document_download_target(db: Session, client_id: int, document_id: int) -> tuple:
     document = get_document(db, client_id, document_id)
+    if not document.storage_key:
+        # Legacy row from before file storage was fixed (or demo seed
+        # data) -- there's genuinely no file behind it, so fail clearly
+        # rather than trying to resolve an empty path.
+        raise ValidationAppError("This document has no file on record (it predates file uploads being enabled).")
     return resolve_path(document.storage_key), document.original_filename
 
 

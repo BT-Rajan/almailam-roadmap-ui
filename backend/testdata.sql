@@ -100,10 +100,10 @@ INSERT INTO client_consents (client_id, consent_type, version, granted, recorded
 (@c_marina,  'Process Personal Information', 'v1.0', 1, '2026-01-20 14:30:00', 'Onboarding wizard', @u_pm),
 (@c_sharjah, 'Process Personal Information', 'v1.0', 1, '2026-03-01 10:00:00', 'Onboarding wizard', @u_pm);
 
-INSERT INTO client_documents (client_id, category, title, issue_date, expiry_date, issuing_authority, version, verification_status, uploaded_by, upload_date) VALUES
-(@c_alreem,  'Trade Licence', 'Al Reem Development Trade Licence', '2023-01-10', '2027-01-09', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-01-05 09:20:00'),
-(@c_falcon,  'Trade Licence', 'Falcon Heights Trade Licence',      '2023-06-01', '2027-05-31', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-02-10 11:05:00'),
-(@c_khalid,  'Identity Document', 'Khalid Al Mansoori Emirates ID', '2021-04-02', '2031-04-01', 'ICP UAE',       1, 'Verified', @u_fatima, '2026-01-15 08:40:00');
+INSERT INTO client_documents (client_id, category, title, issue_date, expiry_date, issuing_authority, version, verification_status, uploaded_by, upload_date, storage_key, original_filename, file_size_bytes) VALUES
+(@c_alreem,  'Trade Licence', 'Al Reem Development Trade Licence', '2023-01-10', '2027-01-09', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-01-05 09:20:00', '', 'seed-data-no-file.pdf', 0),
+(@c_falcon,  'Trade Licence', 'Falcon Heights Trade Licence',      '2023-06-01', '2027-05-31', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-02-10 11:05:00', '', 'seed-data-no-file.pdf', 0),
+(@c_khalid,  'Identity Document', 'Khalid Al Mansoori Emirates ID', '2021-04-02', '2031-04-01', 'ICP UAE',       1, 'Verified', @u_fatima, '2026-01-15 08:40:00', '', 'seed-data-no-file.pdf', 0);
 
 INSERT INTO client_verifications (client_id, item, result, verified_by, verified_date, notes) VALUES
 (@c_alreem,  'Trade Licence Verification', 'Verified', @u_fatima, '2026-01-06 10:00:00', 'Verified against Dubai Economy public register.'),

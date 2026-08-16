@@ -261,6 +261,30 @@ else
 fi
 
 # ===========================================================================
+# 3b. Apply any pending migrations (backend/migrations/*.sql)
+# ===========================================================================
+# schema.sql only reflects a fresh install; existing databases (reuse mode,
+# or a fresh/dump install from before a schema change landed) need these
+# applied too. Each migration is written to be idempotent, so it's safe to
+# always run this rather than trying to track what's already applied.
+if [ -d "$SCRIPT_DIR/backend/migrations" ] && [ -n "$(ls -A "$SCRIPT_DIR/backend/migrations"/*.sql 2>/dev/null)" ]; then
+  log "Applying database migrations"
+  if [ "$DB_MODE" = "reuse" ] && [ -z "$MYSQL_PWD_INPUT" ]; then
+    read -rsp "MySQL root password (blank if none set yet): " MYSQL_PWD_INPUT
+    echo
+    if [ -n "$MYSQL_PWD_INPUT" ]; then
+      MYSQL_AUTH=(-u root -p"$MYSQL_PWD_INPUT")
+    else
+      MYSQL_AUTH=(-u root)
+    fi
+  fi
+  for migration in "$SCRIPT_DIR"/backend/migrations/*.sql; do
+    log "  -> $(basename "$migration")"
+    sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < "$migration"
+  done
+fi
+
+# ===========================================================================
 # 4. Backend: venv + deps + .env
 # ===========================================================================
 log "Setting up backend virtualenv"
