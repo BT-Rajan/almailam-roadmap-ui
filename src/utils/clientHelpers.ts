@@ -43,6 +43,11 @@ export function getClientVerificationVariant(result: ClientVerificationResult): 
   return VERIFICATION_VARIANTS[result]
 }
 
+/** True when an identification document's expiry date has already passed. */
+export function isIdentificationExpired(expiryDate: string): boolean {
+  return expiryDate < new Date().toISOString().slice(0, 10)
+}
+
 export function generateClientCode(existingCount: number): string {
   return `CLT-${String(existingCount + 1).padStart(3, '0')}`
 }

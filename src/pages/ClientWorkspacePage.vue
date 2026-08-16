@@ -20,6 +20,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 // Lazy-loaded: only fetched when the user opens that tab (see ProjectWorkspacePage
 // for the same pattern applied to the project workspace).
 const ClientContactList = defineAsyncComponent(() => import('@/components/client/ClientContactList.vue'))
+const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
 const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
 const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
 const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
@@ -54,6 +55,7 @@ const isEditSaving = ref(false)
 const TABS: ClientWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'contacts', label: 'Contacts' },
+  { key: 'identification', label: 'Identification' },
   { key: 'documents', label: 'Documents' },
   { key: 'verification', label: 'Verification' },
   { key: 'consent', label: 'Consent' },
@@ -305,6 +307,10 @@ function openProject(projectId: string): void {
 
       <template v-else-if="activeTab === 'contacts'">
         <ClientContactList :contacts="clientStore.contacts" />
+      </template>
+
+      <template v-else-if="activeTab === 'identification'">
+        <ClientIdentificationList :identifications="clientStore.identifications" />
       </template>
 
       <template v-else-if="activeTab === 'documents'">

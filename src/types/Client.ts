@@ -175,7 +175,7 @@ export interface ClientAuditEvent {
 
 export type ClientViewMode = 'grid' | 'table'
 
-export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'documents' | 'verification' | 'consent' | 'projects' | 'activity'
+export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'verification' | 'consent' | 'projects' | 'activity'
 
 export interface ClientWorkspaceTab {
   key: ClientWorkspaceTabKey
