@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const maxDate = todayIso()
 
 function emptyForm() {
-  return { documentType: 'Emirates ID' as ClientIdentificationType, documentNumber: '', issueDate: '', expiryDate: '', issuingCountry: '' }
+  return { documentType: 'Civil ID' as ClientIdentificationType, documentNumber: '', issueDate: '', expiryDate: '', issuingCountry: '' }
 }
 
 const form = reactive(emptyForm())

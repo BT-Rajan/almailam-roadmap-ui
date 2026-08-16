@@ -19,7 +19,7 @@ export const CLIENT_CONTACT_TYPE_OPTIONS: SelectOption[] = [
 ]
 
 export const CLIENT_IDENTIFICATION_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Emirates ID', value: 'Emirates ID' },
+  { label: 'Civil ID', value: 'Civil ID' },
   { label: 'Passport', value: 'Passport' },
   { label: 'Trade Licence', value: 'Trade Licence' },
   { label: 'Other', value: 'Other' },
@@ -114,18 +114,63 @@ export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState
 export const CLIENT_ONBOARDING_STATES_REQUIRING_REASON: ClientOnboardingState[] = ['Rejected', 'Suspended']
 
 const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
-  { label: 'Full legal name', category: 'Information', required: true },
-  { label: 'Mobile number', category: 'Information', required: true },
-  { label: 'Identification document', category: 'Document', required: true },
-  { label: 'Address on file', category: 'Information', required: false },
+  {
+    label: 'Full legal name',
+    category: 'Information',
+    required: true,
+    isSatisfied: (ctx) => Boolean(ctx.client.individualProfile?.fullLegalName?.trim()),
+  },
+  {
+    label: 'Mobile number',
+    category: 'Information',
+    required: true,
+    isSatisfied: (ctx) => Boolean(ctx.client.mobile?.trim()),
+  },
+  {
+    label: 'Identification document',
+    category: 'Document',
+    required: true,
+    isSatisfied: (ctx) => ctx.documents.length > 0,
+  },
+  {
+    label: 'Address on file',
+    category: 'Information',
+    required: false,
+    isSatisfied: (ctx) => ctx.addresses.length > 0,
+  },
 ]
 
 const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
-  { label: 'Legal name', category: 'Information', required: true },
-  { label: 'Registration number', category: 'Information', required: true },
-  { label: 'Trade licence', category: 'Document', required: true },
-  { label: 'Authorised representative', category: 'Information', required: true },
-  { label: 'Additional supporting document', category: 'Document', required: false },
+  {
+    label: 'Legal name',
+    category: 'Information',
+    required: true,
+    isSatisfied: (ctx) => Boolean(ctx.client.organisationProfile?.legalName?.trim()),
+  },
+  {
+    label: 'Registration number',
+    category: 'Information',
+    required: true,
+    isSatisfied: (ctx) => Boolean(ctx.client.organisationProfile?.registrationNumber?.trim()),
+  },
+  {
+    label: 'Trade licence',
+    category: 'Document',
+    required: true,
+    isSatisfied: (ctx) => ctx.documents.some((d) => d.category === 'Trade Licence'),
+  },
+  {
+    label: 'Authorised representative',
+    category: 'Information',
+    required: true,
+    isSatisfied: (ctx) => ctx.contacts.some((c) => c.isAuthorisedRepresentative),
+  },
+  {
+    label: 'Additional supporting document',
+    category: 'Document',
+    required: false,
+    isSatisfied: (ctx) => ctx.documents.length > 1,
+  },
 ]
 
 export const CLIENT_ONBOARDING_REQUIREMENTS: Record<ClientType, ClientOnboardingRequirement[]> = {

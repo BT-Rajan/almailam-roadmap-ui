@@ -27,7 +27,7 @@ CONTACT_TYPES = (
     "Other",
 )
 ADDRESS_TYPES = ("Registered", "Operating", "Residential", "Mailing")
-IDENTIFICATION_TYPES = ("Emirates ID", "Passport", "Trade Licence", "Other")
+IDENTIFICATION_TYPES = ("Civil ID", "Passport", "Trade Licence", "Other")
 CONSENT_TYPES = (
     "Process Personal Information",
     "Electronic Communication",

@@ -99,7 +99,7 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
     contacts: [{ name: '', contactType: 'Primary Contact', mobile: '', email: '', isAuthorisedRepresentative: true }],
     address: {
       addressType: 'Registered',
-      country: 'United Arab Emirates',
+      country: 'Kuwait',
       state: '',
       city: '',
       area: '',
@@ -107,11 +107,11 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       building: '',
     },
     identification: {
-      documentType: 'Emirates ID',
+      documentType: 'Civil ID',
       documentNumber: '',
       issueDate: '',
       expiryDate: '',
-      issuingCountry: 'United Arab Emirates',
+      issuingCountry: 'Kuwait',
     },
     identificationFile: null,
     consents: {

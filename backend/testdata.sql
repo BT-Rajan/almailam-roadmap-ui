@@ -59,56 +59,56 @@ SET @u_omar     = (SELECT id FROM users WHERE username = 'o.khalid');
 -- Clients
 -- ----------------------------------------------------------------------------
 INSERT INTO clients (client_type, company_name, contact_person, mobile, email, city, status, onboarding_state, org_legal_name, org_organisation_type, org_registration_number, org_trade_licence_number, org_country_of_registration, org_date_of_incorporation, preferred_language, preferred_channel, email_consent, whatsapp_consent, sms_consent) VALUES
-('Organisation', 'Al Reem Development LLC',        'Khalid Al Reem',   '+971502000001', 'khalid@alreemdev.example',       'Dubai',    'Active', 'Ready', 'Al Reem Development LLC',        'LLC', 'REG-10023', 'TL-88213', 'UAE', '2015-03-11', 'English', 'Email',    1, 1, 0),
-('Organisation', 'Falcon Heights Logistics',        'Yousef Al Amiri',  '+971502000002', 'yousef@falconheights.example',   'Dubai',    'Active', 'Ready', 'Falcon Heights Logistics FZE',   'FZE', 'REG-10456', 'TL-90144', 'UAE', '2018-07-02', 'English', 'WhatsApp', 1, 1, 0),
-('Organisation', 'Marina Bay Hospitality Group',    'Noura Al Sabah',   '+971502000003', 'noura@marinabayhg.example',      'Dubai',    'Active', 'Ready', 'Marina Bay Hospitality Group LLC','LLC', 'REG-10789', 'TL-91230', 'UAE', '2012-11-20', 'Arabic',  'Email',    1, 0, 0),
-('Organisation', 'Sharjah Industrial Holdings',     'Rashid Al Nuaimi', '+971502000004', 'rashid@sihholdings.example',     'Sharjah',  'Active', 'Under Review', 'Sharjah Industrial Holdings LLC','LLC', 'REG-11002', 'TL-92877', 'UAE', '2009-01-15', 'English', 'Email',    1, 1, 1),
-('Individual',   'Khalid Al Mansoori',              'Khalid Al Mansoori','+971502000005','khalid.mansoori@example.com',   'Abu Dhabi','Active', 'Ready', NULL, NULL, NULL, NULL, NULL, NULL, 'English', 'SMS', 1, 0, 1);
+('Organisation', 'Al Reem Development LLC',        'Khalid Al Reem',   '+96550200001', 'khalid@alreemdev.example',       'Kuwait City', 'Active', 'Ready', 'Al Reem Development LLC',        'LLC', 'REG-10023', 'TL-88213', 'Kuwait', '2015-03-11', 'English', 'Email',    1, 1, 0),
+('Organisation', 'Falcon Heights Logistics',        'Yousef Al Amiri',  '+96550200002', 'yousef@falconheights.example',   'Shuwaikh',    'Active', 'Ready', 'Falcon Heights Logistics WLL',   'WLL', 'REG-10456', 'TL-90144', 'Kuwait', '2018-07-02', 'English', 'WhatsApp', 1, 1, 0),
+('Organisation', 'Marina Bay Hospitality Group',    'Noura Al Sabah',   '+96550200003', 'noura@marinabayhg.example',      'Salmiya',     'Active', 'Ready', 'Marina Bay Hospitality Group WLL','WLL', 'REG-10789', 'TL-91230', 'Kuwait', '2012-11-20', 'Arabic',  'Email',    1, 0, 0),
+('Organisation', 'Ahmadi Industrial Holdings',      'Rashid Al Nuaimi', '+96550200004', 'rashid@aihholdings.example',     'Ahmadi',      'Active', 'Under Review', 'Ahmadi Industrial Holdings WLL','WLL', 'REG-11002', 'TL-92877', 'Kuwait', '2009-01-15', 'English', 'Email',    1, 1, 1),
+('Individual',   'Khalid Al Mansoori',              'Khalid Al Mansoori','+96550200005','khalid.mansoori@example.com',   'Hawalli',    'Active', 'Ready', NULL, NULL, NULL, NULL, NULL, NULL, 'English', 'SMS', 1, 0, 1);
 
-UPDATE clients SET ind_full_legal_name = 'Khalid Al Mansoori', ind_nationality = 'UAE', ind_date_of_birth = '1978-04-02', ind_country_of_residence = 'UAE'
+UPDATE clients SET ind_full_legal_name = 'Khalid Al Mansoori', ind_nationality = 'Kuwaiti', ind_date_of_birth = '1978-04-02', ind_country_of_residence = 'Kuwait'
 WHERE company_name = 'Khalid Al Mansoori';
 
 SET @c_alreem  = (SELECT id FROM clients WHERE company_name = 'Al Reem Development LLC');
 SET @c_falcon  = (SELECT id FROM clients WHERE company_name = 'Falcon Heights Logistics');
 SET @c_marina  = (SELECT id FROM clients WHERE company_name = 'Marina Bay Hospitality Group');
-SET @c_sharjah = (SELECT id FROM clients WHERE company_name = 'Sharjah Industrial Holdings');
+SET @c_ahmadi = (SELECT id FROM clients WHERE company_name = 'Ahmadi Industrial Holdings');
 SET @c_khalid  = (SELECT id FROM clients WHERE company_name = 'Khalid Al Mansoori');
 
 INSERT INTO client_contacts (client_id, name, contact_type, mobile, email, is_authorised_representative) VALUES
-(@c_alreem,  'Khalid Al Reem',  'Primary Contact', '+971502000001', 'khalid@alreemdev.example', 1),
-(@c_falcon,  'Yousef Al Amiri', 'Primary Contact', '+971502000002', 'yousef@falconheights.example', 1),
-(@c_falcon,  'Mona Saeed',      'Billing Contact',  '+971502000012', 'mona@falconheights.example', 0),
-(@c_marina,  'Noura Al Sabah',  'Primary Contact', '+971502000003', 'noura@marinabayhg.example', 1),
-(@c_sharjah, 'Rashid Al Nuaimi','Primary Contact', '+971502000004', 'rashid@sihholdings.example', 1);
+(@c_alreem,  'Khalid Al Reem',  'Primary Contact', '+96550200001', 'khalid@alreemdev.example', 1),
+(@c_falcon,  'Yousef Al Amiri', 'Primary Contact', '+96550200002', 'yousef@falconheights.example', 1),
+(@c_falcon,  'Mona Saeed',      'Billing Contact',  '+96550200012', 'mona@falconheights.example', 0),
+(@c_marina,  'Noura Al Sabah',  'Primary Contact', '+96550200003', 'noura@marinabayhg.example', 1),
+(@c_ahmadi, 'Rashid Al Nuaimi','Primary Contact', '+96550200004', 'rashid@aihholdings.example', 1);
 
 INSERT INTO client_addresses (client_id, address_type, country, state, city, area, street, building) VALUES
-(@c_alreem,  'Registered', 'UAE', 'Dubai',   'Dubai',   'Al Reem District', 'Sheikh Zayed Road', 'Al Reem Tower'),
-(@c_falcon,  'Operating',  'UAE', 'Dubai',   'Dubai',   'Jebel Ali',        'Logistics City',    'Warehouse 14'),
-(@c_marina,  'Registered', 'UAE', 'Dubai',   'Dubai',   'Marina',           'Marina Walk',        'Marina Bay Plaza'),
-(@c_sharjah, 'Operating',  'UAE', 'Sharjah', 'Sharjah', 'Industrial Area 6','Al Sajaa Road',       'Plot 44');
+(@c_alreem,  'Registered', 'Kuwait', 'Al Asimah', 'Kuwait City', 'Sharq',           'Arabian Gulf Street', 'Al Reem Tower'),
+(@c_falcon,  'Operating',  'Kuwait', 'Al Asimah', 'Shuwaikh',    'Shuwaikh Port',   'Port Road',           'Warehouse 14'),
+(@c_marina,  'Registered', 'Kuwait', 'Hawalli',   'Salmiya',     'Salmiya Seafront','Arabian Gulf Road',   'Marina Bay Plaza'),
+(@c_ahmadi, 'Operating',  'Kuwait', 'Ahmadi',    'Ahmadi',      'Industrial Area', 'Ahmadi Industrial Road', 'Plot 44');
 
 INSERT INTO client_identifications (client_id, document_type, document_number, issue_date, expiry_date, issuing_country) VALUES
-(@c_alreem,  'Trade Licence', 'TL-88213', '2023-01-10', '2027-01-09', 'UAE'),
-(@c_falcon,  'Trade Licence', 'TL-90144', '2023-06-01', '2027-05-31', 'UAE'),
-(@c_marina,  'Trade Licence', 'TL-91230', '2022-11-15', '2026-11-14', 'UAE'),
-(@c_sharjah, 'Trade Licence', 'TL-92877', '2023-02-20', '2027-02-19', 'UAE'),
-(@c_khalid,  'Emirates ID',   '784-1978-1234567-1', '2021-04-02', '2031-04-01', 'UAE');
+(@c_alreem,  'Trade Licence', 'TL-88213', '2023-01-10', '2027-01-09', 'Kuwait'),
+(@c_falcon,  'Trade Licence', 'TL-90144', '2023-06-01', '2027-05-31', 'Kuwait'),
+(@c_marina,  'Trade Licence', 'TL-91230', '2022-11-15', '2026-11-14', 'Kuwait'),
+(@c_ahmadi, 'Trade Licence', 'TL-92877', '2023-02-20', '2027-02-19', 'Kuwait'),
+(@c_khalid,  'Civil ID',      '278040112345', '2021-04-02', '2031-04-01', 'Kuwait');
 
 INSERT INTO client_consents (client_id, consent_type, version, granted, recorded_at, method, recorded_by) VALUES
 (@c_alreem,  'Process Personal Information', 'v1.0', 1, '2026-01-05 09:15:00', 'Onboarding wizard', @u_pm),
 (@c_falcon,  'Process Personal Information', 'v1.0', 1, '2026-02-10 11:00:00', 'Onboarding wizard', @u_pm),
 (@c_marina,  'Process Personal Information', 'v1.0', 1, '2026-01-20 14:30:00', 'Onboarding wizard', @u_pm),
-(@c_sharjah, 'Process Personal Information', 'v1.0', 1, '2026-03-01 10:00:00', 'Onboarding wizard', @u_pm);
+(@c_ahmadi, 'Process Personal Information', 'v1.0', 1, '2026-03-01 10:00:00', 'Onboarding wizard', @u_pm);
 
 INSERT INTO client_documents (client_id, category, title, issue_date, expiry_date, issuing_authority, version, verification_status, uploaded_by, upload_date, storage_key, original_filename, file_size_bytes) VALUES
-(@c_alreem,  'Trade Licence', 'Al Reem Development Trade Licence', '2023-01-10', '2027-01-09', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-01-05 09:20:00', '', 'seed-data-no-file.pdf', 0),
-(@c_falcon,  'Trade Licence', 'Falcon Heights Trade Licence',      '2023-06-01', '2027-05-31', 'Dubai Economy', 1, 'Verified', @u_fatima, '2026-02-10 11:05:00', '', 'seed-data-no-file.pdf', 0),
-(@c_khalid,  'Identity Document', 'Khalid Al Mansoori Emirates ID', '2021-04-02', '2031-04-01', 'ICP UAE',       1, 'Verified', @u_fatima, '2026-01-15 08:40:00', '', 'seed-data-no-file.pdf', 0);
+(@c_alreem,  'Trade Licence', 'Al Reem Development Trade Licence', '2023-01-10', '2027-01-09', 'Ministry of Commerce and Industry', 1, 'Verified', @u_fatima, '2026-01-05 09:20:00', '', 'seed-data-no-file.pdf', 0),
+(@c_falcon,  'Trade Licence', 'Falcon Heights Trade Licence',      '2023-06-01', '2027-05-31', 'Ministry of Commerce and Industry', 1, 'Verified', @u_fatima, '2026-02-10 11:05:00', '', 'seed-data-no-file.pdf', 0),
+(@c_khalid,  'Identity Document', 'Khalid Al Mansoori Civil ID', '2021-04-02', '2031-04-01', 'Public Authority for Civil Information', 1, 'Verified', @u_fatima, '2026-01-15 08:40:00', '', 'seed-data-no-file.pdf', 0);
 
 INSERT INTO client_verifications (client_id, item, result, verified_by, verified_date, notes) VALUES
-(@c_alreem,  'Trade Licence Verification', 'Verified', @u_fatima, '2026-01-06 10:00:00', 'Verified against Dubai Economy public register.'),
-(@c_falcon,  'Trade Licence Verification', 'Verified', @u_fatima, '2026-02-11 09:30:00', 'Verified against Dubai Economy public register.'),
-(@c_sharjah, 'Trade Licence Verification', 'Pending',  @u_fatima, '2026-03-02 09:00:00', 'Awaiting Sharjah Economic Development Department confirmation.');
+(@c_alreem,  'Trade Licence Verification', 'Verified', @u_fatima, '2026-01-06 10:00:00', 'Verified against Ministry of Commerce and Industry public register.'),
+(@c_falcon,  'Trade Licence Verification', 'Verified', @u_fatima, '2026-02-11 09:30:00', 'Verified against Ministry of Commerce and Industry public register.'),
+(@c_ahmadi, 'Trade Licence Verification', 'Pending',  @u_fatima, '2026-03-02 09:00:00', 'Awaiting Ministry of Commerce and Industry confirmation.');
 
 -- ----------------------------------------------------------------------------
 -- Projects
@@ -117,7 +117,7 @@ INSERT INTO projects (project_no, project_name, client_id, service, engineer_id,
 ('PRJ-2026-001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Enquiry',               8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
 ('PRJ-2026-002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
 ('PRJ-2026-003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
-('PRJ-2026-004', 'Sharjah Industrial Facility - Fire Safety Approval',  @c_sharjah, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
+('PRJ-2026-004', 'Sharjah Industrial Facility - Fire Safety Approval',  @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
 ('PRJ-2026-005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Completed',             100, 'Low',    '2025-09-01', '2026-03-20', 'Completed');
 
 SET @p_alreem  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-001');

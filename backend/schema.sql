@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS client_addresses (
 CREATE TABLE IF NOT EXISTS client_identifications (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id           BIGINT UNSIGNED NOT NULL,
-    document_type       ENUM('Emirates ID','Passport','Trade Licence','Other') NOT NULL,
+    document_type       ENUM('Civil ID','Passport','Trade Licence','Other') NOT NULL,
     document_number     VARCHAR(60) NOT NULL,
     issue_date          DATE NOT NULL,
     expiry_date         DATE NOT NULL,

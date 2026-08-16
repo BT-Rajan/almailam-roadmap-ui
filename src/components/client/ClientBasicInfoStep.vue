@@ -61,7 +61,7 @@ const maxDate = todayIso()
 
     <FormSection title="Contact Details">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="form.mobile" label="Mobile Number" placeholder="+971 5X XXX XXXX" required :error="errors.mobile" />
+        <TextInput v-model="form.mobile" label="Mobile Number" placeholder="+965 5XXX XXXX" required :error="errors.mobile" />
         <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
         <SelectBox
           v-model="form.communicationPreference.preferredLanguage"

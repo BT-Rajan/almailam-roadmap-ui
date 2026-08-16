@@ -95,7 +95,7 @@ function submitForm(): void {
       <TextInput v-model="name" label="Full Name" placeholder="e.g. Sara Abdullah" required :error="nameError" />
       <TextInput v-model="designation" label="Designation" placeholder="e.g. Document Controller" />
       <TextInput v-model="email" type="email" label="Email" placeholder="name@almailam.ae" required :error="emailError" />
-      <TextInput v-model="mobile" type="tel" label="Mobile" placeholder="+971 50 000 0000" />
+      <TextInput v-model="mobile" type="tel" label="Mobile" placeholder="+965 5XXX XXXX" />
       <SelectBox
         :model-value="role"
         label="Role"
