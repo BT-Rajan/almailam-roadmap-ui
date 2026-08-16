@@ -37,7 +37,7 @@ const isIndividual = computed(() => form.value.clientType === 'Individual')
         <TextInput v-model="form.individualProfile.fullLegalName" label="Full Legal Name" required />
         <TextInput v-model="form.individualProfile.preferredName" label="Preferred Name" />
         <TextInput v-model="form.individualProfile.nationality" label="Nationality" required />
-        <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" />
+        <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required />
         <TextInput v-model="form.individualProfile.countryOfResidence" label="Country of Residence" required />
       </div>
     </FormSection>
@@ -50,7 +50,7 @@ const isIndividual = computed(() => form.value.clientType === 'Individual')
         <TextInput v-model="form.organisationProfile.registrationNumber" label="Registration Number" required />
         <TextInput v-model="form.organisationProfile.tradeLicenceNumber" label="Trade Licence Number" />
         <TextInput v-model="form.organisationProfile.countryOfRegistration" label="Country of Registration" required />
-        <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" />
+        <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" required />
       </div>
     </FormSection>
 

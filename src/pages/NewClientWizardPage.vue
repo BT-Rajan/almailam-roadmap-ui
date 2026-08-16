@@ -58,7 +58,40 @@ function viewDuplicate(clientId: string): void {
   router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId } })
 }
 
+// Required fields the backend enforces for step 0 that aren't otherwise
+// caught until the final submit -- validated here so the wizard can't be
+// walked to the end with a payload the API will reject.
+function getBasicInfoErrors(): string[] {
+  const errors: string[] = []
+  if (!form.value.mobile.trim()) errors.push('Mobile Number')
+  if (!form.value.email.trim()) errors.push('Email Address')
+  if (!form.value.city.trim()) errors.push('City')
+
+  if (form.value.clientType === 'Individual') {
+    const p = form.value.individualProfile
+    if (!p.fullLegalName.trim()) errors.push('Full Legal Name')
+    if (!p.nationality.trim()) errors.push('Nationality')
+    if (!p.countryOfResidence.trim()) errors.push('Country of Residence')
+    if (!p.dateOfBirth.trim()) errors.push('Date of Birth')
+  } else {
+    const p = form.value.organisationProfile
+    if (!p.legalName.trim()) errors.push('Legal Name')
+    if (!p.organisationType.trim()) errors.push('Organisation Type')
+    if (!p.registrationNumber.trim()) errors.push('Registration Number')
+    if (!p.countryOfRegistration.trim()) errors.push('Country of Registration')
+    if (!p.dateOfIncorporation.trim()) errors.push('Date of Incorporation')
+  }
+  return errors
+}
+
 function goNext(): void {
+  if (currentStep.value === 0) {
+    const errors = getBasicInfoErrors()
+    if (errors.length > 0) {
+      toastStore.show('error', 'Missing required fields', `Please fill in: ${errors.join(', ')}.`)
+      return
+    }
+  }
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }
 
@@ -71,6 +104,13 @@ function cancelWizard(): void {
 }
 
 async function submitWizard(): Promise<void> {
+  const errors = getBasicInfoErrors()
+  if (errors.length > 0) {
+    toastStore.show('error', 'Missing required fields', `Please fill in: ${errors.join(', ')}.`)
+    currentStep.value = 0
+    return
+  }
+
   isSubmitting.value = true
 
   try {
@@ -175,8 +215,9 @@ async function submitWizard(): Promise<void> {
     }
 
     await router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })
-  } catch {
-    toastStore.show('error', 'Failed to onboard client', 'Please check the form and try again.')
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
+    toastStore.show('error', 'Failed to onboard client', detail)
   } finally {
     isSubmitting.value = false
   }
