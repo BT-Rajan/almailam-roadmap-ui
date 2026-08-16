@@ -100,6 +100,11 @@ def get_projects_by_client(db: Session, client_id: str) -> list[Project]:
 
 def create_project(db: Session, payload, user_id: int | None) -> Project:
     client = client_service.get_client(db, client_service.parse_client_id(payload.clientId))
+    if client.onboarding_state != "Ready":
+        raise ValidationAppError(
+            "A project can only be created for a client whose onboarding is complete "
+            f"(current status: '{client.onboarding_state}'). Finish onboarding this client first."
+        )
     engineer_id = user_service.parse_user_id(payload.engineerId)
     engineer = db.query(User).filter(User.id == engineer_id, User.deleted_at.is_(None)).first()
     if engineer is None:

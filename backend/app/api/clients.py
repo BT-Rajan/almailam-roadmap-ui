@@ -31,9 +31,9 @@ from app.services import client_service
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 
-can_view = require_permission("Projects", "view")
-can_edit = require_permission("Projects", "edit")
-can_delete = require_permission("Projects", "delete")
+can_view = require_permission("Clients", "view")
+can_edit = require_permission("Clients", "edit")
+can_delete = require_permission("Clients", "delete")
 
 
 @router.get("", response_model=PagedResponse[ClientOut])

@@ -1,12 +1,12 @@
 ROLES = ("Administrator", "Project Manager", "Engineer", "Document Controller", "Viewer")
 
-PERMISSION_MODULES = ("Projects", "Documents", "Government", "Finance", "Reports", "Administration")
+PERMISSION_MODULES = ("Projects", "Clients", "Documents", "Government", "Finance", "Reports", "Administration")
 
 ROLE_DESCRIPTIONS: dict[str, str] = {
     "Administrator": "Full access to every module, including administration and system configuration.",
     "Project Manager": "Manages project delivery, documents, government submissions, financial agreements, and reporting.",
     "Engineer": "Works on assigned projects and documents, with read access to government tracking and financial status.",
-    "Document Controller": "Maintains the document repository and revision history across projects.",
+    "Document Controller": "Maintains the document repository and revision history across projects, and onboards clients.",
     "Viewer": "Read-only access for stakeholders who need visibility without edit rights.",
 }
 
@@ -14,6 +14,7 @@ ROLE_DESCRIPTIONS: dict[str, str] = {
 ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
     "Administrator": {
         "Projects": {"view": True, "edit": True, "delete": True},
+        "Clients": {"view": True, "edit": True, "delete": True},
         "Documents": {"view": True, "edit": True, "delete": True},
         "Government": {"view": True, "edit": True, "delete": True},
         "Finance": {"view": True, "edit": True, "delete": True},
@@ -22,6 +23,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
     },
     "Project Manager": {
         "Projects": {"view": True, "edit": True, "delete": False},
+        "Clients": {"view": True, "edit": True, "delete": False},
         "Documents": {"view": True, "edit": True, "delete": False},
         "Government": {"view": True, "edit": True, "delete": False},
         "Finance": {"view": True, "edit": True, "delete": False},
@@ -30,6 +32,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
     },
     "Engineer": {
         "Projects": {"view": True, "edit": True, "delete": False},
+        "Clients": {"view": True, "edit": True, "delete": False},
         "Documents": {"view": True, "edit": True, "delete": False},
         "Government": {"view": True, "edit": False, "delete": False},
         "Finance": {"view": True, "edit": False, "delete": False},
@@ -38,6 +41,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
     },
     "Document Controller": {
         "Projects": {"view": True, "edit": False, "delete": False},
+        "Clients": {"view": True, "edit": True, "delete": False},
         "Documents": {"view": True, "edit": True, "delete": True},
         "Government": {"view": True, "edit": False, "delete": False},
         "Finance": {"view": False, "edit": False, "delete": False},
@@ -46,6 +50,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
     },
     "Viewer": {
         "Projects": {"view": True, "edit": False, "delete": False},
+        "Clients": {"view": True, "edit": False, "delete": False},
         "Documents": {"view": True, "edit": False, "delete": False},
         "Government": {"view": True, "edit": False, "delete": False},
         "Finance": {"view": True, "edit": False, "delete": False},

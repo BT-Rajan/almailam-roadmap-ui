@@ -71,6 +71,7 @@ setRules({
 })
 
 const clientOptions = ref<SelectOption[]>([])
+const hasIneligibleClients = ref(false)
 const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ label: service, value: service }))
 const engineerOptions = ref<SelectOption[]>([])
 
@@ -78,7 +79,13 @@ onMounted(async () => {
   if (projectStore.clients.length === 0) {
     await projectStore.loadProjects()
   }
-  clientOptions.value = projectStore.clients.map((client) => ({ label: client.companyName, value: client.id }))
+  // Only clients that have completed onboarding can have a project created
+  // for them (enforced server-side too, in project_service.create_project)
+  // -- a project needs a real, verified client behind it, not one still
+  // mid-onboarding.
+  const readyClients = projectStore.clients.filter((client) => client.onboardingState === 'Ready')
+  hasIneligibleClients.value = readyClients.length < projectStore.clients.length
+  clientOptions.value = readyClients.map((client) => ({ label: client.companyName, value: client.id }))
 
   if (userStore.users.length === 0) {
     await userStore.loadUsers()
@@ -185,6 +192,12 @@ function goToCreatedProject(): void {
                 :options="clientOptions"
                 :error="errors.clientId"
               />
+              <p v-if="clientOptions.length === 0" class="text-xs text-warning-600">
+                No clients have completed onboarding yet. A client's onboarding must be "Ready" before a project can be created for them.
+              </p>
+              <p v-else-if="hasIneligibleClients" class="text-xs text-neutral-400">
+                Only clients with completed onboarding are shown.
+              </p>
               <RouterLink :to="{ name: ROUTE_NAMES.CLIENT_NEW }" class="self-start text-xs font-medium text-primary-600 hover:text-primary-700">
                 + Onboard a new client
               </RouterLink>
