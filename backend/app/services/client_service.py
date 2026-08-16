@@ -43,6 +43,12 @@ def _parse_prefixed_id(raw: str, prefix: str, label: str) -> int:
     return int(text)
 
 
+def parse_prefixed_id(raw: str, prefix: str, label: str) -> int:
+    """Public wrapper for API-layer routes that need to parse a child
+    record id (e.g. "CTC-001" -> 1) without duplicating this logic."""
+    return _parse_prefixed_id(raw, prefix, label)
+
+
 def parse_document_id(raw: str) -> int:
     return _parse_prefixed_id(raw, "CDOC-", "document")
 
@@ -290,26 +296,44 @@ def find_possible_duplicates(db: Session, name: str, mobile: str, email: str) ->
 def list_contacts(db: Session, client_id: int) -> list[ClientContact]:
     return (
         db.query(ClientContact)
-        .filter(ClientContact.client_id == client_id)
+        .filter(ClientContact.client_id == client_id, ClientContact.deleted_at.is_(None))
         .order_by(ClientContact.id.asc())
         .all()
     )
 
 
-def create_contact(db: Session, client_id: int, payload) -> ClientContact:
-    get_client(db, client_id)
+def get_contact(db: Session, client_id: int, contact_id: int) -> ClientContact:
+    contact = (
+        db.query(ClientContact)
+        .filter(
+            ClientContact.id == contact_id,
+            ClientContact.client_id == client_id,
+            ClientContact.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if contact is None:
+        raise NotFoundError("Contact")
+    return contact
 
-    mobile_digits = _digits(payload.mobile)
-    email_lower = payload.email.strip().lower()
+
+def _check_contact_duplicate(
+    db: Session, client_id: int, mobile: str, email: str, exclude_id: int | None = None
+) -> None:
+    mobile_digits = _digits(mobile)
+    email_lower = email.strip().lower()
     for existing in list_contacts(db, client_id):
+        if exclude_id is not None and existing.id == exclude_id:
+            continue
         if _digits(existing.mobile) == mobile_digits:
-            raise ValidationAppError(
-                f"A contact with mobile number {payload.mobile} already exists for this client."
-            )
+            raise ValidationAppError(f"A contact with mobile number {mobile} already exists for this client.")
         if existing.email.strip().lower() == email_lower:
-            raise ValidationAppError(
-                f"A contact with email {payload.email} already exists for this client."
-            )
+            raise ValidationAppError(f"A contact with email {email} already exists for this client.")
+
+
+def create_contact(db: Session, client_id: int, payload, user_id: int | None = None) -> ClientContact:
+    get_client(db, client_id)
+    _check_contact_duplicate(db, client_id, payload.mobile, payload.email)
 
     contact = ClientContact(
         client_id=client_id,
@@ -320,21 +344,75 @@ def create_contact(db: Session, client_id: int, payload) -> ClientContact:
         is_authorised_representative=payload.isAuthorisedRepresentative,
     )
     db.add(contact)
+    db.flush()
+    audit_service.log_event(db, ENTITY_TYPE, client_id, "Contact added", user_id, new_value=contact.name)
     db.commit()
     db.refresh(contact)
     return contact
 
 
+def update_contact(db: Session, client_id: int, contact_id: int, payload, user_id: int | None) -> ClientContact:
+    contact = get_contact(db, client_id, contact_id)
+
+    new_mobile = payload.mobile if payload.mobile is not None else contact.mobile
+    new_email = payload.email if payload.email is not None else contact.email
+    if payload.mobile is not None or payload.email is not None:
+        _check_contact_duplicate(db, client_id, new_mobile, new_email, exclude_id=contact_id)
+
+    field_map = {
+        "name": "name",
+        "contactType": "contact_type",
+        "mobile": "mobile",
+        "email": "email",
+        "isAuthorisedRepresentative": "is_authorised_representative",
+    }
+    changes: dict[str, tuple] = {}
+    for api_field, attr in field_map.items():
+        value = getattr(payload, api_field)
+        if value is not None:
+            old = getattr(contact, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(contact, attr, value)
+
+    audit_service.log_field_changes(db, ENTITY_TYPE, client_id, changes, user_id, label_prefix="Updated contact")
+    db.commit()
+    db.refresh(contact)
+    return contact
+
+
+def delete_contact(db: Session, client_id: int, contact_id: int, user_id: int | None) -> None:
+    contact = get_contact(db, client_id, contact_id)
+    audit_service.log_event(db, ENTITY_TYPE, client_id, "Contact removed", user_id, previous_value=contact.name)
+    contact.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+
+
 def list_addresses(db: Session, client_id: int) -> list[ClientAddress]:
     return (
         db.query(ClientAddress)
-        .filter(ClientAddress.client_id == client_id)
+        .filter(ClientAddress.client_id == client_id, ClientAddress.deleted_at.is_(None))
         .order_by(ClientAddress.id.asc())
         .all()
     )
 
 
-def create_address(db: Session, client_id: int, payload) -> ClientAddress:
+def get_address(db: Session, client_id: int, address_id: int) -> ClientAddress:
+    address = (
+        db.query(ClientAddress)
+        .filter(
+            ClientAddress.id == address_id,
+            ClientAddress.client_id == client_id,
+            ClientAddress.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if address is None:
+        raise NotFoundError("Address")
+    return address
+
+
+def create_address(db: Session, client_id: int, payload, user_id: int | None = None) -> ClientAddress:
     get_client(db, client_id)
     address = ClientAddress(
         client_id=client_id,
@@ -347,29 +425,90 @@ def create_address(db: Session, client_id: int, payload) -> ClientAddress:
         building=payload.building,
     )
     db.add(address)
+    db.flush()
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Address added", user_id, new_value=f"{address.address_type}: {address.city}"
+    )
     db.commit()
     db.refresh(address)
     return address
 
 
+def update_address(db: Session, client_id: int, address_id: int, payload, user_id: int | None) -> ClientAddress:
+    address = get_address(db, client_id, address_id)
+    field_map = {
+        "addressType": "address_type",
+        "country": "country",
+        "state": "state",
+        "city": "city",
+        "area": "area",
+        "street": "street",
+        "building": "building",
+    }
+    changes: dict[str, tuple] = {}
+    for api_field, attr in field_map.items():
+        value = getattr(payload, api_field)
+        if value is not None:
+            old = getattr(address, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(address, attr, value)
+
+    audit_service.log_field_changes(db, ENTITY_TYPE, client_id, changes, user_id, label_prefix="Updated address")
+    db.commit()
+    db.refresh(address)
+    return address
+
+
+def delete_address(db: Session, client_id: int, address_id: int, user_id: int | None) -> None:
+    address = get_address(db, client_id, address_id)
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Address removed", user_id, previous_value=f"{address.address_type}: {address.city}"
+    )
+    address.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+
+
 def list_identifications(db: Session, client_id: int) -> list[ClientIdentification]:
     return (
         db.query(ClientIdentification)
-        .filter(ClientIdentification.client_id == client_id)
+        .filter(ClientIdentification.client_id == client_id, ClientIdentification.deleted_at.is_(None))
         .order_by(ClientIdentification.id.asc())
         .all()
     )
 
 
-def create_identification(db: Session, client_id: int, payload) -> ClientIdentification:
-    get_client(db, client_id)
+def get_identification(db: Session, client_id: int, identification_id: int) -> ClientIdentification:
+    identification = (
+        db.query(ClientIdentification)
+        .filter(
+            ClientIdentification.id == identification_id,
+            ClientIdentification.client_id == client_id,
+            ClientIdentification.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if identification is None:
+        raise NotFoundError("Identification")
+    return identification
 
-    number_normalised = payload.documentNumber.strip().lower()
+
+def _check_identification_duplicate(
+    db: Session, client_id: int, document_type: str, document_number: str, exclude_id: int | None = None
+) -> None:
+    number_normalised = document_number.strip().lower()
     for existing in list_identifications(db, client_id):
-        if existing.document_type == payload.documentType and existing.document_number.strip().lower() == number_normalised:
+        if exclude_id is not None and existing.id == exclude_id:
+            continue
+        if existing.document_type == document_type and existing.document_number.strip().lower() == number_normalised:
             raise ValidationAppError(
-                f"A {payload.documentType} with number {payload.documentNumber} is already on file for this client."
+                f"A {document_type} with number {document_number} is already on file for this client."
             )
+
+
+def create_identification(db: Session, client_id: int, payload, user_id: int | None = None) -> ClientIdentification:
+    get_client(db, client_id)
+    _check_identification_duplicate(db, client_id, payload.documentType, payload.documentNumber)
 
     identification = ClientIdentification(
         client_id=client_id,
@@ -380,9 +519,63 @@ def create_identification(db: Session, client_id: int, payload) -> ClientIdentif
         issuing_country=payload.issuingCountry,
     )
     db.add(identification)
+    db.flush()
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Identification added", user_id,
+        new_value=f"{identification.document_type}: {identification.document_number}",
+    )
     db.commit()
     db.refresh(identification)
     return identification
+
+
+def update_identification(
+    db: Session, client_id: int, identification_id: int, payload, user_id: int | None
+) -> ClientIdentification:
+    identification = get_identification(db, client_id, identification_id)
+
+    new_type = payload.documentType if payload.documentType is not None else identification.document_type
+    new_number = payload.documentNumber if payload.documentNumber is not None else identification.document_number
+    if payload.documentType is not None or payload.documentNumber is not None:
+        _check_identification_duplicate(db, client_id, new_type, new_number, exclude_id=identification_id)
+
+    new_issue = payload.issueDate if payload.issueDate is not None else identification.issue_date
+    new_expiry = payload.expiryDate if payload.expiryDate is not None else identification.expiry_date
+    if new_expiry <= new_issue:
+        raise ValidationAppError("expiryDate must be after issueDate")
+
+    field_map = {
+        "documentType": "document_type",
+        "documentNumber": "document_number",
+        "issueDate": "issue_date",
+        "expiryDate": "expiry_date",
+        "issuingCountry": "issuing_country",
+    }
+    changes: dict[str, tuple] = {}
+    for api_field, attr in field_map.items():
+        value = getattr(payload, api_field)
+        if value is not None:
+            old = getattr(identification, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(identification, attr, value)
+
+    audit_service.log_field_changes(
+        db, ENTITY_TYPE, client_id, changes, user_id, label_prefix="Updated identification"
+    )
+    db.commit()
+    db.refresh(identification)
+    return identification
+
+
+def delete_identification(db: Session, client_id: int, identification_id: int, user_id: int | None) -> None:
+    identification = get_identification(db, client_id, identification_id)
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Identification removed", user_id,
+        previous_value=f"{identification.document_type}: {identification.document_number}",
+    )
+    identification.deleted_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 def list_consents(db: Session, client_id: int) -> list[ClientConsent]:
@@ -414,7 +607,7 @@ def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> Cl
 def list_documents(db: Session, client_id: int) -> list[ClientDocument]:
     return (
         db.query(ClientDocument)
-        .filter(ClientDocument.client_id == client_id)
+        .filter(ClientDocument.client_id == client_id, ClientDocument.deleted_at.is_(None))
         .order_by(ClientDocument.id.desc())
         .all()
     )
@@ -472,12 +665,53 @@ def create_document(
 def get_document(db: Session, client_id: int, document_id: int) -> ClientDocument:
     document = (
         db.query(ClientDocument)
-        .filter(ClientDocument.id == document_id, ClientDocument.client_id == client_id)
+        .filter(
+            ClientDocument.id == document_id,
+            ClientDocument.client_id == client_id,
+            ClientDocument.deleted_at.is_(None),
+        )
         .first()
     )
     if document is None:
         raise NotFoundError("Client document")
     return document
+
+
+def update_document(db: Session, client_id: int, document_id: int, payload, user_id: int | None) -> ClientDocument:
+    document = get_document(db, client_id, document_id)
+
+    new_issue = payload.issueDate if payload.issueDate is not None else document.issue_date
+    new_expiry = payload.expiryDate if payload.expiryDate is not None else document.expiry_date
+    if new_issue and new_expiry and new_expiry <= new_issue:
+        raise ValidationAppError("expiryDate must be after issueDate")
+
+    field_map = {
+        "category": "category",
+        "title": "title",
+        "issueDate": "issue_date",
+        "expiryDate": "expiry_date",
+        "issuingAuthority": "issuing_authority",
+    }
+    changes: dict[str, tuple] = {}
+    for api_field, attr in field_map.items():
+        value = getattr(payload, api_field)
+        if value is not None:
+            old = getattr(document, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(document, attr, value)
+
+    audit_service.log_field_changes(db, ENTITY_TYPE, client_id, changes, user_id, label_prefix="Updated document")
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def delete_document(db: Session, client_id: int, document_id: int, user_id: int | None) -> None:
+    document = get_document(db, client_id, document_id)
+    audit_service.log_event(db, ENTITY_TYPE, client_id, "Document removed", user_id, previous_value=document.title)
+    document.deleted_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 def get_document_download_target(db: Session, client_id: int, document_id: int) -> tuple:

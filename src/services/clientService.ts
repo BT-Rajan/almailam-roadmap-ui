@@ -102,6 +102,32 @@ async function createContact(clientId: string, input: ClientContactInput): Promi
   }
 }
 
+export type ClientContactUpdateInput = Partial<ClientContactInput>
+
+/**
+ * Update an existing client contact via backend API
+ */
+async function updateContact(clientId: string, contactId: string, input: ClientContactUpdateInput): Promise<ClientContact> {
+  try {
+    return await apiClient.patch<ClientContact>(`/api/clients/${clientId}/contacts/${contactId}`, input)
+  } catch (error) {
+    console.error(`Failed to update contact ${contactId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update contact')
+  }
+}
+
+/**
+ * Remove a client contact via backend API (soft delete)
+ */
+async function deleteContact(clientId: string, contactId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/clients/${clientId}/contacts/${contactId}`)
+  } catch (error) {
+    console.error(`Failed to delete contact ${contactId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete contact')
+  }
+}
+
 /**
  * Fetch addresses for a specific client from backend API
  */
@@ -125,6 +151,32 @@ async function createAddress(clientId: string, input: ClientAddressInput): Promi
   } catch (error) {
     console.error(`Failed to record address for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to record address')
+  }
+}
+
+export type ClientAddressUpdateInput = Partial<ClientAddressInput>
+
+/**
+ * Update an existing client address via backend API
+ */
+async function updateAddress(clientId: string, addressId: string, input: ClientAddressUpdateInput): Promise<ClientAddress> {
+  try {
+    return await apiClient.patch<ClientAddress>(`/api/clients/${clientId}/addresses/${addressId}`, input)
+  } catch (error) {
+    console.error(`Failed to update address ${addressId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update address')
+  }
+}
+
+/**
+ * Remove a client address via backend API (soft delete)
+ */
+async function deleteAddress(clientId: string, addressId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/clients/${clientId}/addresses/${addressId}`)
+  } catch (error) {
+    console.error(`Failed to delete address ${addressId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete address')
   }
 }
 
@@ -154,6 +206,36 @@ async function createIdentification(
   } catch (error) {
     console.error(`Failed to record identification for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to record identification')
+  }
+}
+
+export type ClientIdentificationUpdateInput = Partial<ClientIdentificationInput>
+
+/**
+ * Update an existing client identification via backend API
+ */
+async function updateIdentification(
+  clientId: string,
+  identificationId: string,
+  input: ClientIdentificationUpdateInput,
+): Promise<ClientIdentification> {
+  try {
+    return await apiClient.patch<ClientIdentification>(`/api/clients/${clientId}/identifications/${identificationId}`, input)
+  } catch (error) {
+    console.error(`Failed to update identification ${identificationId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update identification')
+  }
+}
+
+/**
+ * Remove a client identification via backend API (soft delete)
+ */
+async function deleteIdentification(clientId: string, identificationId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/clients/${clientId}/identifications/${identificationId}`)
+  } catch (error) {
+    console.error(`Failed to delete identification ${identificationId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete identification')
   }
 }
 
@@ -246,6 +328,41 @@ async function downloadDocument(clientId: string, documentId: string): Promise<B
   } catch (error) {
     console.error(`Failed to download document ${documentId} for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to download document')
+  }
+}
+
+export type ClientDocumentUpdateInput = {
+  category?: ClientDocument['category']
+  title?: string
+  issueDate?: string
+  expiryDate?: string
+  issuingAuthority?: string
+}
+
+/**
+ * Update a client document's metadata (title, category, dates, issuing
+ * authority) via backend API. Does not replace the stored file -- there
+ * is no re-upload/versioning flow for client documents.
+ */
+async function updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput): Promise<ClientDocument> {
+  try {
+    return await apiClient.patch<ClientDocument>(`/api/clients/${clientId}/documents/${documentId}`, input)
+  } catch (error) {
+    console.error(`Failed to update document ${documentId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update document')
+  }
+}
+
+/**
+ * Remove a client document via backend API (soft delete -- the stored
+ * file is retained on disk, same as the main project Documents module).
+ */
+async function deleteDocument(clientId: string, documentId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/clients/${clientId}/documents/${documentId}`)
+  } catch (error) {
+    console.error(`Failed to delete document ${documentId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
   }
 }
 
@@ -416,12 +533,20 @@ export const clientService = {
   getClientById,
   getContactsForClient,
   createContact,
+  updateContact,
+  deleteContact,
   getAddressesForClient,
   createAddress,
+  updateAddress,
+  deleteAddress,
   getIdentificationsForClient,
   createIdentification,
+  updateIdentification,
+  deleteIdentification,
   getDocumentsForClient,
   createDocument,
+  updateDocument,
+  deleteDocument,
   downloadDocument,
   getVerificationsForClient,
   createVerification,

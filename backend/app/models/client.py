@@ -84,7 +84,7 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     sms_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class ClientContact(Base):
+class ClientContact(Base, SoftDeleteMixin):
     __tablename__ = "client_contacts"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -98,7 +98,7 @@ class ClientContact(Base):
     is_authorised_representative: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class ClientAddress(Base):
+class ClientAddress(Base, SoftDeleteMixin):
     __tablename__ = "client_addresses"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -114,7 +114,7 @@ class ClientAddress(Base):
     building: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
 
-class ClientIdentification(Base):
+class ClientIdentification(Base, SoftDeleteMixin):
     __tablename__ = "client_identifications"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -158,7 +158,7 @@ CLIENT_DOCUMENT_CATEGORIES = (
 CLIENT_VERIFICATION_RESULTS = ("Pending", "Verified", "Rejected")
 
 
-class ClientDocument(Base):
+class ClientDocument(Base, SoftDeleteMixin):
     __tablename__ = "client_documents"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)

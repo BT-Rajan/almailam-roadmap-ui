@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { ShieldCheck, UserRound } from '@lucide/vue'
+import { Pencil, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { ClientContact } from '@/types/Client'
 
 defineProps<{
   contacts: ClientContact[]
+}>()
+
+defineEmits<{
+  edit: [contact: ClientContact]
+  delete: [contact: ClientContact]
 }>()
 </script>
 
@@ -38,7 +44,11 @@ defineProps<{
             <span class="text-xs text-neutral-500">{{ contact.mobile }} · {{ contact.email }}</span>
           </div>
         </div>
-        <StatusBadge :label="contact.contactType" variant="info" size="sm" />
+        <div class="flex shrink-0 items-center gap-2">
+          <StatusBadge :label="contact.contactType" variant="info" size="sm" />
+          <IconButton :icon="Pencil" label="Edit contact" size="sm" @click="$emit('edit', contact)" />
+          <IconButton :icon="Trash2" label="Remove contact" size="sm" variant="danger" @click="$emit('delete', contact)" />
+        </div>
       </li>
     </ul>
   </Card>

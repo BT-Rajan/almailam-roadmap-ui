@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { AlertTriangle, IdCard } from '@lucide/vue'
+import { AlertTriangle, IdCard, Pencil, Trash2 } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { ClientIdentification } from '@/types/Client'
 import { formatDate } from '@/utils/dateFormatter'
@@ -10,6 +11,11 @@ import { isIdentificationExpired } from '@/utils/clientHelpers'
 
 defineProps<{
   identifications: ClientIdentification[]
+}>()
+
+defineEmits<{
+  edit: [identification: ClientIdentification]
+  delete: [identification: ClientIdentification]
 }>()
 </script>
 
@@ -33,12 +39,16 @@ defineProps<{
             <IdCard class="h-4 w-4 shrink-0 text-neutral-400" />
             {{ identification.documentType }}
           </span>
-          <StatusBadge
-            v-if="isIdentificationExpired(identification.expiryDate)"
-            label="Expired"
-            variant="danger"
-            size="sm"
-          />
+          <div class="flex shrink-0 items-center gap-2">
+            <StatusBadge
+              v-if="isIdentificationExpired(identification.expiryDate)"
+              label="Expired"
+              variant="danger"
+              size="sm"
+            />
+            <IconButton :icon="Pencil" label="Edit identification" size="sm" @click="$emit('edit', identification)" />
+            <IconButton :icon="Trash2" label="Remove identification" size="sm" variant="danger" @click="$emit('delete', identification)" />
+          </div>
         </div>
         <p class="text-sm text-neutral-700">{{ identification.documentNumber }}</p>
         <p class="inline-flex items-center gap-1.5 text-xs text-neutral-500">

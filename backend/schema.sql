@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS client_contacts (
     mobile                      VARCHAR(30)  NOT NULL,
     email                       VARCHAR(120) NOT NULL,
     is_authorised_representative TINYINT(1) NOT NULL DEFAULT 0,
+    deleted_at                  DATETIME NULL,
     CONSTRAINT fk_client_contacts_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     INDEX idx_client_contacts_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -121,6 +122,7 @@ CREATE TABLE IF NOT EXISTS client_addresses (
     area            VARCHAR(120) NULL,
     street          VARCHAR(150) NULL,
     building        VARCHAR(120) NULL,
+    deleted_at      DATETIME NULL,
     CONSTRAINT fk_client_addresses_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     INDEX idx_client_addresses_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -133,6 +135,7 @@ CREATE TABLE IF NOT EXISTS client_identifications (
     issue_date          DATE NOT NULL,
     expiry_date         DATE NOT NULL,
     issuing_country     VARCHAR(80) NOT NULL,
+    deleted_at          DATETIME NULL,
     CONSTRAINT fk_client_identifications_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     INDEX idx_client_identifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -166,6 +169,7 @@ CREATE TABLE IF NOT EXISTS client_documents (
     storage_key          VARCHAR(255) NOT NULL,
     original_filename    VARCHAR(255) NOT NULL,
     file_size_bytes       BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at            DATETIME NULL,
     CONSTRAINT fk_client_documents_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     CONSTRAINT fk_client_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_client_documents_client (client_id)

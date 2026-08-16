@@ -1,7 +1,19 @@
 import { defineStore } from 'pinia'
 
 import { clientService } from '@/services/clientService'
-import type { ClientAddressInput, ClientConsentInput, ClientContactInput, ClientDocumentInput, ClientIdentificationInput, ClientUpdateInput, ClientVerificationInput } from '@/services/clientService'
+import type {
+  ClientAddressInput,
+  ClientAddressUpdateInput,
+  ClientConsentInput,
+  ClientContactInput,
+  ClientContactUpdateInput,
+  ClientDocumentInput,
+  ClientDocumentUpdateInput,
+  ClientIdentificationInput,
+  ClientIdentificationUpdateInput,
+  ClientUpdateInput,
+  ClientVerificationInput,
+} from '@/services/clientService'
 import type {
   Client,
   ClientAddress,
@@ -242,6 +254,17 @@ export const useClientStore = defineStore('client', {
       return contact
     },
 
+    async updateContact(clientId: string, contactId: string, input: ClientContactUpdateInput) {
+      const updated = await clientService.updateContact(clientId, contactId, input)
+      this.contacts = this.contacts.map((c) => (c.id === contactId ? updated : c))
+      return updated
+    },
+
+    async deleteContact(clientId: string, contactId: string) {
+      await clientService.deleteContact(clientId, contactId)
+      this.contacts = this.contacts.filter((c) => c.id !== contactId)
+    },
+
     addAddress(address: ClientAddress) {
       this.addresses = [...this.addresses, address]
     },
@@ -253,6 +276,17 @@ export const useClientStore = defineStore('client', {
       const address = await clientService.createAddress(clientId, input)
       this.addresses = [...this.addresses, address]
       return address
+    },
+
+    async updateAddress(clientId: string, addressId: string, input: ClientAddressUpdateInput) {
+      const updated = await clientService.updateAddress(clientId, addressId, input)
+      this.addresses = this.addresses.map((a) => (a.id === addressId ? updated : a))
+      return updated
+    },
+
+    async deleteAddress(clientId: string, addressId: string) {
+      await clientService.deleteAddress(clientId, addressId)
+      this.addresses = this.addresses.filter((a) => a.id !== addressId)
     },
 
     addIdentification(identification: ClientIdentification) {
@@ -268,6 +302,17 @@ export const useClientStore = defineStore('client', {
       return identification
     },
 
+    async updateIdentification(clientId: string, identificationId: string, input: ClientIdentificationUpdateInput) {
+      const updated = await clientService.updateIdentification(clientId, identificationId, input)
+      this.identifications = this.identifications.map((i) => (i.id === identificationId ? updated : i))
+      return updated
+    },
+
+    async deleteIdentification(clientId: string, identificationId: string) {
+      await clientService.deleteIdentification(clientId, identificationId)
+      this.identifications = this.identifications.filter((i) => i.id !== identificationId)
+    },
+
     addDocument(document: ClientDocument) {
       this.documents = [document, ...this.documents]
     },
@@ -280,6 +325,17 @@ export const useClientStore = defineStore('client', {
       const document = await clientService.createDocument(clientId, input)
       this.documents = [document, ...this.documents]
       return document
+    },
+
+    async updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput) {
+      const updated = await clientService.updateDocument(clientId, documentId, input)
+      this.documents = this.documents.map((d) => (d.id === documentId ? updated : d))
+      return updated
+    },
+
+    async deleteDocument(clientId: string, documentId: string) {
+      await clientService.deleteDocument(clientId, documentId)
+      this.documents = this.documents.filter((d) => d.id !== documentId)
     },
 
     async downloadDocument(clientId: string, documentId: string, filename: string) {

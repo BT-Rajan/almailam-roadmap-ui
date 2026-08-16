@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { FilePlus, MessageSquare, ShieldCheck } from '@lucide/vue'
+import { FilePlus, MessageSquare, ShieldCheck, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
+import ClientAddressEditDialog from '@/components/client/ClientAddressEditDialog.vue'
+import ClientContactEditDialog from '@/components/client/ClientContactEditDialog.vue'
 import ClientEditDialog from '@/components/client/ClientEditDialog.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
+import ClientIdentificationEditDialog from '@/components/client/ClientIdentificationEditDialog.vue'
 import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
 import ClientOnboardingStatusDialog from '@/components/client/ClientOnboardingStatusDialog.vue'
@@ -23,6 +27,7 @@ const ClientContactList = defineAsyncComponent(() => import('@/components/client
 const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
 const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
 const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
+const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
 const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
@@ -31,7 +36,17 @@ const ProjectCard = defineAsyncComponent(() => import('@/components/project/Proj
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ClientDocument, ClientDocumentCategory, ClientOnboardingState, ClientVerificationResult, ClientWorkspaceTab, ClientWorkspaceTabKey } from '@/types/Client'
+import type {
+  ClientAddress,
+  ClientContact,
+  ClientDocument,
+  ClientDocumentCategory,
+  ClientIdentification,
+  ClientOnboardingState,
+  ClientVerificationResult,
+  ClientWorkspaceTab,
+  ClientWorkspaceTabKey,
+} from '@/types/Client'
 import type { ClientEditForm } from '@/utils/clientValidation'
 import { formatDate } from '@/utils/dateFormatter'
 
@@ -51,6 +66,31 @@ const isVerificationSaving = ref(false)
 const verificationDialogTarget = ref<ClientDocument | null>(null)
 const isEditDialogOpen = ref(false)
 const isEditSaving = ref(false)
+
+// Contact/address/identification/document edit-or-add dialogs: a null
+// target means "adding new"; a non-null target means "editing this one".
+const isContactDialogOpen = ref(false)
+const isContactSaving = ref(false)
+const contactDialogTarget = ref<ClientContact | null>(null)
+
+const isAddressDialogOpen = ref(false)
+const isAddressSaving = ref(false)
+const addressDialogTarget = ref<ClientAddress | null>(null)
+
+const isIdentificationDialogOpen = ref(false)
+const isIdentificationSaving = ref(false)
+const identificationDialogTarget = ref<ClientIdentification | null>(null)
+
+const isDocumentEditDialogOpen = ref(false)
+const isDocumentEditSaving = ref(false)
+const documentEditTarget = ref<ClientDocument | null>(null)
+
+// One shared delete-confirmation dialog for all four record types, rather
+// than four near-identical ConfirmationDialog instances.
+type DeletableRecordType = 'contact' | 'address' | 'identification' | 'document'
+const isDeleteDialogOpen = ref(false)
+const isDeleteSaving = ref(false)
+const deleteTarget = ref<{ type: DeletableRecordType; id: string; label: string } | null>(null)
 
 const TABS: ClientWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
@@ -236,6 +276,173 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
   }
 }
 
+// --- Contacts ---
+
+function openContactDialog(contact?: ClientContact): void {
+  contactDialogTarget.value = contact ?? null
+  isContactDialogOpen.value = true
+}
+
+async function handleConfirmContact(payload: {
+  name: string
+  contactType: ClientContact['contactType']
+  mobile: string
+  email: string
+  isAuthorisedRepresentative: boolean
+}): Promise<void> {
+  if (!client.value) return
+  isContactSaving.value = true
+  try {
+    if (contactDialogTarget.value) {
+      await clientStore.updateContact(client.value.id, contactDialogTarget.value.id, payload)
+      toastStore.show('success', 'Contact updated', `${payload.name} was updated.`)
+    } else {
+      await clientStore.createContact(client.value.id, payload)
+      toastStore.show('success', 'Contact added', `${payload.name} was added.`)
+    }
+    isContactDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', contactDialogTarget.value ? 'Failed to update contact' : 'Failed to add contact', detail)
+  } finally {
+    isContactSaving.value = false
+  }
+}
+
+// --- Addresses ---
+
+function openAddressDialog(address?: ClientAddress): void {
+  addressDialogTarget.value = address ?? null
+  isAddressDialogOpen.value = true
+}
+
+async function handleConfirmAddress(payload: {
+  addressType: ClientAddress['addressType']
+  country: string
+  state: string
+  city: string
+  area: string
+  street: string
+  building: string
+}): Promise<void> {
+  if (!client.value) return
+  isAddressSaving.value = true
+  try {
+    const normalised = {
+      ...payload,
+      area: payload.area || undefined,
+      street: payload.street || undefined,
+      building: payload.building || undefined,
+    }
+    if (addressDialogTarget.value) {
+      await clientStore.updateAddress(client.value.id, addressDialogTarget.value.id, normalised)
+      toastStore.show('success', 'Address updated', 'The address was updated.')
+    } else {
+      await clientStore.createAddress(client.value.id, normalised)
+      toastStore.show('success', 'Address added', 'The address was added.')
+    }
+    isAddressDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', addressDialogTarget.value ? 'Failed to update address' : 'Failed to add address', detail)
+  } finally {
+    isAddressSaving.value = false
+  }
+}
+
+// --- Identification ---
+
+function openIdentificationDialog(identification?: ClientIdentification): void {
+  identificationDialogTarget.value = identification ?? null
+  isIdentificationDialogOpen.value = true
+}
+
+async function handleConfirmIdentification(payload: {
+  documentType: ClientIdentification['documentType']
+  documentNumber: string
+  issueDate: string
+  expiryDate: string
+  issuingCountry: string
+}): Promise<void> {
+  if (!client.value) return
+  isIdentificationSaving.value = true
+  try {
+    if (identificationDialogTarget.value) {
+      await clientStore.updateIdentification(client.value.id, identificationDialogTarget.value.id, payload)
+      toastStore.show('success', 'Identification updated', `${payload.documentType} was updated.`)
+    } else {
+      await clientStore.createIdentification(client.value.id, payload)
+      toastStore.show('success', 'Identification added', `${payload.documentType} was added.`)
+    }
+    isIdentificationDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', identificationDialogTarget.value ? 'Failed to update identification' : 'Failed to add identification', detail)
+  } finally {
+    isIdentificationSaving.value = false
+  }
+}
+
+// --- Document metadata edit ---
+
+function openDocumentEditDialog(document: ClientDocument): void {
+  documentEditTarget.value = document
+  isDocumentEditDialogOpen.value = true
+}
+
+async function handleConfirmDocumentEdit(payload: {
+  category: ClientDocumentCategory
+  title: string
+  issueDate: string
+  expiryDate: string
+  issuingAuthority: string
+}): Promise<void> {
+  if (!client.value || !documentEditTarget.value) return
+  isDocumentEditSaving.value = true
+  try {
+    await clientStore.updateDocument(client.value.id, documentEditTarget.value.id, {
+      category: payload.category,
+      title: payload.title,
+      issueDate: payload.issueDate || undefined,
+      expiryDate: payload.expiryDate || undefined,
+      issuingAuthority: payload.issuingAuthority || undefined,
+    })
+    toastStore.show('success', 'Document updated', `${payload.title} was updated.`)
+    isDocumentEditDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update document', detail)
+  } finally {
+    isDocumentEditSaving.value = false
+  }
+}
+
+// --- Shared delete confirmation ---
+
+function requestDelete(type: DeletableRecordType, id: string, label: string): void {
+  deleteTarget.value = { type, id, label }
+  isDeleteDialogOpen.value = true
+}
+
+async function handleConfirmDelete(): Promise<void> {
+  if (!client.value || !deleteTarget.value) return
+  const { type, id, label } = deleteTarget.value
+  isDeleteSaving.value = true
+  try {
+    if (type === 'contact') await clientStore.deleteContact(client.value.id, id)
+    else if (type === 'address') await clientStore.deleteAddress(client.value.id, id)
+    else if (type === 'identification') await clientStore.deleteIdentification(client.value.id, id)
+    else await clientStore.deleteDocument(client.value.id, id)
+    toastStore.show('success', 'Removed', `${label} was removed.`)
+    isDeleteDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to remove', detail)
+  } finally {
+    isDeleteSaving.value = false
+  }
+}
+
 function openProject(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
 }
@@ -295,7 +502,17 @@ function openProject(projectId: string): void {
             @change-status="isStatusDialogOpen = true"
           />
           <div class="flex flex-col gap-4">
-            <ClientAddressCard v-for="address in clientStore.addresses" :key="address.id" :address="address" />
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-neutral-800">Addresses</h3>
+              <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">Add Address</BaseButton>
+            </div>
+            <ClientAddressCard
+              v-for="address in clientStore.addresses"
+              :key="address.id"
+              :address="address"
+              @edit="openAddressDialog(address)"
+              @delete="requestDelete('address', address.id, `${address.addressType} address`)"
+            />
             <EmptyState
               v-if="clientStore.addresses.length === 0"
               title="No address on file"
@@ -306,11 +523,25 @@ function openProject(projectId: string): void {
       </template>
 
       <template v-else-if="activeTab === 'contacts'">
-        <ClientContactList :contacts="clientStore.contacts" />
+        <div class="flex items-center justify-end">
+          <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">Add Contact</BaseButton>
+        </div>
+        <ClientContactList
+          :contacts="clientStore.contacts"
+          @edit="openContactDialog"
+          @delete="(contact) => requestDelete('contact', contact.id, contact.name)"
+        />
       </template>
 
       <template v-else-if="activeTab === 'identification'">
-        <ClientIdentificationList :identifications="clientStore.identifications" />
+        <div class="flex items-center justify-end">
+          <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">Add Identification</BaseButton>
+        </div>
+        <ClientIdentificationList
+          :identifications="clientStore.identifications"
+          @edit="openIdentificationDialog"
+          @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
+        />
       </template>
 
       <template v-else-if="activeTab === 'documents'">
@@ -331,6 +562,8 @@ function openProject(projectId: string): void {
             :document="document"
             @download="handleDocumentDownload(document)"
             @verify="openVerificationDialog(document)"
+            @edit="openDocumentEditDialog(document)"
+            @delete="requestDelete('document', document.id, document.title)"
           />
         </div>
         <ClientDocumentUploadDialog v-model="isUploadDialogOpen" @upload="handleDocumentUpload" />
@@ -386,6 +619,39 @@ function openProject(projectId: string): void {
         :client="client"
         :loading="isEditSaving"
         @confirm="handleConfirmEdit"
+      />
+      <ClientContactEditDialog
+        v-model="isContactDialogOpen"
+        :contact="contactDialogTarget ?? undefined"
+        :loading="isContactSaving"
+        @confirm="handleConfirmContact"
+      />
+      <ClientAddressEditDialog
+        v-model="isAddressDialogOpen"
+        :address="addressDialogTarget ?? undefined"
+        :loading="isAddressSaving"
+        @confirm="handleConfirmAddress"
+      />
+      <ClientIdentificationEditDialog
+        v-model="isIdentificationDialogOpen"
+        :identification="identificationDialogTarget ?? undefined"
+        :loading="isIdentificationSaving"
+        @confirm="handleConfirmIdentification"
+      />
+      <ClientDocumentEditDialog
+        v-model="isDocumentEditDialogOpen"
+        :document="documentEditTarget"
+        :loading="isDocumentEditSaving"
+        @confirm="handleConfirmDocumentEdit"
+      />
+      <ConfirmationDialog
+        v-model="isDeleteDialogOpen"
+        title="Remove record"
+        :message="deleteTarget ? `Remove ${deleteTarget.label}? This cannot be undone from the app.` : ''"
+        confirm-label="Remove"
+        confirm-variant="danger"
+        :loading="isDeleteSaving"
+        @confirm="handleConfirmDelete"
       />
     </template>
   </div>

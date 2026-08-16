@@ -11,15 +11,19 @@ from app.schemas.common import PagedResponse
 from app.schemas.client import (
     ClientAddressCreate,
     ClientAddressOut,
+    ClientAddressUpdate,
     ClientConsentCreate,
     ClientConsentOut,
     ClientContactCreate,
     ClientContactOut,
+    ClientContactUpdate,
     ClientCreate,
     ClientDocumentOut,
+    ClientDocumentUpdate,
     ClientDuplicateMatchOut,
     ClientIdentificationCreate,
     ClientIdentificationOut,
+    ClientIdentificationUpdate,
     ClientOnboardingStateUpdate,
     ClientOut,
     ClientStatusUpdate,
@@ -131,10 +135,31 @@ def list_contacts(client_id: str, db: Session = Depends(get_db), _=Depends(can_v
 
 @router.post("/{client_id}/contacts", response_model=ClientContactOut, status_code=201)
 def create_contact(
-    client_id: str, payload: ClientContactCreate, db: Session = Depends(get_db), _=Depends(can_edit)
+    client_id: str, payload: ClientContactCreate, db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
 ):
-    contact = client_service.create_contact(db, client_service.parse_client_id(client_id), payload)
+    contact = client_service.create_contact(db, client_service.parse_client_id(client_id), payload, current_user.id)
     return ClientContactOut.from_model(contact)
+
+
+@router.patch("/{client_id}/contacts/{contact_id}", response_model=ClientContactOut)
+def update_contact(
+    client_id: str, contact_id: str, payload: ClientContactUpdate, db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    contact = client_service.update_contact(
+        db, client_service.parse_client_id(client_id), client_service.parse_prefixed_id(contact_id, "CTC-", "contact"), payload, current_user.id
+    )
+    return ClientContactOut.from_model(contact)
+
+
+@router.delete("/{client_id}/contacts/{contact_id}", status_code=204)
+def delete_contact(
+    client_id: str, contact_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    client_service.delete_contact(
+        db, client_service.parse_client_id(client_id), client_service.parse_prefixed_id(contact_id, "CTC-", "contact"), current_user.id
+    )
 
 
 @router.get("/{client_id}/addresses", response_model=list[ClientAddressOut])
@@ -145,10 +170,31 @@ def list_addresses(client_id: str, db: Session = Depends(get_db), _=Depends(can_
 
 @router.post("/{client_id}/addresses", response_model=ClientAddressOut, status_code=201)
 def create_address(
-    client_id: str, payload: ClientAddressCreate, db: Session = Depends(get_db), _=Depends(can_edit)
+    client_id: str, payload: ClientAddressCreate, db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
 ):
-    address = client_service.create_address(db, client_service.parse_client_id(client_id), payload)
+    address = client_service.create_address(db, client_service.parse_client_id(client_id), payload, current_user.id)
     return ClientAddressOut.from_model(address)
+
+
+@router.patch("/{client_id}/addresses/{address_id}", response_model=ClientAddressOut)
+def update_address(
+    client_id: str, address_id: str, payload: ClientAddressUpdate, db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    address = client_service.update_address(
+        db, client_service.parse_client_id(client_id), client_service.parse_prefixed_id(address_id, "ADR-", "address"), payload, current_user.id
+    )
+    return ClientAddressOut.from_model(address)
+
+
+@router.delete("/{client_id}/addresses/{address_id}", status_code=204)
+def delete_address(
+    client_id: str, address_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    client_service.delete_address(
+        db, client_service.parse_client_id(client_id), client_service.parse_prefixed_id(address_id, "ADR-", "address"), current_user.id
+    )
 
 
 @router.get("/{client_id}/identifications", response_model=list[ClientIdentificationOut])
@@ -162,12 +208,42 @@ def create_identification(
     client_id: str,
     payload: ClientIdentificationCreate,
     db: Session = Depends(get_db),
-    _=Depends(can_edit),
+    current_user: User = Depends(can_edit),
 ):
     identification = client_service.create_identification(
-        db, client_service.parse_client_id(client_id), payload
+        db, client_service.parse_client_id(client_id), payload, current_user.id
     )
     return ClientIdentificationOut.from_model(identification)
+
+
+@router.patch("/{client_id}/identifications/{identification_id}", response_model=ClientIdentificationOut)
+def update_identification(
+    client_id: str,
+    identification_id: str,
+    payload: ClientIdentificationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    identification = client_service.update_identification(
+        db,
+        client_service.parse_client_id(client_id),
+        client_service.parse_prefixed_id(identification_id, "IDN-", "identification"),
+        payload,
+        current_user.id,
+    )
+    return ClientIdentificationOut.from_model(identification)
+
+
+@router.delete("/{client_id}/identifications/{identification_id}", status_code=204)
+def delete_identification(
+    client_id: str, identification_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    client_service.delete_identification(
+        db,
+        client_service.parse_client_id(client_id),
+        client_service.parse_prefixed_id(identification_id, "IDN-", "identification"),
+        current_user.id,
+    )
 
 
 @router.get("/{client_id}/consents", response_model=list[ClientConsentOut])
@@ -243,6 +319,31 @@ def download_document(
         db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id)
     )
     return FileResponse(path, filename=original_filename)
+
+
+@router.patch("/{client_id}/documents/{document_id}", response_model=ClientDocumentOut)
+def update_document(
+    client_id: str,
+    document_id: str,
+    payload: ClientDocumentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = client_service.update_document(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), payload, current_user.id
+    )
+    uploader = db.query(User).filter(User.id == document.uploaded_by).first()
+    uploader_name = uploader.full_name if uploader else "Unknown"
+    return ClientDocumentOut.from_model(document, uploader_name, format_file_size(document.file_size_bytes))
+
+
+@router.delete("/{client_id}/documents/{document_id}", status_code=204)
+def delete_document(
+    client_id: str, document_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    client_service.delete_document(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), current_user.id
+    )
 
 
 @router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])

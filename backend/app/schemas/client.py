@@ -325,6 +325,28 @@ class ClientContactCreate(BaseModel):
     _check_mobile = field_validator("mobile")(_phone_validator("mobile"))
 
 
+class ClientContactUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    contactType: str | None = None
+    mobile: str | None = Field(default=None, min_length=1, max_length=30)
+    email: EmailStr | None = None
+    isAuthorisedRepresentative: bool | None = None
+
+    @field_validator("contactType")
+    @classmethod
+    def check_contact_type(cls, value: str | None) -> str | None:
+        if value is not None and value not in CONTACT_TYPES:
+            raise ValueError(f"contactType must be one of {CONTACT_TYPES}")
+        return value
+
+    @field_validator("mobile")
+    @classmethod
+    def check_mobile(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _phone_validator("mobile")(value)
+
+
 class ClientAddressOut(BaseModel):
     id: str
     clientId: str
@@ -360,6 +382,23 @@ class ClientAddressCreate(BaseModel):
     street: str | None = Field(default=None, max_length=150)
     building: str | None = Field(default=None, max_length=120)
     _check = field_validator("addressType")(_enum_validator(ADDRESS_TYPES, "addressType"))
+
+
+class ClientAddressUpdate(BaseModel):
+    addressType: str | None = None
+    country: str | None = Field(default=None, min_length=1, max_length=80)
+    state: str | None = Field(default=None, min_length=1, max_length=80)
+    city: str | None = Field(default=None, min_length=1, max_length=80)
+    area: str | None = Field(default=None, max_length=120)
+    street: str | None = Field(default=None, max_length=150)
+    building: str | None = Field(default=None, max_length=120)
+
+    @field_validator("addressType")
+    @classmethod
+    def check_address_type(cls, value: str | None) -> str | None:
+        if value is not None and value not in ADDRESS_TYPES:
+            raise ValueError(f"addressType must be one of {ADDRESS_TYPES}")
+        return value
 
 
 class ClientIdentificationOut(BaseModel):
@@ -398,6 +437,36 @@ class ClientIdentificationCreate(BaseModel):
     def expiry_after_issue(cls, value: date, info) -> date:
         issue_date = info.data.get("issueDate")
         if issue_date is not None and value <= issue_date:
+            raise ValueError("expiryDate must be after issueDate")
+        return value
+
+
+class ClientIdentificationUpdate(BaseModel):
+    documentType: str | None = None
+    documentNumber: str | None = Field(default=None, min_length=1, max_length=60)
+    issueDate: date | None = None
+    expiryDate: date | None = None
+    issuingCountry: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @field_validator("documentType")
+    @classmethod
+    def check_document_type(cls, value: str | None) -> str | None:
+        if value is not None and value not in IDENTIFICATION_TYPES:
+            raise ValueError(f"documentType must be one of {IDENTIFICATION_TYPES}")
+        return value
+
+    @field_validator("issueDate")
+    @classmethod
+    def check_issue_date(cls, value: date | None) -> date | None:
+        if value is not None and value > date.today():
+            raise ValueError("issueDate cannot be in the future")
+        return value
+
+    @field_validator("expiryDate")
+    @classmethod
+    def check_expiry_after_issue(cls, value: date | None, info) -> date | None:
+        issue_date = info.data.get("issueDate")
+        if value is not None and issue_date is not None and value <= issue_date:
             raise ValueError("expiryDate must be after issueDate")
         return value
 
@@ -472,6 +541,22 @@ class ClientDocumentOut(BaseModel):
 # POST /api/clients/{client_id}/documents in app/api/clients.py, which takes
 # Form(...)/File(...) params directly) so there is no JSON create schema
 # here -- same pattern as app/schemas/document.py's DocumentOut/create route.
+# Metadata-only edits (no re-upload) go through this plain JSON schema instead.
+
+
+class ClientDocumentUpdate(BaseModel):
+    category: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=150)
+    issueDate: date | None = None
+    expiryDate: date | None = None
+    issuingAuthority: str | None = Field(default=None, max_length=150)
+
+    @field_validator("category")
+    @classmethod
+    def check_category(cls, value: str | None) -> str | None:
+        if value is not None and value not in CLIENT_DOCUMENT_CATEGORIES:
+            raise ValueError(f"category must be one of {CLIENT_DOCUMENT_CATEGORIES}")
+        return value
 
 
 class ClientVerificationOut(BaseModel):

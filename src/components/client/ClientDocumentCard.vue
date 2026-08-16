@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Download, FileText, ShieldCheck, UserRound } from '@lucide/vue'
+import { CalendarClock, Download, FileText, Pencil, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -15,6 +15,8 @@ defineProps<{
 defineEmits<{
   download: []
   verify: []
+  edit: []
+  delete: []
 }>()
 </script>
 
@@ -35,6 +37,8 @@ defineEmits<{
           <StatusBadge :label="document.verificationStatus" :variant="getClientVerificationVariant(document.verificationStatus)" show-dot />
           <IconButton :icon="ShieldCheck" label="Record verification" size="sm" @click="$emit('verify')" />
           <IconButton :icon="Download" label="Download document" size="sm" @click="$emit('download')" />
+          <IconButton :icon="Pencil" label="Edit document" size="sm" @click="$emit('edit')" />
+          <IconButton :icon="Trash2" label="Remove document" size="sm" variant="danger" @click="$emit('delete')" />
         </div>
       </div>
 
