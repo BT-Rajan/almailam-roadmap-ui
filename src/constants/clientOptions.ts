@@ -57,6 +57,14 @@ export const CLIENT_CONSENT_TYPE_OPTIONS: { type: ClientConsentType; description
   },
 ]
 
+// Flat SelectOption shape for the workspace's "Record Consent" dialog --
+// CLIENT_CONSENT_TYPE_OPTIONS above carries the richer wizard-specific
+// {description, mandatory} shape.
+export const CLIENT_CONSENT_TYPE_SELECT_OPTIONS: SelectOption[] = CLIENT_CONSENT_TYPE_OPTIONS.map((c) => ({
+  label: c.type,
+  value: c.type,
+}))
+
 export const CLIENT_VERIFICATION_RESULT_OPTIONS: SelectOption[] = [
   { label: 'Verified', value: 'Verified' },
   { label: 'Rejected', value: 'Rejected' },

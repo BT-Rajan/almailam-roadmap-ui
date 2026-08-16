@@ -420,8 +420,8 @@ export const useClientStore = defineStore('client', {
       void this.loadClientsPage()
     },
 
-    async findDuplicates(name: string, mobile: string, email: string) {
-      return clientService.findPossibleDuplicates(name, mobile, email)
+    async findDuplicates(name: string, mobile: string, email: string, registrationNumber?: string) {
+      return clientService.findPossibleDuplicates(name, mobile, email, registrationNumber)
     },
   },
 })

@@ -116,6 +116,18 @@ def get_client(db: Session, client_id: int) -> Client:
     return client
 
 
+def _lock_client(db: Session, client_id: int) -> Client:
+    """Same as get_client() but takes a row lock -- used before a
+    check-then-insert duplicate check (contacts, identifications) so two
+    concurrent requests for the same client can't both pass the check and
+    both insert. Scoped to a single client row, so it doesn't serialize
+    unrelated clients' requests against each other."""
+    client = db.query(Client).filter(Client.id == client_id, Client.deleted_at.is_(None)).with_for_update().first()
+    if client is None:
+        raise NotFoundError("Client")
+    return client
+
+
 def create_client(db: Session, payload, user_id: int | None) -> Client:
     client = Client(
         client_type=payload.clientType,
@@ -271,10 +283,13 @@ def get_audit_events(db: Session, client_id: int) -> list[dict]:
     return audit_service.get_history(db, ENTITY_TYPE, client_id)
 
 
-def find_possible_duplicates(db: Session, name: str, mobile: str, email: str) -> list[dict]:
+def find_possible_duplicates(
+    db: Session, name: str, mobile: str, email: str, registration_number: str = ""
+) -> list[dict]:
     name_term = name.strip().lower()
     mobile_digits = _digits(mobile)
     email_term = email.strip().lower()
+    reg_term = registration_number.strip().lower()
 
     matches: list[dict] = []
     for client in db.query(Client).filter(Client.deleted_at.is_(None)).all():
@@ -285,6 +300,14 @@ def find_possible_duplicates(db: Session, name: str, mobile: str, email: str) ->
             matched_on.append("Mobile number")
         if len(email_term) > 3 and client.email.lower() == email_term:
             matched_on.append("Email")
+        # Registration/trade licence number is the strongest duplicate
+        # signal for an organisation -- two onboarding attempts for the
+        # same company under a slightly different name/contact would
+        # otherwise sail past the checks above entirely.
+        if reg_term and client.org_registration_number and client.org_registration_number.strip().lower() == reg_term:
+            matched_on.append("Registration number")
+        if reg_term and client.org_trade_licence_number and client.org_trade_licence_number.strip().lower() == reg_term:
+            matched_on.append("Trade licence number")
         if matched_on:
             matches.append({"client": client, "matchedOn": matched_on})
     return matches
@@ -332,7 +355,7 @@ def _check_contact_duplicate(
 
 
 def create_contact(db: Session, client_id: int, payload, user_id: int | None = None) -> ClientContact:
-    get_client(db, client_id)
+    _lock_client(db, client_id)
     _check_contact_duplicate(db, client_id, payload.mobile, payload.email)
 
     contact = ClientContact(
@@ -352,6 +375,7 @@ def create_contact(db: Session, client_id: int, payload, user_id: int | None = N
 
 
 def update_contact(db: Session, client_id: int, contact_id: int, payload, user_id: int | None) -> ClientContact:
+    _lock_client(db, client_id)
     contact = get_contact(db, client_id, contact_id)
 
     new_mobile = payload.mobile if payload.mobile is not None else contact.mobile
@@ -507,7 +531,7 @@ def _check_identification_duplicate(
 
 
 def create_identification(db: Session, client_id: int, payload, user_id: int | None = None) -> ClientIdentification:
-    get_client(db, client_id)
+    _lock_client(db, client_id)
     _check_identification_duplicate(db, client_id, payload.documentType, payload.documentNumber)
 
     identification = ClientIdentification(
@@ -532,6 +556,7 @@ def create_identification(db: Session, client_id: int, payload, user_id: int | N
 def update_identification(
     db: Session, client_id: int, identification_id: int, payload, user_id: int | None
 ) -> ClientIdentification:
+    _lock_client(db, client_id)
     identification = get_identification(db, client_id, identification_id)
 
     new_type = payload.documentType if payload.documentType is not None else identification.document_type
@@ -599,6 +624,11 @@ def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> Cl
         recorded_by=recorded_by,
     )
     db.add(consent)
+    db.flush()
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Consent recorded", recorded_by,
+        new_value=f"{payload.consentType}: {'Granted' if payload.granted else 'Declined'}",
+    )
     db.commit()
     db.refresh(consent)
     return consent
@@ -748,9 +778,20 @@ def get_document_download_target(db: Session, client_id: int, document_id: int) 
 
 
 def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
+    # A verification tied to a specific document (document_id is set)
+    # stops counting once that document is deleted -- otherwise a
+    # "Rejected"/"Pending" verification for a document that's since been
+    # removed (e.g. the wrong file, replaced by a corrected upload) would
+    # keep silently blocking calculateOnboardingState()'s suggested next
+    # state on the frontend even though there's nothing left to act on.
+    # Checklist-style verifications (document_id is null) are unaffected.
     return (
         db.query(ClientVerification)
-        .filter(ClientVerification.client_id == client_id)
+        .outerjoin(ClientDocument, ClientVerification.document_id == ClientDocument.id)
+        .filter(
+            ClientVerification.client_id == client_id,
+            or_(ClientVerification.document_id.is_(None), ClientDocument.deleted_at.is_(None)),
+        )
         .order_by(ClientVerification.id.desc())
         .all()
     )

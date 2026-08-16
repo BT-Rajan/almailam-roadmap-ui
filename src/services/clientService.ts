@@ -500,11 +500,16 @@ async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEve
 async function findPossibleDuplicates(
   name: string,
   mobile: string,
-  email: string
+  email: string,
+  registrationNumber?: string,
 ): Promise<ClientDuplicateMatch[]> {
   try {
-    const query = new URLSearchParams({ name, mobile, email }).toString()
-    return await apiClient.post<ClientDuplicateMatch[]>(`/api/clients/duplicates?${query}`)
+    return await apiClient.post<ClientDuplicateMatch[]>('/api/clients/duplicates', {
+      name,
+      mobile,
+      email,
+      registrationNumber: registrationNumber ?? '',
+    })
   } catch (error) {
     console.error('Failed to check for duplicate clients:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')

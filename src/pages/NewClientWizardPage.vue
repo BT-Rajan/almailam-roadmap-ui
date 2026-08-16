@@ -50,15 +50,23 @@ const confirmationNote = ref('')
 
 async function checkForDuplicates(): Promise<void> {
   const name = form.value.clientType === 'Individual' ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
-  if (!name && !form.value.mobile && !form.value.email) {
+  const registrationNumber = form.value.clientType === 'Individual' ? undefined : form.value.organisationProfile.registrationNumber
+  if (!name && !form.value.mobile && !form.value.email && !registrationNumber) {
     duplicates.value = []
     return
   }
-  duplicates.value = await clientStore.findDuplicates(name, form.value.mobile, form.value.email)
+  duplicates.value = await clientStore.findDuplicates(name, form.value.mobile, form.value.email, registrationNumber)
 }
 
 watch(
-  () => [form.value.clientType, form.value.mobile, form.value.email, form.value.individualProfile.fullLegalName, form.value.organisationProfile.legalName],
+  () => [
+    form.value.clientType,
+    form.value.mobile,
+    form.value.email,
+    form.value.individualProfile.fullLegalName,
+    form.value.organisationProfile.legalName,
+    form.value.organisationProfile.registrationNumber,
+  ],
   () => {
     if (duplicateCheckTimeout) clearTimeout(duplicateCheckTimeout)
     duplicateCheckTimeout = setTimeout(checkForDuplicates, 400)

@@ -290,6 +290,17 @@ class ClientDuplicateMatchOut(BaseModel):
     matchedOn: list[str]
 
 
+class ClientDuplicateCheckRequest(BaseModel):
+    # A JSON body rather than query params -- this carries a person's
+    # name/mobile/email, which shouldn't end up in URL query strings
+    # (access logs, proxy logs, browser history) on every debounced
+    # keystroke while filling in the onboarding wizard.
+    name: str = ""
+    mobile: str = ""
+    email: str = ""
+    registrationNumber: str = ""
+
+
 # --- child records -------------------------------------------------------
 
 

@@ -31,6 +31,7 @@ const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components
 const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
+const ClientConsentDialog = defineAsyncComponent(() => import('@/components/client/ClientConsentDialog.vue'))
 const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/ClientAuditTrail.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
@@ -38,6 +39,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type {
   ClientAddress,
+  ClientConsent,
   ClientContact,
   ClientDocument,
   ClientDocumentCategory,
@@ -69,6 +71,8 @@ const isEditSaving = ref(false)
 const isStatusToggleSaving = ref(false)
 const isDeleteClientDialogOpen = ref(false)
 const isDeleteClientSaving = ref(false)
+const isConsentDialogOpen = ref(false)
+const isConsentSaving = ref(false)
 
 // Contact/address/identification/document edit-or-add dialogs: a null
 // target means "adding new"; a non-null target means "editing this one".
@@ -318,6 +322,26 @@ async function handleConfirmDeleteClient(): Promise<void> {
     toastStore.show('error', 'Failed to delete client', detail)
   } finally {
     isDeleteClientSaving.value = false
+  }
+}
+
+async function handleConfirmConsent(payload: {
+  consentType: ClientConsent['consentType']
+  version: string
+  granted: boolean
+  method: string
+}): Promise<void> {
+  if (!client.value) return
+  isConsentSaving.value = true
+  try {
+    await clientStore.createConsent(client.value.id, payload)
+    toastStore.show('success', 'Consent recorded', `${payload.consentType}: ${payload.granted ? 'Granted' : 'Declined'}.`)
+    isConsentDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to record consent', detail)
+  } finally {
+    isConsentSaving.value = false
   }
 }
 
@@ -629,6 +653,9 @@ function openProject(projectId: string): void {
       </template>
 
       <template v-else-if="activeTab === 'consent'">
+        <div class="flex items-center justify-end">
+          <BaseButton size="sm" :icon="ShieldCheck" @click="isConsentDialogOpen = true">Record Consent</BaseButton>
+        </div>
         <ClientConsentList :consents="clientStore.consents" />
       </template>
 
@@ -714,6 +741,11 @@ function openProject(projectId: string): void {
         confirm-variant="danger"
         :loading="isDeleteClientSaving"
         @confirm="handleConfirmDeleteClient"
+      />
+      <ClientConsentDialog
+        v-model="isConsentDialogOpen"
+        :loading="isConsentSaving"
+        @confirm="handleConfirmConsent"
       />
     </template>
   </div>

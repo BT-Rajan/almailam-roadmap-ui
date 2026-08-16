@@ -20,6 +20,7 @@ from app.schemas.client import (
     ClientCreate,
     ClientDocumentOut,
     ClientDocumentUpdate,
+    ClientDuplicateCheckRequest,
     ClientDuplicateMatchOut,
     ClientIdentificationCreate,
     ClientIdentificationOut,
@@ -60,8 +61,10 @@ def list_clients(
 
 
 @router.post("/duplicates", response_model=list[ClientDuplicateMatchOut])
-def find_duplicates(name: str, mobile: str, email: str, db: Session = Depends(get_db), _=Depends(can_view)):
-    matches = client_service.find_possible_duplicates(db, name, mobile, email)
+def find_duplicates(payload: ClientDuplicateCheckRequest, db: Session = Depends(get_db), _=Depends(can_view)):
+    matches = client_service.find_possible_duplicates(
+        db, payload.name, payload.mobile, payload.email, payload.registrationNumber
+    )
     return [
         ClientDuplicateMatchOut(client=ClientOut.from_model(m["client"]), matchedOn=m["matchedOn"])
         for m in matches
