@@ -21,6 +21,8 @@
 #   --db-mode=fresh|reuse|dump   Skip the DB menu
 #   --dump-file=PATH             .sql file to restore (with --db-mode=dump)
 #   --with-testdata              Load backend/testdata.sql (fresh mode only)
+#   --apply-migrations           Apply backend/migrations/*.sql to the
+#                                 database (see below) without prompting
 #   --yes                        Accept defaults for any remaining prompt
 #   -h, --help
 #
@@ -43,6 +45,7 @@ DB_MODE_ARG=""
 DUMP_FILE_ARG=""
 WITH_TESTDATA=false
 ASSUME_YES=false
+APPLY_MIGRATIONS=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -50,6 +53,7 @@ for arg in "$@"; do
     --db-mode=*) DB_MODE_ARG="${arg#*=}" ;;
     --dump-file=*) DUMP_FILE_ARG="${arg#*=}" ;;
     --with-testdata) WITH_TESTDATA=true ;;
+    --apply-migrations) APPLY_MIGRATIONS=true ;;
     --yes) ASSUME_YES=true ;;
     -h|--help)
       grep '^#' "$0" | sed 's/^#//'
@@ -179,7 +183,7 @@ else
     fi
     if require_cmd ss && ss -ltn 2>/dev/null | awk '{print $4}' | grep -q ":${PORT}\$"; then
       warn "Something is already listening on port ${PORT}."
-      [ "$(ask "Use it anyway? [y/N]: " "n")" =~ ^[Yy] ] && break || continue
+      [[ "$(ask "Use it anyway? [y/N]: " "n")" =~ ^[Yy] ]] && break || continue
     fi
     break
   done
@@ -216,10 +220,17 @@ if [ -z "$DB_MODE" ]; then
 fi
 
 MYSQL_PWD_INPUT=""
+# Separate from MYSQL_PWD_INPUT below -- only ever set when this script
+# itself created the database as root (fresh/dump mode), so it's safe to
+# write into backend/.env as the app's DB_PASSWORD. In reuse mode, a root
+# password entered later just to run an opted-in migration must never
+# overwrite the real application DB user's password already in .env.
+DB_PASSWORD_FROM_SETUP=""
 if [ "$DB_MODE" != "reuse" ]; then
   sudo systemctl enable --now "$DB_SERVICE"
   read -rsp "MySQL root password (blank if none set yet): " MYSQL_PWD_INPUT
   echo
+  DB_PASSWORD_FROM_SETUP="$MYSQL_PWD_INPUT"
   if [ -n "$MYSQL_PWD_INPUT" ]; then
     MYSQL_AUTH=(-u root -p"$MYSQL_PWD_INPUT")
   else
@@ -233,7 +244,7 @@ if [ "$DB_MODE" != "reuse" ]; then
       log "Loading schema into '${DB_NAME}'"
       sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < backend/schema.sql
       if [ "$WITH_TESTDATA" = false ] && [ "$ASSUME_YES" = false ]; then
-        [ "$(ask "Load sample test data too? [y/N]: " "n")" =~ ^[Yy] ] && WITH_TESTDATA=true
+        [[ "$(ask "Load sample test data too? [y/N]: " "n")" =~ ^[Yy] ]] && WITH_TESTDATA=true
       fi
       if [ "$WITH_TESTDATA" = true ]; then
         log "Loading test data"
@@ -261,27 +272,41 @@ else
 fi
 
 # ===========================================================================
-# 3b. Apply any pending migrations (backend/migrations/*.sql)
+# 3b. Apply database migrations (backend/migrations/*.sql) -- opt-in only
 # ===========================================================================
-# schema.sql only reflects a fresh install; existing databases (reuse mode,
-# or a fresh/dump install from before a schema change landed) need these
-# applied too. Each migration is written to be idempotent, so it's safe to
-# always run this rather than trying to track what's already applied.
+# "Reuse existing" means exactly that: this script does not touch that
+# database unless you explicitly ask it to. Migrations bring an existing
+# database's schema up to date with recent code changes (see
+# backend/migrations/README or individual migration files for what each
+# one does) -- each is written to be idempotent, so it's safe to apply
+# more than once, but it's still your database and your call.
 if [ -d "$SCRIPT_DIR/backend/migrations" ] && [ -n "$(ls -A "$SCRIPT_DIR/backend/migrations"/*.sql 2>/dev/null)" ]; then
-  log "Applying database migrations"
-  if [ "$DB_MODE" = "reuse" ] && [ -z "$MYSQL_PWD_INPUT" ]; then
-    read -rsp "MySQL root password (blank if none set yet): " MYSQL_PWD_INPUT
-    echo
-    if [ -n "$MYSQL_PWD_INPUT" ]; then
-      MYSQL_AUTH=(-u root -p"$MYSQL_PWD_INPUT")
-    else
-      MYSQL_AUTH=(-u root)
+  RUN_MIGRATIONS=false
+  if [ "$APPLY_MIGRATIONS" = true ]; then
+    RUN_MIGRATIONS=true
+  elif [ "$ASSUME_YES" = false ]; then
+    log "Database migrations"
+    if [[ "$(ask "Apply backend/migrations/*.sql to '${DB_NAME}' now? [y/N]: " "n")" =~ ^[Yy] ]]; then
+      RUN_MIGRATIONS=true
     fi
   fi
-  for migration in "$SCRIPT_DIR"/backend/migrations/*.sql; do
-    log "  -> $(basename "$migration")"
-    sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < "$migration"
-  done
+
+  if [ "$RUN_MIGRATIONS" = true ]; then
+    log "Applying database migrations"
+    if [ -z "${MYSQL_PWD_INPUT:-}" ]; then
+      read -rsp "MySQL root password (blank if none set yet): " MIGRATION_PWD_INPUT
+      echo
+      if [ -n "$MIGRATION_PWD_INPUT" ]; then
+        MYSQL_AUTH=(-u root -p"$MIGRATION_PWD_INPUT")
+      else
+        MYSQL_AUTH=(-u root)
+      fi
+    fi
+    for migration in "$SCRIPT_DIR"/backend/migrations/*.sql; do
+      log "  -> $(basename "$migration")"
+      sudo "$DB_CLIENT" "${MYSQL_AUTH[@]}" "${DB_NAME}" < "$migration"
+    done
+  fi
 fi
 
 # ===========================================================================
@@ -307,7 +332,7 @@ fi
 
 set_env_var .env PORT "$PORT"
 set_env_var .env DB_NAME "$DB_NAME"
-[ -n "$MYSQL_PWD_INPUT" ] && set_env_var .env DB_PASSWORD "$MYSQL_PWD_INPUT"
+[ -n "$DB_PASSWORD_FROM_SETUP" ] && set_env_var .env DB_PASSWORD "$DB_PASSWORD_FROM_SETUP"
 
 log "Creating admin user (admin / Admin#99) if not already present"
 python -m scripts.create_admin --quick-start || warn "Admin user step failed or already exists — check output above."
