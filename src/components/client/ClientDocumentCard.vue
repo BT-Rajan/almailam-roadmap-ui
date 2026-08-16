@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { CalendarClock, Download, FileText, Pencil, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
+import { CalendarClock, Download, FileText, Pencil, RefreshCw, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
+import { ref } from 'vue'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -12,12 +13,25 @@ defineProps<{
   document: ClientDocument
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   download: []
   verify: []
   edit: []
   delete: []
+  'replace-file': [file: File]
 }>()
+
+const fileInput = ref<HTMLInputElement>()
+
+function triggerFileSelect(): void {
+  fileInput.value?.click()
+}
+
+function handleFileChange(event: Event): void {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (file) emit('replace-file', file)
+  ;(event.target as HTMLInputElement).value = ''
+}
 </script>
 
 <template>
@@ -37,8 +51,10 @@ defineEmits<{
           <StatusBadge :label="document.verificationStatus" :variant="getClientVerificationVariant(document.verificationStatus)" show-dot />
           <IconButton :icon="ShieldCheck" label="Record verification" size="sm" @click="$emit('verify')" />
           <IconButton :icon="Download" label="Download document" size="sm" @click="$emit('download')" />
+          <IconButton :icon="RefreshCw" label="Replace file" size="sm" @click="triggerFileSelect" />
           <IconButton :icon="Pencil" label="Edit document" size="sm" @click="$emit('edit')" />
           <IconButton :icon="Trash2" label="Remove document" size="sm" variant="danger" @click="$emit('delete')" />
+          <input ref="fileInput" type="file" class="hidden" @change="handleFileChange" />
         </div>
       </div>
 

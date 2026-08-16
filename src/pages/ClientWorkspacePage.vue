@@ -66,6 +66,9 @@ const isVerificationSaving = ref(false)
 const verificationDialogTarget = ref<ClientDocument | null>(null)
 const isEditDialogOpen = ref(false)
 const isEditSaving = ref(false)
+const isStatusToggleSaving = ref(false)
+const isDeleteClientDialogOpen = ref(false)
+const isDeleteClientSaving = ref(false)
 
 // Contact/address/identification/document edit-or-add dialogs: a null
 // target means "adding new"; a non-null target means "editing this one".
@@ -185,6 +188,17 @@ async function handleDocumentDownload(document: ClientDocument): Promise<void> {
   }
 }
 
+async function handleReplaceDocumentFile(document: ClientDocument, file: File): Promise<void> {
+  if (!client.value) return
+  try {
+    await clientStore.replaceDocumentFile(client.value.id, document.id, file)
+    toastStore.show('success', 'File replaced', `${document.title} was updated to a new version.`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to replace file', detail)
+  }
+}
+
 async function applyOnboardingState(nextState: ClientOnboardingState, reason?: string): Promise<void> {
   if (!client.value) return
   isOnboardingStateSaving.value = true
@@ -273,6 +287,37 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
     toastStore.show('error', 'Failed to update client', detail)
   } finally {
     isEditSaving.value = false
+  }
+}
+
+async function handleToggleStatus(): Promise<void> {
+  if (!client.value) return
+  const nextStatus = client.value.status === 'Active' ? 'Inactive' : 'Active'
+  isStatusToggleSaving.value = true
+  try {
+    await clientStore.setClientStatus(client.value.id, nextStatus)
+    toastStore.show('success', 'Status updated', `Client marked as ${nextStatus}.`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update status', detail)
+  } finally {
+    isStatusToggleSaving.value = false
+  }
+}
+
+async function handleConfirmDeleteClient(): Promise<void> {
+  if (!client.value) return
+  isDeleteClientSaving.value = true
+  try {
+    await clientStore.deleteClient(client.value.id)
+    toastStore.show('success', 'Client deleted', `${client.value.companyName} was removed.`)
+    isDeleteClientDialogOpen.value = false
+    router.push({ name: ROUTE_NAMES.CLIENTS })
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to delete client', detail)
+  } finally {
+    isDeleteClientSaving.value = false
   }
 }
 
@@ -468,7 +513,13 @@ function openProject(projectId: string): void {
     />
 
     <template v-else>
-      <ClientHeader :client="client" @edit="isEditDialogOpen = true" />
+      <ClientHeader
+        :client="client"
+        :status-saving="isStatusToggleSaving"
+        @edit="isEditDialogOpen = true"
+        @toggle-status="handleToggleStatus"
+        @delete="isDeleteClientDialogOpen = true"
+      />
 
       <ClientWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
@@ -564,6 +615,7 @@ function openProject(projectId: string): void {
             @verify="openVerificationDialog(document)"
             @edit="openDocumentEditDialog(document)"
             @delete="requestDelete('document', document.id, document.title)"
+            @replace-file="(file) => handleReplaceDocumentFile(document, file)"
           />
         </div>
         <ClientDocumentUploadDialog v-model="isUploadDialogOpen" @upload="handleDocumentUpload" />
@@ -652,6 +704,16 @@ function openProject(projectId: string): void {
         confirm-variant="danger"
         :loading="isDeleteSaving"
         @confirm="handleConfirmDelete"
+      />
+      <ConfirmationDialog
+        v-if="client"
+        v-model="isDeleteClientDialogOpen"
+        title="Delete client"
+        :message="`Delete ${client.companyName}? This cannot be undone from the app, and is blocked if the client has any projects on file.`"
+        confirm-label="Delete"
+        confirm-variant="danger"
+        :loading="isDeleteClientSaving"
+        @confirm="handleConfirmDeleteClient"
       />
     </template>
   </div>

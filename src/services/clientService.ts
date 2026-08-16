@@ -341,8 +341,8 @@ export type ClientDocumentUpdateInput = {
 
 /**
  * Update a client document's metadata (title, category, dates, issuing
- * authority) via backend API. Does not replace the stored file -- there
- * is no re-upload/versioning flow for client documents.
+ * authority) via backend API. Does not replace the stored file -- use
+ * replaceDocumentFile() below for that.
  */
 async function updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput): Promise<ClientDocument> {
   try {
@@ -350,6 +350,41 @@ async function updateDocument(clientId: string, documentId: string, input: Clien
   } catch (error) {
     console.error(`Failed to update document ${documentId} for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update document')
+  }
+}
+
+/**
+ * Replace a client document's stored file with a new one, bumping its
+ * version -- lighter than full version history (no old-version
+ * retrieval), but makes the version field mean something.
+ */
+async function replaceDocumentFile(clientId: string, documentId: string, file: File): Promise<ClientDocument> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const doRequest = () =>
+    fetch(`/api/clients/${clientId}/documents/${documentId}/replace-file`, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  try {
+    let response = await doRequest()
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+    }
+    return (await response.json()) as ClientDocument
+  } catch (error) {
+    console.error(`Failed to replace file for document ${documentId} on client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to replace document file')
   }
 }
 
@@ -488,6 +523,18 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
   }
 }
 
+/**
+ * Toggle a client's Active/Inactive status via backend API.
+ */
+async function setStatus(clientId: string, status: Client['status']): Promise<Client> {
+  try {
+    return await apiClient.patch<Client>(`/api/clients/${clientId}/status`, { status })
+  } catch (error) {
+    console.error(`Failed to update status for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update client status')
+  }
+}
+
 export type ClientUpdateInput = {
   companyName?: string
   contactPerson?: string
@@ -546,6 +593,7 @@ export const clientService = {
   getDocumentsForClient,
   createDocument,
   updateDocument,
+  replaceDocumentFile,
   deleteDocument,
   downloadDocument,
   getVerificationsForClient,
@@ -557,5 +605,6 @@ export const clientService = {
   findPossibleDuplicates,
   createClient,
   updateClient,
+  setStatus,
   deleteClient,
 }

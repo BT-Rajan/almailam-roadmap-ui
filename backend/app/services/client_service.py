@@ -714,6 +714,29 @@ def delete_document(db: Session, client_id: int, document_id: int, user_id: int 
     db.commit()
 
 
+def replace_document_file(db: Session, client_id: int, document_id: int, file: UploadFile, user_id: int | None) -> ClientDocument:
+    """Uploads a new file for an existing document record, bumping its
+    version -- a lighter-weight alternative to full version history (no
+    old-version retrieval), but it at least makes the `version` field mean
+    something instead of being permanently stuck at 1."""
+    document = get_document(db, client_id, document_id)
+    storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
+
+    document.storage_key = storage_key
+    document.original_filename = original_filename
+    document.file_size_bytes = size_bytes
+    document.version += 1
+    document.verification_status = "Pending"  # a replaced file needs re-verifying, not inheriting the old one's status
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Document file replaced", user_id,
+        new_value=f"{document.title} (v{document.version})",
+    )
+    db.commit()
+    db.refresh(document)
+    return document
+
+
 def get_document_download_target(db: Session, client_id: int, document_id: int) -> tuple:
     document = get_document(db, client_id, document_id)
     return resolve_path(document.storage_key), document.original_filename
@@ -778,6 +801,22 @@ def create_verification(
 
 def delete_client(db: Session, client_id: int, actor_id: int) -> None:
     client = get_client(db, client_id)
+
+    # Soft-deleting a client is an app-level flag, not a real row delete,
+    # so the FK's ON DELETE RESTRICT on projects.client_id never fires --
+    # without this check a client with live projects could be "deleted"
+    # while those projects silently keep pointing at it.
+    from app.models.project import Project  # local import: avoids a circular import at module load time
+
+    active_projects = (
+        db.query(Project).filter(Project.client_id == client_id, Project.deleted_at.is_(None)).count()
+    )
+    if active_projects > 0:
+        raise ValidationAppError(
+            f"This client has {active_projects} project(s) on file and cannot be deleted. "
+            "Close or reassign those projects first."
+        )
+
     audit_service.log_event(db, ENTITY_TYPE, client.id, "Client deleted", actor_id, previous_value=client.company_name)
     client.deleted_at = datetime.now(timezone.utc)
     db.commit()

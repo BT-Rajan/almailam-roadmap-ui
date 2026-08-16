@@ -346,6 +346,22 @@ def delete_document(
     )
 
 
+@router.post("/{client_id}/documents/{document_id}/replace-file", response_model=ClientDocumentOut)
+def replace_document_file(
+    client_id: str,
+    document_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = client_service.replace_document_file(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), file, current_user.id
+    )
+    uploader = db.query(User).filter(User.id == document.uploaded_by).first()
+    uploader_name = uploader.full_name if uploader else "Unknown"
+    return ClientDocumentOut.from_model(document, uploader_name, format_file_size(document.file_size_bytes))
+
+
 @router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])
 def list_verifications(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     verifications = client_service.list_verifications(db, client_service.parse_client_id(client_id))

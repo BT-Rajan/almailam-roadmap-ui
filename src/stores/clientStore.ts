@@ -242,6 +242,25 @@ export const useClientStore = defineStore('client', {
       return updated
     },
 
+    // Toggles Active/Inactive. Kept separate from updateClient() since it
+    // maps to its own dedicated, simpler backend endpoint rather than the
+    // general-purpose profile PATCH.
+    async setClientStatus(clientId: string, status: Client['status']) {
+      const updated = await clientService.setStatus(clientId, status)
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
+    },
+
+    // Deletes (soft) a client via the backend API and removes it from
+    // both local caches. The backend itself blocks this if the client
+    // still has active projects on file.
+    async deleteClient(clientId: string) {
+      await clientService.deleteClient(clientId)
+      this.clients = this.clients.filter((c) => c.id !== clientId)
+      this.pageItems = this.pageItems.filter((c) => c.id !== clientId)
+    },
+
     addContact(contact: ClientContact) {
       this.contacts = [...this.contacts, contact]
     },
@@ -329,6 +348,12 @@ export const useClientStore = defineStore('client', {
 
     async updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput) {
       const updated = await clientService.updateDocument(clientId, documentId, input)
+      this.documents = this.documents.map((d) => (d.id === documentId ? updated : d))
+      return updated
+    },
+
+    async replaceDocumentFile(clientId: string, documentId: string, file: File) {
+      const updated = await clientService.replaceDocumentFile(clientId, documentId, file)
       this.documents = this.documents.map((d) => (d.id === documentId ? updated : d))
       return updated
     },

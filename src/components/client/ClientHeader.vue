@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Building2, Pencil, Phone, User } from '@lucide/vue'
+import { Building2, Pencil, Phone, Trash2, User } from '@lucide/vue'
 import { computed } from 'vue'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
@@ -9,10 +10,13 @@ import { getClientDisplayName, getClientOnboardingStateVariant, getClientStatusV
 
 const props = defineProps<{
   client: Client
+  statusSaving?: boolean
 }>()
 
 defineEmits<{
   edit: []
+  'toggle-status': []
+  delete: []
 }>()
 
 const displayName = computed(() => getClientDisplayName(props.client))
@@ -37,10 +41,14 @@ const typeIcon = computed(() => (props.client.clientType === 'Individual' ? User
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-2">
+      <div class="flex shrink-0 flex-wrap items-center gap-2">
         <StatusBadge :label="client.onboardingState" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
         <StatusBadge :label="client.status" :variant="getClientStatusVariant(client.status)" />
+        <BaseButton variant="secondary" size="sm" :loading="statusSaving" @click="$emit('toggle-status')">
+          {{ client.status === 'Active' ? 'Deactivate' : 'Reactivate' }}
+        </BaseButton>
         <IconButton :icon="Pencil" label="Edit client" size="sm" @click="$emit('edit')" />
+        <IconButton :icon="Trash2" label="Delete client" size="sm" variant="danger" @click="$emit('delete')" />
       </div>
     </div>
   </div>
