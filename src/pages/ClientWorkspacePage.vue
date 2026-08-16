@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FilePlus, MessageSquare } from '@lucide/vue'
+import { FilePlus, MessageSquare, ShieldCheck } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -10,7 +10,9 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
+import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
+import ClientOnboardingStatusDialog from '@/components/client/ClientOnboardingStatusDialog.vue'
 import ClientWorkspaceTabs from '@/components/client/ClientWorkspaceTabs.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
@@ -20,22 +22,30 @@ const ClientContactList = defineAsyncComponent(() => import('@/components/client
 const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
 const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
 const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
+const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
 const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/ClientAuditTrail.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
-import type { ClientDocumentCategory, ClientWorkspaceTab, ClientWorkspaceTabKey } from '@/types/Client'
+import { useToastStore } from '@/stores/toastStore'
+import type { ClientDocument, ClientDocumentCategory, ClientOnboardingState, ClientVerificationResult, ClientWorkspaceTab, ClientWorkspaceTabKey } from '@/types/Client'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
 const router = useRouter()
 const clientStore = useClientStore()
 const projectStore = useProjectStore()
+const toastStore = useToastStore()
 
 const clientId = computed(() => route.params.clientId as string)
 const activeTab = ref<ClientWorkspaceTabKey>('overview')
 const isUploadDialogOpen = ref(false)
+const isStatusDialogOpen = ref(false)
+const isOnboardingStateSaving = ref(false)
+const isVerificationDialogOpen = ref(false)
+const isVerificationSaving = ref(false)
+const verificationDialogTarget = ref<ClientDocument | null>(null)
 
 const TABS: ClientWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
@@ -89,6 +99,8 @@ const contactDetailItems = computed(() => {
   ]
 })
 
+const hasCompleteProfile = computed(() => profileDetailItems.value.every((item) => item.value !== '—'))
+
 async function loadData(): Promise<void> {
   if (clientStore.clients.length === 0) {
     await clientStore.loadClients()
@@ -102,12 +114,77 @@ async function loadData(): Promise<void> {
 onMounted(loadData)
 watch(clientId, loadData)
 
-function handleDocumentUpload(payload: { category: ClientDocumentCategory; title: string }): void {
+async function handleDocumentUpload(payload: { category: ClientDocumentCategory; title: string; file: File }): Promise<void> {
   if (!client.value) return
-  clientStore.createDocument(client.value.id, {
-    category: payload.category,
-    title: payload.title,
-  })
+  try {
+    await clientStore.createDocument(client.value.id, {
+      category: payload.category,
+      title: payload.title,
+      file: payload.file,
+    })
+    toastStore.show('success', 'Document added', `${payload.title} was uploaded successfully.`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to upload document', detail)
+  }
+}
+
+async function handleDocumentDownload(document: ClientDocument): Promise<void> {
+  if (!client.value) return
+  try {
+    await clientStore.downloadDocument(client.value.id, document.id, document.originalFilename)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to download document', detail)
+  }
+}
+
+async function applyOnboardingState(nextState: ClientOnboardingState, reason?: string): Promise<void> {
+  if (!client.value) return
+  isOnboardingStateSaving.value = true
+  try {
+    await clientStore.setOnboardingState(client.value.id, nextState, reason)
+    toastStore.show('success', 'Onboarding status updated', `Status changed to "${nextState}".`)
+    isStatusDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update onboarding status', detail)
+  } finally {
+    isOnboardingStateSaving.value = false
+  }
+}
+
+function handleAdvanceOnboarding(nextState: ClientOnboardingState): void {
+  void applyOnboardingState(nextState)
+}
+
+function handleConfirmStatusChange(payload: { onboardingState: ClientOnboardingState; reason?: string }): void {
+  void applyOnboardingState(payload.onboardingState, payload.reason)
+}
+
+function openVerificationDialog(document?: ClientDocument): void {
+  verificationDialogTarget.value = document ?? null
+  isVerificationDialogOpen.value = true
+}
+
+async function handleConfirmVerification(payload: {
+  item: string
+  result: ClientVerificationResult
+  notes?: string
+  documentId?: string
+}): Promise<void> {
+  if (!client.value) return
+  isVerificationSaving.value = true
+  try {
+    await clientStore.createVerification(client.value.id, payload)
+    toastStore.show('success', 'Verification recorded', `"${payload.item}" marked as ${payload.result}.`)
+    isVerificationDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to record verification', detail)
+  } finally {
+    isVerificationSaving.value = false
+  }
 }
 
 function openProject(projectId: string): void {
@@ -157,7 +234,16 @@ function openProject(projectId: string): void {
           <ClientOnboardingProgress
             :client-type="client.clientType"
             :documents="clientStore.documents"
-            :has-complete-profile="profileDetailItems.every((item) => item.value !== '—')"
+            :has-complete-profile="hasCompleteProfile"
+          />
+          <ClientOnboardingActions
+            :client="client"
+            :documents="clientStore.documents"
+            :verifications="clientStore.verifications"
+            :has-complete-profile="hasCompleteProfile"
+            :loading="isOnboardingStateSaving"
+            @advance="handleAdvanceOnboarding"
+            @change-status="isStatusDialogOpen = true"
           />
           <div class="flex flex-col gap-4">
             <ClientAddressCard v-for="address in clientStore.addresses" :key="address.id" :address="address" />
@@ -186,12 +272,21 @@ function openProject(projectId: string): void {
           @action="isUploadDialogOpen = true"
         />
         <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-          <ClientDocumentCard v-for="document in clientStore.documents" :key="document.id" :document="document" />
+          <ClientDocumentCard
+            v-for="document in clientStore.documents"
+            :key="document.id"
+            :document="document"
+            @download="handleDocumentDownload(document)"
+            @verify="openVerificationDialog(document)"
+          />
         </div>
         <ClientDocumentUploadDialog v-model="isUploadDialogOpen" @upload="handleDocumentUpload" />
       </template>
 
       <template v-else-if="activeTab === 'verification'">
+        <div class="flex items-center justify-end">
+          <BaseButton size="sm" :icon="ShieldCheck" @click="openVerificationDialog()">Record Verification</BaseButton>
+        </div>
         <ClientVerificationList :verifications="clientStore.verifications" />
       </template>
 
@@ -219,6 +314,20 @@ function openProject(projectId: string): void {
       <template v-else-if="activeTab === 'activity'">
         <ClientAuditTrail :events="clientStore.auditEvents" />
       </template>
+
+      <ClientOnboardingStatusDialog
+        v-model="isStatusDialogOpen"
+        :current-state="client.onboardingState"
+        :loading="isOnboardingStateSaving"
+        @confirm="handleConfirmStatusChange"
+      />
+      <ClientVerificationDialog
+        v-model="isVerificationDialogOpen"
+        :initial-item="verificationDialogTarget?.title"
+        :document-id="verificationDialogTarget?.id"
+        :loading="isVerificationSaving"
+        @confirm="handleConfirmVerification"
+      />
     </template>
   </div>
 </template>

@@ -130,6 +130,8 @@ export interface ClientDocument {
   verificationStatus: ClientVerificationResult
   uploadedBy: string
   uploadDate: string
+  originalFilename: string
+  fileSize: string
 }
 
 export interface ClientOnboardingRequirement {
@@ -146,6 +148,7 @@ export interface ClientVerification {
   verifiedBy: string
   verifiedDate: string
   notes?: string
+  documentId?: string
 }
 
 export interface ClientConsent {

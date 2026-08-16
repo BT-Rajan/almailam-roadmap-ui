@@ -65,8 +65,7 @@ export interface ClientWizardForm {
   contacts: ClientWizardContactDraft[]
   address: ClientWizardAddressDraft
   identification: ClientWizardIdentificationDraft
-  hasIdentificationDocument: boolean
-  hasUploadedFile: boolean
+  identificationFile: File | null
   consents: Record<ClientConsentType, boolean>
   communicationPreference: ClientCommunicationPreference
 }
@@ -114,8 +113,7 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       expiryDate: '',
       issuingCountry: 'United Arab Emirates',
     },
-    hasIdentificationDocument: false,
-    hasUploadedFile: false,
+    identificationFile: null,
     consents: {
       'Process Personal Information': false,
       'Electronic Communication': false,

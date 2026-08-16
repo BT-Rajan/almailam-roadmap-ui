@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { clientService } from '@/services/clientService'
-import type { ClientAddressInput, ClientConsentInput, ClientContactInput, ClientDocumentInput, ClientIdentificationInput } from '@/services/clientService'
+import type { ClientAddressInput, ClientConsentInput, ClientContactInput, ClientDocumentInput, ClientIdentificationInput, ClientVerificationInput } from '@/services/clientService'
 import type {
   Client,
   ClientAddress,
@@ -270,6 +270,42 @@ export const useClientStore = defineStore('client', {
       const document = await clientService.createDocument(clientId, input)
       this.documents = [document, ...this.documents]
       return document
+    },
+
+    async downloadDocument(clientId: string, documentId: string, filename: string) {
+      const blob = await clientService.downloadDocument(clientId, documentId)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+    },
+
+    // Advances/changes a client's onboarding state via the backend's
+    // transition engine and updates the cached copy in both `clients`
+    // (used by the workspace page) and `pageItems` (used by the browse
+    // table) so the new state shows up immediately without a full reload.
+    async setOnboardingState(clientId: string, onboardingState: ClientOnboardingState, reason?: string) {
+      const updated = await clientService.updateOnboardingState(clientId, { onboardingState, reason })
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
+    },
+
+    // Records a verification check via the backend API. When it's tied to
+    // a specific document, the backend also updates that document's own
+    // verificationStatus in the same transaction -- mirrored here on the
+    // cached copy so the Documents tab reflects it immediately.
+    async createVerification(clientId: string, input: ClientVerificationInput) {
+      const verification = await clientService.createVerification(clientId, input)
+      this.verifications = [verification, ...this.verifications]
+      if (verification.documentId) {
+        this.documents = this.documents.map((d) =>
+          d.id === verification.documentId ? { ...d, verificationStatus: verification.result } : d,
+        )
+      }
+      return verification
     },
 
     recordConsent(consent: ClientConsent) {

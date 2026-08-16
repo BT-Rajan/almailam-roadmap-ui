@@ -163,6 +163,9 @@ CREATE TABLE IF NOT EXISTS client_documents (
     verification_status  ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
     uploaded_by           BIGINT UNSIGNED NOT NULL,
     upload_date          DATETIME NOT NULL,
+    storage_key          VARCHAR(255) NOT NULL,
+    original_filename    VARCHAR(255) NOT NULL,
+    file_size_bytes       BIGINT UNSIGNED NOT NULL DEFAULT 0,
     CONSTRAINT fk_client_documents_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     CONSTRAINT fk_client_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_client_documents_client (client_id)
@@ -171,12 +174,14 @@ CREATE TABLE IF NOT EXISTS client_documents (
 CREATE TABLE IF NOT EXISTS client_verifications (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id       BIGINT UNSIGNED NOT NULL,
+    document_id     BIGINT UNSIGNED NULL,
     item            VARCHAR(150) NOT NULL,
     result          ENUM('Pending','Verified','Rejected') NOT NULL,
     verified_by     BIGINT UNSIGNED NOT NULL,
     verified_date   DATETIME NOT NULL,
     notes           VARCHAR(1000) NULL,
     CONSTRAINT fk_client_verifications_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client_verifications_document FOREIGN KEY (document_id) REFERENCES client_documents(id) ON DELETE SET NULL,
     CONSTRAINT fk_client_verifications_user FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_client_verifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

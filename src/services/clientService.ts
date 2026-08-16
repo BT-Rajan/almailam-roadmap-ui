@@ -1,4 +1,5 @@
 import { apiClient } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
 import type {
   Client,
   ClientAddress,
@@ -8,7 +9,9 @@ import type {
   ClientDocument,
   ClientDuplicateMatch,
   ClientIdentification,
+  ClientOnboardingState,
   ClientVerification,
+  ClientVerificationResult,
 } from '@/types/Client'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import { fetchAllPages } from '@/utils/fetchAllPages'
@@ -169,17 +172,77 @@ export type ClientDocumentInput = {
   issueDate?: string
   expiryDate?: string
   issuingAuthority?: string
+  file: File
 }
 
 /**
- * Record a new client document via backend API
+ * Upload a new client document via backend API. Sends the actual file as
+ * multipart/form-data -- apiClient always JSON-encodes its body, so this
+ * bypasses it and does a raw fetch instead, same pattern as
+ * documentService.ts's uploadDocument() for project documents (including
+ * the 401 -> refresh -> retry-once flow, since apiClient's helper only
+ * covers JSON requests).
  */
 async function createDocument(clientId: string, input: ClientDocumentInput): Promise<ClientDocument> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('category', input.category)
+  formData.append('title', input.title)
+  if (input.issueDate) formData.append('issueDate', input.issueDate)
+  if (input.expiryDate) formData.append('expiryDate', input.expiryDate)
+  if (input.issuingAuthority) formData.append('issuingAuthority', input.issuingAuthority)
+  formData.append('file', input.file)
+
+  const doRequest = () =>
+    fetch(`/api/clients/${clientId}/documents`, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
   try {
-    return await apiClient.post<ClientDocument>(`/api/clients/${clientId}/documents`, input)
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) {
+        response = await doRequest()
+      }
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+    }
+
+    return (await response.json()) as ClientDocument
   } catch (error) {
     console.error(`Failed to record document for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to record document')
+  }
+}
+
+/**
+ * Download a client document's stored file from backend API.
+ */
+async function downloadDocument(clientId: string, documentId: string): Promise<Blob> {
+  const authStore = useAuthStore()
+  try {
+    const response = await fetch(`/api/clients/${clientId}/documents/${documentId}/download`, {
+      method: 'GET',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`)
+    }
+
+    return await response.blob()
+  } catch (error) {
+    console.error(`Failed to download document ${documentId} for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to download document')
   }
 }
 
@@ -192,6 +255,48 @@ async function getVerificationsForClient(clientId: string): Promise<ClientVerifi
   } catch (error) {
     console.error(`Failed to fetch verifications for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch verifications')
+  }
+}
+
+export type ClientOnboardingStateInput = {
+  onboardingState: ClientOnboardingState
+  reason?: string
+}
+
+/**
+ * Advance or change a client's onboarding state via backend API. The
+ * backend re-validates the transition against its own state machine
+ * (app/core/status_transitions.py) and requires a reason for certain
+ * target states -- this call can be rejected even if the UI offered it.
+ */
+async function updateOnboardingState(clientId: string, input: ClientOnboardingStateInput): Promise<Client> {
+  try {
+    return await apiClient.patch<Client>(`/api/clients/${clientId}/onboarding-state`, input)
+  } catch (error) {
+    console.error(`Failed to update onboarding state for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update onboarding state')
+  }
+}
+
+export type ClientVerificationInput = {
+  item: string
+  result: ClientVerificationResult
+  notes?: string
+  documentId?: string
+}
+
+/**
+ * Record a new client verification via backend API. When documentId is
+ * given, the backend also updates that document's own verificationStatus
+ * to match -- see createVerification() below in the store for the local
+ * cache update that keeps the document list in sync without a re-fetch.
+ */
+async function createVerification(clientId: string, input: ClientVerificationInput): Promise<ClientVerification> {
+  try {
+    return await apiClient.post<ClientVerification>(`/api/clients/${clientId}/verifications`, input)
+  } catch (error) {
+    console.error(`Failed to record verification for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record verification')
   }
 }
 
@@ -299,7 +404,10 @@ export const clientService = {
   createIdentification,
   getDocumentsForClient,
   createDocument,
+  downloadDocument,
   getVerificationsForClient,
+  createVerification,
+  updateOnboardingState,
   getConsentsForClient,
   createConsent,
   getAuditEventsForClient,

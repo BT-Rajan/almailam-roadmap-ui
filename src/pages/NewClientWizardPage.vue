@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -20,6 +20,8 @@ import { useToastStore } from '@/stores/toastStore'
 import type { Client, ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
 import { getClientDisplayName } from '@/utils/clientHelpers'
+import { hasErrors, validateAddress, validateBasicInfo, validateContacts, validateIdentification } from '@/utils/clientValidation'
+import type { FieldErrors } from '@/utils/clientValidation'
 
 const router = useRouter()
 const clientStore = useClientStore()
@@ -67,39 +69,39 @@ function viewDuplicate(clientId: string): void {
   router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId } })
 }
 
-// Required fields the backend enforces for step 0 that aren't otherwise
-// caught until the final submit -- validated here so the wizard can't be
-// walked to the end with a payload the API will reject.
-function getBasicInfoErrors(): string[] {
-  const errors: string[] = []
-  if (!form.value.mobile.trim()) errors.push('Mobile Number')
-  if (!form.value.email.trim()) errors.push('Email Address')
-  if (!form.value.city.trim()) errors.push('City')
+// Per-step validation, mirroring exactly what the backend requires (see
+// src/utils/clientValidation.ts) so the wizard can't be walked to the end,
+// or submitted, with a payload the API will reject -- and so problems are
+// shown inline on the relevant field rather than only as a toast at the end.
+const basicInfoErrors = computed<FieldErrors>(() => validateBasicInfo(form.value))
+const contactsValidation = computed(() => validateContacts(form.value.contacts))
+const addressErrors = computed<FieldErrors>(() => validateAddress(form.value.address))
+const identificationErrors = computed<FieldErrors>(() => validateIdentification(form.value.identification))
 
-  if (form.value.clientType === 'Individual') {
-    const p = form.value.individualProfile
-    if (!p.fullLegalName.trim()) errors.push('Full Legal Name')
-    if (!p.nationality.trim()) errors.push('Nationality')
-    if (!p.countryOfResidence.trim()) errors.push('Country of Residence')
-    if (!p.dateOfBirth.trim()) errors.push('Date of Birth')
-  } else {
-    const p = form.value.organisationProfile
-    if (!p.legalName.trim()) errors.push('Legal Name')
-    if (!p.organisationType.trim()) errors.push('Organisation Type')
-    if (!p.registrationNumber.trim()) errors.push('Registration Number')
-    if (!p.countryOfRegistration.trim()) errors.push('Country of Registration')
-    if (!p.dateOfIncorporation.trim()) errors.push('Date of Incorporation')
-  }
-  return errors
+const contactsStepHasErrors = computed(
+  () =>
+    contactsValidation.value.rowErrors.some((row) => hasErrors(row)) ||
+    Boolean(contactsValidation.value.formError) ||
+    hasErrors(addressErrors.value),
+)
+
+function stepHasErrors(step: number): boolean {
+  if (step === 0) return hasErrors(basicInfoErrors.value)
+  if (step === 1) return contactsStepHasErrors.value
+  if (step === 2) return hasErrors(identificationErrors.value)
+  return false
 }
 
+const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification']
+
 function goNext(): void {
-  if (currentStep.value === 0) {
-    const errors = getBasicInfoErrors()
-    if (errors.length > 0) {
-      toastStore.show('error', 'Missing required fields', `Please fill in: ${errors.join(', ')}.`)
-      return
-    }
+  if (stepHasErrors(currentStep.value)) {
+    toastStore.show(
+      'error',
+      'Please fix the highlighted fields',
+      `Some fields under "${STEP_LABELS[currentStep.value]}" need attention before continuing.`,
+    )
+    return
   }
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }
@@ -112,11 +114,26 @@ function cancelWizard(): void {
   router.push({ name: ROUTE_NAMES.CLIENTS })
 }
 
+// Contacts touched enough to be submitted -- must match
+// validateContacts()'s definition of "touched" exactly, or a row could
+// pass validation as blank/skippable but still get submitted (or vice
+// versa).
+function isContactTouched(contact: (typeof form.value.contacts)[number]): boolean {
+  return Boolean(contact.name.trim() || contact.mobile.trim() || contact.email.trim())
+}
+
 async function submitWizard(): Promise<void> {
-  const errors = getBasicInfoErrors()
-  if (errors.length > 0) {
-    toastStore.show('error', 'Missing required fields', `Please fill in: ${errors.join(', ')}.`)
-    currentStep.value = 0
+  // Re-validate every step, not just the current one -- someone could
+  // have gone back and broken an earlier step, or jumped here via the
+  // stepper. This is the final gate before anything reaches the backend.
+  const invalidStep = [0, 1, 2].find((step) => stepHasErrors(step))
+  if (invalidStep !== undefined) {
+    toastStore.show(
+      'error',
+      'Please fix the highlighted fields',
+      `Some fields under "${STEP_LABELS[invalidStep]}" need attention before this client can be onboarded.`,
+    )
+    currentStep.value = invalidStep
     return
   }
 
@@ -124,7 +141,7 @@ async function submitWizard(): Promise<void> {
 
   try {
     const isIndividual = form.value.clientType === 'Individual'
-    const primaryContact = form.value.contacts[0]
+    const primaryContact = form.value.contacts.find(isContactTouched)
 
     // Create the client first -- everything below depends on the real,
     // backend-assigned client id (previously this whole wizard generated
@@ -144,7 +161,7 @@ async function submitWizard(): Promise<void> {
 
     const subRecordRequests: Promise<unknown>[] = []
 
-    for (const contact of form.value.contacts.filter((c) => c.name.trim().length > 0)) {
+    for (const contact of form.value.contacts.filter(isContactTouched)) {
       subRecordRequests.push(
         clientStore.createContact(client.id, {
           name: contact.name,
@@ -182,7 +199,7 @@ async function submitWizard(): Promise<void> {
       )
     }
 
-    if (form.value.hasUploadedFile) {
+    if (form.value.identificationFile) {
       subRecordRequests.push(
         clientStore.createDocument(client.id, {
           category: 'Identity Document',
@@ -190,17 +207,21 @@ async function submitWizard(): Promise<void> {
           issueDate: form.value.identification.issueDate || undefined,
           expiryDate: form.value.identification.expiryDate || undefined,
           issuingAuthority: form.value.identification.issuingCountry,
+          file: form.value.identificationFile,
         }),
       )
     }
 
+    // Every consent type gets an explicit recorded decision -- granted or
+    // declined -- rather than only recording the ones the client agreed
+    // to. A missing record and a recorded "no" mean different things for
+    // compliance purposes, so silently skipping declines was a real gap.
     for (const [consentType, granted] of Object.entries(form.value.consents)) {
-      if (!granted) continue
       subRecordRequests.push(
         clientStore.createConsent(client.id, {
           consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Receive Notifications' | 'Process Documents',
           version: 'v1.0',
-          granted: true,
+          granted,
           method: 'Onboarding wizard',
         }),
       )
@@ -250,9 +271,15 @@ function goToCreatedClient(): void {
       <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" />
 
       <div class="mt-8">
-        <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" @view-duplicate="viewDuplicate" />
-        <ClientContactAddressStep v-else-if="currentStep === 1" v-model="form" />
-        <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" />
+        <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" :errors="basicInfoErrors" @view-duplicate="viewDuplicate" />
+        <ClientContactAddressStep
+          v-else-if="currentStep === 1"
+          v-model="form"
+          :contact-errors="contactsValidation.rowErrors"
+          :contacts-form-error="contactsValidation.formError"
+          :address-errors="addressErrors"
+        />
+        <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" :errors="identificationErrors" />
         <ClientConsentStep v-else-if="currentStep === 3" v-model="form" />
         <ClientReviewStep v-else v-model="form" />
       </div>

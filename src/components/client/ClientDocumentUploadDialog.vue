@@ -17,7 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  upload: [payload: { category: ClientDocumentCategory; title: string }]
+  upload: [payload: { category: ClientDocumentCategory; title: string; file: File }]
 }>()
 
 const form = reactive({
@@ -26,6 +26,7 @@ const form = reactive({
 })
 
 const selectedFile = ref<File>()
+const fileError = ref('')
 
 const { errors, setRules, validateAll, clearErrors } = useFormValidation()
 setRules({ title: [validators.required('Document title is required')] })
@@ -34,13 +35,21 @@ function closeDialog(): void {
   emit('update:modelValue', false)
 }
 
-function handleSubmit(): void {
-  if (!validateAll({ title: form.title })) return
+function handleFileSelect(file: File | undefined): void {
+  selectedFile.value = file
+  if (file) fileError.value = ''
+}
 
-  emit('upload', { category: form.category, title: form.title })
+function handleSubmit(): void {
+  const titleValid = validateAll({ title: form.title })
+  fileError.value = selectedFile.value ? '' : 'Please select a file to upload'
+  if (!titleValid || !selectedFile.value) return
+
+  emit('upload', { category: form.category, title: form.title, file: selectedFile.value })
   form.title = ''
   form.category = 'Other'
   selectedFile.value = undefined
+  fileError.value = ''
   clearErrors()
   closeDialog()
 }
@@ -51,7 +60,8 @@ function handleSubmit(): void {
     <div class="flex flex-col gap-4">
       <SelectBox v-model="form.category" label="Document Category" required :options="CLIENT_DOCUMENT_CATEGORY_OPTIONS" />
       <TextInput v-model="form.title" label="Document Title" placeholder="e.g. Trade Licence Renewal" required :error="errors.title" />
-      <FileUploader hint="PDF, Word or image files" @select="selectedFile = $event" />
+      <FileUploader hint="PDF, Word or image files" @select="handleFileSelect" />
+      <p v-if="fileError" class="text-xs text-danger-500">{{ fileError }}</p>
     </div>
 
     <template #footer>

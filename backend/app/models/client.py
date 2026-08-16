@@ -182,6 +182,12 @@ class ClientDocument(Base):
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     upload_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # -- stored file (see app/core/file_storage.save_upload) --
+    # storage_key is a generated name under UPLOADS_DIR, never the
+    # client-supplied filename -- same pattern as app/models/document.py.
+    storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
 
 
 class ClientVerification(Base):
@@ -190,6 +196,13 @@ class ClientVerification(Base):
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Optional link to the specific document this verification check was
+    # performed against (e.g. verifying a Trade Licence upload). Null for
+    # checklist-style verifications that aren't tied to one document (e.g.
+    # confirming a registration number by phone).
+    document_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("client_documents.id", ondelete="SET NULL"), nullable=True
     )
     item: Mapped[str] = mapped_column(String(150), nullable=False)
     result: Mapped[str] = mapped_column(

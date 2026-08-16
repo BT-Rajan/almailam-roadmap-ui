@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.file_storage import format_file_size
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.schemas.common import PagedResponse
@@ -14,7 +16,6 @@ from app.schemas.client import (
     ClientContactCreate,
     ClientContactOut,
     ClientCreate,
-    ClientDocumentCreate,
     ClientDocumentOut,
     ClientDuplicateMatchOut,
     ClientIdentificationCreate,
@@ -23,6 +24,7 @@ from app.schemas.client import (
     ClientOut,
     ClientStatusUpdate,
     ClientUpdate,
+    ClientVerificationCreate,
     ClientVerificationOut,
 )
 from app.services import client_service
@@ -201,20 +203,46 @@ def list_documents(client_id: str, db: Session = Depends(get_db), _=Depends(can_
     names = {u.id: u.full_name for u in db.query(User).filter(
         User.id.in_({d.uploaded_by for d in documents})
     ).all()} if documents else {}
-    return [ClientDocumentOut.from_model(d, names.get(d.uploaded_by, "Unknown")) for d in documents]
+    return [
+        ClientDocumentOut.from_model(d, names.get(d.uploaded_by, "Unknown"), format_file_size(d.file_size_bytes))
+        for d in documents
+    ]
 
 
 @router.post("/{client_id}/documents", response_model=ClientDocumentOut, status_code=201)
 def create_document(
     client_id: str,
-    payload: ClientDocumentCreate,
+    category: str = Form(...),
+    title: str = Form(...),
+    issueDate: str | None = Form(default=None),
+    expiryDate: str | None = Form(default=None),
+    issuingAuthority: str | None = Form(default=None),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
     document = client_service.create_document(
-        db, client_service.parse_client_id(client_id), payload, current_user.id
+        db,
+        client_service.parse_client_id(client_id),
+        category,
+        title,
+        issueDate,
+        expiryDate,
+        issuingAuthority,
+        file,
+        current_user.id,
     )
-    return ClientDocumentOut.from_model(document, current_user.full_name)
+    return ClientDocumentOut.from_model(document, current_user.full_name, format_file_size(document.file_size_bytes))
+
+
+@router.get("/{client_id}/documents/{document_id}/download")
+def download_document(
+    client_id: str, document_id: str, db: Session = Depends(get_db), _=Depends(can_view)
+):
+    path, original_filename = client_service.get_document_download_target(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id)
+    )
+    return FileResponse(path, filename=original_filename)
 
 
 @router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])
@@ -226,6 +254,25 @@ def list_verifications(client_id: str, db: Session = Depends(get_db), _=Depends(
     return [
         ClientVerificationOut.from_model(v, names.get(v.verified_by, "Unknown")) for v in verifications
     ]
+
+
+@router.post("/{client_id}/verifications", response_model=ClientVerificationOut, status_code=201)
+def create_verification(
+    client_id: str,
+    payload: ClientVerificationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    verification = client_service.create_verification(
+        db,
+        client_service.parse_client_id(client_id),
+        payload.item,
+        payload.result,
+        payload.notes,
+        payload.documentId,
+        current_user.id,
+    )
+    return ClientVerificationOut.from_model(verification, current_user.full_name)
 
 
 @router.delete("/{client_id}", status_code=204)

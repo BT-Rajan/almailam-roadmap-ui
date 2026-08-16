@@ -1,5 +1,7 @@
 from datetime import date, datetime
 
+import re
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.client import (
@@ -25,15 +27,58 @@ def _enum_validator(allowed: tuple[str, ...], label: str):
     return _check
 
 
+# Digits, spaces, +, -, (, ) only, with at least 7 actual digits -- matches
+# the shape of validators.phone() on the frontend so both sides agree on
+# what counts as a real phone number rather than just "non-empty".
+_PHONE_PATTERN = re.compile(r"^[\d\s\-\+\(\)]+$")
+
+
+def _phone_validator(label: str):
+    def _check(value: str) -> str:
+        digits = re.sub(r"\D", "", value)
+        if not _PHONE_PATTERN.match(value) or len(digits) < 7:
+            raise ValueError(f"{label} must be a valid phone number (at least 7 digits)")
+        return value
+
+    return _check
+
+
+# Permissive domain/URL matcher: accepts "example.com", "www.example.com",
+# or a full "https://example.com/path" -- website fields in this app are
+# typed in freely rather than copy-pasted, so a strict http(s):// prefix
+# requirement would reject perfectly valid input.
+_WEBSITE_PATTERN = re.compile(r"^(https?://)?([\w-]+\.)+[a-zA-Z]{2,}(/\S*)?$")
+
+
+def _website_validator(label: str):
+    def _check(value: str) -> str:
+        if not _WEBSITE_PATTERN.match(value):
+            raise ValueError(f"{label} must be a valid website address")
+        return value
+
+    return _check
+
+
+def _not_future_validator(label: str):
+    def _check(value: date) -> date:
+        if value > date.today():
+            raise ValueError(f"{label} cannot be in the future")
+        return value
+
+    return _check
+
+
 # --- nested profile schemas -------------------------------------------------
 
 
 class IndividualProfileIn(BaseModel):
-    fullLegalName: str = Field(max_length=150)
+    fullLegalName: str = Field(min_length=1, max_length=150)
     preferredName: str | None = Field(default=None, max_length=100)
-    nationality: str = Field(max_length=80)
+    nationality: str = Field(min_length=1, max_length=80)
     dateOfBirth: date
-    countryOfResidence: str = Field(max_length=80)
+    countryOfResidence: str = Field(min_length=1, max_length=80)
+
+    _check_dob = field_validator("dateOfBirth")(_not_future_validator("dateOfBirth"))
 
 
 class IndividualProfileOut(BaseModel):
@@ -45,15 +90,24 @@ class IndividualProfileOut(BaseModel):
 
 
 class OrganisationProfileIn(BaseModel):
-    legalName: str = Field(max_length=200)
+    legalName: str = Field(min_length=1, max_length=200)
     tradeName: str | None = Field(default=None, max_length=200)
-    organisationType: str = Field(max_length=100)
-    registrationNumber: str = Field(max_length=60)
+    organisationType: str = Field(min_length=1, max_length=100)
+    registrationNumber: str = Field(min_length=1, max_length=60)
     tradeLicenceNumber: str | None = Field(default=None, max_length=60)
     taxIdentificationNumber: str | None = Field(default=None, max_length=60)
-    countryOfRegistration: str = Field(max_length=80)
+    countryOfRegistration: str = Field(min_length=1, max_length=80)
     dateOfIncorporation: date
     website: str | None = Field(default=None, max_length=200)
+
+    _check_incorporation = field_validator("dateOfIncorporation")(_not_future_validator("dateOfIncorporation"))
+
+    @field_validator("website")
+    @classmethod
+    def check_website(cls, value: str | None) -> str | None:
+        if value is None or value.strip() == "":
+            return None
+        return _website_validator("website")(value)
 
 
 class OrganisationProfileOut(BaseModel):
@@ -160,6 +214,7 @@ class ClientCreate(BaseModel):
     communicationPreference: CommunicationPreference = CommunicationPreference()
 
     _check_type = field_validator("clientType")(_enum_validator(CLIENT_TYPES, "clientType"))
+    _check_mobile = field_validator("mobile")(_phone_validator("mobile"))
 
     @field_validator("organisationProfile")
     @classmethod
@@ -206,6 +261,13 @@ class ClientUpdate(BaseModel):
         if value is not None and value not in CLIENT_ONBOARDING_STATES:
             raise ValueError(f"onboardingState must be one of {CLIENT_ONBOARDING_STATES}")
         return value
+
+    @field_validator("mobile")
+    @classmethod
+    def check_mobile(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _phone_validator("mobile")(value)
 
 
 class ClientStatusUpdate(BaseModel):
@@ -258,6 +320,7 @@ class ClientContactCreate(BaseModel):
     email: EmailStr
     isAuthorisedRepresentative: bool = False
     _check = field_validator("contactType")(_enum_validator(CONTACT_TYPES, "contactType"))
+    _check_mobile = field_validator("mobile")(_phone_validator("mobile"))
 
 
 class ClientAddressOut(BaseModel):
@@ -326,6 +389,7 @@ class ClientIdentificationCreate(BaseModel):
     expiryDate: date
     issuingCountry: str = Field(min_length=1, max_length=80)
     _check = field_validator("documentType")(_enum_validator(IDENTIFICATION_TYPES, "documentType"))
+    _check_issue_date = field_validator("issueDate")(_not_future_validator("issueDate"))
 
     @field_validator("expiryDate")
     @classmethod
@@ -380,9 +444,11 @@ class ClientDocumentOut(BaseModel):
     verificationStatus: str
     uploadedBy: str
     uploadDate: datetime
+    originalFilename: str
+    fileSize: str
 
     @staticmethod
-    def from_model(document, uploaded_by_name: str) -> "ClientDocumentOut":
+    def from_model(document, uploaded_by_name: str, file_size_display: str) -> "ClientDocumentOut":
         return ClientDocumentOut(
             id=f"CDOC-{document.id:03d}",
             clientId=f"CLT-{document.client_id:03d}",
@@ -395,16 +461,15 @@ class ClientDocumentOut(BaseModel):
             verificationStatus=document.verification_status,
             uploadedBy=uploaded_by_name,
             uploadDate=document.upload_date,
+            originalFilename=document.original_filename,
+            fileSize=file_size_display,
         )
 
 
-class ClientDocumentCreate(BaseModel):
-    category: str
-    title: str = Field(min_length=1, max_length=150)
-    issueDate: date | None = None
-    expiryDate: date | None = None
-    issuingAuthority: str | None = Field(default=None, max_length=150)
-    _check = field_validator("category")(_enum_validator(CLIENT_DOCUMENT_CATEGORIES, "category"))
+# Note: client documents are created via multipart/form-data (see
+# POST /api/clients/{client_id}/documents in app/api/clients.py, which takes
+# Form(...)/File(...) params directly) so there is no JSON create schema
+# here -- same pattern as app/schemas/document.py's DocumentOut/create route.
 
 
 class ClientVerificationOut(BaseModel):
@@ -415,6 +480,7 @@ class ClientVerificationOut(BaseModel):
     verifiedBy: str
     verifiedDate: datetime
     notes: str | None = None
+    documentId: str | None = None
 
     @staticmethod
     def from_model(verification, verified_by_name: str) -> "ClientVerificationOut":
@@ -426,4 +492,13 @@ class ClientVerificationOut(BaseModel):
             verifiedBy=verified_by_name,
             verifiedDate=verification.verified_date,
             notes=verification.notes,
+            documentId=f"CDOC-{verification.document_id:03d}" if verification.document_id else None,
         )
+
+
+class ClientVerificationCreate(BaseModel):
+    item: str = Field(min_length=1, max_length=150)
+    result: str
+    notes: str | None = Field(default=None, max_length=1000)
+    documentId: str | None = None
+    _check = field_validator("result")(_enum_validator(CLIENT_VERIFICATION_RESULTS, "result"))

@@ -42,7 +42,7 @@ const grantedConsents = computed(() =>
       :items="[
         { label: 'Document Type', value: form.identification.documentType },
         { label: 'Document Number', value: form.identification.documentNumber || '—' },
-        { label: 'Document Uploaded', value: form.hasUploadedFile ? 'Yes' : 'Not yet uploaded' },
+        { label: 'Document Uploaded', value: form.identificationFile ? form.identificationFile.name : 'Not yet uploaded' },
       ]"
     />
 

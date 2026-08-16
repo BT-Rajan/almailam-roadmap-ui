@@ -1,10 +1,12 @@
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
+from fastapi import UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
@@ -12,6 +14,8 @@ from app.core.status_transitions import (
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import (
+    CLIENT_DOCUMENT_CATEGORIES,
+    CLIENT_VERIFICATION_RESULTS,
     Client,
     ClientAddress,
     ClientConsent,
@@ -32,8 +36,28 @@ def parse_client_id(raw: str) -> int:
     return int(text)
 
 
+def _parse_prefixed_id(raw: str, prefix: str, label: str) -> int:
+    text = raw.removeprefix(prefix) if raw.upper().startswith(prefix) else raw
+    if not text.isdigit():
+        raise ValidationAppError(f"Invalid {label} id.")
+    return int(text)
+
+
+def parse_document_id(raw: str) -> int:
+    return _parse_prefixed_id(raw, "CDOC-", "document")
+
+
 def _digits(value: str) -> str:
     return re.sub(r"\D", "", value)
+
+
+def _parse_optional_date(value: str | None, label: str) -> date | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValidationAppError(f"{label} must be a valid date (YYYY-MM-DD).") from exc
 
 
 CLIENT_SORTABLE_FIELDS = {
@@ -236,6 +260,19 @@ def list_contacts(db: Session, client_id: int) -> list[ClientContact]:
 
 def create_contact(db: Session, client_id: int, payload) -> ClientContact:
     get_client(db, client_id)
+
+    mobile_digits = _digits(payload.mobile)
+    email_lower = payload.email.strip().lower()
+    for existing in list_contacts(db, client_id):
+        if _digits(existing.mobile) == mobile_digits:
+            raise ValidationAppError(
+                f"A contact with mobile number {payload.mobile} already exists for this client."
+            )
+        if existing.email.strip().lower() == email_lower:
+            raise ValidationAppError(
+                f"A contact with email {payload.email} already exists for this client."
+            )
+
     contact = ClientContact(
         client_id=client_id,
         name=payload.name,
@@ -288,6 +325,14 @@ def list_identifications(db: Session, client_id: int) -> list[ClientIdentificati
 
 def create_identification(db: Session, client_id: int, payload) -> ClientIdentification:
     get_client(db, client_id)
+
+    number_normalised = payload.documentNumber.strip().lower()
+    for existing in list_identifications(db, client_id):
+        if existing.document_type == payload.documentType and existing.document_number.strip().lower() == number_normalised:
+            raise ValidationAppError(
+                f"A {payload.documentType} with number {payload.documentNumber} is already on file for this client."
+            )
+
     identification = ClientIdentification(
         client_id=client_id,
         document_type=payload.documentType,
@@ -337,19 +382,46 @@ def list_documents(db: Session, client_id: int) -> list[ClientDocument]:
     )
 
 
-def create_document(db: Session, client_id: int, payload, uploaded_by: int) -> ClientDocument:
+def create_document(
+    db: Session,
+    client_id: int,
+    category: str,
+    title: str,
+    issue_date: str | None,
+    expiry_date: str | None,
+    issuing_authority: str | None,
+    file: UploadFile,
+    uploaded_by: int,
+) -> ClientDocument:
     get_client(db, client_id)
+
+    if category not in CLIENT_DOCUMENT_CATEGORIES:
+        raise ValidationAppError(f"category must be one of {CLIENT_DOCUMENT_CATEGORIES}")
+    title = title.strip()
+    if not title:
+        raise ValidationAppError("Document title is required.")
+
+    parsed_issue_date = _parse_optional_date(issue_date, "issueDate")
+    parsed_expiry_date = _parse_optional_date(expiry_date, "expiryDate")
+    if parsed_issue_date and parsed_expiry_date and parsed_expiry_date <= parsed_issue_date:
+        raise ValidationAppError("expiryDate must be after issueDate.")
+
+    storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
+
     document = ClientDocument(
         client_id=client_id,
-        category=payload.category,
-        title=payload.title,
-        issue_date=payload.issueDate,
-        expiry_date=payload.expiryDate,
-        issuing_authority=payload.issuingAuthority,
+        category=category,
+        title=title,
+        issue_date=parsed_issue_date,
+        expiry_date=parsed_expiry_date,
+        issuing_authority=issuing_authority.strip() if issuing_authority else None,
         version=1,
         verification_status="Pending",
         uploaded_by=uploaded_by,
         upload_date=datetime.now(timezone.utc),
+        storage_key=storage_key,
+        original_filename=original_filename,
+        file_size_bytes=size_bytes,
     )
     db.add(document)
     db.flush()
@@ -359,6 +431,22 @@ def create_document(db: Session, client_id: int, payload, uploaded_by: int) -> C
     return document
 
 
+def get_document(db: Session, client_id: int, document_id: int) -> ClientDocument:
+    document = (
+        db.query(ClientDocument)
+        .filter(ClientDocument.id == document_id, ClientDocument.client_id == client_id)
+        .first()
+    )
+    if document is None:
+        raise NotFoundError("Client document")
+    return document
+
+
+def get_document_download_target(db: Session, client_id: int, document_id: int) -> tuple:
+    document = get_document(db, client_id, document_id)
+    return resolve_path(document.storage_key), document.original_filename
+
+
 def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
     return (
         db.query(ClientVerification)
@@ -366,6 +454,54 @@ def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
         .order_by(ClientVerification.id.desc())
         .all()
     )
+
+
+def create_verification(
+    db: Session,
+    client_id: int,
+    item: str,
+    result: str,
+    notes: str | None,
+    document_id_raw: str | None,
+    verified_by: int,
+) -> ClientVerification:
+    get_client(db, client_id)
+
+    if result not in CLIENT_VERIFICATION_RESULTS:
+        raise ValidationAppError(f"result must be one of {CLIENT_VERIFICATION_RESULTS}")
+    item = item.strip()
+    if not item:
+        raise ValidationAppError("item is required.")
+
+    document: ClientDocument | None = None
+    if document_id_raw:
+        document = get_document(db, client_id, parse_document_id(document_id_raw))
+
+    verification = ClientVerification(
+        client_id=client_id,
+        document_id=document.id if document else None,
+        item=item,
+        result=result,
+        verified_by=verified_by,
+        verified_date=datetime.now(timezone.utc),
+        notes=notes.strip() if notes else None,
+    )
+    db.add(verification)
+    db.flush()
+
+    # A verification tied to a specific document is the authoritative
+    # source for that document's own status -- keep them in sync instead
+    # of leaving the document stuck on "Pending" forever.
+    if document is not None:
+        document.verification_status = result
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, client_id, "Verification recorded", verified_by,
+        new_value=f"{item}: {result}",
+    )
+    db.commit()
+    db.refresh(verification)
+    return verification
 
 
 def delete_client(db: Session, client_id: int, actor_id: int) -> None:

@@ -1,4 +1,4 @@
-import type { ClientConsentType, ClientOnboardingRequirement, ClientType } from '@/types/Client'
+import type { ClientConsentType, ClientOnboardingRequirement, ClientOnboardingState, ClientType } from '@/types/Client'
 import type { SelectOption } from '@/types/Ui'
 
 export const CLIENT_TYPE_OPTIONS: SelectOption[] = [
@@ -57,6 +57,12 @@ export const CLIENT_CONSENT_TYPE_OPTIONS: { type: ClientConsentType; description
   },
 ]
 
+export const CLIENT_VERIFICATION_RESULT_OPTIONS: SelectOption[] = [
+  { label: 'Verified', value: 'Verified' },
+  { label: 'Rejected', value: 'Rejected' },
+  { label: 'Pending', value: 'Pending' },
+]
+
 export const CLIENT_ADDRESS_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Registered', value: 'Registered' },
   { label: 'Operating', value: 'Operating' },
@@ -81,6 +87,24 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
   { label: 'Suspended', value: 'Suspended' },
 ]
 
+// Mirrors backend/app/core/status_transitions.py CLIENT_ONBOARDING_ALLOWED_TRANSITIONS
+// exactly -- keep the two in sync. The backend is the sole source of
+// enforcement (it re-validates every transition server-side); this copy
+// only drives which options the UI offers, so a mismatch fails safe (the
+// backend rejects it) rather than open.
+export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState, ClientOnboardingState[]> = {
+  'Information Required': ['Documents Required'],
+  'Documents Required': ['Verification Required'],
+  'Verification Required': ['Under Review'],
+  'Under Review': ['Ready', 'Rejected', 'Documents Required'],
+  Ready: ['Suspended'],
+  Suspended: ['Under Review', 'Rejected'],
+  Rejected: ['Information Required'],
+}
+
+// Mirrors backend/app/core/status_transitions.py CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON.
+export const CLIENT_ONBOARDING_STATES_REQUIRING_REASON: ClientOnboardingState[] = ['Rejected', 'Suspended']
+
 const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
   { label: 'Full legal name', category: 'Information', required: true },
   { label: 'Mobile number', category: 'Information', required: true },
@@ -103,16 +127,3 @@ export const CLIENT_ONBOARDING_REQUIREMENTS: Record<ClientType, ClientOnboarding
   'Government Entity': ORGANISATION_REQUIREMENTS,
   Other: INDIVIDUAL_REQUIREMENTS,
 }
-
-export const CLIENT_PERMISSIONS = {
-  VIEW: 'client.view',
-  CREATE: 'client.create',
-  EDIT: 'client.edit',
-  DELETE: 'client.delete',
-  MERGE: 'client.merge',
-  VERIFY: 'client.verify',
-  VIEW_SENSITIVE: 'client.view_sensitive',
-  MANAGE_DOCUMENTS: 'client.manage_documents',
-  MANAGE_CONSENT: 'client.manage_consent',
-  EXPORT: 'client.export',
-} as const
