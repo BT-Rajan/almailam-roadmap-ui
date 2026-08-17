@@ -70,6 +70,7 @@ async function getProjectsByClient(clientId: string): Promise<Project[]> {
 
 export interface ProjectCreateInput {
   projectName: string
+  description?: string
   clientId: string
   service: string
   engineerId: string
@@ -90,15 +91,57 @@ async function createProject(projectData: ProjectCreateInput): Promise<Project> 
   }
 }
 
+export interface ProjectUpdateInput {
+  projectName?: string
+  description?: string
+  service?: string
+  engineerId?: string
+  priority?: ProjectPriority
+  progress?: number
+  targetDate?: string
+}
+
 /**
- * Update a project via backend API
+ * Update a project's core details via backend API. For stage/status
+ * changes, use setStage()/setStatus() below instead -- those go through
+ * dedicated endpoints with transition validation and reason capture.
  */
-async function updateProject(projectId: string, projectData: Partial<Project>): Promise<Project> {
+async function updateProject(projectId: string, projectData: ProjectUpdateInput): Promise<Project> {
   try {
     return await apiClient.patch<Project>(`/api/projects/${projectId}`, projectData)
   } catch (error) {
     console.error(`Failed to update project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update project')
+  }
+}
+
+/**
+ * Advance/change a project's workflow stage. `reason` is required for
+ * some transitions (enforced server-side, see PROJECT_STAGE_STATUSES_
+ * REQUIRING_REASON and the Completed->Approval reopen case) -- always
+ * pass it through when the user provided one.
+ */
+async function setStage(projectId: string, currentStage: string, reason?: string): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/stage`, { currentStage, reason })
+  } catch (error) {
+    console.error(`Failed to change stage for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change project stage')
+  }
+}
+
+/**
+ * Change a project's operational status (Active/On Hold/Completed/
+ * Cancelled). `reason` is required for some transitions (On Hold,
+ * Cancelled, and reopening a Completed/Cancelled project) -- enforced
+ * server-side.
+ */
+async function setStatus(projectId: string, status: string, reason?: string): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/status`, { status, reason })
+  } catch (error) {
+    console.error(`Failed to change status for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change project status')
   }
 }
 
@@ -121,5 +164,7 @@ export const projectService = {
   getProjectsByClient,
   createProject,
   updateProject,
+  setStage,
+  setStatus,
   deleteProject,
 }

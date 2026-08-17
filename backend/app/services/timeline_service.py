@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -15,8 +17,18 @@ def _get_project(db: Session, project_no: str) -> Project:
     return project
 
 
+def _project_exists(db: Session, project_no: str) -> Project:
+    """Like _get_project() but doesn't exclude soft-deleted projects --
+    used only for the read-only list view, so a deleted project's own
+    timeline stays inspectable the same way its audit trail does."""
+    project = db.query(Project).filter(Project.project_no == project_no).first()
+    if not project:
+        raise NotFoundError("Project")
+    return project
+
+
 def list_for_project(db: Session, project_no: str) -> list[ProjectTimelineEvent]:
-    project = _get_project(db, project_no)
+    project = _project_exists(db, project_no)
     return (
         db.query(ProjectTimelineEvent)
         .filter(ProjectTimelineEvent.project_id == project.id)
@@ -32,17 +44,42 @@ def user_name(db: Session, user_id: int | None) -> str | None:
     return user.full_name if user else "Unknown"
 
 
+def create_system_event(
+    db: Session, project_id: int, event_type: str, title: str, description: str | None = None,
+    actor_id: int | None = None,
+) -> ProjectTimelineEvent:
+    """For automatic, system-generated timeline entries (currently just
+    stage changes -- see project_service.set_stage). Does not commit;
+    the caller is expected to be inside its own transaction already
+    doing other work (updating the project, writing an audit event)."""
+    event = ProjectTimelineEvent(
+        project_id=project_id,
+        type=event_type,
+        title=title,
+        description=description,
+        event_date=date.today(),
+        status="completed",
+        created_by=actor_id,
+    )
+    db.add(event)
+    return event
+
+
 def create_event(db: Session, project_no: str, payload, actor_id: int) -> ProjectTimelineEvent:
     project = _get_project(db, project_no)
     if payload.status not in TIMELINE_EVENT_STATUSES:
         raise ValidationAppError(f"status must be one of {TIMELINE_EVENT_STATUSES}")
     event = ProjectTimelineEvent(
         project_id=project.id,
-        # Every user-created entry from the timeline dialog is a free-form
-        # note; the other event types (stage, document, quotation,
-        # submission, milestone, task) are reserved for system-generated
-        # entries from their respective workflows, which don't exist yet.
-        type="note",
+        # The dialog this comes from asks for a title, a date, and an
+        # Upcoming/In Progress/Completed status -- that's milestone
+        # vocabulary, not a general note, and it's the only entry point
+        # that lets staff add anything the customer portal's Milestones
+        # panel actually reads (which filters on type in
+        # ('milestone', 'stage')). Previously hardcoded to "note", which
+        # meant nothing created here could ever show up as a milestone
+        # anywhere, despite the UI clearly being built for exactly that.
+        type="milestone",
         title=payload.title,
         description=payload.description,
         event_date=payload.date,

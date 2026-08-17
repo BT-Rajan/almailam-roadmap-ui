@@ -18,6 +18,7 @@ class ProjectOut(BaseModel):
     id: str
     projectNo: str
     projectName: str
+    description: str | None = None
     clientId: str
     service: str
     engineer: str
@@ -34,6 +35,7 @@ class ProjectOut(BaseModel):
             id=project.project_no,
             projectNo=project.project_no,
             projectName=project.project_name,
+            description=project.description,
             clientId=f"CLT-{project.client_id:03d}",
             service=project.service,
             engineer=engineer_name,
@@ -48,6 +50,7 @@ class ProjectOut(BaseModel):
 
 class ProjectCreate(BaseModel):
     projectName: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
     clientId: str
     service: str = Field(min_length=1, max_length=100)
     engineerId: str
@@ -68,6 +71,7 @@ class ProjectCreate(BaseModel):
 
 class ProjectUpdate(BaseModel):
     projectName: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
     service: str | None = Field(default=None, min_length=1, max_length=100)
     engineerId: str | None = None
     priority: str | None = None

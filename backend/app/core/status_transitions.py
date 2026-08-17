@@ -70,6 +70,17 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 #
 # Same story as client onboarding above: discovered while building the
 # Project entity in Pass B07, not anticipated by B04's original scope.
+#
+# "Completed" was originally a true dead end with no way back -- a
+# project marked complete by mistake had no recovery path at all. Added
+# a single escape hatch back to "Approval" (the stage immediately
+# before) rather than opening up arbitrary backward jumps through the
+# whole pipeline, which is a real stage-gate process with its own
+# intentional structure. Unlike "Review" -> "Approval" (the normal,
+# frequent, reason-free outcome of a successful review), reopening a
+# Completed project is exceptional and source-dependent -- enforced
+# directly in project_service.set_stage() rather than here, since
+# REQUIRING_REASON only keys on the target state.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Enquiry": {"Quotation"},
     "Quotation": {"Contract"},
@@ -79,16 +90,28 @@ PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Review": {"Correction", "Approval"},
     "Correction": {"Review"},
     "Approval": {"Completed"},
-    "Completed": set(),
+    "Completed": {"Approval"},
 }
 PROJECT_STAGE_STATUSES_REQUIRING_REASON = {"Correction"}
 
 # --- Project Status -- src/types/Project.ts: ProjectStatus
+#
+# "Completed" and "Cancelled" were both true dead ends too -- same
+# reasoning as above, added a path back to "Active" for each rather than
+# leaving no recovery at all. Unlike "On Hold" -> "Active" (a routine,
+# frequent, reason-free resume), reopening a Completed or Cancelled
+# project is exceptional -- that reason requirement is source-dependent
+# (only when recovering FROM one of those two, not from "On Hold"), so
+# it's enforced directly in project_service.set_status() rather than
+# here, since REQUIRING_REASON only keys on the target state. Moving
+# status to "Completed" additionally requires current_stage to already
+# be "Completed" too (also enforced in set_status(), not here) so the
+# two parallel fields can't silently disagree with each other.
 PROJECT_STATUS_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Active": {"On Hold", "Completed", "Cancelled"},
     "On Hold": {"Active", "Cancelled"},
-    "Completed": set(),
-    "Cancelled": set(),
+    "Completed": {"Active"},
+    "Cancelled": {"Active"},
 }
 PROJECT_STATUS_STATUSES_REQUIRING_REASON = {"On Hold", "Cancelled"}
 

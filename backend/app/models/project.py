@@ -28,6 +28,7 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     project_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     project_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True
     )

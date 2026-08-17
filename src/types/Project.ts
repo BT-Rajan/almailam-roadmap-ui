@@ -17,6 +17,7 @@ export interface Project {
   id: string
   projectNo: string
   projectName: string
+  description?: string
   clientId: string
   service: string
   engineer: string

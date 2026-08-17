@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS projects (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_no      VARCHAR(20)  NOT NULL UNIQUE,
     project_name    VARCHAR(200) NOT NULL,
+    description     VARCHAR(2000) NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
     service         VARCHAR(100) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,

@@ -1,0 +1,147 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, watch } from 'vue'
+
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import DatePicker from '@/components/common/DatePicker.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
+import TextArea from '@/components/common/TextArea.vue'
+import TextInput from '@/components/common/TextInput.vue'
+import { PROJECT_SERVICES } from '@/constants/projectOptions'
+import { useFormValidation } from '@/composables/useFormValidation'
+import { useUserStore } from '@/stores/userStore'
+import type { Project, ProjectPriority } from '@/types/Project'
+import type { ProjectUpdateInput } from '@/services/projectService'
+import type { SelectOption } from '@/types/Ui'
+import { validators } from '@/utils/validators'
+
+const props = defineProps<{
+  modelValue: boolean
+  project: Project
+  loading?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  confirm: [payload: ProjectUpdateInput]
+}>()
+
+const PRIORITY_OPTIONS: SelectOption[] = [
+  { label: 'High', value: 'High' },
+  { label: 'Medium', value: 'Medium' },
+  { label: 'Low', value: 'Low' },
+]
+const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ label: service, value: service }))
+
+const userStore = useUserStore()
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
+// Every active staff member can be assigned, not only those with the
+// Engineer role -- a Project Manager occasionally runs point on a
+// project too, and this only reassigns responsibility, it doesn't grant
+// or restrict any permission.
+const engineerOptions = computed<SelectOption[]>(() =>
+  userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
+)
+
+interface EditForm {
+  projectName: string
+  description: string
+  service: string
+  priority: string
+  progress: number
+  targetDate: string
+  engineerId: string
+}
+
+function emptyForm(): EditForm {
+  return {
+    projectName: '',
+    description: '',
+    service: '',
+    priority: 'Medium',
+    progress: 0,
+    targetDate: '',
+    engineerId: '',
+  }
+}
+
+const form = reactive(emptyForm())
+const { errors, setRules, validateAll } = useFormValidation()
+
+setRules({
+  projectName: [validators.required('Project name is required'), validators.minLength(5)],
+  service: [validators.required('Please select a service')],
+  engineerId: [validators.required('Please assign an engineer')],
+  targetDate: [validators.required('Target date is required')],
+})
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!open) return
+    form.projectName = props.project.projectName
+    form.description = props.project.description ?? ''
+    form.service = props.project.service
+    form.priority = props.project.priority
+    form.progress = props.project.progress
+    form.targetDate = props.project.targetDate
+    // engineerId isn't on Project (only the resolved display name is) --
+    // pre-select nothing and require staff to actively re-confirm who's
+    // assigned, rather than guessing an id from a name that could match
+    // more than one person.
+    form.engineerId = ''
+  },
+)
+
+function closeDialog(): void {
+  emit('update:modelValue', false)
+}
+
+function handleConfirm(): void {
+  if (!validateAll(form)) return
+  emit('confirm', {
+    projectName: form.projectName,
+    description: form.description,
+    service: form.service,
+    priority: form.priority as ProjectPriority,
+    progress: form.progress,
+    targetDate: form.targetDate,
+    engineerId: form.engineerId,
+  })
+}
+</script>
+
+<template>
+  <BaseDialog :model-value="modelValue" title="Edit Project" size="lg" @update:model-value="emit('update:modelValue', $event)">
+    <div class="flex flex-col gap-4">
+      <TextInput v-model="form.projectName" label="Project Name" required :error="errors.projectName" />
+      <TextArea v-model="form.description" label="Scope of Work" placeholder="Describe the scope of this engagement" :rows="3" />
+
+      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+        <SelectBox v-model="form.service" label="Service" :options="serviceOptions" required :error="errors.service" />
+        <SelectBox v-model="form.priority" label="Priority" :options="PRIORITY_OPTIONS" />
+        <SelectBox
+          v-model="form.engineerId"
+          label="Reassign Engineer"
+          placeholder="Select an engineer"
+          :options="engineerOptions"
+          required
+          :error="errors.engineerId"
+        />
+        <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-medium text-neutral-500" for="project-edit-progress">Progress ({{ form.progress }}%)</label>
+        <input id="project-edit-progress" v-model.number="form.progress" type="range" min="0" max="100" step="5" class="w-full accent-primary-600" />
+      </div>
+    </div>
+
+    <template #footer>
+      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">Save Changes</BaseButton>
+    </template>
+  </BaseDialog>
+</template>

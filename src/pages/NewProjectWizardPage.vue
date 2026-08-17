@@ -146,6 +146,7 @@ async function submitWizard(): Promise<void> {
   try {
     const project = await projectStore.createProject({
       projectName: form.projectName,
+      description: form.scope || undefined,
       clientId: form.clientId,
       service: form.service,
       engineerId: form.engineer,

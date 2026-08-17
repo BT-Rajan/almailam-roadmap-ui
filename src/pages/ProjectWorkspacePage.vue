@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { Building2, Calendar, Layers, User } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
+import ProjectEditDialog from '@/components/project/ProjectEditDialog.vue'
+import ProjectTransitionDialog from '@/components/project/ProjectTransitionDialog.vue'
 import ProjectOverviewTab from '@/components/project/ProjectOverviewTab.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
@@ -21,6 +24,7 @@ const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/proj
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentWorkspacePanel = defineAsyncComponent(() => import('@/components/payment/PaymentWorkspacePanel.vue'))
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
@@ -29,10 +33,13 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useTimelineStore } from '@/stores/timelineStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { ProjectUpdateInput } from '@/services/projectService'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
+const router = useRouter()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const timelineStore = useTimelineStore()
@@ -41,6 +48,7 @@ const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
+const toastStore = useToastStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
@@ -106,6 +114,76 @@ watch(
   },
   { immediate: true },
 )
+
+const isEditDialogOpen = ref(false)
+const isEditSaving = ref(false)
+const isStageDialogOpen = ref(false)
+const isStageSaving = ref(false)
+const isStatusDialogOpen = ref(false)
+const isStatusSaving = ref(false)
+const isDeleteDialogOpen = ref(false)
+const isDeleteSaving = ref(false)
+
+async function handleConfirmEdit(payload: ProjectUpdateInput): Promise<void> {
+  if (!project.value) return
+  isEditSaving.value = true
+  try {
+    await projectStore.updateProject(project.value.id, payload)
+    toastStore.show('success', 'Project updated', 'Changes were saved successfully.')
+    isEditDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update project', detail)
+  } finally {
+    isEditSaving.value = false
+  }
+}
+
+async function handleConfirmStage(payload: { value: string; reason?: string }): Promise<void> {
+  if (!project.value) return
+  isStageSaving.value = true
+  try {
+    await projectStore.setStage(project.value.id, payload.value, payload.reason)
+    toastStore.show('success', 'Stage updated', `Project moved to ${payload.value}.`)
+    isStageDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to change stage', detail)
+  } finally {
+    isStageSaving.value = false
+  }
+}
+
+async function handleConfirmStatus(payload: { value: string; reason?: string }): Promise<void> {
+  if (!project.value) return
+  isStatusSaving.value = true
+  try {
+    await projectStore.setStatus(project.value.id, payload.value, payload.reason)
+    toastStore.show('success', 'Status updated', `Project marked as ${payload.value}.`)
+    isStatusDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to change status', detail)
+  } finally {
+    isStatusSaving.value = false
+  }
+}
+
+async function handleConfirmDelete(): Promise<void> {
+  if (!project.value) return
+  isDeleteSaving.value = true
+  try {
+    await projectStore.deleteProject(project.value.id)
+    toastStore.show('success', 'Project deleted', `${project.value.projectName} was removed.`)
+    isDeleteDialogOpen.value = false
+    router.push({ name: ROUTE_NAMES.PROJECTS })
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to delete project', detail)
+  } finally {
+    isDeleteSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -124,7 +202,14 @@ watch(
     <EmptyState v-else-if="!project" title="Project not found" description="This project may have been removed or the link is incorrect." />
 
     <template v-else>
-      <ProjectHeader :project="project" :client="client" />
+      <ProjectHeader
+        :project="project"
+        :client="client"
+        @edit="isEditDialogOpen = true"
+        @change-stage="isStageDialogOpen = true"
+        @change-status="isStatusDialogOpen = true"
+        @delete="isDeleteDialogOpen = true"
+      />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4 no-print">
         <InfoPanel label="Service" :value="project.service" :icon="Layers" />
@@ -163,6 +248,36 @@ watch(
         :project-id="projectId"
       />
       <PaymentWorkspacePanel v-else-if="activeTab === 'payments'" :project-id="projectId" />
+
+      <ProjectEditDialog
+        v-model="isEditDialogOpen"
+        :project="project"
+        :loading="isEditSaving"
+        @confirm="handleConfirmEdit"
+      />
+      <ProjectTransitionDialog
+        v-model="isStageDialogOpen"
+        kind="stage"
+        :current-value="project.currentStage"
+        :loading="isStageSaving"
+        @confirm="handleConfirmStage"
+      />
+      <ProjectTransitionDialog
+        v-model="isStatusDialogOpen"
+        kind="status"
+        :current-value="project.status"
+        :loading="isStatusSaving"
+        @confirm="handleConfirmStatus"
+      />
+      <ConfirmationDialog
+        v-model="isDeleteDialogOpen"
+        title="Delete project"
+        :message="`Delete ${project.projectName}? This cannot be undone from the app.`"
+        confirm-label="Delete"
+        confirm-variant="danger"
+        :loading="isDeleteSaving"
+        @confirm="handleConfirmDelete"
+      />
     </template>
   </div>
 </template>

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 
 import { clientService } from '@/services/clientService'
 import { projectService } from '@/services/projectService'
-import type { ProjectCreateInput } from '@/services/projectService'
+import type { ProjectCreateInput, ProjectUpdateInput } from '@/services/projectService'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
@@ -156,20 +156,38 @@ export const useProjectStore = defineStore('project', {
       this.viewMode = mode
     },
 
-    addProject(project: Project) {
-      this.projects = [project, ...this.projects]
-    },
-
-    // Persists a project via the backend API. Prefer this over addProject()
-    // above, which only mutates local state and was previously the only
-    // path the New Project wizard used -- meaning projects never survived
-    // a page refresh and their "project number" was just a client-side
-    // guess based on the current in-memory list length (collision-prone
-    // and never checked against the server).
+    // Persists a project via the backend API.
     async createProject(projectData: ProjectCreateInput): Promise<Project> {
       const project = await projectService.createProject(projectData)
       this.projects = [project, ...this.projects]
       return project
+    },
+
+    async updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {
+      const updated = await projectService.updateProject(projectId, input)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
+    async setStage(projectId: string, currentStage: string, reason?: string): Promise<Project> {
+      const updated = await projectService.setStage(projectId, currentStage, reason)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
+    async setStatus(projectId: string, status: string, reason?: string): Promise<Project> {
+      const updated = await projectService.setStatus(projectId, status, reason)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
+    async deleteProject(projectId: string): Promise<void> {
+      await projectService.deleteProject(projectId)
+      this.projects = this.projects.filter((p) => p.id !== projectId)
+      this.pageItems = this.pageItems.filter((p) => p.id !== projectId)
     },
 
     clearFilters() {

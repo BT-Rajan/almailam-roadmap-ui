@@ -14,7 +14,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, client_service, user_service
+from app.services import audit_service, client_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -111,14 +111,19 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
             "Reactivate the client first."
         )
     engineer_id = user_service.parse_user_id(payload.engineerId)
-    engineer = db.query(User).filter(User.id == engineer_id, User.deleted_at.is_(None)).first()
+    engineer = (
+        db.query(User)
+        .filter(User.id == engineer_id, User.deleted_at.is_(None), User.is_active.is_(True))
+        .first()
+    )
     if engineer is None:
-        raise ValidationAppError("engineerId does not refer to a known user.")
+        raise ValidationAppError("engineerId does not refer to a known, active user.")
 
     project_no = next_number(db, "PROJECT")
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
+        description=payload.description,
         client_id=client.id,
         service=payload.service,
         engineer_id=engineer.id,
@@ -141,6 +146,11 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     if payload.projectName is not None and payload.projectName != project.project_name:
         changes["project_name"] = (project.project_name, payload.projectName)
         project.project_name = payload.projectName
+    if payload.description is not None:
+        new_description = payload.description.strip() or None
+        if new_description != project.description:
+            changes["description"] = (project.description, new_description)
+        project.description = new_description
     if payload.service is not None and payload.service != project.service:
         changes["service"] = (project.service, payload.service)
         project.service = payload.service
@@ -156,9 +166,16 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     if payload.engineerId is not None:
         new_engineer_id = user_service.parse_user_id(payload.engineerId)
         if new_engineer_id != project.engineer_id:
-            engineer = db.query(User).filter(User.id == new_engineer_id).first()
+            # Same check create_project() uses -- this path was missing
+            # it entirely before, meaning a project could be reassigned
+            # to a soft-deleted (removed) user with no validation at all.
+            engineer = (
+                db.query(User)
+                .filter(User.id == new_engineer_id, User.deleted_at.is_(None), User.is_active.is_(True))
+                .first()
+            )
             if engineer is None:
-                raise ValidationAppError("engineerId does not refer to a known user.")
+                raise ValidationAppError("engineerId does not refer to a known, active user.")
             changes["engineer_id"] = (project.engineer_id, new_engineer_id)
             project.engineer_id = new_engineer_id
 
@@ -176,17 +193,39 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 
 def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, user_id: int | None) -> Project:
     project = get_project(db, project_no)
+    previous_stage = project.current_stage
     assert_transition_allowed(
-        PROJECT_STAGE_ALLOWED_TRANSITIONS, project.current_stage, new_stage, "project"
+        PROJECT_STAGE_ALLOWED_TRANSITIONS, previous_stage, new_stage, "project"
     )
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
+    # Reopening a Completed project is exceptional and source-dependent
+    # (unlike "Review" -> "Approval", the normal reason-free outcome of
+    # a successful review), so this can't live in the target-state-only
+    # REQUIRING_REASON table -- it's checked here instead.
+    if previous_stage == "Completed" and new_stage == "Approval":
+        assert_reason_given(reason, "A reason is required to reopen a completed project.")
 
     audit_service.log_event(
         db, ENTITY_TYPE, project.id, "Stage changed", user_id,
-        previous_value=project.current_stage, new_value=new_stage, reason=reason,
+        previous_value=previous_stage, new_value=new_stage, reason=reason,
     )
     project.current_stage = new_stage
+    db.flush()
+
+    # The only automatic, system-generated timeline entry this app
+    # produces today -- everything else on the timeline is still a
+    # manually-added milestone (see timeline_service.create_event). This
+    # is what lets the customer portal's "Recent Updates" feed and the
+    # staff Timeline tab show real stage progression at all, rather than
+    # being empty until someone remembers to log it by hand.
+    timeline_service.create_system_event(
+        db, project.id, "stage",
+        title=f"Stage advanced to {new_stage}",
+        description=reason,
+        actor_id=user_id,
+    )
+
     db.commit()
     db.refresh(project)
     return project
@@ -194,15 +233,30 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
 
 def set_status(db: Session, project_no: str, new_status: str, reason: str | None, user_id: int | None) -> Project:
     project = get_project(db, project_no)
+    previous_status = project.status
     assert_transition_allowed(
-        PROJECT_STATUS_ALLOWED_TRANSITIONS, project.status, new_status, "project"
+        PROJECT_STATUS_ALLOWED_TRANSITIONS, previous_status, new_status, "project"
     )
     if new_status in PROJECT_STATUS_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_status}'.")
+    # Reopening a Completed or Cancelled project is exceptional and
+    # source-dependent (unlike "On Hold" -> "Active", the routine,
+    # frequent, reason-free resume), so it's checked here rather than
+    # in the target-state-only REQUIRING_REASON table.
+    if previous_status in ("Completed", "Cancelled") and new_status == "Active":
+        assert_reason_given(reason, f"A reason is required to reopen a {previous_status.lower()} project.")
+    # The two parallel fields (status and current_stage) could otherwise
+    # silently disagree -- nothing previously stopped a project still
+    # sitting at "Enquiry" stage from being marked "Completed" status.
+    if new_status == "Completed" and project.current_stage != "Completed":
+        raise ValidationAppError(
+            "A project's status can only become 'Completed' once its workflow stage has also "
+            f"reached 'Completed' (currently at '{project.current_stage}')."
+        )
 
     audit_service.log_event(
         db, ENTITY_TYPE, project.id, "Status changed", user_id,
-        previous_value=project.status, new_value=new_status, reason=reason,
+        previous_value=previous_status, new_value=new_status, reason=reason,
     )
     project.status = new_status
     db.commit()
@@ -210,8 +264,20 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
     return project
 
 
+def _project_exists(db: Session, project_no: str) -> Project:
+    """Like get_project() but doesn't exclude soft-deleted projects --
+    used only for read-only historical views (audit trail) where a
+    deleted project's own history must remain inspectable. Everything
+    else (updates, timeline entries, etc.) keeps using get_project() so
+    a soft-deleted project stays fully locked for writes."""
+    project = db.query(Project).filter(Project.project_no == project_no).first()
+    if project is None:
+        raise NotFoundError("Project")
+    return project
+
+
 def get_audit_events(db: Session, project_no: str) -> list[dict]:
-    project = get_project(db, project_no)
+    project = _project_exists(db, project_no)
     return audit_service.get_history(db, ENTITY_TYPE, project.id)
 
 

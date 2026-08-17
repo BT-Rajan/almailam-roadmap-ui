@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Building2, User } from '@lucide/vue'
+import { Building2, Pencil, RefreshCw, Trash2, User, Workflow } from '@lucide/vue'
 
+import BaseButton from '@/components/common/BaseButton.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { getProjectPriorityVariant, getProjectStatusVariant } from '@/utils/projectHelpers'
@@ -15,6 +17,13 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   client: undefined,
 })
+
+defineEmits<{
+  edit: []
+  'change-stage': []
+  'change-status': []
+  delete: []
+}>()
 </script>
 
 <template>
@@ -35,10 +44,14 @@ withDefaults(defineProps<Props>(), {
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-2">
+      <div class="flex shrink-0 flex-wrap items-center gap-2">
         <StatusBadge :label="project.currentStage" variant="info" />
         <StatusBadge :label="project.status" :variant="getProjectStatusVariant(project.status)" />
         <StatusBadge :label="`${project.priority} Priority`" :variant="getProjectPriorityVariant(project.priority)" />
+        <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">Stage</BaseButton>
+        <BaseButton variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">Status</BaseButton>
+        <IconButton :icon="Pencil" label="Edit project" size="sm" class="no-print" @click="$emit('edit')" />
+        <IconButton :icon="Trash2" label="Delete project" size="sm" class="no-print" @click="$emit('delete')" />
       </div>
     </div>
 
