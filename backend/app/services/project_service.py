@@ -158,6 +158,8 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
         changes["priority"] = (project.priority, payload.priority)
         project.priority = payload.priority
     if payload.targetDate is not None and payload.targetDate != project.target_date:
+        if payload.targetDate <= project.start_date:
+            raise ValidationAppError("targetDate must be after the project's startDate.")
         changes["target_date"] = (project.target_date, payload.targetDate)
         project.target_date = payload.targetDate
     if payload.progress is not None and payload.progress != project.progress:
@@ -259,6 +261,15 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
         previous_value=previous_status, new_value=new_status, reason=reason,
     )
     project.status = new_status
+    if new_status == "Completed" and project.progress != 100:
+        # Otherwise a project could show "Completed" status next to a
+        # progress bar reading e.g. 40% -- a visible, confusing
+        # inconsistency between two fields that should agree once
+        # something is actually done. Auto-correct rather than block the
+        # transition on it, since making staff do a separate progress
+        # update first just for this would be needless friction for
+        # something this unambiguous.
+        project.progress = 100
     db.commit()
     db.refresh(project)
     return project
@@ -274,6 +285,22 @@ def _project_exists(db: Session, project_no: str) -> Project:
     if project is None:
         raise NotFoundError("Project")
     return project
+
+
+def assert_project_open_for_new_work(project: Project) -> None:
+    """Blocks creating new child records (quotations, contracts, tasks,
+    documents, government submissions) against a project that's no
+    longer an active concern -- a Cancelled or Completed project
+    shouldn't keep silently accumulating new work against it. Deliberately
+    does NOT gate on current_stage (e.g. requiring stage=="Quotation"
+    before a quotation can be created) -- staff legitimately draft a
+    quotation before formally advancing the stage, and that's a much
+    stricter, more debatable rule than "don't add new work to a project
+    that's over."""
+    if project.status in ("Cancelled", "Completed"):
+        raise ValidationAppError(
+            f"This project is marked '{project.status}' and can no longer have new records added to it."
+        )
 
 
 def get_audit_events(db: Session, project_no: str) -> list[dict]:

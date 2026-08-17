@@ -11,7 +11,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.quotation import Quotation, QuotationLineItem
-from app.services import audit_service
+from app.services import audit_service, project_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -68,6 +68,7 @@ def get_line_items(db: Session, quotation_id: int) -> list[QuotationLineItem]:
 
 def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     project = _project_by_no(db, payload.projectId)
+    project_service.assert_project_open_for_new_work(project)
     amount = compute_amount(
         [(item.quantity, item.unitPrice) for item in payload.lineItems], payload.taxRatePercent, payload.discountAmount
     )

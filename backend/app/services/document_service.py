@@ -15,7 +15,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, notification_service
+from app.services import audit_service, notification_service, project_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -92,6 +92,7 @@ def create_document(
     db: Session, project_no: str, title: str, doc_type: str, file: UploadFile, user_id: int
 ) -> ProjectDocument:
     project = _project_by_no(db, project_no)
+    project_service.assert_project_open_for_new_work(project)
     storage_key, original_filename, size_bytes = save_upload(file, "documents")
 
     document = ProjectDocument(

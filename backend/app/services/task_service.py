@@ -10,7 +10,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, notification_service, user_service
+from app.services import audit_service, notification_service, project_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "TASK"
@@ -87,6 +87,7 @@ def get_task(db: Session, task_no: str) -> Task:
 
 def create_task(db: Session, payload, user_id: int) -> Task:
     project = _project_by_no(db, payload.projectId)
+    project_service.assert_project_open_for_new_work(project)
     assignee_id = _resolve_assignee(db, payload.assignedTo)
 
     task = Task(

@@ -11,7 +11,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service
+from app.services import audit_service, project_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -76,6 +76,7 @@ def get_revisions_with_names(db: Session, contract_id: int) -> list[tuple]:
 
 def create_contract(db: Session, payload, user_id: int) -> Contract:
     project = _project_by_no(db, payload.projectId)
+    project_service.assert_project_open_for_new_work(project)
     contract = Contract(
         contract_no=next_number(db, "CONTRACT"),
         project_id=project.id,
