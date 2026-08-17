@@ -33,7 +33,7 @@ Example
 ```
 /projects
 /projects/new
-/projects/PRJ-0001
+/projects/2600001
 ```
 
 Avoid
@@ -210,7 +210,7 @@ These are available on every protected route.
 Example
 
 ```
-/projects/PRJ-2026-001
+/projects/2600001
 ```
 
 ---

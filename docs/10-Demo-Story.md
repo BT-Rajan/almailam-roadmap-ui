@@ -44,7 +44,7 @@ Use one primary project throughout the demonstration.
 ```
 Project
 
-PRJ-2026-001
+2600001
 
 Client
 

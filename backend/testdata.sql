@@ -114,17 +114,17 @@ INSERT INTO client_verifications (client_id, item, result, verified_by, verified
 -- Projects
 -- ----------------------------------------------------------------------------
 INSERT INTO projects (project_no, project_name, client_id, service, engineer_id, current_stage, progress, priority, start_date, target_date, status) VALUES
-('PRJ-2026-001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Enquiry',               8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
-('PRJ-2026-002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
-('PRJ-2026-003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
-('PRJ-2026-004', 'Ahmadi Industrial Facility - Fire Safety Approval',   @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
-('PRJ-2026-005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Completed',             100, 'Low',    '2025-09-01', '2026-03-20', 'Completed');
+('2600001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Enquiry',               8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
+('2600002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
+('2600003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
+('2600004', 'Ahmadi Industrial Facility - Fire Safety Approval',   @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
+('2600005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Completed',             100, 'Low',    '2025-09-01', '2026-03-20', 'Completed');
 
-SET @p_alreem  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-001');
-SET @p_falcon  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-002');
-SET @p_marina  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-003');
-SET @p_ahmadi  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-004');
-SET @p_desert  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-005');
+SET @p_alreem  = (SELECT id FROM projects WHERE project_no = '2600001');
+SET @p_falcon  = (SELECT id FROM projects WHERE project_no = '2600002');
+SET @p_marina  = (SELECT id FROM projects WHERE project_no = '2600003');
+SET @p_ahmadi  = (SELECT id FROM projects WHERE project_no = '2600004');
+SET @p_desert  = (SELECT id FROM projects WHERE project_no = '2600005');
 
 -- ----------------------------------------------------------------------------
 -- Government authorities, forms, submissions
@@ -287,8 +287,8 @@ INSERT INTO tasks (task_no, project_id, title, assigned_to, priority, severity, 
 -- Notifications
 -- ----------------------------------------------------------------------------
 INSERT INTO notifications (notification_no, user_id, title, message, category, created_at, `read`, link_route_name, link_params) VALUES
-('NTF-2026-001', @u_pm,    'New task assigned',            'You have been kept informed on "Prepare fire safety submission package" for Ahmadi Industrial Facility.', 'Task', '2026-06-14 09:00:00', 1, 'project-workspace', JSON_OBJECT('projectId', 'PRJ-2026-004')),
-('NTF-2026-002', @u_pm,    'Payment received',             'AED 82,000 received for Falcon Heights Warehouse Expansion (Instalment 1).', 'Project', '2026-06-01 10:05:00', 1, 'project-workspace', JSON_OBJECT('projectId', 'PRJ-2026-002')),
+('NTF-2026-001', @u_pm,    'New task assigned',            'You have been kept informed on "Prepare fire safety submission package" for Ahmadi Industrial Facility.', 'Task', '2026-06-14 09:00:00', 1, 'project-workspace', JSON_OBJECT('projectId', '2600004')),
+('NTF-2026-002', @u_pm,    'Payment received',             'AED 82,000 received for Falcon Heights Warehouse Expansion (Instalment 1).', 'Project', '2026-06-01 10:05:00', 1, 'project-workspace', JSON_OBJECT('projectId', '2600002')),
 ('NTF-2026-003', @u_pm,    'Government submission update', 'Fire Safety Approval for Ahmadi Industrial Facility is now Under Review.', 'Government', '2026-06-15 11:30:00', 0, 'government-submissions', NULL),
 ('NTF-2026-004', @u_admin, 'New client onboarded',         'Ahmadi Industrial Holdings has completed onboarding and is under review.', 'Project', '2026-03-01 10:05:00', 0, 'client-workspace', JSON_OBJECT('clientId', 'CLT-004')),
 ('NTF-2026-005', @u_layla, 'Task due soon',                'Draft preliminary structural calculations is due on 2026-07-05.', 'Task', '2026-06-28 08:00:00', 0, 'tasks', NULL);
@@ -324,7 +324,7 @@ INSERT INTO project_timeline_events (project_id, type, title, description, event
 -- notification created through the app continues after the seeded ones
 -- instead of colliding with them.
 INSERT INTO number_series (doc_type, year, prefix, next_number, padding) VALUES
-('PROJECT',              2026, 'PRJ', 6, 3),
+('PROJECT',              2026, 'PRJ', 6, 5),
 ('DOCUMENT',              2026, 'DOC', 9, 3),
 ('TASK',                 2026, 'TSK', 9, 3),
 ('QUOTATION',             2026, 'QUO', 4, 3),

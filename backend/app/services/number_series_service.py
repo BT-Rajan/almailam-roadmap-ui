@@ -10,12 +10,18 @@ not jdk_clean's flat ever-incrementing PREFIX-##### (no year, never
 resets) -- that's a genuinely different numbering scheme, so this is
 adapted rather than ported as-is.
 
+PROJECT is the one exception: project numbers are a plain 7-digit
+number (2-digit year + 5-digit sequence, e.g. "2600001" for the first
+project created in 2026) rather than the PREFIX-YEAR-### shape every
+other document type uses. Scoped, deliberate deviation -- everything
+else keeps the original format.
+
 Note: Payment has no generated number of its own -- `referenceNumber`
 on a Payment is an optional, user-supplied external reference (e.g. a
 bank transfer ref), not something we generate. So there is no
 'payment receipt' entry here despite the original B05 pass description
-assuming one; only the three document types that actually have a
-generated number in the real data model are configured below.
+assuming one; only the document types that actually have a generated
+number in the real data model are configured below.
 """
 
 from datetime import datetime, timezone
@@ -30,7 +36,7 @@ DOC_TYPE_CONFIG: dict[str, tuple[str, int]] = {
     "QUOTATION": ("QUO", 3),
     "CONTRACT": ("CON", 3),
     "GOVERNMENT_SUBMISSION": ("SUB", 3),
-    "PROJECT": ("PRJ", 3),
+    "PROJECT": ("PRJ", 5),  # padding used by the PROJECT-specific branch below, not the prefix
     "DOCUMENT": ("DOC", 3),
     "TASK": ("TSK", 3),
     "NOTIFICATION": ("NTF", 3),
@@ -70,5 +76,9 @@ def next_number(db: Session, doc_type: str, year: int | None = None) -> str:
         ),
         {"doc_type": doc_type, "year": year},
     )
+
+    if doc_type == "PROJECT":
+        year_suffix = str(year)[-2:]
+        return f"{year_suffix}{str(current).zfill(padding)}"
 
     return f"{prefix}-{year}-{str(current).zfill(padding)}"

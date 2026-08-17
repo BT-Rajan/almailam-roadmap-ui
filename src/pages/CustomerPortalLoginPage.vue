@@ -109,7 +109,7 @@ const handleKeydown = (e: KeyboardEvent) => {
               v-model="projectId"
               label="Project ID"
               placeholder="Enter your project ID"
-              hint="e.g., PRJ-2026-001"
+              hint="e.g., 2600001"
               @keydown="handleKeydown"
             />
 
