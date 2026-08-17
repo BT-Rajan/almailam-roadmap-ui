@@ -68,6 +68,8 @@ export interface ClientWizardForm {
   identificationFile: File | null
   consents: Record<ClientConsentType, boolean>
   communicationPreference: ClientCommunicationPreference
+  /** "" means unassigned -- optional, can be set later via Edit Client too. */
+  accountManagerId: string
 }
 
 export function createEmptyClientWizardForm(): ClientWizardForm {
@@ -127,5 +129,6 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       whatsappConsent: false,
       smsConsent: false,
     },
+    accountManagerId: '',
   }
 }

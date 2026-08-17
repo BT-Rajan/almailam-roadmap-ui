@@ -168,8 +168,12 @@ function createClient(): void {
 
       <EmptyState
         v-else-if="clientStore.pageItems.length === 0"
-        title="No clients found"
-        description="Try adjusting your search or filters, or onboard a new client."
+        :title="clientStore.myClientsOnly ? 'No clients assigned to you yet' : 'No clients found'"
+        :description="
+          clientStore.myClientsOnly
+            ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone, or assign yourself via Edit Client.'
+            : 'Try adjusting your search or filters, or onboard a new client.'
+        "
         action-label="New Client"
         @action="createClient"
       />
@@ -202,8 +206,12 @@ function createClient(): void {
         :loading="clientStore.isPageLoading"
         :searchable="false"
         :paginated="false"
-        empty-title="No clients found"
-        empty-description="Try adjusting your search or filters, or onboard a new client."
+        :empty-title="clientStore.myClientsOnly ? 'No clients assigned to you yet' : 'No clients found'"
+        :empty-description="
+          clientStore.myClientsOnly
+            ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone.'
+            : 'Try adjusting your search or filters, or onboard a new client.'
+        "
         @row-click="openClient($event.id)"
       >
         <template #cell-onboardingState="{ value }">

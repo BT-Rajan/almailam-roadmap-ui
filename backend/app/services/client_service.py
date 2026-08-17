@@ -138,7 +138,7 @@ def _resolve_account_manager_id(db: Session, raw: str | None) -> int | None:
     if raw is None or raw.strip() == "":
         return None
     user_id = parse_prefixed_id(raw, "USR-", "user")
-    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None), User.is_active.is_(True)).first()
     if user is None:
         raise ValidationAppError("accountManagerId does not refer to a known user.")
     return user.id

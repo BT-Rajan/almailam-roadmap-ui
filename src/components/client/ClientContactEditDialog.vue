@@ -39,6 +39,22 @@ watch(
   },
 )
 
+// Selecting the "Authorised Representative" contact type and the
+// "authorised to act on the client's behalf" toggle used to be two
+// completely independent fields with the same-sounding label -- easy to
+// set inconsistently (a contact typed as the authorised representative
+// but with the flag left off). One-directional: explicitly typing
+// someone as the authorised representative always implies the flag;
+// the reverse isn't forced, since e.g. a Billing Contact can
+// independently be authorised to act without being *the* designated
+// representative contact.
+watch(
+  () => form.contactType,
+  (type) => {
+    if (type === 'Authorised Representative') form.isAuthorisedRepresentative = true
+  },
+)
+
 function closeDialog(): void {
   emit('update:modelValue', false)
 }
@@ -72,7 +88,7 @@ function handleConfirm(): void {
       <SelectBox v-model="form.contactType" label="Contact Type" :options="CLIENT_CONTACT_TYPE_OPTIONS" />
       <TextInput v-model="form.mobile" label="Mobile Number" required :error="errors.mobile" />
       <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
-      <ToggleSwitch v-model="form.isAuthorisedRepresentative" label="Authorised Representative" />
+      <ToggleSwitch v-model="form.isAuthorisedRepresentative" label="Authorised to Act on Client's Behalf" />
     </div>
 
     <template #footer>

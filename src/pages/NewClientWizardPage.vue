@@ -165,6 +165,7 @@ async function submitWizard(): Promise<void> {
       individualProfile: isIndividual ? { ...form.value.individualProfile } : undefined,
       organisationProfile: !isIndividual ? { ...form.value.organisationProfile } : undefined,
       communicationPreference: { ...form.value.communicationPreference },
+      accountManagerId: form.value.accountManagerId || undefined,
     })
 
     const subRecordRequests: Promise<unknown>[] = []

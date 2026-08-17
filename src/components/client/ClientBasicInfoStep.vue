@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import DuplicateClientAlert from '@/components/client/DuplicateClientAlert.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
@@ -8,8 +8,10 @@ import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { CLIENT_TYPE_OPTIONS } from '@/constants/clientOptions'
+import { useUserStore } from '@/stores/userStore'
 import type { ClientDuplicateMatch } from '@/types/Client'
 import type { ClientWizardForm } from '@/types/ClientWizard'
+import type { SelectOption } from '@/types/Ui'
 import type { FieldErrors } from '@/utils/clientValidation'
 import { todayIso } from '@/utils/clientValidation'
 
@@ -26,6 +28,17 @@ const form = defineModel<ClientWizardForm>({ required: true })
 
 const isIndividual = computed(() => form.value.clientType === 'Individual')
 const maxDate = todayIso()
+
+const userStore = useUserStore()
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
+const accountManagerOptions = computed<SelectOption[]>(() => [
+  { label: 'Unassigned', value: '' },
+  ...userStore.users
+    .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
+    .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
+])
 </script>
 
 <template>
@@ -72,6 +85,12 @@ const maxDate = todayIso()
           ]"
         />
         <TextInput v-model="form.city" label="City" required :error="errors.city" />
+      </div>
+    </FormSection>
+
+    <FormSection title="Assignment" description="Optional -- who on staff owns this client relationship. Can also be set or changed later.">
+      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+        <SelectBox v-model="form.accountManagerId" label="Account Manager" :options="accountManagerOptions" />
       </div>
     </FormSection>
   </div>

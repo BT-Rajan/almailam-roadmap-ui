@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Mail, MapPin, Phone } from '@lucide/vue'
+import { Mail, MapPin, Phone, UserRound } from '@lucide/vue'
 import { computed } from 'vue'
 
 import Card from '@/components/common/Card.vue'
@@ -41,6 +41,10 @@ const displayName = computed(() => getClientDisplayName(props.client))
         <div class="flex items-center gap-2">
           <MapPin class="h-4 w-4 shrink-0 text-neutral-400" />
           <span class="truncate">{{ client.city }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <UserRound class="h-4 w-4 shrink-0 text-neutral-400" />
+          <span class="truncate">{{ client.accountManagerName ?? 'Unassigned' }}</span>
         </div>
       </div>
 
