@@ -2,7 +2,7 @@ import re
 from datetime import date, datetime, timezone
 
 from fastapi import UploadFile
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -335,8 +335,40 @@ def find_possible_duplicates(
     email_term = email.strip().lower()
     reg_term = registration_number.strip().lower()
 
+    # Name/email/registration have no formatting ambiguity, so they can be
+    # filtered reliably in SQL rather than loading every client row on
+    # every debounced keystroke while filling in the onboarding wizard.
+    sql_conditions = []
+    if len(name_term) > 2:
+        sql_conditions.append(func.lower(Client.company_name).contains(name_term))
+    if len(email_term) > 3:
+        sql_conditions.append(func.lower(Client.email) == email_term)
+    if reg_term:
+        sql_conditions.append(func.lower(Client.org_registration_number) == reg_term)
+        sql_conditions.append(func.lower(Client.org_trade_licence_number) == reg_term)
+
+    candidates: dict[int, Client] = {}
+    if sql_conditions:
+        for client in db.query(Client).filter(Client.deleted_at.is_(None), or_(*sql_conditions)).all():
+            candidates[client.id] = client
+
+    if len(mobile_digits) >= 7:
+        # Mobile numbers may be stored with inconsistent formatting
+        # (spaces, dashes) depending on how they were typed, so an exact
+        # SQL substring match on the raw column isn't reliable enough to
+        # replace the digit-normalized comparison below -- but scanning
+        # just (id, mobile) instead of full rows keeps this cheap even as
+        # the client list grows, rather than hydrating every column of
+        # every client just to check one field.
+        mobile_rows = db.query(Client.id, Client.mobile).filter(Client.deleted_at.is_(None)).all()
+        matching_ids = {client_id for client_id, stored_mobile in mobile_rows if _digits(stored_mobile) == mobile_digits}
+        missing_ids = matching_ids - candidates.keys()
+        if missing_ids:
+            for client in db.query(Client).filter(Client.id.in_(missing_ids)).all():
+                candidates[client.id] = client
+
     matches: list[dict] = []
-    for client in db.query(Client).filter(Client.deleted_at.is_(None)).all():
+    for client in candidates.values():
         matched_on: list[str] = []
         if len(name_term) > 2 and name_term in client.company_name.lower():
             matched_on.append("Name")

@@ -117,46 +117,46 @@ INSERT INTO projects (project_no, project_name, client_id, service, engineer_id,
 ('PRJ-2026-001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Enquiry',               8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
 ('PRJ-2026-002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
 ('PRJ-2026-003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
-('PRJ-2026-004', 'Sharjah Industrial Facility - Fire Safety Approval',  @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
+('PRJ-2026-004', 'Ahmadi Industrial Facility - Fire Safety Approval',   @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
 ('PRJ-2026-005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Completed',             100, 'Low',    '2025-09-01', '2026-03-20', 'Completed');
 
 SET @p_alreem  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-001');
 SET @p_falcon  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-002');
 SET @p_marina  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-003');
-SET @p_sharjah = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-004');
+SET @p_ahmadi  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-004');
 SET @p_desert  = (SELECT id FROM projects WHERE project_no = 'PRJ-2026-005');
 
 -- ----------------------------------------------------------------------------
 -- Government authorities, forms, submissions
 -- ----------------------------------------------------------------------------
 INSERT INTO government_authorities (name, category, website, description) VALUES
-('Dubai Municipality',  'Municipality',    'https://www.dm.gov.ae',  'Regulates building permits, occupancy, and municipal compliance across Dubai.'),
-('Dubai Civil Defence',  'Fire Department', 'https://www.dcd.gov.ae', 'Approves fire and life safety systems for buildings and facilities in Dubai.'),
-('DEWA',                'Electricity',      'https://www.dewa.gov.ae','Handles electricity and water connection approvals across Dubai.');
+('Kuwait Municipality',              'Municipality',    'https://www.baladia.gov.kw', 'Regulates building permits, occupancy, and municipal compliance across Kuwait.'),
+('Kuwait Fire Service Directorate',  'Fire Department', 'https://www.kff.gov.kw',     'Approves fire and life safety systems for buildings and facilities in Kuwait.'),
+('Ministry of Electricity, Water and Renewable Energy', 'Electricity', 'https://www.mew.gov.kw', 'Handles electricity and water connection approvals across Kuwait.');
 
-SET @a_dm   = (SELECT id FROM government_authorities WHERE name = 'Dubai Municipality');
-SET @a_dcd  = (SELECT id FROM government_authorities WHERE name = 'Dubai Civil Defence');
-SET @a_dewa = (SELECT id FROM government_authorities WHERE name = 'DEWA');
+SET @a_km   = (SELECT id FROM government_authorities WHERE name = 'Kuwait Municipality');
+SET @a_kfsd = (SELECT id FROM government_authorities WHERE name = 'Kuwait Fire Service Directorate');
+SET @a_mew  = (SELECT id FROM government_authorities WHERE name = 'Ministry of Electricity, Water and Renewable Energy');
 
 INSERT INTO government_forms (authority_id, form_code, title, version, language, category, description, required_documents, status) VALUES
-(@a_dm,  'DM-101',   'Building Permit Application',      '2.1', 'English / Arabic', 'Building Permit',          'Application for a new building permit or major renovation.', JSON_ARRAY('Trade Licence','Site Plan','Structural Drawings','Ownership Proof'), 'Active'),
-(@a_dcd, 'CD-204',   'Fire Safety Approval',             '1.4', 'English',          'Fire Safety Approval',     'Approval of fire and life safety systems prior to occupancy.', JSON_ARRAY('Fire System Drawings','Material Safety Data Sheets','Structural Drawings'), 'Active'),
-(@a_dewa,'DEWA-310', 'Utility Connection Request',       '3.0', 'English / Arabic', 'Utility Connection',       'Request for electricity and water connection to a new or renovated facility.', JSON_ARRAY('Building Completion Certificate','Ownership Proof'), 'Active');
+(@a_km,   'KM-101',   'Building Permit Application',      '2.1', 'English / Arabic', 'Building Permit',          'Application for a new building permit or major renovation.', JSON_ARRAY('Trade Licence','Site Plan','Structural Drawings','Ownership Proof'), 'Active'),
+(@a_kfsd, 'KFSD-204', 'Fire Safety Approval',             '1.4', 'English',          'Fire Safety Approval',     'Approval of fire and life safety systems prior to occupancy.', JSON_ARRAY('Fire System Drawings','Material Safety Data Sheets','Structural Drawings'), 'Active'),
+(@a_mew,  'MEW-310',  'Utility Connection Request',       '3.0', 'English / Arabic', 'Utility Connection',       'Request for electricity and water connection to a new or renovated facility.', JSON_ARRAY('Building Completion Certificate','Ownership Proof'), 'Active');
 
-SET @f_dm101 = (SELECT id FROM government_forms WHERE form_code = 'DM-101');
-SET @f_cd204 = (SELECT id FROM government_forms WHERE form_code = 'CD-204');
+SET @f_km101   = (SELECT id FROM government_forms WHERE form_code = 'KM-101');
+SET @f_kfsd204 = (SELECT id FROM government_forms WHERE form_code = 'KFSD-204');
 
 INSERT INTO government_submissions (submission_no, project_id, authority_id, form_id, status, submitted_date, expected_decision_date, decision_date, notes) VALUES
-('SUB-2026-001', @p_sharjah, @a_dcd, @f_cd204, 'Under Review', '2026-06-15', '2026-08-01', NULL, 'Submitted fire suppression drawings for the warehouse extension.'),
-('SUB-2026-002', @p_alreem,  @a_dm,  @f_dm101, 'Draft',        NULL,         NULL,         NULL, 'Preparing building permit application; awaiting finalised structural drawings.');
+('SUB-2026-001', @p_ahmadi, @a_kfsd, @f_kfsd204, 'Under Review', '2026-06-15', '2026-08-01', NULL, 'Submitted fire suppression drawings for the warehouse extension.'),
+('SUB-2026-002', @p_alreem, @a_km,   @f_km101,   'Draft',        NULL,         NULL,         NULL, 'Preparing building permit application; awaiting finalised structural drawings.');
 
-SET @sub_sharjah = (SELECT id FROM government_submissions WHERE submission_no = 'SUB-2026-001');
-SET @sub_alreem  = (SELECT id FROM government_submissions WHERE submission_no = 'SUB-2026-002');
+SET @sub_ahmadi = (SELECT id FROM government_submissions WHERE submission_no = 'SUB-2026-001');
+SET @sub_alreem = (SELECT id FROM government_submissions WHERE submission_no = 'SUB-2026-002');
 
 INSERT INTO submission_documents (submission_id, name, status) VALUES
-(@sub_sharjah, 'Fire System Drawings',       'Uploaded'),
-(@sub_sharjah, 'Material Safety Data Sheets','Uploaded'),
-(@sub_sharjah, 'Structural Drawings',        'Verified'),
+(@sub_ahmadi, 'Fire System Drawings',       'Uploaded'),
+(@sub_ahmadi, 'Material Safety Data Sheets','Uploaded'),
+(@sub_ahmadi, 'Structural Drawings',        'Verified'),
 (@sub_alreem,  'Trade Licence',              'Uploaded'),
 (@sub_alreem,  'Site Plan',                  'Pending'),
 (@sub_alreem,  'Structural Drawings',        'Pending'),
@@ -260,8 +260,8 @@ INSERT INTO project_documents (document_no, project_id, title, type, revision, u
 ('DOC-2026-003', @p_falcon,  'Falcon Heights Load Calculation Sheet',  'Calculation Sheet','Rev A', @u_ahmed,    '2026-06-01', 'Under Review', 'seed/doc-003', 'falcon-load-calcs.xlsx',          842000),
 ('DOC-2026-004', @p_marina,  'Marina Bay Hotel Renovation Drawings',   'Drawing',          'Rev C', @u_layla,    '2026-07-15', 'Approved',     'seed/doc-004', 'marina-bay-renovation-revC.pdf', 5210000),
 ('DOC-2026-005', @p_marina,  'Marina Bay Interior Fit-out Report',     'Report',           'Rev A', @u_layla,    '2026-07-20', 'Draft',        'seed/doc-005', 'marina-bay-interior-report.pdf',  987000),
-('DOC-2026-006', @p_sharjah, 'Sharjah Facility Fire System Drawings',  'Drawing',          'Rev A', @u_mohammed, '2026-06-12', 'Approved',     'seed/doc-006', 'sharjah-fire-system.pdf',        2870000),
-('DOC-2026-007', @p_sharjah, 'Sharjah Municipality Submission Form',   'Municipality Form','Rev A', @u_fatima,   '2026-06-14', 'Approved',     'seed/doc-007', 'sharjah-cd-204-form.pdf',         410000),
+('DOC-2026-006', @p_ahmadi, 'Ahmadi Facility Fire System Drawings',  'Drawing',          'Rev A', @u_mohammed, '2026-06-12', 'Approved',     'seed/doc-006', 'ahmadi-fire-system.pdf',        2870000),
+('DOC-2026-007', @p_ahmadi, 'Ahmadi Facility Submission Form',   'Municipality Form','Rev A', @u_fatima,   '2026-06-14', 'Approved',     'seed/doc-007', 'ahmadi-kfsd-204-form.pdf',         410000),
 ('DOC-2026-008', @p_desert,  'Desert Rose Plaza Handover Certificate', 'Report',           'Rev A', @u_ahmed,    '2026-03-18', 'Approved',     'seed/doc-008', 'desert-rose-handover.pdf',        650000);
 
 SET @doc_falcon_mep = (SELECT id FROM project_documents WHERE document_no = 'DOC-2026-002');
@@ -279,18 +279,18 @@ INSERT INTO tasks (task_no, project_id, title, assigned_to, priority, severity, 
 ('TSK-2026-003', @p_falcon,  'Finalise MEP concept drawing Rev B',           @u_ahmed,    'High',   'Major',    '2026-05-22', '17:00:00', 'Completed'),
 ('TSK-2026-004', @p_falcon,  'Review load calculation sheet',                @u_ahmed,    'Medium', 'Major',    '2026-06-10', '17:00:00', 'In Progress'),
 ('TSK-2026-005', @p_marina,  'Coordinate interior fit-out with client',      @u_layla,    'High',   'Minor',    '2026-07-25', '15:00:00', 'Pending'),
-('TSK-2026-006', @p_sharjah, 'Prepare fire safety submission package',       @u_mohammed, 'High',   'Critical', '2026-06-14', '12:00:00', 'Completed'),
-('TSK-2026-007', @p_sharjah, 'Follow up with Civil Defence on review status',@u_mohammed, 'Medium', 'Major',    '2026-07-20', '12:00:00', 'Pending'),
+('TSK-2026-006', @p_ahmadi, 'Prepare fire safety submission package',       @u_mohammed, 'High',   'Critical', '2026-06-14', '12:00:00', 'Completed'),
+('TSK-2026-007', @p_ahmadi, 'Follow up with Kuwait Fire Service Directorate on review status',@u_mohammed, 'Medium', 'Major',    '2026-07-20', '12:00:00', 'Pending'),
 ('TSK-2026-008', @p_desert,  'Archive final handover documentation',         @u_fatima,   'Low',    'Minor',    '2026-03-19', '17:00:00', 'Completed');
 
 -- ----------------------------------------------------------------------------
 -- Notifications
 -- ----------------------------------------------------------------------------
 INSERT INTO notifications (notification_no, user_id, title, message, category, created_at, `read`, link_route_name, link_params) VALUES
-('NTF-2026-001', @u_pm,    'New task assigned',            'You have been kept informed on "Prepare fire safety submission package" for Sharjah Industrial Facility.', 'Task', '2026-06-14 09:00:00', 1, 'project-workspace', JSON_OBJECT('projectId', 'PRJ-2026-004')),
+('NTF-2026-001', @u_pm,    'New task assigned',            'You have been kept informed on "Prepare fire safety submission package" for Ahmadi Industrial Facility.', 'Task', '2026-06-14 09:00:00', 1, 'project-workspace', JSON_OBJECT('projectId', 'PRJ-2026-004')),
 ('NTF-2026-002', @u_pm,    'Payment received',             'AED 82,000 received for Falcon Heights Warehouse Expansion (Instalment 1).', 'Project', '2026-06-01 10:05:00', 1, 'project-workspace', JSON_OBJECT('projectId', 'PRJ-2026-002')),
-('NTF-2026-003', @u_pm,    'Government submission update', 'Fire Safety Approval for Sharjah Industrial Facility is now Under Review.', 'Government', '2026-06-15 11:30:00', 0, 'government-submissions', NULL),
-('NTF-2026-004', @u_admin, 'New client onboarded',         'Sharjah Industrial Holdings has completed onboarding and is under review.', 'Project', '2026-03-01 10:05:00', 0, 'client-workspace', JSON_OBJECT('clientId', 'CLT-004')),
+('NTF-2026-003', @u_pm,    'Government submission update', 'Fire Safety Approval for Ahmadi Industrial Facility is now Under Review.', 'Government', '2026-06-15 11:30:00', 0, 'government-submissions', NULL),
+('NTF-2026-004', @u_admin, 'New client onboarded',         'Ahmadi Industrial Holdings has completed onboarding and is under review.', 'Project', '2026-03-01 10:05:00', 0, 'client-workspace', JSON_OBJECT('clientId', 'CLT-004')),
 ('NTF-2026-005', @u_layla, 'Task due soon',                'Draft preliminary structural calculations is due on 2026-07-05.', 'Task', '2026-06-28 08:00:00', 0, 'tasks', NULL);
 
 -- ----------------------------------------------------------------------------
@@ -315,7 +315,7 @@ INSERT INTO project_timeline_events (project_id, type, title, description, event
 (@p_marina,  'milestone',  'Concept design approved',        'Client approved the architectural concept design.',              '2026-05-01', 'completed', @u_pm),
 (@p_marina,  'note',       'Interior fit-out scope added',   'Client requested interior fit-out design be added to scope.',    '2026-07-10', 'completed', @u_layla),
 (@p_desert,  'stage',      'Project completed',              'Final handover documentation delivered and accepted.',           '2026-03-20', 'completed', @u_ahmed),
-(@p_sharjah, 'submission', 'Fire safety approval submitted', 'Submitted CD-204 Fire Safety Approval to Dubai Civil Defence.',  '2026-06-15', 'completed', @u_mohammed);
+(@p_ahmadi, 'submission', 'Fire safety approval submitted', 'Submitted KFSD-204 Fire Safety Approval to Kuwait Fire Service Directorate.',  '2026-06-15', 'completed', @u_mohammed);
 
 -- ----------------------------------------------------------------------------
 -- Number series continuation
