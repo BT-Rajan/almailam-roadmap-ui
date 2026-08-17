@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, onMounted, reactive, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormSection from '@/components/common/FormSection.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { useUserStore } from '@/stores/userStore'
 import type { Client } from '@/types/Client'
+import type { SelectOption } from '@/types/Ui'
 import type { ClientEditForm, FieldErrors } from '@/utils/clientValidation'
 import { hasErrors, todayIso, validateClientEditForm } from '@/utils/clientValidation'
 
@@ -23,6 +26,21 @@ const emit = defineEmits<{
 }>()
 
 const maxDate = todayIso()
+const userStore = useUserStore()
+
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
+
+// Any active staff member can be assigned as the relationship owner --
+// Viewer is excluded since that role is read-only/external-stakeholder
+// by design elsewhere in this app, not someone who'd manage a client.
+const accountManagerOptions = computed<SelectOption[]>(() => [
+  { label: 'Unassigned', value: '' },
+  ...userStore.users
+    .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
+    .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
+])
 
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
@@ -43,6 +61,8 @@ function emptyForm(): ClientEditForm {
     city: '',
     preferredLanguage: 'English',
     preferredChannel: 'Email',
+    accountManagerId: '',
+    notes: '',
     individualProfile: { fullLegalName: '', preferredName: '', nationality: '', dateOfBirth: '', countryOfResidence: '' },
     organisationProfile: {
       legalName: '',
@@ -76,6 +96,8 @@ watch(
     form.city = props.client.city
     form.preferredLanguage = props.client.communicationPreference.preferredLanguage
     form.preferredChannel = props.client.communicationPreference.preferredChannel
+    form.accountManagerId = props.client.accountManagerId ?? ''
+    form.notes = props.client.notes ?? ''
 
     if (props.client.individualProfile) {
       Object.assign(form.individualProfile, {
@@ -131,6 +153,13 @@ function handleConfirm(): void {
         <p class="text-xs text-neutral-400">
           Communication consent (email/WhatsApp/SMS) is managed separately via "Record Consent" on the Consent tab, not here.
         </p>
+      </FormSection>
+
+      <FormSection title="Relationship">
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <SelectBox v-model="form.accountManagerId" label="Account Manager" :options="accountManagerOptions" />
+        </div>
+        <TextArea v-model="form.notes" label="Internal Notes" hint="Preferences, risk flags, or handling instructions -- visible to staff only." :rows="3" />
       </FormSection>
 
       <FormSection v-if="client.clientType === 'Individual'" title="Personal Information">

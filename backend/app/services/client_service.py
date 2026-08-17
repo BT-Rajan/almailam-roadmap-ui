@@ -13,6 +13,7 @@ from app.core.status_transitions import (
     CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.user import User
 from app.models.client import (
     CLIENT_DOCUMENT_CATEGORIES,
     CLIENT_VERIFICATION_RESULTS,
@@ -81,6 +82,7 @@ def list_clients(
     client_type: str | None = None,
     status: str | None = None,
     onboarding_state: str | None = None,
+    account_manager_id: str | None = None,
     sort: str | None = None,
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
@@ -105,6 +107,8 @@ def list_clients(
         query = query.filter(Client.status == status)
     if onboarding_state:
         query = query.filter(Client.onboarding_state == onboarding_state)
+    if account_manager_id:
+        query = query.filter(Client.account_manager_id == parse_prefixed_id(account_manager_id, "USR-", "user"))
 
     return sort_and_paginate(query, Client, CLIENT_SORTABLE_FIELDS, sort, page, page_size)
 
@@ -128,6 +132,18 @@ def _lock_client(db: Session, client_id: int) -> Client:
     return client
 
 
+def _resolve_account_manager_id(db: Session, raw: str | None) -> int | None:
+    """None = leave untouched (caller's responsibility not to call this),
+    "" = unassign, a real "USR-XXX" id = assign (validated to exist)."""
+    if raw is None or raw.strip() == "":
+        return None
+    user_id = parse_prefixed_id(raw, "USR-", "user")
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if user is None:
+        raise ValidationAppError("accountManagerId does not refer to a known user.")
+    return user.id
+
+
 def create_client(db: Session, payload, user_id: int | None) -> Client:
     client = Client(
         client_type=payload.clientType,
@@ -141,7 +157,10 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
         email_consent=payload.communicationPreference.emailConsent,
         whatsapp_consent=payload.communicationPreference.whatsappConsent,
         sms_consent=payload.communicationPreference.smsConsent,
+        notes=payload.notes.strip() if payload.notes and payload.notes.strip() else None,
     )
+    if payload.accountManagerId:
+        client.account_manager_id = _resolve_account_manager_id(db, payload.accountManagerId)
     if payload.individualProfile:
         p = payload.individualProfile
         client.ind_full_legal_name = p.fullLegalName
@@ -245,6 +264,18 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
         client.email_consent = cp.emailConsent
         client.whatsapp_consent = cp.whatsappConsent
         client.sms_consent = cp.smsConsent
+
+    if payload.accountManagerId is not None:
+        new_manager_id = _resolve_account_manager_id(db, payload.accountManagerId)
+        if client.account_manager_id != new_manager_id:
+            changes["account_manager_id"] = (client.account_manager_id, new_manager_id)
+        client.account_manager_id = new_manager_id
+
+    if payload.notes is not None:
+        new_notes = payload.notes.strip() or None
+        if client.notes != new_notes:
+            changes["notes"] = (client.notes, new_notes)
+        client.notes = new_notes
 
     audit_service.log_field_changes(db, ENTITY_TYPE, client.id, changes, user_id)
     db.commit()

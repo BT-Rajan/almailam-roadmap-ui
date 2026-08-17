@@ -38,6 +38,7 @@ interface ClientTableRow {
   city: string
   status: ClientStatus
   onboardingState: ClientOnboardingState
+  accountManager: string
 }
 
 const router = useRouter()
@@ -52,6 +53,7 @@ const TABLE_COLUMNS: SmartTableColumn<ClientTableRow>[] = [
   { key: 'mobile', label: 'Mobile', sortable: true },
   { key: 'email', label: 'Email', sortable: true },
   { key: 'city', label: 'City', sortable: true },
+  { key: 'accountManager', label: 'Account Manager', sortable: false },
   { key: 'onboardingState', label: 'Onboarding', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
 ]
@@ -67,6 +69,7 @@ const tableRows = computed<ClientTableRow[]>(() =>
     city: client.city,
     status: client.status,
     onboardingState: client.onboardingState,
+    accountManager: client.accountManagerName ?? '—',
   })),
 )
 
@@ -126,6 +129,13 @@ function createClient(): void {
             @update:model-value="clientStore.setOnboardingFilter($event as ClientOnboardingState | 'All')"
           />
         </div>
+        <BaseButton
+          size="sm"
+          :variant="clientStore.myClientsOnly ? 'primary' : 'secondary'"
+          @click="clientStore.setMyClientsOnly(!clientStore.myClientsOnly)"
+        >
+          My Clients
+        </BaseButton>
       </template>
       <template #actions>
         <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">

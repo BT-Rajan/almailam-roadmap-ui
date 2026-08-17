@@ -79,11 +79,14 @@ onMounted(async () => {
   if (projectStore.clients.length === 0) {
     await projectStore.loadProjects()
   }
-  // Only clients that have completed onboarding can have a project created
-  // for them (enforced server-side too, in project_service.create_project)
-  // -- a project needs a real, verified client behind it, not one still
-  // mid-onboarding.
-  const readyClients = projectStore.clients.filter((client) => client.onboardingState === 'Ready')
+  // Only clients that have completed onboarding AND are still Active can
+  // have a project created for them (enforced server-side too, in
+  // project_service.create_project) -- a project needs a real, currently
+  // active client relationship behind it, not one still mid-onboarding
+  // or one the business has since deactivated.
+  const readyClients = projectStore.clients.filter(
+    (client) => client.onboardingState === 'Ready' && client.status === 'Active',
+  )
   hasIneligibleClients.value = readyClients.length < projectStore.clients.length
   clientOptions.value = readyClients.map((client) => ({ label: client.companyName, value: client.id }))
 
@@ -193,10 +196,10 @@ function goToCreatedProject(): void {
                 :error="errors.clientId"
               />
               <p v-if="clientOptions.length === 0" class="text-xs text-warning-600">
-                No clients have completed onboarding yet. A client's onboarding must be "Ready" before a project can be created for them.
+                No eligible clients found. A client must have completed onboarding ("Ready") and be Active before a project can be created for them.
               </p>
               <p v-else-if="hasIneligibleClients" class="text-xs text-neutral-400">
-                Only clients with completed onboarding are shown.
+                Only clients that are Active and have completed onboarding are shown.
               </p>
               <RouterLink :to="{ name: ROUTE_NAMES.CLIENT_NEW }" class="self-start text-xs font-medium text-primary-600 hover:text-primary-700">
                 + Onboard a new client

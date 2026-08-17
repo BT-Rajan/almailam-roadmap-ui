@@ -14,6 +14,7 @@ import type {
   ClientUpdateInput,
   ClientVerificationInput,
 } from '@/services/clientService'
+import { useAuthStore } from '@/stores/authStore'
 import type {
   Client,
   ClientAddress,
@@ -44,6 +45,7 @@ interface ClientStoreState {
   typeFilter: ClientType | 'All'
   statusFilter: ClientStatus | 'All'
   onboardingFilter: ClientOnboardingState | 'All'
+  myClientsOnly: boolean
   viewMode: ClientViewMode
   contacts: ClientContact[]
   addresses: ClientAddress[]
@@ -72,6 +74,7 @@ export const useClientStore = defineStore('client', {
     typeFilter: 'All',
     statusFilter: 'All',
     onboardingFilter: 'All',
+    myClientsOnly: false,
     viewMode: 'grid',
     contacts: [],
     addresses: [],
@@ -93,7 +96,8 @@ export const useClientStore = defineStore('client', {
         state.searchTerm.trim().length > 0 ||
         state.typeFilter !== 'All' ||
         state.statusFilter !== 'All' ||
-        state.onboardingFilter !== 'All'
+        state.onboardingFilter !== 'All' ||
+        state.myClientsOnly
       )
     },
 
@@ -123,6 +127,7 @@ export const useClientStore = defineStore('client', {
       this.isPageLoading = true
       this.error = undefined
       try {
+        const authStore = useAuthStore()
         const result = await clientService.getClientsPage({
           page: this.pagination.page,
           pageSize: this.pagination.pageSize,
@@ -130,6 +135,7 @@ export const useClientStore = defineStore('client', {
           clientType: this.typeFilter !== 'All' ? this.typeFilter : undefined,
           status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
           onboardingState: this.onboardingFilter !== 'All' ? this.onboardingFilter : undefined,
+          accountManagerId: this.myClientsOnly ? authStore.user?.id : undefined,
         })
         this.pageItems = result.items
         this.pagination = {
@@ -209,6 +215,12 @@ export const useClientStore = defineStore('client', {
 
     setOnboardingFilter(state: ClientOnboardingState | 'All') {
       this.onboardingFilter = state
+      this.pagination.page = 1
+      void this.loadClientsPage()
+    },
+
+    setMyClientsOnly(value: boolean) {
+      this.myClientsOnly = value
       this.pagination.page = 1
       void this.loadClientsPage()
     },
@@ -416,6 +428,7 @@ export const useClientStore = defineStore('client', {
       this.typeFilter = 'All'
       this.statusFilter = 'All'
       this.onboardingFilter = 'All'
+      this.myClientsOnly = false
       this.pagination.page = 1
       void this.loadClientsPage()
     },

@@ -83,6 +83,19 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     whatsapp_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     sms_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Staff member who owns this client relationship -- distinct from the
+    # engineer assigned to any one of their projects. Nullable/unassigned
+    # by default; set to NULL rather than blocked if that user is later
+    # deactivated, so the client record itself is never held hostage by a
+    # staffing change.
+    account_manager_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Free-text internal notes (preferences, risk flags, handling
+    # instructions) -- distinct from ClientVerification.notes, which is
+    # scoped to one specific verification check.
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+
 
 class ClientContact(Base, SoftDeleteMixin):
     __tablename__ = "client_contacts"

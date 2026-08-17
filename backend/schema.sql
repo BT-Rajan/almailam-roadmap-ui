@@ -91,12 +91,16 @@ CREATE TABLE IF NOT EXISTS clients (
     email_consent                   TINYINT(1) NOT NULL DEFAULT 0,
     whatsapp_consent                TINYINT(1) NOT NULL DEFAULT 0,
     sms_consent                     TINYINT(1) NOT NULL DEFAULT 0,
+    account_manager_id              BIGINT UNSIGNED NULL,
+    notes                           VARCHAR(2000) NULL,
     created_at                      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at                      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at                      DATETIME NULL,
+    CONSTRAINT fk_clients_account_manager FOREIGN KEY (account_manager_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_clients_status (status),
     INDEX idx_clients_onboarding_state (onboarding_state),
-    INDEX idx_clients_deleted_at (deleted_at)
+    INDEX idx_clients_deleted_at (deleted_at),
+    INDEX idx_clients_account_manager (account_manager_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS client_contacts (

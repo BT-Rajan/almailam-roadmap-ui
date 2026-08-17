@@ -41,12 +41,24 @@ can_edit = require_permission("Clients", "edit")
 can_delete = require_permission("Clients", "delete")
 
 
+def _account_manager_names(db: Session, clients: list) -> dict[int, str]:
+    ids = {c.account_manager_id for c in clients if c.account_manager_id}
+    if not ids:
+        return {}
+    return {u.id: u.full_name for u in db.query(User).filter(User.id.in_(ids)).all()}
+
+
+def _client_out(client, names: dict[int, str]) -> ClientOut:
+    return ClientOut.from_model(client, names.get(client.account_manager_id))
+
+
 @router.get("", response_model=PagedResponse[ClientOut])
 def list_clients(
     search: str | None = None,
     clientType: str | None = None,
     status: str | None = None,
     onboardingState: str | None = None,
+    accountManagerId: str | None = None,
     sort: str | None = None,
     page: int = Query(default=1, ge=1),
     pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
@@ -54,9 +66,10 @@ def list_clients(
     _=Depends(can_view),
 ):
     result = client_service.list_clients(
-        db, search, clientType, status, onboardingState, sort, page, pageSize
+        db, search, clientType, status, onboardingState, accountManagerId, sort, page, pageSize
     )
-    result["items"] = [ClientOut.from_model(c) for c in result["items"]]
+    names = _account_manager_names(db, result["items"])
+    result["items"] = [_client_out(c, names) for c in result["items"]]
     return result
 
 
@@ -65,8 +78,9 @@ def find_duplicates(payload: ClientDuplicateCheckRequest, db: Session = Depends(
     matches = client_service.find_possible_duplicates(
         db, payload.name, payload.mobile, payload.email, payload.registrationNumber
     )
+    names = _account_manager_names(db, [m["client"] for m in matches])
     return [
-        ClientDuplicateMatchOut(client=ClientOut.from_model(m["client"]), matchedOn=m["matchedOn"])
+        ClientDuplicateMatchOut(client=_client_out(m["client"], names), matchedOn=m["matchedOn"])
         for m in matches
     ]
 
@@ -74,7 +88,8 @@ def find_duplicates(payload: ClientDuplicateCheckRequest, db: Session = Depends(
 @router.get("/{client_id}", response_model=ClientOut)
 def get_client(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     client = client_service.get_client(db, client_service.parse_client_id(client_id))
-    return ClientOut.from_model(client)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 @router.post("", response_model=ClientOut, status_code=201)
@@ -84,7 +99,8 @@ def create_client(
     current_user: User = Depends(can_edit),
 ):
     client = client_service.create_client(db, payload, current_user.id)
-    return ClientOut.from_model(client)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 @router.patch("/{client_id}", response_model=ClientOut)
@@ -97,7 +113,8 @@ def update_client(
     client = client_service.update_client(
         db, client_service.parse_client_id(client_id), payload, current_user.id
     )
-    return ClientOut.from_model(client)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 @router.patch("/{client_id}/status", response_model=ClientOut)
@@ -110,7 +127,8 @@ def set_client_status(
     client = client_service.set_status(
         db, client_service.parse_client_id(client_id), payload.status, current_user.id
     )
-    return ClientOut.from_model(client)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 @router.patch("/{client_id}/onboarding-state", response_model=ClientOut)
@@ -127,7 +145,8 @@ def set_onboarding_state(
         payload.reason,
         current_user.id,
     )
-    return ClientOut.from_model(client)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 @router.get("/{client_id}/contacts", response_model=list[ClientContactOut])

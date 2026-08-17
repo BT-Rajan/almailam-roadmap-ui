@@ -84,6 +84,9 @@ export interface Client {
   individualProfile?: ClientIndividualProfile
   organisationProfile?: ClientOrganisationProfile
   communicationPreference: ClientCommunicationPreference
+  accountManagerId?: string
+  accountManagerName?: string
+  notes?: string
 }
 
 export interface ClientContact {

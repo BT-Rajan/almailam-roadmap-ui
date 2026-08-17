@@ -105,6 +105,11 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
             "A project can only be created for a client whose onboarding is complete "
             f"(current status: '{client.onboarding_state}'). Finish onboarding this client first."
         )
+    if client.status != "Active":
+        raise ValidationAppError(
+            f"This client is marked '{client.status}' and cannot have new projects created for them. "
+            "Reactivate the client first."
+        )
     engineer_id = user_service.parse_user_id(payload.engineerId)
     engineer = db.query(User).filter(User.id == engineer_id, User.deleted_at.is_(None)).first()
     if engineer is None:

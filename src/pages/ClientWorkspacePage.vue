@@ -4,6 +4,7 @@ import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -149,6 +150,7 @@ const contactDetailItems = computed(() => {
     { label: 'Email', value: client.value.email },
     { label: 'City', value: client.value.city },
     { label: 'Preferred Channel', value: client.value.communicationPreference.preferredChannel },
+    { label: 'Account Manager', value: client.value.accountManagerName ?? 'Unassigned' },
   ]
 })
 
@@ -259,6 +261,8 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
       mobile: payload.mobile,
       email: payload.email,
       city: payload.city,
+      accountManagerId: payload.accountManagerId,
+      notes: payload.notes,
       // Consent flags are deliberately NOT sourced from this form -- they
       // must only ever change via the audited "Record Consent" flow
       // (see clientStore.createConsent), never a casual profile edit.
@@ -562,6 +566,14 @@ function openProject(projectId: string): void {
           <DetailPanel title="Profile Information" :items="profileDetailItems" />
           <div class="flex flex-col gap-3">
             <DetailPanel title="Contact Details" :items="contactDetailItems" />
+            <Card>
+              <template #header>
+                <h3 class="text-sm font-semibold text-neutral-800">Internal Notes</h3>
+              </template>
+              <p class="whitespace-pre-wrap text-sm text-neutral-600">
+                {{ client.notes || 'No internal notes have been added yet.' }}
+              </p>
+            </Card>
             <BaseButton
               variant="secondary"
               size="sm"

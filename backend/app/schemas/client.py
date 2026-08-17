@@ -152,9 +152,12 @@ class ClientOut(BaseModel):
     individualProfile: IndividualProfileOut | None = None
     organisationProfile: OrganisationProfileOut | None = None
     communicationPreference: CommunicationPreference
+    accountManagerId: str | None = None
+    accountManagerName: str | None = None
+    notes: str | None = None
 
     @staticmethod
-    def from_model(client) -> "ClientOut":
+    def from_model(client, account_manager_name: str | None = None) -> "ClientOut":
         code = f"CLT-{client.id:03d}"
         individual = None
         if client.client_type == "Individual":
@@ -199,6 +202,9 @@ class ClientOut(BaseModel):
                 whatsappConsent=client.whatsapp_consent,
                 smsConsent=client.sms_consent,
             ),
+            accountManagerId=f"USR-{client.account_manager_id:03d}" if client.account_manager_id else None,
+            accountManagerName=account_manager_name,
+            notes=client.notes,
         )
 
 
@@ -212,6 +218,8 @@ class ClientCreate(BaseModel):
     individualProfile: IndividualProfileIn | None = Field(default=None, validate_default=True)
     organisationProfile: OrganisationProfileIn | None = Field(default=None, validate_default=True)
     communicationPreference: CommunicationPreference = CommunicationPreference()
+    accountManagerId: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
     _check_type = field_validator("clientType")(_enum_validator(CLIENT_TYPES, "clientType"))
     _check_mobile = field_validator("mobile")(_phone_validator("mobile"))
@@ -249,6 +257,11 @@ class ClientUpdate(BaseModel):
     status: str | None = None
     onboardingState: str | None = None
     reason: str | None = None
+    # "" means unassign/clear; a real value means set; omitted (None)
+    # means leave untouched -- same convention used throughout this app's
+    # edit dialogs, which always resend the field's current value.
+    accountManagerId: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("status")
     @classmethod

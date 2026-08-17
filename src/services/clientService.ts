@@ -34,7 +34,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
  * it only asks the server for one page at a time instead of the whole table.
  */
 async function getClientsPage(
-  params: PageParams & { clientType?: string; status?: string; onboardingState?: string } = {},
+  params: PageParams & { clientType?: string; status?: string; onboardingState?: string; accountManagerId?: string } = {},
 ): Promise<PagedResponse<Client>> {
   try {
     const query = buildQuery({
@@ -42,6 +42,7 @@ async function getClientsPage(
       clientType: params.clientType,
       status: params.status,
       onboardingState: params.onboardingState,
+      accountManagerId: params.accountManagerId,
       sort: params.sort,
       page: params.page,
       pageSize: params.pageSize,
@@ -549,6 +550,10 @@ export type ClientUpdateInput = {
   communicationPreference?: ClientCommunicationPreference
   individualProfile?: ClientIndividualProfile
   organisationProfile?: ClientOrganisationProfile
+  /** "" unassigns; omit to leave untouched. */
+  accountManagerId?: string
+  /** "" clears; omit to leave untouched. */
+  notes?: string
 }
 
 /**
