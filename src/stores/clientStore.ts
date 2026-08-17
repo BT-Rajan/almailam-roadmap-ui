@@ -273,12 +273,6 @@ export const useClientStore = defineStore('client', {
       this.pageItems = this.pageItems.filter((c) => c.id !== clientId)
     },
 
-    addContact(contact: ClientContact) {
-      this.contacts = [...this.contacts, contact]
-    },
-
-    // Persists a client contact via the backend API. Prefer this over
-    // addContact() above, which only mutates local state.
     async createContact(clientId: string, input: ClientContactInput) {
       const contact = await clientService.createContact(clientId, input)
       this.contacts = [...this.contacts, contact]
@@ -296,13 +290,6 @@ export const useClientStore = defineStore('client', {
       this.contacts = this.contacts.filter((c) => c.id !== contactId)
     },
 
-    addAddress(address: ClientAddress) {
-      this.addresses = [...this.addresses, address]
-    },
-
-    // Persists a client address via the backend API. Prefer this over
-    // addAddress() above, which only mutates local state -- see
-    // createDocument() below for why that matters.
     async createAddress(clientId: string, input: ClientAddressInput) {
       const address = await clientService.createAddress(clientId, input)
       this.addresses = [...this.addresses, address]
@@ -320,13 +307,6 @@ export const useClientStore = defineStore('client', {
       this.addresses = this.addresses.filter((a) => a.id !== addressId)
     },
 
-    addIdentification(identification: ClientIdentification) {
-      this.identifications = [...this.identifications, identification]
-    },
-
-    // Persists a client identification document via the backend API.
-    // Prefer this over addIdentification() above, which only mutates
-    // local state.
     async createIdentification(clientId: string, input: ClientIdentificationInput) {
       const identification = await clientService.createIdentification(clientId, input)
       this.identifications = [...this.identifications, identification]
@@ -344,14 +324,6 @@ export const useClientStore = defineStore('client', {
       this.identifications = this.identifications.filter((i) => i.id !== identificationId)
     },
 
-    addDocument(document: ClientDocument) {
-      this.documents = [document, ...this.documents]
-    },
-
-    // Persists a client document via the backend API. Prefer this over
-    // addDocument() above, which only mutates local state and was the
-    // cause of a real bug: documents "uploaded" during client onboarding
-    // and from the client workspace were never actually saved anywhere.
     async createDocument(clientId: string, input: ClientDocumentInput) {
       const document = await clientService.createDocument(clientId, input)
       this.documents = [document, ...this.documents]
