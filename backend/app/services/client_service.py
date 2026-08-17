@@ -322,9 +322,168 @@ def set_onboarding_state(
     return client
 
 
+def _client_exists(db: Session, client_id: int) -> None:
+    """Like get_client() but doesn't exclude soft-deleted clients -- used
+    only for read-only historical views (audit trail) where a merged-away
+    client's own history must remain inspectable. Everything else
+    (updates, child-record creation, etc.) should keep using get_client()
+    so a soft-deleted client stays fully locked for writes."""
+    exists = db.query(Client.id).filter(Client.id == client_id).first()
+    if exists is None:
+        raise NotFoundError("Client")
+
+
 def get_audit_events(db: Session, client_id: int) -> list[dict]:
-    get_client(db, client_id)  # 404 if the client doesn't exist
+    _client_exists(db, client_id)  # 404 only if the client never existed at all
     return audit_service.get_history(db, ENTITY_TYPE, client_id)
+
+
+def find_clients_with_matching_identification(db: Session, client_id: int) -> list[dict]:
+    """Finds other (non-deleted) clients that share an identical
+    (documentType, documentNumber) identification with the given client --
+    the strongest duplicate signal available, since a real government-issued
+    ID legitimately belongs to exactly one person or entity. This is what
+    the client workspace's merge-eligibility check uses; it deliberately
+    does NOT feed the free-text onboarding-wizard duplicate check (name/
+    mobile/email/registration), since that runs before either client's
+    identification records necessarily exist yet."""
+    get_client(db, client_id)
+    own_identifications = list_identifications(db, client_id)
+    if not own_identifications:
+        return []
+
+    matches: dict[int, dict] = {}
+    for ident in own_identifications:
+        number_normalised = ident.document_number.strip().lower()
+        candidates = (
+            db.query(ClientIdentification)
+            .join(Client, Client.id == ClientIdentification.client_id)
+            .filter(
+                ClientIdentification.deleted_at.is_(None),
+                Client.deleted_at.is_(None),
+                ClientIdentification.client_id != client_id,
+                ClientIdentification.document_type == ident.document_type,
+                func.lower(ClientIdentification.document_number) == number_normalised,
+            )
+            .all()
+        )
+        for candidate in candidates:
+            label = f"{ident.document_type} ({ident.document_number})"
+            if candidate.client_id in matches:
+                matches[candidate.client_id]["matchedOn"].append(label)
+            else:
+                matches[candidate.client_id] = {"client": get_client(db, candidate.client_id), "matchedOn": [label]}
+    return list(matches.values())
+
+
+def merge_clients(db: Session, source_client_id: int, target_client_id: int, user_id: int | None) -> Client:
+    """Merges `source` into `target`: moves every child record (skipping
+    any that would collide with something already on the target, e.g. a
+    contact with the same mobile number already present there), reassigns
+    the source's projects to the target, preserves the source's own
+    contact identity as a plain contact if it isn't already represented,
+    fills a few gaps on the target from the source (account manager,
+    notes), and soft-deletes the source. Intentionally does NOT hard-
+    delete anything -- the source client row and every record that didn't
+    move stay in the database, just no longer reachable through the app,
+    so this can be investigated or reversed by a database administrator
+    if it turns out to be a mistake."""
+    if source_client_id == target_client_id:
+        raise ValidationAppError("Cannot merge a client into itself.")
+
+    source = get_client(db, source_client_id)
+    target = get_client(db, target_client_id)
+
+    if source.client_type != target.client_type:
+        raise ValidationAppError(
+            f"Cannot merge: '{source.company_name}' is {source.client_type} but "
+            f"'{target.company_name}' is {target.client_type}."
+        )
+
+    for contact in list_contacts(db, source_client_id):
+        mobile_digits = _digits(contact.mobile)
+        email_lower = contact.email.strip().lower()
+        conflict = any(
+            _digits(existing.mobile) == mobile_digits or existing.email.strip().lower() == email_lower
+            for existing in list_contacts(db, target_client_id)
+        )
+        if not conflict:
+            contact.client_id = target_client_id
+
+    for address in list_addresses(db, source_client_id):
+        address.client_id = target_client_id
+
+    for identification in list_identifications(db, source_client_id):
+        number_normalised = identification.document_number.strip().lower()
+        conflict = any(
+            existing.document_type == identification.document_type
+            and existing.document_number.strip().lower() == number_normalised
+            for existing in list_identifications(db, target_client_id)
+        )
+        if not conflict:
+            identification.client_id = target_client_id
+
+    for document in list_documents(db, source_client_id):
+        document.client_id = target_client_id
+
+    for verification in list_verifications(db, source_client_id):
+        verification.client_id = target_client_id
+
+    for consent in list_consents(db, source_client_id):
+        consent.client_id = target_client_id
+
+    from app.models.project import Project
+
+    moved_projects = (
+        db.query(Project).filter(Project.client_id == source_client_id, Project.deleted_at.is_(None)).all()
+    )
+    for project in moved_projects:
+        project.client_id = target_client_id
+
+    # The source's own top-level contact details (contactPerson/mobile/
+    # email) represent a real person too -- preserve them as a plain
+    # contact on the target if nothing already moved covers the same
+    # mobile/email, rather than silently losing that identity.
+    mobile_digits = _digits(source.mobile)
+    email_lower = source.email.strip().lower()
+    already_represented = any(
+        _digits(c.mobile) == mobile_digits or c.email.strip().lower() == email_lower
+        for c in list_contacts(db, target_client_id)
+    )
+    if not already_represented:
+        db.add(
+            ClientContact(
+                client_id=target_client_id,
+                name=source.contact_person,
+                contact_type="Other",
+                mobile=source.mobile,
+                email=source.email,
+                is_authorised_representative=False,
+            )
+        )
+
+    if not target.account_manager_id and source.account_manager_id:
+        target.account_manager_id = source.account_manager_id
+
+    source_code = f"CLT-{source.id:03d}"
+    target_code = f"CLT-{target.id:03d}"
+    if source.notes:
+        merged_note = f"[Merged from {source_code} ({source.company_name})]: {source.notes}"
+        target.notes = f"{target.notes}\n\n{merged_note}" if target.notes else merged_note
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, target.id, "Client merged", user_id,
+        new_value=f"Merged {source_code} ({source.company_name}) into this client",
+    )
+    audit_service.log_event(
+        db, ENTITY_TYPE, source.id, "Client merged into another client", user_id,
+        new_value=f"Merged into {target_code} ({target.company_name})",
+    )
+
+    source.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(target)
+    return target
 
 
 def find_possible_duplicates(

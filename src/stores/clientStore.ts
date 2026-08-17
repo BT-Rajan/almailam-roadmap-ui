@@ -408,5 +408,21 @@ export const useClientStore = defineStore('client', {
     async findDuplicates(name: string, mobile: string, email: string, registrationNumber?: string) {
       return clientService.findPossibleDuplicates(name, mobile, email, registrationNumber)
     },
+
+    async findIdentificationDuplicates(clientId: string) {
+      return clientService.findIdentificationDuplicates(clientId)
+    },
+
+    // Merges sourceClientId into this store's currently-loaded target
+    // client, then refreshes the target's own detail data in place
+    // (its own record may have gained a preserved contact, an inherited
+    // account manager, or appended notes from the merge).
+    async mergeClients(targetClientId: string, sourceClientId: string) {
+      const updated = await clientService.mergeClients(targetClientId, sourceClientId)
+      this.clients = this.clients.map((c) => (c.id === targetClientId ? updated : c))
+      this.pageItems = this.pageItems.filter((c) => c.id !== sourceClientId).map((c) => (c.id === targetClientId ? updated : c))
+      await this.loadClientDetail(targetClientId)
+      return updated
+    },
   },
 })

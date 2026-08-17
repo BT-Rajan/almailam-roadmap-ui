@@ -4,6 +4,7 @@ import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import Alert from '@/components/common/Alert.vue'
 import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
@@ -15,6 +16,7 @@ import ClientAddressEditDialog from '@/components/client/ClientAddressEditDialog
 import ClientContactEditDialog from '@/components/client/ClientContactEditDialog.vue'
 import ClientEditDialog from '@/components/client/ClientEditDialog.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
+import ClientMergeDialog from '@/components/client/ClientMergeDialog.vue'
 import ClientIdentificationEditDialog from '@/components/client/ClientIdentificationEditDialog.vue'
 import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
@@ -44,6 +46,7 @@ import type {
   ClientContact,
   ClientDocument,
   ClientDocumentCategory,
+  ClientDuplicateMatch,
   ClientIdentification,
   ClientOnboardingState,
   ClientVerificationResult,
@@ -51,6 +54,7 @@ import type {
   ClientWorkspaceTabKey,
 } from '@/types/Client'
 import type { ClientEditForm } from '@/utils/clientValidation'
+import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
@@ -74,6 +78,10 @@ const isDeleteClientDialogOpen = ref(false)
 const isDeleteClientSaving = ref(false)
 const isConsentDialogOpen = ref(false)
 const isConsentSaving = ref(false)
+const identificationDuplicates = ref<ClientDuplicateMatch[]>([])
+const isMergeDialogOpen = ref(false)
+const isMergeSaving = ref(false)
+const mergeDialogMatch = ref<ClientDuplicateMatch | null>(null)
 
 // Contact/address/identification/document edit-or-add dialogs: a null
 // target means "adding new"; a non-null target means "editing this one".
@@ -161,6 +169,14 @@ async function loadData(): Promise<void> {
   await clientStore.loadClientDetail(clientId.value)
   if (projectStore.projects.length === 0) {
     await projectStore.loadProjects()
+  }
+  // Cheap, targeted check (only scans this client's own identification
+  // numbers against others), unlike the free-text onboarding-wizard
+  // duplicate check -- safe to run automatically on every workspace visit.
+  try {
+    identificationDuplicates.value = await clientStore.findIdentificationDuplicates(clientId.value)
+  } catch {
+    identificationDuplicates.value = []
   }
 }
 
@@ -356,6 +372,35 @@ async function handleConfirmConsent(payload: {
     toastStore.show('error', 'Failed to record consent', detail)
   } finally {
     isConsentSaving.value = false
+  }
+}
+
+function openMergeDialog(match: ClientDuplicateMatch): void {
+  mergeDialogMatch.value = match
+  isMergeDialogOpen.value = true
+}
+
+async function handleConfirmMerge(direction: 'keep-current' | 'keep-other'): Promise<void> {
+  if (!client.value || !mergeDialogMatch.value) return
+  const targetId = direction === 'keep-current' ? client.value.id : mergeDialogMatch.value.client.id
+  const sourceId = direction === 'keep-current' ? mergeDialogMatch.value.client.id : client.value.id
+  const keptName = direction === 'keep-current' ? client.value.companyName : mergeDialogMatch.value.client.companyName
+
+  isMergeSaving.value = true
+  try {
+    await clientStore.mergeClients(targetId, sourceId)
+    toastStore.show('success', 'Clients merged', `Merged into ${keptName}.`)
+    isMergeDialogOpen.value = false
+    if (targetId !== client.value.id) {
+      // The record being VIEWED was the one merged away -- navigate to
+      // the surviving record instead of showing a now-deleted client.
+      router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: targetId } })
+    }
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to merge clients', detail)
+  } finally {
+    isMergeSaving.value = false
   }
 }
 
@@ -558,6 +603,20 @@ function openProject(projectId: string): void {
         @toggle-status="handleToggleStatus"
         @delete="isDeleteClientDialogOpen = true"
       />
+
+      <div v-if="identificationDuplicates.length > 0" class="flex flex-col gap-2">
+        <Alert
+          v-for="match in identificationDuplicates"
+          :key="match.client.id"
+          variant="warning"
+          title="Possible duplicate client found"
+          :description="`This client shares the same ${match.matchedOn.join(', ')} as ${getClientDisplayName(match.client)} (${match.client.code}). If this is genuinely the same person or organisation, merge the two records.`"
+        >
+          <template #action>
+            <BaseButton size="sm" variant="secondary" @click="openMergeDialog(match)">Review & Merge</BaseButton>
+          </template>
+        </Alert>
+      </div>
 
       <ClientWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
@@ -770,6 +829,13 @@ function openProject(projectId: string): void {
         v-model="isConsentDialogOpen"
         :loading="isConsentSaving"
         @confirm="handleConfirmConsent"
+      />
+      <ClientMergeDialog
+        v-model="isMergeDialogOpen"
+        :current-client="client"
+        :match="mergeDialogMatch"
+        :loading="isMergeSaving"
+        @confirm="handleConfirmMerge"
       />
     </template>
   </div>

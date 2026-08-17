@@ -46,6 +46,9 @@ const icon = computed(() => variantIcons[props.variant])
       <p class="text-sm font-semibold">{{ title }}</p>
       <p v-if="description" class="mt-0.5 text-sm opacity-90">{{ description }}</p>
     </div>
+    <div v-if="$slots.action" class="shrink-0">
+      <slot name="action" />
+    </div>
     <button
       v-if="dismissible"
       type="button"

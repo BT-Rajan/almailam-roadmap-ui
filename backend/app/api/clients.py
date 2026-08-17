@@ -25,6 +25,7 @@ from app.schemas.client import (
     ClientIdentificationCreate,
     ClientIdentificationOut,
     ClientIdentificationUpdate,
+    ClientMergeRequest,
     ClientOnboardingStateUpdate,
     ClientOut,
     ClientStatusUpdate,
@@ -83,6 +84,35 @@ def find_duplicates(payload: ClientDuplicateCheckRequest, db: Session = Depends(
         ClientDuplicateMatchOut(client=_client_out(m["client"], names), matchedOn=m["matchedOn"])
         for m in matches
     ]
+
+
+@router.get("/{client_id}/duplicate-identifications", response_model=list[ClientDuplicateMatchOut])
+def find_identification_duplicates(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    matches = client_service.find_clients_with_matching_identification(
+        db, client_service.parse_client_id(client_id)
+    )
+    names = _account_manager_names(db, [m["client"] for m in matches])
+    return [
+        ClientDuplicateMatchOut(client=_client_out(m["client"], names), matchedOn=m["matchedOn"])
+        for m in matches
+    ]
+
+
+@router.post("/{target_client_id}/merge", response_model=ClientOut)
+def merge_clients(
+    target_client_id: str,
+    payload: ClientMergeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_delete),
+):
+    merged = client_service.merge_clients(
+        db,
+        client_service.parse_client_id(payload.sourceClientId),
+        client_service.parse_client_id(target_client_id),
+        current_user.id,
+    )
+    names = _account_manager_names(db, [merged])
+    return _client_out(merged, names)
 
 
 @router.get("/{client_id}", response_model=ClientOut)

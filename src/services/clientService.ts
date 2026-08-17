@@ -518,6 +518,36 @@ async function findPossibleDuplicates(
 }
 
 /**
+ * Finds other clients sharing an identical identification document
+ * (Civil ID, Passport, Trade Licence...) with the given client -- the
+ * strongest duplicate signal available. Used to offer a Merge action on
+ * the client workspace, distinct from the advisory-only name/mobile/
+ * email checks the onboarding wizard runs.
+ */
+async function findIdentificationDuplicates(clientId: string): Promise<ClientDuplicateMatch[]> {
+  try {
+    return await apiClient.get<ClientDuplicateMatch[]>(`/api/clients/${clientId}/duplicate-identifications`)
+  } catch (error) {
+    console.error(`Failed to check for identification duplicates for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')
+  }
+}
+
+/**
+ * Merges sourceClientId into targetClientId: moves child records and
+ * projects, preserves the source's own contact identity, then soft-
+ * deletes the source. Returns the updated target client.
+ */
+async function mergeClients(targetClientId: string, sourceClientId: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/${targetClientId}/merge`, { sourceClientId })
+  } catch (error) {
+    console.error(`Failed to merge client ${sourceClientId} into ${targetClientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to merge clients')
+  }
+}
+
+/**
  * Create a new client via backend API
  */
 async function createClient(clientData: Partial<Client>): Promise<Client> {
@@ -613,6 +643,8 @@ export const clientService = {
   createConsent,
   getAuditEventsForClient,
   findPossibleDuplicates,
+  findIdentificationDuplicates,
+  mergeClients,
   createClient,
   updateClient,
   setStatus,

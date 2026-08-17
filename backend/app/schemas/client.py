@@ -314,6 +314,10 @@ class ClientDuplicateCheckRequest(BaseModel):
     registrationNumber: str = ""
 
 
+class ClientMergeRequest(BaseModel):
+    sourceClientId: str
+
+
 # --- child records -------------------------------------------------------
 
 
