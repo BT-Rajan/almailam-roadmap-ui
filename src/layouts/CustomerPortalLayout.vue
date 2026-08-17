@@ -1,23 +1,24 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 
 const router = useRouter()
 
 const goHome = () => {
-  router.push({ name: 'customer-portal' })
+  router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN })
 }
 </script>
 
 <template>
   <div class="min-h-screen">
     <!-- Header -->
-    <header class="border-b border-border-light bg-bg-header shadow-glass-sm">
-      <div class="max-w-7xl mx-auto px-4 tablet:px-6 py-4 flex items-center justify-between">
-        <button class="flex items-center gap-2 hover:opacity-80 transition-opacity" @click="goHome">
+    <header class="sticky top-0 z-sticky border-b border-border-light bg-bg-header shadow-glass-sm backdrop-blur-xl">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 tablet:px-6">
+        <button class="flex items-center gap-2 transition-opacity hover:opacity-80" @click="goHome">
           <div class="gradient-luxe flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
             SO
           </div>
-          <div>
+          <div class="text-left">
             <p class="text-sm font-semibold text-neutral-900">ServiceOS</p>
             <p class="text-xs text-neutral-500">Project Tracking</p>
           </div>

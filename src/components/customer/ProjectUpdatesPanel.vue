@@ -3,6 +3,7 @@ import { Bell, CheckCircle2, FileText, TrendingUp } from '@lucide/vue'
 import { computed } from 'vue'
 import type { ProjectUpdate } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 interface Props {
   updates: ProjectUpdate[]
@@ -54,8 +55,8 @@ const formatDate = (date: string) => {
       <h2 class="text-xl font-semibold text-neutral-900">Recent Updates</h2>
     </template>
 
-    <div v-if="sortedUpdates.length === 0" class="py-8 text-center text-neutral-500">
-      <p>No updates yet</p>
+    <div v-if="sortedUpdates.length === 0">
+      <EmptyState :icon="Bell" title="No updates yet" description="You'll see the latest project activity here as work progresses." />
     </div>
 
     <div v-else class="space-y-3">

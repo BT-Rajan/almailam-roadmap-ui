@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, AlertCircle } from '@lucide/vue'
 import { computed } from 'vue'
 import type { ProjectMilestone } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 interface Props {
   milestones: ProjectMilestone[]
@@ -50,8 +51,8 @@ const isOverdue = (dueDate: string, status: string) => {
       <h2 class="text-xl font-semibold text-neutral-900">Project Milestones</h2>
     </template>
 
-    <div v-if="sortedMilestones.length === 0" class="py-8 text-center text-neutral-500">
-      <p>No milestones defined</p>
+    <div v-if="sortedMilestones.length === 0">
+      <EmptyState :icon="Clock" title="No milestones yet" description="Milestones will appear here once your project plan is set." />
     </div>
 
     <div v-else class="space-y-6">

@@ -3,6 +3,7 @@ import { Download, FileText, CheckCircle2, Clock, RefreshCw } from '@lucide/vue'
 import { computed } from 'vue'
 import type { ProjectDeliverable } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 
 interface Props {
@@ -66,8 +67,8 @@ const deliveryRate = computed(() =>
       </div>
     </template>
 
-    <div v-if="deliverables.length === 0" class="py-8 text-center text-neutral-500">
-      <p>No deliverables yet</p>
+    <div v-if="deliverables.length === 0">
+      <EmptyState :icon="FileText" title="No deliverables yet" description="Drawings, reports, and other deliverables will appear here as they're shared." />
     </div>
 
     <div v-else class="space-y-3">
