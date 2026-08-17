@@ -39,18 +39,4 @@ export interface ProjectUpdate {
   title: string
   description: string
   type: 'milestone' | 'deliverable' | 'status' | 'general'
-  attachments?: string[]
-}
-
-export interface CustomerPortalSession {
-  projectId: string
-  mobileNumber: string
-  lastAccessed: string
-}
-
-export interface CustomerVerification {
-  mobileNumber: string
-  projectId: string
-  verified: boolean
-  timestamp?: string
 }

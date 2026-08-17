@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthError, NotFoundError
+from app.core.file_storage import resolve_path
 from app.core.lockout import LockoutTracker
 from app.core.security import create_access_token, decode_token
 from app.models.client import Client, ClientContact
@@ -70,7 +71,11 @@ def verify_and_issue_token(db: Session, project_no: str, mobile_number: str) -> 
         return None
 
     candidates = [client.mobile]
-    contacts = db.query(ClientContact).filter(ClientContact.client_id == client.id).all()
+    contacts = (
+        db.query(ClientContact)
+        .filter(ClientContact.client_id == client.id, ClientContact.deleted_at.is_(None))
+        .all()
+    )
     candidates.extend(contact.mobile for contact in contacts)
 
     if not any(_mobile_matches(candidate, mobile_number) for candidate in candidates):
@@ -101,6 +106,34 @@ def get_project_for_token(db: Session, token: str, requested_project_no: str) ->
     if not project:
         raise NotFoundError("Project")
     return project
+
+
+def get_document_download_target(db: Session, project: Project, document_id: str) -> tuple:
+    """A customer can only ever download documents that belong to their
+    own (token-verified) project, and only once something has actually
+    been shared with them -- a "Draft" is purely internal work-in-
+    progress and was never delivered, so it stays off-limits here even
+    though staff can see it in the main app."""
+    try:
+        numeric_id = int(document_id.removeprefix("DOC-")) if document_id.upper().startswith("DOC-") else int(document_id)
+    except ValueError as exc:
+        raise NotFoundError("Document") from exc
+
+    document = (
+        db.query(ProjectDocument)
+        .filter(
+            ProjectDocument.id == numeric_id,
+            ProjectDocument.project_id == project.id,
+            ProjectDocument.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if document is None:
+        raise NotFoundError("Document")
+    if document.status == "Draft":
+        raise AuthError("This document isn't available yet.")
+
+    return resolve_path(document.storage_key), document.original_filename
 
 
 _STAGE_TO_CUSTOMER_STATUS = {"Enquiry", "Quotation", "Contract"}

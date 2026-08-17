@@ -35,7 +35,12 @@ const formatDate = (date: string) =>
   })
 
 const isOverdue = (dueDate: string, status: string) => {
-  return status !== 'completed' && new Date(dueDate) < new Date()
+  // Server already renders "delayed" as its own status pill for the
+  // common case (an "upcoming" milestone past its due date) -- only add
+  // this separate "Overdue" flag for the case that status doesn't cover:
+  // an "in-progress" milestone whose due date has since passed. Showing
+  // both for the same milestone would just be the same warning twice.
+  return status !== 'completed' && status !== 'delayed' && new Date(dueDate) < new Date()
 }
 </script>
 
@@ -82,7 +87,7 @@ const isOverdue = (dueDate: string, status: string) => {
             </div>
 
             <!-- Dates -->
-            <div class="flex items-center gap-4 text-sm text-neutral-600">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
               <span>Due: <strong>{{ formatDate(milestone.dueDate) }}</strong></span>
               <span v-if="milestone.completedDate" class="text-success-600">
                 Completed: <strong>{{ formatDate(milestone.completedDate) }}</strong>

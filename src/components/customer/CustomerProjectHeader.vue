@@ -36,6 +36,13 @@ const daysRemaining = computed(() => {
   return diff
 })
 
+// A completed (or cancelled) project's target date is history, not a
+// live concern -- "days remaining" / "Target date passed" only make
+// sense while something is still actively in progress. The Actual
+// Completion block below already covers what matters once it's done.
+const isActiveTimeline = computed(() => props.project.status !== 'completed' && props.project.status !== 'cancelled')
+const showOverdueWarning = computed(() => isActiveTimeline.value && daysRemaining.value <= 0)
+
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -48,9 +55,9 @@ const formatDate = (date: string) =>
   <Card>
     <div class="space-y-6">
       <!-- Title and Status -->
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex-1">
-          <h1 class="text-3xl font-bold text-neutral-900">{{ project.projectName }}</h1>
+          <h1 class="text-xl font-bold text-neutral-900 tablet:text-3xl">{{ project.projectName }}</h1>
           <p class="text-neutral-600 mt-2">{{ project.description }}</p>
           <p class="text-sm text-neutral-500 mt-3">
             <strong>Client:</strong> {{ project.clientName }}
@@ -89,8 +96,8 @@ const formatDate = (date: string) =>
         <div class="space-y-1">
           <p class="text-xs text-neutral-600 uppercase font-medium">Expected Completion</p>
           <p class="text-sm font-medium text-neutral-900">{{ formatDate(project.expectedEndDate) }}</p>
-          <p v-if="daysRemaining > 0" class="text-xs text-neutral-500 mt-1">{{ daysRemaining }} days remaining</p>
-          <p v-else class="text-xs text-danger-500 font-medium mt-1">Target date passed</p>
+          <p v-if="isActiveTimeline && !showOverdueWarning" class="text-xs text-neutral-500 mt-1">{{ daysRemaining }} days remaining</p>
+          <p v-else-if="showOverdueWarning" class="text-xs text-danger-500 font-medium mt-1">Target date passed</p>
         </div>
         <div v-if="project.actualEndDate" class="space-y-1">
           <p class="text-xs text-neutral-600 uppercase font-medium">Actual Completion</p>

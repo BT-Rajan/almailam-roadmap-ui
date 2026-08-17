@@ -69,7 +69,23 @@ async function getProjectView(projectId: string, accessToken: string): Promise<C
   return (await response.json()) as CustomerProjectView
 }
 
+/**
+ * Download a deliverable document's stored file. Only documents that
+ * have actually been shared (not "Draft") are downloadable -- the
+ * backend enforces this regardless of what the frontend requests.
+ */
+async function downloadDocument(projectId: string, documentId: string, accessToken: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/customer-portal/projects/${projectId}/documents/${documentId}/download`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    throw new CustomerPortalError(response.status, await extractErrorMessage(response))
+  }
+  return await response.blob()
+}
+
 export const customerPortalService = {
   verify,
   getProjectView,
+  downloadDocument,
 }

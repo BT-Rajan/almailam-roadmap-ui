@@ -7,6 +7,8 @@ interface Props {
   label?: string
   placeholder?: string
   type?: 'text' | 'email' | 'password' | 'number' | 'tel'
+  inputmode?: 'text' | 'numeric' | 'tel' | 'email' | 'url' | 'search' | 'decimal' | 'none'
+  autocomplete?: string
   icon?: Component
   hint?: string
   error?: string
@@ -18,6 +20,8 @@ const props = withDefaults(defineProps<Props>(), {
   label: undefined,
   placeholder: undefined,
   type: 'text',
+  inputmode: undefined,
+  autocomplete: undefined,
   icon: undefined,
   hint: undefined,
   error: undefined,
@@ -58,6 +62,8 @@ const inputClasses = computed(() => [
       <input
         :id="inputId"
         :type="type"
+        :inputmode="inputmode"
+        :autocomplete="autocomplete"
         :value="modelValue"
         :placeholder="placeholder"
         :disabled="disabled"

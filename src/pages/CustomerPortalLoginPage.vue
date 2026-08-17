@@ -1,18 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import TextInput from '@/components/common/TextInput.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import Alert from '@/components/common/Alert.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { customerPortalService, CustomerPortalError } from '@/services/customerPortalService'
 
 const router = useRouter()
+const route = useRoute()
 
 const mobileNumber = ref('')
 const projectId = ref('')
 const loading = ref(false)
 const error = ref('')
+
+onMounted(() => {
+  // Set when redirected here after an expired/invalid session (see
+  // CustomerProjectViewPage.vue) -- without this, someone bounced back
+  // to login has no idea why and it looks like the app just broke.
+  const reason = route.query.reason
+  if (typeof reason === 'string') error.value = reason
+})
 
 const handleSubmit = async () => {
   error.value = ''
@@ -41,7 +51,7 @@ const handleSubmit = async () => {
     )
 
     router.push({
-      name: 'customer-project',
+      name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECT,
       params: { projectId: projectId.value.trim().toUpperCase() },
     })
   } catch (err) {
@@ -65,7 +75,7 @@ const handleKeydown = (e: KeyboardEvent) => {
       <!-- Logo -->
       <div class="text-center">
         <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-600 text-sm font-semibold text-white mx-auto">
-          SO
+          AM
         </div>
         <h1 class="text-3xl font-bold text-neutral-900 mt-4">Project Tracking</h1>
         <p class="text-neutral-600 mt-2">Track your project progress in real time</p>
@@ -86,6 +96,9 @@ const handleKeydown = (e: KeyboardEvent) => {
           <div class="space-y-4">
             <TextInput
               v-model="mobileNumber"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
               label="Mobile Number"
               placeholder="Enter the mobile number on file for this project"
               hint="The number registered with your project's client contact"

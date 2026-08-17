@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { FileText, CheckCircle2, Clock, RefreshCw } from '@lucide/vue'
+import { Download, FileText, CheckCircle2, Clock, RefreshCw } from '@lucide/vue'
 import { computed } from 'vue'
 import type { ProjectDeliverable } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
+import IconButton from '@/components/common/IconButton.vue'
 
 interface Props {
   deliverables: ProjectDeliverable[]
 }
 
 const props = defineProps<Props>()
+
+defineEmits<{
+  download: [documentId: string]
+}>()
 
 const getStatusIcon = (status: string) => {
   if (status === 'delivered') return FileText
@@ -30,6 +35,12 @@ const getStatusBadgeColor = (status: string) => {
   if (status === 'revision') return 'bg-warning-100 text-warning-700'
   return 'bg-neutral-100 text-neutral-700'
 }
+
+// A "pending" deliverable is still a Draft internally -- nothing has
+// been shared with the customer yet, so there's nothing real to
+// download (the backend enforces this too, this just avoids offering a
+// button that would only ever fail).
+const isDownloadable = (status: string) => status !== 'pending'
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString('en-US', {
@@ -76,9 +87,18 @@ const deliveryRate = computed(() =>
                   <h3 class="font-medium text-neutral-900">{{ deliverable.name }}</h3>
                   <p v-if="deliverable.description" class="text-sm text-neutral-600 mt-1">{{ deliverable.description }}</p>
                 </div>
-                <span :class="['text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0', getStatusBadgeColor(deliverable.status)]">
-                  {{ deliverable.status }}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full', getStatusBadgeColor(deliverable.status)]">
+                    {{ deliverable.status }}
+                  </span>
+                  <IconButton
+                    v-if="isDownloadable(deliverable.status)"
+                    :icon="Download"
+                    label="Download document"
+                    size="sm"
+                    @click="$emit('download', deliverable.id)"
+                  />
+                </div>
               </div>
 
               <!-- Metadata -->

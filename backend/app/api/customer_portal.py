@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -41,3 +42,17 @@ def get_project_view(
         raise AuthError("Access link required.")
     project = customer_portal_service.get_project_for_token(db, credentials.credentials, project_id.upper())
     return customer_portal_service.get_project_view(db, project)
+
+
+@router.get("/projects/{project_id}/documents/{document_id}/download")
+def download_document(
+    project_id: str,
+    document_id: str,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    if credentials is None:
+        raise AuthError("Access link required.")
+    project = customer_portal_service.get_project_for_token(db, credentials.credentials, project_id.upper())
+    path, original_filename = customer_portal_service.get_document_download_target(db, project, document_id)
+    return FileResponse(path, filename=original_filename)

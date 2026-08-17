@@ -70,17 +70,6 @@ const formatDate = (date: string) => {
               </div>
               <span class="text-xs text-neutral-500 flex-shrink-0 mt-0.5">{{ formatDate(update.date) }}</span>
             </div>
-            <div v-if="update.attachments && update.attachments.length > 0" class="mt-2 flex flex-wrap gap-2">
-              <a
-                v-for="attachment in update.attachments"
-                :key="attachment"
-                :href="`#${attachment}`"
-                class="inline-flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-900 transition-colors"
-              >
-                <FileText class="h-3 w-3" />
-                {{ attachment }}
-              </a>
-            </div>
           </div>
         </div>
       </div>

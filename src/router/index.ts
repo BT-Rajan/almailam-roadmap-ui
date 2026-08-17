@@ -18,13 +18,13 @@ const router = createRouter({
     },
     {
       path: '/customer-portal',
-      name: 'customer-portal',
+      name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN,
       component: () => import('@/pages/CustomerPortalLoginPage.vue'),
       meta: { layout: 'customer-portal' },
     },
     {
       path: '/customer-portal/:projectId',
-      name: 'customer-project',
+      name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECT,
       component: () => import('@/pages/CustomerProjectViewPage.vue'),
       meta: { layout: 'customer-portal' },
     },

@@ -31,7 +31,8 @@ export const ROUTE_NAMES = {
   // Administration module tile (administrationModules.ts) doesn't need a
   // second route pointing at the same page.
   ADMIN_ACTIVITY_CALENDAR: 'activity-calendar',
-  CUSTOMER_STATUS: 'customer-status',
+  CUSTOMER_PORTAL_LOGIN: 'customer-portal',
+  CUSTOMER_PORTAL_PROJECT: 'customer-project',
   MESSAGE_CENTRE: 'message-centre',
   PAYMENTS: 'payments',
   NOT_FOUND: 'not-found',
