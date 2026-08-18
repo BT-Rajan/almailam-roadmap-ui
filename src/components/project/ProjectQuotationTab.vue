@@ -1,28 +1,51 @@
 <script setup lang="ts">
-import { Printer } from '@lucide/vue'
+import { Plus, Printer } from '@lucide/vue'
+import { ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
+import type { QuotationCreateInput } from '@/services/quotationService'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 
-defineProps<{
+const props = defineProps<{
   project: Project
   client: Client | undefined
 }>()
 
 const quotationStore = useQuotationStore()
+const resultDialogStore = useResultDialogStore()
+
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
 
 function handlePrint(): void {
   window.print()
 }
+
+async function handleCreateQuotation(payload: QuotationCreateInput): Promise<void> {
+  isCreating.value = true
+  try {
+    const quotation = await quotationStore.createQuotation({ ...payload, projectId: props.project.id })
+    resultDialogStore.showSuccess('Quotation created', `${quotation.quotationNo} was created successfully.`)
+    isCreateDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to create quotation', detail)
+  } finally {
+    isCreating.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="flex items-center justify-end">
+  <div class="flex items-center justify-between">
+    <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">New Quotation</BaseButton>
     <BaseButton
       v-if="quotationStore.selectedQuotation"
       variant="secondary"
@@ -40,7 +63,9 @@ function handlePrint(): void {
       <EmptyState
         v-if="!quotationStore.selectedQuotation"
         title="No quotation selected"
-        description="Select a quotation from the list to preview it."
+        description="Select a quotation from the list to preview it, or create a new one."
+        action-label="New Quotation"
+        @action="isCreateDialogOpen = true"
       />
       <QuotationPreview
         v-else
@@ -58,4 +83,6 @@ function handlePrint(): void {
       />
     </div>
   </div>
+
+  <NewQuotationDialog v-model="isCreateDialogOpen" :loading="isCreating" @confirm="handleCreateQuotation" />
 </template>

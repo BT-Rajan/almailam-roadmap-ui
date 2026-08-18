@@ -37,10 +37,27 @@ async function getQuotations(): Promise<Quotation[]> {
   }
 }
 
+export interface QuotationLineItemInput {
+  description: string
+  quantity: number
+  unitPrice: number
+}
+
+export interface QuotationCreateInput {
+  projectId: string
+  validity: string
+  currency: string
+  taxRatePercent: number
+  discountAmount: number
+  notes?: string
+  termsAndConditions: string[]
+  lineItems: QuotationLineItemInput[]
+}
+
 /**
  * Create a new quotation via backend API
  */
-async function createQuotation(quotationData: Partial<Quotation>): Promise<Quotation> {
+async function createQuotation(quotationData: QuotationCreateInput): Promise<Quotation> {
   try {
     return await apiClient.post<Quotation>('/api/quotations', quotationData)
   } catch (error) {

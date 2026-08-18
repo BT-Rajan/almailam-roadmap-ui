@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { quotationService } from '@/services/quotationService'
+import type { QuotationCreateInput } from '@/services/quotationService'
 import type { Quotation } from '@/types/Quotation'
 
 interface QuotationStoreState {
@@ -47,6 +48,13 @@ export const useQuotationStore = defineStore('quotation', {
 
     selectQuotation(quotationId: string) {
       this.selectedQuotationId = quotationId
+    },
+
+    async createQuotation(input: QuotationCreateInput): Promise<Quotation> {
+      const quotation = await quotationService.createQuotation(input)
+      this.quotations = [...this.quotations, quotation]
+      this.selectedQuotationId = quotation.id
+      return quotation
     },
   },
 })
