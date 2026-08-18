@@ -129,10 +129,23 @@ def list_all(
 
 
 def get_history(db: Session, entity_type: str, entity_id: int) -> list[dict]:
-    """Every future history endpoint calls this one function, so
-    resolving changed_by to a display name here (in bulk, one query)
-    benefits all of them rather than each endpoint doing its own
-    per-row lookup."""
+    """Every history endpoint (clients, projects, quotations, contracts,
+    tasks, documents, government submissions, financial agreements) calls
+    this one function, so resolving changed_by to a display name here (in
+    bulk, one query) benefits all of them rather than each endpoint doing
+    its own per-row lookup.
+
+    Returns already-camelCase, JSON-ready dicts -- none of the eight
+    audit-events endpoints that call this apply a response_model, so
+    whatever shape comes out of here is exactly what reaches the
+    frontend. It was previously the raw SQL column names (event_label,
+    changed_at, previous_value, new_value), which don't match any
+    frontend type's fields (action, timestamp, previousValue, newValue) --
+    the label and reason came through fine (same key name, `reason`, and
+    `user` was already resolved to a name above), but the activity
+    description and the timestamp were both silently undefined on every
+    audit trail in the app that's actually wired up to a screen.
+    """
     result = db.execute(
         text(
             "SELECT id, event_label, previous_value, new_value, reason, changed_by, changed_at "
@@ -156,7 +169,15 @@ def get_history(db: Session, entity_type: str, entity_id: int) -> list[dict]:
         ):
             names[user_id] = full_name
 
-    for row in rows:
-        row["user"] = names.get(row.pop("changed_by"), "System")
-
-    return rows
+    return [
+        {
+            "id": str(row["id"]),
+            "action": row["event_label"],
+            "user": names.get(row["changed_by"], "System"),
+            "timestamp": row["changed_at"].isoformat() if row["changed_at"] else None,
+            "previousValue": row["previous_value"],
+            "newValue": row["new_value"],
+            "reason": row["reason"],
+        }
+        for row in rows
+    ]

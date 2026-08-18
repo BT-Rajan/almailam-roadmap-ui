@@ -73,7 +73,7 @@ export interface PaymentAllocation {
 export interface FinancialAuditEvent {
   id: string
   agreementId: string
-  eventType: FinancialEventType
+  action: FinancialEventType
   user: string
   timestamp: string
   previousValue?: string

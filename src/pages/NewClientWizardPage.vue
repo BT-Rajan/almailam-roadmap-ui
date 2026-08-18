@@ -17,6 +17,7 @@ const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/
 import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client, ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
@@ -27,6 +28,7 @@ import type { FieldErrors } from '@/utils/clientValidation'
 const router = useRouter()
 const clientStore = useClientStore()
 const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const WIZARD_STEPS = [
   { label: 'Client Type' },
@@ -253,21 +255,19 @@ async function submitWizard(): Promise<void> {
 
     if (failures > 0) {
       confirmationNote.value = `but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`
-      toastStore.show(
-        'error',
-        'Client onboarded with some issues',
-        `${getClientDisplayName(client)} was created, but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`,
-      )
     } else {
       confirmationNote.value = ''
-      toastStore.show('success', 'Client onboarded', `${getClientDisplayName(client)} was added as a reusable client profile.`)
     }
 
+    // The dedicated "Client Onboarded" dialog below (showConfirmation)
+    // already covers the success case -- including the partial-failure
+    // note inline -- so no separate pop-up here would just be a second,
+    // redundant confirmation for the same one action.
     createdClient.value = client
     showConfirmation.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
-    toastStore.show('error', 'Failed to onboard client', detail)
+    resultDialogStore.showError('Failed to onboard client', detail)
   } finally {
     isSubmitting.value = false
   }

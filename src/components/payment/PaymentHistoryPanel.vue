@@ -29,7 +29,7 @@ function formatTimestamp(timestamp: string): string {
     <ul v-else class="divide-y divide-border-light">
       <li v-for="event in sortedEvents" :key="event.id" class="flex flex-col gap-1 px-4 py-3">
         <div class="flex items-center justify-between gap-3">
-          <p class="text-sm font-medium text-neutral-800">{{ event.eventType }}</p>
+          <p class="text-sm font-medium text-neutral-800">{{ event.action }}</p>
           <p class="text-xs text-neutral-400">{{ formatTimestamp(event.timestamp) }}</p>
         </div>
         <p class="text-xs text-neutral-500">By {{ event.user }}</p>

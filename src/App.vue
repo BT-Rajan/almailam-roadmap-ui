@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
+import ResultDialog from '@/components/common/ResultDialog.vue'
 import AIAssistantDrawer from '@/components/ai/AIAssistantDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
@@ -23,6 +24,7 @@ const layout = computed(() => {
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <component :is="layout" />
   <ToastContainer />
+  <ResultDialog />
   <NotificationDrawer />
   <CommandPalette />
   <AIAssistantDrawer />

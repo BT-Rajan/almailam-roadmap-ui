@@ -39,7 +39,7 @@ const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type {
   ClientAddress,
   ClientConsent,
@@ -61,7 +61,7 @@ const route = useRoute()
 const router = useRouter()
 const clientStore = useClientStore()
 const projectStore = useProjectStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const clientId = computed(() => route.params.clientId as string)
 const activeTab = ref<ClientWorkspaceTabKey>('overview')
@@ -198,10 +198,10 @@ async function handleDocumentUpload(payload: { category: ClientDocumentCategory;
       title: payload.title,
       file: payload.file,
     })
-    toastStore.show('success', 'Document added', `${payload.title} was uploaded successfully.`)
+    resultDialogStore.showSuccess('Document added', `${payload.title} was uploaded successfully.`)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to upload document', detail)
+    resultDialogStore.showError('Failed to upload document', detail)
   }
 }
 
@@ -211,7 +211,7 @@ async function handleDocumentDownload(document: ClientDocument): Promise<void> {
     await clientStore.downloadDocument(client.value.id, document.id, document.originalFilename)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to download document', detail)
+    resultDialogStore.showError('Failed to download document', detail)
   }
 }
 
@@ -219,10 +219,10 @@ async function handleReplaceDocumentFile(document: ClientDocument, file: File): 
   if (!client.value) return
   try {
     await clientStore.replaceDocumentFile(client.value.id, document.id, file)
-    toastStore.show('success', 'File replaced', `${document.title} was updated to a new version.`)
+    resultDialogStore.showSuccess('File replaced', `${document.title} was updated to a new version.`)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to replace file', detail)
+    resultDialogStore.showError('Failed to replace file', detail)
   }
 }
 
@@ -231,11 +231,11 @@ async function applyOnboardingState(nextState: ClientOnboardingState, reason?: s
   isOnboardingStateSaving.value = true
   try {
     await clientStore.setOnboardingState(client.value.id, nextState, reason)
-    toastStore.show('success', 'Onboarding status updated', `Status changed to "${nextState}".`)
+    resultDialogStore.showSuccess('Onboarding status updated', `Status changed to "${nextState}".`)
     isStatusDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update onboarding status', detail)
+    resultDialogStore.showError('Failed to update onboarding status', detail)
   } finally {
     isOnboardingStateSaving.value = false
   }
@@ -264,11 +264,11 @@ async function handleConfirmVerification(payload: {
   isVerificationSaving.value = true
   try {
     await clientStore.createVerification(client.value.id, payload)
-    toastStore.show('success', 'Verification recorded', `"${payload.item}" marked as ${payload.result}.`)
+    resultDialogStore.showSuccess('Verification recorded', `"${payload.item}" marked as ${payload.result}.`)
     isVerificationDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to record verification', detail)
+    resultDialogStore.showError('Failed to record verification', detail)
   } finally {
     isVerificationSaving.value = false
   }
@@ -321,11 +321,11 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
           }
         : undefined,
     })
-    toastStore.show('success', 'Client updated', 'Changes were saved successfully.')
+    resultDialogStore.showSuccess('Client updated', 'Changes were saved successfully.')
     isEditDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update client', detail)
+    resultDialogStore.showError('Failed to update client', detail)
   } finally {
     isEditSaving.value = false
   }
@@ -337,10 +337,10 @@ async function handleToggleStatus(): Promise<void> {
   isStatusToggleSaving.value = true
   try {
     await clientStore.setClientStatus(client.value.id, nextStatus)
-    toastStore.show('success', 'Status updated', `Client marked as ${nextStatus}.`)
+    resultDialogStore.showSuccess('Status updated', `Client marked as ${nextStatus}.`)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update status', detail)
+    resultDialogStore.showError('Failed to update status', detail)
   } finally {
     isStatusToggleSaving.value = false
   }
@@ -351,12 +351,12 @@ async function handleConfirmDeleteClient(): Promise<void> {
   isDeleteClientSaving.value = true
   try {
     await clientStore.deleteClient(client.value.id)
-    toastStore.show('success', 'Client deleted', `${client.value.companyName} was removed.`)
+    resultDialogStore.showSuccess('Client deleted', `${client.value.companyName} was removed.`)
     isDeleteClientDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.CLIENTS })
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to delete client', detail)
+    resultDialogStore.showError('Failed to delete client', detail)
   } finally {
     isDeleteClientSaving.value = false
   }
@@ -372,11 +372,11 @@ async function handleConfirmConsent(payload: {
   isConsentSaving.value = true
   try {
     await clientStore.createConsent(client.value.id, payload)
-    toastStore.show('success', 'Consent recorded', `${payload.consentType}: ${payload.granted ? 'Granted' : 'Declined'}.`)
+    resultDialogStore.showSuccess('Consent recorded', `${payload.consentType}: ${payload.granted ? 'Granted' : 'Declined'}.`)
     isConsentDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to record consent', detail)
+    resultDialogStore.showError('Failed to record consent', detail)
   } finally {
     isConsentSaving.value = false
   }
@@ -396,7 +396,7 @@ async function handleConfirmMerge(direction: 'keep-current' | 'keep-other'): Pro
   isMergeSaving.value = true
   try {
     await clientStore.mergeClients(targetId, sourceId)
-    toastStore.show('success', 'Clients merged', `Merged into ${keptName}.`)
+    resultDialogStore.showSuccess('Clients merged', `Merged into ${keptName}.`)
     isMergeDialogOpen.value = false
     if (targetId !== client.value.id) {
       // The record being VIEWED was the one merged away -- navigate to
@@ -405,7 +405,7 @@ async function handleConfirmMerge(direction: 'keep-current' | 'keep-other'): Pro
     }
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to merge clients', detail)
+    resultDialogStore.showError('Failed to merge clients', detail)
   } finally {
     isMergeSaving.value = false
   }
@@ -430,15 +430,15 @@ async function handleConfirmContact(payload: {
   try {
     if (contactDialogTarget.value) {
       await clientStore.updateContact(client.value.id, contactDialogTarget.value.id, payload)
-      toastStore.show('success', 'Contact updated', `${payload.name} was updated.`)
+      resultDialogStore.showSuccess('Contact updated', `${payload.name} was updated.`)
     } else {
       await clientStore.createContact(client.value.id, payload)
-      toastStore.show('success', 'Contact added', `${payload.name} was added.`)
+      resultDialogStore.showSuccess('Contact added', `${payload.name} was added.`)
     }
     isContactDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', contactDialogTarget.value ? 'Failed to update contact' : 'Failed to add contact', detail)
+    resultDialogStore.showError(contactDialogTarget.value ? 'Failed to update contact' : 'Failed to add contact', detail)
   } finally {
     isContactSaving.value = false
   }
@@ -471,15 +471,15 @@ async function handleConfirmAddress(payload: {
     }
     if (addressDialogTarget.value) {
       await clientStore.updateAddress(client.value.id, addressDialogTarget.value.id, normalised)
-      toastStore.show('success', 'Address updated', 'The address was updated.')
+      resultDialogStore.showSuccess('Address updated', 'The address was updated.')
     } else {
       await clientStore.createAddress(client.value.id, normalised)
-      toastStore.show('success', 'Address added', 'The address was added.')
+      resultDialogStore.showSuccess('Address added', 'The address was added.')
     }
     isAddressDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', addressDialogTarget.value ? 'Failed to update address' : 'Failed to add address', detail)
+    resultDialogStore.showError(addressDialogTarget.value ? 'Failed to update address' : 'Failed to add address', detail)
   } finally {
     isAddressSaving.value = false
   }
@@ -504,15 +504,15 @@ async function handleConfirmIdentification(payload: {
   try {
     if (identificationDialogTarget.value) {
       await clientStore.updateIdentification(client.value.id, identificationDialogTarget.value.id, payload)
-      toastStore.show('success', 'Identification updated', `${payload.documentType} was updated.`)
+      resultDialogStore.showSuccess('Identification updated', `${payload.documentType} was updated.`)
     } else {
       await clientStore.createIdentification(client.value.id, payload)
-      toastStore.show('success', 'Identification added', `${payload.documentType} was added.`)
+      resultDialogStore.showSuccess('Identification added', `${payload.documentType} was added.`)
     }
     isIdentificationDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', identificationDialogTarget.value ? 'Failed to update identification' : 'Failed to add identification', detail)
+    resultDialogStore.showError(identificationDialogTarget.value ? 'Failed to update identification' : 'Failed to add identification', detail)
   } finally {
     isIdentificationSaving.value = false
   }
@@ -542,11 +542,11 @@ async function handleConfirmDocumentEdit(payload: {
       expiryDate: payload.expiryDate || undefined,
       issuingAuthority: payload.issuingAuthority || undefined,
     })
-    toastStore.show('success', 'Document updated', `${payload.title} was updated.`)
+    resultDialogStore.showSuccess('Document updated', `${payload.title} was updated.`)
     isDocumentEditDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update document', detail)
+    resultDialogStore.showError('Failed to update document', detail)
   } finally {
     isDocumentEditSaving.value = false
   }
@@ -568,11 +568,11 @@ async function handleConfirmDelete(): Promise<void> {
     else if (type === 'address') await clientStore.deleteAddress(client.value.id, id)
     else if (type === 'identification') await clientStore.deleteIdentification(client.value.id, id)
     else await clientStore.deleteDocument(client.value.id, id)
-    toastStore.show('success', 'Removed', `${label} was removed.`)
+    resultDialogStore.showSuccess('Removed', `${label} was removed.`)
     isDeleteDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to remove', detail)
+    resultDialogStore.showError('Failed to remove', detail)
   } finally {
     isDeleteSaving.value = false
   }
