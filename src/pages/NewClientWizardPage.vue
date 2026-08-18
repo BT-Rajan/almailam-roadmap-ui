@@ -14,6 +14,7 @@ const ClientConsentStep = defineAsyncComponent(() => import('@/components/client
 const ClientContactAddressStep = defineAsyncComponent(() => import('@/components/client/ClientContactAddressStep.vue'))
 const ClientIdentificationStep = defineAsyncComponent(() => import('@/components/client/ClientIdentificationStep.vue'))
 const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
+import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -213,7 +214,12 @@ async function submitWizard(): Promise<void> {
     if (form.value.identificationFile) {
       subRecordRequests.push(
         clientStore.createDocument(client.id, {
-          category: 'Identity Document',
+          // Was hardcoded to 'Identity Document' regardless of what was
+          // actually selected -- an entity client uploading its Trade
+          // Licence here was filed under the wrong category and never
+          // satisfied the "Trade licence" onboarding requirement (see
+          // ORGANISATION_REQUIREMENTS in clientOptions.ts).
+          category: getDocumentCategoryForIdentificationType(form.value.identification.documentType),
           title: `${form.value.identification.documentType} - ${getClientDisplayName(client)}`,
           issueDate: form.value.identification.issueDate || undefined,
           expiryDate: form.value.identification.expiryDate || undefined,
