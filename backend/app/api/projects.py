@@ -29,6 +29,7 @@ def list_projects(
     status: str | None = None,
     priority: str | None = None,
     stage: str | None = None,
+    engineerId: str | None = None,
     search: str | None = None,
     sort: str | None = None,
     page: int = Query(default=1, ge=1),
@@ -36,7 +37,7 @@ def list_projects(
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    result = project_service.list_projects(db, clientId, status, priority, stage, search, sort, page, pageSize)
+    result = project_service.list_projects(db, clientId, status, priority, stage, engineerId, search, sort, page, pageSize)
     engineer_ids = {p.engineer_id for p in result["items"]}
     names = project_service.engineer_names(db, engineer_ids)
     result["items"] = [

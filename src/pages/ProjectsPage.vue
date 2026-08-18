@@ -149,6 +149,13 @@ function createProject(): void {
             @update:model-value="projectStore.setPriorityFilter($event as ProjectPriority | 'All')"
           />
         </div>
+        <BaseButton
+          size="sm"
+          :variant="projectStore.myProjectsOnly ? 'primary' : 'secondary'"
+          @click="projectStore.setMyProjectsOnly(!projectStore.myProjectsOnly)"
+        >
+          My Projects
+        </BaseButton>
       </template>
       <template #actions>
         <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">

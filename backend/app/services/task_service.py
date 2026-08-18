@@ -10,7 +10,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, notification_service, project_service, user_service
+from app.services import audit_service, notification_service, project_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "TASK"
@@ -104,6 +104,11 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     db.flush()
 
     audit_service.log_event(db, ENTITY_TYPE, task.id, "Task created", user_id, new_value=task.title)
+    timeline_service.create_system_event(
+        db, project.id, "task",
+        title=f"Task created: {task.title}",
+        actor_id=user_id,
+    )
     notification_service.create_notification(
         db, assignee_id, "New task assigned", f"You've been assigned: {payload.title}", "Task",
         link_route_name="tasks",
@@ -167,8 +172,17 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
     return task
 
 
+def _task_exists(db: Session, task_no: str) -> Task:
+    """Like get_task() but doesn't exclude soft-deleted tasks -- used
+    only for the read-only audit-trail view."""
+    task = db.query(Task).filter(Task.task_no == task_no).first()
+    if task is None:
+        raise NotFoundError("Task")
+    return task
+
+
 def get_audit_events(db: Session, task_no: str) -> list[dict]:
-    task = get_task(db, task_no)
+    task = _task_exists(db, task_no)
     return audit_service.get_history(db, ENTITY_TYPE, task.id)
 
 

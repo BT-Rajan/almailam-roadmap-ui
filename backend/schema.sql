@@ -612,7 +612,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
 CREATE TABLE IF NOT EXISTS project_timeline_events (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id      BIGINT UNSIGNED NOT NULL,
-    type            ENUM('stage','document','quotation','submission','milestone','task','note') NOT NULL,
+    type            ENUM('stage','document','quotation','contract','submission','milestone','task','note') NOT NULL,
     title           VARCHAR(200) NOT NULL,
     description     TEXT NULL,
     event_date      DATE NOT NULL,

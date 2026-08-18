@@ -11,7 +11,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.project import Project
 from app.models.quotation import Quotation, QuotationLineItem
-from app.services import audit_service, project_service
+from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -100,6 +100,11 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         )
 
     audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation created", user_id, new_value=quotation.quotation_no)
+    timeline_service.create_system_event(
+        db, project.id, "quotation",
+        title=f"Quotation {quotation.quotation_no} created",
+        actor_id=user_id,
+    )
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -175,8 +180,18 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
     return quotation
 
 
+def _quotation_exists(db: Session, quotation_no: str) -> Quotation:
+    """Like get_quotation() but doesn't exclude soft-deleted quotations --
+    used only for the read-only audit-trail view, so a deleted
+    quotation's own history stays inspectable."""
+    quotation = db.query(Quotation).filter(Quotation.quotation_no == quotation_no).first()
+    if quotation is None:
+        raise NotFoundError("Quotation")
+    return quotation
+
+
 def get_audit_events(db: Session, quotation_no: str) -> list[dict]:
-    quotation = get_quotation(db, quotation_no)
+    quotation = _quotation_exists(db, quotation_no)
     return audit_service.get_history(db, ENTITY_TYPE, quotation.id)
 
 

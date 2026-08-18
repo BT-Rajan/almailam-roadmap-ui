@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { clientService } from '@/services/clientService'
 import { projectService } from '@/services/projectService'
 import type { ProjectCreateInput, ProjectUpdateInput } from '@/services/projectService'
+import { useAuthStore } from '@/stores/authStore'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
@@ -22,6 +23,7 @@ interface ProjectStoreState {
   statusFilter: ProjectStatus | 'All'
   stageFilter: WorkflowStage | 'All'
   priorityFilter: ProjectPriority | 'All'
+  myProjectsOnly: boolean
   viewMode: ProjectViewMode
   // Server-paginated browse state for ProjectsPage -- separate from
   // `projects` above, which stays a full, unpaginated cache because other
@@ -42,6 +44,7 @@ export const useProjectStore = defineStore('project', {
     statusFilter: 'All',
     stageFilter: 'All',
     priorityFilter: 'All',
+    myProjectsOnly: false,
     viewMode: 'grid',
     pageItems: [],
     pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
@@ -54,7 +57,8 @@ export const useProjectStore = defineStore('project', {
         state.searchTerm.trim().length > 0 ||
         state.statusFilter !== 'All' ||
         state.stageFilter !== 'All' ||
-        state.priorityFilter !== 'All'
+        state.priorityFilter !== 'All' ||
+        state.myProjectsOnly
       )
     },
 
@@ -89,6 +93,7 @@ export const useProjectStore = defineStore('project', {
         if (this.clients.length === 0) {
           this.clients = await clientService.getClients()
         }
+        const authStore = useAuthStore()
         const result = await projectService.getProjectsPage({
           page: this.pagination.page,
           pageSize: this.pagination.pageSize,
@@ -96,6 +101,7 @@ export const useProjectStore = defineStore('project', {
           status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
           stage: this.stageFilter !== 'All' ? this.stageFilter : undefined,
           priority: this.priorityFilter !== 'All' ? this.priorityFilter : undefined,
+          engineerId: this.myProjectsOnly ? authStore.user?.id : undefined,
         })
         this.pageItems = result.items
         this.pagination = {
@@ -152,6 +158,12 @@ export const useProjectStore = defineStore('project', {
       void this.loadProjectsPage()
     },
 
+    setMyProjectsOnly(value: boolean) {
+      this.myProjectsOnly = value
+      this.pagination.page = 1
+      void this.loadProjectsPage()
+    },
+
     setViewMode(mode: ProjectViewMode) {
       this.viewMode = mode
     },
@@ -195,6 +207,7 @@ export const useProjectStore = defineStore('project', {
       this.statusFilter = 'All'
       this.stageFilter = 'All'
       this.priorityFilter = 'All'
+      this.myProjectsOnly = false
       this.pagination.page = 1
       void this.loadProjectsPage()
     },

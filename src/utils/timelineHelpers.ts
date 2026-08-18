@@ -1,4 +1,4 @@
-import { CircleDot, Clock, FileText, Flag, Landmark, ListChecks, MessageSquare, Receipt } from '@lucide/vue'
+import { CircleDot, Clock, FileCheck, FileText, Flag, Landmark, ListChecks, MessageSquare, Receipt } from '@lucide/vue'
 import type { Component } from 'vue'
 
 import type { BadgeVariant } from '@/types/Ui'
@@ -8,6 +8,7 @@ const TYPE_ICONS: Record<TimelineEventType, Component> = {
   stage: CircleDot,
   document: FileText,
   quotation: Receipt,
+  contract: FileCheck,
   submission: Landmark,
   milestone: Flag,
   task: ListChecks,

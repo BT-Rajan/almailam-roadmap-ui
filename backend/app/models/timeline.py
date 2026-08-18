@@ -7,7 +7,7 @@ from app.core.database import Base
 from app.models.mixins import TimestampMixin
 from app.models.user import BigPK
 
-TIMELINE_EVENT_TYPES = ("stage", "document", "quotation", "submission", "milestone", "task", "note")
+TIMELINE_EVENT_TYPES = ("stage", "document", "quotation", "contract", "submission", "milestone", "task", "note")
 TIMELINE_EVENT_STATUSES = ("completed", "in-progress", "upcoming")
 
 

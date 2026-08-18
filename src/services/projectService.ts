@@ -18,7 +18,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
  * it only asks the server for one page at a time instead of the whole table.
  */
 async function getProjectsPage(
-  params: PageParams & { clientId?: string; status?: string; priority?: string; stage?: string } = {},
+  params: PageParams & { clientId?: string; status?: string; priority?: string; stage?: string; engineerId?: string } = {},
 ): Promise<PagedResponse<Project>> {
   try {
     const query = buildQuery({
@@ -26,6 +26,7 @@ async function getProjectsPage(
       status: params.status,
       priority: params.priority,
       stage: params.stage,
+      engineerId: params.engineerId,
       search: params.search,
       sort: params.sort,
       page: params.page,

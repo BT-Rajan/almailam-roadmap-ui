@@ -10,7 +10,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.government import GovernmentSubmission, SubmissionDocument
 from app.models.project import Project
-from app.services import audit_service, government_service, project_service
+from app.services import audit_service, government_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
@@ -83,6 +83,11 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
         db.add(SubmissionDocument(submission_id=submission.id, name=document_name, status="Pending"))
 
     audit_service.log_event(db, ENTITY_TYPE, submission.id, "Submission created", user_id, new_value=submission.submission_no)
+    timeline_service.create_system_event(
+        db, project.id, "submission",
+        title=f"Government submission {submission.submission_no} created",
+        actor_id=user_id,
+    )
     db.commit()
     db.refresh(submission)
     return submission
@@ -151,6 +156,15 @@ def set_document_status(
     return document
 
 
+def _submission_exists(db: Session, submission_no: str) -> GovernmentSubmission:
+    """Like get_submission() but doesn't exclude soft-deleted submissions
+    -- used only for the read-only audit-trail view."""
+    submission = db.query(GovernmentSubmission).filter(GovernmentSubmission.submission_no == submission_no).first()
+    if submission is None:
+        raise NotFoundError("Submission")
+    return submission
+
+
 def get_audit_events(db: Session, submission_no: str) -> list[dict]:
-    submission = get_submission(db, submission_no)
+    submission = _submission_exists(db, submission_no)
     return audit_service.get_history(db, ENTITY_TYPE, submission.id)

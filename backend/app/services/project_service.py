@@ -12,7 +12,12 @@ from app.core.status_transitions import (
     PROJECT_STATUS_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.contract import Contract
+from app.models.document import ProjectDocument
+from app.models.government import GovernmentSubmission
 from app.models.project import Project
+from app.models.quotation import Quotation
+from app.models.task import Task
 from app.models.user import User
 from app.services import audit_service, client_service, timeline_service, user_service
 from app.services.number_series_service import next_number
@@ -53,6 +58,7 @@ def list_projects(
     status: str | None = None,
     priority: str | None = None,
     stage: str | None = None,
+    engineer_id: str | None = None,
     search: str | None = None,
     sort: str | None = None,
     page: int = 1,
@@ -67,6 +73,8 @@ def list_projects(
         query = query.filter(Project.priority == priority)
     if stage:
         query = query.filter(Project.current_stage == stage)
+    if engineer_id:
+        query = query.filter(Project.engineer_id == user_service.parse_user_id(engineer_id))
     if search:
         term = f"%{search.strip()}%"
         conditions = [
@@ -310,6 +318,31 @@ def get_audit_events(db: Session, project_no: str) -> list[dict]:
 
 def delete_project(db: Session, project_no: str, actor_id: int) -> None:
     project = get_project(db, project_no)
+
+    # Same reasoning as client_service.delete_client()'s active-projects
+    # check: this is a soft-delete (deleted_at set, not a real row
+    # removal), so the real FK constraints on these child tables' project_id
+    # never fire to protect against it -- without this check, a project
+    # with real quotations/contracts/tasks/documents/submissions still on
+    # file could be "deleted" while those records kept silently pointing
+    # at it. Queried directly against the models here (not through each
+    # sibling service module) to avoid a circular import, since those
+    # modules already import project_service themselves for
+    # assert_project_open_for_new_work().
+    child_counts = {
+        "quotation(s)": db.query(Quotation).filter(Quotation.project_id == project.id, Quotation.deleted_at.is_(None)).count(),
+        "contract(s)": db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).count(),
+        "task(s)": db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).count(),
+        "document(s)": db.query(ProjectDocument).filter(ProjectDocument.project_id == project.id, ProjectDocument.deleted_at.is_(None)).count(),
+        "government submission(s)": db.query(GovernmentSubmission).filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None)).count(),
+    }
+    existing = [f"{count} {label}" for label, count in child_counts.items() if count > 0]
+    if existing:
+        raise ValidationAppError(
+            f"This project still has {', '.join(existing)} on file and cannot be deleted. "
+            "Remove or reassign those first."
+        )
+
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project deleted", actor_id, previous_value=project.project_name)
     project.deleted_at = datetime.now(timezone.utc)
     db.commit()

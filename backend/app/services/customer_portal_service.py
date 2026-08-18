@@ -165,6 +165,7 @@ _UPDATE_TYPE_MAP = {
     "note": "general",
     "submission": "general",
     "quotation": "general",
+    "contract": "general",
     "task": "general",
 }
 

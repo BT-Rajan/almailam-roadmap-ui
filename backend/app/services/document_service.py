@@ -15,7 +15,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, notification_service, project_service
+from app.services import audit_service, notification_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -110,6 +110,11 @@ def create_document(
     db.flush()
 
     audit_service.log_event(db, ENTITY_TYPE, document.id, "Document uploaded", user_id)
+    timeline_service.create_system_event(
+        db, project.id, "document",
+        title=f"Document uploaded: {title}",
+        actor_id=user_id,
+    )
     db.commit()
     db.refresh(document)
     return document
@@ -230,8 +235,17 @@ def create_ai_review(db: Session, document_no: str, payload, user_id: int) -> Do
     return review
 
 
+def _document_exists(db: Session, document_no: str) -> ProjectDocument:
+    """Like get_document() but doesn't exclude soft-deleted documents --
+    used only for the read-only audit-trail view."""
+    document = db.query(ProjectDocument).filter(ProjectDocument.document_no == document_no).first()
+    if document is None:
+        raise NotFoundError("Document")
+    return document
+
+
 def get_audit_events(db: Session, document_no: str) -> list[dict]:
-    document = get_document(db, document_no)
+    document = _document_exists(db, document_no)
     return audit_service.get_history(db, ENTITY_TYPE, document.id)
 
 

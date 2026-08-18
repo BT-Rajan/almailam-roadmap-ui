@@ -11,7 +11,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, project_service
+from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -100,6 +100,11 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
         )
 
     audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract created", user_id, new_value=contract.contract_no)
+    timeline_service.create_system_event(
+        db, project.id, "contract",
+        title=f"Contract {contract.contract_no} created",
+        actor_id=user_id,
+    )
     db.commit()
     db.refresh(contract)
     return contract
@@ -180,8 +185,17 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
     return contract
 
 
+def _contract_exists(db: Session, contract_no: str) -> Contract:
+    """Like get_contract() but doesn't exclude soft-deleted contracts --
+    used only for the read-only audit-trail view."""
+    contract = db.query(Contract).filter(Contract.contract_no == contract_no).first()
+    if contract is None:
+        raise NotFoundError("Contract")
+    return contract
+
+
 def get_audit_events(db: Session, contract_no: str) -> list[dict]:
-    contract = get_contract(db, contract_no)
+    contract = _contract_exists(db, contract_no)
     return audit_service.get_history(db, ENTITY_TYPE, contract.id)
 
 
