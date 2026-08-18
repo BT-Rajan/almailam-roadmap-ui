@@ -100,11 +100,8 @@ function createClient(): void {
     </PageHeader>
 
     <FilterBar
-      :search-value="clientStore.searchTerm"
-      search-placeholder="Search by name, mobile or email"
+      :show-search="false"
       :has-active-filters="clientStore.hasActiveFilters"
-      @update:search-value="clientStore.setSearchTerm"
-      @search="clientStore.applySearch"
       @clear="clientStore.clearFilters"
     >
       <template #filters>
@@ -172,7 +169,7 @@ function createClient(): void {
         :description="
           clientStore.myClientsOnly
             ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone, or assign yourself via Edit Client.'
-            : 'Try adjusting your search or filters, or onboard a new client.'
+            : 'Try adjusting your filters, or onboard a new client.'
         "
         action-label="New Client"
         @action="createClient"
@@ -210,7 +207,7 @@ function createClient(): void {
         :empty-description="
           clientStore.myClientsOnly
             ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone.'
-            : 'Try adjusting your search or filters, or onboard a new client.'
+            : 'Try adjusting your filters, or onboard a new client.'
         "
         @row-click="openClient($event.id)"
       >

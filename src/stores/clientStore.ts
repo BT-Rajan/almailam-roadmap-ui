@@ -41,7 +41,6 @@ interface ClientStoreState {
   clients: Client[]
   isLoading: boolean
   error: string | undefined
-  searchTerm: string
   typeFilter: ClientType | 'All'
   statusFilter: ClientStatus | 'All'
   onboardingFilter: ClientOnboardingState | 'All'
@@ -70,7 +69,6 @@ export const useClientStore = defineStore('client', {
     clients: [],
     isLoading: false,
     error: undefined,
-    searchTerm: '',
     typeFilter: 'All',
     statusFilter: 'All',
     onboardingFilter: 'All',
@@ -93,7 +91,6 @@ export const useClientStore = defineStore('client', {
   getters: {
     hasActiveFilters(state): boolean {
       return (
-        state.searchTerm.trim().length > 0 ||
         state.typeFilter !== 'All' ||
         state.statusFilter !== 'All' ||
         state.onboardingFilter !== 'All' ||
@@ -131,7 +128,6 @@ export const useClientStore = defineStore('client', {
         const result = await clientService.getClientsPage({
           page: this.pagination.page,
           pageSize: this.pagination.pageSize,
-          search: this.searchTerm.trim() || undefined,
           clientType: this.typeFilter !== 'All' ? this.typeFilter : undefined,
           status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
           onboardingState: this.onboardingFilter !== 'All' ? this.onboardingFilter : undefined,
@@ -187,18 +183,6 @@ export const useClientStore = defineStore('client', {
       } finally {
         this.isDetailLoading = false
       }
-    },
-
-    setSearchTerm(term: string) {
-      this.searchTerm = term
-    },
-
-    // Called from the search box's debounced @search event, once the
-    // person has paused typing, so we're not firing a request per keystroke.
-    applySearch(term: string) {
-      this.searchTerm = term
-      this.pagination.page = 1
-      void this.loadClientsPage()
     },
 
     setTypeFilter(type: ClientType | 'All') {
@@ -396,7 +380,6 @@ export const useClientStore = defineStore('client', {
     },
 
     clearFilters() {
-      this.searchTerm = ''
       this.typeFilter = 'All'
       this.statusFilter = 'All'
       this.onboardingFilter = 'All'
