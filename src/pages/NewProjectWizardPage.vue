@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -27,6 +27,7 @@ import { getProjectPriorityVariant } from '@/utils/projectHelpers'
 import { validators } from '@/utils/validators'
 
 const router = useRouter()
+const route = useRoute()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
@@ -89,6 +90,17 @@ onMounted(async () => {
   )
   hasIneligibleClients.value = readyClients.length < projectStore.clients.length
   clientOptions.value = readyClients.map((client) => ({ label: client.companyName, value: client.id }))
+
+  // Arriving from a client's own workspace page ("New Project" there)
+  // pre-selects that client -- saves a step and rules out picking the
+  // wrong one out of a long list. Only pre-fills if the client is
+  // actually eligible (Ready + Active); if not, the wizard's own
+  // "No eligible clients" / ineligible-clients messaging below still
+  // explains why, rather than silently pre-selecting something invalid.
+  const preselectedClientId = route.query.clientId
+  if (typeof preselectedClientId === 'string' && clientOptions.value.some((option) => option.value === preselectedClientId)) {
+    form.clientId = preselectedClientId
+  }
 
   if (userStore.users.length === 0) {
     await userStore.loadUsers()

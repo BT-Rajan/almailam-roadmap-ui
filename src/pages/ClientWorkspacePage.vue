@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FilePlus, MessageSquare, ShieldCheck, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
+import { FilePlus, MessageSquare, Plus, ShieldCheck, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -121,6 +121,13 @@ const TABS: ClientWorkspaceTab[] = [
 
 const client = computed(() => clientStore.getClientById(clientId.value))
 const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
+// Same eligibility rule NewProjectWizardPage.vue and the backend both
+// enforce (onboardingState === 'Ready' && status === 'Active') --
+// mirrored here so this button never leads to a dead end where the
+// client silently isn't selectable on the next page.
+const clientEligibleForNewProject = computed(
+  () => client.value?.onboardingState === 'Ready' && client.value?.status === 'Active',
+)
 
 const isLoading = computed(() => clientStore.isLoading || clientStore.isDetailLoading)
 const error = computed(() => clientStore.error ?? clientStore.detailError)
@@ -574,6 +581,10 @@ async function handleConfirmDelete(): Promise<void> {
 function openProject(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
 }
+
+function createProjectForClient(): void {
+  router.push({ name: ROUTE_NAMES.PROJECT_NEW, query: { clientId: clientId.value } })
+}
 </script>
 
 <template>
@@ -743,10 +754,25 @@ function openProject(projectId: string): void {
       </template>
 
       <template v-else-if="activeTab === 'projects'">
+        <div class="mb-4 flex flex-col items-end gap-1 no-print">
+          <BaseButton
+            size="sm"
+            :icon="Plus"
+            :disabled="!clientEligibleForNewProject"
+            @click="createProjectForClient"
+          >
+            New Project
+          </BaseButton>
+          <p v-if="!clientEligibleForNewProject" class="text-xs text-neutral-400">
+            Onboarding must be Ready and the client Active before a project can be created.
+          </p>
+        </div>
         <EmptyState
           v-if="clientProjects.length === 0"
           title="No projects yet"
           description="Projects created for this client will appear here."
+          :action-label="clientEligibleForNewProject ? 'New Project' : undefined"
+          @action="createProjectForClient"
         />
         <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
           <ProjectCard
