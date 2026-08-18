@@ -30,7 +30,7 @@ export function useFormValidation(initialRules?: ValidationRules) {
 
   const validateAll = (data: Record<string, unknown>): boolean => {
     let isValid = true
-    for (const fieldName in rules) {
+    for (const fieldName in data) {
       if (!validateField(fieldName, data[fieldName])) {
         isValid = false
       }
