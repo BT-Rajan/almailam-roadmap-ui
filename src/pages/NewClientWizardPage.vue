@@ -20,7 +20,7 @@ import { useToastStore } from '@/stores/toastStore'
 import type { Client, ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
 import { getClientDisplayName } from '@/utils/clientHelpers'
-import { hasErrors, validateAddress, validateBasicInfo, validateContacts, validateIdentification } from '@/utils/clientValidation'
+import { hasErrors, validateAddress, validateBasicInfo, validateConsent, validateContacts, validateIdentification } from '@/utils/clientValidation'
 import type { FieldErrors } from '@/utils/clientValidation'
 
 const router = useRouter()
@@ -85,6 +85,7 @@ const basicInfoErrors = computed<FieldErrors>(() => validateBasicInfo(form.value
 const contactsValidation = computed(() => validateContacts(form.value.contacts))
 const addressErrors = computed<FieldErrors>(() => validateAddress(form.value.address))
 const identificationErrors = computed<FieldErrors>(() => validateIdentification(form.value.identification))
+const consentErrors = computed<FieldErrors>(() => validateConsent(form.value.consents))
 
 const contactsStepHasErrors = computed(
   () =>
@@ -97,10 +98,11 @@ function stepHasErrors(step: number): boolean {
   if (step === 0) return hasErrors(basicInfoErrors.value)
   if (step === 1) return contactsStepHasErrors.value
   if (step === 2) return hasErrors(identificationErrors.value)
+  if (step === 3) return hasErrors(consentErrors.value)
   return false
 }
 
-const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification']
+const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification', 'Consent']
 
 function goNext(): void {
   if (stepHasErrors(currentStep.value)) {
@@ -134,7 +136,7 @@ async function submitWizard(): Promise<void> {
   // Re-validate every step, not just the current one -- someone could
   // have gone back and broken an earlier step, or jumped here via the
   // stepper. This is the final gate before anything reaches the backend.
-  const invalidStep = [0, 1, 2].find((step) => stepHasErrors(step))
+  const invalidStep = [0, 1, 2, 3].find((step) => stepHasErrors(step))
   if (invalidStep !== undefined) {
     toastStore.show(
       'error',
@@ -289,7 +291,7 @@ function goToCreatedClient(): void {
           :address-errors="addressErrors"
         />
         <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" :errors="identificationErrors" />
-        <ClientConsentStep v-else-if="currentStep === 3" v-model="form" />
+        <ClientConsentStep v-else-if="currentStep === 3" v-model="form" :errors="consentErrors" />
         <ClientReviewStep v-else v-model="form" />
       </div>
 

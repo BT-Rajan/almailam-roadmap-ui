@@ -1,5 +1,6 @@
+import { CLIENT_CONSENT_TYPE_OPTIONS } from '@/constants/clientOptions'
 import type { ClientWizardAddressDraft, ClientWizardContactDraft, ClientWizardForm, ClientWizardIdentificationDraft } from '@/types/ClientWizard'
-import type { ClientPreferredChannel } from '@/types/Client'
+import type { ClientConsentType, ClientPreferredChannel } from '@/types/Client'
 import { validators } from '@/utils/validators'
 
 export type FieldErrors = Record<string, string>
@@ -165,6 +166,27 @@ export function validateIdentification(identification: ClientWizardIdentificatio
 
   if (!identification.issuingCountry.trim()) errors.issuingCountry = 'Issuing country is required'
 
+  return errors
+}
+
+/**
+ * Step 3's consent. CLIENT_CONSENT_TYPE_OPTIONS marks "Process Personal
+ * Information" mandatory (shown with a red asterisk in
+ * ClientConsentStep.vue), but nothing previously enforced that -- the
+ * wizard could complete with it left declined. There is no backend
+ * mirror for this one: consent records are their own independent
+ * sub-resource (ClientConsentCreate) with no required-consent-type
+ * concept at all, since a decline must always be recordable as its own
+ * audited fact. This check exists client-side only, as the one place
+ * that actually gates onboarding completion on it.
+ */
+export function validateConsent(consents: Record<ClientConsentType, boolean>): FieldErrors {
+  const errors: FieldErrors = {}
+  for (const consent of CLIENT_CONSENT_TYPE_OPTIONS) {
+    if (consent.mandatory && !consents[consent.type]) {
+      errors[consent.type] = `${consent.type} consent is required to complete onboarding`
+    }
+  }
   return errors
 }
 
