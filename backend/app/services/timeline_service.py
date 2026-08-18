@@ -65,6 +65,20 @@ def create_system_event(
     return event
 
 
+def get_last_stage_event(db: Session, project_id: int) -> ProjectTimelineEvent | None:
+    """Used by project_service.check_and_notify_stale_projects() to
+    determine how long a project has sat on its current stage -- kept
+    here rather than having project_service query ProjectTimelineEvent
+    directly, consistent with this module already owning all timeline-
+    event queries."""
+    return (
+        db.query(ProjectTimelineEvent)
+        .filter(ProjectTimelineEvent.project_id == project_id, ProjectTimelineEvent.type == "stage")
+        .order_by(ProjectTimelineEvent.created_at.desc())
+        .first()
+    )
+
+
 def create_event(db: Session, project_no: str, payload, actor_id: int) -> ProjectTimelineEvent:
     project = _get_project(db, project_no)
     if payload.status not in TIMELINE_EVENT_STATUSES:

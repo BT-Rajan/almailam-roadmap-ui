@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -48,3 +48,10 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(
         Enum(*PROJECT_STATUSES, name="project_status"), nullable=False, default="Active"
     )
+    # Set by project_service.check_and_notify_stale_projects() once the
+    # assigned engineer has been notified that this project hasn't moved
+    # in a while -- prevents re-notifying every time the background check
+    # runs (see main.py's scheduled job). Cleared the moment the stage
+    # actually changes (set_stage()), so a fresh staleness period starts
+    # from scratch rather than staying permanently silenced.
+    stale_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

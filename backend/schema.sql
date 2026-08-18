@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS projects (
     start_date      DATE NOT NULL,
     target_date     DATE NOT NULL,
     status          ENUM('Active','On Hold','Completed','Cancelled') NOT NULL DEFAULT 'Active',
+    stale_notified_at DATETIME NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -619,6 +620,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
     currency                           VARCHAR(10)  NOT NULL DEFAULT 'AED',
     default_payment_terms_days         INT UNSIGNED NOT NULL DEFAULT 30,
     default_quotation_validity_days    INT UNSIGNED NOT NULL DEFAULT 14,
+    stale_project_alert_days           INT UNSIGNED NOT NULL DEFAULT 45,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_company_settings_singleton CHECK (id = 1)

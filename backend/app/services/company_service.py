@@ -41,6 +41,7 @@ def save_settings(db: Session, payload, actor_id: int) -> CompanySettings:
     settings.currency = payload.currency
     settings.default_payment_terms_days = payload.defaultPaymentTermsDays
     settings.default_quotation_validity_days = payload.defaultQuotationValidityDays
+    settings.stale_project_alert_days = payload.staleProjectAlertDays
     db.commit()
     db.refresh(settings)
     return settings

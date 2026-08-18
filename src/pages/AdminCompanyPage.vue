@@ -196,6 +196,18 @@ function handleCancel(): void {
           </div>
         </FormSection>
 
+        <FormSection title="Project Alerts" description="Notify the assigned engineer when a project sits without moving forward.">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+            <NumberInput
+              :model-value="companyStore.settings.staleProjectAlertDays"
+              label="Stale Project Alert Threshold (days)"
+              hint="A notification is sent once a project's workflow stage hasn't advanced for this many days."
+              :min="1"
+              @update:model-value="companyStore.updateField('staleProjectAlertDays', Number($event))"
+            />
+          </div>
+        </FormSection>
+
         <FormActionBar submit-label="Save Changes" :loading="companyStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>

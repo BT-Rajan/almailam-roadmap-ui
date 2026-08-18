@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, notification_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -221,6 +221,12 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
         previous_value=previous_stage, new_value=new_stage, reason=reason,
     )
     project.current_stage = new_stage
+    # A fresh staleness period starts now that the project has genuinely
+    # moved -- otherwise a project that advances after being flagged
+    # would stay permanently silenced (stale_notified_at would never get
+    # cleared, so it could never be flagged again even after sitting
+    # untouched for another 45+ days on its new stage).
+    project.stale_notified_at = None
     db.flush()
 
     # The only automatic, system-generated timeline entry this app
@@ -346,3 +352,55 @@ def delete_project(db: Session, project_no: str, actor_id: int) -> None:
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project deleted", actor_id, previous_value=project.project_name)
     project.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def check_and_notify_stale_projects(db: Session) -> int:
+    """Finds Active projects whose workflow stage hasn't moved in more
+    than the admin-configured threshold (CompanySettings.
+    stale_project_alert_days, default 45) and notifies the assigned
+    engineer once per staleness episode -- stale_notified_at prevents
+    re-notifying every time this runs, and is cleared the moment the
+    project's stage actually changes (set_stage()), so a fresh
+    staleness period starts from scratch rather than staying
+    permanently silenced after one alert.
+
+    Called periodically by the background scheduler (see main.py's
+    lifespan), but is itself a plain, directly-callable function --
+    deliberately not scheduling logic of its own, so the actual
+    staleness decision can be tested without waiting on a real clock.
+
+    Returns how many projects were newly flagged in this run.
+    """
+    settings = company_service.get_settings(db)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=settings.stale_project_alert_days)
+
+    candidates = (
+        db.query(Project)
+        .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.stale_notified_at.is_(None))
+        .all()
+    )
+
+    notified_count = 0
+    for project in candidates:
+        last_stage_event = timeline_service.get_last_stage_event(db, project.id)
+        # A project that has never advanced past its initial stage has
+        # no "stage" timeline event yet -- fall back to when the project
+        # itself was created, since that's genuinely when its current
+        # (first) stage started.
+        reference_time = last_stage_event.created_at if last_stage_event else project.created_at
+
+        if reference_time <= cutoff:
+            notification_service.create_notification(
+                db, project.engineer_id,
+                "Project hasn't moved in a while",
+                f"{project.project_name} ({project.project_no}) has been at '{project.current_stage}' stage for "
+                f"more than {settings.stale_project_alert_days} days without advancing.",
+                "Project",
+                link_route_name="project-workspace",
+                link_params={"projectId": project.project_no},
+            )
+            project.stale_notified_at = datetime.now(timezone.utc)
+            notified_count += 1
+
+    db.commit()
+    return notified_count

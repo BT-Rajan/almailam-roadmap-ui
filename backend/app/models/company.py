@@ -27,3 +27,8 @@ class CompanySettings(Base, TimestampMixin):
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="AED")
     default_payment_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     default_quotation_validity_days: Mapped[int] = mapped_column(Integer, nullable=False, default=14)
+    # Used by the stale-project background check (see
+    # project_service.check_and_notify_stale_projects) -- how many days a
+    # project can sit without its workflow stage advancing before the
+    # assigned engineer is notified.
+    stale_project_alert_days: Mapped[int] = mapped_column(Integer, nullable=False, default=45)

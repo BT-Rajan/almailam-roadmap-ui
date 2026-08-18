@@ -17,4 +17,5 @@ export interface CompanySettings {
   currency: string
   defaultPaymentTermsDays: number
   defaultQuotationValidityDays: number
+  staleProjectAlertDays: number
 }

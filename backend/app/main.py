@@ -1,5 +1,8 @@
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -29,10 +32,45 @@ from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
 from app.api.workflows import router as workflows_router
 from app.core.config import get_settings
+from app.core.database import SessionLocal
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
+from app.services.project_service import check_and_notify_stale_projects
 
 settings = get_settings()
+logger = logging.getLogger("app.scheduler")
+
+
+def _run_stale_project_check() -> None:
+    # A fresh session per run, not a request-scoped one -- this runs on
+    # a timer, independent of any HTTP request, so there's no `get_db()`
+    # dependency to piggyback on.
+    db = SessionLocal()
+    try:
+        notified = check_and_notify_stale_projects(db)
+        if notified:
+            logger.info("Stale-project check: notified %d project(s).", notified)
+    except Exception:
+        logger.exception("Stale-project check failed.")
+        db.rollback()
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = AsyncIOScheduler()
+    # Once a day is deliberately coarse for a threshold measured in
+    # days, not hours -- and the interval trigger below doesn't fire
+    # immediately, so also run once right away rather than only after
+    # the first full day, in case the process was down when yesterday's
+    # run would have fired.
+    scheduler.add_job(_run_stale_project_check, "interval", days=1, id="stale_project_check")
+    _run_stale_project_check()
+    scheduler.start()
+    yield
+    scheduler.shutdown(wait=False)
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -40,6 +78,7 @@ app = FastAPI(
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1024)
