@@ -78,8 +78,8 @@ setRules({
 })
 
 watch(
-  () => props.modelValue,
-  (open) => {
+  [() => props.modelValue, () => userStore.users.length],
+  ([open]) => {
     if (!open) return
     form.projectName = props.project.projectName
     form.description = props.project.description ?? ''
@@ -87,12 +87,21 @@ watch(
     form.priority = props.project.priority
     form.progress = props.project.progress
     form.targetDate = props.project.targetDate
-    // engineerId isn't on Project (only the resolved display name is) --
-    // pre-select nothing and require staff to actively re-confirm who's
-    // assigned, rather than guessing an id from a name that could match
-    // more than one person.
-    form.engineerId = ''
+    // Project only stores the engineer's resolved display name, not
+    // their id, so this is a best-effort match rather than a guaranteed
+    // one -- but leaving it forced blank on every open (the previous
+    // behaviour) meant staff had to re-select the engineer on every
+    // single edit, even when they only wanted to change something else
+    // entirely (progress, target date, ...). Since engineerId is a
+    // required field, forgetting that one unrelated dropdown meant
+    // "Save Changes" would silently fail validation -- from the outside
+    // that looks exactly like "the edit dialog doesn't work", not like
+    // a missing field. Also re-runs once userStore.users finishes
+    // loading, in case the dialog was opened before that resolved.
+    const currentEngineer = userStore.users.find((user) => user.name === props.project.engineer)
+    form.engineerId = currentEngineer?.id ?? ''
   },
+  { immediate: true },
 )
 
 function closeDialog(): void {
