@@ -797,6 +797,7 @@ function openProject(projectId: string): void {
       <ClientIdentificationEditDialog
         v-model="isIdentificationDialogOpen"
         :identification="identificationDialogTarget ?? undefined"
+        :client-type="client.clientType"
         :loading="isIdentificationSaving"
         @confirm="handleConfirmIdentification"
       />
