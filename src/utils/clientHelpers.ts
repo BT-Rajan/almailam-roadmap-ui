@@ -106,6 +106,39 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
   }
 }
 
+/**
+ * Verifications are append-only history (see client_service.py's
+ * create_verification -- re-verifying something adds a new row, it
+ * never edits or removes the old one, on purpose, so the audit trail
+ * of who checked what and when is never lost). That's correct for the
+ * Verification tab's own display, but calculateOnboardingState() below
+ * needs to know the CURRENT state of each item, not its whole history --
+ * without this, a document that was Pending and later re-verified as
+ * Verified would still count as pending forever, because the old
+ * Pending row is still sitting in the list. Same bug, worse
+ * consequence, for Rejected: a client could get permanently stuck in
+ * the Rejected onboarding state even after the actual problem was
+ * fixed and re-verified, since the stale Rejected row never goes away
+ * on its own.
+ *
+ * Dedupes to one entry per item -- keyed by documentId when the
+ * verification is tied to a specific document (matching how the
+ * backend already keeps that document's own verification_status in
+ * sync with its latest check), or by the item name otherwise -- keeping
+ * only the most recent by verifiedDate.
+ */
+function latestVerificationPerItem(verifications: ClientVerification[]): ClientVerification[] {
+  const latestByKey = new Map<string, ClientVerification>()
+  for (const verification of verifications) {
+    const key = verification.documentId ?? `item:${verification.item.trim().toLowerCase()}`
+    const existing = latestByKey.get(key)
+    if (!existing || new Date(verification.verifiedDate) > new Date(existing.verifiedDate)) {
+      latestByKey.set(key, verification)
+    }
+  }
+  return Array.from(latestByKey.values())
+}
+
 export function calculateOnboardingState(
   client: Client,
   documents: ClientDocument[],
@@ -118,13 +151,14 @@ export function calculateOnboardingState(
   }
 
   const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses })
-  const hasRejectedVerification = verifications.some((verification) => verification.result === 'Rejected')
-  const hasPendingVerification = verifications.some((verification) => verification.result === 'Pending')
+  const currentVerifications = latestVerificationPerItem(verifications)
+  const hasRejectedVerification = currentVerifications.some((verification) => verification.result === 'Rejected')
+  const hasPendingVerification = currentVerifications.some((verification) => verification.result === 'Pending')
 
   if (hasRejectedVerification) return 'Rejected'
   if (summary.missingItems.some((item) => item.toLowerCase().includes('document'))) return 'Documents Required'
   if (summary.missingItems.length > 0) return 'Information Required'
   if (hasPendingVerification) return 'Verification Required'
-  if (verifications.length === 0) return 'Under Review'
+  if (currentVerifications.length === 0) return 'Under Review'
   return 'Ready'
 }
