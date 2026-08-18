@@ -10,12 +10,13 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import TaskList from '@/components/task/TaskList.vue'
-import { CURRENT_USER_NAME } from '@/constants/team'
 import type { TaskInput } from '@/services/taskService'
+import { useAuthStore } from '@/stores/authStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 
+const authStore = useAuthStore()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const isCreateDialogOpen = ref(false)
@@ -39,31 +40,60 @@ onMounted(() => {
   if (taskStore.tasks.length === 0) loadData()
 })
 
-function handleStatusChange(status: TaskStatus): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+async function handleStatusChange(status: TaskStatus): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update status', detail)
+  }
 }
 
-function handlePriorityChange(priority: TaskPriority): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+async function handlePriorityChange(priority: TaskPriority): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update priority', detail)
+  }
 }
 
-function handleSeverityChange(severity: TaskSeverity): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update severity', detail)
+  }
 }
 
-function handleReassign(assignee: string): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+async function handleReassign(assignee: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to reassign task', detail)
+  }
 }
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
-  const task = await taskStore.createTask(input)
-  toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+  try {
+    const task = await taskStore.createTask(input)
+    toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to create task', detail)
+  }
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="My Tasks" :subtitle="`Work items assigned to ${CURRENT_USER_NAME}, sorted by due date.`">
+    <PageHeader title="My Tasks" :subtitle="`Work items assigned to ${authStore.user?.name ?? 'you'}, sorted by due date.`">
       <template #actions>
         <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">Add Task</BaseButton>
       </template>

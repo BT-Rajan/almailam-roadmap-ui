@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 
-import { CURRENT_USER_NAME } from '@/constants/team'
 import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
 import type { TaskInput } from '@/services/taskService'
+import { useAuthStore } from '@/stores/authStore'
 import type { Project } from '@/types/Project'
 import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 
@@ -68,8 +68,11 @@ export const useTaskStore = defineStore('task', {
     },
 
     myTasks(state): Task[] {
+      const authStore = useAuthStore()
+      const myName = authStore.user?.name
+      if (!myName) return []
       return [...state.tasks]
-        .filter((task) => task.assignedTo === CURRENT_USER_NAME)
+        .filter((task) => task.assignedTo === myName)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     },
 
@@ -105,24 +108,35 @@ export const useTaskStore = defineStore('task', {
       this.selectedTaskId = undefined
     },
 
-    updateTaskStatus(taskId: string, status: TaskStatus) {
-      const task = this.tasks.find((item) => item.id === taskId)
-      if (task) task.status = status
+    // Previously all four of these (status/priority/severity/assignee)
+    // only mutated the in-memory task, never called the backend at all
+    // -- every change made through the Task Details drawer was
+    // completely lost the moment the page was reloaded, even though
+    // taskService.updateTask() already existed, fully built and
+    // correct, and nothing ever called it.
+    async updateTaskStatus(taskId: string, status: TaskStatus, reason?: string) {
+      const updated = await taskService.updateTask(taskId, { status, reason })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 
-    updateTaskPriority(taskId: string, priority: TaskPriority) {
-      const task = this.tasks.find((item) => item.id === taskId)
-      if (task) task.priority = priority
+    async updateTaskPriority(taskId: string, priority: TaskPriority) {
+      const updated = await taskService.updateTask(taskId, { priority })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 
-    updateTaskSeverity(taskId: string, severity: TaskSeverity) {
-      const task = this.tasks.find((item) => item.id === taskId)
-      if (task) task.severity = severity
+    async updateTaskSeverity(taskId: string, severity: TaskSeverity) {
+      const updated = await taskService.updateTask(taskId, { severity })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 
-    updateTaskAssignee(taskId: string, assignedTo: string) {
-      const task = this.tasks.find((item) => item.id === taskId)
-      if (task) task.assignedTo = assignedTo
+    // Takes a real user id (e.g. "USR-004"), not a display name --
+    // matches what taskService.createTask() already correctly requires
+    // (the backend resolves assignedTo to a user id server-side; it was
+    // only ever the frontend's TaskFormDialog/TaskAssignmentCard that
+    // were sending a name from a hardcoded fake team list instead).
+    async updateTaskAssignee(taskId: string, assignedToUserId: string) {
+      const updated = await taskService.updateTask(taskId, { assignedTo: assignedToUserId })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 
     async createTask(input: TaskInput): Promise<Task> {

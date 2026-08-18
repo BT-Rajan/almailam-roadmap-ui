@@ -7,9 +7,11 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { CURRENT_USER_NAME } from '@/constants/team'
+import { useAuthStore } from '@/stores/authStore'
 import type { TimelineEvent, TimelineEventStatus } from '@/types/Timeline'
 import type { SelectOption } from '@/types/Ui'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   modelValue: boolean
@@ -69,7 +71,7 @@ function submit(): void {
     description: comment.value.trim() || undefined,
     date: date.value,
     status: status.value,
-    user: props.event?.user ?? CURRENT_USER_NAME,
+    user: props.event?.user ?? authStore.user?.name ?? 'Unknown',
   }
 
   emit('save', savedEvent)

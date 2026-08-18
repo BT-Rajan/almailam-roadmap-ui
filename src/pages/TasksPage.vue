@@ -13,11 +13,11 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
-import { TEAM_MEMBERS } from '@/constants/team'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { TaskInput } from '@/services/taskService'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useUserStore } from '@/stores/userStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
 import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
@@ -25,6 +25,10 @@ import type { SelectOption } from '@/types/Ui'
 const router = useRouter()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
+const userStore = useUserStore()
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
 const isCreateDialogOpen = ref(false)
 
 const PRIORITY_OPTIONS: SelectOption[] = [
@@ -39,9 +43,14 @@ const projectOptions = computed<SelectOption[]>(() => [
   ...taskStore.projects.map((project) => ({ label: project.projectName, value: project.id })),
 ])
 
+// Values here are display names, not user ids -- this only filters the
+// already-loaded task list client-side (taskStore.filteredTasks
+// compares task.assignedTo, which is always a resolved name), unlike
+// TaskFormDialog/TaskAssignmentCard which write an assignment back to
+// the backend and need real ids for that.
 const assigneeOptions = computed<SelectOption[]>(() => [
   { label: 'All Assignees', value: 'All' },
-  ...TEAM_MEMBERS.map((member) => ({ label: member.name, value: member.name })),
+  ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.name })),
 ])
 
 const isDrawerOpen = computed({
@@ -74,25 +83,54 @@ function advanceTask(taskId: string): void {
   if (next) taskStore.updateTaskStatus(taskId, next)
 }
 
-function handleStatusChange(status: TaskStatus): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+async function handleStatusChange(status: TaskStatus): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update status', detail)
+  }
 }
 
-function handlePriorityChange(priority: TaskPriority): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+async function handlePriorityChange(priority: TaskPriority): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update priority', detail)
+  }
 }
 
-function handleSeverityChange(severity: TaskSeverity): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update severity', detail)
+  }
 }
 
-function handleReassign(assignee: string): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+async function handleReassign(assignee: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to reassign task', detail)
+  }
 }
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
-  const task = await taskStore.createTask(input)
-  toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+  try {
+    const task = await taskStore.createTask(input)
+    toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to create task', detail)
+  }
 }
 </script>
 

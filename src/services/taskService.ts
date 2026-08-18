@@ -75,10 +75,12 @@ async function createTask(input: TaskInput): Promise<Task> {
   }
 }
 
+export type TaskUpdateInput = Partial<TaskInput> & { reason?: string }
+
 /**
  * Update a task via backend API
  */
-async function updateTask(taskId: string, input: Partial<TaskInput>): Promise<Task> {
+async function updateTask(taskId: string, input: TaskUpdateInput): Promise<Task> {
   try {
     return await apiClient.patch<Task>(`/api/tasks/${taskId}`, input)
   } catch (error) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -7,7 +7,8 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
-import { CURRENT_USER_NAME, TEAM_MEMBERS } from '@/constants/team'
+import { useAuthStore } from '@/stores/authStore'
+import { useUserStore } from '@/stores/userStore'
 import type { TaskInput } from '@/services/taskService'
 import type { Project } from '@/types/Project'
 import type { TaskPriority, TaskSeverity } from '@/types/Task'
@@ -37,9 +38,22 @@ const emit = defineEmits<{
   create: [task: TaskInput]
 }>()
 
+const authStore = useAuthStore()
+const userStore = useUserStore()
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
+
 const title = ref('')
 const projectId = ref('')
-const assignedTo = ref(CURRENT_USER_NAME)
+// A real user id (e.g. "USR-004"), not a display name -- the backend
+// resolves assignedTo to a real user server-side (task_service.py's
+// _resolve_assignee), so sending anything else fails validation
+// outright. This previously defaulted to, and only ever offered,
+// five hardcoded fake names from src/constants/team.ts that didn't
+// correspond to any real account -- meaning creating a task here could
+// never actually succeed.
+const assignedTo = ref('')
 const priority = ref<TaskPriority>('Medium')
 const severity = ref<TaskSeverity>('Minor')
 const dueDate = ref('')
@@ -52,14 +66,13 @@ const projectOptions = computed<SelectOption[]>(() =>
 )
 
 const assigneeOptions = computed<SelectOption[]>(() =>
-  TEAM_MEMBERS.map((member) => ({
-    label: member.name === CURRENT_USER_NAME ? `${member.name} (Me)` : member.name,
-    value: member.name,
-  })),
+  userStore.users
+    .filter((user) => user.status === 'Active')
+    .map((user) => ({ label: user.id === authStore.user?.id ? `${user.name} (Me)` : user.name, value: user.id })),
 )
 
 const canSubmit = computed(
-  () => title.value.trim().length > 0 && projectId.value.length > 0 && dueDate.value.length > 0,
+  () => title.value.trim().length > 0 && projectId.value.length > 0 && assignedTo.value.length > 0 && dueDate.value.length > 0,
 )
 
 watch(
@@ -68,13 +81,14 @@ watch(
     if (isOpen) {
       projectId.value = props.defaultProjectId ?? props.projects[0]?.id ?? ''
       title.value = props.defaultTitle ?? ''
+      assignedTo.value = authStore.user?.id ?? ''
     }
   },
 )
 
 function resetForm(): void {
   title.value = ''
-  assignedTo.value = CURRENT_USER_NAME
+  assignedTo.value = authStore.user?.id ?? ''
   priority.value = 'Medium'
   severity.value = 'Minor'
   dueDate.value = ''

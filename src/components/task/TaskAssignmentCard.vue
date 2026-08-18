@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import Avatar from '@/components/common/Avatar.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
-import { TEAM_MEMBERS } from '@/constants/team'
+import { useUserStore } from '@/stores/userStore'
 import type { SelectOption } from '@/types/Ui'
 
 const props = defineProps<{
@@ -11,15 +11,23 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  reassign: [assignee: string]
+  // A real user id (e.g. "USR-004"), not a display name -- the backend
+  // resolves this to a real user server-side, so the reassignment
+  // dropdown has to work in ids even though `assignedTo` itself (the
+  // task's current, already-resolved assignee) is a display name.
+  reassign: [assigneeUserId: string]
 }>()
 
-const assigneeRole = computed(
-  () => TEAM_MEMBERS.find((member) => member.name === props.assignedTo)?.role ?? 'Team Member',
-)
+const userStore = useUserStore()
+onMounted(() => {
+  if (userStore.users.length === 0) userStore.loadUsers()
+})
+
+const currentAssigneeUser = computed(() => userStore.users.find((user) => user.name === props.assignedTo))
+const assigneeRole = computed(() => currentAssigneeUser.value?.designation ?? currentAssigneeUser.value?.role ?? 'Team Member')
 
 const assigneeOptions = computed<SelectOption[]>(() =>
-  TEAM_MEMBERS.map((member) => ({ label: member.name, value: member.name })),
+  userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.id })),
 )
 </script>
 
@@ -36,7 +44,7 @@ const assigneeOptions = computed<SelectOption[]>(() =>
     </div>
 
     <SelectBox
-      :model-value="assignedTo"
+      :model-value="currentAssigneeUser?.id ?? ''"
       :options="assigneeOptions"
       label="Reassign to"
       @update:model-value="emit('reassign', $event)"
