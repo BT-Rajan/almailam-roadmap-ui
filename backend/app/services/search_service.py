@@ -2,6 +2,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.permissions import has_permission
+from app.models.client import Client
 from app.models.government import GovernmentForm
 from app.models.project import Project
 from app.models.document import ProjectDocument
@@ -20,6 +21,36 @@ def _term(raw: str) -> str:
     # injection concern.
     escaped = raw.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped}%"
+
+
+def _search_clients(db: Session, term: str) -> list[SearchResult]:
+    like = _term(term)
+    digits = "".join(ch for ch in term if ch.isdigit())
+    conditions = [
+        Client.company_name.ilike(like, escape="\\"),
+        Client.contact_person.ilike(like, escape="\\"),
+        Client.email.ilike(like, escape="\\"),
+    ]
+    if digits:
+        conditions.append(Client.mobile.contains(digits))
+    clients = (
+        db.query(Client)
+        .filter(Client.deleted_at.is_(None), or_(*conditions))
+        .order_by(Client.id.asc())
+        .limit(RESULTS_PER_CATEGORY)
+        .all()
+    )
+    return [
+        SearchResult(
+            id=f"CLT-{client.id:03d}",
+            category="Client",
+            title=client.company_name,
+            subtitle=f"{client.client_type} · {client.status}",
+            routeName="client-workspace",
+            params={"clientId": f"CLT-{client.id:03d}"},
+        )
+        for client in clients
+    ]
 
 
 def _search_projects(db: Session, term: str) -> list[SearchResult]:
@@ -176,6 +207,7 @@ def _search_users(db: Session, term: str) -> list[SearchResult]:
 # endpoint requires, so the global search box can never surface data the
 # requesting user isn't otherwise allowed to see.
 _CATEGORY_SEARCHERS = (
+    ("Clients", "view", _search_clients),
     ("Projects", "view", _search_projects),
     ("Documents", "view", _search_documents),
     ("Government", "view", _search_forms),
@@ -194,6 +226,12 @@ def global_search(db: Session, term: str, user_role: str) -> list[SearchResult]:
         if has_permission(user_role, module, action):
             results.extend(searcher(db, term))
     return results
+
+
+def search_clients(db: Session, term: str, user_role: str) -> list[SearchResult]:
+    if not term.strip() or not has_permission(user_role, "Clients", "view"):
+        return []
+    return _search_clients(db, term)
 
 
 def search_projects(db: Session, term: str, user_role: str) -> list[SearchResult]:

@@ -19,6 +19,22 @@ async function search(query: string): Promise<SearchResult[]> {
 }
 
 /**
+ * Search for clients only via the backend API.
+ */
+async function searchClients(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/clients?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search clients:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search clients')
+  }
+}
+
+/**
  * Search for projects only via the backend API.
  */
 async function searchProjects(query: string): Promise<SearchResult[]> {
@@ -68,6 +84,7 @@ async function searchUsers(query: string): Promise<SearchResult[]> {
 
 export const searchService = {
   search,
+  searchClients,
   searchProjects,
   searchDocuments,
   searchUsers,

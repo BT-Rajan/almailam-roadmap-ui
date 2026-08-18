@@ -47,7 +47,7 @@ onMounted(() => {
         @click="searchStore.open"
       >
         <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-        <span class="flex-1 truncate">Search projects, documents, forms...</span>
+        <span class="flex-1 truncate">Search clients, projects, documents...</span>
         <kbd class="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
           Ctrl K
         </kbd>

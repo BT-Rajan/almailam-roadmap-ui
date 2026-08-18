@@ -1,4 +1,4 @@
-export type SearchResultCategory = 'Project' | 'Document' | 'Form' | 'Task' | 'User'
+export type SearchResultCategory = 'Client' | 'Project' | 'Document' | 'Form' | 'Task' | 'User'
 
 export interface SearchResult {
   id: string

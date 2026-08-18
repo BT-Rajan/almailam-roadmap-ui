@@ -23,6 +23,15 @@ def search(
     return search_service.global_search(db, q, current_user.role)
 
 
+@router.get("/clients", response_model=list[SearchResult])
+def search_clients(
+    q: str = QueryTerm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return search_service.search_clients(db, q, current_user.role)
+
+
 @router.get("/projects", response_model=list[SearchResult])
 def search_projects(
     q: str = QueryTerm,

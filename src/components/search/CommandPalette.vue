@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, FolderKanban, Landmark, ListChecks, User } from '@lucide/vue'
+import { Building2, FileText, FolderKanban, Landmark, ListChecks, User } from '@lucide/vue'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -13,6 +13,7 @@ const router = useRouter()
 const paletteRef = ref<HTMLDivElement>()
 
 const CATEGORY_LABELS: Record<SearchResultCategory, string> = {
+  Client: 'Clients',
   Project: 'Projects',
   Document: 'Documents',
   Form: 'Forms',
@@ -21,6 +22,7 @@ const CATEGORY_LABELS: Record<SearchResultCategory, string> = {
 }
 
 const CATEGORY_ICONS: Record<SearchResultCategory, typeof FolderKanban> = {
+  Client: Building2,
   Project: FolderKanban,
   Document: FileText,
   Form: Landmark,
@@ -90,7 +92,7 @@ watch(
         <div class="border-b border-border-light p-3">
           <SearchBox
             :model-value="searchStore.query"
-            placeholder="Search projects, documents, forms, tasks, users..."
+            placeholder="Search clients, projects, documents, forms, tasks, users..."
             :debounce-ms="200"
             @update:model-value="searchStore.query = $event"
             @search="handleSearch"
