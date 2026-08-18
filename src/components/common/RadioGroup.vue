@@ -40,7 +40,13 @@ const containerClasses = computed(() => [
       <p v-if="hint" class="text-xs text-neutral-400 mt-0.5">{{ hint }}</p>
     </div>
     <div :class="containerClasses">
-      <div v-for="option in options" :key="option.value" class="flex items-center gap-2">
+      <label
+        v-for="option in options"
+        :key="option.value"
+        :for="`${groupId}-${option.value}`"
+        class="flex items-center gap-2"
+        :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+      >
         <div class="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-border-default bg-bg-card transition-colors duration-fast">
           <input
             :id="`${groupId}-${option.value}`"
@@ -58,14 +64,14 @@ const containerClasses = computed(() => [
           />
           <div
             v-if="!disabled"
-            class="absolute inset-0 rounded-full hover:bg-bg-hover transition-colors duration-fast"
+            class="absolute inset-0 rounded-full hover:bg-bg-hover transition-colors duration-fast pointer-events-none"
           />
           <div v-if="modelValue === option.value" class="absolute inset-0 rounded-full border-2 border-primary-500/30 pointer-events-none" />
         </div>
-        <label :for="`${groupId}-${option.value}`" class="text-sm text-neutral-700 cursor-pointer" :class="disabled ? 'text-neutral-400' : ''">
+        <span class="text-sm text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
           {{ option.label }}
-        </label>
-      </div>
+        </span>
+      </label>
     </div>
   </div>
 </template>
