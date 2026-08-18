@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { contractService } from '@/services/contractService'
+import type { ContractCreateInput } from '@/services/contractService'
 import type { Contract, ContractAISummary } from '@/types/Contract'
 
 interface ContractStoreState {
@@ -72,6 +73,13 @@ export const useContractStore = defineStore('contract', {
       } finally {
         this.isAiSummaryLoading = false
       }
+    },
+
+    async createContract(input: ContractCreateInput): Promise<Contract> {
+      const contract = await contractService.createContract(input)
+      this.contracts = [...this.contracts, contract]
+      await this.selectContract(contract.id)
+      return contract
     },
   },
 })

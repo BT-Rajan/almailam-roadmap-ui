@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Printer } from '@lucide/vue'
+import { Plus, Printer } from '@lucide/vue'
+import { ref } from 'vue'
 
 import AIResponseCard from '@/components/ai/AIResponseCard.vue'
 import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
@@ -7,18 +8,39 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ContractList from '@/components/project/ContractList.vue'
+import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import { useContractStore } from '@/stores/contractStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 
-defineProps<{
+const props = defineProps<{
   project: Project
   client: Client | undefined
 }>()
 
 const contractStore = useContractStore()
+const toastStore = useToastStore()
+
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
+
+async function handleCreateContract(payload: ContractCreateInput): Promise<void> {
+  isCreating.value = true
+  try {
+    const contract = await contractStore.createContract({ ...payload, projectId: props.project.id })
+    toastStore.show('success', 'Contract created', `${contract.contractNo} was created successfully.`)
+    isCreateDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to create contract', detail)
+  } finally {
+    isCreating.value = false
+  }
+}
 
 function handlePrint(): void {
   window.print()
@@ -26,13 +48,13 @@ function handlePrint(): void {
 </script>
 
 <template>
-  <div class="flex items-center justify-end">
+  <div class="flex items-center justify-between no-print">
+    <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Contract</BaseButton>
     <BaseButton
       v-if="contractStore.selectedContract"
       variant="secondary"
       size="sm"
       :icon="Printer"
-      class="no-print"
       @click="handlePrint"
     >
       Print Contract
@@ -42,7 +64,9 @@ function handlePrint(): void {
   <EmptyState
     v-if="!contractStore.selectedContract"
     title="No contract selected"
-    description="Select a contract from the list to preview it."
+    :description="contractStore.contracts.length === 0 ? 'Create the first contract for this project.' : 'Select a contract from the list to preview it.'"
+    :action-label="contractStore.contracts.length === 0 ? 'New Contract' : undefined"
+    @action="isCreateDialogOpen = true"
   />
 
   <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
@@ -82,4 +106,11 @@ function handlePrint(): void {
       <ContractRevisionHistory :revisions="contractStore.selectedContract.revisions" />
     </div>
   </div>
+
+  <NewContractDialog
+    v-model="isCreateDialogOpen"
+    :default-client-representative="client?.contactPerson"
+    :loading="isCreating"
+    @confirm="handleCreateContract"
+  />
 </template>

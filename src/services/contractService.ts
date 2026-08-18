@@ -49,10 +49,26 @@ async function getContracts(): Promise<Contract[]> {
   }
 }
 
+export interface ContractClauseInput {
+  title: string
+  content: string
+}
+
+export interface ContractCreateInput {
+  projectId: string
+  templateName: string
+  currency: string
+  contractValue: number
+  expiryDate: string
+  clientRepresentative: string
+  scopeSummary: string
+  clauses: ContractClauseInput[]
+}
+
 /**
  * Create a new contract via backend API
  */
-async function createContract(contractData: Partial<Contract>): Promise<Contract> {
+async function createContract(contractData: ContractCreateInput): Promise<Contract> {
   try {
     return await apiClient.post<Contract>('/api/contracts', contractData)
   } catch (error) {
