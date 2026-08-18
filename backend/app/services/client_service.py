@@ -22,6 +22,7 @@ from app.models.client import (
     ClientConsent,
     ClientContact,
     ClientDocument,
+    ClientDocumentVersion,
     ClientIdentification,
     ClientVerification,
 )
@@ -936,6 +937,24 @@ def create_document(
     )
     db.add(document)
     db.flush()
+
+    # Same fix as project documents (document_service.create_document):
+    # record the initial upload as a real version immediately, rather
+    # than only ever having version history if the file is later
+    # replaced.
+    db.add(
+        ClientDocumentVersion(
+            document_id=document.id,
+            version=1,
+            uploaded_by=uploaded_by,
+            upload_date=document.upload_date,
+            notes="Initial upload.",
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+        )
+    )
+
     audit_service.log_event(db, ENTITY_TYPE, client_id, "Document uploaded", uploaded_by, new_value=document.title)
     db.commit()
     db.refresh(document)
@@ -994,11 +1013,15 @@ def delete_document(db: Session, client_id: int, document_id: int, user_id: int 
     db.commit()
 
 
-def replace_document_file(db: Session, client_id: int, document_id: int, file: UploadFile, user_id: int | None) -> ClientDocument:
+def replace_document_file(db: Session, client_id: int, document_id: int, file: UploadFile, notes: str | None, user_id: int | None) -> ClientDocument:
     """Uploads a new file for an existing document record, bumping its
-    version -- a lighter-weight alternative to full version history (no
-    old-version retrieval), but it at least makes the `version` field mean
-    something instead of being permanently stuck at 1."""
+    version. Previously this just overwrote storage_key in place with no
+    history at all -- the old file was never deleted from disk, but
+    there was no way to ever see or recover it again through the app.
+    Now mirrors the same real version-history approach project documents
+    use (document_service.add_version): the old file's own version row
+    was already created either when the document was first uploaded or
+    by a previous replace, so this only needs to add the new one."""
     document = get_document(db, client_id, document_id)
     storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
 
@@ -1008,6 +1031,19 @@ def replace_document_file(db: Session, client_id: int, document_id: int, file: U
     document.version += 1
     document.verification_status = "Pending"  # a replaced file needs re-verifying, not inheriting the old one's status
 
+    db.add(
+        ClientDocumentVersion(
+            document_id=document.id,
+            version=document.version,
+            uploaded_by=user_id,
+            upload_date=datetime.now(timezone.utc),
+            notes=notes.strip() if notes and notes.strip() else f"Replaced with version {document.version}.",
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+        )
+    )
+
     audit_service.log_event(
         db, ENTITY_TYPE, client_id, "Document file replaced", user_id,
         new_value=f"{document.title} (v{document.version})",
@@ -1015,6 +1051,30 @@ def replace_document_file(db: Session, client_id: int, document_id: int, file: U
     db.commit()
     db.refresh(document)
     return document
+
+
+def get_document_versions(db: Session, client_id: int, document_id: int) -> list[ClientDocumentVersion]:
+    document = get_document(db, client_id, document_id)
+    return (
+        db.query(ClientDocumentVersion)
+        .filter(ClientDocumentVersion.document_id == document.id)
+        .order_by(ClientDocumentVersion.id.asc())
+        .all()
+    )
+
+
+def get_document_version_download_target(db: Session, client_id: int, document_id: int, version_id: int) -> tuple:
+    document = get_document(db, client_id, document_id)
+    version = (
+        db.query(ClientDocumentVersion)
+        .filter(ClientDocumentVersion.id == version_id, ClientDocumentVersion.document_id == document.id)
+        .first()
+    )
+    if version is None:
+        raise NotFoundError("Version")
+    if not version.storage_key:
+        raise ValidationAppError("This version has no file on record.")
+    return resolve_path(version.storage_key), version.original_filename
 
 
 def get_document_download_target(db: Session, client_id: int, document_id: int) -> tuple:

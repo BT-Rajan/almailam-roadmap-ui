@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Download, FileText, Pencil, RefreshCw, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
+import { CalendarClock, Download, FileClock, FileText, Pencil, RefreshCw, ShieldCheck, Trash2, UserRound } from '@lucide/vue'
 import { ref } from 'vue'
 
 import Card from '@/components/common/Card.vue'
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   verify: []
   edit: []
   delete: []
+  history: []
   'replace-file': [file: File]
 }>()
 
@@ -51,6 +52,7 @@ function handleFileChange(event: Event): void {
           <StatusBadge :label="document.verificationStatus" :variant="getClientVerificationVariant(document.verificationStatus)" show-dot />
           <IconButton :icon="ShieldCheck" label="Record verification" size="sm" @click="$emit('verify')" />
           <IconButton :icon="Download" label="Download document" size="sm" @click="$emit('download')" />
+          <IconButton :icon="FileClock" label="Version history" size="sm" @click="$emit('history')" />
           <IconButton :icon="RefreshCw" label="Replace file" size="sm" @click="triggerFileSelect" />
           <IconButton :icon="Pencil" label="Edit document" size="sm" @click="$emit('edit')" />
           <IconButton :icon="Trash2" label="Remove document" size="sm" variant="danger" @click="$emit('delete')" />

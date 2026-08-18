@@ -137,6 +137,16 @@ export interface ClientDocument {
   fileSize: string
 }
 
+export interface ClientDocumentVersion {
+  id: string
+  documentId: string
+  version: number
+  uploadedBy: string
+  uploadDate: string
+  notes: string
+  originalFilename: string
+}
+
 export interface OnboardingCheckContext {
   client: Client
   documents: ClientDocument[]

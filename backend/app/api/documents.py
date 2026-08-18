@@ -133,6 +133,12 @@ def list_versions(document_no: str, db: Session = Depends(get_db), _=Depends(can
     ]
 
 
+@router.get("/{document_no}/versions/{version_id}/download")
+def download_version(document_no: str, version_id: int, db: Session = Depends(get_db), _=Depends(can_view)):
+    path, original_filename = document_service.get_version_download_target(db, document_no, version_id)
+    return FileResponse(path, filename=original_filename)
+
+
 @router.post("/{document_no}/versions", response_model=DocumentVersionOut, status_code=201)
 def add_version(
     document_no: str,

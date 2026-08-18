@@ -15,6 +15,7 @@ import type {
   ClientVerificationInput,
 } from '@/services/clientService'
 import { useAuthStore } from '@/stores/authStore'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 import type {
   Client,
   ClientAddress,
@@ -22,6 +23,7 @@ import type {
   ClientConsent,
   ClientContact,
   ClientDocument,
+  ClientDocumentVersion,
   ClientIdentification,
   ClientOnboardingState,
   ClientStatus,
@@ -50,6 +52,7 @@ interface ClientStoreState {
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
   documents: ClientDocument[]
+  documentVersions: ClientDocumentVersion[]
   verifications: ClientVerification[]
   consents: ClientConsent[]
   auditEvents: ClientAuditEvent[]
@@ -78,6 +81,7 @@ export const useClientStore = defineStore('client', {
     addresses: [],
     identifications: [],
     documents: [],
+    documentVersions: [],
     verifications: [],
     consents: [],
     auditEvents: [],
@@ -333,12 +337,16 @@ export const useClientStore = defineStore('client', {
 
     async downloadDocument(clientId: string, documentId: string, filename: string) {
       const blob = await clientService.downloadDocument(clientId, documentId)
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      link.click()
-      URL.revokeObjectURL(url)
+      triggerBlobDownload(blob, filename)
+    },
+
+    async loadDocumentVersions(clientId: string, documentId: string) {
+      this.documentVersions = await clientService.getDocumentVersions(clientId, documentId)
+    },
+
+    async downloadDocumentVersion(clientId: string, documentId: string, versionId: string, filename: string) {
+      const blob = await clientService.downloadDocumentVersion(clientId, documentId, versionId)
+      triggerBlobDownload(blob, filename)
     },
 
     // Advances/changes a client's onboarding state via the backend's

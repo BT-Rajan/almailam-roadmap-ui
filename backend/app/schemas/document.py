@@ -24,6 +24,7 @@ class DocumentOut(BaseModel):
     uploadDate: date
     status: str
     fileSize: str
+    originalFilename: str
 
     @staticmethod
     def from_model(document, project_no: str, uploaded_by_name: str, file_size_display: str) -> "DocumentOut":
@@ -37,6 +38,7 @@ class DocumentOut(BaseModel):
             uploadDate=document.upload_date,
             status=document.status,
             fileSize=file_size_display,
+            originalFilename=document.original_filename,
         )
 
 
@@ -57,16 +59,24 @@ class DocumentVersionOut(BaseModel):
     uploadedBy: str
     uploadDate: date
     notes: str
+    originalFilename: str
 
     @staticmethod
     def from_model(version, document_id_for_numbering: int, document_no: str, uploaded_by_name: str) -> "DocumentVersionOut":
         return DocumentVersionOut(
-            id=f"DOCV-{document_id_for_numbering:03d}-{version.revision.replace('Rev ', '')}",
+            # The real database id, not a synthetic "DOCV-doc-revision"
+            # string -- needed so a specific version can actually be
+            # downloaded (GET .../versions/{id}/download), not just
+            # displayed. The old synthetic id was only ever used as a
+            # Vue :key/equality check on the frontend, never parsed, so
+            # this is safe to change.
+            id=str(version.id),
             documentId=document_no,
             revision=version.revision,
             uploadedBy=uploaded_by_name,
             uploadDate=version.upload_date,
             notes=version.notes,
+            originalFilename=version.original_filename,
         )
 
 

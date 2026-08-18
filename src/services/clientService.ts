@@ -8,6 +8,7 @@ import type {
   ClientConsent,
   ClientContact,
   ClientDocument,
+  ClientDocumentVersion,
   ClientDuplicateMatch,
   ClientIdentification,
   ClientIndividualProfile,
@@ -356,13 +357,15 @@ async function updateDocument(clientId: string, documentId: string, input: Clien
 
 /**
  * Replace a client document's stored file with a new one, bumping its
- * version -- lighter than full version history (no old-version
- * retrieval), but makes the version field mean something.
+ * version. The replaced file's own version is preserved and remains
+ * downloadable -- see getDocumentVersions()/downloadDocumentVersion()
+ * below -- rather than being silently discarded.
  */
-async function replaceDocumentFile(clientId: string, documentId: string, file: File): Promise<ClientDocument> {
+async function replaceDocumentFile(clientId: string, documentId: string, file: File, notes?: string): Promise<ClientDocument> {
   const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('file', file)
+  if (notes) formData.append('notes', notes)
 
   const doRequest = () =>
     fetch(`/api/clients/${clientId}/documents/${documentId}/replace-file`, {
@@ -386,6 +389,45 @@ async function replaceDocumentFile(clientId: string, documentId: string, file: F
   } catch (error) {
     console.error(`Failed to replace file for document ${documentId} on client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to replace document file')
+  }
+}
+
+/**
+ * Fetch the full version history for a client document -- every past
+ * file, not just the current one, each genuinely downloadable via
+ * downloadDocumentVersion() below.
+ */
+async function getDocumentVersions(clientId: string, documentId: string): Promise<ClientDocumentVersion[]> {
+  try {
+    return await apiClient.get<ClientDocumentVersion[]>(`/api/clients/${clientId}/documents/${documentId}/versions`)
+  } catch (error) {
+    console.error(`Failed to fetch versions for document ${documentId} on client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document versions')
+  }
+}
+
+/**
+ * Download one specific past version's file (not necessarily the
+ * current one) -- this is what actually makes version history useful
+ * for recovering a prior revision, not just a read-only log.
+ */
+async function downloadDocumentVersion(clientId: string, documentId: string, versionId: string): Promise<Blob> {
+  const authStore = useAuthStore()
+  try {
+    const response = await fetch(`/api/clients/${clientId}/documents/${documentId}/versions/${versionId}/download`, {
+      method: 'GET',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`)
+    }
+
+    return await response.blob()
+  } catch (error) {
+    console.error(`Failed to download version ${versionId} of document ${documentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to download document version')
   }
 }
 
@@ -634,6 +676,8 @@ export const clientService = {
   createDocument,
   updateDocument,
   replaceDocumentFile,
+  getDocumentVersions,
+  downloadDocumentVersion,
   deleteDocument,
   downloadDocument,
   getVerificationsForClient,

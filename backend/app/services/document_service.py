@@ -36,10 +36,29 @@ def _project_by_no(db: Session, project_no: str) -> Project:
 
 
 def _next_revision_label(current: str) -> str:
-    letter = current.replace("Rev ", "").strip().upper()
-    if len(letter) == 1 and letter.isalpha() and letter != "Z":
-        return f"Rev {chr(ord(letter) + 1)}"
-    return "Rev B"
+    """Spreadsheet-column-style continuation (A, B, ... Z, AA, AB, ... AZ,
+    BA, ...) so revision labels never run out and never collide. The
+    previous version only handled a single letter A-Z and silently reset
+    to "Rev B" the moment it hit Z (or saw anything it didn't recognise)
+    -- meaning a document revised more than 25 times would start
+    reusing earlier labels, making its own version history genuinely
+    ambiguous about which file was which."""
+    letters = current.replace("Rev ", "").strip().upper()
+    if not letters or not letters.isalpha():
+        return "Rev A"
+
+    chars = list(letters)
+    i = len(chars) - 1
+    while i >= 0:
+        if chars[i] != "Z":
+            chars[i] = chr(ord(chars[i]) + 1)
+            break
+        chars[i] = "A"
+        i -= 1
+    else:
+        chars.insert(0, "A")
+
+    return f"Rev {''.join(chars)}"
 
 
 DOCUMENT_SORTABLE_FIELDS = {
@@ -109,6 +128,28 @@ def create_document(
     db.add(document)
     db.flush()
 
+    # The initial upload is itself a real version -- record it as one
+    # immediately, rather than only creating DocumentVersion rows
+    # retroactively whenever a second version happens to be added later
+    # (see add_version() below). Previously, a document that was only
+    # ever uploaded once had ZERO rows in its own version history --
+    # get_versions() returned an empty list even though the document
+    # unambiguously has a real, current version, and the Version History
+    # panel showed "No previous versions" in a way that read as "this
+    # document has no version" rather than "this is the only version".
+    db.add(
+        DocumentVersion(
+            document_id=document.id,
+            revision=document.revision,
+            uploaded_by=user_id,
+            upload_date=document.upload_date,
+            notes="Initial upload.",
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+        )
+    )
+
     audit_service.log_event(db, ENTITY_TYPE, document.id, "Document uploaded", user_id)
     timeline_service.create_system_event(
         db, project.id, "document",
@@ -158,22 +199,36 @@ def get_versions(db: Session, document_id: int) -> list[DocumentVersion]:
     )
 
 
+def get_version_download_target(db: Session, document_no: str, version_id: int):
+    """Version history previously only ever showed metadata (who, when,
+    revision label) -- there was no way to actually retrieve an old
+    version's file through the app at all, despite the file itself
+    genuinely still being on disk (nothing ever deletes it). This is
+    what makes the version history actually useful for recovering a
+    prior revision, not just a read-only log of the fact that changes
+    happened."""
+    document = get_document(db, document_no)
+    version = (
+        db.query(DocumentVersion)
+        .filter(DocumentVersion.id == version_id, DocumentVersion.document_id == document.id)
+        .first()
+    )
+    if version is None:
+        raise NotFoundError("Version")
+    return resolve_path(version.storage_key), version.original_filename
+
+
 def add_version(db: Session, document_no: str, file: UploadFile, notes: str, user_id: int) -> DocumentVersion:
     document = get_document(db, document_no)
 
-    db.add(
-        DocumentVersion(
-            document_id=document.id,
-            revision=document.revision,
-            uploaded_by=document.uploaded_by,
-            upload_date=document.upload_date,
-            notes="Initial upload." if document.revision == "Rev A" else "",
-            storage_key=document.storage_key,
-            original_filename=document.original_filename,
-            file_size_bytes=document.file_size_bytes,
-        )
-    )
-
+    # Every version -- including the initial upload, see create_document()
+    # above -- already has its own DocumentVersion row from the moment it
+    # was created, so this only needs to add the new one. Previously this
+    # function did the archiving itself, retroactively, right before
+    # overwriting the document's current file -- which meant a document
+    # that was never revised past its first upload had no version row at
+    # all (create_document() didn't make one, and add_version() was never
+    # called to retroactively back-fill it).
     storage_key, original_filename, size_bytes = save_upload(file, "documents")
     new_revision = _next_revision_label(document.revision)
 
@@ -186,7 +241,8 @@ def add_version(db: Session, document_no: str, file: UploadFile, notes: str, use
 
     new_version = DocumentVersion(
         document_id=document.id, revision=new_revision, uploaded_by=user_id, upload_date=date.today(),
-        notes=notes, storage_key=storage_key, original_filename=original_filename, file_size_bytes=size_bytes,
+        notes=notes.strip() if notes and notes.strip() else f"Revised to {new_revision}.",
+        storage_key=storage_key, original_filename=original_filename, file_size_bytes=size_bytes,
     )
     db.add(new_version)
 

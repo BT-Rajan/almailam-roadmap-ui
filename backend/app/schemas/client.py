@@ -565,6 +565,28 @@ class ClientDocumentOut(BaseModel):
         )
 
 
+class ClientDocumentVersionOut(BaseModel):
+    id: str
+    documentId: str
+    version: int
+    uploadedBy: str
+    uploadDate: datetime
+    notes: str
+    originalFilename: str
+
+    @staticmethod
+    def from_model(version, uploaded_by_name: str) -> "ClientDocumentVersionOut":
+        return ClientDocumentVersionOut(
+            id=str(version.id),
+            documentId=f"CDOC-{version.document_id:03d}",
+            version=version.version,
+            uploadedBy=uploaded_by_name,
+            uploadDate=version.upload_date,
+            notes=version.notes,
+            originalFilename=version.original_filename,
+        )
+
+
 # Note: client documents are created via multipart/form-data (see
 # POST /api/clients/{client_id}/documents in app/api/clients.py, which takes
 # Form(...)/File(...) params directly) so there is no JSON create schema

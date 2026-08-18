@@ -179,6 +179,21 @@ CREATE TABLE IF NOT EXISTS client_documents (
     INDEX idx_client_documents_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS client_document_versions (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_id         BIGINT UNSIGNED NOT NULL,
+    version             INT UNSIGNED NOT NULL,
+    uploaded_by         BIGINT UNSIGNED NOT NULL,
+    upload_date         DATETIME NOT NULL,
+    notes               VARCHAR(500) NOT NULL DEFAULT '',
+    storage_key         VARCHAR(255) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    CONSTRAINT fk_client_document_versions_document FOREIGN KEY (document_id) REFERENCES client_documents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client_document_versions_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_client_document_versions_document (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS client_verifications (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id       BIGINT UNSIGNED NOT NULL,

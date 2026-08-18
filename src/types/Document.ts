@@ -12,6 +12,7 @@ export interface ProjectDocument {
   uploadDate: string
   status: DocumentStatus
   fileSize: string
+  originalFilename: string
 }
 
 export type DocumentViewMode = 'grid' | 'table'
@@ -23,4 +24,5 @@ export interface DocumentVersion {
   uploadedBy: string
   uploadDate: string
   notes: string
+  originalFilename: string
 }

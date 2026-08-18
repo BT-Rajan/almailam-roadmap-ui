@@ -19,6 +19,7 @@ from app.schemas.client import (
     ClientContactUpdate,
     ClientCreate,
     ClientDocumentOut,
+    ClientDocumentVersionOut,
     ClientDocumentUpdate,
     ClientDuplicateCheckRequest,
     ClientDuplicateMatchOut,
@@ -403,15 +404,40 @@ def replace_document_file(
     client_id: str,
     document_id: str,
     file: UploadFile = File(...),
+    notes: str = Form(""),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
     document = client_service.replace_document_file(
-        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), file, current_user.id
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), file, notes, current_user.id
     )
     uploader = db.query(User).filter(User.id == document.uploaded_by).first()
     uploader_name = uploader.full_name if uploader else "Unknown"
     return ClientDocumentOut.from_model(document, uploader_name, format_file_size(document.file_size_bytes))
+
+
+@router.get("/{client_id}/documents/{document_id}/versions", response_model=list[ClientDocumentVersionOut])
+def list_document_versions(client_id: str, document_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    versions = client_service.get_document_versions(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id)
+    )
+    names = {u.id: u.full_name for u in db.query(User).filter(
+        User.id.in_({v.uploaded_by for v in versions})
+    ).all()} if versions else {}
+    return [
+        ClientDocumentVersionOut.from_model(v, names.get(v.uploaded_by, "Unknown"))
+        for v in versions
+    ]
+
+
+@router.get("/{client_id}/documents/{document_id}/versions/{version_id}/download")
+def download_document_version(
+    client_id: str, document_id: str, version_id: int, db: Session = Depends(get_db), _=Depends(can_view)
+):
+    path, original_filename = client_service.get_document_version_download_target(
+        db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), version_id
+    )
+    return FileResponse(path, filename=original_filename)
 
 
 @router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])

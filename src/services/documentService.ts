@@ -165,6 +165,31 @@ async function downloadDocument(documentId: string): Promise<Blob> {
   }
 }
 
+/**
+ * Download a specific past version's file (not necessarily the current
+ * one) -- the download endpoint existed on the backend but nothing on
+ * the frontend ever called it.
+ */
+async function downloadVersion(documentId: string, versionId: string): Promise<Blob> {
+  try {
+    const response = await fetch(`/api/documents/${documentId}/versions/${versionId}/download`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`)
+    }
+
+    return await response.blob()
+  } catch (error) {
+    console.error(`Failed to download version ${versionId} of document ${documentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to download document version')
+  }
+}
+
 export const documentService = {
   getDocuments,
   getDocumentsPage,
@@ -174,4 +199,5 @@ export const documentService = {
   uploadDocument,
   deleteDocument,
   downloadDocument,
+  downloadVersion,
 }

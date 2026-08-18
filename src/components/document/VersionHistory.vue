@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { FileClock } from '@lucide/vue'
+import { Download, FileClock } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { DocumentVersion } from '@/types/Document'
 import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
   versions: DocumentVersion[]
+}>()
+
+defineEmits<{
+  download: [version: DocumentVersion]
 }>()
 
 function isCurrentVersion(version: DocumentVersion): boolean {
@@ -26,9 +31,12 @@ function isCurrentVersion(version: DocumentVersion): boolean {
 
     <ul v-else class="flex flex-col gap-4">
       <li v-for="version in [...versions].reverse()" :key="version.id" class="flex flex-col gap-1 border-l-2 border-border-light pl-3">
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-neutral-800">{{ version.revision }}</span>
-          <StatusBadge v-if="isCurrentVersion(version)" label="Current" variant="success" size="sm" />
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-neutral-800">{{ version.revision }}</span>
+            <StatusBadge v-if="isCurrentVersion(version)" label="Current" variant="success" size="sm" />
+          </div>
+          <IconButton :icon="Download" label="Download this version" size="sm" @click="$emit('download', version)" />
         </div>
         <p class="text-xs text-neutral-500">{{ version.uploadedBy }} · {{ formatDate(version.uploadDate) }}</p>
         <p class="text-sm text-neutral-600">{{ version.notes }}</p>

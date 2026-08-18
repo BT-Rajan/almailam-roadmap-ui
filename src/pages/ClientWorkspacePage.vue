@@ -31,6 +31,7 @@ const ClientIdentificationList = defineAsyncComponent(() => import('@/components
 const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
 const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
 const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
+const ClientDocumentVersionDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentVersionDialog.vue'))
 const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
@@ -46,6 +47,7 @@ import type {
   ClientContact,
   ClientDocument,
   ClientDocumentCategory,
+  ClientDocumentVersion,
   ClientDuplicateMatch,
   ClientIdentification,
   ClientOnboardingState,
@@ -223,6 +225,35 @@ async function handleReplaceDocumentFile(document: ClientDocument, file: File): 
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
     resultDialogStore.showError('Failed to replace file', detail)
+  }
+}
+
+const isVersionHistoryOpen = ref(false)
+const isVersionHistoryLoading = ref(false)
+const versionHistoryDocument = ref<ClientDocument | undefined>(undefined)
+
+async function openVersionHistory(document: ClientDocument): Promise<void> {
+  if (!client.value) return
+  versionHistoryDocument.value = document
+  isVersionHistoryOpen.value = true
+  isVersionHistoryLoading.value = true
+  try {
+    await clientStore.loadDocumentVersions(client.value.id, document.id)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to load version history', detail)
+  } finally {
+    isVersionHistoryLoading.value = false
+  }
+}
+
+async function handleDownloadVersion(version: ClientDocumentVersion): Promise<void> {
+  if (!client.value || !versionHistoryDocument.value) return
+  try {
+    await clientStore.downloadDocumentVersion(client.value.id, versionHistoryDocument.value.id, version.id, version.originalFilename)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to download version', detail)
   }
 }
 
@@ -733,10 +764,18 @@ function createProjectForClient(): void {
             @verify="openVerificationDialog(document)"
             @edit="openDocumentEditDialog(document)"
             @delete="requestDelete('document', document.id, document.title)"
+            @history="openVersionHistory(document)"
             @replace-file="(file) => handleReplaceDocumentFile(document, file)"
           />
         </div>
         <ClientDocumentUploadDialog v-model="isUploadDialogOpen" @upload="handleDocumentUpload" />
+        <ClientDocumentVersionDialog
+          v-model="isVersionHistoryOpen"
+          :document="versionHistoryDocument"
+          :versions="clientStore.documentVersions"
+          :loading="isVersionHistoryLoading"
+          @download="handleDownloadVersion"
+        />
       </template>
 
       <template v-else-if="activeTab === 'verification'">

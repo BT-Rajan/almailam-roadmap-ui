@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessageSquare, Sparkles } from '@lucide/vue'
+import { Download, MessageSquare, Sparkles } from '@lucide/vue'
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -14,10 +14,13 @@ import PDFViewer from '@/components/document/PDFViewer.vue'
 import VersionHistory from '@/components/document/VersionHistory.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { DocumentVersion } from '@/types/Document'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const toastStore = useToastStore()
 
 const documentId = computed(() => route.params.documentId as string)
 
@@ -35,6 +38,24 @@ watch(documentId, loadData)
 function openReview(): void {
   router.push({ name: ROUTE_NAMES.DOCUMENT_REVIEW, params: { documentId: documentId.value } })
 }
+
+async function handleDownload(): Promise<void> {
+  try {
+    await documentStore.downloadCurrentDocument()
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to download document', detail)
+  }
+}
+
+async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
+  try {
+    await documentStore.downloadVersion(version.id, version.originalFilename)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to download version', detail)
+  }
+}
 </script>
 
 <template>
@@ -44,6 +65,7 @@ function openReview(): void {
       :subtitle="documentStore.currentDocument ? `${documentStore.currentDocument.type} · ${documentStore.currentDocument.revision}` : undefined"
     >
       <template v-if="documentStore.currentDocument" #actions>
+        <BaseButton :icon="Download" variant="secondary" @click="handleDownload">Download</BaseButton>
         <BaseButton :icon="Sparkles" variant="secondary" @click="openReview">AI Review</BaseButton>
       </template>
     </PageHeader>
@@ -80,7 +102,7 @@ function openReview(): void {
 
       <div class="flex flex-col gap-6">
         <MetadataPanel :document="documentStore.currentDocument" :project-name="projectName" />
-        <VersionHistory :versions="documentStore.currentVersions" />
+        <VersionHistory :versions="documentStore.currentVersions" @download="handleDownloadVersion" />
       </div>
     </div>
   </div>

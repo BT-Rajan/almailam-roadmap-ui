@@ -203,6 +203,28 @@ class ClientDocument(Base, SoftDeleteMixin):
     file_size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
 
 
+class ClientDocumentVersion(Base):
+    """Mirrors app/models/document.py's DocumentVersion for project
+    documents -- client documents previously had none of this: replacing
+    a file just bumped the version number and overwrote storage_key in
+    place, with no history and no way to ever recover the file that was
+    replaced (even though it was never actually deleted from disk)."""
+
+    __tablename__ = "client_document_versions"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("client_documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    uploaded_by: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    upload_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
+
+
 class ClientVerification(Base):
     __tablename__ = "client_verifications"
 

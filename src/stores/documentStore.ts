@@ -6,6 +6,7 @@ import { projectService } from '@/services/projectService'
 import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, ProjectDocument } from '@/types/Document'
 import type { DocumentAIReview } from '@/types/AiReview'
 import type { Project } from '@/types/Project'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 
 interface DocumentPaginationState {
   page: number
@@ -149,6 +150,18 @@ export const useDocumentStore = defineStore('document', {
       } finally {
         this.isDetailLoading = false
       }
+    },
+
+    async downloadCurrentDocument(): Promise<void> {
+      if (!this.currentDocument) return
+      const blob = await documentService.downloadDocument(this.currentDocument.id)
+      triggerBlobDownload(blob, this.currentDocument.originalFilename)
+    },
+
+    async downloadVersion(versionId: string, filename: string): Promise<void> {
+      if (!this.currentDocument) return
+      const blob = await documentService.downloadVersion(this.currentDocument.id, versionId)
+      triggerBlobDownload(blob, filename)
     },
 
     async loadDocumentReview(documentId: string) {
