@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -12,8 +13,10 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
+import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
@@ -38,6 +41,22 @@ const submissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
+
+async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {
+  isCreating.value = true
+  try {
+    const submission = await submissionStore.createSubmission(payload)
+    toastStore.show('success', 'Submission created', `${submission.submissionNo} was created successfully.`)
+    isCreateDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to create submission', detail)
+  } finally {
+    isCreating.value = false
+  }
+}
 const isWithdrawDialogOpen = ref(false)
 const withdrawReason = ref('')
 
@@ -156,6 +175,19 @@ async function confirmWithdraw(): Promise<void> {
     <PageHeader
       title="Government Submission Workspace"
       subtitle="Track every government submission from draft through approval."
+    >
+      <template #actions>
+        <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Submission</BaseButton>
+      </template>
+    </PageHeader>
+
+    <NewSubmissionDialog
+      v-model="isCreateDialogOpen"
+      :projects="submissionStore.projects"
+      :authorities="submissionStore.authorities"
+      :forms="submissionStore.forms"
+      :loading="isCreating"
+      @confirm="handleCreateSubmission"
     />
 
     <FilterBar

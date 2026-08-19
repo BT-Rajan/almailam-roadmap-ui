@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { governmentFormService } from '@/services/governmentFormService'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
+import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { projectService } from '@/services/projectService'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
@@ -136,6 +137,12 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       } finally {
         this.isMutating = false
       }
+    },
+
+    async createSubmission(input: SubmissionCreateInput): Promise<GovernmentSubmission> {
+      const submission = await governmentSubmissionService.createSubmission(input)
+      this.submissions = [submission, ...this.submissions]
+      return submission
     },
   },
 })

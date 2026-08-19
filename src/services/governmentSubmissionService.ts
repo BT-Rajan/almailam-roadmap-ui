@@ -25,10 +25,18 @@ async function getSubmissionsByProject(projectId: string): Promise<GovernmentSub
   }
 }
 
+export interface SubmissionCreateInput {
+  projectId: string
+  authorityId: string
+  formId: string
+  expectedDecisionDate?: string
+  notes?: string
+}
+
 /**
  * Create a new government submission via backend API
  */
-async function createSubmission(submissionData: Partial<GovernmentSubmission>): Promise<GovernmentSubmission> {
+async function createSubmission(submissionData: SubmissionCreateInput): Promise<GovernmentSubmission> {
   try {
     return await apiClient.post<GovernmentSubmission>('/api/submissions', submissionData)
   } catch (error) {
