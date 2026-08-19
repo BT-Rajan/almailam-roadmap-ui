@@ -12,7 +12,18 @@ interface SearchStoreState {
   requestId: number
 }
 
-const CATEGORY_ORDER: SearchResultCategory[] = ['Client', 'Project', 'Document', 'Form', 'Task', 'User']
+const CATEGORY_ORDER: SearchResultCategory[] = [
+  'Client',
+  'Project',
+  'Document',
+  'Form',
+  'Task',
+  'Contract',
+  'Quotation',
+  'Submission',
+  'Payment',
+  'User',
+]
 
 export const useSearchStore = defineStore('search', {
   state: (): SearchStoreState => ({

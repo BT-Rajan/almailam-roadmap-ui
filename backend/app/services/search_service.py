@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.core.permissions import has_permission
 from app.models.client import Client
-from app.models.government import GovernmentForm
+from app.models.contract import Contract
+from app.models.government import GovernmentForm, GovernmentSubmission
+from app.models.payment import Payment
 from app.models.project import Project
 from app.models.document import ProjectDocument
+from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.search import SearchResult
@@ -174,6 +177,131 @@ def _search_tasks(db: Session, term: str) -> list[SearchResult]:
     ]
 
 
+def _project_numbers(db: Session, project_ids: set[int]) -> dict[int, str]:
+    if not project_ids:
+        return {}
+    return {
+        project.id: project.project_no
+        for project in db.query(Project).filter(Project.id.in_(project_ids)).all()
+    }
+
+
+def _search_contracts(db: Session, term: str) -> list[SearchResult]:
+    like = _term(term)
+    contracts = (
+        db.query(Contract)
+        .filter(
+            Contract.deleted_at.is_(None),
+            or_(
+                Contract.contract_no.ilike(like, escape="\\"),
+                Contract.template_name.ilike(like, escape="\\"),
+                Contract.client_representative.ilike(like, escape="\\"),
+            ),
+        )
+        .order_by(Contract.id.asc())
+        .limit(RESULTS_PER_CATEGORY)
+        .all()
+    )
+    if not contracts:
+        return []
+
+    project_nos = _project_numbers(db, {contract.project_id for contract in contracts})
+    return [
+        SearchResult(
+            id=contract.contract_no,
+            category="Contract",
+            title=contract.contract_no,
+            subtitle=f"{contract.template_name} · {contract.status}",
+            routeName="project-workspace",
+            params={"projectId": project_nos.get(contract.project_id, "")},
+            query={"tab": "contract"},
+        )
+        for contract in contracts
+        if contract.project_id in project_nos
+    ]
+
+
+def _search_quotations(db: Session, term: str) -> list[SearchResult]:
+    like = _term(term)
+    quotations = (
+        db.query(Quotation)
+        .filter(
+            Quotation.deleted_at.is_(None),
+            Quotation.quotation_no.ilike(like, escape="\\"),
+        )
+        .order_by(Quotation.id.asc())
+        .limit(RESULTS_PER_CATEGORY)
+        .all()
+    )
+    if not quotations:
+        return []
+
+    project_nos = _project_numbers(db, {quotation.project_id for quotation in quotations})
+    return [
+        SearchResult(
+            id=quotation.quotation_no,
+            category="Quotation",
+            title=quotation.quotation_no,
+            subtitle=f"Rev {quotation.revision} · {quotation.status}",
+            routeName="project-workspace",
+            params={"projectId": project_nos.get(quotation.project_id, "")},
+            query={"tab": "quotation"},
+        )
+        for quotation in quotations
+        if quotation.project_id in project_nos
+    ]
+
+
+def _search_submissions(db: Session, term: str) -> list[SearchResult]:
+    like = _term(term)
+    submissions = (
+        db.query(GovernmentSubmission)
+        .filter(
+            GovernmentSubmission.deleted_at.is_(None),
+            GovernmentSubmission.submission_no.ilike(like, escape="\\"),
+        )
+        .order_by(GovernmentSubmission.id.asc())
+        .limit(RESULTS_PER_CATEGORY)
+        .all()
+    )
+    return [
+        SearchResult(
+            id=submission.submission_no,
+            category="Submission",
+            title=submission.submission_no,
+            subtitle=submission.status,
+            routeName="government-submissions",
+        )
+        for submission in submissions
+    ]
+
+
+def _search_payments(db: Session, term: str) -> list[SearchResult]:
+    like = _term(term)
+    payments = (
+        db.query(Payment)
+        .filter(
+            or_(
+                Payment.reference_number.ilike(like, escape="\\"),
+                Payment.payer.ilike(like, escape="\\"),
+            )
+        )
+        .order_by(Payment.id.asc())
+        .limit(RESULTS_PER_CATEGORY)
+        .all()
+    )
+    return [
+        SearchResult(
+            id=f"PAY-{payment.id:03d}",
+            category="Payment",
+            title=payment.reference_number or f"Payment from {payment.payer}",
+            subtitle=f"{payment.payer} · {payment.payment_mode}",
+            routeName="payments",
+        )
+        for payment in payments
+    ]
+
+
 def _search_users(db: Session, term: str) -> list[SearchResult]:
     like = _term(term)
     users = (
@@ -204,14 +332,20 @@ def _search_users(db: Session, term: str) -> list[SearchResult]:
 
 
 # Each category is gated behind the same permission the module's own list
-# endpoint requires, so the global search box can never surface data the
-# requesting user isn't otherwise allowed to see.
+# endpoint requires (see require_permission(...) calls in api/contracts.py,
+# api/quotations.py, api/submissions.py, api/payments.py, etc.), so the
+# global search box can never surface data the requesting user isn't
+# otherwise allowed to see.
 _CATEGORY_SEARCHERS = (
     ("Clients", "view", _search_clients),
     ("Projects", "view", _search_projects),
     ("Documents", "view", _search_documents),
     ("Government", "view", _search_forms),
     ("Projects", "view", _search_tasks),
+    ("Projects", "view", _search_contracts),
+    ("Projects", "view", _search_quotations),
+    ("Government", "view", _search_submissions),
+    ("Finance", "view", _search_payments),
     ("Administration", "view", _search_users),
 )
 
@@ -250,3 +384,27 @@ def search_users(db: Session, term: str, user_role: str) -> list[SearchResult]:
     if not term.strip() or not has_permission(user_role, "Administration", "view"):
         return []
     return _search_users(db, term)
+
+
+def search_contracts(db: Session, term: str, user_role: str) -> list[SearchResult]:
+    if not term.strip() or not has_permission(user_role, "Projects", "view"):
+        return []
+    return _search_contracts(db, term)
+
+
+def search_quotations(db: Session, term: str, user_role: str) -> list[SearchResult]:
+    if not term.strip() or not has_permission(user_role, "Projects", "view"):
+        return []
+    return _search_quotations(db, term)
+
+
+def search_submissions(db: Session, term: str, user_role: str) -> list[SearchResult]:
+    if not term.strip() or not has_permission(user_role, "Government", "view"):
+        return []
+    return _search_submissions(db, term)
+
+
+def search_payments(db: Session, term: str, user_role: str) -> list[SearchResult]:
+    if not term.strip() or not has_permission(user_role, "Finance", "view"):
+        return []
+    return _search_payments(db, term)

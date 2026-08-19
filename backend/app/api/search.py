@@ -57,3 +57,39 @@ def search_users(
     current_user: User = Depends(get_current_user),
 ):
     return search_service.search_users(db, q, current_user.role)
+
+
+@router.get("/contracts", response_model=list[SearchResult])
+def search_contracts(
+    q: str = QueryTerm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return search_service.search_contracts(db, q, current_user.role)
+
+
+@router.get("/quotations", response_model=list[SearchResult])
+def search_quotations(
+    q: str = QueryTerm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return search_service.search_quotations(db, q, current_user.role)
+
+
+@router.get("/submissions", response_model=list[SearchResult])
+def search_submissions(
+    q: str = QueryTerm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return search_service.search_submissions(db, q, current_user.role)
+
+
+@router.get("/payments", response_model=list[SearchResult])
+def search_payments(
+    q: str = QueryTerm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return search_service.search_payments(db, q, current_user.role)

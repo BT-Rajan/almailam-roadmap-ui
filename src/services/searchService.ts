@@ -82,10 +82,78 @@ async function searchUsers(query: string): Promise<SearchResult[]> {
   }
 }
 
+/**
+ * Search for contracts only via the backend API.
+ */
+async function searchContracts(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/contracts?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search contracts:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search contracts')
+  }
+}
+
+/**
+ * Search for quotations only via the backend API.
+ */
+async function searchQuotations(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/quotations?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search quotations:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search quotations')
+  }
+}
+
+/**
+ * Search for government submissions only via the backend API.
+ */
+async function searchSubmissions(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/submissions?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search submissions:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search submissions')
+  }
+}
+
+/**
+ * Search for payments only via the backend API.
+ */
+async function searchPayments(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query.trim()) {
+      return []
+    }
+
+    return await apiClient.get<SearchResult[]>(`/api/search/payments?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Failed to search payments:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to search payments')
+  }
+}
+
 export const searchService = {
   search,
   searchClients,
   searchProjects,
   searchDocuments,
   searchUsers,
+  searchContracts,
+  searchQuotations,
+  searchSubmissions,
+  searchPayments,
 }

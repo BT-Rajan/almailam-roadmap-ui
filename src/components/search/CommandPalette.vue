@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { Building2, FileText, FolderKanban, Landmark, ListChecks, User } from '@lucide/vue'
+import {
+  Building2,
+  ClipboardCheck,
+  FileSignature,
+  FileText,
+  FolderKanban,
+  Landmark,
+  ListChecks,
+  Receipt,
+  User,
+  Wallet,
+} from '@lucide/vue'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -18,6 +29,10 @@ const CATEGORY_LABELS: Record<SearchResultCategory, string> = {
   Document: 'Documents',
   Form: 'Forms',
   Task: 'Tasks',
+  Contract: 'Contracts',
+  Quotation: 'Quotations',
+  Submission: 'Government Submissions',
+  Payment: 'Payments',
   User: 'Users',
 }
 
@@ -27,6 +42,10 @@ const CATEGORY_ICONS: Record<SearchResultCategory, typeof FolderKanban> = {
   Document: FileText,
   Form: Landmark,
   Task: ListChecks,
+  Contract: FileSignature,
+  Quotation: Receipt,
+  Submission: ClipboardCheck,
+  Payment: Wallet,
   User,
 }
 
@@ -34,7 +53,7 @@ const flatIndexOf = (result: SearchResult): number => searchStore.flatResults.in
 
 const selectResult = (result: SearchResult): void => {
   searchStore.close()
-  router.push({ name: result.routeName, params: result.params })
+  router.push({ name: result.routeName, params: result.params, query: result.query })
 }
 
 const handleSearch = (value: string): void => {
@@ -92,7 +111,7 @@ watch(
         <div class="border-b border-border-light p-3">
           <SearchBox
             :model-value="searchStore.query"
-            placeholder="Search clients, projects, documents, forms, tasks, users..."
+            placeholder="Search clients, projects, documents, contracts, quotations, payments, forms, submissions, tasks, users..."
             :debounce-ms="200"
             @update:model-value="searchStore.query = $event"
             @search="handleSearch"
