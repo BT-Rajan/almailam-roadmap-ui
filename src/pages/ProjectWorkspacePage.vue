@@ -33,7 +33,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useTimelineStore } from '@/stores/timelineStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ProjectUpdateInput } from '@/services/projectService'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
@@ -48,7 +48,7 @@ const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
@@ -129,11 +129,11 @@ async function handleConfirmEdit(payload: ProjectUpdateInput): Promise<void> {
   isEditSaving.value = true
   try {
     await projectStore.updateProject(project.value.id, payload)
-    toastStore.show('success', 'Project updated', 'Changes were saved successfully.')
+    resultDialogStore.showSuccess('Project updated', 'Changes were saved successfully.')
     isEditDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update project', detail)
+    resultDialogStore.showError('Failed to update project', detail)
   } finally {
     isEditSaving.value = false
   }
@@ -144,11 +144,11 @@ async function handleConfirmStage(payload: { value: string; reason?: string }): 
   isStageSaving.value = true
   try {
     await projectStore.setStage(project.value.id, payload.value, payload.reason)
-    toastStore.show('success', 'Stage updated', `Project moved to ${payload.value}.`)
+    resultDialogStore.showSuccess('Stage updated', `Project moved to ${payload.value}.`)
     isStageDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to change stage', detail)
+    resultDialogStore.showError('Failed to change stage', detail)
   } finally {
     isStageSaving.value = false
   }
@@ -159,11 +159,11 @@ async function handleConfirmStatus(payload: { value: string; reason?: string }):
   isStatusSaving.value = true
   try {
     await projectStore.setStatus(project.value.id, payload.value, payload.reason)
-    toastStore.show('success', 'Status updated', `Project marked as ${payload.value}.`)
+    resultDialogStore.showSuccess('Status updated', `Project marked as ${payload.value}.`)
     isStatusDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to change status', detail)
+    resultDialogStore.showError('Failed to change status', detail)
   } finally {
     isStatusSaving.value = false
   }
@@ -174,12 +174,12 @@ async function handleConfirmDelete(): Promise<void> {
   isDeleteSaving.value = true
   try {
     await projectStore.deleteProject(project.value.id)
-    toastStore.show('success', 'Project deleted', `${project.value.projectName} was removed.`)
+    resultDialogStore.showSuccess('Project deleted', `${project.value.projectName} was removed.`)
     isDeleteDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.PROJECTS })
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to delete project', detail)
+    resultDialogStore.showError('Failed to delete project', detail)
   } finally {
     isDeleteSaving.value = false
   }
