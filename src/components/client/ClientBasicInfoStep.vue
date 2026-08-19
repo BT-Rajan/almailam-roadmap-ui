@@ -33,12 +33,11 @@ const userStore = useUserStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
-const accountManagerOptions = computed<SelectOption[]>(() => [
-  { label: 'Unassigned', value: '' },
-  ...userStore.users
+const accountManagerOptions = computed<SelectOption[]>(() =>
+  userStore.users
     .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
-])
+)
 </script>
 
 <template>
@@ -56,6 +55,7 @@ const accountManagerOptions = computed<SelectOption[]>(() => [
         <TextInput v-model="form.individualProfile.nationality" label="Nationality" required :error="errors.nationality" />
         <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required :max="maxDate" :error="errors.dateOfBirth" />
         <TextInput v-model="form.individualProfile.countryOfResidence" label="Country of Residence" required :error="errors.countryOfResidence" />
+        <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
 
@@ -69,6 +69,7 @@ const accountManagerOptions = computed<SelectOption[]>(() => [
         <TextInput v-model="form.organisationProfile.countryOfRegistration" label="Country of Registration" required :error="errors.countryOfRegistration" />
         <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" required :max="maxDate" :error="errors.dateOfIncorporation" />
         <TextInput v-model="form.organisationProfile.website" label="Website" placeholder="example.com" :error="errors.website" />
+        <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
 
@@ -84,13 +85,12 @@ const accountManagerOptions = computed<SelectOption[]>(() => [
             { label: 'Arabic', value: 'Arabic' },
           ]"
         />
-        <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
 
-    <FormSection title="Assignment" description="Optional -- who on staff owns this client relationship. Can also be set or changed later.">
+    <FormSection title="Assignment" description="Who on staff owns this client relationship. Can be changed later.">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.accountManagerId" label="Account Manager" :options="accountManagerOptions" />
+        <SelectBox v-model="form.accountManagerId" label="Account Manager" required :options="accountManagerOptions" :error="errors.accountManagerId" />
       </div>
     </FormSection>
   </div>

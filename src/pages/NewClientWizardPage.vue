@@ -225,6 +225,16 @@ function goBack(): void {
   currentStep.value = Math.max(currentStep.value - 1, 0)
 }
 
+// Lets someone jump directly back to any step they've already been
+// through, via the Stepper's own numbers, rather than only ever being
+// able to step backward one screen at a time with "Back". Only ever
+// called for a step at or before the current one (Stepper only makes
+// completed steps clickable), so there's no forward-skip/validation
+// concern here the way there is for goNext().
+function goToStep(index: number): void {
+  currentStep.value = index
+}
+
 function cancelWizard(): void {
   clearDraft()
   router.push({ name: ROUTE_NAMES.CLIENTS })
@@ -399,7 +409,7 @@ function goToCreatedClient(): void {
     </BaseDialog>
 
     <div class="rounded-xl border border-border-light bg-bg-card p-6">
-      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" />
+      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" clickable @select="goToStep" />
 
       <div class="mt-8">
         <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" :errors="basicInfoErrors" @view-duplicate="viewDuplicate" />

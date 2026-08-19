@@ -35,12 +35,15 @@ onMounted(() => {
 // Any active staff member can be assigned as the relationship owner --
 // Viewer is excluded since that role is read-only/external-stakeholder
 // by design elsewhere in this app, not someone who'd manage a client.
-const accountManagerOptions = computed<SelectOption[]>(() => [
-  { label: 'Unassigned', value: '' },
-  ...userStore.users
+// No "Unassigned" placeholder option: account manager is now a
+// required field (see clientValidation.ts's validateClientEditForm) --
+// an existing client with none assigned will need one picked the next
+// time it's edited, same as any other newly-required field would.
+const accountManagerOptions = computed<SelectOption[]>(() =>
+  userStore.users
     .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
-])
+)
 
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
@@ -157,7 +160,7 @@ function handleConfirm(): void {
 
       <FormSection title="Relationship">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <SelectBox v-model="form.accountManagerId" label="Account Manager" :options="accountManagerOptions" />
+          <SelectBox v-model="form.accountManagerId" label="Account Manager" required :options="accountManagerOptions" :error="errors.accountManagerId" />
         </div>
         <TextArea v-model="form.notes" label="Internal Notes" hint="Preferences, risk flags, or handling instructions -- visible to staff only." :rows="3" />
       </FormSection>
