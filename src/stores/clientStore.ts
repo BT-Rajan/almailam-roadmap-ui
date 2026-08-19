@@ -340,6 +340,16 @@ export const useClientStore = defineStore('client', {
       triggerBlobDownload(blob, filename)
     },
 
+    // Opens the document in a new tab instead of saving it -- used by the
+    // "View" action (e.g. the Customer ID Documents section of a
+    // project's Documents tab), separate from the "Download" action
+    // above which triggers a Save As.
+    async viewDocument(clientId: string, documentId: string) {
+      const blob = await clientService.downloadDocument(clientId, documentId)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    },
+
     async loadDocumentVersions(clientId: string, documentId: string) {
       this.documentVersions = await clientService.getDocumentVersions(clientId, documentId)
     },

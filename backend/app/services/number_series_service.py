@@ -38,6 +38,7 @@ DOC_TYPE_CONFIG: dict[str, tuple[str, int]] = {
     "GOVERNMENT_SUBMISSION": ("SUB", 3),
     "PROJECT": ("PRJ", 5),  # padding used by the PROJECT-specific branch below, not the prefix
     "DOCUMENT": ("DOC", 3),
+    "PROJECT_LINK_DOCUMENT": ("PLD", 3),
     "TASK": ("TSK", 3),
     "NOTIFICATION": ("NTF", 3),
 }

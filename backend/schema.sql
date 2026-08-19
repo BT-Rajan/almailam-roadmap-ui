@@ -511,6 +511,24 @@ CREATE TABLE IF NOT EXISTS document_versions (
     INDEX idx_document_versions_document (document_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS project_link_documents (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    link_document_no    VARCHAR(20) NOT NULL UNIQUE,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    category            ENUM('Property','Government','Others') NOT NULL,
+    name                VARCHAR(200) NOT NULL,
+    path                VARCHAR(1000) NOT NULL,
+    added_by            BIGINT UNSIGNED NOT NULL,
+    added_date          DATE NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    CONSTRAINT fk_project_link_documents_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_project_link_documents_user FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_project_link_documents_project (project_id),
+    INDEX idx_project_link_documents_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS document_ai_reviews (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     document_id         BIGINT UNSIGNED NOT NULL,

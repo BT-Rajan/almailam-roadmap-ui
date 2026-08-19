@@ -11,6 +11,13 @@ DOCUMENT_TYPES = ("Drawing", "Report", "Contract", "Quotation", "Municipality Fo
 DOCUMENT_STATUSES = ("Draft", "Under Review", "Approved", "Rejected")
 AI_CONFIDENCE_LEVELS = ("high", "medium", "low")
 
+# The three project-level categories that are added as a link/path to a file
+# stored elsewhere, rather than uploaded through the app -- "Customer ID"
+# documents are a fourth category shown alongside these in the Documents
+# tab, but those are read-only, sourced from the client's own onboarding
+# documents (see ClientDocument / client_documents), not stored here.
+PROJECT_LINK_DOCUMENT_CATEGORIES = ("Property", "Government", "Others")
+
 
 class ProjectDocument(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "project_documents"
@@ -47,6 +54,30 @@ class DocumentVersion(Base):
     storage_key: Mapped[str] = mapped_column(String(300), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class ProjectLinkDocument(Base, TimestampMixin, SoftDeleteMixin):
+    """A document that lives outside the app (a shared drive, a government
+    portal, a scanned copy on the office server, etc.) -- only its name,
+    category, and a path/link back to it are recorded here. Unlike
+    ProjectDocument above, there is no file storage involved: nothing is
+    uploaded or downloaded through the backend, "download" on the frontend
+    just opens `path`."""
+
+    __tablename__ = "project_link_documents"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    link_document_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    project_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    category: Mapped[str] = mapped_column(
+        Enum(*PROJECT_LINK_DOCUMENT_CATEGORIES, name="project_link_document_category"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    added_by: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    added_date: Mapped[date] = mapped_column(Date, nullable=False)
 
 
 class DocumentAIReview(Base):

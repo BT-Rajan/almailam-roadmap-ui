@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Upload } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { FilePlus } from '@lucide/vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -8,13 +8,19 @@ import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
+import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
 import DocumentCard from '@/components/document/DocumentCard.vue'
 import DocumentEditDialog from '@/components/document/DocumentEditDialog.vue'
 import DocumentUploadDialog from '@/components/document/DocumentUploadDialog.vue'
+import LinkDocumentCard from '@/components/document/LinkDocumentCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useClientStore } from '@/stores/clientStore'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ProjectDocument } from '@/types/Document'
+import type { ClientDocument } from '@/types/Client'
+import type { ProjectDocument, ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
 import type { Project } from '@/types/Project'
 
 const props = defineProps<{
@@ -24,6 +30,8 @@ const props = defineProps<{
 
 const router = useRouter()
 const documentStore = useDocumentStore()
+const clientStore = useClientStore()
+const linkDocumentStore = useProjectLinkDocumentStore()
 const toastStore = useToastStore()
 
 const isUploadOpen = ref(false)
@@ -35,6 +43,13 @@ const editTarget = ref<ProjectDocument | null>(null)
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
 const deleteTarget = ref<ProjectDocument | null>(null)
+
+const isAddDialogOpen = ref(false)
+const addDialogCategory = ref<ProjectLinkDocumentCategory>('Property')
+
+const isLinkDeleteDialogOpen = ref(false)
+const isLinkDeleteSaving = ref(false)
+const linkDeleteTarget = ref<ProjectLinkDocument | null>(null)
 
 function openEditDialog(document: ProjectDocument): void {
   editTarget.value = document
@@ -91,66 +106,223 @@ function handleUpload(document: ProjectDocument): void {
 function openDocument(documentId: string): void {
   router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
 }
+
+// Customer ID Documents -- read-only, sourced from the client's own
+// onboarding documents (not stored against the project at all).
+const clientId = computed(() => props.project.clientId)
+const customerIdDocuments = computed<ClientDocument[]>(() => clientStore.documents)
+
+function viewCustomerDocument(document: ClientDocument): void {
+  clientStore.viewDocument(clientId.value, document.id).catch(() => {
+    toastStore.show('error', 'Failed to open document', 'Please try again.')
+  })
+}
+
+function downloadCustomerDocument(document: ClientDocument): void {
+  clientStore.downloadDocument(clientId.value, document.id, document.originalFilename).catch(() => {
+    toastStore.show('error', 'Failed to download document', 'Please try again.')
+  })
+}
+
+// Property / Government / Others -- link-only documents added against
+// the project directly.
+function linkDocumentsFor(category: ProjectLinkDocumentCategory): ProjectLinkDocument[] {
+  return linkDocumentStore.documentsForCategory(props.project.id, category)
+}
+
+function openAddDialog(category: ProjectLinkDocumentCategory): void {
+  addDialogCategory.value = category
+  isAddDialogOpen.value = true
+}
+
+function requestLinkDelete(document: ProjectLinkDocument): void {
+  linkDeleteTarget.value = document
+  isLinkDeleteDialogOpen.value = true
+}
+
+async function handleConfirmLinkDelete(): Promise<void> {
+  if (!linkDeleteTarget.value) return
+  isLinkDeleteSaving.value = true
+  try {
+    await linkDocumentStore.deleteDocument(props.project.id, linkDeleteTarget.value.id)
+    toastStore.show('success', 'Document removed', `${linkDeleteTarget.value.name} was removed.`)
+    isLinkDeleteDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to remove document', detail)
+  } finally {
+    isLinkDeleteSaving.value = false
+  }
+}
+
+function loadDocumentsData(): void {
+  if (props.mode !== 'documents') return
+  linkDocumentStore.loadForProject(props.project.id)
+  if (clientId.value) {
+    clientStore.loadClientDetail(clientId.value)
+  }
+}
+
+onMounted(loadDocumentsData)
+watch(() => [props.project.id, props.mode], loadDocumentsData)
 </script>
 
 <template>
-  <div class="flex items-center justify-end">
-    <BaseButton
-      v-if="mode === 'documents'"
-      variant="secondary"
-      size="sm"
-      :icon="Upload"
-      class="no-print"
-      @click="isUploadOpen = true"
-    >
-      Upload Document
-    </BaseButton>
-  </div>
-
-  <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-    <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
-      <SkeletonLoader :rows="5" />
+  <!-- Design mode keeps the original single-list, upload-based view for Drawings. -->
+  <template v-if="mode === 'design'">
+    <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+      <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
+        <SkeletonLoader :rows="5" />
+      </div>
     </div>
-  </div>
 
-  <ErrorState v-else-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
+    <ErrorState v-else-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
 
-  <EmptyState
-    v-else-if="visibleDocuments.length === 0"
-    title="No documents yet"
-    :description="
-      mode === 'documents'
-        ? 'Documents uploaded for this project will appear here.'
-        : 'Design drawings uploaded for this project will appear here.'
-    "
-  />
+    <EmptyState
+      v-else-if="visibleDocuments.length === 0"
+      title="No documents yet"
+      description="Design drawings uploaded for this project will appear here."
+    />
 
-  <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-    <DocumentCard
-      v-for="document in visibleDocuments"
-      :key="document.id"
-      :document="document"
-      :project="project"
-      @open="openDocument"
-      @edit="openEditDialog"
-      @delete="requestDelete"
+    <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+      <DocumentCard
+        v-for="document in visibleDocuments"
+        :key="document.id"
+        :document="document"
+        :project="project"
+        @open="openDocument"
+        @edit="openEditDialog"
+        @delete="requestDelete"
+      />
+    </div>
+
+    <DocumentUploadDialog v-model="isUploadOpen" :projects="[project]" @upload="handleUpload" />
+    <DocumentEditDialog
+      v-model="isEditDialogOpen"
+      :document="editTarget"
+      :loading="isEditSaving"
+      @confirm="handleConfirmEdit"
+    />
+    <ConfirmationDialog
+      v-model="isDeleteDialogOpen"
+      title="Delete document"
+      :message="deleteTarget ? `Delete ${deleteTarget.title}? This cannot be undone from the app.` : ''"
+      confirm-label="Delete"
+      confirm-variant="danger"
+      :loading="isDeleteSaving"
+      @confirm="handleConfirmDelete"
+    />
+  </template>
+
+  <!-- Documents mode: four fixed categories. -->
+  <div v-else class="flex flex-col gap-8">
+    <!-- 1. Customer ID Documents -->
+    <section class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-neutral-800">Customer ID Documents</h3>
+      </div>
+
+      <div v-if="clientStore.isDetailLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
+        <SkeletonLoader :rows="3" />
+      </div>
+      <ErrorState v-else-if="clientStore.detailError" :description="clientStore.detailError" />
+      <EmptyState
+        v-else-if="customerIdDocuments.length === 0"
+        title="No identification documents"
+        description="Documents captured during customer onboarding will appear here."
+      />
+      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+        <CustomerIdDocumentCard
+          v-for="document in customerIdDocuments"
+          :key="document.id"
+          :document="document"
+          @view="viewCustomerDocument"
+          @download="downloadCustomerDocument"
+        />
+      </div>
+    </section>
+
+    <!-- 2. Property Documents -->
+    <section class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-neutral-800">Property Documents</h3>
+        <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Property')">
+          Add Document
+        </BaseButton>
+      </div>
+
+      <EmptyState
+        v-if="linkDocumentsFor('Property').length === 0"
+        title="No property documents yet"
+        description="Add a link to a property document stored elsewhere."
+      />
+      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+        <LinkDocumentCard
+          v-for="document in linkDocumentsFor('Property')"
+          :key="document.id"
+          :document="document"
+          @delete="requestLinkDelete"
+        />
+      </div>
+    </section>
+
+    <!-- 3. Government Documents -->
+    <section class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-neutral-800">Government Documents</h3>
+        <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Government')">
+          Add Document
+        </BaseButton>
+      </div>
+
+      <EmptyState
+        v-if="linkDocumentsFor('Government').length === 0"
+        title="No government documents yet"
+        description="Add a link to a government document stored elsewhere."
+      />
+      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+        <LinkDocumentCard
+          v-for="document in linkDocumentsFor('Government')"
+          :key="document.id"
+          :document="document"
+          @delete="requestLinkDelete"
+        />
+      </div>
+    </section>
+
+    <!-- 4. Others -->
+    <section class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-neutral-800">Others</h3>
+        <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Others')">
+          Add Document
+        </BaseButton>
+      </div>
+
+      <EmptyState
+        v-if="linkDocumentsFor('Others').length === 0"
+        title="No other documents yet"
+        description="Add a link to any other supporting document."
+      />
+      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+        <LinkDocumentCard
+          v-for="document in linkDocumentsFor('Others')"
+          :key="document.id"
+          :document="document"
+          @delete="requestLinkDelete"
+        />
+      </div>
+    </section>
+
+    <AddLinkDocumentDialog v-model="isAddDialogOpen" :project-id="project.id" :category="addDialogCategory" />
+    <ConfirmationDialog
+      v-model="isLinkDeleteDialogOpen"
+      title="Remove document"
+      :message="linkDeleteTarget ? `Remove ${linkDeleteTarget.name}? This cannot be undone from the app.` : ''"
+      confirm-label="Remove"
+      confirm-variant="danger"
+      :loading="isLinkDeleteSaving"
+      @confirm="handleConfirmLinkDelete"
     />
   </div>
-
-  <DocumentUploadDialog v-model="isUploadOpen" :projects="[project]" @upload="handleUpload" />
-  <DocumentEditDialog
-    v-model="isEditDialogOpen"
-    :document="editTarget"
-    :loading="isEditSaving"
-    @confirm="handleConfirmEdit"
-  />
-  <ConfirmationDialog
-    v-model="isDeleteDialogOpen"
-    title="Delete document"
-    :message="deleteTarget ? `Delete ${deleteTarget.title}? This cannot be undone from the app.` : ''"
-    confirm-label="Delete"
-    confirm-variant="danger"
-    :loading="isDeleteSaving"
-    @confirm="handleConfirmDelete"
-  />
 </template>
