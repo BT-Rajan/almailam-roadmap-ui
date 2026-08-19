@@ -28,17 +28,32 @@ const emit = defineEmits<{
 // Services" is clicked, so closing the dialog (Escape, backdrop click,
 // Cancel) without confirming leaves the wizard's actual selection alone.
 const selectedIds = ref<string[]>([])
+// Services picked wholesale, with no specific activity under them (either
+// because the service has none yet, or the user just wants the service
+// itself). Kept separate from selectedIds because activity ids and service
+// ids live in different id spaces and a service with zero activities has
+// nothing to add to selectedIds.
+const selectedServiceIds = ref<string[]>([])
 const expandedServiceIds = ref<string[]>([])
+
+// A service with no activities has nothing to drill into, but must still be
+// selectable in its own right -- otherwise it's a permanent dead end in the
+// tree: not expandable, not checkable, and there's no other way to pick it.
+function isBareService(service: ServiceCatalogItem): boolean {
+  return service.activities.length === 0
+}
 
 // Re-seed the draft from whatever the caller already has selected every
 // time the dialog opens, so re-opening to tweak a pick shows the current
 // state rather than starting empty. Services that already have a pick are
-// pre-expanded so the user isn't hunting for what's checked.
+// pre-expanded so the user isn't hunting for what's checked. A bare-service
+// pick is marked in the flat list by activityId === serviceId.
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    selectedIds.value = props.selected.map((item) => item.activityId)
+    selectedIds.value = props.selected.filter((item) => item.activityId !== item.serviceId).map((item) => item.activityId)
+    selectedServiceIds.value = props.selected.filter((item) => item.activityId === item.serviceId).map((item) => item.serviceId)
     const servicesWithPicks = new Set(props.selected.map((item) => item.serviceId))
     expandedServiceIds.value = props.services.filter((service) => servicesWithPicks.has(service.id)).map((service) => service.id)
   },
@@ -68,15 +83,22 @@ function toggleActivity(activityId: string): void {
 // A service's own checkbox is a shortcut for "all of its activities" --
 // checked when every activity under it is picked, indeterminate when only
 // some are, so partial picks (the whole point of the tree) stay visible
-// at the service level too.
+// at the service level too. A bare service (no activities) is checked
+// purely off its own entry in selectedServiceIds.
 function serviceSelectionState(service: ServiceCatalogItem): 'all' | 'some' | 'none' {
-  if (service.activities.length === 0) return 'none'
+  if (isBareService(service)) return selectedServiceIds.value.includes(service.id) ? 'all' : 'none'
   const pickedCount = service.activities.filter((activity) => isActivitySelected(activity.id)).length
   if (pickedCount === 0) return 'none'
   return pickedCount === service.activities.length ? 'all' : 'some'
 }
 
 function toggleService(service: ServiceCatalogItem): void {
+  if (isBareService(service)) {
+    selectedServiceIds.value = selectedServiceIds.value.includes(service.id)
+      ? selectedServiceIds.value.filter((id) => id !== service.id)
+      : [...selectedServiceIds.value, service.id]
+    return
+  }
   const activityIds = service.activities.map((activity) => activity.id)
   if (serviceSelectionState(service) === 'all') {
     selectedIds.value = selectedIds.value.filter((id) => !activityIds.includes(id))
@@ -87,10 +109,16 @@ function toggleService(service: ServiceCatalogItem): void {
 }
 
 // Flat list of picks in service order -- this is what drives both the
-// "selected" and "price" columns, so they always stay row-aligned.
+// "selected" and "price" columns, so they always stay row-aligned. A bare
+// service pick shows up as its own row (activityId === serviceId, $0).
 const selectedItems = computed<SelectedServiceActivity[]>(() =>
-  props.services.flatMap((service) =>
-    service.activities
+  props.services.flatMap((service) => {
+    if (isBareService(service)) {
+      return selectedServiceIds.value.includes(service.id)
+        ? [{ serviceId: service.id, serviceName: service.name, activityId: service.id, activityName: service.name, fixedCost: 0 }]
+        : []
+    }
+    return service.activities
       .filter((activity) => isActivitySelected(activity.id))
       .map((activity) => ({
         serviceId: service.id,
@@ -98,15 +126,19 @@ const selectedItems = computed<SelectedServiceActivity[]>(() =>
         activityId: activity.id,
         activityName: activity.name,
         fixedCost: activity.fixedCost,
-      })),
-  ),
+      }))
+  }),
 )
 
 const total = computed(() => selectedItems.value.reduce((sum, item) => sum + item.fixedCost, 0))
 const distinctServiceCount = computed(() => new Set(selectedItems.value.map((item) => item.serviceId)).size)
 
-function removeItem(activityId: string): void {
-  toggleActivity(activityId)
+function removeItem(item: SelectedServiceActivity): void {
+  if (item.activityId === item.serviceId) {
+    selectedServiceIds.value = selectedServiceIds.value.filter((id) => id !== item.serviceId)
+  } else {
+    toggleActivity(item.activityId)
+  }
 }
 
 function closeDialog(): void {
@@ -140,7 +172,6 @@ function handleConfirm(): void {
                 :model-value="serviceSelectionState(service) === 'all'"
                 :indeterminate="serviceSelectionState(service) === 'some'"
                 :label="service.name"
-                :disabled="service.activities.length === 0"
                 @update:model-value="toggleService(service)"
               />
             </div>
@@ -167,9 +198,10 @@ function handleConfirm(): void {
           <div v-for="item in selectedItems" :key="item.activityId" class="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-bg-hover">
             <div class="min-w-0">
               <p class="truncate text-sm text-neutral-800">{{ item.activityName }}</p>
-              <p class="truncate text-xs text-neutral-400">{{ item.serviceName }}</p>
+              <p v-if="item.activityId !== item.serviceId" class="truncate text-xs text-neutral-400">{{ item.serviceName }}</p>
+              <p v-else class="truncate text-xs text-neutral-400">Whole service</p>
             </div>
-            <IconButton :icon="X" label="Remove" size="sm" @click="removeItem(item.activityId)" />
+            <IconButton :icon="X" label="Remove" size="sm" @click="removeItem(item)" />
           </div>
         </div>
       </div>
