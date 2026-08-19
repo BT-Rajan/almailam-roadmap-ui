@@ -602,6 +602,25 @@ CREATE TABLE IF NOT EXISTS workflow_stages (
     INDEX idx_workflow_stages_template (template_id, sequence_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS service_catalog_items (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL,
+    INDEX idx_service_catalog_items_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS service_catalog_activities (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_id      BIGINT UNSIGNED NOT NULL,
+    name            VARCHAR(150) NOT NULL,
+    fixed_cost      DECIMAL(12,2) NOT NULL DEFAULT 0,
+    CONSTRAINT fk_service_catalog_activities_service
+        FOREIGN KEY (service_id) REFERENCES service_catalog_items(id) ON DELETE CASCADE,
+    INDEX idx_service_catalog_activities_service (service_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS company_settings (
     id                                  INT PRIMARY KEY DEFAULT 1,
     company_name                       VARCHAR(150) NOT NULL DEFAULT 'Al Mailam Consulting',

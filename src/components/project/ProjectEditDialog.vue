@@ -7,8 +7,8 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { PROJECT_SERVICES } from '@/constants/projectOptions'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
 import type { ProjectUpdateInput } from '@/services/projectService'
@@ -31,11 +31,21 @@ const PRIORITY_OPTIONS: SelectOption[] = [
   { label: 'Medium', value: 'Medium' },
   { label: 'Low', value: 'Low' },
 ]
-const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ label: service, value: service }))
-
 const userStore = useUserStore()
+const serviceCatalogStore = useServiceCatalogStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
+  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+})
+
+// Services come from the admin-configurable catalog (Administration >
+// Service Catalog). If this project's current service was since removed
+// from the catalog, it's still included here so the dropdown doesn't
+// silently show a blank value for it.
+const serviceOptions = computed<SelectOption[]>(() => {
+  const names = new Set(serviceCatalogStore.services.map((service) => service.name))
+  names.add(props.project.service)
+  return [...names].map((name) => ({ label: name, value: name }))
 })
 // Every active staff member can be assigned, not only those with the
 // Engineer role -- a Project Manager occasionally runs point on a

@@ -15,9 +15,9 @@ import Stepper from '@/components/common/Stepper.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { PROJECT_SERVICES } from '@/constants/projectOptions'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProjectStore } from '@/stores/projectStore'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
@@ -31,6 +31,7 @@ const route = useRoute()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
+const serviceCatalogStore = useServiceCatalogStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
@@ -73,7 +74,7 @@ setRules({
 
 const clientOptions = ref<SelectOption[]>([])
 const hasIneligibleClients = ref(false)
-const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ label: service, value: service }))
+const serviceOptions = ref<SelectOption[]>([])
 const engineerOptions = ref<SelectOption[]>([])
 
 onMounted(async () => {
@@ -88,6 +89,13 @@ onMounted(async () => {
   // for. Eligibility is a correctness question; it can't be served from
   // a cache that might be from before the thing being checked changed.
   await projectStore.loadProjects()
+
+  // Services now come from the admin-configurable catalog (Administration
+  // > Service Catalog) instead of the old hardcoded PROJECT_SERVICES list,
+  // so a service added there shows up here without a code change. Fetched
+  // fresh for the same reason as the client list above.
+  await serviceCatalogStore.loadServices()
+  serviceOptions.value = serviceCatalogStore.services.map((service) => ({ label: service.name, value: service.name }))
   // Only clients that have completed onboarding AND are still Active can
   // have a project created for them (enforced server-side too, in
   // project_service.create_project) -- a project needs a real, currently

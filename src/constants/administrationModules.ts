@@ -22,6 +22,12 @@ export const ADMINISTRATION_MODULES: AdministrationModule[] = [
     routeName: ROUTE_NAMES.ADMIN_WORKFLOWS,
   },
   {
+    label: 'Service Catalog',
+    description: 'Configure services and their activities, each with a fixed cost.',
+    icon: 'ListChecks',
+    routeName: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
+  },
+  {
     label: 'Government Forms Management',
     description: 'Maintain government forms, authorities, and document requirements.',
     icon: 'Landmark',

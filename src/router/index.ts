@@ -310,6 +310,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/service-catalog',
+      name: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
+      component: () => import('@/pages/AdminServiceCatalogPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Service Catalog' },
+        ],
+      },
+    },
+    {
       path: '/admin/forms',
       name: ROUTE_NAMES.ADMIN_FORMS,
       component: () => import('@/pages/AdminFormsPage.vue'),

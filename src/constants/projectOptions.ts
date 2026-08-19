@@ -1,7 +1,11 @@
-// Fixed reference list of engineering service types offered, used to
-// populate the "Service" dropdown when creating a new project. Unlike
-// the rest of what used to live in src/mock/, this isn't a stand-in for
-// real backend data -- it's genuine static configuration.
+// Formerly the fixed reference list of engineering service types offered.
+// Superseded by the admin-configurable Service Catalog (Administration >
+// Service Catalog, see stores/serviceCatalogStore.ts) -- the "Service"
+// dropdown on project creation/edit now reads from there instead, so any
+// number of services can be added or removed without a code change. Kept
+// here, unused, only as the default seed list the backend falls back to
+// on a fresh install (see backend/app/services/service_catalog_service.py
+// DEFAULT_SERVICE_NAMES) -- update both together if the defaults change.
 export const PROJECT_SERVICES: string[] = [
   'Structural Engineering',
   'MEP Design',
