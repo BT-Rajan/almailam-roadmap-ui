@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
-import type { DocumentType, DocumentVersion, ProjectDocument } from '@/types/Document'
+import type { DocumentStatus, DocumentType, DocumentVersion, ProjectDocument } from '@/types/Document'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -155,6 +155,56 @@ async function deleteDocument(documentId: string): Promise<void> {
 }
 
 /**
+ * Change a document's status (Draft -> Under Review -> Approved/Rejected,
+ * or Rejected -> Draft to revise and resubmit). `reason` is required
+ * when rejecting -- enforced server-side.
+ */
+async function setDocumentStatus(documentId: string, status: DocumentStatus, reason?: string): Promise<ProjectDocument> {
+  try {
+    return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}/status`, { status, reason })
+  } catch (error) {
+    console.error(`Failed to change status for document ${documentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change document status')
+  }
+}
+
+/**
+ * Upload a new revision of an existing document -- the old file and
+ * every prior revision remain intact and downloadable (see
+ * VersionHistory.vue), this only adds a new one.
+ */
+async function addVersion(documentId: string, file: File, notes?: string): Promise<DocumentVersion> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('file', file)
+  if (notes) formData.append('notes', notes)
+
+  const doRequest = () =>
+    fetch(`/api/documents/${documentId}/versions`, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  try {
+    let response = await doRequest()
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+    }
+    return (await response.json()) as DocumentVersion
+  } catch (error) {
+    console.error(`Failed to add a new version for document ${documentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add new version')
+  }
+}
+
+/**
  * Download a document from backend API
  */
 async function downloadDocument(documentId: string): Promise<Blob> {
@@ -211,6 +261,8 @@ export const documentService = {
   uploadDocument,
   updateDocument,
   deleteDocument,
+  setDocumentStatus,
+  addVersion,
   downloadDocument,
   downloadVersion,
 }

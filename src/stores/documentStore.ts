@@ -164,6 +164,36 @@ export const useDocumentStore = defineStore('document', {
       triggerBlobDownload(blob, filename)
     },
 
+    async setCurrentDocumentStatus(status: DocumentStatus, reason?: string): Promise<void> {
+      if (!this.currentDocument) return
+      const updated = await documentService.setDocumentStatus(this.currentDocument.id, status, reason)
+      this.currentDocument = updated
+      this.documents = this.documents.map((doc) => (doc.id === updated.id ? updated : doc))
+    },
+
+    async addCurrentDocumentVersion(file: File, notes?: string): Promise<void> {
+      if (!this.currentDocument) return
+      await documentService.addVersion(this.currentDocument.id, file, notes)
+      // The document's own revision/upload metadata changes too (new
+      // current revision, new uploader/date), not just its version list.
+      const [document, versions] = await Promise.all([
+        documentService.getDocumentById(this.currentDocument.id),
+        documentService.getDocumentVersions(this.currentDocument.id),
+      ])
+      if (document) {
+        this.currentDocument = document
+        this.documents = this.documents.map((doc) => (doc.id === document.id ? document : doc))
+      }
+      this.currentVersions = versions
+    },
+
+    async deleteCurrentDocument(): Promise<void> {
+      if (!this.currentDocument) return
+      await documentService.deleteDocument(this.currentDocument.id)
+      this.documents = this.documents.filter((doc) => doc.id !== this.currentDocument?.id)
+      this.currentDocument = undefined
+    },
+
     async loadDocumentReview(documentId: string) {
       this.isReviewLoading = true
       this.reviewError = undefined

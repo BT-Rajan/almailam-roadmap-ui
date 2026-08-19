@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { Download, MessageSquare, Sparkles } from '@lucide/vue'
-import { computed, onMounted, watch } from 'vue'
+import { Download, MessageSquare, Plus, RefreshCw, Sparkles, Trash2 } from '@lucide/vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import AddVersionDialog from '@/components/document/AddVersionDialog.vue'
+import DocumentStatusDialog from '@/components/document/DocumentStatusDialog.vue'
 import MetadataPanel from '@/components/document/MetadataPanel.vue'
 import PDFViewer from '@/components/document/PDFViewer.vue'
 import VersionHistory from '@/components/document/VersionHistory.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { DocumentVersion } from '@/types/Document'
+import type { DocumentStatus, DocumentVersion } from '@/types/Document'
 
 const route = useRoute()
 const router = useRouter()
@@ -56,6 +60,58 @@ async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
     toastStore.show('error', 'Failed to download version', detail)
   }
 }
+
+const isStatusDialogOpen = ref(false)
+const isStatusSaving = ref(false)
+
+async function handleStatusConfirm(payload: { status: DocumentStatus; reason?: string }): Promise<void> {
+  isStatusSaving.value = true
+  try {
+    await documentStore.setCurrentDocumentStatus(payload.status, payload.reason)
+    toastStore.show('success', 'Status updated', `Document marked as ${payload.status}.`)
+    isStatusDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to update status', detail)
+  } finally {
+    isStatusSaving.value = false
+  }
+}
+
+const isAddVersionOpen = ref(false)
+const isAddingVersion = ref(false)
+
+async function handleAddVersion(payload: { file: File; notes?: string }): Promise<void> {
+  isAddingVersion.value = true
+  try {
+    await documentStore.addCurrentDocumentVersion(payload.file, payload.notes)
+    toastStore.show('success', 'New version added', 'The document was updated to a new revision.')
+    isAddVersionOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to add new version', detail)
+  } finally {
+    isAddingVersion.value = false
+  }
+}
+
+const isDeleteDialogOpen = ref(false)
+const isDeleting = ref(false)
+
+async function handleDelete(): Promise<void> {
+  isDeleting.value = true
+  try {
+    await documentStore.deleteCurrentDocument()
+    toastStore.show('success', 'Document deleted', 'The document was removed.')
+    router.push({ name: ROUTE_NAMES.DOCUMENTS })
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    toastStore.show('error', 'Failed to delete document', detail)
+  } finally {
+    isDeleting.value = false
+    isDeleteDialogOpen.value = false
+  }
+}
 </script>
 
 <template>
@@ -66,7 +122,10 @@ async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
     >
       <template v-if="documentStore.currentDocument" #actions>
         <BaseButton :icon="Download" variant="secondary" @click="handleDownload">Download</BaseButton>
+        <BaseButton :icon="RefreshCw" variant="secondary" @click="isStatusDialogOpen = true">Status</BaseButton>
+        <BaseButton :icon="Plus" variant="secondary" @click="isAddVersionOpen = true">Add Version</BaseButton>
         <BaseButton :icon="Sparkles" variant="secondary" @click="openReview">AI Review</BaseButton>
+        <IconButton :icon="Trash2" label="Delete document" @click="isDeleteDialogOpen = true" />
       </template>
     </PageHeader>
 
@@ -105,5 +164,23 @@ async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
         <VersionHistory :versions="documentStore.currentVersions" @download="handleDownloadVersion" />
       </div>
     </div>
+
+    <DocumentStatusDialog
+      v-if="documentStore.currentDocument"
+      v-model="isStatusDialogOpen"
+      :current-status="documentStore.currentDocument.status"
+      :loading="isStatusSaving"
+      @confirm="handleStatusConfirm"
+    />
+    <AddVersionDialog v-model="isAddVersionOpen" :loading="isAddingVersion" @confirm="handleAddVersion" />
+    <ConfirmationDialog
+      v-model="isDeleteDialogOpen"
+      title="Delete document"
+      :message="`Delete ${documentStore.currentDocument?.title}? This cannot be undone from the app.`"
+      confirm-label="Delete"
+      confirm-variant="danger"
+      :loading="isDeleting"
+      @confirm="handleDelete"
+    />
   </div>
 </template>
