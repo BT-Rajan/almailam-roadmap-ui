@@ -208,6 +208,18 @@ function handleCancel(): void {
           </div>
         </FormSection>
 
+        <FormSection title="Onboarding Alerts" description="Notify the account manager when a client's onboarding sits without moving forward.">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+            <NumberInput
+              :model-value="companyStore.settings.staleOnboardingAlertDays"
+              label="Stale Onboarding Alert Threshold (days)"
+              hint="A notification is sent once a client's onboarding status hasn't advanced for this many days."
+              :min="1"
+              @update:model-value="companyStore.updateField('staleOnboardingAlertDays', Number($event))"
+            />
+          </div>
+        </FormSection>
+
         <FormActionBar submit-label="Save Changes" :loading="companyStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>

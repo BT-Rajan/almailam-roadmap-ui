@@ -19,6 +19,7 @@ class CompanySettingsOut(BaseModel):
     defaultPaymentTermsDays: int
     defaultQuotationValidityDays: int
     staleProjectAlertDays: int
+    staleOnboardingAlertDays: int
 
     @staticmethod
     def from_model(settings) -> "CompanySettingsOut":
@@ -40,6 +41,7 @@ class CompanySettingsOut(BaseModel):
             defaultPaymentTermsDays=settings.default_payment_terms_days,
             defaultQuotationValidityDays=settings.default_quotation_validity_days,
             staleProjectAlertDays=settings.stale_project_alert_days,
+            staleOnboardingAlertDays=settings.stale_onboarding_alert_days,
         )
 
 
@@ -61,3 +63,4 @@ class CompanySettingsIn(BaseModel):
     defaultPaymentTermsDays: int = Field(default=30, ge=0, le=365)
     defaultQuotationValidityDays: int = Field(default=14, ge=0, le=365)
     staleProjectAlertDays: int = Field(default=45, ge=1, le=365)
+    staleOnboardingAlertDays: int = Field(default=5, ge=1, le=365)

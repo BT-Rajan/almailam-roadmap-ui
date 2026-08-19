@@ -360,6 +360,13 @@ export const useClientStore = defineStore('client', {
       return updated
     },
 
+    async autoAdvanceOnboarding(clientId: string) {
+      const updated = await clientService.autoAdvanceOnboarding(clientId)
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
+    },
+
     // Records a verification check via the backend API. When it's tied to
     // a specific document, the backend also updates that document's own
     // verificationStatus in the same transaction -- mirrored here on the

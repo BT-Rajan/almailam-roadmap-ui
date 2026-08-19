@@ -55,6 +55,13 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default="Information Required",
     )
+    # Set by client_service.check_and_notify_stale_onboarding() once the
+    # account manager has been notified that this client's onboarding
+    # hasn't moved in a while -- mirrors Project.stale_notified_at.
+    # Cleared the moment onboarding_state actually changes (see
+    # set_onboarding_state), so a fresh staleness period starts if it
+    # stalls again later at a different step.
+    onboarding_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # -- individualProfile (only populated when client_type == 'Individual') --
     ind_full_legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)

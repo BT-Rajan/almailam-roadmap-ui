@@ -67,6 +67,25 @@ def log_field_changes(
         )
 
 
+def get_last_event_time(db: Session, entity_type: str, entity_id: int, event_label: str):
+    """Most recent changed_at for a specific event label on an entity,
+    or None if it's never happened. Used by staleness checks (see
+    client_service.check_and_notify_stale_onboarding,
+    project_service.check_and_notify_stale_projects's sibling
+    timeline_service.get_last_stage_event) that need "how long has this
+    genuinely sat since it last moved," not just when the record itself
+    was created."""
+    row = db.execute(
+        text(
+            "SELECT changed_at FROM audit_log "
+            "WHERE entity_type = :entity_type AND entity_id = :entity_id AND event_label = :event_label "
+            "ORDER BY changed_at DESC LIMIT 1"
+        ),
+        {"entity_type": entity_type, "entity_id": entity_id, "event_label": event_label},
+    ).first()
+    return row[0] if row else None
+
+
 def list_all(
     db: Session,
     entity_type: str | None = None,

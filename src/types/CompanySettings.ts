@@ -18,4 +18,5 @@ export interface CompanySettings {
   defaultPaymentTermsDays: number
   defaultQuotationValidityDays: number
   staleProjectAlertDays: number
+  staleOnboardingAlertDays: number
 }

@@ -272,8 +272,24 @@ async function applyOnboardingState(nextState: ClientOnboardingState, reason?: s
   }
 }
 
-function handleAdvanceOnboarding(nextState: ClientOnboardingState): void {
-  void applyOnboardingState(nextState)
+async function handleAutoAdvanceOnboarding(): Promise<void> {
+  if (!client.value) return
+  isOnboardingStateSaving.value = true
+  try {
+    const before = client.value.onboardingState
+    const updated = await clientStore.autoAdvanceOnboarding(client.value.id)
+    resultDialogStore.showSuccess(
+      'Onboarding status updated',
+      updated.onboardingState === before
+        ? 'This client is already at a status that needs a manual decision -- use Change Status.'
+        : `Status advanced from "${before}" to "${updated.onboardingState}".`,
+    )
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to advance onboarding status', detail)
+  } finally {
+    isOnboardingStateSaving.value = false
+  }
 }
 
 function handleConfirmStatusChange(payload: { onboardingState: ClientOnboardingState; reason?: string }): void {
@@ -698,7 +714,7 @@ function createProjectForClient(): void {
             :addresses="clientStore.addresses"
             :verifications="clientStore.verifications"
             :loading="isOnboardingStateSaving"
-            @advance="handleAdvanceOnboarding"
+            @autoAdvance="handleAutoAdvanceOnboarding"
             @change-status="isStatusDialogOpen = true"
           />
           <div class="flex flex-col gap-4">

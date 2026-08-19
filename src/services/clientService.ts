@@ -476,6 +476,23 @@ async function updateOnboardingState(clientId: string, input: ClientOnboardingSt
   }
 }
 
+/**
+ * Walks a client forward through every onboarding transition that has
+ * exactly one legal next state, in a single call -- replaces what used
+ * to be several separate "Change Status" round trips for the common
+ * case where each step has nothing to actually decide. Stops on its
+ * own at the first genuine decision point or reason-requiring state;
+ * see client_service.auto_advance_onboarding on the backend.
+ */
+async function autoAdvanceOnboarding(clientId: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/auto-advance`, {})
+  } catch (error) {
+    console.error(`Failed to auto-advance onboarding for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to advance onboarding')
+  }
+}
+
 export type ClientVerificationInput = {
   item: string
   result: ClientVerificationResult
@@ -683,6 +700,7 @@ export const clientService = {
   getVerificationsForClient,
   createVerification,
   updateOnboardingState,
+  autoAdvanceOnboarding,
   getConsentsForClient,
   createConsent,
   getAuditEventsForClient,

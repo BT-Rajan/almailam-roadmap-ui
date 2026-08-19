@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ArrowRight, Settings2 } from '@lucide/vue'
+import { ArrowRightCircle, Settings2 } from '@lucide/vue'
 import { computed } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS } from '@/constants/clientOptions'
-import type { Client, ClientAddress, ClientContact, ClientDocument, ClientOnboardingState, ClientVerification } from '@/types/Client'
+import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, CLIENT_ONBOARDING_STATES_REQUIRING_REASON } from '@/constants/clientOptions'
+import type { Client, ClientAddress, ClientContact, ClientDocument, ClientVerification } from '@/types/Client'
 import { calculateOnboardingState, getClientOnboardingStateVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
@@ -19,18 +19,17 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  advance: [nextState: ClientOnboardingState]
+  autoAdvance: []
   changeStatus: []
 }>()
 
-// What the actual contacts/addresses/documents/verifications on file say
-// the state should ultimately be -- calculated fresh from real data
-// rather than trusted from whatever onboardingState happens to be
-// stored (see utils/clientHelpers). This can (and very often does --
-// e.g. right after a client is onboarded with a complete profile,
-// documents, and verifications all in one sitting) land several steps
-// ahead of the current state, since the backend's own transition graph
-// only ever allows moving one step at a time.
+// Purely informational -- what the actual contacts/addresses/documents/
+// verifications on file say the state should ultimately be, shown as
+// context alongside the buttons below. Doesn't drive which button
+// appears: the backend doesn't gate transitions on data completeness
+// (staff can already manually force any individual step regardless of
+// what's on file via "Change Status"), so this is a helpful signal,
+// not a precondition.
 const recommendedState = computed(() =>
   calculateOnboardingState(props.client, props.documents, props.contacts, props.addresses, props.verifications),
 )
@@ -39,46 +38,17 @@ const availableTransitions = computed(
   () => CLIENT_ONBOARDING_ALLOWED_TRANSITIONS[props.client.onboardingState] ?? [],
 )
 
-// The pipeline's real forward order -- Rejected/Suspended are branches
-// off it, not progress along it, so they're deliberately excluded here.
-const PIPELINE_ORDER: ClientOnboardingState[] = [
-  'Information Required',
-  'Documents Required',
-  'Verification Required',
-  'Under Review',
-  'Ready',
-]
-
-function pipelineIndex(state: ClientOnboardingState): number {
-  return PIPELINE_ORDER.indexOf(state)
-}
-
-// The one-click "Advance" button needs to move the client ONE step
-// closer to what the data supports, not require an exact match to the
-// final recommended state -- previously it only ever offered the exact
-// recommendedState as the target, so the button simply never appeared
-// whenever that state was more than one step away, which is the common
-// case (see above), not a rare edge case. This silently left every
-// fully-ready client stuck showing "Information Required" forever,
-// with no visible next action and no explanation -- staff had no way
-// to tell it just needed to be manually stepped forward four times via
-// "Change Status" instead of the one-click shortcut they were shown.
-const nextStep = computed<ClientOnboardingState | null>(() => {
-  const recommendedIndex = pipelineIndex(recommendedState.value)
-  const currentIndex = pipelineIndex(props.client.onboardingState)
-  if (recommendedIndex === -1 || currentIndex === -1 || recommendedIndex <= currentIndex) {
-    return null
-  }
-  const forwardOptions = availableTransitions.value
-    .filter((state) => {
-      const index = pipelineIndex(state)
-      return index > currentIndex && index <= recommendedIndex
-    })
-    .sort((a, b) => pipelineIndex(a) - pipelineIndex(b))
-  return forwardOptions[0] ?? null
-})
-
-const canAutoAdvance = computed(() => nextStep.value !== null)
+// The bulk "Advance" action only makes sense when the current step has
+// exactly one legal next state (nothing to decide) *and* that step
+// doesn't require a reason (which needs a human to type one in) --
+// backend/app/services/client_service.py's auto_advance_onboarding()
+// walks as many such steps as it can in one call, so this button covers
+// what used to be several separate "Change Status" round trips for the
+// common, no-real-decision case. Anything else -- a branch point, a
+// dead end, or a reason-gated step -- falls through to "Change Status".
+const canAutoAdvance = computed(
+  () => availableTransitions.value.length === 1 && !CLIENT_ONBOARDING_STATES_REQUIRING_REASON.includes(availableTransitions.value[0]),
+)
 </script>
 
 <template>
@@ -93,7 +63,7 @@ const canAutoAdvance = computed(() => nextStep.value !== null)
         <StatusBadge :label="client.onboardingState" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
       </div>
 
-      <p v-if="canAutoAdvance" class="text-xs text-neutral-500">
+      <p v-if="recommendedState !== client.onboardingState" class="text-xs text-neutral-500">
         Based on the documents and verifications on file, this client can move toward
         <strong>{{ recommendedState }}</strong>.
       </p>
@@ -103,13 +73,13 @@ const canAutoAdvance = computed(() => nextStep.value !== null)
 
       <div class="flex flex-wrap items-center gap-2">
         <BaseButton
-          v-if="canAutoAdvance && nextStep"
+          v-if="canAutoAdvance"
           size="sm"
-          :icon="ArrowRight"
+          :icon="ArrowRightCircle"
           :loading="loading"
-          @click="emit('advance', nextStep)"
+          @click="emit('autoAdvance')"
         >
-          Advance to {{ nextStep }}
+          Advance
         </BaseButton>
         <BaseButton
           v-if="availableTransitions.length > 0"

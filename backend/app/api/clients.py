@@ -180,6 +180,19 @@ def set_onboarding_state(
     return _client_out(client, names)
 
 
+@router.post("/{client_id}/onboarding-state/auto-advance", response_model=ClientOut)
+def auto_advance_onboarding(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    client = client_service.auto_advance_onboarding(
+        db, client_service.parse_client_id(client_id), current_user.id
+    )
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
+
+
 @router.get("/{client_id}/contacts", response_model=list[ClientContactOut])
 def list_contacts(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     contacts = client_service.list_contacts(db, client_service.parse_client_id(client_id))

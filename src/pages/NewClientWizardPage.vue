@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -43,6 +43,70 @@ const isSubmitting = ref(false)
 const form = ref(createEmptyClientWizardForm())
 const duplicates = ref<ClientDuplicateMatch[]>([])
 let duplicateCheckTimeout: ReturnType<typeof setTimeout> | undefined
+
+// ------------------------------------------------------------------
+// Draft autosave: this is the longest form in the app (5 steps, most
+// fields required) with no prior save/resume at all -- a closed tab,
+// an accidental back navigation, or a crash partway through meant
+// starting completely over. Saves a lightweight snapshot to
+// localStorage on every meaningful change and offers to restore it on
+// return. The selected identification file can't be persisted this
+// way (browsers can't serialize File objects across a reload) --
+// resuming a draft always needs the file re-selected, which is a
+// reasonable, expected limitation, not a data-loss one.
+// ------------------------------------------------------------------
+const DRAFT_KEY = 'almailam-new-client-wizard-draft'
+const draftAvailable = ref(false)
+let restoringDraft = false
+let draftSaveTimeout: ReturnType<typeof setTimeout> | undefined
+
+function saveDraft(): void {
+  if (restoringDraft) return
+  clearTimeout(draftSaveTimeout)
+  draftSaveTimeout = setTimeout(() => {
+    try {
+      const serializable: Record<string, unknown> = { ...form.value }
+      delete serializable.identificationFile
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), step: currentStep.value, form: serializable }))
+    } catch {
+      // Storage can legitimately fail (private browsing, quota) -- a
+      // lost draft is a minor inconvenience, not worth surfacing as an
+      // error in the middle of someone filling out a form.
+    }
+  }, 400)
+}
+
+function clearDraft(): void {
+  localStorage.removeItem(DRAFT_KEY)
+}
+
+function restoreDraft(): void {
+  const raw = localStorage.getItem(DRAFT_KEY)
+  if (!raw) return
+  try {
+    const parsed = JSON.parse(raw) as { step: number; form: Omit<typeof form.value, 'identificationFile'> }
+    restoringDraft = true
+    form.value = { ...form.value, ...parsed.form, identificationFile: null }
+    currentStep.value = parsed.step
+  } catch {
+    clearDraft()
+  } finally {
+    restoringDraft = false
+  }
+  draftAvailable.value = false
+}
+
+function discardDraft(): void {
+  clearDraft()
+  draftAvailable.value = false
+}
+
+onMounted(() => {
+  draftAvailable.value = localStorage.getItem(DRAFT_KEY) !== null
+})
+
+watch(form, saveDraft, { deep: true })
+watch(currentStep, saveDraft)
 
 // Shown after a successful create so the user gets an explicit
 // confirmation (with the assigned client code) instead of a toast that
@@ -116,6 +180,22 @@ function goNext(): void {
     )
     return
   }
+  // Leaving step 0 (Client Type): for an Individual client the primary
+  // contact is almost always the client themselves, and step 0 just
+  // collected their mobile/email -- pre-fill the first contact with
+  // those same values rather than making staff retype the same phone
+  // number and email they entered seconds ago. Only fills blanks, and
+  // only the client's own name for the contact name too; anything
+  // already typed (e.g. this really is someone else, like an
+  // assistant) is left alone, and it's still fully editable either way.
+  if (currentStep.value === 0 && form.value.clientType === 'Individual') {
+    const primaryContact = form.value.contacts[0]
+    if (primaryContact) {
+      if (!primaryContact.name.trim()) primaryContact.name = form.value.individualProfile.fullLegalName
+      if (!primaryContact.mobile.trim()) primaryContact.mobile = form.value.mobile
+      if (!primaryContact.email.trim()) primaryContact.email = form.value.email
+    }
+  }
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }
 
@@ -124,6 +204,7 @@ function goBack(): void {
 }
 
 function cancelWizard(): void {
+  clearDraft()
   router.push({ name: ROUTE_NAMES.CLIENTS })
 }
 
@@ -264,6 +345,7 @@ async function submitWizard(): Promise<void> {
     // note inline -- so no separate pop-up here would just be a second,
     // redundant confirmation for the same one action.
     createdClient.value = client
+    clearDraft()
     showConfirmation.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
@@ -283,6 +365,16 @@ function goToCreatedClient(): void {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader title="New Client Onboarding" subtitle="Collect, verify and confirm client information in a few steps." />
+
+    <BaseDialog :model-value="draftAvailable" title="Resume unsaved draft?" size="sm" :closable="false">
+      <p class="text-sm text-neutral-600">
+        You have an unfinished client onboarding form saved from earlier. Resume where you left off, or start fresh.
+      </p>
+      <template #footer>
+        <BaseButton variant="secondary" @click="discardDraft">Start Fresh</BaseButton>
+        <BaseButton @click="restoreDraft">Resume Draft</BaseButton>
+      </template>
+    </BaseDialog>
 
     <div class="rounded-xl border border-border-light bg-bg-card p-6">
       <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" />

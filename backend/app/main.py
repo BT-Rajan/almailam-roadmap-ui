@@ -36,16 +36,21 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
+from app.services.client_service import check_and_notify_stale_onboarding
 from app.services.project_service import check_and_notify_stale_projects
 
 settings = get_settings()
 logger = logging.getLogger("app.scheduler")
 
 
-def _run_stale_project_check() -> None:
-    # A fresh session per run, not a request-scoped one -- this runs on
-    # a timer, independent of any HTTP request, so there's no `get_db()`
-    # dependency to piggyback on.
+def _run_staleness_checks() -> None:
+    # One scheduled job running both related staleness checks, not two
+    # nearly-identical jobs each with their own trigger/session
+    # boilerplate. A fresh session per run, not a request-scoped one --
+    # this runs on a timer, independent of any HTTP request, so there's
+    # no `get_db()` dependency to piggyback on. Each check gets its own
+    # try/except so a failure in one doesn't prevent the other from
+    # running.
     db = SessionLocal()
     try:
         notified = check_and_notify_stale_projects(db)
@@ -54,6 +59,14 @@ def _run_stale_project_check() -> None:
     except Exception:
         logger.exception("Stale-project check failed.")
         db.rollback()
+
+    try:
+        notified = check_and_notify_stale_onboarding(db)
+        if notified:
+            logger.info("Stale-onboarding check: notified %d client(s).", notified)
+    except Exception:
+        logger.exception("Stale-onboarding check failed.")
+        db.rollback()
     finally:
         db.close()
 
@@ -61,13 +74,13 @@ def _run_stale_project_check() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
-    # Once a day is deliberately coarse for a threshold measured in
+    # Once a day is deliberately coarse for thresholds measured in
     # days, not hours -- and the interval trigger below doesn't fire
     # immediately, so also run once right away rather than only after
     # the first full day, in case the process was down when yesterday's
     # run would have fired.
-    scheduler.add_job(_run_stale_project_check, "interval", days=1, id="stale_project_check")
-    _run_stale_project_check()
+    scheduler.add_job(_run_staleness_checks, "interval", days=1, id="staleness_checks")
+    _run_staleness_checks()
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)

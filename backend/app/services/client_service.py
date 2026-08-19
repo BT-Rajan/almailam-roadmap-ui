@@ -1,5 +1,5 @@
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import UploadFile
 from sqlalchemy import func, or_
@@ -26,7 +26,7 @@ from app.models.client import (
     ClientIdentification,
     ClientVerification,
 )
-from app.services import audit_service
+from app.services import audit_service, company_service, notification_service
 
 ENTITY_TYPE = "CLIENT"
 
@@ -318,9 +318,108 @@ def set_onboarding_state(
         previous_value=client.onboarding_state, new_value=new_state, reason=reason,
     )
     client.onboarding_state = new_state
+    # A fresh staleness period starts now that onboarding has genuinely
+    # moved -- see check_and_notify_stale_onboarding.
+    client.onboarding_notified_at = None
     db.commit()
     db.refresh(client)
     return client
+
+
+def auto_advance_onboarding(db: Session, client_id: int, user_id: int | None) -> Client:
+    """Walks a client forward through every onboarding transition that
+    has exactly one legal next state, stopping the moment it reaches a
+    genuine decision point (a state with zero or multiple valid next
+    states -- e.g. "Under Review" branching to Ready/Rejected/Documents
+    Required) or a state requiring a reason (which needs a human to
+    supply one).
+
+    This exists because walking a fully-ready client from "Information
+    Required" all the way to "Under Review" previously took three
+    separate manual round trips through the status-change dialog, even
+    though none of those three hops involve any real decision -- each
+    one only ever has a single legal destination. Each hop still goes
+    through the exact same validation and audit logging as a single
+    set_onboarding_state() call (so the audit trail shows the real
+    sequence of transitions, not one opaque jump); this just removes
+    the repeated manual clicking between them.
+
+    Not gated on document/verification completeness -- staff can
+    already manually force any individual transition via "Change
+    Status" regardless of what's actually on file, so this doesn't
+    introduce a stricter rule than what already exists; it only
+    automates the mechanical part.
+    """
+    client = get_client(db, client_id)
+    hops = 0
+    while True:
+        options = CLIENT_ONBOARDING_ALLOWED_TRANSITIONS.get(client.onboarding_state, set())
+        if len(options) != 1:
+            break
+        next_state = next(iter(options))
+        if next_state in CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON:
+            break
+        client = set_onboarding_state(db, client_id, next_state, None, user_id)
+        hops += 1
+    return client
+
+
+def check_and_notify_stale_onboarding(db: Session) -> int:
+    """Finds clients whose onboarding hasn't moved in more than the
+    admin-configurable threshold (CompanySettings.
+    stale_onboarding_alert_days, default 5) and notifies the account
+    manager once per staleness episode -- mirrors project_service.
+    check_and_notify_stale_projects exactly, applied to onboarding
+    instead of project stage. onboarding_notified_at prevents
+    re-notifying every time this runs, and is cleared the moment
+    onboarding_state actually changes (set_onboarding_state), so a
+    fresh staleness period starts if it stalls again later at a
+    different step.
+
+    Only considers clients still genuinely in progress -- Ready,
+    Rejected, and Suspended are all deliberate end states (done,
+    declined, or intentionally paused) that don't need a "you forgot
+    about this" nudge. A client with no account manager assigned is
+    skipped: there's no one specific to notify.
+
+    Called by the same scheduled job as check_and_notify_stale_projects
+    (see main.py) rather than a second one -- one background job doing
+    two related checks, not two nearly-identical jobs.
+    """
+    IN_PROGRESS_STATES = ("Information Required", "Documents Required", "Verification Required", "Under Review")
+
+    settings = company_service.get_settings(db)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=settings.stale_onboarding_alert_days)
+
+    candidates = (
+        db.query(Client)
+        .filter(
+            Client.deleted_at.is_(None),
+            Client.onboarding_state.in_(IN_PROGRESS_STATES),
+            Client.onboarding_notified_at.is_(None),
+            Client.account_manager_id.isnot(None),
+        )
+        .all()
+    )
+
+    notified_count = 0
+    for client in candidates:
+        last_change = audit_service.get_last_event_time(db, ENTITY_TYPE, client.id, "Onboarding state changed")
+        reference_time = last_change if last_change else client.created_at
+
+        if reference_time <= cutoff:
+            notification_service.create_notification(
+                db, client.account_manager_id,
+                "Client onboarding hasn't moved in a while",
+                f"{client.company_name} has been at '{client.onboarding_state}' for more than "
+                f"{settings.stale_onboarding_alert_days} days without advancing.",
+                "System",
+            )
+            client.onboarding_notified_at = datetime.now(timezone.utc)
+            notified_count += 1
+
+    db.commit()
+    return notified_count
 
 
 def _client_exists(db: Session, client_id: int) -> None:

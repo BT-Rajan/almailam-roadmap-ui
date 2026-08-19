@@ -32,3 +32,11 @@ class CompanySettings(Base, TimestampMixin):
     # project can sit without its workflow stage advancing before the
     # assigned engineer is notified.
     stale_project_alert_days: Mapped[int] = mapped_column(Integer, nullable=False, default=45)
+    # Used by client_service.check_and_notify_stale_onboarding -- how
+    # many days a client's onboarding can sit at the same step before
+    # the account manager is notified. A much shorter default than
+    # stale_project_alert_days deliberately -- onboarding should be a
+    # quick process measured in days, not the months a project might
+    # reasonably span, so the two are kept as separate settings rather
+    # than sharing one knob.
+    stale_onboarding_alert_days: Mapped[int] = mapped_column(Integer, nullable=False, default=5)

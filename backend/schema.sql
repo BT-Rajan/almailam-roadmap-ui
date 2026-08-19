@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS clients (
     status                          ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
     onboarding_state                ENUM('Information Required','Documents Required','Verification Required','Under Review','Ready','Rejected','Suspended')
                                         NOT NULL DEFAULT 'Information Required',
+    onboarding_notified_at          DATETIME NULL,
     ind_full_legal_name             VARCHAR(150) NULL,
     ind_preferred_name              VARCHAR(100) NULL,
     ind_nationality                 VARCHAR(80)  NULL,
@@ -640,6 +641,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
     default_payment_terms_days         INT UNSIGNED NOT NULL DEFAULT 30,
     default_quotation_validity_days    INT UNSIGNED NOT NULL DEFAULT 14,
     stale_project_alert_days           INT UNSIGNED NOT NULL DEFAULT 45,
+    stale_onboarding_alert_days        INT UNSIGNED NOT NULL DEFAULT 5,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_company_settings_singleton CHECK (id = 1)
