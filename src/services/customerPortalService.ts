@@ -20,7 +20,7 @@ export class CustomerPortalError extends Error {
 async function extractErrorMessage(response: Response): Promise<string> {
   try {
     const data = await response.json()
-    return data?.detail ?? data?.message ?? `Request failed (${response.status})`
+    return data?.error ?? data?.detail ?? data?.message ?? `Request failed (${response.status})`
   } catch {
     return `Request failed (${response.status})`
   }

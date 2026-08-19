@@ -300,7 +300,7 @@ async function createDocument(clientId: string, input: ClientDocumentInput): Pro
 
     if (!response.ok) {
       const data = await response.json().catch(() => undefined)
-      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
     }
 
     return (await response.json()) as ClientDocument
@@ -383,7 +383,7 @@ async function replaceDocumentFile(clientId: string, documentId: string, file: F
     }
     if (!response.ok) {
       const data = await response.json().catch(() => undefined)
-      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
     }
     return (await response.json()) as ClientDocument
   } catch (error) {

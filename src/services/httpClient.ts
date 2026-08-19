@@ -25,7 +25,19 @@ interface RequestOptions {
 async function extractErrorMessage(response: Response): Promise<string> {
   try {
     const data = await response.json()
-    return data?.detail ?? data?.message ?? `Request failed (${response.status})`
+    // The backend's own exception handler (register_exception_handlers in
+    // backend/app/core/exceptions.py) returns every custom AppError --
+    // ValidationAppError, ConflictError, NotFoundError, AuthError,
+    // PermissionDeniedError, RateLimitError, and the RequestValidationError
+    // handler's own crafted messages -- under an "error" key, not "detail"
+    // or "message" (that's FastAPI's default HTTPException shape, which
+    // this app doesn't actually use for its own raised errors). This
+    // meant every specific, helpful backend error message -- "This
+    // project is marked 'Completed' and can no longer have new records
+    // added to it.", "A reason is required to reject a document.", every
+    // single one of them, everywhere in the app -- was silently discarded
+    // in favor of a generic "Request failed (422)", the whole time.
+    return data?.error ?? data?.detail ?? data?.message ?? `Request failed (${response.status})`
   } catch {
     return `Request failed (${response.status})`
   }

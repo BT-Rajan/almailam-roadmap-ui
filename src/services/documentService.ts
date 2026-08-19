@@ -120,7 +120,7 @@ async function uploadDocument(file: File, projectId: string, title: string, type
 
     if (!response.ok) {
       const data = await response.json().catch(() => undefined)
-      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
     }
 
     return (await response.json()) as ProjectDocument
@@ -195,7 +195,7 @@ async function addVersion(documentId: string, file: File, notes?: string): Promi
     }
     if (!response.ok) {
       const data = await response.json().catch(() => undefined)
-      throw new Error(data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
     }
     return (await response.json()) as DocumentVersion
   } catch (error) {
