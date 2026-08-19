@@ -131,6 +131,18 @@ async function uploadDocument(file: File, projectId: string, title: string, type
 }
 
 /**
+ * Update a document's title via backend API (PATCH /api/documents/{id})
+ */
+async function updateDocument(documentId: string, title: string): Promise<ProjectDocument> {
+  try {
+    return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}`, { title })
+  } catch (error) {
+    console.error(`Failed to update document ${documentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update document')
+  }
+}
+
+/**
  * Delete a document via backend API
  */
 async function deleteDocument(documentId: string): Promise<void> {
@@ -197,6 +209,7 @@ export const documentService = {
   getDocumentsByProject,
   getDocumentVersions,
   uploadDocument,
+  updateDocument,
   deleteDocument,
   downloadDocument,
   downloadVersion,

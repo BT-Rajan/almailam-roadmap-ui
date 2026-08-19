@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskDetails from '@/components/task/TaskDetails.vue'
@@ -16,6 +17,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project } from '@/types/Project'
 import type { TaskPriority, TaskStatus } from '@/types/Task'
+import { useUserStore } from '@/stores/userStore'
 
 const props = defineProps<{
   project: Project
@@ -24,8 +26,72 @@ const props = defineProps<{
 const router = useRouter()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
+const userStore = useUserStore()
 
 const projectTasks = computed(() => taskStore.tasksByProject(props.project.id))
+
+type PendingChange =
+  | { kind: 'status'; value: TaskStatus }
+  | { kind: 'priority'; value: TaskPriority }
+  | { kind: 'reassign'; value: string }
+
+const isConfirmDialogOpen = ref(false)
+const isConfirmSaving = ref(false)
+const pendingChange = ref<PendingChange | null>(null)
+
+const confirmDialogTitle = computed(() => {
+  if (!pendingChange.value) return ''
+  return { status: 'Change status', priority: 'Change priority', reassign: 'Reassign task' }[pendingChange.value.kind]
+})
+
+const confirmDialogMessage = computed(() => {
+  if (!pendingChange.value || !taskStore.selectedTask) return ''
+  const task = taskStore.selectedTask
+  switch (pendingChange.value.kind) {
+    case 'status':
+      return `Change "${task.title}" from ${task.status} to ${pendingChange.value.value}?`
+    case 'priority':
+      return `Change the priority of "${task.title}" from ${task.priority} to ${pendingChange.value.value}?`
+    case 'reassign': {
+      const nextAssignee = userStore.users.find((user) => user.id === pendingChange.value?.value)?.name ?? 'this user'
+      return `Reassign "${task.title}" from ${task.assignedTo} to ${nextAssignee}?`
+    }
+    default:
+      return ''
+  }
+})
+
+function requestStatusChange(status: TaskStatus): void {
+  pendingChange.value = { kind: 'status', value: status }
+  isConfirmDialogOpen.value = true
+}
+
+function requestPriorityChange(priority: TaskPriority): void {
+  pendingChange.value = { kind: 'priority', value: priority }
+  isConfirmDialogOpen.value = true
+}
+
+function requestReassign(assigneeUserId: string): void {
+  pendingChange.value = { kind: 'reassign', value: assigneeUserId }
+  isConfirmDialogOpen.value = true
+}
+
+async function handleConfirmPendingChange(): Promise<void> {
+  if (!pendingChange.value) return
+  isConfirmSaving.value = true
+  try {
+    if (pendingChange.value.kind === 'status') {
+      await handleStatusChange(pendingChange.value.value)
+    } else if (pendingChange.value.kind === 'priority') {
+      await handlePriorityChange(pendingChange.value.value)
+    } else {
+      await handleReassign(pendingChange.value.value)
+    }
+    isConfirmDialogOpen.value = false
+  } finally {
+    isConfirmSaving.value = false
+  }
+}
 
 const isDrawerOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
@@ -109,9 +175,18 @@ async function handleReassign(assignee: string): Promise<void> {
       v-if="taskStore.selectedTask"
       :task="taskStore.selectedTask"
       :project-name="project.projectName"
-      @status-change="handleStatusChange"
-      @priority-change="handlePriorityChange"
-      @reassign="handleReassign"
+      @status-change="requestStatusChange"
+      @priority-change="requestPriorityChange"
+      @reassign="requestReassign"
     />
   </BaseDrawer>
+
+  <ConfirmationDialog
+    v-model="isConfirmDialogOpen"
+    :title="confirmDialogTitle"
+    :message="confirmDialogMessage"
+    confirm-label="Confirm"
+    :loading="isConfirmSaving"
+    @confirm="handleConfirmPendingChange"
+  />
 </template>

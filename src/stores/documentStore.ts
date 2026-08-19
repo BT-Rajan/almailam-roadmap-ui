@@ -189,6 +189,20 @@ export const useDocumentStore = defineStore('document', {
       return document
     },
 
+    async updateDocument(documentId: string, title: string): Promise<ProjectDocument> {
+      const updated = await documentService.updateDocument(documentId, title)
+      this.documents = this.documents.map((document) => (document.id === documentId ? updated : document))
+      if (this.currentDocument?.id === documentId) {
+        this.currentDocument = updated
+      }
+      return updated
+    },
+
+    async deleteDocument(documentId: string): Promise<void> {
+      await documentService.deleteDocument(documentId)
+      this.documents = this.documents.filter((document) => document.id !== documentId)
+    },
+
     setSearchTerm(term: string) {
       this.searchTerm = term
     },

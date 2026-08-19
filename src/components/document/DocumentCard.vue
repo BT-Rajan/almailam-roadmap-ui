@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { CalendarClock, FolderKanban, UserRound } from '@lucide/vue'
+import { CalendarClock, FolderKanban, Pencil, Trash2, UserRound } from '@lucide/vue'
 import { computed } from 'vue'
 
 import Card from '@/components/common/Card.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Project } from '@/types/Project'
 import type { ProjectDocument } from '@/types/Document'
@@ -16,6 +17,8 @@ const props = defineProps<{
 
 defineEmits<{
   open: [documentId: string]
+  edit: [document: ProjectDocument]
+  delete: [document: ProjectDocument]
 }>()
 
 const projectName = computed(() => props.project?.projectName ?? 'Unknown Project')
@@ -35,7 +38,11 @@ const typeIcon = computed(() => getDocumentTypeIcon(props.document.type))
             <h3 class="text-base font-semibold leading-snug text-neutral-800">{{ document.title }}</h3>
           </div>
         </div>
-        <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" show-dot />
+        <div class="flex shrink-0 items-center gap-2 no-print" @click.stop>
+          <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" show-dot />
+          <IconButton :icon="Pencil" label="Edit document" size="sm" @click="$emit('edit', document)" />
+          <IconButton :icon="Trash2" label="Delete document" size="sm" variant="danger" @click="$emit('delete', document)" />
+        </div>
       </div>
 
       <div class="flex items-center gap-2 text-sm text-neutral-500">
