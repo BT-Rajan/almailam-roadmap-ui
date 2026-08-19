@@ -77,9 +77,17 @@ const serviceOptions: SelectOption[] = PROJECT_SERVICES.map((service) => ({ labe
 const engineerOptions = ref<SelectOption[]>([])
 
 onMounted(async () => {
-  if (projectStore.clients.length === 0) {
-    await projectStore.loadProjects()
-  }
+  // Always fetch fresh -- not guarded by `if (projectStore.clients.length
+  // === 0)` the way this used to be. That guard meant the eligible-clients
+  // list was only ever fetched once per session: if projectStore.clients
+  // had been populated at any earlier point (visiting the Projects list,
+  // etc.), it was never refreshed here, so a client who completed
+  // onboarding *after* that earlier fetch would silently never appear as
+  // eligible -- the exact real-world sequence of "onboard a client, then
+  // immediately try to create a project for them" that this page exists
+  // for. Eligibility is a correctness question; it can't be served from
+  // a cache that might be from before the thing being checked changed.
+  await projectStore.loadProjects()
   // Only clients that have completed onboarding AND are still Active can
   // have a project created for them (enforced server-side too, in
   // project_service.create_project) -- a project needs a real, currently
