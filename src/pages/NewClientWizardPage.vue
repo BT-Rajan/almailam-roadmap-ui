@@ -80,19 +80,28 @@ function clearDraft(): void {
   localStorage.removeItem(DRAFT_KEY)
 }
 
-function restoreDraft(): void {
+function readDraft(): { step: number; form: Omit<typeof form.value, 'identificationFile'> } | null {
   const raw = localStorage.getItem(DRAFT_KEY)
-  if (!raw) return
+  if (!raw) return null
   try {
-    const parsed = JSON.parse(raw) as { step: number; form: Omit<typeof form.value, 'identificationFile'> }
+    return JSON.parse(raw) as { step: number; form: Omit<typeof form.value, 'identificationFile'> }
+  } catch {
+    return null
+  }
+}
+
+function restoreDraft(): void {
+  const parsed = readDraft()
+  if (parsed) {
     restoringDraft = true
     form.value = { ...form.value, ...parsed.form, identificationFile: null }
     currentStep.value = parsed.step
-  } catch {
-    clearDraft()
-  } finally {
     restoringDraft = false
   }
+  // A draft that fails to parse is silently discarded either way -- it
+  // was never something the person could actually resume, so there's
+  // nothing to tell them beyond the form starting fresh.
+  clearDraft()
   draftAvailable.value = false
 }
 
@@ -102,7 +111,20 @@ function discardDraft(): void {
 }
 
 onMounted(() => {
-  draftAvailable.value = localStorage.getItem(DRAFT_KEY) !== null
+  // Only offer to resume a draft that's genuinely restorable -- a
+  // corrupted entry (partial write, storage tampering) previously
+  // still triggered the resume prompt just because *something* existed
+  // under the key, and only revealed it couldn't actually be read once
+  // "Resume Draft" was clicked, silently closing with no explanation
+  // instead of the data reappearing. An unreadable entry is cleared
+  // outright here rather than just ignored, so it doesn't linger in
+  // storage indefinitely being silently rechecked on every future visit.
+  const parsed = readDraft()
+  if (parsed) {
+    draftAvailable.value = true
+  } else {
+    clearDraft()
+  }
 })
 
 watch(form, saveDraft, { deep: true })
