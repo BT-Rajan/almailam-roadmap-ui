@@ -12,9 +12,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
 
-function handleLogout(): void {
+async function handleLogout(): Promise<void> {
   navigationStore.closeMobileSidebar()
-  authStore.logout()
+  await authStore.logout()
   router.push({ name: ROUTE_NAMES.LOGIN })
 }
 </script>

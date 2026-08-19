@@ -12,8 +12,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
 
-function handleLogout(): void {
-  authStore.logout()
+async function handleLogout(): Promise<void> {
+  await authStore.logout()
   router.push({ name: ROUTE_NAMES.LOGIN })
 }
 </script>
