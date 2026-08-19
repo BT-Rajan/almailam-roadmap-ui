@@ -310,6 +310,51 @@ async function createDocument(clientId: string, input: ClientDocumentInput): Pro
   }
 }
 
+export interface IdentificationVerificationResult {
+  checked: boolean
+  matches?: boolean
+  reasoning?: string
+}
+
+/**
+ * Vision-based plausibility check for the New Client wizard's
+ * identification upload -- not tied to a client id, since this is
+ * called before any client record exists yet. `checked: false` means
+ * the AI couldn't evaluate the file (disabled, unconfigured, provider
+ * error, or a PDF, which this check doesn't attempt) -- the wizard
+ * treats that as "accept with a manual verification caveat," not as a
+ * rejection. A non-2xx response here means the file itself was
+ * rejected outright (wrong type, over the 5 MB limit, content doesn't
+ * match its extension) -- callers should surface that as a hard error.
+ */
+async function verifyIdentificationDocument(file: File, documentType: string): Promise<IdentificationVerificationResult> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('documentType', documentType)
+
+  const doRequest = () =>
+    fetch('/api/clients/verify-identification-document', {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  let response = await doRequest()
+  if (response.status === 401) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) response = await doRequest()
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => undefined)
+    throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Verification failed with status ${response.status}`)
+  }
+
+  return (await response.json()) as IdentificationVerificationResult
+}
+
 /**
  * Download a client document's stored file from backend API.
  */
@@ -691,6 +736,7 @@ export const clientService = {
   deleteIdentification,
   getDocumentsForClient,
   createDocument,
+  verifyIdentificationDocument,
   updateDocument,
   replaceDocumentFile,
   getDocumentVersions,

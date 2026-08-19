@@ -5,22 +5,56 @@ import { ref, useId } from 'vue'
 interface Props {
   accept?: string
   hint?: string
+  // Both optional and undefined by default, so every other use of this
+  // component (project documents, client documents, new versions) keeps
+  // its current no-restriction behaviour. Only a caller that explicitly
+  // sets these (the New Client wizard's identification upload) gets
+  // client-side enforcement.
+  maxSizeBytes?: number
+  allowedExtensions?: string[]
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   accept: '.pdf,.doc,.docx,.dwg,.xlsx,.png,.jpg',
   hint: 'PDF, Word, Excel, DWG or image files',
+  maxSizeBytes: undefined,
+  allowedExtensions: undefined,
 })
 
 const emit = defineEmits<{
   select: [file: File | undefined]
+  // Fired instead of `select` when maxSizeBytes/allowedExtensions are
+  // set and the chosen file fails either check -- the file is never
+  // accepted into selectedFile in that case.
+  error: [message: string]
 }>()
 
 const inputId = useId()
 const isDragging = ref(false)
 const selectedFile = ref<File>()
 
+function validationError(file: File): string | undefined {
+  if (props.allowedExtensions) {
+    const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`
+    if (!props.allowedExtensions.includes(extension)) {
+      return `File type '${extension}' is not allowed. Allowed types: ${props.allowedExtensions.join(', ')}`
+    }
+  }
+  if (props.maxSizeBytes !== undefined && file.size > props.maxSizeBytes) {
+    const maxMb = (props.maxSizeBytes / (1024 * 1024)).toFixed(0)
+    return `File exceeds the ${maxMb} MB upload limit.`
+  }
+  return undefined
+}
+
 function selectFile(file: File | undefined): void {
+  if (file) {
+    const error = validationError(file)
+    if (error) {
+      emit('error', error)
+      return
+    }
+  }
   selectedFile.value = file
   emit('select', file)
 }

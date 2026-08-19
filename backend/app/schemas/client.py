@@ -639,3 +639,15 @@ class ClientVerificationCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
     documentId: str | None = None
     _check = field_validator("result")(_enum_validator(CLIENT_VERIFICATION_RESULTS, "result"))
+
+
+class IdentificationVerificationOut(BaseModel):
+    # "checked" is false whenever the AI couldn't actually evaluate the
+    # file (disabled, unconfigured, provider error, or a file type this
+    # check doesn't attempt -- see api/clients.py's verify_identification_
+    # document) -- the frontend treats that as "accept with a manual
+    # verification caveat", not as a rejection. matches/reasoning are
+    # only meaningful when checked is true.
+    checked: bool
+    matches: bool | None = None
+    reasoning: str | None = None

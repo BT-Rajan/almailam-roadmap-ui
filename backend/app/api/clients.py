@@ -1,10 +1,14 @@
+import base64
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
-from app.core.file_storage import format_file_size
+from app.core.exceptions import ValidationAppError
+from app.core.file_storage import format_file_size, matches_signature
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.schemas.common import PagedResponse
@@ -20,6 +24,7 @@ from app.schemas.client import (
     ClientCreate,
     ClientDocumentOut,
     ClientDocumentVersionOut,
+    IdentificationVerificationOut,
     ClientDocumentUpdate,
     ClientDuplicateCheckRequest,
     ClientDuplicateMatchOut,
@@ -34,7 +39,7 @@ from app.schemas.client import (
     ClientVerificationCreate,
     ClientVerificationOut,
 )
-from app.services import client_service
+from app.services import ai_service, client_service
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 
@@ -114,6 +119,63 @@ def merge_clients(
     )
     names = _account_manager_names(db, [merged])
     return _client_out(merged, names)
+
+
+# Constraints specific to the identification-document upload in the New
+# Client wizard -- deliberately not the general document-upload limits
+# used elsewhere (backend/app/core/file_storage.py's ALLOWED_EXTENSIONS/
+# MAX_UPLOAD_SIZE_MB), since those need to stay permissive for other
+# client and project document types.
+IDENTIFICATION_MAX_SIZE_MB = 5
+IDENTIFICATION_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
+IDENTIFICATION_IMAGE_MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+
+
+@router.post("/verify-identification-document", response_model=IdentificationVerificationOut)
+async def verify_identification_document(
+    file: UploadFile = File(...),
+    documentType: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    """Not scoped to a client id -- called from the New Client wizard
+    before any client record exists yet. Size/type are hard limits,
+    enforced regardless of AI availability (a 6 MB file or a .docx
+    doesn't become acceptable just because the AI check can't run).
+    The AI plausibility check itself degrades gracefully: PDFs (Claude
+    vision here only takes images) and any AI failure both return
+    checked=false rather than an error, which the frontend accepts the
+    file for, flagged for manual verification -- per @app.core.
+    exceptions.AppError's own convention, ai_service.AIUnavailableError
+    is the only path this ever raises AS an error to the client.
+    """
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in IDENTIFICATION_ALLOWED_EXTENSIONS:
+        raise ValidationAppError(
+            f"File type '{extension or 'unknown'}' is not allowed. "
+            f"Allowed types: {', '.join(sorted(IDENTIFICATION_ALLOWED_EXTENSIONS))}"
+        )
+
+    max_bytes = IDENTIFICATION_MAX_SIZE_MB * 1024 * 1024
+    contents = await file.read(max_bytes + 1)
+    if len(contents) > max_bytes:
+        raise ValidationAppError(f"File exceeds the {IDENTIFICATION_MAX_SIZE_MB} MB upload limit.")
+    if not contents:
+        raise ValidationAppError("Uploaded file is empty.")
+    if not matches_signature(extension, contents):
+        raise ValidationAppError(f"File content doesn't match its '{extension}' extension.")
+
+    if extension not in IDENTIFICATION_IMAGE_MIME_TYPES:
+        # PDF -- outside what this check can look at; accept with the caveat.
+        return IdentificationVerificationOut(checked=False)
+
+    try:
+        result = await ai_service.verify_identification_document(
+            db, base64.b64encode(contents).decode("ascii"), IDENTIFICATION_IMAGE_MIME_TYPES[extension], documentType
+        )
+        return IdentificationVerificationOut(checked=True, matches=result["matches"], reasoning=result["reasoning"])
+    except ai_service.AIUnavailableError:
+        return IdentificationVerificationOut(checked=False)
 
 
 @router.get("/{client_id}", response_model=ClientOut)

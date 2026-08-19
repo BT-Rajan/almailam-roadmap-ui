@@ -95,17 +95,17 @@ export const CLIENT_CONSENT_TYPE_OPTIONS: { type: ClientConsentType; description
   {
     type: 'Electronic Communication',
     description: 'Allow communication by email, WhatsApp and SMS regarding onboarding and service updates.',
-    mandatory: false,
+    mandatory: true,
   },
   {
     type: 'Receive Notifications',
     description: 'Allow notifications about document expiry, verification status and project milestones.',
-    mandatory: false,
+    mandatory: true,
   },
   {
     type: 'Process Documents',
     description: 'Allow uploaded identity and registration documents to be stored and processed.',
-    mandatory: false,
+    mandatory: true,
   },
 ]
 
