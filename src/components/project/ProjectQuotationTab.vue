@@ -84,5 +84,5 @@ async function handleCreateQuotation(payload: QuotationCreateInput): Promise<voi
     </div>
   </div>
 
-  <NewQuotationDialog v-model="isCreateDialogOpen" :loading="isCreating" @confirm="handleCreateQuotation" />
+  <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :loading="isCreating" @confirm="handleCreateQuotation" />
 </template>

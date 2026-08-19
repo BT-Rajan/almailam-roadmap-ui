@@ -12,6 +12,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import type { ContractClauseInput, ContractCreateInput } from '@/services/contractService'
+import type { Project } from '@/types/Project'
 import { validators } from '@/utils/validators'
 import type { SelectOption } from '@/types/Ui'
 
@@ -19,6 +20,12 @@ const props = defineProps<{
   modelValue: boolean
   defaultClientRepresentative?: string
   loading?: boolean
+  // Same idea as NewQuotationDialog: when the project has services picked
+  // via ServicePickerDialog, prefill contract value and scope summary from
+  // that breakdown so the picked services carry through to the contract
+  // too, instead of staff re-entering the total and typing out the scope
+  // by hand. Still fully editable.
+  project?: Project
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +55,14 @@ function emptyForm() {
   }
 }
 
+// Prefills contract value from the project's serviceTotal and writes a
+// one-line-per-activity scope summary -- both still fully editable, this
+// just saves re-typing what was already picked in the service picker.
+function scopeSummaryFromProject(project: Project | undefined): string {
+  if (!project?.selectedActivities?.length) return ''
+  return project.selectedActivities.map((item) => `${item.serviceName} - ${item.activityName}`).join('\n')
+}
+
 const form = reactive(emptyForm())
 const clauseErrors = reactive<string[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
@@ -68,6 +83,8 @@ watch(
     // A sensible starting point, not a locked value -- staff can still
     // change it if a different person signs for the client.
     form.clientRepresentative = props.defaultClientRepresentative ?? ''
+    form.contractValue = props.project?.serviceTotal ?? 0
+    form.scopeSummary = scopeSummaryFromProject(props.project)
     clauseErrors.splice(0, clauseErrors.length)
   },
 )

@@ -13,6 +13,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import type { QuotationCreateInput, QuotationLineItemInput } from '@/services/quotationService'
+import type { Project } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { validators } from '@/utils/validators'
 import type { SelectOption } from '@/types/Ui'
@@ -20,6 +21,12 @@ import type { SelectOption } from '@/types/Ui'
 const props = defineProps<{
   modelValue: boolean
   loading?: boolean
+  // When the project this quotation is for has services picked via
+  // ServicePickerDialog, prefill the line items from that breakdown --
+  // this is what "carries forward to the quotation" in practice, since
+  // staff would otherwise be re-typing the same services and prices by
+  // hand. Still fully editable afterwards; this only seeds the form.
+  project?: Project
 }>()
 
 const emit = defineEmits<{
@@ -56,7 +63,24 @@ function emptyForm() {
   }
 }
 
-const form = reactive(emptyForm())
+// Turns the project's picked activities into draft line items (one per
+// activity, quantity 1, unit price = the picked fixedCost). Falls back to
+// emptyForm()'s single blank row when the project has no picks yet, so
+// staff building a quotation for an older/manual project see the exact
+// same starting point as before.
+function formFromProject(project: Project | undefined) {
+  if (!project?.selectedActivities?.length) return emptyForm()
+  return {
+    ...emptyForm(),
+    lineItems: project.selectedActivities.map((item) => ({
+      description: `${item.serviceName} - ${item.activityName}`,
+      quantity: 1,
+      unitPrice: item.fixedCost,
+    })),
+  }
+}
+
+const form = reactive(formFromProject(props.project))
 const lineItemErrors = reactive<string[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
@@ -68,7 +92,7 @@ watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    Object.assign(form, emptyForm())
+    Object.assign(form, formFromProject(props.project))
     lineItemErrors.splice(0, lineItemErrors.length)
   },
 )

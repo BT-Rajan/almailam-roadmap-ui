@@ -109,6 +109,7 @@ function handlePrint(): void {
 
   <NewContractDialog
     v-model="isCreateDialogOpen"
+    :project="project"
     :default-client-representative="client?.contactPerson"
     :loading="isCreating"
     @confirm="handleCreateContract"

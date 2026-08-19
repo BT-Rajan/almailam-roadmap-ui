@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,6 +10,7 @@ import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -21,7 +22,9 @@ import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
+import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
+import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getProjectPriorityVariant } from '@/utils/projectHelpers'
 import { validators } from '@/utils/validators'
@@ -49,10 +52,16 @@ const currentStep = ref(0)
 const isSubmitting = ref(false)
 const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
+const isServicePickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
+  // Kept as a comma-joined summary of the distinct services in
+  // selectedActivities below -- this is what actually gets sent as
+  // Project.service and is what every existing display spot (workspace
+  // header, review step, etc.) reads. Derived, not user-editable directly.
   service: '',
+  selectedActivities: [] as SelectedServiceActivity[],
   engineer: '',
   priority: 'Medium' as ProjectPriority,
   projectName: '',
@@ -61,20 +70,26 @@ const form = reactive({
   targetDate: '',
 })
 
+const serviceTotal = computed(() => form.selectedActivities.reduce((sum, item) => sum + item.fixedCost, 0))
+
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
   clientId: [validators.required('Please select a client')],
-  service: [validators.required('Please select a service')],
+  selectedActivities: [validators.required('Please select at least one service')],
   engineer: [validators.required('Please assign an engineer')],
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
   startDate: [validators.required('Start date is required')],
   targetDate: [validators.required('Target date is required')],
 })
 
+function handleServicesConfirmed(items: SelectedServiceActivity[]): void {
+  form.selectedActivities = items
+  form.service = [...new Set(items.map((item) => item.serviceName))].join(', ')
+}
+
 const clientOptions = ref<SelectOption[]>([])
 const hasIneligibleClients = ref(false)
-const serviceOptions = ref<SelectOption[]>([])
 const engineerOptions = ref<SelectOption[]>([])
 
 onMounted(async () => {
@@ -90,12 +105,11 @@ onMounted(async () => {
   // a cache that might be from before the thing being checked changed.
   await projectStore.loadProjects()
 
-  // Services now come from the admin-configurable catalog (Administration
-  // > Service Catalog) instead of the old hardcoded PROJECT_SERVICES list,
-  // so a service added there shows up here without a code change. Fetched
-  // fresh for the same reason as the client list above.
+  // Services (and their activities/prices) come from the admin-configurable
+  // catalog (Administration > Service Catalog) and feed the service picker
+  // dialog directly, so anything added there shows up here without a code
+  // change. Fetched fresh for the same reason as the client list above.
   await serviceCatalogStore.loadServices()
-  serviceOptions.value = serviceCatalogStore.services.map((service) => ({ label: service.name, value: service.name }))
   // Only clients that have completed onboarding AND are still Active can
   // have a project created for them (enforced server-side too, in
   // project_service.create_project) -- a project needs a real, currently
@@ -127,7 +141,7 @@ onMounted(async () => {
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
-  0: ['clientId', 'service', 'engineer'],
+  0: ['clientId', 'selectedActivities', 'engineer'],
   1: ['projectName', 'startDate', 'targetDate'],
 }
 
@@ -177,6 +191,8 @@ async function submitWizard(): Promise<void> {
       description: form.scope || undefined,
       clientId: form.clientId,
       service: form.service,
+      selectedActivities: form.selectedActivities,
+      serviceTotal: serviceTotal.value,
       engineerId: form.engineer,
       priority: form.priority,
       startDate: form.startDate,
@@ -234,14 +250,24 @@ function goToCreatedProject(): void {
                 + Onboard a new client
               </RouterLink>
             </div>
-            <SelectBox
-              v-model="form.service"
-              label="Service"
-              placeholder="Select a service"
-              required
-              :options="serviceOptions"
-              :error="errors.service"
-            />
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-neutral-700">Service <span class="text-danger-500">*</span></label>
+              <button
+                type="button"
+                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
+                :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
+                @click="isServicePickerOpen = true"
+              >
+                <span v-if="form.selectedActivities.length === 0" class="text-neutral-400">Select a service</span>
+                <span v-else class="text-neutral-800">
+                  {{ form.selectedActivities.length }} activit{{ form.selectedActivities.length === 1 ? 'y' : 'ies' }} ·
+                  {{ formatCurrency(serviceTotal, 'KWD') }}
+                </span>
+                <span class="text-xs font-medium text-primary-600">{{ form.selectedActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
+              </button>
+              <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
+              <p v-else-if="form.selectedActivities.length > 0" class="truncate text-xs text-neutral-400">{{ form.service }}</p>
+            </div>
             <SelectBox
               v-model="form.engineer"
               label="Responsible Engineer"
@@ -282,6 +308,16 @@ function goToCreatedProject(): void {
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Service</p>
               <p class="text-sm text-neutral-800">{{ form.service || 'Not selected' }}</p>
+              <ul v-if="form.selectedActivities.length > 0" class="mt-1 flex flex-col gap-0.5">
+                <li v-for="item in form.selectedActivities" :key="item.activityId" class="flex items-center justify-between gap-3 text-xs text-neutral-500">
+                  <span class="truncate">{{ item.activityName }}</span>
+                  <span class="shrink-0">{{ formatCurrency(item.fixedCost, 'KWD') }}</span>
+                </li>
+                <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-neutral-700">
+                  <span>Total</span>
+                  <span>{{ formatCurrency(serviceTotal, 'KWD') }}</span>
+                </li>
+              </ul>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Responsible Engineer</p>
@@ -336,6 +372,14 @@ function goToCreatedProject(): void {
         />
       </div>
     </div>
+
+    <ServicePickerDialog
+      v-model="isServicePickerOpen"
+      :services="serviceCatalogStore.services"
+      :selected="form.selectedActivities"
+      currency="KWD"
+      @confirm="handleServicesConfirmed"
+    />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
       <p class="text-sm text-neutral-600">

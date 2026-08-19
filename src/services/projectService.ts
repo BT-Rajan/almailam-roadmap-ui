@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { Project, ProjectPriority } from '@/types/Project'
+import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
 function buildQuery(params: Record<string, string | number | undefined>): string {
@@ -78,6 +79,12 @@ export interface ProjectCreateInput {
   priority: ProjectPriority
   startDate: string
   targetDate: string
+  // Optional granular breakdown from the service picker. Sent alongside
+  // `service` (which stays the comma-joined summary) so a backend that
+  // hasn't been extended to store it yet can just ignore these two fields
+  // without the request failing.
+  selectedActivities?: SelectedServiceActivity[]
+  serviceTotal?: number
 }
 
 /**

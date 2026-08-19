@@ -1,3 +1,5 @@
+import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
+
 export type ProjectStatus = 'Active' | 'On Hold' | 'Completed' | 'Cancelled'
 
 export type WorkflowStage =
@@ -27,6 +29,13 @@ export interface Project {
   startDate: string
   targetDate: string
   status: ProjectStatus
+  // Granular pick from the service picker (services -> activities, each
+  // with its own price) -- `service` above stays a comma-joined summary
+  // for the many display-only spots that just need a label. Optional
+  // because projects created before the picker existed, or where the
+  // backend hasn't been extended to persist this yet, won't have it.
+  selectedActivities?: SelectedServiceActivity[]
+  serviceTotal?: number
 }
 
 export type ProjectViewMode = 'grid' | 'table'
