@@ -56,8 +56,8 @@ const handleChange = (event: Event) => {
 </script>
 
 <template>
-  <div class="flex items-start gap-2.5">
-    <div class="relative flex h-5 w-5 items-center justify-center rounded border border-border-default bg-bg-card transition-colors duration-fast">
+  <label :for="checkboxId" class="flex items-start gap-2.5" :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'">
+    <div class="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border-default bg-bg-card transition-colors duration-fast">
       <input
         :id="checkboxId"
         type="checkbox"
@@ -77,15 +77,15 @@ const handleChange = (event: Event) => {
       />
       <div
         v-if="!disabled"
-        class="absolute inset-0 rounded border-border-default hover:bg-bg-hover transition-colors duration-fast"
+        class="absolute inset-0 rounded border-border-default hover:bg-bg-hover transition-colors duration-fast pointer-events-none"
       />
       <div v-if="isChecked || indeterminate" class="absolute inset-0 rounded border-2 border-primary-500/30 pointer-events-none" />
     </div>
     <div v-if="label || hint" class="flex flex-col gap-0.5">
-      <label :for="checkboxId" class="text-sm font-medium text-neutral-700 cursor-pointer" :class="disabled ? 'text-neutral-400' : ''">
+      <span class="text-sm font-medium text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
         {{ label }}
-      </label>
+      </span>
       <p v-if="hint" class="text-xs text-neutral-400">{{ hint }}</p>
     </div>
-  </div>
+  </label>
 </template>
