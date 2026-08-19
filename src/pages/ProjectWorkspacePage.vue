@@ -52,7 +52,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'timeline', 'documents', 'design', 'government', 'quotation', 'contract', 'payments', 'tasks', 'activity']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'timeline', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'activity']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -61,11 +61,11 @@ const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'documents', label: 'Documents' },
-  { key: 'design', label: 'Design' },
-  { key: 'government', label: 'Government' },
   { key: 'quotation', label: 'Quotation' },
   { key: 'contract', label: 'Contract' },
   { key: 'payments', label: 'Payments' },
+  { key: 'design', label: 'Design' },
+  { key: 'government', label: 'Government' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'activity', label: 'Activity' },
 ]
