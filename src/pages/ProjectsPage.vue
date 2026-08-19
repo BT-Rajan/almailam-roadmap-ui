@@ -120,11 +120,8 @@ function createProject(): void {
     </PageHeader>
 
     <FilterBar
-      :search-value="projectStore.searchTerm"
-      search-placeholder="Search by project name, number or engineer"
+      :show-search="false"
       :has-active-filters="projectStore.hasActiveFilters"
-      @update:search-value="projectStore.setSearchTerm"
-      @search="projectStore.applySearch"
       @clear="projectStore.clearFilters"
     >
       <template #filters>

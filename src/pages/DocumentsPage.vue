@@ -109,11 +109,8 @@ function handleUpload(document: ProjectDocument): void {
     </PageHeader>
 
     <FilterBar
-      :search-value="documentStore.searchTerm"
-      search-placeholder="Search by document title or uploader"
+      :show-search="false"
       :has-active-filters="documentStore.hasActiveFilters"
-      @update:search-value="documentStore.setSearchTerm"
-      @search="documentStore.applySearch"
       @clear="documentStore.clearFilters"
     >
       <template #filters>

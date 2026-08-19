@@ -3,7 +3,6 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ErrorState from '@/components/common/ErrorState.vue'
-import FilterBar from '@/components/common/FilterBar.vue'
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -88,14 +87,6 @@ onMounted(loadData)
       <InfoPanel label="Total Pending" :value="formatCurrency(store.portfolioSummary.totalPending, 'KWD')" color="warning" />
       <InfoPanel label="Total Overdue" :value="formatCurrency(store.portfolioSummary.totalOverdue, 'KWD')" :color="store.portfolioSummary.totalOverdue > 0 ? 'danger' : 'neutral'" />
     </div>
-
-    <FilterBar
-      :search-value="store.searchTerm"
-      search-placeholder="Search by project or client"
-      :has-active-filters="store.searchTerm.trim().length > 0"
-      @update:search-value="store.setSearchTerm"
-      @clear="store.setSearchTerm('')"
-    />
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 

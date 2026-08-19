@@ -149,10 +149,8 @@ async function handleToggleStatus(user: AppUser): Promise<void> {
 
     <template v-if="activeTab === 'users'">
       <FilterBar
-        :search-value="userStore.searchTerm"
-        search-placeholder="Search by name, email, or designation"
+        :show-search="false"
         :has-active-filters="userStore.hasActiveFilters"
-        @update:search-value="userStore.setSearchTerm"
         @clear="userStore.clearFilters"
       >
         <template #filters>

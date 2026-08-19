@@ -146,10 +146,8 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
     </PageHeader>
 
     <FilterBar
-      :search-value="taskStore.searchTerm"
-      search-placeholder="Search by task title"
+      :show-search="false"
       :has-active-filters="taskStore.hasActiveFilters"
-      @update:search-value="taskStore.setSearchTerm"
       @clear="taskStore.clearFilters"
     >
       <template #filters>

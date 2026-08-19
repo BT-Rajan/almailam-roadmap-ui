@@ -159,10 +159,8 @@ async function confirmWithdraw(): Promise<void> {
     />
 
     <FilterBar
-      :search-value="submissionStore.searchTerm"
-      search-placeholder="Search by submission number or project"
+      :show-search="false"
       :has-active-filters="submissionStore.hasActiveFilters"
-      @update:search-value="submissionStore.setSearchTerm"
       @clear="submissionStore.clearFilters"
     >
       <template #filters>

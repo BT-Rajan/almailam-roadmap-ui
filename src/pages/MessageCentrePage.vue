@@ -8,7 +8,6 @@ import Avatar from '@/components/common/Avatar.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -202,14 +201,6 @@ onMounted(() => {
     <PageHeader
       title="Message Centre"
       subtitle="Email, SMS, and WhatsApp communication with your customers — from templates or your own words."
-    />
-
-    <FilterBar
-      :search-value="store.searchTerm"
-      search-placeholder="Search by company, contact, mobile, or email"
-      :has-active-filters="store.hasActiveFilters"
-      @update:search-value="store.setSearchTerm"
-      @clear="store.clearFilters"
     />
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
