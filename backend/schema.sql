@@ -784,6 +784,42 @@ INSERT INTO execution_step_templates (name, sequence_number, weight_percentage) 
     ('False ceiling drawings completed', 22, 4.34),
     ('Lighting drawings completed', 23, 4.34);
 
+CREATE TABLE IF NOT EXISTS approval_process_templates (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name                VARCHAR(200) NOT NULL,
+    sequence_number     INT NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    INDEX idx_approval_process_templates_sequence (sequence_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS project_approval_steps (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    name                VARCHAR(200) NOT NULL,
+    sequence_number     INT NOT NULL,
+    status              ENUM('Pending','Completed') NOT NULL DEFAULT 'Pending',
+    completed_at        DATETIME NULL,
+    completed_by        BIGINT UNSIGNED NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_approval_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_approval_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT uq_project_approval_steps_project_sequence UNIQUE (project_id, sequence_number),
+    INDEX idx_project_approval_steps_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed: the 5-step Project Approval Process, a separate, new trial --
+-- see approval_process.py's own docstring for why this is deliberately
+-- decoupled from the existing 9-stage project workflow.
+INSERT INTO approval_process_templates (name, sequence_number) VALUES
+    ('Documents Signed', 1),
+    ('MEW Approval', 2),
+    ('Architectural Design Approved by Client', 3),
+    ('Submit to Baladia or KFD', 4),
+    ('Permit Approved', 5);
+
 CREATE TABLE IF NOT EXISTS status_reports (
     id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     report_no                   VARCHAR(20)  NOT NULL UNIQUE,

@@ -349,4 +349,15 @@ WHERE t.deleted_at IS NULL
     SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id
   );
 
+-- Same reasoning, same backfill pattern, for the separate approval
+-- process trial -- see approval_process.py's own docstring.
+INSERT INTO project_approval_steps (project_id, name, sequence_number, status)
+SELECT p.id, t.name, t.sequence_number, 'Pending'
+FROM projects p
+CROSS JOIN approval_process_templates t
+WHERE t.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM project_approval_steps pas WHERE pas.project_id = p.id
+  );
+
 SET FOREIGN_KEY_CHECKS = 1;

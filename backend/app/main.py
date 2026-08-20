@@ -19,6 +19,7 @@ from app.api.company import router as company_router
 from app.api.contracts import router as contracts_router
 from app.api.customer_portal import router as customer_portal_router
 from app.api.execution_steps import router as execution_steps_router
+from app.api.approval_process import router as approval_process_router
 from app.api.documents import router as documents_router
 from app.api.government import router as government_router
 from app.api.messages import router as messages_router
@@ -130,6 +131,7 @@ app.include_router(quotations_router)
 app.include_router(contracts_router)
 app.include_router(customer_portal_router)
 app.include_router(execution_steps_router)
+app.include_router(approval_process_router)
 app.include_router(payments_router)
 app.include_router(documents_router)
 app.include_router(project_link_documents_router)

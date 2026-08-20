@@ -19,7 +19,7 @@ from app.models.project import Project, ProjectSelectedActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, execution_step_service, notification_service, timeline_service, user_service
+from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -198,6 +198,11 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     # template so later template edits don't retroactively shift this
     # project's own numbers.
     execution_step_service.snapshot_steps_for_project(db, project.id)
+
+    # Separate, new, standalone trial -- see approval_process.py's own
+    # docstring. Deliberately independent of the execution-step
+    # snapshot above; nothing about this needs to be scoped to it.
+    approval_process_service.snapshot_steps_for_project(db, project.id)
 
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()

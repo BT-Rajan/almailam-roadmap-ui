@@ -19,6 +19,7 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 // shipping with the page on first load.
 const ProjectTimelineTab = defineAsyncComponent(() => import('@/components/project/ProjectTimelineTab.vue'))
 const ProjectExecutionTab = defineAsyncComponent(() => import('@/components/project/ProjectExecutionTab.vue'))
+const ProjectApprovalModal = defineAsyncComponent(() => import('@/components/project/ProjectApprovalModal.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
@@ -123,6 +124,7 @@ const isStageDialogOpen = ref(false)
 const isStageSaving = ref(false)
 const isStatusDialogOpen = ref(false)
 const isStatusSaving = ref(false)
+const isApprovalProcessModalOpen = ref(false)
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
 
@@ -210,6 +212,7 @@ async function handleConfirmDelete(): Promise<void> {
         @edit="isEditDialogOpen = true"
         @change-stage="isStageDialogOpen = true"
         @change-status="isStatusDialogOpen = true"
+        @open-approval-process="isApprovalProcessModalOpen = true"
         @delete="isDeleteDialogOpen = true"
       />
 
@@ -272,6 +275,7 @@ async function handleConfirmDelete(): Promise<void> {
         :loading="isStatusSaving"
         @confirm="handleConfirmStatus"
       />
+      <ProjectApprovalModal v-model="isApprovalProcessModalOpen" :project-id="project.id" />
       <ConfirmationDialog
         v-model="isDeleteDialogOpen"
         title="Delete project"
