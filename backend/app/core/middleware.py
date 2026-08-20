@@ -18,12 +18,28 @@ SECURITY_HEADERS = {
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Applies to every response, API and static alike. The Cache-Control
+    addition below exists specifically because of a real incident: a
+    browser cached a 403 response from a permission-gated endpoint (no
+    server-issued cache header at all meant the browser fell back to its
+    own heuristic caching for a GET request), and kept silently
+    replaying that stale failure indefinitely -- surviving password
+    changes, role changes, and even full backend restarts, since none of
+    those touch anything the browser was actually checking. Every /api/
+    response now explicitly forbids caching, so this can't recur for any
+    endpoint, successful or not. Static assets (the built frontend) are
+    deliberately left alone -- those *should* cache, and already carry
+    their own appropriate headers from how they're served."""
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         response = await call_next(request)
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
         return response
 
 
