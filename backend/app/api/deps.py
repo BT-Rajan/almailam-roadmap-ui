@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import AuthError, PermissionDeniedError
-from app.core.permissions import has_permission
 from app.core.security import decode_token
 from app.models.user import User
+from app.services.role_service import has_permission
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -45,8 +45,8 @@ def require_role(*allowed_roles: str):
 
 
 def require_permission(module: str, action: str):
-    def _check(user: User = Depends(get_current_user)) -> User:
-        if not has_permission(user.role, module, action):
+    def _check(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+        if not has_permission(db, user.role, module, action):
             raise PermissionDeniedError()
         return user
 

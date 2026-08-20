@@ -17,6 +17,7 @@ const PERMISSIONS: Record<string, Permission> = {
   'users.create': { name: 'Create User', roles: ['Administrator'] },
   'users.edit': { name: 'Edit User', roles: ['Administrator'] },
   'users.delete': { name: 'Delete User', roles: ['Administrator'] },
+  'roles.edit': { name: 'Edit Roles & Permissions', roles: ['Administrator'] },
 
   // Client Management
   'clients.view': { name: 'View Clients', roles: ['Administrator', 'Project Manager', 'Engineer'] },

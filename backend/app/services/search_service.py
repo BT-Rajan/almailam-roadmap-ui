@@ -1,7 +1,7 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.permissions import has_permission
+from app.services.role_service import has_permission
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.government import GovernmentForm, GovernmentSubmission
@@ -357,54 +357,54 @@ def global_search(db: Session, term: str, user_role: str) -> list[SearchResult]:
 
     results: list[SearchResult] = []
     for module, action, searcher in _CATEGORY_SEARCHERS:
-        if has_permission(user_role, module, action):
+        if has_permission(db, user_role, module, action):
             results.extend(searcher(db, term))
     return results
 
 
 def search_clients(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Clients", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Clients", "view"):
         return []
     return _search_clients(db, term)
 
 
 def search_projects(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Projects", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Projects", "view"):
         return []
     return _search_projects(db, term)
 
 
 def search_documents(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Documents", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Documents", "view"):
         return []
     return _search_documents(db, term)
 
 
 def search_users(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Administration", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Administration", "view"):
         return []
     return _search_users(db, term)
 
 
 def search_contracts(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Projects", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Projects", "view"):
         return []
     return _search_contracts(db, term)
 
 
 def search_quotations(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Projects", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Projects", "view"):
         return []
     return _search_quotations(db, term)
 
 
 def search_submissions(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Government", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Government", "view"):
         return []
     return _search_submissions(db, term)
 
 
 def search_payments(db: Session, term: str, user_role: str) -> list[SearchResult]:
-    if not term.strip() or not has_permission(user_role, "Finance", "view"):
+    if not term.strip() or not has_permission(db, user_role, "Finance", "view"):
         return []
     return _search_payments(db, term)

@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { RoleDefinition } from '@/types/Role'
+import type { RoleDefinition, RolePermission } from '@/types/Role'
 import type { AppUser } from '@/types/User'
 
 /**
@@ -92,6 +92,23 @@ async function deleteUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Update a role's permission matrix via backend API. Always sends the
+ * full set of permissions for the role (see RoleDefinitionUpdate on the
+ * backend) -- simpler to reason about than a partial per-cell PATCH.
+ */
+async function updateRoleDefinition(role: string, permissions: RolePermission[]): Promise<RoleDefinition> {
+  try {
+    const response = await apiClient.patch<RoleDefinition>(`/api/roles/${encodeURIComponent(role)}`, {
+      permissions,
+    })
+    return response
+  } catch (error) {
+    console.error('Failed to update role permissions:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update role permissions')
+  }
+}
+
 export const userService = {
   getUsers,
   getRoleDefinitions,
@@ -99,4 +116,5 @@ export const userService = {
   updateUser,
   setUserStatus,
   deleteUser,
+  updateRoleDefinition,
 }

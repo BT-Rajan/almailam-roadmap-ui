@@ -1,3 +1,10 @@
+# ROLES/PERMISSION_MODULES stay fixed constants (used for the users.role
+# DB enum and request validation). ROLE_DESCRIPTIONS/ROLE_PERMISSIONS
+# below are seed defaults only, used once to populate role_definitions/
+# role_permissions on first run (see role_service._ensure_seeded) -- the
+# database is the actual source of truth after that, editable from
+# Administration > Users > Roles & Permissions. Runtime permission checks
+# go through role_service.has_permission(), not these dicts.
 ROLES = ("Administrator", "Project Manager", "Engineer", "Document Controller", "Viewer")
 
 PERMISSION_MODULES = ("Projects", "Clients", "Documents", "Government", "Finance", "Reports", "Administration")
@@ -60,5 +67,3 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
 }
 
 
-def has_permission(role: str, module: str, action: str) -> bool:
-    return ROLE_PERMISSIONS.get(role, {}).get(module, {}).get(action, False)

@@ -94,3 +94,19 @@ class RoleDefinitionOut(BaseModel):
     role: str
     description: str
     permissions: list[RolePermissionOut]
+
+
+class RolePermissionIn(BaseModel):
+    module: str
+    view: bool
+    edit: bool
+    delete: bool
+
+
+class RoleDefinitionUpdate(BaseModel):
+    """Body for PATCH /api/roles/{role}. Always the full permission
+    matrix for the role (all modules), same "whole set, not a diff"
+    shape the frontend's PermissionMatrix edits in one save -- simpler
+    to reason about than a partial per-cell PATCH."""
+
+    permissions: list[RolePermissionIn]

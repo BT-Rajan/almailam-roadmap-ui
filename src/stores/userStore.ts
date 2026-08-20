@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { userService } from '@/services/userService'
-import type { RoleDefinition } from '@/types/Role'
+import type { RoleDefinition, RolePermission } from '@/types/Role'
 import type { AppUser, UserRole, UserStatus } from '@/types/User'
 
 interface UserStoreState {
@@ -79,6 +79,13 @@ export const useUserStore = defineStore('user', {
       } finally {
         this.isRolesLoading = false
       }
+    },
+
+    async updateRoleDefinition(role: string, permissions: RolePermission[]) {
+      const updated = await userService.updateRoleDefinition(role, permissions)
+      const index = this.roleDefinitions.findIndex((definition) => definition.role === role)
+      if (index !== -1) this.roleDefinitions[index] = updated
+      return updated
     },
 
     // Persist first, then store the backend-assigned user (including its
