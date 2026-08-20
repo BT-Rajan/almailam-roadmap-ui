@@ -187,17 +187,17 @@ def _summarize(day: date, activities: list[dict]) -> dict:
     }
 
 
-def get_day_activity(db: Session, day: date) -> dict:
+def get_day_activity(db: Session, day: date, changed_by: int | None = None) -> dict:
     start = day.isoformat()
     end = (day + timedelta(days=1)).isoformat()
-    activities = _fetch_rows(db, start, end)
+    activities = _fetch_rows(db, start, end, changed_by=changed_by)
     return _summarize(day, activities)
 
 
-def get_month_activity(db: Session, year: int, month: int) -> list[dict]:
+def get_month_activity(db: Session, year: int, month: int, changed_by: int | None = None) -> list[dict]:
     start = date(year, month, 1)
     end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    activities = _fetch_rows(db, start.isoformat(), end.isoformat())
+    activities = _fetch_rows(db, start.isoformat(), end.isoformat(), changed_by=changed_by)
 
     by_day: dict[str, list[dict]] = defaultdict(list)
     for activity in activities:

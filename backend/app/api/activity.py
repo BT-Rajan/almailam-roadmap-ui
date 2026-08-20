@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_permission
+from app.api.deps import get_current_user, require_permission
 from app.core.database import get_db
 from app.models.project import Project
 from app.models.user import User
@@ -99,3 +99,32 @@ def export_activities_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=activity-export.csv"},
     )
+
+
+# Separate router, separate prefix ("/api/activity", not "/api/admin/activity")
+# -- these are what ActivityCalendarPage.vue falls back to for anyone
+# without Administration.view (i.e. most staff): their own activity only,
+# gated on nothing but being logged in, same as "see your own tasks" would
+# be. Kept in this file rather than a new one since they share
+# activity_service and the DailySummaryOut shape with the admin routes
+# above -- only the audience and the changed_by scoping differ.
+my_router = APIRouter(prefix="/api/activity", tags=["activity"])
+
+
+@my_router.get("/day/{day}", response_model=DailySummaryOut)
+def get_my_day_activity(day: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        parsed = date.fromisoformat(day)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="day must be in YYYY-MM-DD format")
+    return activity_service.get_day_activity(db, parsed, changed_by=current_user.id)
+
+
+@my_router.get("/month/{month}", response_model=list[DailySummaryOut])
+def get_my_month_activity(month: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        year_str, month_str = month.split("-")
+        year, month_num = int(year_str), int(month_str)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="month must be in YYYY-MM format")
+    return activity_service.get_month_activity(db, year, month_num, changed_by=current_user.id)

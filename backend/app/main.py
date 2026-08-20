@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
+from app.api.activity import my_router as my_activity_router
 from app.api.activity import router as activity_router
 from app.api.audit_logs import router as audit_logs_router
 from app.api.clients import router as clients_router
@@ -111,6 +112,7 @@ register_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(audit_logs_router)
 app.include_router(activity_router)
+app.include_router(my_activity_router)
 app.include_router(ai_router)
 app.include_router(users_router)
 app.include_router(workflows_router)
