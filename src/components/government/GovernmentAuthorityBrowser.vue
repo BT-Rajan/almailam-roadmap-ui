@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { Landmark } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import AuthorityCard from '@/components/government/AuthorityCard.vue'
@@ -20,17 +19,6 @@ const emit = defineEmits<{
 }>()
 
 const store = useGovernmentFormStore()
-
-const searchTerm = ref('')
-
-const visibleAuthorities = computed<GovernmentAuthority[]>(() => {
-  const term = searchTerm.value.trim().toLowerCase()
-  if (term.length === 0) return store.authorities
-  return store.authorities.filter(
-    (authority) =>
-      authority.name.toLowerCase().includes(term) || authority.category.toLowerCase().includes(term),
-  )
-})
 
 const authorityFormCounts = computed<Record<string, number>>(() => {
   const counts: Record<string, number> = {}
@@ -54,14 +42,6 @@ function loadData(): void {
     </template>
   </PageHeader>
 
-  <FilterBar
-    :search-value="searchTerm"
-    search-placeholder="Search authorities by name or category"
-    :has-active-filters="searchTerm.trim().length > 0"
-    @update:search-value="searchTerm = $event"
-    @clear="searchTerm = ''"
-  />
-
   <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 
   <div v-else-if="store.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
@@ -71,16 +51,16 @@ function loadData(): void {
   </div>
 
   <EmptyState
-    v-else-if="visibleAuthorities.length === 0"
+    v-else-if="store.authorities.length === 0"
     title="No authorities found"
-    description="Try a different search, or add a government authority to get started."
+    description="Add a government authority to get started."
     action-label="Add Authority"
     @action="emit('add')"
   />
 
   <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
     <AuthorityCard
-      v-for="authority in visibleAuthorities"
+      v-for="authority in store.authorities"
       :key="authority.id"
       :authority="authority"
       :form-count="authorityFormCounts[authority.id] ?? 0"
