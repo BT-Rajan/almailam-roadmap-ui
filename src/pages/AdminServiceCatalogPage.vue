@@ -76,7 +76,7 @@ function handleRemoveActivity(activityId: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader
       title="Service Catalog"
       subtitle="Configure the services offered and each service's activities and fixed costs."
@@ -85,10 +85,10 @@ function handleRemoveActivity(activityId: string): void {
     <ErrorState v-if="serviceCatalogStore.error" :description="serviceCatalogStore.error" @retry="loadData" />
 
     <div v-else-if="serviceCatalogStore.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6">
         <SkeletonLoader :rows="5" />
       </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <SkeletonLoader :rows="8" />
       </div>
     </div>
@@ -104,7 +104,7 @@ function handleRemoveActivity(activityId: string): void {
         />
 
         <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-          <p class="text-sm font-medium text-neutral-700">Add Service</p>
+          <p class="text-sm font-medium text-text-secondary">Add Service</p>
           <div class="flex flex-col gap-2 sm:flex-row">
             <TextInput v-model="newServiceName" placeholder="Service name" class="sm:flex-1" @keyup.enter="submitNewService" />
             <BaseButton :icon="Plus" variant="secondary" :disabled="newServiceName.trim().length === 0" @click="submitNewService">

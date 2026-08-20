@@ -33,8 +33,8 @@ function projectName(projectId: string): string {
       class="flex flex-col gap-3 rounded-xl border border-border-light bg-bg-secondary p-3"
     >
       <div class="flex items-center justify-between px-1">
-        <h3 class="text-sm font-semibold text-neutral-700">{{ column.label }}</h3>
-        <span class="rounded-full bg-bg-card px-2 py-0.5 text-xs font-medium text-neutral-500">
+        <h3 class="text-sm font-semibold text-text-secondary">{{ column.label }}</h3>
+        <span class="rounded-full bg-bg-card px-2 py-0.5 text-xs font-medium text-text-muted">
           {{ tasksByStatus[column.status].length }}
         </span>
       </div>

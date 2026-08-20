@@ -41,8 +41,8 @@ function projectName(projectId: string): string {
           @click="$emit('open', task.id)"
         >
           <div class="min-w-0">
-            <p class="truncate text-sm font-semibold text-neutral-800">{{ task.title }}</p>
-            <p class="truncate text-xs text-neutral-500">{{ projectName(task.projectId) }}</p>
+            <p class="truncate text-sm font-semibold text-text-primary">{{ task.title }}</p>
+            <p class="truncate text-xs text-text-muted">{{ projectName(task.projectId) }}</p>
           </div>
 
           <div class="flex shrink-0 items-center gap-3">
@@ -51,7 +51,7 @@ function projectName(projectId: string): string {
             <TaskStatusBadge :status="task.status" />
             <span
               class="w-32 text-right text-xs font-medium"
-              :class="isTaskOverdue(task) ? 'text-danger-700' : 'text-neutral-400'"
+              :class="isTaskOverdue(task) ? 'text-danger-700' : 'text-text-muted'"
             >
               {{ formatTaskDueDateTime(task) }}
             </span>

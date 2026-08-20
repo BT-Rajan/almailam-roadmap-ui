@@ -88,8 +88,8 @@ function isCurrentMonth(day: Date): boolean {
 <template>
   <div class="flex flex-col gap-4">
     <div>
-      <h1 class="text-lg font-semibold text-neutral-900">My Reports</h1>
-      <p class="text-sm text-neutral-500">View-only -- tap a date to see that day's report.</p>
+      <h1 class="text-lg font-semibold text-text-primary">My Reports</h1>
+      <p class="text-sm text-text-muted">View-only -- tap a date to see that day's report.</p>
     </div>
 
     <Card>
@@ -97,7 +97,7 @@ function isCurrentMonth(day: Date): boolean {
         <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" aria-label="Previous month" @click="goToPreviousMonth">
           <ChevronLeft class="h-4 w-4" />
         </button>
-        <p class="text-sm font-semibold text-neutral-800">{{ monthTitle }}</p>
+        <p class="text-sm font-semibold text-text-primary">{{ monthTitle }}</p>
         <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" aria-label="Next month" @click="goToNextMonth">
           <ChevronRight class="h-4 w-4" />
         </button>
@@ -111,7 +111,7 @@ function isCurrentMonth(day: Date): boolean {
 
       <div v-else>
         <div class="mb-1 grid grid-cols-7 gap-1">
-          <div v-for="day in weekDays" :key="day" class="py-1 text-center text-xs font-semibold text-neutral-400">
+          <div v-for="day in weekDays" :key="day" class="py-1 text-center text-xs font-semibold text-text-muted">
             {{ day }}
           </div>
         </div>
@@ -123,7 +123,7 @@ function isCurrentMonth(day: Date): boolean {
             type="button"
             class="relative flex aspect-square flex-col items-center justify-center rounded-lg border border-border-light text-sm transition-colors"
             :class="[
-              isCurrentMonth(day) ? 'bg-bg-card text-neutral-800' : 'bg-bg-secondary text-neutral-300',
+              isCurrentMonth(day) ? 'bg-bg-card text-text-primary' : 'bg-bg-secondary text-text-muted',
               reportsByDate.get(formatDateKey(day)) ? 'cursor-pointer hover:border-primary-400 hover:bg-primary-50' : 'cursor-default',
               formatDateKey(day) === formatDateKey(new Date()) ? 'ring-2 ring-accent-400' : '',
             ]"
@@ -150,31 +150,31 @@ function isCurrentMonth(day: Date): boolean {
     <BaseDialog v-model="isDetailOpen" :title="selectedReport?.reportNo" size="md">
       <div v-if="selectedReport" class="flex flex-col gap-3 text-sm">
         <div class="flex items-center justify-between">
-          <span class="text-neutral-500">Project</span>
-          <span class="font-medium text-neutral-800">{{ selectedReport.projectName }}</span>
+          <span class="text-text-muted">Project</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.projectName }}</span>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-neutral-500">Date</span>
-          <span class="font-medium text-neutral-800">{{ selectedReport.reportDate }}</span>
+          <span class="text-text-muted">Date</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.reportDate }}</span>
         </div>
         <div v-if="selectedReport.receiptType" class="flex items-center justify-between">
-          <span class="text-neutral-500">Receipt / Handover</span>
-          <span class="font-medium text-neutral-800">{{ selectedReport.receiptType }}</span>
+          <span class="text-text-muted">Receipt / Handover</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.receiptType }}</span>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-neutral-500">Supervision</span>
-          <span class="font-medium text-neutral-800">{{ selectedReport.supervisionType }}</span>
+          <span class="text-text-muted">Supervision</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.supervisionType }}</span>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-neutral-500">Status</span>
+          <span class="text-text-muted">Status</span>
           <StatusBadge
             :label="selectedReport.status"
             :variant="selectedReport.status === 'Attached' ? 'success' : 'warning'"
           />
         </div>
         <div>
-          <p class="mb-1 text-neutral-500">Notes</p>
-          <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-neutral-800" dir="auto">{{ selectedReport.notes }}</p>
+          <p class="mb-1 text-text-muted">Notes</p>
+          <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ selectedReport.notes }}</p>
         </div>
       </div>
     </BaseDialog>

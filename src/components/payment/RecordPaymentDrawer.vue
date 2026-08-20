@@ -148,7 +148,7 @@ function handleClose(): void {
       </FormSection>
 
       <FormSection title="Allocation" description="Select which payment obligation(s) this payment settles.">
-        <div v-if="outstandingObligations.length === 0" class="text-sm text-neutral-500">No outstanding obligations to allocate against.</div>
+        <div v-if="outstandingObligations.length === 0" class="text-sm text-text-muted">No outstanding obligations to allocate against.</div>
         <div v-for="obligation in outstandingObligations" :key="obligation.id" class="rounded-lg border border-border-light p-3">
           <div class="flex items-center justify-between gap-3">
             <Checkbox
@@ -167,7 +167,7 @@ function handleClose(): void {
             />
           </div>
         </div>
-        <p class="text-xs" :class="allocationMismatch ? 'font-medium text-danger-500' : 'text-neutral-500'">
+        <p class="text-xs" :class="allocationMismatch ? 'font-medium text-danger-500' : 'text-text-muted'">
           Allocated {{ formatCurrency(totalAllocated, currency) }} of {{ formatCurrency(amountReceived, currency) }} received
         </p>
       </FormSection>

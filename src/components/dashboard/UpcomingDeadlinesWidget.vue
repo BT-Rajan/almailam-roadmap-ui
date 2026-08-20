@@ -46,7 +46,7 @@ const statusColor = (status: string) => {
     today: 'bg-warning-50 border-warning-200',
     urgent: 'bg-warning-50 border-warning-200',
     soon: 'bg-info-50 border-info-200',
-    upcoming: 'bg-neutral-50 border-neutral-200',
+    upcoming: 'bg-bg-secondary border-border-default',
   }
   return colors[status]
 }
@@ -57,7 +57,7 @@ const statusTextColor = (status: string) => {
     today: 'text-warning-600',
     urgent: 'text-warning-600',
     soon: 'text-info-600',
-    upcoming: 'text-neutral-600',
+    upcoming: 'text-text-secondary',
   }
   return colors[status]
 }
@@ -77,10 +77,10 @@ const statusLabel = (status: string, days: number) => {
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-neutral-900">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title }}</h3>
     </template>
 
-    <div v-if="sortedDeadlines.length === 0" class="py-8 text-center text-neutral-500">
+    <div v-if="sortedDeadlines.length === 0" class="py-8 text-center text-text-muted">
       <p class="text-sm">No upcoming deadlines</p>
     </div>
     <div v-else class="space-y-2">
@@ -92,8 +92,8 @@ const statusLabel = (status: string, days: number) => {
       >
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-neutral-900">{{ deadline.title }}</p>
-            <p class="text-xs text-neutral-500 mt-1">{{ deadline.project }}</p>
+            <p class="text-sm font-medium text-text-primary">{{ deadline.title }}</p>
+            <p class="text-xs text-text-muted mt-1">{{ deadline.project }}</p>
           </div>
           <span :class="['text-xs font-medium flex-shrink-0', statusTextColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
             {{ statusLabel(deadlineStatus(daysUntilDeadline(deadline.dueDate)), daysUntilDeadline(deadline.dueDate)) }}

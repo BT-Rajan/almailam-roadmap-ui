@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const iconBgClasses: Record<BadgeVariant, string> = {
-  neutral: 'bg-neutral-100 text-neutral-500',
+  neutral: 'bg-bg-secondary text-text-muted',
   primary: 'bg-primary-50 text-primary-600',
   success: 'bg-success-50 text-success-600',
   warning: 'bg-warning-50 text-warning-600',
@@ -37,8 +37,8 @@ const iconClasses = computed(() => iconBgClasses[props.color])
         <component :is="icon" class="h-5 w-5" />
       </div>
       <div class="min-w-0">
-        <p class="truncate text-xs font-medium uppercase tracking-wide text-neutral-400">{{ label }}</p>
-        <p class="truncate text-sm font-semibold text-neutral-800">{{ value }}</p>
+        <p class="truncate text-xs font-medium uppercase tracking-wide text-text-muted">{{ label }}</p>
+        <p class="truncate text-sm font-semibold text-text-primary">{{ value }}</p>
       </div>
     </div>
   </Card>

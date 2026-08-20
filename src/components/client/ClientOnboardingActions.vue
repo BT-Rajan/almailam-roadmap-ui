@@ -54,20 +54,20 @@ const canAutoAdvance = computed(
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Onboarding Status</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Onboarding Status</h3>
     </template>
 
     <div class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <span class="text-sm text-neutral-500">Current status</span>
+        <span class="text-sm text-text-muted">Current status</span>
         <StatusBadge :label="client.onboardingState" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
       </div>
 
-      <p v-if="recommendedState !== client.onboardingState" class="text-xs text-neutral-500">
+      <p v-if="recommendedState !== client.onboardingState" class="text-xs text-text-muted">
         Based on the documents and verifications on file, this client can move toward
         <strong>{{ recommendedState }}</strong>.
       </p>
-      <p v-else-if="availableTransitions.length === 0" class="text-xs text-neutral-400">
+      <p v-else-if="availableTransitions.length === 0" class="text-xs text-text-muted">
         No further status changes are available from this status.
       </p>
 

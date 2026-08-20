@@ -26,14 +26,14 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
             SO
           </div>
           <div class="text-left">
-            <p class="text-sm font-semibold text-neutral-900">Site Engineer Portal</p>
-            <p class="text-xs text-neutral-500">Almailam Engineering Consultants</p>
+            <p class="text-sm font-semibold text-text-primary">Site Engineer Portal</p>
+            <p class="text-xs text-text-muted">Almailam Engineering Consultants</p>
           </div>
         </div>
         <button
           v-if="!isLoginPage()"
           type="button"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-bg-hover hover:text-neutral-800"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
           @click="handleLogout"
         >
           <LogOut class="h-4 w-4" />
@@ -45,14 +45,14 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
         <RouterLink
           :to="{ name: ROUTE_NAMES.SITE_PORTAL_REPORT }"
           class="border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
-          :class="route.name === ROUTE_NAMES.SITE_PORTAL_REPORT ? 'border-primary-500 text-primary-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'"
+          :class="route.name === ROUTE_NAMES.SITE_PORTAL_REPORT ? 'border-primary-500 text-primary-600' : 'border-transparent text-text-muted hover:text-text-primary'"
         >
           Today's Report
         </RouterLink>
         <RouterLink
           :to="{ name: ROUTE_NAMES.SITE_PORTAL_CALENDAR }"
           class="border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
-          :class="route.name === ROUTE_NAMES.SITE_PORTAL_CALENDAR ? 'border-primary-500 text-primary-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'"
+          :class="route.name === ROUTE_NAMES.SITE_PORTAL_CALENDAR ? 'border-primary-500 text-primary-600' : 'border-transparent text-text-muted hover:text-text-primary'"
         >
           My Reports
         </RouterLink>

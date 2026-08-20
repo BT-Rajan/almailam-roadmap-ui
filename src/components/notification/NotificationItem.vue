@@ -28,7 +28,7 @@ const CATEGORY_CLASSES: Record<NotificationCategory, string> = {
   Task: 'bg-success-50 text-success-700',
   Government: 'bg-warning-50 text-warning-700',
   AI: 'bg-ai-50 text-ai-700',
-  System: 'bg-neutral-100 text-neutral-500',
+  System: 'bg-bg-secondary text-text-muted',
 }
 
 const icon = computed(() => CATEGORY_ICONS[props.notification.category])
@@ -52,7 +52,7 @@ const timeLabel = computed(() => {
 
     <span class="min-w-0 flex-1">
       <span class="flex items-start justify-between gap-2">
-        <span class="text-sm font-semibold text-neutral-800" :class="{ 'text-neutral-600': notification.read }">
+        <span class="text-sm font-semibold text-text-primary" :class="{ 'text-text-secondary': notification.read }">
           {{ notification.title }}
         </span>
         <span
@@ -61,8 +61,8 @@ const timeLabel = computed(() => {
           aria-hidden="true"
         />
       </span>
-      <span class="mt-0.5 block text-sm text-neutral-500">{{ notification.message }}</span>
-      <span class="mt-1 block text-xs text-neutral-400">{{ timeLabel }}</span>
+      <span class="mt-0.5 block text-sm text-text-muted">{{ notification.message }}</span>
+      <span class="mt-1 block text-xs text-text-muted">{{ timeLabel }}</span>
     </span>
   </button>
 </template>

@@ -34,10 +34,10 @@ const containerClasses = computed(() => [
 <template>
   <div class="flex flex-col gap-1.5">
     <div v-if="label">
-      <p class="text-sm font-medium text-neutral-700">
+      <p class="text-sm font-medium text-text-secondary">
         {{ label }}
       </p>
-      <p v-if="hint" class="text-xs text-neutral-400 mt-0.5">{{ hint }}</p>
+      <p v-if="hint" class="text-xs text-text-muted mt-0.5">{{ hint }}</p>
     </div>
     <div :class="containerClasses">
       <label
@@ -68,7 +68,7 @@ const containerClasses = computed(() => [
           />
           <div v-if="modelValue === option.value" class="absolute inset-0 rounded-full border-2 border-primary-500/30 pointer-events-none" />
         </div>
-        <span class="text-sm text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
+        <span class="text-sm text-text-secondary" :class="disabled ? 'text-text-muted' : ''">
           {{ option.label }}
         </span>
       </label>

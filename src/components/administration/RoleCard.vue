@@ -16,12 +16,12 @@ defineProps<Props>()
   <Card>
     <template #header>
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold text-neutral-800">{{ definition.role }}</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ definition.role }}</h3>
         <StatusBadge :label="`${userCount} ${userCount === 1 ? 'user' : 'users'}`" variant="neutral" />
       </div>
     </template>
 
-    <p class="mb-4 text-sm text-neutral-500">{{ definition.description }}</p>
+    <p class="mb-4 text-sm text-text-muted">{{ definition.description }}</p>
     <PermissionMatrix :permissions="definition.permissions" />
   </Card>
 </template>

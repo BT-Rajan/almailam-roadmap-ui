@@ -26,7 +26,7 @@ const emit = defineEmits<{
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Quotations</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Quotations</h3>
     </template>
 
     <EmptyState
@@ -45,11 +45,11 @@ const emit = defineEmits<{
           @click="emit('select', quotation.id)"
         >
           <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-semibold text-neutral-800">{{ quotation.quotationNo }}</span>
+            <span class="text-sm font-semibold text-text-primary">{{ quotation.quotationNo }}</span>
             <StatusBadge :label="quotation.status" :variant="getQuotationStatusVariant(quotation.status)" size="sm" />
           </div>
-          <p class="text-xs text-neutral-500">Revision {{ quotation.revision }} · Issued {{ formatDate(quotation.issueDate) }}</p>
-          <p class="text-sm font-medium text-neutral-700">{{ formatCurrency(quotation.amount, quotation.currency) }}</p>
+          <p class="text-xs text-text-muted">Revision {{ quotation.revision }} · Issued {{ formatDate(quotation.issueDate) }}</p>
+          <p class="text-sm font-medium text-text-secondary">{{ formatCurrency(quotation.amount, quotation.currency) }}</p>
         </button>
       </li>
     </ul>

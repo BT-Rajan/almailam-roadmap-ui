@@ -106,7 +106,7 @@ const goBack = () => {
     </template>
 
     <!-- Report Footer -->
-    <div class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
+    <div class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
       <p>This report was automatically generated on {{ reportDate }}</p>
       <p class="mt-1">For questions or detailed analysis, contact the project management office.</p>
     </div>

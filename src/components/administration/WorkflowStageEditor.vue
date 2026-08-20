@@ -87,7 +87,7 @@ function commitDescription(stage: WorkflowStageConfig, value: string): void {
     </ol>
 
     <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-      <p class="text-sm font-medium text-neutral-700">Add Stage</p>
+      <p class="text-sm font-medium text-text-secondary">Add Stage</p>
       <div class="flex flex-col gap-2 sm:flex-row">
         <TextInput v-model="newStageName" placeholder="Stage name" class="sm:flex-1" />
         <TextInput v-model="newStageDescription" placeholder="Stage description" class="sm:flex-1" />

@@ -22,7 +22,7 @@ defineEmits<{
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Identification</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Identification</h3>
     </template>
 
     <EmptyState
@@ -35,8 +35,8 @@ defineEmits<{
     <ul v-else class="flex flex-col divide-y divide-border-light">
       <li v-for="identification in identifications" :key="identification.id" class="flex flex-col gap-1.5 py-3">
         <div class="flex items-center justify-between gap-3">
-          <span class="inline-flex items-center gap-2 text-sm font-medium text-neutral-800">
-            <IdCard class="h-4 w-4 shrink-0 text-neutral-400" />
+          <span class="inline-flex items-center gap-2 text-sm font-medium text-text-primary">
+            <IdCard class="h-4 w-4 shrink-0 text-text-muted" />
             {{ identification.documentType }}
           </span>
           <div class="flex shrink-0 items-center gap-2">
@@ -50,8 +50,8 @@ defineEmits<{
             <IconButton :icon="Trash2" label="Remove identification" size="sm" variant="danger" @click="$emit('delete', identification)" />
           </div>
         </div>
-        <p class="text-sm text-neutral-700">{{ identification.documentNumber }}</p>
-        <p class="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+        <p class="text-sm text-text-secondary">{{ identification.documentNumber }}</p>
+        <p class="inline-flex items-center gap-1.5 text-xs text-text-muted">
           <AlertTriangle v-if="isIdentificationExpired(identification.expiryDate)" class="h-3.5 w-3.5 text-danger-500" />
           Issued {{ formatDate(identification.issueDate) }} · Expires {{ formatDate(identification.expiryDate) }} · {{ identification.issuingCountry }}
         </p>

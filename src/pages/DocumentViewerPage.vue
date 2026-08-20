@@ -153,7 +153,7 @@ async function handleDelete(): Promise<void> {
 
         <Card>
           <template #header>
-            <h3 class="text-sm font-semibold text-neutral-800">Comments</h3>
+            <h3 class="text-sm font-semibold text-text-primary">Comments</h3>
           </template>
           <EmptyState :icon="MessageSquare" title="No comments yet" description="Comment threads for this document will appear here." />
         </Card>

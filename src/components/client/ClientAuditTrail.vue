@@ -14,7 +14,7 @@ defineProps<{
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Activity</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Activity</h3>
     </template>
 
     <EmptyState
@@ -28,9 +28,9 @@ defineProps<{
       <li v-for="event in events" :key="event.id" class="flex gap-3">
         <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary-500" />
         <div class="flex flex-col gap-0.5">
-          <p class="text-sm font-medium text-neutral-800">{{ event.action }}</p>
-          <p class="text-xs text-neutral-500">{{ event.user }} · {{ formatDateTime(event.timestamp) }}</p>
-          <p v-if="event.reason" class="text-xs text-neutral-500">{{ event.reason }}</p>
+          <p class="text-sm font-medium text-text-primary">{{ event.action }}</p>
+          <p class="text-xs text-text-muted">{{ event.user }} · {{ formatDateTime(event.timestamp) }}</p>
+          <p v-if="event.reason" class="text-xs text-text-muted">{{ event.reason }}</p>
         </div>
       </li>
     </ol>

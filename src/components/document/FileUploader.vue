@@ -86,19 +86,19 @@ function clearFile(): void {
       @dragleave.prevent="isDragging = false"
       @drop.prevent="handleDrop"
     >
-      <CloudUpload class="h-8 w-8 text-neutral-400" />
-      <p class="text-sm font-medium text-neutral-700">Click to upload or drag and drop</p>
-      <p class="text-xs text-neutral-400">{{ hint }}</p>
+      <CloudUpload class="h-8 w-8 text-text-muted" />
+      <p class="text-sm font-medium text-text-secondary">Click to upload or drag and drop</p>
+      <p class="text-xs text-text-muted">{{ hint }}</p>
       <input :id="inputId" type="file" :accept="accept" class="hidden" @change="handleInputChange" />
     </label>
 
     <div v-else class="flex items-center gap-3 rounded-lg border border-border-light bg-bg-card px-4 py-3">
       <FileText class="h-5 w-5 shrink-0 text-primary-600" />
-      <span class="flex-1 truncate text-sm font-medium text-neutral-700">{{ selectedFile.name }}</span>
+      <span class="flex-1 truncate text-sm font-medium text-text-secondary">{{ selectedFile.name }}</span>
       <button
         type="button"
         aria-label="Remove file"
-        class="text-neutral-400 hover:text-neutral-600"
+        class="text-text-muted hover:text-text-secondary"
         @click="clearFile"
       >
         <X class="h-4 w-4" />

@@ -19,7 +19,7 @@ function isLatestRevision(revision: ContractRevision): boolean {
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Revision History</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Revision History</h3>
     </template>
 
     <EmptyState v-if="revisions.length === 0" :icon="History" title="No revisions recorded" />
@@ -31,11 +31,11 @@ function isLatestRevision(revision: ContractRevision): boolean {
         class="flex flex-col gap-1 border-l-2 border-border-light pl-3"
       >
         <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-neutral-800">{{ revision.revision }}</span>
+          <span class="text-sm font-semibold text-text-primary">{{ revision.revision }}</span>
           <StatusBadge v-if="isLatestRevision(revision)" label="Current" variant="success" size="sm" />
         </div>
-        <p class="text-xs text-neutral-500">{{ revision.changedBy }} · {{ formatDate(revision.date) }}</p>
-        <p class="text-sm text-neutral-600">{{ revision.summary }}</p>
+        <p class="text-xs text-text-muted">{{ revision.changedBy }} · {{ formatDate(revision.date) }}</p>
+        <p class="text-sm text-text-secondary">{{ revision.summary }}</p>
       </li>
     </ul>
   </Card>

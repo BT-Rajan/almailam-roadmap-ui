@@ -34,18 +34,18 @@ function isRequirementMet(label: string): boolean {
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Onboarding Progress</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Onboarding Progress</h3>
     </template>
     <div class="flex flex-col gap-4">
       <ProgressBar :value="summary.completionPercentage" show-label />
       <ul class="flex flex-col divide-y divide-border-light">
         <li v-for="requirement in requirements" :key="requirement.label" class="flex items-center justify-between gap-3 py-2.5">
-          <span class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <span class="inline-flex items-center gap-2 text-sm text-text-secondary">
             <CheckCircle2 v-if="isRequirementMet(requirement.label)" class="h-4 w-4 shrink-0 text-success-500" />
-            <Circle v-else class="h-4 w-4 shrink-0 text-neutral-300" />
+            <Circle v-else class="h-4 w-4 shrink-0 text-text-muted" />
             {{ requirement.label }}
           </span>
-          <span v-if="!requirement.required" class="text-xs text-neutral-400">Optional</span>
+          <span v-if="!requirement.required" class="text-xs text-text-muted">Optional</span>
         </li>
       </ul>
     </div>

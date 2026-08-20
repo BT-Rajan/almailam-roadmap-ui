@@ -16,8 +16,8 @@ const iconClass = computed(() => (store.status === 'success' ? 'text-success-500
   <BaseDialog :model-value="store.isOpen" size="sm" :closable="false" @update:model-value="store.close">
     <div class="flex flex-col items-center gap-3 py-2 text-center">
       <component :is="icon" class="h-12 w-12 shrink-0" :class="iconClass" />
-      <h2 class="text-lg font-semibold text-neutral-800">{{ store.title }}</h2>
-      <p v-if="store.description" class="text-sm text-neutral-600">{{ store.description }}</p>
+      <h2 class="text-lg font-semibold text-text-primary">{{ store.title }}</h2>
+      <p v-if="store.description" class="text-sm text-text-secondary">{{ store.description }}</p>
     </div>
 
     <template #footer>

@@ -26,7 +26,7 @@ const emit = defineEmits<{
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Contracts</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Contracts</h3>
     </template>
 
     <EmptyState
@@ -45,18 +45,18 @@ const emit = defineEmits<{
           @click="emit('select', contract.id)"
         >
           <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-semibold text-neutral-800">{{ contract.contractNo }}</span>
+            <span class="text-sm font-semibold text-text-primary">{{ contract.contractNo }}</span>
             <StatusBadge
               :label="contract.status"
               :variant="getContractStatusVariant(contract.status)"
               size="sm"
             />
           </div>
-          <p class="text-xs text-neutral-500">
+          <p class="text-xs text-text-muted">
             Revision {{ contract.revision }} · Issued {{ formatDate(contract.issueDate) }}
           </p>
-          <p class="truncate text-xs text-neutral-400">{{ contract.templateName }}</p>
-          <p class="text-sm font-medium text-neutral-700">
+          <p class="truncate text-xs text-text-muted">{{ contract.templateName }}</p>
+          <p class="text-sm font-medium text-text-secondary">
             {{ formatCurrency(contract.contractValue, contract.currency) }}
           </p>
         </button>

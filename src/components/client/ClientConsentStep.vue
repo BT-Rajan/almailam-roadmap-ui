@@ -23,11 +23,11 @@ const form = defineModel<ClientWizardForm>({ required: true })
       >
         <div class="flex items-center justify-between gap-4">
           <div class="flex flex-col gap-0.5">
-            <p class="text-sm font-medium text-neutral-800">
+            <p class="text-sm font-medium text-text-primary">
               {{ consent.type }}
               <span v-if="consent.mandatory" class="text-danger-500">*</span>
             </p>
-            <p class="text-xs text-neutral-500">{{ consent.description }}</p>
+            <p class="text-xs text-text-muted">{{ consent.description }}</p>
           </div>
           <ToggleSwitch v-model="form.consents[consent.type]" />
         </div>

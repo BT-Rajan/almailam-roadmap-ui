@@ -41,32 +41,32 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
             <component :is="authorityIcon" class="h-5 w-5 text-primary-600" />
           </span>
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
               {{ form.formCode }} · {{ form.version }}
             </p>
-            <h3 class="text-base font-semibold leading-snug text-neutral-800">{{ form.title }}</h3>
+            <h3 class="text-base font-semibold leading-snug text-text-primary">{{ form.title }}</h3>
           </div>
         </div>
         <StatusBadge v-if="isArchived" label="Archived" variant="neutral" size="sm" />
       </div>
 
-      <p class="text-sm text-neutral-500">{{ form.description }}</p>
+      <p class="text-sm text-text-muted">{{ form.description }}</p>
 
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge :label="form.category" :variant="getFormCategoryVariant(form.category)" />
-        <span class="text-xs text-neutral-400">·</span>
-        <span class="truncate text-xs font-medium text-neutral-500">{{ authorityName }}</span>
+        <span class="text-xs text-text-muted">·</span>
+        <span class="truncate text-xs font-medium text-text-muted">{{ authorityName }}</span>
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Required Documents</p>
-        <p class="text-sm text-neutral-600">
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Required Documents</p>
+        <p class="text-sm text-text-secondary">
           {{ visibleDocuments.join(', ') }}
-          <span v-if="remainingDocumentCount > 0" class="text-neutral-400"> +{{ remainingDocumentCount }} more</span>
+          <span v-if="remainingDocumentCount > 0" class="text-text-muted"> +{{ remainingDocumentCount }} more</span>
         </p>
       </div>
 
-      <div class="mt-auto flex items-center gap-4 pt-1 text-xs text-neutral-500">
+      <div class="mt-auto flex items-center gap-4 pt-1 text-xs text-text-muted">
         <span class="inline-flex items-center gap-1.5">
           <Languages class="h-3.5 w-3.5" />
           {{ form.language }}

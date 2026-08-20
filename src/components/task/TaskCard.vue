@@ -29,22 +29,22 @@ const nextStatus = computed(() => getNextTaskStatus(props.task.status))
     @click="emit('open', task.id)"
   >
     <div class="flex items-start justify-between gap-2">
-      <p class="text-sm font-semibold leading-snug text-neutral-800">{{ task.title }}</p>
+      <p class="text-sm font-semibold leading-snug text-text-primary">{{ task.title }}</p>
       <div class="flex shrink-0 items-center gap-1">
         <TaskPriorityBadge :priority="task.priority" />
         <TaskSeverityBadge :severity="task.severity" />
       </div>
     </div>
 
-    <p class="truncate text-xs text-neutral-500">{{ projectName }}</p>
+    <p class="truncate text-xs text-text-muted">{{ projectName }}</p>
 
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
         <Avatar :name="task.assignedTo" size="sm" />
-        <span class="text-xs text-neutral-600">{{ task.assignedTo }}</span>
+        <span class="text-xs text-text-secondary">{{ task.assignedTo }}</span>
       </div>
 
-      <span class="text-xs font-medium" :class="overdue ? 'text-danger-700' : 'text-neutral-400'">
+      <span class="text-xs font-medium" :class="overdue ? 'text-danger-700' : 'text-text-muted'">
         {{ formatTaskDueDateTime(task) }}
       </span>
     </div>

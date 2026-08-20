@@ -26,8 +26,8 @@ defineEmits<{
         class="flex items-center justify-between gap-3 rounded-lg border border-warning-100 bg-warning-50 px-4 py-2.5"
       >
         <div class="flex flex-col">
-          <span class="text-sm font-medium text-neutral-800">{{ getClientDisplayName(match.client) }}</span>
-          <span class="text-xs text-neutral-500">Matched on {{ match.matchedOn.join(', ') }} · {{ match.client.code }}</span>
+          <span class="text-sm font-medium text-text-primary">{{ getClientDisplayName(match.client) }}</span>
+          <span class="text-xs text-text-muted">Matched on {{ match.matchedOn.join(', ') }} · {{ match.client.code }}</span>
         </div>
         <button
           type="button"

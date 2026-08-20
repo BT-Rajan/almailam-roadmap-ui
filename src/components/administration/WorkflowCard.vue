@@ -28,10 +28,10 @@ defineEmits<{
       </span>
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
-          <p class="truncate font-medium text-neutral-900">{{ template.name }}</p>
+          <p class="text-sm font-semibold text-text-primary truncate">{{ template.name }}</p>
           <StatusBadge v-if="template.isDefault" label="Default" variant="success" size="sm" />
         </div>
-        <p class="mt-1 text-sm text-neutral-500">{{ template.stages.length }} stages</p>
+        <p class="mt-1 text-sm text-text-muted">{{ template.stages.length }} stages</p>
       </div>
     </div>
   </Card>

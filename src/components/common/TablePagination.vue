@@ -44,7 +44,7 @@ function handlePageSizeChange(value: string): void {
 
 <template>
   <div class="flex flex-col gap-3 border-t border-border-light px-4 py-3 tablet:flex-row tablet:items-center tablet:justify-between">
-    <p class="text-sm text-neutral-500">{{ rangeLabel }}</p>
+    <p class="text-sm text-text-muted">{{ rangeLabel }}</p>
     <div class="flex items-center gap-3">
       <div class="w-32">
         <SelectBox
@@ -61,7 +61,7 @@ function handlePageSizeChange(value: string): void {
           :disabled="isFirstPage"
           @click="emit('page-change', currentPage - 1)"
         />
-        <span class="px-2 text-sm text-neutral-600">{{ currentPage }} / {{ totalPages }}</span>
+        <span class="px-2 text-sm text-text-secondary">{{ currentPage }} / {{ totalPages }}</span>
         <IconButton
           :icon="ChevronRight"
           label="Next page"

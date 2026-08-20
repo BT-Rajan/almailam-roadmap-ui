@@ -53,12 +53,12 @@ function handleContactTypeChange(index: number, type: string): void {
           class="flex flex-col gap-3 rounded-lg border border-border-light p-4"
         >
           <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-neutral-700">Contact {{ index + 1 }}</p>
+            <p class="text-sm font-medium text-text-secondary">Contact {{ index + 1 }}</p>
             <button
               v-if="form.contacts.length > 1"
               type="button"
               aria-label="Remove contact"
-              class="text-neutral-400 hover:text-danger-500"
+              class="text-text-muted hover:text-danger-500"
               @click="removeContact(index)"
             >
               <Trash2 class="h-4 w-4" />

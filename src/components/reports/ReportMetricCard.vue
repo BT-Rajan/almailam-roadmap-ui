@@ -32,7 +32,7 @@ const bgColor = computed(() => {
     warning: 'bg-warning-50',
     danger: 'bg-danger-50',
     info: 'bg-info-50',
-    neutral: 'bg-neutral-50',
+    neutral: 'bg-bg-secondary',
   }
   return colors[props.color || 'neutral']
 })
@@ -41,10 +41,10 @@ const bgColor = computed(() => {
 <template>
   <Card :class="bgColor">
     <div class="space-y-2">
-      <p class="text-sm text-neutral-600">{{ label }}</p>
+      <p class="text-sm text-text-secondary">{{ label }}</p>
       <div class="flex items-baseline gap-2">
-        <span class="text-2xl font-bold text-neutral-900">{{ value }}</span>
-        <span v-if="unit" class="text-sm text-neutral-500">{{ unit }}</span>
+        <span class="text-2xl font-bold text-text-primary">{{ value }}</span>
+        <span v-if="unit" class="text-sm text-text-muted">{{ unit }}</span>
       </div>
       <div v-if="change" class="flex items-center gap-1 pt-1">
         <component :is="change.direction === 'up' ? TrendingUp : TrendingDown" :class="['h-4 w-4', changeColor]" />

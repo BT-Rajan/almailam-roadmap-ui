@@ -41,10 +41,10 @@ const textColor = computed(() => {
   <Card hoverable class="cursor-pointer" @click="$emit('click')">
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 space-y-2">
-        <p class="text-xs uppercase tracking-wide text-neutral-500 font-medium">
+        <p class="text-xs uppercase tracking-wide text-text-muted font-medium">
           {{ statistic.label }}
         </p>
-        <p class="text-2xl font-bold text-neutral-900">{{ statistic.value }}</p>
+        <p class="text-2xl font-bold text-text-primary">{{ statistic.value }}</p>
       </div>
       <div v-if="statistic.icon" :class="['flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center', bgColor]">
         <span :class="['text-lg', textColor]">{{ statistic.icon }}</span>

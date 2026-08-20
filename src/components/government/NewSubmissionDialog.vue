@@ -123,8 +123,8 @@ function handleConfirm(): void {
       <TextArea v-model="form.notes" label="Notes" placeholder="Optional notes for this submission" :rows="2" />
 
       <div v-if="selectedForm && selectedForm.requiredDocuments.length > 0" class="rounded-lg bg-bg-secondary p-4 text-sm">
-        <p class="mb-2 font-medium text-neutral-700">This form requires:</p>
-        <ul class="flex flex-col gap-1 text-neutral-600">
+        <p class="mb-2 font-medium text-text-secondary">This form requires:</p>
+        <ul class="flex flex-col gap-1 text-text-secondary">
           <li v-for="documentName in selectedForm.requiredDocuments" :key="documentName">• {{ documentName }}</li>
         </ul>
       </div>

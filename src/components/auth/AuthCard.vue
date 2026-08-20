@@ -14,8 +14,8 @@ withDefaults(defineProps<Props>(), {
     <div class="w-full max-w-md">
       <div class="glass-panel rounded-xl p-6 shadow-glass tablet:p-8">
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-neutral-900 tablet:text-3xl">{{ title }}</h1>
-          <p v-if="subtitle" class="mt-2 text-sm text-neutral-600">{{ subtitle }}</p>
+          <h1 class="text-2xl font-bold text-text-primary tablet:text-3xl">{{ title }}</h1>
+          <p v-if="subtitle" class="mt-2 text-sm text-text-secondary">{{ subtitle }}</p>
         </div>
 
         <slot />

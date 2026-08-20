@@ -30,15 +30,15 @@ defineEmits<{
   <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-5 shadow-soft">
     <div class="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
       <div class="flex flex-col gap-1.5">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">{{ project.projectNo }}</p>
-        <h1 class="text-xl font-semibold text-neutral-800">{{ project.projectName }}</h1>
-        <div class="flex flex-wrap items-center gap-4 text-sm text-neutral-500">
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
+        <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
+        <div class="flex flex-wrap items-center gap-4 text-sm text-text-muted">
           <span v-if="client" class="inline-flex items-center gap-1.5">
-            <Building2 class="h-4 w-4 text-neutral-400" />
+            <Building2 class="h-4 w-4 text-text-muted" />
             {{ client.companyName }}
           </span>
           <span class="inline-flex items-center gap-1.5">
-            <User class="h-4 w-4 text-neutral-400" />
+            <User class="h-4 w-4 text-text-muted" />
             {{ project.engineer }}
           </span>
         </div>
@@ -56,7 +56,7 @@ defineEmits<{
     </div>
 
     <div class="flex items-center gap-3">
-      <span class="w-24 shrink-0 text-xs font-medium text-neutral-500">Progress</span>
+      <span class="w-24 shrink-0 text-xs font-medium text-text-muted">Progress</span>
       <div class="max-w-md flex-1">
         <ProgressBar :value="project.progress" show-label />
       </div>

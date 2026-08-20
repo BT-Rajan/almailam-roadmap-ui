@@ -685,9 +685,9 @@ function createProjectForClient(): void {
             <DetailPanel title="Contact Details" :items="contactDetailItems" />
             <Card>
               <template #header>
-                <h3 class="text-sm font-semibold text-neutral-800">Internal Notes</h3>
+                <h3 class="text-sm font-semibold text-text-primary">Internal Notes</h3>
               </template>
-              <p class="whitespace-pre-wrap text-sm text-neutral-600">
+              <p class="whitespace-pre-wrap text-sm text-text-secondary">
                 {{ client.notes || 'No internal notes have been added yet.' }}
               </p>
             </Card>
@@ -719,7 +719,7 @@ function createProjectForClient(): void {
           />
           <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-semibold text-neutral-800">Addresses</h3>
+              <h3 class="text-sm font-semibold text-text-primary">Addresses</h3>
               <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">Add Address</BaseButton>
             </div>
             <ClientAddressCard
@@ -818,7 +818,7 @@ function createProjectForClient(): void {
           >
             New Project
           </BaseButton>
-          <p v-if="!clientEligibleForNewProject" class="text-xs text-neutral-400">
+          <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
             Onboarding must be Ready and the client Active before a project can be created.
           </p>
         </div>

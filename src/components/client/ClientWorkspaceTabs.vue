@@ -24,7 +24,7 @@ const emit = defineEmits<{
       :class="
         activeTab === tab.key
           ? 'border-primary-600 text-primary-700'
-          : 'border-transparent text-neutral-500 hover:text-neutral-800'
+          : 'border-transparent text-text-muted hover:text-text-primary'
       "
       :aria-selected="activeTab === tab.key"
       @click="emit('select', tab.key)"

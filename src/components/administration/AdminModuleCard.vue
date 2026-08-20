@@ -23,10 +23,10 @@ const icon = computed(() => ICONS[props.module.icon])
           <component :is="icon" :size="20" />
         </span>
         <div class="min-w-0 flex-1">
-          <p class="font-medium text-neutral-900">{{ module.label }}</p>
-          <p class="mt-1 text-sm text-neutral-500">{{ module.description }}</p>
+          <p class="text-sm font-semibold text-text-primary">{{ module.label }}</p>
+          <p class="mt-1 text-sm text-text-muted">{{ module.description }}</p>
         </div>
-        <ChevronRight :size="18" class="mt-1 shrink-0 text-neutral-300" aria-hidden="true" />
+        <ChevronRight :size="18" class="mt-1 shrink-0 text-text-muted" aria-hidden="true" />
       </div>
     </Card>
   </RouterLink>

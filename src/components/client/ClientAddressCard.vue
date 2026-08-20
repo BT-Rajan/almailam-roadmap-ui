@@ -32,7 +32,7 @@ const addressLine = computed(() =>
         </span>
         <div class="flex flex-col gap-1">
           <StatusBadge :label="address.addressType" variant="info" size="sm" />
-          <p class="text-sm text-neutral-700">{{ addressLine }}</p>
+          <p class="text-sm text-text-secondary">{{ addressLine }}</p>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">

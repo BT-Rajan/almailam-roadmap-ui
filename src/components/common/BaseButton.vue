@@ -35,8 +35,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'gradient-luxe text-neutral-0 shadow-glass-sm hover:brightness-110 focus-visible:outline-accent-500 disabled:opacity-40 disabled:brightness-100',
   secondary:
-    'bg-bg-card text-neutral-800 border border-border-default backdrop-blur-xl hover:bg-bg-hover disabled:text-neutral-400',
-  ghost: 'bg-transparent text-neutral-600 hover:bg-bg-hover disabled:text-neutral-400',
+    'bg-bg-card text-text-primary border border-border-default backdrop-blur-xl hover:bg-bg-hover disabled:text-text-muted',
+  ghost: 'bg-transparent text-text-secondary hover:bg-bg-hover disabled:text-text-muted',
   danger:
     'bg-danger-500 text-neutral-0 hover:bg-danger-700 focus-visible:outline-danger-500 disabled:bg-danger-100',
 }

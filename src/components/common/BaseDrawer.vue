@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
         :class="widthClasses[width]"
       >
         <div v-if="title" class="flex items-center justify-between border-b border-border-light px-5 py-4">
-          <h2 class="text-lg font-semibold text-neutral-800">{{ title }}</h2>
+          <h2 class="text-lg font-semibold text-text-primary">{{ title }}</h2>
           <IconButton :icon="X" label="Close" size="sm" @click="closeDrawer" />
         </div>
         <div class="flex-1 overflow-y-auto px-5 py-4">

@@ -368,7 +368,7 @@ function goToCreatedProject(): void {
               <p v-if="clientOptions.length === 0" class="text-xs text-warning-600">
                 No eligible clients found. A client must have completed onboarding ("Ready") and be Active before a project can be created for them.
               </p>
-              <p v-else-if="hasIneligibleClients" class="text-xs text-neutral-400">
+              <p v-else-if="hasIneligibleClients" class="text-xs text-text-muted">
                 Only clients that are Active and have completed onboarding are shown.
               </p>
               <RouterLink :to="{ name: ROUTE_NAMES.CLIENT_NEW }" class="self-start text-xs font-medium text-primary-600 hover:text-primary-700">
@@ -376,22 +376,22 @@ function goToCreatedProject(): void {
               </RouterLink>
             </div>
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-neutral-700">Service <span class="text-danger-500">*</span></label>
+              <label class="text-sm font-medium text-text-secondary">Service <span class="text-danger-500">*</span></label>
               <button
                 type="button"
                 class="flex min-h-[42px] w-full items-center justify-between rounded-lg border bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
               >
-                <span v-if="form.selectedActivities.length === 0" class="text-neutral-400">Select a service</span>
-                <span v-else class="text-neutral-800">
+                <span v-if="form.selectedActivities.length === 0" class="text-text-muted">Select a service</span>
+                <span v-else class="text-text-primary">
                   {{ form.selectedActivities.length }} activit{{ form.selectedActivities.length === 1 ? 'y' : 'ies' }} ·
                   {{ formatCurrency(serviceTotal, 'KWD') }}
                 </span>
                 <span class="text-xs font-medium text-primary-600">{{ form.selectedActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
               </button>
               <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
-              <p v-else-if="form.selectedActivities.length > 0" class="truncate text-xs text-neutral-400">{{ form.service }}</p>
+              <p v-else-if="form.selectedActivities.length > 0" class="truncate text-xs text-text-muted">{{ form.service }}</p>
             </div>
             <SelectBox
               v-model="form.engineer"
@@ -438,7 +438,7 @@ function goToCreatedProject(): void {
 
           <template v-if="form.involvesPermits === 'yes'">
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-neutral-700">Search permits</label>
+              <label class="text-sm font-medium text-text-secondary">Search permits</label>
               <div class="relative">
                 <TextInput
                   v-model="permitSearchTerm"
@@ -452,7 +452,7 @@ function goToCreatedProject(): void {
                   <li
                     v-for="suggestion in permitSuggestions"
                     :key="suggestion"
-                    class="cursor-pointer px-3 py-2 text-sm text-neutral-700 hover:bg-bg-hover"
+                    class="cursor-pointer px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover"
                     @click="addPermit(suggestion)"
                   >
                     {{ suggestion }}
@@ -461,7 +461,7 @@ function goToCreatedProject(): void {
               </div>
               <p
                 v-if="permitSearchTerm.trim().length >= 3 && permitSuggestions.length === 0"
-                class="text-xs text-neutral-400"
+                class="text-xs text-text-muted"
               >
                 No matching permits found.
                 <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="addPermit(permitSearchTerm)">
@@ -476,7 +476,7 @@ function goToCreatedProject(): void {
                 :key="permit.id"
                 class="flex flex-col gap-2 rounded-lg border border-border-light p-3 tablet:flex-row tablet:items-center tablet:justify-between"
               >
-                <span class="text-sm font-medium text-neutral-800">{{ permit.name }}</span>
+                <span class="text-sm font-medium text-text-primary">{{ permit.name }}</span>
                 <div class="flex items-center gap-3">
                   <RadioGroup
                     :model-value="permit.clientHas"
@@ -493,7 +493,7 @@ function goToCreatedProject(): void {
                   </button>
                 </div>
               </div>
-              <p class="text-xs text-neutral-400">
+              <p class="text-xs text-text-muted">
                 Permits the client already has will be required uploads in the Documents tab. Permits the client
                 doesn't have yet will be added as tasks.
               </p>
@@ -506,54 +506,54 @@ function goToCreatedProject(): void {
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Client</p>
-              <p class="text-sm text-neutral-800">{{ selectedClientName() }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Client</p>
+              <p class="text-sm text-text-primary">{{ selectedClientName() }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Service</p>
-              <p class="text-sm text-neutral-800">{{ form.service || 'Not selected' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Service</p>
+              <p class="text-sm text-text-primary">{{ form.service || 'Not selected' }}</p>
               <ul v-if="form.selectedActivities.length > 0" class="mt-1 flex flex-col gap-0.5">
-                <li v-for="item in form.selectedActivities" :key="item.activityId" class="flex items-center justify-between gap-3 text-xs text-neutral-500">
+                <li v-for="item in form.selectedActivities" :key="item.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
                   <span class="truncate">{{ item.activityName }}</span>
                   <span class="shrink-0">{{ formatCurrency(item.fixedCost, 'KWD') }}</span>
                 </li>
-                <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-neutral-700">
+                <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
                   <span>Total</span>
                   <span>{{ formatCurrency(serviceTotal, 'KWD') }}</span>
                 </li>
               </ul>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Responsible Engineer</p>
-              <p class="text-sm text-neutral-800">{{ selectedEngineerName() }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Responsible Engineer</p>
+              <p class="text-sm text-text-primary">{{ selectedEngineerName() }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Priority</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Priority</p>
               <StatusBadge :label="form.priority" :variant="getProjectPriorityVariant(form.priority)" />
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Project Name</p>
-              <p class="text-sm text-neutral-800">{{ form.projectName || 'Not entered' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Project Name</p>
+              <p class="text-sm text-text-primary">{{ form.projectName || 'Not entered' }}</p>
             </div>
             <div v-if="form.scope" class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Scope of Work</p>
-              <p class="text-sm text-neutral-800">{{ form.scope }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Scope of Work</p>
+              <p class="text-sm text-text-primary">{{ form.scope }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Start Date</p>
-              <p class="text-sm text-neutral-800">{{ form.startDate ? formatDate(form.startDate) : 'Not set' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Start Date</p>
+              <p class="text-sm text-text-primary">{{ form.startDate ? formatDate(form.startDate) : 'Not set' }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Target Date</p>
-              <p class="text-sm text-neutral-800">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Target Date</p>
+              <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Permits</p>
-              <p v-if="form.involvesPermits !== 'yes' || form.permits.length === 0" class="text-sm text-neutral-800">
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Permits</p>
+              <p v-if="form.involvesPermits !== 'yes' || form.permits.length === 0" class="text-sm text-text-primary">
                 None
               </p>
               <ul v-else class="mt-1 flex flex-col gap-0.5">
-                <li v-for="permit in form.permits" :key="permit.id" class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                <li v-for="permit in form.permits" :key="permit.id" class="flex items-center justify-between gap-3 text-xs text-text-secondary">
                   <span class="truncate">{{ permit.name }}</span>
                   <span class="shrink-0">{{ permit.clientHas === 'yes' ? 'Client has it -- mandatory upload' : 'Client needs it -- task will be created' }}</span>
                 </li>
@@ -598,7 +598,7 @@ function goToCreatedProject(): void {
     />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
-      <p class="text-sm text-neutral-600">
+      <p class="text-sm text-text-secondary">
         <strong>{{ createdProject?.projectName }}</strong>
         was successfully created as project
         <strong>{{ createdProject?.projectNo }}</strong>

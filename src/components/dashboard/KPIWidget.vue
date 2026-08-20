@@ -30,11 +30,11 @@ const trendColor = computed(() => {
 <template>
   <Card hoverable class="cursor-pointer" @click="$emit('click')">
     <div class="space-y-2">
-      <p class="text-sm text-neutral-500">{{ kpi.label }}</p>
+      <p class="text-sm text-text-muted">{{ kpi.label }}</p>
       <div class="flex items-baseline justify-between gap-2">
         <div class="flex items-baseline gap-1">
-          <span class="text-3xl font-bold text-neutral-900">{{ kpi.value }}</span>
-          <span v-if="kpi.unit" class="text-sm text-neutral-500">{{ kpi.unit }}</span>
+          <span class="text-3xl font-bold text-text-primary">{{ kpi.value }}</span>
+          <span v-if="kpi.unit" class="text-sm text-text-muted">{{ kpi.unit }}</span>
         </div>
         <div v-if="kpi.trend" class="flex items-center gap-1">
           <component :is="trendIcon" :class="['h-4 w-4', trendColor]" />

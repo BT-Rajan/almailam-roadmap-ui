@@ -244,13 +244,13 @@ async function confirmWithdraw(): Promise<void> {
         <DetailPanel title="Submission Details" :items="selectedSubmissionDetails" />
 
         <div>
-          <h3 class="mb-2 text-sm font-semibold text-neutral-800">Required Documents</h3>
+          <h3 class="mb-2 text-sm font-semibold text-text-primary">Required Documents</h3>
           <RequiredDocumentChecklist :documents="selectedSubmission.documents" />
         </div>
 
         <div v-if="selectedSubmission.notes">
-          <h3 class="mb-1 text-sm font-semibold text-neutral-800">Notes</h3>
-          <p class="text-sm text-neutral-600">{{ selectedSubmission.notes }}</p>
+          <h3 class="mb-1 text-sm font-semibold text-text-primary">Notes</h3>
+          <p class="text-sm text-text-secondary">{{ selectedSubmission.notes }}</p>
         </div>
 
         <div v-if="canWithdrawSelected" class="border-t border-border-light pt-4">
@@ -261,7 +261,7 @@ async function confirmWithdraw(): Promise<void> {
 
     <BaseDialog v-model="isWithdrawDialogOpen" title="Withdraw Submission" size="sm">
       <div class="flex flex-col gap-4">
-        <p class="text-sm text-neutral-600">
+        <p class="text-sm text-text-secondary">
           Withdrawing {{ selectedSubmission?.submissionNo }} tells the authority this submission is no longer being
           pursued. This can't be undone from here -- a new submission would need to be created to resume.
         </p>

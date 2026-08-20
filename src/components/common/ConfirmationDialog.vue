@@ -40,7 +40,7 @@ const handleCancel = (): void => {
     @update:model-value="emit('update:modelValue', $event)"
     @close="handleCancel"
   >
-    <p class="text-sm text-neutral-600">{{ message }}</p>
+    <p class="text-sm text-text-secondary">{{ message }}</p>
 
     <template #footer>
       <BaseButton variant="secondary" :disabled="loading" @click="handleCancel">

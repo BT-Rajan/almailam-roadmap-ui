@@ -26,8 +26,8 @@ defineEmits<{
         <ListChecks class="h-4 w-4 text-primary-600" />
       </span>
       <div class="min-w-0 flex-1">
-        <p class="truncate font-medium text-neutral-900">{{ service.name }}</p>
-        <p class="mt-1 text-sm text-neutral-500">{{ service.activities.length }} activities</p>
+        <p class="text-sm font-semibold text-text-primary truncate">{{ service.name }}</p>
+        <p class="mt-1 text-sm text-text-muted">{{ service.activities.length }} activities</p>
       </div>
     </div>
   </Card>

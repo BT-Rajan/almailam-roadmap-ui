@@ -113,24 +113,24 @@ const goBack = () => {
       <Card>
         <div class="grid grid-cols-1 tablet:grid-cols-4 gap-4">
           <div>
-            <p class="text-xs text-neutral-600 uppercase font-medium">Status</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">Status</p>
             <div class="mt-2">
               <StatusBadge :label="project.status" :variant="statusVariant(project.status)" />
             </div>
           </div>
           <div>
-            <p class="text-xs text-neutral-600 uppercase font-medium">Duration</p>
-            <p class="text-sm font-medium text-neutral-900 mt-2">
+            <p class="text-xs text-text-secondary uppercase font-medium">Duration</p>
+            <p class="text-sm font-medium text-text-primary mt-2">
               {{ formatDate(project.startDate) }} – {{ formatDate(project.targetDate) }}
             </p>
           </div>
           <div>
-            <p class="text-xs text-neutral-600 uppercase font-medium">Current Stage</p>
-            <p class="text-sm font-medium text-neutral-900 mt-2">{{ project.currentStage }}</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">Current Stage</p>
+            <p class="text-sm font-medium text-text-primary mt-2">{{ project.currentStage }}</p>
           </div>
           <div>
-            <p class="text-xs text-neutral-600 uppercase font-medium">Responsible Engineer</p>
-            <p class="text-sm font-medium text-neutral-900 mt-2">{{ project.engineer }}</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">Responsible Engineer</p>
+            <p class="text-sm font-medium text-text-primary mt-2">{{ project.engineer }}</p>
           </div>
         </div>
       </Card>
@@ -165,7 +165,7 @@ const goBack = () => {
     </template>
 
     <!-- Report Footer -->
-    <div v-if="project" class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
+    <div v-if="project" class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
       <p>Project Report for {{ project.projectName }}</p>
       <p class="mt-1">Generated on {{ reportDate }}</p>
     </div>

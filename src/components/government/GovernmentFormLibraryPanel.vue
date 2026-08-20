@@ -167,7 +167,7 @@ function printForm(form: GovernmentForm): void {
   <div class="flex flex-col gap-3">
     <button
       type="button"
-      class="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-800"
+      class="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-muted hover:text-text-primary"
       @click="emit('back')"
     >
       <ArrowLeft class="h-4 w-4" />

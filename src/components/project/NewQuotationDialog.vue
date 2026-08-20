@@ -172,7 +172,7 @@ function handleConfirm(): void {
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-neutral-700">Line Items</label>
+          <label class="text-sm font-medium text-text-secondary">Line Items</label>
           <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addLineItem">Add Line Item</BaseButton>
         </div>
 
@@ -205,7 +205,7 @@ function handleConfirm(): void {
               @update:model-value="item.unitPrice = Number($event)"
             />
           </div>
-          <p class="text-right text-xs text-neutral-500">
+          <p class="text-right text-xs text-text-muted">
             {{ formatCurrency(item.quantity * item.unitPrice, form.currency) }}
           </p>
         </div>
@@ -231,21 +231,21 @@ function handleConfirm(): void {
       <Divider />
 
       <div class="flex flex-col gap-2 text-sm">
-        <div class="flex items-center justify-between text-neutral-600">
+        <div class="flex items-center justify-between text-text-secondary">
           <span>Subtotal</span>
-          <span class="font-medium text-neutral-800">{{ formatCurrency(subtotal, form.currency) }}</span>
+          <span class="font-medium text-text-primary">{{ formatCurrency(subtotal, form.currency) }}</span>
         </div>
-        <div v-if="form.discountAmount > 0" class="flex items-center justify-between text-neutral-600">
+        <div v-if="form.discountAmount > 0" class="flex items-center justify-between text-text-secondary">
           <span>Discount</span>
           <span class="font-medium text-danger-700">-{{ formatCurrency(form.discountAmount, form.currency) }}</span>
         </div>
-        <div class="flex items-center justify-between text-neutral-600">
+        <div class="flex items-center justify-between text-text-secondary">
           <span>Tax ({{ form.taxRatePercent }}%)</span>
-          <span class="font-medium text-neutral-800">{{ formatCurrency(taxAmount, form.currency) }}</span>
+          <span class="font-medium text-text-primary">{{ formatCurrency(taxAmount, form.currency) }}</span>
         </div>
         <Divider />
         <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-neutral-800">Total</span>
+          <span class="text-sm font-semibold text-text-primary">Total</span>
           <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, form.currency) }}</span>
         </div>
       </div>

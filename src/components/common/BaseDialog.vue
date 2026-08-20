@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
         aria-modal="true"
       >
         <div v-if="title || closable" class="flex shrink-0 items-center justify-between border-b border-border-light px-6 py-4">
-          <h2 v-if="title" class="text-lg font-semibold text-neutral-800">{{ title }}</h2>
+          <h2 v-if="title" class="text-lg font-semibold text-text-primary">{{ title }}</h2>
           <IconButton v-if="closable" :icon="X" label="Close dialog" size="sm" @click="closeDialog" />
         </div>
         <!-- The actual scroll fix: previously nothing in this component had

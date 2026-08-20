@@ -44,7 +44,7 @@ function handleConfirm(): void {
 
 <template>
   <BaseDialog :model-value="modelValue" :title="title" size="sm" @update:model-value="emit('update:modelValue', $event)" @close="handleCancel">
-    <p class="text-sm text-neutral-600">
+    <p class="text-sm text-text-secondary">
       {{ mode === 'cancel' ? 'Cancelling' : 'Waiving' }} "{{ obligation?.description }}" removes it from pending/overdue totals. This action is logged and cannot be silently undone.
     </p>
     <TextArea v-model="reason" label="Reason" class="mt-4" :rows="3" required />

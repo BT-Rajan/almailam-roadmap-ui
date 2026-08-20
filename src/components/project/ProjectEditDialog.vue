@@ -153,7 +153,7 @@ function handleConfirm(): void {
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-neutral-500" for="project-edit-progress">Progress ({{ form.progress }}%)</label>
+        <label class="text-xs font-medium text-text-muted" for="project-edit-progress">Progress ({{ form.progress }}%)</label>
         <input id="project-edit-progress" v-model.number="form.progress" type="range" min="0" max="100" step="5" class="w-full accent-primary-600" />
       </div>
     </div>

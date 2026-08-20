@@ -33,11 +33,11 @@ const icon = computed(() => getAuthorityCategoryIcon(props.authority.category))
       </div>
 
       <div>
-        <h3 class="text-base font-semibold leading-snug text-neutral-800">{{ authority.name }}</h3>
-        <p class="mt-0.5 text-xs font-medium text-neutral-400">{{ authority.category }}</p>
+        <h3 class="text-base font-semibold leading-snug text-text-primary">{{ authority.name }}</h3>
+        <p class="mt-0.5 text-xs font-medium text-text-muted">{{ authority.category }}</p>
       </div>
 
-      <p class="line-clamp-2 flex-1 text-sm text-neutral-500">{{ authority.description }}</p>
+      <p class="line-clamp-2 flex-1 text-sm text-text-muted">{{ authority.description }}</p>
 
       <span class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600">
         <ExternalLink class="h-3.5 w-3.5" />
@@ -46,7 +46,7 @@ const icon = computed(() => getAuthorityCategoryIcon(props.authority.category))
     </button>
 
     <div class="flex items-center justify-between gap-2 border-t border-border-light px-5 py-2.5">
-      <span class="inline-flex items-center gap-1.5 text-xs text-neutral-400">
+      <span class="inline-flex items-center gap-1.5 text-xs text-text-muted">
         <FileText class="h-3.5 w-3.5" />
         View documents
       </span>

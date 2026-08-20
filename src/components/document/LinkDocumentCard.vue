@@ -31,7 +31,7 @@ function openDocument(path: string): void {
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50">
             <ExternalLink class="h-5 w-5 text-primary-600" />
           </span>
-          <h3 class="text-sm font-semibold leading-snug text-neutral-800">{{ document.name }}</h3>
+          <h3 class="text-sm font-semibold leading-snug text-text-primary">{{ document.name }}</h3>
         </div>
         <div class="flex shrink-0 items-center gap-2 no-print">
           <IconButton :icon="Eye" label="View document" size="sm" @click="openDocument(document.path)" />
@@ -40,7 +40,7 @@ function openDocument(path: string): void {
         </div>
       </div>
 
-      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-neutral-500">
+      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-text-muted">
         <div class="flex items-center gap-1.5">
           <UserRound class="h-3.5 w-3.5" />
           <span>{{ document.addedBy }}</span>

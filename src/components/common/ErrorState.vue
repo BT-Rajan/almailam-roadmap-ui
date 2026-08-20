@@ -26,8 +26,8 @@ defineEmits<{
       <AlertCircle class="h-6 w-6 text-danger-500" />
     </span>
     <div class="flex flex-col gap-1">
-      <p class="text-sm font-semibold text-neutral-700">{{ title }}</p>
-      <p class="text-sm text-neutral-400">{{ description }}</p>
+      <p class="text-sm font-semibold text-text-secondary">{{ title }}</p>
+      <p class="text-sm text-text-muted">{{ description }}</p>
     </div>
     <BaseButton variant="secondary" size="sm" @click="$emit('retry')">
       {{ retryLabel }}

@@ -25,7 +25,7 @@ defineEmits<{
 const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
   completed: 'border-primary-500 bg-primary-500 text-white',
   'in-progress': 'border-warning-500 bg-bg-card text-warning-600',
-  upcoming: 'border-border-default bg-bg-card text-neutral-400',
+  upcoming: 'border-border-default bg-bg-card text-text-muted',
 }
 </script>
 
@@ -49,7 +49,7 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
         </div>
         <div class="flex-1 pb-6 last:pb-0">
           <div class="flex flex-wrap items-center gap-2">
-            <p class="text-sm font-medium text-neutral-800">{{ event.title }}</p>
+            <p class="text-sm font-medium text-text-primary">{{ event.title }}</p>
             <StatusBadge
               :label="getTimelineStatusLabel(event.status)"
               :variant="getTimelineStatusVariant(event.status)"
@@ -64,8 +64,8 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
               @click="$emit('edit', event)"
             />
           </div>
-          <p v-if="event.description" class="mt-0.5 text-sm text-neutral-500">{{ event.description }}</p>
-          <div class="mt-1 flex items-center gap-2 text-xs text-neutral-400">
+          <p v-if="event.description" class="mt-0.5 text-sm text-text-muted">{{ event.description }}</p>
+          <div class="mt-1 flex items-center gap-2 text-xs text-text-muted">
             <span>{{ formatDate(event.date) }}</span>
             <span v-if="event.user">&bull; {{ event.user }}</span>
           </div>

@@ -83,16 +83,16 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader title="AI Configuration" subtitle="Configure AI providers, models, caching and prompt templates." />
 
     <ErrorState v-if="aiConfigStore.error" :description="aiConfigStore.error" @retry="loadData" />
 
     <div v-else-if="aiConfigStore.isLoading || !aiConfigStore.config" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6">
         <SkeletonLoader :rows="6" />
       </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <SkeletonLoader :rows="10" />
       </div>
     </div>
@@ -112,7 +112,7 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
         />
       </div>
 
-      <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <FormSection title="AI Availability" description="AI is optional. All business workflows continue functioning normally if disabled.">
           <ToggleSwitch
             :model-value="aiConfigStore.config.isEnabled"
@@ -131,7 +131,7 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
           />
 
           <div class="flex flex-col gap-2">
-            <p class="text-sm font-medium text-neutral-700">Provider Priority</p>
+            <p class="text-sm font-medium text-text-secondary">Provider Priority</p>
             <ol class="flex flex-col gap-2">
               <li
                 v-for="(provider, index) in orderedProviders"
@@ -142,7 +142,7 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
                   <span class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-600">
                     {{ index + 1 }}
                   </span>
-                  <span class="text-sm text-neutral-700">{{ provider.label }}</span>
+                  <span class="text-sm text-text-secondary">{{ provider.label }}</span>
                   <StatusBadge v-if="provider.id === aiConfigStore.config.defaultProvider" label="Default" variant="primary" />
                 </div>
                 <div class="flex items-center gap-1">
@@ -222,10 +222,10 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
             >
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <p class="text-sm font-medium text-neutral-800">{{ template.name }}</p>
+                  <p class="text-sm font-medium text-text-primary">{{ template.name }}</p>
                   <StatusBadge :label="template.module" variant="neutral" />
                 </div>
-                <p class="mt-1 text-xs text-neutral-500">{{ template.description }}</p>
+                <p class="mt-1 text-xs text-text-muted">{{ template.description }}</p>
               </div>
               <IconButton :icon="Pencil" label="Edit template" size="sm" variant="ghost" @click="openEditTemplate(template)" />
             </div>

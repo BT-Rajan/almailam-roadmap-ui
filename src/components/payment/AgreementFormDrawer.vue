@@ -117,7 +117,7 @@ function handleClose(): void {
         <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
         <SelectBox :model-value="paymentFrequency" label="Payment Frequency" :options="PAYMENT_FREQUENCY_OPTIONS" @update:model-value="paymentFrequency = $event as PaymentFrequency" />
       </div>
-      <p v-if="paymentFrequency === 'Custom'" class="text-xs text-neutral-500">
+      <p v-if="paymentFrequency === 'Custom'" class="text-xs text-text-muted">
         A single obligation for the full amount will be created — add or split individual installments afterward from the payment timeline.
       </p>
     </FormSection>

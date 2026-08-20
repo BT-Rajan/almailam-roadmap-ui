@@ -123,18 +123,18 @@ watch(
 
           <p
             v-else-if="searchStore.hasQuery && searchStore.groupedResults.length === 0"
-            class="px-3 py-8 text-center text-sm text-neutral-400"
+            class="px-3 py-8 text-center text-sm text-text-muted"
           >
             No results for "{{ searchStore.query }}"
           </p>
 
-          <p v-else-if="!searchStore.hasQuery" class="px-3 py-8 text-center text-sm text-neutral-400">
+          <p v-else-if="!searchStore.hasQuery" class="px-3 py-8 text-center text-sm text-text-muted">
             Search across projects, documents, forms, tasks, and users.
           </p>
 
           <div v-else class="flex flex-col gap-3">
             <section v-for="group in searchStore.groupedResults" :key="group.category">
-              <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">
                 {{ CATEGORY_LABELS[group.category] }}
               </p>
               <div class="flex flex-col">
@@ -152,13 +152,13 @@ watch(
                   @click="selectResult(result)"
                 >
                   <span
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-secondary text-neutral-500"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-secondary text-text-muted"
                   >
                     <component :is="CATEGORY_ICONS[result.category]" :size="15" />
                   </span>
                   <span class="min-w-0 flex-1">
-                    <span class="block truncate text-sm font-medium text-neutral-800">{{ result.title }}</span>
-                    <span class="block truncate text-xs text-neutral-400">{{ result.subtitle }}</span>
+                    <span class="block truncate text-sm font-medium text-text-primary">{{ result.title }}</span>
+                    <span class="block truncate text-xs text-text-muted">{{ result.subtitle }}</span>
                   </span>
                 </button>
               </div>
@@ -167,19 +167,19 @@ watch(
         </div>
 
         <div class="flex items-center justify-between gap-4 border-t border-border-light px-4 py-2.5">
-          <span class="flex items-center gap-3 text-xs text-neutral-400">
+          <span class="flex items-center gap-3 text-xs text-text-muted">
             <span class="flex items-center gap-1">
-              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">↑</kbd>
-              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">↓</kbd>
+              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↑</kbd>
+              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↓</kbd>
               Navigate
             </span>
             <span class="flex items-center gap-1">
-              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">↵</kbd>
+              <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↵</kbd>
               Select
             </span>
           </span>
-          <span class="flex items-center gap-1 text-xs text-neutral-400">
-            <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">Esc</kbd>
+          <span class="flex items-center gap-1 text-xs text-text-muted">
+            <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">Esc</kbd>
             Close
           </span>
         </div>

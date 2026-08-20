@@ -169,7 +169,7 @@ function handleConfirm(): void {
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-neutral-700">Clauses (optional)</label>
+          <label class="text-sm font-medium text-text-secondary">Clauses (optional)</label>
           <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addClause">Add Clause</BaseButton>
         </div>
 

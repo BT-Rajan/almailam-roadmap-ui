@@ -37,10 +37,10 @@ const formatDate = (date: string) => {
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-neutral-900">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title }}</h3>
     </template>
 
-    <div v-if="displayedDocuments.length === 0" class="py-8 text-center text-neutral-500">
+    <div v-if="displayedDocuments.length === 0" class="py-8 text-center text-text-muted">
       <p class="text-sm">No recent documents</p>
     </div>
     <div v-else class="space-y-2">
@@ -50,15 +50,15 @@ const formatDate = (date: string) => {
         class="p-3 rounded-lg border border-border-light hover:bg-bg-hover transition-colors cursor-pointer flex items-start gap-3"
         @click="$emit('document-click', doc.id)"
       >
-        <FileText class="h-5 w-5 text-neutral-400 flex-shrink-0 mt-0.5" />
+        <FileText class="h-5 w-5 text-text-muted flex-shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-neutral-900 truncate">{{ doc.name }}</p>
-          <p class="text-xs text-neutral-500 mt-1">{{ doc.project }}</p>
+          <p class="text-sm font-medium text-text-primary truncate">{{ doc.name }}</p>
+          <p class="text-xs text-text-muted mt-1">{{ doc.project }}</p>
           <div class="flex items-center justify-between mt-2">
-            <span class="text-xs text-neutral-400">{{ doc.uploadedBy }}</span>
-            <span class="text-xs text-neutral-400">{{ formatSize(doc.size) }}</span>
+            <span class="text-xs text-text-muted">{{ doc.uploadedBy }}</span>
+            <span class="text-xs text-text-muted">{{ formatSize(doc.size) }}</span>
           </div>
-          <p class="text-xs text-neutral-400 mt-1">{{ formatDate(doc.uploadedAt) }}</p>
+          <p class="text-xs text-text-muted mt-1">{{ formatDate(doc.uploadedAt) }}</p>
         </div>
       </div>
     </div>

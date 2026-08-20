@@ -39,7 +39,7 @@ const rows = computed(() => props.consents.map((consent) => ({ consent, label: l
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Consent Records</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Consent Records</h3>
     </template>
 
     <EmptyState
@@ -52,8 +52,8 @@ const rows = computed(() => props.consents.map((consent) => ({ consent, label: l
     <ul v-else class="flex flex-col divide-y divide-border-light">
       <li v-for="{ consent, label } in rows" :key="consent.id" class="flex items-center justify-between gap-3 py-3">
         <div class="flex flex-col gap-1">
-          <span class="text-sm font-medium text-neutral-800">{{ consent.consentType }}</span>
-          <span class="text-xs text-neutral-500">
+          <span class="text-sm font-medium text-text-primary">{{ consent.consentType }}</span>
+          <span class="text-xs text-text-muted">
             {{ consent.method }} · {{ formatDateTime(consent.dateTime) }} · Recorded by {{ consent.recordedBy }}
           </span>
         </div>

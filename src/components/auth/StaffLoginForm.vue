@@ -122,7 +122,7 @@ function clearLogin(): void {
   </form>
 
   <BaseDialog v-if="showForgotPassword" v-model="isForgotPasswordOpen" title="Forgot Password" size="sm">
-    <p class="text-sm text-neutral-600">
+    <p class="text-sm text-text-secondary">
       Please contact your system administrator to reset your password. This prototype does not send reset emails.
     </p>
     <template #footer>

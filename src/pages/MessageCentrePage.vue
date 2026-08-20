@@ -222,13 +222,13 @@ onMounted(() => {
       <template #cell-companyName="{ row }">
         <div class="flex items-center gap-2">
           <Avatar :name="(row as ClientTableRow).companyName" size="sm" />
-          <span class="font-medium text-neutral-800">{{ (row as ClientTableRow).companyName }}</span>
+          <span class="font-medium text-text-primary">{{ (row as ClientTableRow).companyName }}</span>
         </div>
       </template>
     </SmartTable>
 
     <div>
-      <h2 class="mb-3 text-sm font-semibold text-neutral-800">Recent Messages</h2>
+      <h2 class="mb-3 text-sm font-semibold text-text-primary">Recent Messages</h2>
       <SmartTable
         :columns="LOG_COLUMNS"
         :rows="logRows"
@@ -251,16 +251,16 @@ onMounted(() => {
         <div class="flex items-center gap-3 rounded-lg border border-border-light bg-bg-secondary p-3">
           <Avatar :name="store.selectedClient.companyName" size="md" />
           <div>
-            <p class="text-sm font-semibold text-neutral-800">{{ store.selectedClient.companyName }}</p>
-            <p class="text-xs text-neutral-500">{{ store.selectedClient.contactPerson }}</p>
+            <p class="text-sm font-semibold text-text-primary">{{ store.selectedClient.companyName }}</p>
+            <p class="text-xs text-text-muted">{{ store.selectedClient.contactPerson }}</p>
           </div>
         </div>
 
         <SelectBox :model-value="channel" label="Channel" :options="CHANNEL_OPTIONS" @update:model-value="channel = $event as MessageChannel" />
 
-        <div class="flex items-center gap-2 text-sm text-neutral-600">
-          <component :is="CHANNEL_ICONS[channel]" class="h-4 w-4 text-neutral-400" />
-          <span>Sending to: <strong class="text-neutral-800">{{ destination }}</strong></span>
+        <div class="flex items-center gap-2 text-sm text-text-secondary">
+          <component :is="CHANNEL_ICONS[channel]" class="h-4 w-4 text-text-muted" />
+          <span>Sending to: <strong class="text-text-primary">{{ destination }}</strong></span>
         </div>
 
         <SelectBox v-model="templateId" label="Template" :options="templateOptions" placeholder="Custom message (no template)" />

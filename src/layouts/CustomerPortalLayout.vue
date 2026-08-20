@@ -19,12 +19,12 @@ const goHome = () => {
             SO
           </div>
           <div class="text-left">
-            <p class="text-sm font-semibold text-neutral-900">ServiceOS</p>
-            <p class="text-xs text-neutral-500">Project Tracking</p>
+            <p class="text-sm font-semibold text-text-primary">ServiceOS</p>
+            <p class="text-xs text-text-muted">Project Tracking</p>
           </div>
         </button>
         <div class="text-right">
-          <p class="text-xs text-neutral-500">Almailam Engineering Consultants</p>
+          <p class="text-xs text-text-muted">Almailam Engineering Consultants</p>
         </div>
       </div>
     </header>
@@ -41,10 +41,10 @@ const goHome = () => {
     <!-- Footer -->
     <footer class="border-t border-border-light bg-bg-header py-6 mt-12">
       <div class="max-w-7xl mx-auto px-4 tablet:px-6 text-center">
-        <p class="text-xs text-neutral-500">
+        <p class="text-xs text-text-muted">
           &copy; {{ new Date().getFullYear() }} Almailam Engineering Consultants. All rights reserved.
         </p>
-        <p class="text-xs text-neutral-400 mt-2">
+        <p class="text-xs text-text-muted mt-2">
           This portal allows clients to track project progress using their mobile number and project ID.
         </p>
       </div>

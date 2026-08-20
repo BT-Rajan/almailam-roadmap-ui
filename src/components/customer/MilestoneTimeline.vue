@@ -25,7 +25,7 @@ const getStatusColor = (status: string) => {
   if (status === 'completed') return 'text-success-500'
   if (status === 'delayed') return 'text-danger-500'
   if (status === 'in-progress') return 'text-info-500'
-  return 'text-neutral-400'
+  return 'text-text-muted'
 }
 
 const formatDate = (date: string) =>
@@ -48,7 +48,7 @@ const isOverdue = (dueDate: string, status: string) => {
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-neutral-900">Project Milestones</h2>
+      <h2 class="text-xl font-semibold text-text-primary">Project Milestones</h2>
     </template>
 
     <div v-if="sortedMilestones.length === 0">
@@ -60,7 +60,7 @@ const isOverdue = (dueDate: string, status: string) => {
         <!-- Timeline Line and Icon -->
         <div class="flex flex-col items-center gap-2">
           <component :is="getStatusIcon(milestone.status)" :class="['h-6 w-6', getStatusColor(milestone.status)]" />
-          <div v-if="index < sortedMilestones.length - 1" class="h-12 w-0.5 bg-neutral-200" />
+          <div v-if="index < sortedMilestones.length - 1" class="h-12 w-0.5 bg-border-default" />
         </div>
 
         <!-- Milestone Info -->
@@ -68,8 +68,8 @@ const isOverdue = (dueDate: string, status: string) => {
           <div class="space-y-2">
             <div class="flex items-start justify-between gap-2">
               <div>
-                <h3 class="font-semibold text-neutral-900">{{ milestone.title }}</h3>
-                <p v-if="milestone.description" class="text-sm text-neutral-600 mt-1">{{ milestone.description }}</p>
+                <h3 class="font-semibold text-text-primary">{{ milestone.title }}</h3>
+                <p v-if="milestone.description" class="text-sm text-text-secondary mt-1">{{ milestone.description }}</p>
               </div>
               <span
                 :class="[
@@ -80,7 +80,7 @@ const isOverdue = (dueDate: string, status: string) => {
                       ? 'bg-info-100 text-info-700'
                       : milestone.status === 'delayed'
                         ? 'bg-danger-100 text-danger-700'
-                        : 'bg-neutral-100 text-neutral-700',
+                        : 'bg-bg-secondary text-text-secondary',
                 ]"
               >
                 {{ milestone.status }}
@@ -88,7 +88,7 @@ const isOverdue = (dueDate: string, status: string) => {
             </div>
 
             <!-- Dates -->
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
               <span>Due: <strong>{{ formatDate(milestone.dueDate) }}</strong></span>
               <span v-if="milestone.completedDate" class="text-success-600">
                 Completed: <strong>{{ formatDate(milestone.completedDate) }}</strong>

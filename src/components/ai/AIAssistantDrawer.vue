@@ -53,8 +53,8 @@ function handleSuggestionSelect(suggestion: string): void {
       <div class="flex items-center justify-between gap-3 rounded-lg border border-ai-100 bg-ai-50 px-3 py-2">
         <div class="flex items-center gap-2">
           <Sparkles class="h-4 w-4 text-ai-600" />
-          <span class="text-xs font-medium text-neutral-600">
-            Provider: <span class="font-semibold text-neutral-800">{{ defaultProviderLabel ?? 'Not configured' }}</span>
+          <span class="text-xs font-medium text-text-secondary">
+            Provider: <span class="font-semibold text-text-primary">{{ defaultProviderLabel ?? 'Not configured' }}</span>
           </span>
         </div>
         <StatusBadge
@@ -102,10 +102,10 @@ function handleSuggestionSelect(suggestion: string): void {
 
       <div class="flex flex-col gap-4">
         <div v-if="aiAssistantStore.history.length > 0" class="flex items-center justify-between">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Conversation History</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Conversation History</p>
           <button
             type="button"
-            class="flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-danger-600"
+            class="flex items-center gap-1 text-xs font-medium text-text-muted hover:text-danger-600"
             @click="aiAssistantStore.clearHistory"
           >
             <Trash2 class="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ function handleSuggestionSelect(suggestion: string): void {
         />
 
         <div v-for="interaction in aiAssistantStore.history" :key="interaction.id" class="flex flex-col gap-2">
-          <div class="flex items-center justify-between text-xs text-neutral-400">
+          <div class="flex items-center justify-between text-xs text-text-muted">
             <span v-if="interaction.templateName">{{ interaction.templateName }}</span>
             <span v-else>Custom question</span>
             <span>{{ formatTime(interaction.timestamp) }}</span>

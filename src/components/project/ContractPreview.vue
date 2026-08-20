@@ -31,17 +31,17 @@ withDefaults(defineProps<Props>(), {
             <FileSignature class="h-5 w-5" />
           </span>
           <div>
-            <p class="text-sm font-semibold text-neutral-800">Almailam Engineering Consultants</p>
-            <p class="text-xs text-neutral-500">Engineering Design & Government Approvals</p>
+            <p class="text-sm font-semibold text-text-primary">Almailam Engineering Consultants</p>
+            <p class="text-xs text-text-muted">Engineering Design & Government Approvals</p>
           </div>
         </div>
 
         <div class="flex flex-col gap-1 tablet:items-end">
           <div class="flex items-center gap-2">
-            <h2 class="text-lg font-semibold text-neutral-800">{{ contract.contractNo }}</h2>
+            <h2 class="text-lg font-semibold text-text-primary">{{ contract.contractNo }}</h2>
             <StatusBadge :label="contract.status" :variant="getContractStatusVariant(contract.status)" />
           </div>
-          <p class="text-xs text-neutral-500">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
+          <p class="text-xs text-text-muted">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
         </div>
       </div>
 
@@ -49,52 +49,52 @@ withDefaults(defineProps<Props>(), {
 
       <div class="grid grid-cols-1 gap-6 tablet:grid-cols-3">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Client</p>
-          <p class="text-sm font-semibold text-neutral-800">{{ client?.companyName ?? 'Unknown Client' }}</p>
-          <p class="text-sm text-neutral-500">Represented by {{ contract.clientRepresentative }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Client</p>
+          <p class="text-sm font-semibold text-text-primary">{{ client?.companyName ?? 'Unknown Client' }}</p>
+          <p class="text-sm text-text-muted">Represented by {{ contract.clientRepresentative }}</p>
         </div>
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Project</p>
-          <p class="text-sm font-semibold text-neutral-800">{{ project.projectName }}</p>
-          <p class="text-sm text-neutral-500">{{ project.projectNo }} · {{ project.service }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Project</p>
+          <p class="text-sm font-semibold text-text-primary">{{ project.projectName }}</p>
+          <p class="text-sm text-text-muted">{{ project.projectNo }} · {{ project.service }}</p>
         </div>
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Dates</p>
-          <p class="text-sm text-neutral-500">Issued: {{ formatDate(contract.issueDate) }}</p>
-          <p v-if="contract.signedDate" class="text-sm text-neutral-500">
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Dates</p>
+          <p class="text-sm text-text-muted">Issued: {{ formatDate(contract.issueDate) }}</p>
+          <p v-if="contract.signedDate" class="text-sm text-text-muted">
             Signed: {{ formatDate(contract.signedDate) }}
           </p>
-          <p class="text-sm text-neutral-500">Expires: {{ formatDate(contract.expiryDate) }}</p>
+          <p class="text-sm text-text-muted">Expires: {{ formatDate(contract.expiryDate) }}</p>
         </div>
       </div>
 
       <Divider />
 
       <div class="flex flex-col gap-2">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Scope Summary</p>
-        <p class="text-sm leading-relaxed text-neutral-600">{{ contract.scopeSummary }}</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Scope Summary</p>
+        <p class="text-sm leading-relaxed text-text-secondary">{{ contract.scopeSummary }}</p>
       </div>
 
       <div class="flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
-        <span class="text-sm font-medium text-neutral-600">Contract Value</span>
+        <span class="text-sm font-medium text-text-secondary">Contract Value</span>
         <span class="text-lg font-semibold text-primary-700">
           {{ formatCurrency(contract.contractValue, contract.currency) }}
         </span>
       </div>
 
       <div class="flex flex-col gap-4">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Clauses</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Clauses</p>
         <div
           v-for="(clause, index) in contract.clauses"
           :key="clause.id"
           class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
         >
-          <p class="text-sm font-semibold text-neutral-800">{{ index + 1 }}. {{ clause.title }}</p>
-          <p class="text-sm leading-relaxed text-neutral-600">{{ clause.content }}</p>
+          <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
+          <p class="text-sm leading-relaxed text-text-secondary">{{ clause.content }}</p>
         </div>
       </div>
 
-      <p class="no-print text-center text-xs text-neutral-400">
+      <p class="no-print text-center text-xs text-text-muted">
         This is a prototype preview. Final legal documents are prepared and issued outside this system.
       </p>
     </div>

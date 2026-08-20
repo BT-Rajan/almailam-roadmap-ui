@@ -57,9 +57,9 @@ const formatDate = (date: string) =>
       <!-- Title and Status -->
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex-1">
-          <h1 class="text-xl font-bold text-neutral-900 tablet:text-3xl">{{ project.projectName }}</h1>
-          <p class="text-neutral-600 mt-2">{{ project.description }}</p>
-          <p class="text-sm text-neutral-500 mt-3">
+          <h1 class="text-xl font-bold text-text-primary tablet:text-3xl">{{ project.projectName }}</h1>
+          <p class="text-text-secondary mt-2">{{ project.description }}</p>
+          <p class="text-sm text-text-muted mt-3">
             <strong>Client:</strong> {{ project.clientName }}
           </p>
         </div>
@@ -71,10 +71,10 @@ const formatDate = (date: string) =>
       <!-- Progress Bar -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-neutral-700">Overall Progress</span>
-          <span class="text-sm font-bold text-neutral-900">{{ project.progress }}%</span>
+          <span class="text-sm font-medium text-text-secondary">Overall Progress</span>
+          <span class="text-sm font-bold text-text-primary">{{ project.progress }}%</span>
         </div>
-        <div class="h-3 bg-neutral-100 rounded-full overflow-hidden">
+        <div class="h-3 bg-bg-secondary rounded-full overflow-hidden">
           <div
             :class="['h-full transition-all duration-500', progressColor]"
             :style="{ width: `${project.progress}%` }"
@@ -83,24 +83,24 @@ const formatDate = (date: string) =>
       </div>
 
       <!-- Summary Text -->
-      <div class="rounded-lg bg-neutral-50 border border-neutral-200 p-4">
-        <p class="text-sm text-neutral-700">{{ project.summary }}</p>
+      <div class="rounded-lg bg-bg-secondary border border-border-default p-4">
+        <p class="text-sm text-text-secondary">{{ project.summary }}</p>
       </div>
 
       <!-- Timeline Info -->
       <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
         <div class="space-y-1">
-          <p class="text-xs text-neutral-600 uppercase font-medium">Start Date</p>
-          <p class="text-sm font-medium text-neutral-900">{{ formatDate(project.startDate) }}</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">Start Date</p>
+          <p class="text-sm font-medium text-text-primary">{{ formatDate(project.startDate) }}</p>
         </div>
         <div class="space-y-1">
-          <p class="text-xs text-neutral-600 uppercase font-medium">Expected Completion</p>
-          <p class="text-sm font-medium text-neutral-900">{{ formatDate(project.expectedEndDate) }}</p>
-          <p v-if="isActiveTimeline && !showOverdueWarning" class="text-xs text-neutral-500 mt-1">{{ daysRemaining }} days remaining</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">Expected Completion</p>
+          <p class="text-sm font-medium text-text-primary">{{ formatDate(project.expectedEndDate) }}</p>
+          <p v-if="isActiveTimeline && !showOverdueWarning" class="text-xs text-text-muted mt-1">{{ daysRemaining }} days remaining</p>
           <p v-else-if="showOverdueWarning" class="text-xs text-danger-500 font-medium mt-1">Target date passed</p>
         </div>
         <div v-if="project.actualEndDate" class="space-y-1">
-          <p class="text-xs text-neutral-600 uppercase font-medium">Actual Completion</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">Actual Completion</p>
           <p class="text-sm font-medium text-success-600">{{ formatDate(project.actualEndDate) }}</p>
         </div>
       </div>

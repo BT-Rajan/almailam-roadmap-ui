@@ -16,32 +16,32 @@ defineProps<{
       <div class="flex items-center gap-3">
         <Avatar :name="settings.companyName" size="lg" />
         <div class="min-w-0">
-          <p class="truncate font-semibold text-neutral-900">{{ settings.companyName }}</p>
-          <p class="truncate text-sm text-neutral-500">{{ settings.tagline }}</p>
+          <p class="text-sm font-semibold text-text-primary truncate">{{ settings.companyName }}</p>
+          <p class="truncate text-sm text-text-muted">{{ settings.tagline }}</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <span class="text-xs font-medium text-neutral-500">Brand Color</span>
+        <span class="text-xs font-medium text-text-muted">Brand Color</span>
         <span class="h-5 w-5 rounded-full border border-border-light" :style="{ backgroundColor: settings.brandColor }" />
-        <span class="text-xs text-neutral-500">{{ settings.brandColor }}</span>
+        <span class="text-xs text-text-muted">{{ settings.brandColor }}</span>
       </div>
 
-      <div class="flex flex-col gap-2 border-t border-border-light pt-4 text-sm text-neutral-600">
+      <div class="flex flex-col gap-2 border-t border-border-light pt-4 text-sm text-text-secondary">
         <div class="flex items-center gap-2">
-          <MapPin class="h-4 w-4 shrink-0 text-neutral-400" />
+          <MapPin class="h-4 w-4 shrink-0 text-text-muted" />
           <span>{{ settings.address }}, {{ settings.city }}, {{ settings.country }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <Phone class="h-4 w-4 shrink-0 text-neutral-400" />
+          <Phone class="h-4 w-4 shrink-0 text-text-muted" />
           <span>{{ settings.phone }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <Mail class="h-4 w-4 shrink-0 text-neutral-400" />
+          <Mail class="h-4 w-4 shrink-0 text-text-muted" />
           <span>{{ settings.email }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <Globe class="h-4 w-4 shrink-0 text-neutral-400" />
+          <Globe class="h-4 w-4 shrink-0 text-text-muted" />
           <span>{{ settings.website }}</span>
         </div>
       </div>

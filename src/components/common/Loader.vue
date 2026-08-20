@@ -23,6 +23,6 @@ const sizeClasses: Record<ComponentSize, string> = {
 <template>
   <div class="flex flex-col items-center justify-center gap-2 py-6" role="status">
     <Loader2 :class="sizeClasses[size]" class="animate-spin text-primary-600" />
-    <p v-if="label" class="text-sm text-neutral-500">{{ label }}</p>
+    <p v-if="label" class="text-sm text-text-muted">{{ label }}</p>
   </div>
 </template>

@@ -45,7 +45,7 @@ function applyNewKey(): void {
   <div class="flex flex-col gap-3 rounded-lg border border-border-light bg-bg-card p-4">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <p class="text-sm font-semibold text-neutral-800">{{ provider.label }}</p>
+        <p class="text-sm font-semibold text-text-primary">{{ provider.label }}</p>
         <StatusBadge v-if="isDefault" label="Default" variant="primary" />
       </div>
       <StatusBadge
@@ -55,7 +55,7 @@ function applyNewKey(): void {
       />
     </div>
 
-    <p class="text-xs text-neutral-500">Model: <span class="font-medium text-neutral-700">{{ provider.model }}</span></p>
+    <p class="text-xs text-text-muted">Model: <span class="font-medium text-text-secondary">{{ provider.model }}</span></p>
 
     <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
       <TextInput

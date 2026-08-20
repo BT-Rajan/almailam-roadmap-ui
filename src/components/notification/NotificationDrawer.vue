@@ -57,7 +57,7 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
 
     <div v-else class="flex flex-col gap-4">
       <section v-for="group in notificationStore.groupedNotifications" :key="group.label">
-        <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-neutral-400">{{ group.label }}</p>
+        <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ group.label }}</p>
         <div class="flex flex-col divide-y divide-border-light">
           <NotificationItem
             v-for="notification in group.notifications"

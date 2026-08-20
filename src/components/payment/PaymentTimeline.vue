@@ -75,7 +75,7 @@ function isOverdueRow(status: string): boolean {
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Payment Timeline</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Payment Timeline</h3>
     </template>
 
     <SmartTable :columns="COLUMNS" :rows="rows" row-key="id" :searchable="false">

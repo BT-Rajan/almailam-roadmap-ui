@@ -41,8 +41,8 @@ const reports = [
   <div class="space-y-8 pb-12">
     <!-- Page Header -->
     <div>
-      <h1 class="text-4xl font-bold text-neutral-900">Reports</h1>
-      <p class="text-neutral-600 mt-2">Access executive summaries, project performance analytics, and team workload insights.</p>
+      <h1 class="text-4xl font-bold text-text-primary">Reports</h1>
+      <p class="text-text-secondary mt-2">Access executive summaries, project performance analytics, and team workload insights.</p>
     </div>
 
     <!-- Reports Grid -->
@@ -62,13 +62,13 @@ const reports = [
 
           <!-- Content -->
           <div>
-            <h3 class="text-lg font-semibold text-neutral-900">{{ report.title }}</h3>
-            <p class="text-sm text-neutral-600 mt-2">{{ report.description }}</p>
+            <h3 class="text-lg font-semibold text-text-primary">{{ report.title }}</h3>
+            <p class="text-sm text-text-secondary mt-2">{{ report.description }}</p>
           </div>
 
           <!-- Metrics -->
           <div class="space-y-1 pt-2 border-t border-border-light">
-            <div v-for="metric in report.metrics" :key="metric" class="text-xs text-neutral-500">
+            <div v-for="metric in report.metrics" :key="metric" class="text-xs text-text-muted">
               <span class="inline-block w-1.5 h-1.5 rounded-full mr-2" :class="report.color === 'primary' ? 'bg-primary-300' : report.color === 'info' ? 'bg-info-300' : 'bg-success-300'" />
               {{ metric }}
             </div>
@@ -87,8 +87,8 @@ const reports = [
     <!-- Info Section -->
     <Card class="bg-gradient-to-r from-primary-50 to-info-50 border border-primary-200">
       <div class="space-y-3">
-        <h3 class="text-lg font-semibold text-neutral-900">📊 About Reports</h3>
-        <div class="space-y-2 text-sm text-neutral-700">
+        <h3 class="text-lg font-semibold text-text-primary">📊 About Reports</h3>
+        <div class="space-y-2 text-sm text-text-secondary">
           <p>
             <strong>Executive Summary:</strong> Get a quick overview of overall organizational performance, project status, and team capacity in one comprehensive dashboard.
           </p>
@@ -99,7 +99,7 @@ const reports = [
             <strong>Team Workload:</strong> Monitor individual and department-level capacity, identify overallocation issues, and optimize resource distribution.
           </p>
         </div>
-        <p class="text-xs text-neutral-500 pt-2">💡 Tip: All reports are printable and can be exported for sharing with stakeholders.</p>
+        <p class="text-xs text-text-muted pt-2">💡 Tip: All reports are printable and can be exported for sharing with stakeholders.</p>
       </div>
     </Card>
   </div>

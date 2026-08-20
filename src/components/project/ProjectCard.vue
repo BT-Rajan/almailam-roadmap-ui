@@ -31,14 +31,14 @@ const clientName = computed(() => props.client?.companyName ?? 'Unknown Client')
     <div class="flex flex-col gap-4">
       <div class="flex items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">{{ project.projectNo }}</p>
-          <h3 class="text-base font-semibold leading-snug text-neutral-800">{{ project.projectName }}</h3>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
+          <h3 class="text-base font-semibold leading-snug text-text-primary">{{ project.projectName }}</h3>
         </div>
         <StatusBadge :label="project.status" :variant="getProjectStatusVariant(project.status)" show-dot />
       </div>
 
-      <div class="flex items-center gap-2 text-sm text-neutral-500">
-        <Building2 class="h-4 w-4 shrink-0 text-neutral-400" />
+      <div class="flex items-center gap-2 text-sm text-text-muted">
+        <Building2 class="h-4 w-4 shrink-0 text-text-muted" />
         <span class="truncate">{{ clientName }}</span>
       </div>
 
@@ -49,7 +49,7 @@ const clientName = computed(() => props.client?.companyName ?? 'Unknown Client')
 
       <ProgressBar :value="project.progress" show-label />
 
-      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-neutral-500">
+      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-text-muted">
         <div class="flex items-center gap-1.5">
           <UserRound class="h-3.5 w-3.5" />
           <span>{{ project.engineer }}</span>

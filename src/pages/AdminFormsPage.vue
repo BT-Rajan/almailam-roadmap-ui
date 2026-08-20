@@ -177,7 +177,7 @@ function formById(formId: string): GovernmentForm | undefined {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader title="Government Forms Administration" subtitle="Maintain authorities, forms and their document requirements.">
       <template #actions>
         <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">Add Authority</BaseButton>
@@ -188,10 +188,10 @@ function formById(formId: string): GovernmentForm | undefined {
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 
     <div v-else-if="store.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6">
         <SkeletonLoader :rows="6" />
       </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <SkeletonLoader :rows="8" />
       </div>
     </div>
@@ -203,12 +203,12 @@ function formById(formId: string): GovernmentForm | undefined {
           :class="
             selectedAuthorityId === 'All'
               ? 'border-primary-500 bg-primary-50 text-primary-700'
-              : 'border-border-light bg-bg-card text-neutral-600 hover:bg-bg-hover'
+              : 'border-border-light bg-bg-card text-text-secondary hover:bg-bg-hover'
           "
           @click="selectAuthority('All')"
         >
           All Authorities
-          <span class="ml-1 text-xs text-neutral-400">({{ store.forms.length }})</span>
+          <span class="ml-1 text-xs text-text-muted">({{ store.forms.length }})</span>
         </button>
 
         <Card v-for="authority in store.authorities" :key="authority.id" class="!p-0">
@@ -221,8 +221,8 @@ function formById(formId: string): GovernmentForm | undefined {
               <component :is="getAuthorityCategoryIcon(authority.category)" :size="18" />
             </span>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-neutral-800">{{ authority.name }}</p>
-              <p class="mt-0.5 text-xs text-neutral-400">{{ authority.category }}</p>
+              <p class="truncate text-sm font-medium text-text-primary">{{ authority.name }}</p>
+              <p class="mt-0.5 text-xs text-text-muted">{{ authority.category }}</p>
             </div>
           </button>
           <div class="flex items-center justify-end gap-1 border-t border-border-light px-2 py-1.5">

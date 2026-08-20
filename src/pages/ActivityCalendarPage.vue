@@ -358,11 +358,11 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 
           <!-- Date Picker -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium text-neutral-700">Date</label>
+            <label class="text-sm font-medium text-text-secondary">Date</label>
             <input
               v-model="currentMonth"
               type="month"
-              class="h-10 w-full rounded-lg border border-border-default bg-bg-card px-3 text-sm text-neutral-800 transition-colors duration-fast focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              class="h-10 w-full rounded-lg border border-border-default bg-bg-card px-3 text-sm text-text-primary transition-colors duration-fast focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
             />
           </div>
 
@@ -383,7 +383,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       <!-- Month View (Main Content) -->
       <Card v-if="viewMode === 'month'" :padded="false">
         <div class="p-6">
-          <h2 class="mb-6 text-2xl font-semibold text-neutral-800">
+          <h2 class="mb-6 text-2xl font-semibold text-text-primary">
             {{ formatMonthTitle(selectedDate) }}
           </h2>
 
@@ -396,7 +396,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
           <div v-else>
             <!-- Weekday Headers -->
             <div class="mb-2 grid grid-cols-7 gap-1">
-              <div v-for="day in weekDays" :key="day" class="py-2 text-center text-sm font-semibold text-neutral-500">
+              <div v-for="day in weekDays" :key="day" class="py-2 text-center text-sm font-semibold text-text-muted">
                 {{ day }}
               </div>
             </div>
@@ -423,11 +423,11 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
                 <div class="mb-1 flex items-start justify-between">
                   <span
                     class="text-sm font-semibold"
-                    :class="day.getMonth() !== selectedDate.getMonth() ? 'text-neutral-400' : 'text-neutral-800'"
+                    :class="day.getMonth() !== selectedDate.getMonth() ? 'text-text-muted' : 'text-text-primary'"
                   >
                     {{ day.getDate() }}
                   </span>
-                  <span v-if="day.getMonth() === selectedDate.getMonth()" class="text-xs text-neutral-400">
+                  <span v-if="day.getMonth() === selectedDate.getMonth()" class="text-xs text-text-muted">
                     {{ getDaySummary(day.getDate())?.total || 0 }}
                   </span>
                 </div>
@@ -481,15 +481,15 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         >
           <div class="flex items-start justify-between gap-2">
             <div>
-              <p class="font-semibold text-neutral-800">{{ activity.entityName }}</p>
-              <p class="text-sm text-neutral-500">{{ activity.projectName }}</p>
+              <p class="font-semibold text-text-primary">{{ activity.entityName }}</p>
+              <p class="text-sm text-text-muted">{{ activity.projectName }}</p>
             </div>
             <StatusBadge :variant="activityTypeVariants[activity.type]" :label="activity.type.toUpperCase()" />
           </div>
 
-          <p class="mt-2 text-sm text-neutral-700">{{ activity.description }}</p>
+          <p class="mt-2 text-sm text-text-secondary">{{ activity.description }}</p>
 
-          <div class="mt-2 flex items-center justify-between text-xs text-neutral-400">
+          <div class="mt-2 flex items-center justify-between text-xs text-text-muted">
             <span v-if="canViewAll">By {{ activity.userName }}</span>
             <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
           </div>

@@ -153,7 +153,7 @@ function handleConfirm(): void {
           <SelectBox v-model="form.preferredLanguage" label="Preferred Language" :options="LANGUAGE_OPTIONS" />
           <SelectBox v-model="form.preferredChannel" label="Preferred Contact Channel" :options="CHANNEL_OPTIONS" />
         </div>
-        <p class="text-xs text-neutral-400">
+        <p class="text-xs text-text-muted">
           Communication consent (email/WhatsApp/SMS) is managed separately via "Record Consent" on the Consent tab, not here.
         </p>
       </FormSection>

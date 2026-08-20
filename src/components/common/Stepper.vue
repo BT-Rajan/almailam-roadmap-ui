@@ -45,8 +45,8 @@ const circleClasses = computed(() => (index: number) => {
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors duration-fast',
     status === 'complete' ? 'border-primary-500 bg-primary-500 text-white' : '',
     status === 'current' ? 'border-primary-500 bg-bg-card text-primary-600' : '',
-    status === 'upcoming' ? 'border-border-default bg-bg-card text-neutral-400' : '',
-    isNavigable(index) ? 'cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500' : '',
+    status === 'upcoming' ? 'border-border-default bg-bg-card text-text-muted' : '',
+    isNavigable(index) ? 'cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : '',
   ]
 })
 
@@ -78,11 +78,11 @@ function connectorClasses(index: number): string[] {
         <div class="max-w-[7rem]">
           <p
             class="text-xs font-medium"
-            :class="stepStatus(index) === 'upcoming' ? 'text-neutral-400' : 'text-neutral-700'"
+            :class="stepStatus(index) === 'upcoming' ? 'text-text-muted' : 'text-text-secondary'"
           >
             {{ step.label }}
           </p>
-          <p v-if="step.description" class="text-[11px] text-neutral-400">{{ step.description }}</p>
+          <p v-if="step.description" class="text-[11px] text-text-muted">{{ step.description }}</p>
         </div>
       </div>
       <div v-if="index < steps.length - 1" :class="connectorClasses(index)" class="mx-3 mt-4" />

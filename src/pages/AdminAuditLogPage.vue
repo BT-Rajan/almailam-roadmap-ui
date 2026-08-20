@@ -88,7 +88,7 @@ async function handleExport(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader title="Audit Log" subtitle="A record of every tracked change across the system, who made it, and when.">
       <template #actions>
         <BaseButton :icon="Download" variant="secondary" @click="handleExport">Export CSV</BaseButton>

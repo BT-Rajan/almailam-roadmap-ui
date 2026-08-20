@@ -109,7 +109,7 @@ onMounted(() => loadProject())
   <div v-else-if="projectData" class="mx-auto max-w-7xl space-y-6 px-4 py-6 tablet:space-y-8 tablet:px-6 tablet:py-8">
     <!-- Top bar -->
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-sm text-neutral-500">Project ID: <span class="font-medium text-neutral-700">{{ projectData.projectId }}</span></p>
+      <p class="text-sm text-text-muted">Project ID: <span class="font-medium text-text-secondary">{{ projectData.projectId }}</span></p>
       <div class="flex items-center gap-2">
         <BaseButton variant="ghost" size="sm" :icon="RefreshCw" :loading="isRefreshing" @click="loadProject(true)">
           Refresh
@@ -133,15 +133,15 @@ onMounted(() => loadProject())
         <!-- Contact Info -->
         <Card>
           <template #header>
-            <h3 class="font-semibold text-neutral-900">Need Help?</h3>
+            <h3 class="font-semibold text-text-primary">Need Help?</h3>
           </template>
           <div class="space-y-3 text-sm">
             <div>
-              <p class="font-medium text-neutral-600">Project Engineer</p>
-              <p class="text-neutral-900">{{ projectData.engineerName }}</p>
+              <p class="font-medium text-text-secondary">Project Engineer</p>
+              <p class="text-text-primary">{{ projectData.engineerName }}</p>
             </div>
             <div class="border-t border-border-light pt-3">
-              <p class="font-medium text-neutral-600">Support Email</p>
+              <p class="font-medium text-text-secondary">Support Email</p>
               <a :href="`mailto:${projectData.supportEmail}`" class="break-all text-primary-600 hover:underline">
                 {{ projectData.supportEmail }}
               </a>
@@ -157,19 +157,19 @@ onMounted(() => loadProject())
         <!-- Project Status Summary -->
         <Card>
           <template #header>
-            <h3 class="font-semibold text-neutral-900">Quick Status</h3>
+            <h3 class="font-semibold text-text-primary">Quick Status</h3>
           </template>
           <div class="space-y-2 text-sm">
             <div class="flex justify-between">
-              <span class="text-neutral-600">Milestones</span>
+              <span class="text-text-secondary">Milestones</span>
               <span class="font-medium">{{ milestones.filter(m => m.status === 'completed').length }}/{{ milestones.length }} completed</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-neutral-600">Deliverables</span>
+              <span class="text-text-secondary">Deliverables</span>
               <span class="font-medium">{{ deliverables.filter(d => d.status === 'approved').length }}/{{ deliverables.length }} approved</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-neutral-600">Overall Progress</span>
+              <span class="text-text-secondary">Overall Progress</span>
               <span class="font-medium">{{ projectData.progress }}%</span>
             </div>
           </div>
@@ -187,8 +187,8 @@ onMounted(() => loadProject())
     </div>
 
     <!-- Disclaimer -->
-    <Card class="border border-neutral-200 bg-neutral-50">
-      <div class="space-y-1 text-xs text-neutral-600">
+    <Card class="border border-border-default bg-bg-secondary">
+      <div class="space-y-1 text-xs text-text-secondary">
         <p>
           <strong>Note:</strong> This customer portal provides access to your project information. Use "Refresh" above for the latest status.
         </p>
@@ -197,7 +197,7 @@ onMounted(() => loadProject())
     </Card>
   </div>
 
-  <div v-else class="py-12 text-center text-neutral-600">
+  <div v-else class="py-12 text-center text-text-secondary">
     {{ loadError || 'Unable to load this project.' }}
   </div>
 </template>

@@ -22,8 +22,8 @@ const STATUS_ICONS: Record<RequiredDocumentStatus, Component> = {
 <template>
   <ul class="flex flex-col divide-y divide-border-light">
     <li v-for="document in documents" :key="document.name" class="flex items-center justify-between gap-3 py-3">
-      <span class="inline-flex items-center gap-2 text-sm text-neutral-700">
-        <component :is="STATUS_ICONS[document.status]" class="h-4 w-4 text-neutral-400" />
+      <span class="inline-flex items-center gap-2 text-sm text-text-secondary">
+        <component :is="STATUS_ICONS[document.status]" class="h-4 w-4 text-text-muted" />
         {{ document.name }}
       </span>
       <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" size="sm" />

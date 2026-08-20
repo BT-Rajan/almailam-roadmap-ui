@@ -38,7 +38,7 @@ const nextPaymentDateLabel = computed(() => {
     <InfoPanel label="Total Overdue" :value="formatCurrency(summary.totalOverdue, currency)" :icon="AlertTriangle" :color="summary.totalOverdue > 0 ? 'danger' : 'neutral'" />
     <InfoPanel label="Next Payment" :value="nextPaymentValue" :icon="CalendarClock" :color="summary.nextPaymentIsOverdue ? 'danger' : 'info'" />
   </div>
-  <p v-if="summary.nextPaymentObligation" class="mt-2 text-xs" :class="summary.nextPaymentIsOverdue ? 'font-medium text-danger-600' : 'text-neutral-500'">
+  <p v-if="summary.nextPaymentObligation" class="mt-2 text-xs" :class="summary.nextPaymentIsOverdue ? 'font-medium text-danger-600' : 'text-text-muted'">
     {{ nextPaymentDateLabel }}
   </p>
 </template>

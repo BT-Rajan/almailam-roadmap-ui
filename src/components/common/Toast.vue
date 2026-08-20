@@ -39,13 +39,13 @@ const icon = computed(() => variantIcons[props.toast.variant])
   >
     <component :is="icon" class="mt-0.5 h-5 w-5 shrink-0" :class="variantClasses[toast.variant]" />
     <div class="flex-1">
-      <p class="text-sm font-semibold text-neutral-800">{{ toast.title }}</p>
-      <p v-if="toast.description" class="mt-0.5 text-sm text-neutral-500">{{ toast.description }}</p>
+      <p class="text-sm font-semibold text-text-primary">{{ toast.title }}</p>
+      <p v-if="toast.description" class="mt-0.5 text-sm text-text-muted">{{ toast.description }}</p>
     </div>
     <button
       type="button"
       aria-label="Dismiss notification"
-      class="text-neutral-400 hover:text-neutral-600"
+      class="text-text-muted hover:text-text-secondary"
       @click="$emit('dismiss', toast.id)"
     >
       <X class="h-4 w-4" />

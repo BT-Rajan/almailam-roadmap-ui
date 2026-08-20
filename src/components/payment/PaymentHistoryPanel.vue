@@ -21,7 +21,7 @@ function formatTimestamp(timestamp: string): string {
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Payment History</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Payment History</h3>
     </template>
 
     <EmptyState v-if="sortedEvents.length === 0" title="No financial events yet" description="Agreement creation, payments, refunds, and adjustments will be logged here." />
@@ -29,15 +29,15 @@ function formatTimestamp(timestamp: string): string {
     <ul v-else class="divide-y divide-border-light">
       <li v-for="event in sortedEvents" :key="event.id" class="flex flex-col gap-1 px-4 py-3">
         <div class="flex items-center justify-between gap-3">
-          <p class="text-sm font-medium text-neutral-800">{{ event.action }}</p>
-          <p class="text-xs text-neutral-400">{{ formatTimestamp(event.timestamp) }}</p>
+          <p class="text-sm font-medium text-text-primary">{{ event.action }}</p>
+          <p class="text-xs text-text-muted">{{ formatTimestamp(event.timestamp) }}</p>
         </div>
-        <p class="text-xs text-neutral-500">By {{ event.user }}</p>
-        <p v-if="event.previousValue || event.newValue" class="text-xs text-neutral-600">
+        <p class="text-xs text-text-muted">By {{ event.user }}</p>
+        <p v-if="event.previousValue || event.newValue" class="text-xs text-text-secondary">
           <span v-if="event.previousValue">{{ event.previousValue }} → </span>
           <span v-if="event.newValue">{{ event.newValue }}</span>
         </p>
-        <p v-if="event.reason" class="text-xs italic text-neutral-500">Reason: {{ event.reason }}</p>
+        <p v-if="event.reason" class="text-xs italic text-text-muted">Reason: {{ event.reason }}</p>
       </li>
     </ul>
   </Card>

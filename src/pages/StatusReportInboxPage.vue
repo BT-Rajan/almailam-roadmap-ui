@@ -94,15 +94,15 @@ async function handleAttach(): Promise<void> {
         <div class="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-              <p class="text-sm font-semibold text-neutral-800">{{ report.reportNo }}</p>
+              <p class="text-sm font-semibold text-text-primary">{{ report.reportNo }}</p>
               <StatusBadge label="Pending" variant="warning" size="sm" />
             </div>
-            <p class="mt-0.5 text-sm text-neutral-600">{{ report.projectName }}</p>
-            <p class="text-xs text-neutral-400">
+            <p class="mt-0.5 text-sm text-text-secondary">{{ report.projectName }}</p>
+            <p class="text-xs text-text-muted">
               {{ report.engineerName }} · {{ formatDate(report.reportDate) }}
               <span v-if="report.receiptType"> · {{ report.receiptType }}</span>
             </p>
-            <p class="mt-2 whitespace-pre-wrap text-sm text-neutral-700" dir="auto">{{ report.notes }}</p>
+            <p class="mt-2 whitespace-pre-wrap text-sm text-text-secondary" dir="auto">{{ report.notes }}</p>
           </div>
           <BaseButton size="sm" :icon="Paperclip" class="shrink-0" @click="openAttachDialog(report)">
             Attach
@@ -114,8 +114,8 @@ async function handleAttach(): Promise<void> {
     <BaseDialog v-model="isAttachDialogOpen" title="Attach to Project" size="md">
       <div v-if="selectedReport" class="flex flex-col gap-4">
         <div class="rounded-lg bg-bg-secondary p-3 text-sm">
-          <p class="font-medium text-neutral-800">{{ selectedReport.projectName }}</p>
-          <p class="text-xs text-neutral-500">
+          <p class="font-medium text-text-primary">{{ selectedReport.projectName }}</p>
+          <p class="text-xs text-text-muted">
             {{ selectedReport.reportNo }} · {{ selectedReport.engineerName }} · {{ formatDate(selectedReport.reportDate) }}
           </p>
         </div>

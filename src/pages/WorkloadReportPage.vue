@@ -80,7 +80,7 @@ const goBack = () => {
 const getRowColor = (member: (typeof teamMembers)[number]) => {
   if (member.overallocated) return 'bg-danger-50 border-danger-200'
   if (member.allocation >= 90) return 'bg-warning-50 border-warning-200'
-  return 'bg-neutral-50'
+  return 'bg-bg-secondary'
 }
 
 const getAllocationColor = (allocation: number) => {
@@ -135,18 +135,18 @@ const getAllocationColor = (allocation: number) => {
         >
           <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
             <div>
-              <p class="text-sm font-semibold text-neutral-900">{{ member.name }}</p>
-              <p class="text-xs text-neutral-600 mt-1">{{ member.role }}</p>
-              <p class="text-xs text-neutral-500 mt-0.5">{{ member.department }}</p>
+              <p class="text-sm font-semibold text-text-primary">{{ member.name }}</p>
+              <p class="text-xs text-text-secondary mt-1">{{ member.role }}</p>
+              <p class="text-xs text-text-muted mt-0.5">{{ member.department }}</p>
             </div>
             <div>
-              <p class="text-xs text-neutral-600 uppercase font-medium mb-2">Allocation</p>
+              <p class="text-xs text-text-secondary uppercase font-medium mb-2">Allocation</p>
               <div class="space-y-1">
-                <div class="h-2 bg-neutral-200 rounded-full overflow-hidden">
+                <div class="h-2 bg-border-default rounded-full overflow-hidden">
                   <div :style="{ width: `${Math.min(member.allocation, 120)}%`, backgroundColor: getAllocationColor(member.allocation) }" class="h-full rounded-full transition-all" />
                 </div>
                 <div class="flex items-center justify-between text-xs">
-                  <span :class="member.allocation > 100 ? 'text-danger-600 font-semibold' : 'text-neutral-600'">
+                  <span :class="member.allocation > 100 ? 'text-danger-600 font-semibold' : 'text-text-secondary'">
                     {{ member.allocation }}%
                   </span>
                   <span v-if="member.overallocated" class="text-danger-600 font-medium">⚠ Overallocated</span>
@@ -155,12 +155,12 @@ const getAllocationColor = (allocation: number) => {
             </div>
             <div class="flex items-center gap-4">
               <div>
-                <p class="text-xs text-neutral-600 uppercase font-medium">Projects</p>
-                <p class="text-lg font-bold text-neutral-900 mt-1">{{ member.projects }}</p>
+                <p class="text-xs text-text-secondary uppercase font-medium">Projects</p>
+                <p class="text-lg font-bold text-text-primary mt-1">{{ member.projects }}</p>
               </div>
               <div>
-                <p class="text-xs text-neutral-600 uppercase font-medium">Capacity</p>
-                <p class="text-lg font-bold text-neutral-900 mt-1">{{ member.capacity }}h</p>
+                <p class="text-xs text-text-secondary uppercase font-medium">Capacity</p>
+                <p class="text-lg font-bold text-text-primary mt-1">{{ member.capacity }}h</p>
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ const getAllocationColor = (allocation: number) => {
     </ReportSection>
 
     <!-- Report Footer -->
-    <div class="border-t border-border-light pt-6 text-center text-xs text-neutral-500">
+    <div class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
       <p>Team Workload Report</p>
       <p class="mt-1">Generated on {{ reportDate }}</p>
       <p class="mt-1">Based on current project assignments and team capacity data</p>

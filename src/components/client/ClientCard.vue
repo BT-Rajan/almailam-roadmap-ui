@@ -23,27 +23,27 @@ const displayName = computed(() => getClientDisplayName(props.client))
     <div class="flex flex-col gap-4">
       <div class="flex items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">{{ client.code }} · {{ client.clientType }}</p>
-          <h3 class="text-base font-semibold leading-snug text-neutral-800">{{ displayName }}</h3>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ client.code }} · {{ client.clientType }}</p>
+          <h3 class="text-base font-semibold leading-snug text-text-primary">{{ displayName }}</h3>
         </div>
         <StatusBadge :label="client.status" :variant="getClientStatusVariant(client.status)" show-dot />
       </div>
 
-      <div class="flex flex-col gap-1.5 text-sm text-neutral-500">
+      <div class="flex flex-col gap-1.5 text-sm text-text-muted">
         <div class="flex items-center gap-2">
-          <Phone class="h-4 w-4 shrink-0 text-neutral-400" />
+          <Phone class="h-4 w-4 shrink-0 text-text-muted" />
           <span class="truncate">{{ client.mobile }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <Mail class="h-4 w-4 shrink-0 text-neutral-400" />
+          <Mail class="h-4 w-4 shrink-0 text-text-muted" />
           <span class="truncate">{{ client.email }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <MapPin class="h-4 w-4 shrink-0 text-neutral-400" />
+          <MapPin class="h-4 w-4 shrink-0 text-text-muted" />
           <span class="truncate">{{ client.city }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <UserRound class="h-4 w-4 shrink-0 text-neutral-400" />
+          <UserRound class="h-4 w-4 shrink-0 text-text-muted" />
           <span class="truncate">{{ client.accountManagerName ?? 'Unassigned' }}</span>
         </div>
       </div>

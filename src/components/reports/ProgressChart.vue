@@ -65,10 +65,10 @@ const textSizeClasses = computed(() => {
         />
       </svg>
       <div class="absolute text-center">
-        <p :class="['font-bold text-neutral-900', textSizeClasses]">{{ Math.round(percentage) }}%</p>
-        <p v-if="label" class="text-xs text-neutral-500 mt-1">{{ value }}/{{ max }}</p>
+        <p :class="['font-bold text-text-primary', textSizeClasses]">{{ Math.round(percentage) }}%</p>
+        <p v-if="label" class="text-xs text-text-muted mt-1">{{ value }}/{{ max }}</p>
       </div>
     </div>
-    <p v-if="label" class="text-sm font-medium text-neutral-700 text-center">{{ label }}</p>
+    <p v-if="label" class="text-sm font-medium text-text-secondary text-center">{{ label }}</p>
   </div>
 </template>

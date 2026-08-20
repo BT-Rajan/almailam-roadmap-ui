@@ -199,7 +199,7 @@ function clearSelection(): void {
             <th v-if="selectable" class="w-10 px-4 py-3">
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-primary-500/30"
+                class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-accent-500/30"
                 :checked="isAllSelected"
                 aria-label="Select all rows on this page"
                 @change="toggleAllRows"
@@ -208,14 +208,14 @@ function clearSelection(): void {
             <th
               v-for="column in columns"
               :key="column.key"
-              class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+              class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted"
               :class="alignClass(column.align)"
               :style="column.width ? { width: column.width } : undefined"
             >
               <button
                 v-if="column.sortable"
                 type="button"
-                class="inline-flex items-center gap-1 hover:text-neutral-700"
+                class="inline-flex items-center gap-1 hover:text-text-secondary"
                 @click="handleSort(column)"
               >
                 {{ column.label }}
@@ -246,7 +246,7 @@ function clearSelection(): void {
             <td v-if="selectable" class="px-4 py-3" @click.stop>
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-primary-500/30"
+                class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-accent-500/30"
                 :checked="selectedKeys.has(row[rowKey])"
                 :aria-label="`Select row ${String(row[rowKey])}`"
                 @change="toggleRow(row)"
@@ -255,7 +255,7 @@ function clearSelection(): void {
             <td
               v-for="column in columns"
               :key="column.key"
-              class="px-4 py-3 text-sm text-neutral-700"
+              class="px-4 py-3 text-sm text-text-secondary"
               :class="alignClass(column.align)"
             >
               <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]">

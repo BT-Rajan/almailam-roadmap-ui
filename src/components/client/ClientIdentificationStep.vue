@@ -149,7 +149,7 @@ function handleUploaderError(message: string): void {
 
       <p v-if="uploadError" class="mt-2 text-xs text-danger-500">{{ uploadError }}</p>
 
-      <div v-if="checkState === 'checking'" class="mt-2 flex items-center gap-2 text-xs text-neutral-500">
+      <div v-if="checkState === 'checking'" class="mt-2 flex items-center gap-2 text-xs text-text-muted">
         <Loader2 class="h-3.5 w-3.5 animate-spin" />
         Checking document with AI...
       </div>

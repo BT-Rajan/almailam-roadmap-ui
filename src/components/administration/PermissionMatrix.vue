@@ -35,15 +35,15 @@ const COLUMNS: SmartTableColumn<PermissionRow>[] = [
   >
     <template #cell-view="{ value }">
       <Check v-if="value" :size="15" class="mx-auto text-success-600" />
-      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+      <Minus v-else :size="15" class="mx-auto text-text-muted" />
     </template>
     <template #cell-edit="{ value }">
       <Check v-if="value" :size="15" class="mx-auto text-success-600" />
-      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+      <Minus v-else :size="15" class="mx-auto text-text-muted" />
     </template>
     <template #cell-delete="{ value }">
       <Check v-if="value" :size="15" class="mx-auto text-success-600" />
-      <Minus v-else :size="15" class="mx-auto text-neutral-300" />
+      <Minus v-else :size="15" class="mx-auto text-text-muted" />
     </template>
   </SmartTable>
 </template>

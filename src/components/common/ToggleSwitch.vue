@@ -52,10 +52,10 @@ const thumbClasses = computed(() => [
       </span>
     </span>
     <span v-if="label || hint" class="flex flex-col gap-0.5">
-      <span class="text-sm font-medium text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
+      <span class="text-sm font-medium text-text-secondary" :class="disabled ? 'text-text-muted' : ''">
         {{ label }}
       </span>
-      <span v-if="hint" class="text-xs text-neutral-400">{{ hint }}</span>
+      <span v-if="hint" class="text-xs text-text-muted">{{ hint }}</span>
     </span>
   </label>
 </template>

@@ -23,15 +23,15 @@ withDefaults(defineProps<Props>(), {
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <Sparkles class="h-5 w-5 text-ai-600" />
-          <h3 class="text-sm font-semibold text-neutral-800">{{ title }}</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ title }}</h3>
         </div>
         <AIConfidenceBadge :confidence="confidence" />
       </div>
     </template>
 
     <div class="flex flex-col gap-3">
-      <p class="text-sm font-medium text-neutral-800">{{ summary }}</p>
-      <p class="text-sm leading-relaxed text-neutral-600">{{ details }}</p>
+      <p class="text-sm font-medium text-text-primary">{{ summary }}</p>
+      <p class="text-sm leading-relaxed text-text-secondary">{{ details }}</p>
     </div>
   </Card>
 </template>

@@ -32,25 +32,25 @@ defineEmits<{
 const inputId = useId()
 
 const inputClasses = computed(() => [
-  'h-10 w-full rounded-lg border bg-bg-card text-sm text-neutral-800',
-  'placeholder:text-neutral-400',
+  'h-10 w-full rounded-lg border bg-bg-card text-sm text-text-primary',
+  'placeholder:text-text-muted',
   'transition-colors duration-fast',
-  'focus:outline-none focus:ring-2 focus:ring-primary-500/30',
+  'focus:outline-none focus:ring-2 focus:ring-accent-500/30',
   'pl-10 pr-3',
-  props.error ? 'border-danger-500' : 'border-border-default focus:border-primary-500',
-  props.disabled ? 'cursor-not-allowed bg-bg-secondary text-neutral-400' : '',
+  props.error ? 'border-danger-500' : 'border-border-default focus:border-accent-500',
+  props.disabled ? 'cursor-not-allowed bg-bg-secondary text-text-muted' : '',
 ])
 </script>
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label v-if="label" :for="inputId" class="text-sm font-medium text-neutral-700">
+    <label v-if="label" :for="inputId" class="text-sm font-medium text-text-secondary">
       {{ label }}
       <span v-if="required" class="text-danger-500">*</span>
     </label>
     <div class="relative">
       <Calendar
-        class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+        class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
       />
       <input
         :id="inputId"
@@ -68,6 +68,6 @@ const inputClasses = computed(() => [
       />
     </div>
     <p v-if="error" :id="`${inputId}-error`" class="text-xs text-danger-500">{{ error }}</p>
-    <p v-else-if="hint" :id="`${inputId}-hint`" class="text-xs text-neutral-400">{{ hint }}</p>
+    <p v-else-if="hint" :id="`${inputId}-hint`" class="text-xs text-text-muted">{{ hint }}</p>
   </div>
 </template>

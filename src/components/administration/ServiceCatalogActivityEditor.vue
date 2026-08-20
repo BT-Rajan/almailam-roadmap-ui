@@ -76,15 +76,15 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
         </div>
 
         <div class="flex shrink-0 items-center gap-2 self-end sm:self-start">
-          <span class="text-sm font-medium text-neutral-500">{{ formatCurrency(activity.fixedCost) }}</span>
+          <span class="text-sm font-medium text-text-muted">{{ formatCurrency(activity.fixedCost) }}</span>
           <IconButton :icon="Trash2" label="Remove activity" size="sm" variant="danger" @click="emit('remove', activity.id)" />
         </div>
       </li>
     </ol>
-    <p v-else class="text-sm text-neutral-500">No activities yet -- add one below.</p>
+    <p v-else class="text-sm text-text-muted">No activities yet -- add one below.</p>
 
     <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-      <p class="text-sm font-medium text-neutral-700">Add Activity</p>
+      <p class="text-sm font-medium text-text-secondary">Add Activity</p>
       <div class="flex flex-col gap-2 sm:flex-row">
         <TextInput v-model="newActivityName" placeholder="Activity name" class="sm:flex-1" />
         <TextInput v-model="newActivityCost" type="number" inputmode="decimal" placeholder="Fixed cost" class="sm:w-40" />

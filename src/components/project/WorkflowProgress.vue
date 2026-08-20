@@ -23,7 +23,7 @@ const currentStepIndex = computed(() => {
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Workflow Progress</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Workflow Progress</h3>
     </template>
     <div class="overflow-x-auto pb-1">
       <div class="min-w-[720px]">

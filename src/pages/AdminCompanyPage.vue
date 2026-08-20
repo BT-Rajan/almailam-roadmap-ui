@@ -64,16 +64,16 @@ function handleCancel(): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader title="Company Settings" subtitle="Manage your company profile, branding and business preferences." />
 
     <ErrorState v-if="companyStore.error" :description="companyStore.error" @retry="loadData" />
 
     <div v-else-if="companyStore.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6">
         <SkeletonLoader :rows="6" />
       </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <SkeletonLoader :rows="10" />
       </div>
     </div>
@@ -81,7 +81,7 @@ function handleCancel(): void {
     <div v-else-if="companyStore.settings" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
       <CompanyProfileCard :settings="companyStore.settings" />
 
-      <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <FormSection title="Company Profile" description="Basic details shown on quotations, contracts and government submissions.">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <TextInput

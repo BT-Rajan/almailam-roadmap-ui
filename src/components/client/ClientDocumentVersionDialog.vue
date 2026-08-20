@@ -45,14 +45,14 @@ function isCurrentVersion(version: ClientDocumentVersion): boolean {
       >
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-neutral-800">Version {{ version.version }}</span>
+            <span class="text-sm font-semibold text-text-primary">Version {{ version.version }}</span>
             <StatusBadge v-if="isCurrentVersion(version)" label="Current" variant="success" size="sm" />
           </div>
           <IconButton :icon="Download" label="Download this version" size="sm" @click="$emit('download', version)" />
         </div>
-        <p class="text-xs text-neutral-500">{{ version.uploadedBy }} · {{ formatDateTime(version.uploadDate) }}</p>
-        <p class="text-sm text-neutral-600">{{ version.notes }}</p>
-        <p class="text-xs text-neutral-400">{{ version.originalFilename }}</p>
+        <p class="text-xs text-text-muted">{{ version.uploadedBy }} · {{ formatDateTime(version.uploadDate) }}</p>
+        <p class="text-sm text-text-secondary">{{ version.notes }}</p>
+        <p class="text-xs text-text-muted">{{ version.originalFilename }}</p>
       </li>
     </ul>
   </BaseDialog>

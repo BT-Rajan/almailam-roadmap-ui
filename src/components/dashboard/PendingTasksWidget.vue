@@ -49,10 +49,10 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', 
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-neutral-900">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title }}</h3>
     </template>
 
-    <div v-if="displayedTasks.length === 0" class="py-8 text-center text-neutral-500">
+    <div v-if="displayedTasks.length === 0" class="py-8 text-center text-text-muted">
       <p class="text-sm">No pending tasks</p>
     </div>
     <div v-else class="space-y-2">
@@ -65,15 +65,15 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', 
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-start gap-2">
-              <p class="text-sm font-medium text-neutral-900 flex-1">{{ task.title }}</p>
+              <p class="text-sm font-medium text-text-primary flex-1">{{ task.title }}</p>
               <StatusBadge :label="task.priority" :variant="priorityColor(task.priority)" class="flex-shrink-0" />
             </div>
-            <p class="text-xs text-neutral-500 mt-1">{{ task.project }}</p>
+            <p class="text-xs text-text-muted mt-1">{{ task.project }}</p>
           </div>
         </div>
         <div class="flex items-center justify-between mt-2">
-          <span class="text-xs text-neutral-500">{{ task.assignee }}</span>
-          <span :class="['text-xs font-medium', isOverdue(task.dueDate) ? 'text-danger-500' : 'text-neutral-400']">
+          <span class="text-xs text-text-muted">{{ task.assignee }}</span>
+          <span :class="['text-xs font-medium', isOverdue(task.dueDate) ? 'text-danger-500' : 'text-text-muted']">
             {{ formatDate(task.dueDate) }}
           </span>
         </div>

@@ -39,17 +39,17 @@ const emit = defineEmits<{
   >
     <div v-if="form" class="flex flex-col gap-5">
       <div class="flex flex-wrap items-center gap-2">
-        <h2 class="text-lg font-semibold text-neutral-800">{{ form.title }}</h2>
+        <h2 class="text-lg font-semibold text-text-primary">{{ form.title }}</h2>
         <StatusBadge v-if="form.status === 'Archived'" label="Archived" variant="neutral" />
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge :label="form.category" :variant="getFormCategoryVariant(form.category)" />
-        <span class="text-xs text-neutral-400">·</span>
-        <span class="text-xs font-medium text-neutral-500">{{ authority?.name ?? 'Unknown Authority' }}</span>
+        <span class="text-xs text-text-muted">·</span>
+        <span class="text-xs font-medium text-text-muted">{{ authority?.name ?? 'Unknown Authority' }}</span>
       </div>
 
-      <div class="flex items-center gap-4 text-xs text-neutral-500">
+      <div class="flex items-center gap-4 text-xs text-text-muted">
         <span class="inline-flex items-center gap-1.5">
           <Languages class="h-3.5 w-3.5" />
           {{ form.language }}
@@ -60,11 +60,11 @@ const emit = defineEmits<{
         </span>
       </div>
 
-      <p class="text-sm text-neutral-600">{{ form.description }}</p>
+      <p class="text-sm text-text-secondary">{{ form.description }}</p>
 
       <div>
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">Required Documents</p>
-        <ul class="list-inside list-disc text-sm text-neutral-600">
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Required Documents</p>
+        <ul class="list-inside list-disc text-sm text-text-secondary">
           <li v-for="document in form.requiredDocuments" :key="document">{{ document }}</li>
         </ul>
       </div>
@@ -72,7 +72,7 @@ const emit = defineEmits<{
       <Divider />
 
       <div>
-        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Fillable Form</p>
+        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Fillable Form</p>
         <iframe
           v-if="form.previewUrl"
           :src="form.previewUrl"

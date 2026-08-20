@@ -66,16 +66,16 @@ function handleAddStage(name: string, description: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader title="Workflow Configuration" subtitle="Define and adjust the project workflow stages." />
 
     <ErrorState v-if="workflowStore.error" :description="workflowStore.error" @retry="loadData" />
 
     <div v-else-if="workflowStore.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-5">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6">
         <SkeletonLoader :rows="5" />
       </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
+      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
         <SkeletonLoader :rows="8" />
       </div>
     </div>
@@ -97,7 +97,7 @@ function handleAddStage(name: string, description: string): void {
         <template v-else>
           <Card>
             <template #header>
-              <h3 class="text-sm font-semibold text-neutral-800">Workflow Visualization</h3>
+              <h3 class="text-sm font-semibold text-text-primary">Workflow Visualization</h3>
             </template>
             <div class="overflow-x-auto pb-1">
               <div class="min-w-[640px]">
@@ -109,7 +109,7 @@ function handleAddStage(name: string, description: string): void {
           <Card>
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-neutral-800">{{ workflowStore.selectedTemplate.name }} Stages</h3>
+                <h3 class="text-sm font-semibold text-text-primary">{{ workflowStore.selectedTemplate.name }} Stages</h3>
                 <div class="flex items-center gap-2">
                   <BaseButton
                     v-if="!workflowStore.selectedTemplate.isDefault"

@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
     <div class="flex flex-col gap-4">
       <div class="flex items-center gap-2">
         <Sparkles class="h-5 w-5 animate-pulse text-ai-600" />
-        <p class="text-sm font-medium text-neutral-700">{{ label }}</p>
+        <p class="text-sm font-medium text-text-secondary">{{ label }}</p>
       </div>
       <SkeletonLoader :rows="4" />
     </div>

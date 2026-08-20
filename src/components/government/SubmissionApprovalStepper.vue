@@ -25,7 +25,7 @@ const currentStepIndex = computed(() => {
     <Stepper v-if="status !== 'Rejected'" :steps="steps" :current-step="currentStepIndex" />
     <div v-else class="flex items-center gap-2">
       <StatusBadge label="Rejected" :variant="getSubmissionStatusVariant('Rejected')" />
-      <p class="text-sm text-neutral-500">This submission was rejected by the authority.</p>
+      <p class="text-sm text-text-muted">This submission was rejected by the authority.</p>
     </div>
   </div>
 </template>

@@ -20,7 +20,7 @@ defineEmits<{
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-neutral-800">Contacts</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Contacts</h3>
     </template>
 
     <EmptyState
@@ -37,11 +37,11 @@ defineEmits<{
             <UserRound class="h-4 w-4" />
           </span>
           <div class="flex flex-col">
-            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-800">
+            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-text-primary">
               {{ contact.name }}
               <ShieldCheck v-if="contact.isAuthorisedRepresentative" class="h-3.5 w-3.5 text-success-500" />
             </span>
-            <span class="text-xs text-neutral-500">{{ contact.mobile }} · {{ contact.email }}</span>
+            <span class="text-xs text-text-muted">{{ contact.mobile }} · {{ contact.email }}</span>
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">

@@ -82,10 +82,10 @@ const handleChange = (event: Event) => {
       <div v-if="isChecked || indeterminate" class="absolute inset-0 rounded border-2 border-primary-500/30 pointer-events-none" />
     </div>
     <div v-if="label || hint" class="flex flex-col gap-0.5">
-      <span class="text-sm font-medium text-neutral-700" :class="disabled ? 'text-neutral-400' : ''">
+      <span class="text-sm font-medium text-text-secondary" :class="disabled ? 'text-text-muted' : ''">
         {{ label }}
       </span>
-      <p v-if="hint" class="text-xs text-neutral-400">{{ hint }}</p>
+      <p v-if="hint" class="text-xs text-text-muted">{{ hint }}</p>
     </div>
   </label>
 </template>

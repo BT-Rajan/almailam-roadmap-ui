@@ -44,8 +44,8 @@ function handleFileChange(event: Event): void {
             <FileText class="h-5 w-5 text-primary-600" />
           </span>
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">{{ document.category }} · v{{ document.version }}</p>
-            <h3 class="text-sm font-semibold leading-snug text-neutral-800">{{ document.title }}</h3>
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ document.category }} · v{{ document.version }}</p>
+            <h3 class="text-sm font-semibold leading-snug text-text-primary">{{ document.title }}</h3>
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
@@ -60,9 +60,9 @@ function handleFileChange(event: Event): void {
         </div>
       </div>
 
-      <div v-if="document.issuingAuthority" class="text-sm text-neutral-500">{{ document.issuingAuthority }}</div>
+      <div v-if="document.issuingAuthority" class="text-sm text-text-muted">{{ document.issuingAuthority }}</div>
 
-      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-neutral-500">
+      <div class="flex items-center justify-between border-t border-border-light pt-3 text-xs text-text-muted">
         <div class="flex items-center gap-1.5">
           <UserRound class="h-3.5 w-3.5" />
           <span>{{ document.uploadedBy }}</span>

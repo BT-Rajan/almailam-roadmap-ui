@@ -43,9 +43,9 @@ const clientDetailItems = computed(() => {
   <div class="flex flex-col gap-6">
     <Card v-if="project.description">
       <template #header>
-        <h3 class="text-sm font-semibold text-neutral-800">Scope of Work</h3>
+        <h3 class="text-sm font-semibold text-text-primary">Scope of Work</h3>
       </template>
-      <p class="whitespace-pre-wrap text-sm text-neutral-600">{{ project.description }}</p>
+      <p class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
     </Card>
 
     <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">

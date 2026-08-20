@@ -41,24 +41,24 @@ function zoomIn(): void {
     <div class="flex items-center justify-between rounded-lg border border-border-light bg-bg-secondary px-3 py-2">
       <div class="flex items-center gap-1">
         <IconButton :icon="ChevronLeft" label="Previous page" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
-        <span class="px-2 text-sm text-neutral-600">Page {{ currentPage }} of {{ pageCount }}</span>
+        <span class="px-2 text-sm text-text-secondary">Page {{ currentPage }} of {{ pageCount }}</span>
         <IconButton :icon="ChevronRight" label="Next page" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
       </div>
       <div class="flex items-center gap-1">
         <IconButton :icon="ZoomOut" label="Zoom out" size="sm" :disabled="zoomLevel <= 50" @click="zoomOut" />
-        <span class="w-12 text-center text-sm text-neutral-600">{{ zoomLevel }}%</span>
+        <span class="w-12 text-center text-sm text-text-secondary">{{ zoomLevel }}%</span>
         <IconButton :icon="ZoomIn" label="Zoom in" size="sm" :disabled="zoomLevel >= 200" @click="zoomIn" />
       </div>
     </div>
 
-    <div class="flex min-h-[420px] items-center justify-center overflow-auto rounded-lg border border-border-light bg-neutral-100 p-6">
+    <div class="flex min-h-[420px] items-center justify-center overflow-auto rounded-lg border border-border-light bg-bg-secondary p-6">
       <div
         class="flex aspect-[3/4] w-full max-w-md flex-col items-center justify-center gap-3 rounded-md bg-bg-card p-8 text-center shadow-medium transition-all duration-normal"
         :style="{ transform: `scale(${zoomLevel / 100})` }"
       >
-        <FileText class="h-12 w-12 text-neutral-300" />
-        <p class="text-sm font-medium text-neutral-600">{{ title }}</p>
-        <p class="text-xs text-neutral-400">Preview page {{ currentPage }}</p>
+        <FileText class="h-12 w-12 text-text-muted" />
+        <p class="text-sm font-medium text-text-secondary">{{ title }}</p>
+        <p class="text-xs text-text-muted">Preview page {{ currentPage }}</p>
       </div>
     </div>
   </div>

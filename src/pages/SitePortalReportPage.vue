@@ -94,8 +94,8 @@ async function handleSubmit(): Promise<void> {
 <template>
   <div class="flex flex-col gap-4">
     <div>
-      <h1 class="text-lg font-semibold text-neutral-900">Today's Status Report</h1>
-      <p class="text-sm text-neutral-500">{{ todaysDate }}</p>
+      <h1 class="text-lg font-semibold text-text-primary">Today's Status Report</h1>
+      <p class="text-sm text-text-muted">{{ todaysDate }}</p>
     </div>
 
     <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">

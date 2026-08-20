@@ -112,8 +112,8 @@ const handleKeydown = (e: KeyboardEvent) => {
     </form>
 
     <template #footer>
-      <p class="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-500">
-        <ShieldCheck class="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+      <p class="flex items-center justify-center gap-1.5 text-center text-xs text-text-muted">
+        <ShieldCheck class="h-3.5 w-3.5 shrink-0 text-text-muted" />
         Only you can view this project, verified against your registered mobile number.
       </p>
     </template>

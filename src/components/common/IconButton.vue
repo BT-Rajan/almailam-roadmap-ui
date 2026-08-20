@@ -23,7 +23,7 @@ defineEmits<{
 }>()
 
 const variantClasses: Record<string, string> = {
-  ghost: 'text-neutral-500 hover:bg-bg-hover hover:text-neutral-800',
+  ghost: 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
   primary: 'text-primary-600 hover:bg-primary-50',
   danger: 'text-danger-500 hover:bg-danger-50',
 }
@@ -43,8 +43,8 @@ const iconSizeClasses: Record<ComponentSize, string> = {
 const buttonClasses = computed(() => [
   'inline-flex items-center justify-center',
   'rounded-lg transition-colors duration-fast',
-  'disabled:cursor-not-allowed disabled:text-neutral-300 disabled:hover:bg-transparent',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+  'disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent',
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
   variantClasses[props.variant],
   sizeClasses[props.size],
 ])

@@ -231,8 +231,8 @@ function handleDocumentClick(): void {
   <div class="space-y-8 pb-8">
     <!-- Page Header -->
     <div>
-      <h1 class="text-3xl font-bold text-neutral-900">Executive Dashboard</h1>
-      <p class="text-neutral-500 mt-1">Welcome back. Here's your project overview.</p>
+      <h1 class="text-3xl font-bold text-text-primary">Executive Dashboard</h1>
+      <p class="text-text-muted mt-1">Welcome back. Here's your project overview.</p>
     </div>
 
     <!-- KPI Cards -->
@@ -247,7 +247,7 @@ function handleDocumentClick(): void {
 
     <!-- Quick Actions -->
     <div>
-      <h2 class="text-lg font-semibold text-neutral-900 mb-4">Quick Actions</h2>
+      <h2 class="text-lg font-semibold text-text-primary mb-4">Quick Actions</h2>
       <div class="grid grid-cols-2 tablet:grid-cols-4 gap-4">
         <QuickActionCard label="New Project" :icon="Plus" @click="handleQuickAction('new-project')" />
         <QuickActionCard label="New Task" :icon="Plus" color="success" @click="handleQuickAction('new-task')" />
@@ -258,7 +258,7 @@ function handleDocumentClick(): void {
 
     <!-- Projects Grid -->
     <div v-if="!isLoading && recentProjects.length > 0">
-      <h2 class="text-lg font-semibold text-neutral-900 mb-4">Recent Projects</h2>
+      <h2 class="text-lg font-semibold text-text-primary mb-4">Recent Projects</h2>
       <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
         <ProjectSummaryCard v-for="project in recentProjects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
       </div>

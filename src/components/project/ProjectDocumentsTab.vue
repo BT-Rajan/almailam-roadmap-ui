@@ -240,9 +240,9 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
   <div v-else class="flex flex-col gap-8">
     <!-- 0. Required Permit Documents -->
     <section v-if="permitChecklist.length > 0" class="flex flex-col gap-4">
-      <h3 class="text-sm font-semibold text-neutral-800">Required Permit Documents</h3>
+      <h3 class="text-sm font-semibold text-text-primary">Required Permit Documents</h3>
       <div class="rounded-xl border border-border-light bg-bg-card p-4">
-        <p class="mb-3 text-xs text-neutral-400">
+        <p class="mb-3 text-xs text-text-muted">
           Confirmed during project setup as permits the client already holds -- each must be added under Government
           Documents below.
         </p>
@@ -256,7 +256,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
             <span class="flex items-center gap-2">
               <CheckCircle2 v-if="permit.satisfied" class="h-4 w-4 shrink-0 text-success-600" />
               <AlertTriangle v-else class="h-4 w-4 shrink-0 text-warning-600" />
-              <span :class="permit.satisfied ? 'text-neutral-700' : 'text-neutral-800 font-medium'">{{ permit.name }}</span>
+              <span :class="permit.satisfied ? 'text-text-secondary' : 'text-text-primary font-medium'">{{ permit.name }}</span>
             </span>
             <BaseButton v-if="!permit.satisfied" variant="secondary" size="sm" class="no-print" @click="openPermitDialog(permit.name)">
               Add Document
@@ -270,7 +270,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-neutral-800">Customer ID Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">Customer ID Documents</h3>
       </div>
 
       <div v-if="clientStore.isDetailLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -296,7 +296,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 2. Property Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-neutral-800">Property Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">Property Documents</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Property')">
           Add Document
         </BaseButton>
@@ -320,7 +320,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 3. Government Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-neutral-800">Government Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">Government Documents</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Government')">
           Add Document
         </BaseButton>
@@ -344,7 +344,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 4. Others -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-neutral-800">Others</h3>
+        <h3 class="text-sm font-semibold text-text-primary">Others</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Others')">
           Add Document
         </BaseButton>

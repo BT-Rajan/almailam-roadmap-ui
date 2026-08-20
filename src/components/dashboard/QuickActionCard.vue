@@ -51,8 +51,8 @@ const iconColor = computed(() => {
         <component :is="icon" :class="['h-6 w-6', iconColor]" />
       </div>
       <div>
-        <p class="font-medium text-neutral-900">{{ label }}</p>
-        <p v-if="description" class="text-xs text-neutral-500 mt-1">{{ description }}</p>
+        <p class="font-medium text-text-primary">{{ label }}</p>
+        <p v-if="description" class="text-xs text-text-muted mt-1">{{ description }}</p>
       </div>
     </div>
   </Card>

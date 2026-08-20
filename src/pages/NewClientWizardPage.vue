@@ -399,7 +399,7 @@ function goToCreatedClient(): void {
     <PageHeader title="New Client Onboarding" subtitle="Collect, verify and confirm client information in a few steps." />
 
     <BaseDialog :model-value="draftAvailable" title="Resume unsaved draft?" size="sm" :closable="false">
-      <p class="text-sm text-neutral-600">
+      <p class="text-sm text-text-secondary">
         You have an unfinished client onboarding form saved from earlier. Resume where you left off, or start fresh.
       </p>
       <template #footer>
@@ -445,7 +445,7 @@ function goToCreatedClient(): void {
     </div>
 
     <BaseDialog :model-value="showConfirmation" title="Client Onboarded" size="sm" :closable="false">
-      <p class="text-sm text-neutral-600">
+      <p class="text-sm text-text-secondary">
         <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
         was successfully created as client
         <strong>{{ createdClient?.code }}</strong>.

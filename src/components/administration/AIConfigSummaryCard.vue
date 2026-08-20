@@ -23,27 +23,27 @@ const defaultProviderLabel = computed(
           <Sparkles class="h-5 w-5" />
         </span>
         <div class="min-w-0">
-          <p class="truncate font-semibold text-neutral-900">AI Assistant</p>
+          <p class="text-sm font-semibold text-text-primary truncate">AI Assistant</p>
           <StatusBadge :label="config.isEnabled ? 'Enabled' : 'Disabled'" :variant="config.isEnabled ? 'success' : 'neutral'" show-dot />
         </div>
       </div>
 
-      <div class="flex flex-col gap-3 border-t border-border-light pt-4 text-sm text-neutral-600">
+      <div class="flex flex-col gap-3 border-t border-border-light pt-4 text-sm text-text-secondary">
         <div class="flex items-center gap-2">
-          <Bot class="h-4 w-4 shrink-0 text-neutral-400" />
-          <span>Default Provider: <span class="font-medium text-neutral-800">{{ defaultProviderLabel }}</span></span>
+          <Bot class="h-4 w-4 shrink-0 text-text-muted" />
+          <span>Default Provider: <span class="font-medium text-text-primary">{{ defaultProviderLabel }}</span></span>
         </div>
         <div class="flex items-center gap-2">
-          <Clock class="h-4 w-4 shrink-0 text-neutral-400" />
-          <span>Timeout: <span class="font-medium text-neutral-800">{{ config.timeoutSeconds }}s</span></span>
+          <Clock class="h-4 w-4 shrink-0 text-text-muted" />
+          <span>Timeout: <span class="font-medium text-text-primary">{{ config.timeoutSeconds }}s</span></span>
         </div>
         <div class="flex items-center gap-2">
-          <Database class="h-4 w-4 shrink-0 text-neutral-400" />
-          <span>Cache Duration: <span class="font-medium text-neutral-800">{{ config.cacheDurationMinutes }} min</span></span>
+          <Database class="h-4 w-4 shrink-0 text-text-muted" />
+          <span>Cache Duration: <span class="font-medium text-text-primary">{{ config.cacheDurationMinutes }} min</span></span>
         </div>
       </div>
 
-      <p class="border-t border-border-light pt-3 text-xs text-neutral-400">
+      <p class="border-t border-border-light pt-3 text-xs text-text-muted">
         AI is a productivity assistant. All business workflows continue functioning normally if AI is disabled.
       </p>
     </div>

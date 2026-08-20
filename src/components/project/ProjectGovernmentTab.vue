@@ -116,8 +116,8 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
       @click="openSubmission(submission.id)"
     >
       <div class="min-w-0">
-        <p class="text-sm font-semibold text-neutral-800">{{ submission.submissionNo }}</p>
-        <p class="truncate text-xs text-neutral-500">
+        <p class="text-sm font-semibold text-text-primary">{{ submission.submissionNo }}</p>
+        <p class="truncate text-xs text-text-muted">
           {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? 'Unknown Form' }} ·
           {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? 'Unknown Authority' }}
         </p>
@@ -150,12 +150,12 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
       <SubmissionApprovalStepper :status="selectedSubmission.status" />
       <DetailPanel title="Submission Details" :items="selectedSubmissionDetails" />
       <div>
-        <h3 class="mb-2 text-sm font-semibold text-neutral-800">Required Documents</h3>
+        <h3 class="mb-2 text-sm font-semibold text-text-primary">Required Documents</h3>
         <RequiredDocumentChecklist :documents="selectedSubmission.documents" />
       </div>
       <div v-if="selectedSubmission.notes">
-        <h3 class="mb-1 text-sm font-semibold text-neutral-800">Notes</h3>
-        <p class="text-sm text-neutral-600">{{ selectedSubmission.notes }}</p>
+        <h3 class="mb-1 text-sm font-semibold text-text-primary">Notes</h3>
+        <p class="text-sm text-text-secondary">{{ selectedSubmission.notes }}</p>
       </div>
     </div>
   </BaseDrawer>

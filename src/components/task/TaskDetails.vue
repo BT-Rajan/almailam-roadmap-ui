@@ -54,7 +54,7 @@ const details = [
       <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">Overdue</span>
     </div>
 
-    <p class="text-base font-semibold leading-snug text-neutral-800">{{ task.title }}</p>
+    <p class="text-base font-semibold leading-snug text-text-primary">{{ task.title }}</p>
 
     <DetailPanel title="Task Details" :items="details" />
 

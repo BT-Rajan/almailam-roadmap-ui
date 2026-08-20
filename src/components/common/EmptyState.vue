@@ -25,11 +25,11 @@ defineEmits<{
 <template>
   <div class="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
     <span class="flex h-12 w-12 items-center justify-center rounded-full bg-bg-secondary">
-      <component :is="icon" class="h-6 w-6 text-neutral-400" />
+      <component :is="icon" class="h-6 w-6 text-text-muted" />
     </span>
     <div class="flex flex-col gap-1">
-      <p class="text-sm font-semibold text-neutral-700">{{ title }}</p>
-      <p v-if="description" class="text-sm text-neutral-400">{{ description }}</p>
+      <p class="text-sm font-semibold text-text-secondary">{{ title }}</p>
+      <p v-if="description" class="text-sm text-text-muted">{{ description }}</p>
     </div>
     <BaseButton v-if="actionLabel" variant="secondary" size="sm" @click="$emit('action')">
       {{ actionLabel }}
