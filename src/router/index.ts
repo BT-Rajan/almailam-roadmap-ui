@@ -341,6 +341,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/execution-steps',
+      name: ROUTE_NAMES.ADMIN_EXECUTION_STEPS,
+      component: () => import('@/pages/AdminExecutionStepsPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Execution Steps' },
+        ],
+      },
+    },
+    {
       path: '/admin/service-catalog',
       name: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
       component: () => import('@/pages/AdminServiceCatalogPage.vue'),

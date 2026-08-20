@@ -38,6 +38,12 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         routeName: ROUTE_NAMES.ADMIN_WORKFLOWS,
       },
       {
+        label: 'Execution Steps',
+        description: 'Define the linear, weighted checklist every project follows.',
+        icon: 'ListOrdered',
+        routeName: ROUTE_NAMES.ADMIN_EXECUTION_STEPS,
+      },
+      {
         label: 'Service Catalog',
         description: 'Configure services and their activities, each with a fixed cost.',
         icon: 'ListChecks',

@@ -196,6 +196,18 @@ export const useProjectStore = defineStore('project', {
       return updated
     },
 
+    // Re-fetches one project and patches the local cache -- same shape
+    // as setStage/setStatus above, for callers (the execution-step
+    // checklist) that mutate a project's data through an endpoint that
+    // doesn't itself return the project, only recomputes it as a side
+    // effect (see execution_step_service.py's _recompute_progress).
+    async refreshProject(projectId: string): Promise<void> {
+      const updated = await projectService.getProjectById(projectId)
+      if (!updated) return
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+    },
+
     async deleteProject(projectId: string): Promise<void> {
       await projectService.deleteProject(projectId)
       this.projects = this.projects.filter((p) => p.id !== projectId)

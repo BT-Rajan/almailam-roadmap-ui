@@ -18,6 +18,7 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
 // shipping with the page on first load.
 const ProjectTimelineTab = defineAsyncComponent(() => import('@/components/project/ProjectTimelineTab.vue'))
+const ProjectExecutionTab = defineAsyncComponent(() => import('@/components/project/ProjectExecutionTab.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
@@ -52,13 +53,14 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'timeline', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'activity']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'execution', 'timeline', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'activity']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
+  { key: 'execution', label: 'Execution' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'documents', label: 'Documents' },
   { key: 'quotation', label: 'Quotation' },
@@ -228,6 +230,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <ProjectOverviewTab v-if="activeTab === 'overview'" :project="project" :client="client" />
+      <ProjectExecutionTab v-if="activeTab === 'execution'" :project="project" />
       <ProjectTimelineTab
         v-else-if="activeTab === 'timeline'"
         :events="timelineStore.events"
