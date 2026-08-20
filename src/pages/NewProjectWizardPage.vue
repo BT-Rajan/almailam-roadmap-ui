@@ -17,8 +17,10 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority } from '@/types/Project'
@@ -35,10 +37,13 @@ const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
+const governmentFormStore = useGovernmentFormStore()
+const taskStore = useTaskStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
   { label: 'Project Details' },
+  { label: 'Permits' },
   { label: 'Review & Confirm' },
 ]
 
@@ -47,6 +52,18 @@ const PRIORITY_OPTIONS: SelectOption[] = [
   { label: 'Medium', value: 'Medium' },
   { label: 'Low', value: 'Low' },
 ]
+
+const YES_NO_OPTIONS: SelectOption[] = [
+  { label: 'Yes', value: 'yes' },
+  { label: 'No', value: 'no' },
+]
+
+interface WizardPermit {
+  id: string
+  name: string
+  // '' means not yet answered -- required before the step can advance.
+  clientHas: 'yes' | 'no' | ''
+}
 
 const currentStep = ref(0)
 const isSubmitting = ref(false)
@@ -68,7 +85,49 @@ const form = reactive({
   scope: '',
   startDate: '',
   targetDate: '',
+  // '' until answered; drives whether the permit picker below is shown.
+  involvesPermits: '' as 'yes' | 'no' | '',
+  permits: [] as WizardPermit[],
 })
+
+const permitSearchTerm = ref('')
+
+// Suggestions come from the government form library (same data the
+// Government tab and form catalog use), deduped by title and filtered
+// down to real matches only once the user has typed at least 3 letters --
+// three characters is generally enough to disambiguate a permit name
+// without flooding the list on every keystroke.
+const permitSuggestions = computed(() => {
+  const term = permitSearchTerm.value.trim().toLowerCase()
+  if (term.length < 3) return []
+
+  const alreadyAdded = new Set(form.permits.map((permit) => permit.name.toLowerCase()))
+  const seen = new Set<string>()
+  const matches: string[] = []
+
+  for (const govForm of governmentFormStore.forms) {
+    const title = govForm.title
+    const key = title.toLowerCase()
+    if (!key.includes(term) || seen.has(key) || alreadyAdded.has(key)) continue
+    seen.add(key)
+    matches.push(title)
+    if (matches.length >= 8) break
+  }
+
+  return matches
+})
+
+function addPermit(name: string): void {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  if (form.permits.some((permit) => permit.name.toLowerCase() === trimmed.toLowerCase())) return
+  form.permits.push({ id: crypto.randomUUID(), name: trimmed, clientHas: '' })
+  permitSearchTerm.value = ''
+}
+
+function removePermit(id: string): void {
+  form.permits = form.permits.filter((permit) => permit.id !== id)
+}
 
 const serviceTotal = computed(() => form.selectedActivities.reduce((sum, item) => sum + item.fixedCost, 0))
 
@@ -138,6 +197,12 @@ onMounted(async () => {
   engineerOptions.value = userStore.users
     .filter((user) => user.role === 'Engineer' && user.status === 'Active')
     .map((user) => ({ label: user.name, value: user.id }))
+
+  // Backs the permit search below -- loaded once here rather than lazily
+  // on first keystroke so suggestions appear immediately as the user types.
+  if (governmentFormStore.forms.length === 0) {
+    await governmentFormStore.loadForms()
+  }
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
@@ -145,7 +210,30 @@ const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
   1: ['projectName', 'startDate', 'targetDate'],
 }
 
+const permitsStepError = ref<string>()
+
+function validatePermitsStep(): boolean {
+  permitsStepError.value = undefined
+  if (form.involvesPermits === '') {
+    permitsStepError.value = 'Please indicate whether this project involves any permits.'
+    return false
+  }
+  if (form.involvesPermits === 'yes') {
+    if (form.permits.length === 0) {
+      permitsStepError.value = 'Add at least one permit, or answer "No" above if none apply.'
+      return false
+    }
+    if (form.permits.some((permit) => permit.clientHas === '')) {
+      permitsStepError.value = 'Confirm whether the client already has each permit listed.'
+      return false
+    }
+  }
+  return true
+}
+
 function validateStep(step: number): boolean {
+  if (step === 2) return validatePermitsStep()
+
   const fields = STEP_FIELDS[step]
   if (!fields) return true
 
@@ -182,8 +270,15 @@ async function submitWizard(): Promise<void> {
     currentStep.value = 0
     return
   }
+  if (!validateStep(2)) {
+    currentStep.value = 2
+    return
+  }
 
   isSubmitting.value = true
+
+  const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
+  const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
 
   try {
     const project = await projectStore.createProject({
@@ -197,7 +292,37 @@ async function submitWizard(): Promise<void> {
       priority: form.priority,
       startDate: form.startDate,
       targetDate: form.targetDate,
+      // Permits the client already holds become a mandatory upload
+      // checklist on the project's Documents tab.
+      requiredPermitDocuments: permitsClientHas.length > 0 ? permitsClientHas : undefined,
     })
+
+    // Permits the client doesn't have yet aren't a document to chase --
+    // they're work to do, so each becomes a task on the project instead.
+    if (permitsClientLacks.length > 0) {
+      const results = await Promise.allSettled(
+        permitsClientLacks.map((permitName) =>
+          taskStore.createTask({
+            projectId: project.id,
+            title: `Obtain permit: ${permitName}`,
+            assignedTo: form.engineer,
+            priority: form.priority,
+            severity: 'Major',
+            dueDate: form.targetDate,
+            dueTime: '17:00',
+            status: 'Pending',
+          }),
+        ),
+      )
+      const failedCount = results.filter((result) => result.status === 'rejected').length
+      if (failedCount > 0) {
+        toastStore.show(
+          'error',
+          'Some permit tasks were not created',
+          `${failedCount} of ${permitsClientLacks.length} permit task(s) failed -- add them manually from the Tasks tab.`,
+        )
+      }
+    }
 
     toastStore.show('success', 'Project created', `${project.projectName} was added to the pipeline.`)
     createdProject.value = project
@@ -299,6 +424,85 @@ function goToCreatedProject(): void {
           </div>
         </FormSection>
 
+        <FormSection
+          v-else-if="currentStep === 2"
+          title="Permits"
+          description="Capture any permits this project needs and whether the client already holds them."
+        >
+          <RadioGroup
+            v-model="form.involvesPermits"
+            label="Does this project involve any permits?"
+            :options="YES_NO_OPTIONS"
+            :vertical="false"
+          />
+
+          <template v-if="form.involvesPermits === 'yes'">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-neutral-700">Search permits</label>
+              <div class="relative">
+                <TextInput
+                  v-model="permitSearchTerm"
+                  placeholder="Type at least 3 letters, e.g. 'building'"
+                  @keydown.enter.prevent="permitSuggestions.length > 0 && addPermit(permitSuggestions[0])"
+                />
+                <ul
+                  v-if="permitSuggestions.length > 0"
+                  class="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border-default bg-bg-card shadow-lg"
+                >
+                  <li
+                    v-for="suggestion in permitSuggestions"
+                    :key="suggestion"
+                    class="cursor-pointer px-3 py-2 text-sm text-neutral-700 hover:bg-bg-hover"
+                    @click="addPermit(suggestion)"
+                  >
+                    {{ suggestion }}
+                  </li>
+                </ul>
+              </div>
+              <p
+                v-if="permitSearchTerm.trim().length >= 3 && permitSuggestions.length === 0"
+                class="text-xs text-neutral-400"
+              >
+                No matching permits found.
+                <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="addPermit(permitSearchTerm)">
+                  Add "{{ permitSearchTerm.trim() }}" as a custom permit
+                </button>
+              </p>
+            </div>
+
+            <div v-if="form.permits.length > 0" class="flex flex-col gap-2">
+              <div
+                v-for="permit in form.permits"
+                :key="permit.id"
+                class="flex flex-col gap-2 rounded-lg border border-border-light p-3 tablet:flex-row tablet:items-center tablet:justify-between"
+              >
+                <span class="text-sm font-medium text-neutral-800">{{ permit.name }}</span>
+                <div class="flex items-center gap-3">
+                  <RadioGroup
+                    :model-value="permit.clientHas"
+                    :options="YES_NO_OPTIONS"
+                    :vertical="false"
+                    @update:model-value="permit.clientHas = $event as 'yes' | 'no'"
+                  />
+                  <button
+                    type="button"
+                    class="text-xs font-medium text-danger-600 hover:text-danger-700"
+                    @click="removePermit(permit.id)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <p class="text-xs text-neutral-400">
+                Permits the client already has will be required uploads in the Documents tab. Permits the client
+                doesn't have yet will be added as tasks.
+              </p>
+            </div>
+          </template>
+
+          <p v-if="permitsStepError" class="text-xs text-danger-600">{{ permitsStepError }}</p>
+        </FormSection>
+
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
@@ -342,6 +546,18 @@ function goToCreatedProject(): void {
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Target Date</p>
               <p class="text-sm text-neutral-800">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
+            </div>
+            <div class="tablet:col-span-2">
+              <p class="text-xs font-medium uppercase tracking-wide text-neutral-400">Permits</p>
+              <p v-if="form.involvesPermits !== 'yes' || form.permits.length === 0" class="text-sm text-neutral-800">
+                None
+              </p>
+              <ul v-else class="mt-1 flex flex-col gap-0.5">
+                <li v-for="permit in form.permits" :key="permit.id" class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                  <span class="truncate">{{ permit.name }}</span>
+                  <span class="shrink-0">{{ permit.clientHas === 'yes' ? 'Client has it -- mandatory upload' : 'Client needs it -- task will be created' }}</span>
+                </li>
+              </ul>
             </div>
           </div>
         </FormSection>

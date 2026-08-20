@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -24,6 +24,10 @@ const DOCUMENT_TYPE_OPTIONS: SelectOption[] = [
 const props = defineProps<{
   modelValue: boolean
   projects: Project[]
+  // Pre-fills title/type/project when opened for a specific required
+  // document (e.g. a permit checklist item) instead of a blank upload.
+  initialTitle?: string
+  initialDocumentType?: DocumentType
 }>()
 
 const emit = defineEmits<{
@@ -62,6 +66,16 @@ function resetForm(): void {
   titleError.value = undefined
   fileError.value = undefined
 }
+
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) return
+    if (props.initialTitle) title.value = props.initialTitle
+    if (props.initialDocumentType) documentType.value = props.initialDocumentType
+    if (props.projects.length === 1) projectId.value = props.projects[0].id
+  },
+)
 
 function closeDialog(): void {
   if (isUploading.value) return

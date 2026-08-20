@@ -36,6 +36,12 @@ export interface Project {
   // backend hasn't been extended to persist this yet, won't have it.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
+  // Permits the client confirmed they already hold, captured during project
+  // setup. Each name here is mandatory to upload in the Documents tab --
+  // see ProjectDocumentsTab's "Required Permit Documents" checklist. Optional
+  // because most existing projects predate the permits step and because a
+  // backend that hasn't been extended to persist this yet can just ignore it.
+  requiredPermitDocuments?: string[]
 }
 
 export type ProjectViewMode = 'grid' | 'table'

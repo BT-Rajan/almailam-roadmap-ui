@@ -85,6 +85,10 @@ export interface ProjectCreateInput {
   // without the request failing.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
+  // Permits the client already holds -- sent through so the backend can
+  // persist them as mandatory-upload requirements on the project. Optional
+  // for the same reason as selectedActivities above.
+  requiredPermitDocuments?: string[]
 }
 
 /**

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FilePlus } from '@lucide/vue'
+import { AlertTriangle, CheckCircle2, FilePlus } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -46,6 +46,7 @@ const deleteTarget = ref<ProjectDocument | null>(null)
 
 const isAddDialogOpen = ref(false)
 const addDialogCategory = ref<ProjectLinkDocumentCategory>('Property')
+const addDialogInitialName = ref<string>()
 
 const isLinkDeleteDialogOpen = ref(false)
 const isLinkDeleteSaving = ref(false)
@@ -132,6 +133,27 @@ function linkDocumentsFor(category: ProjectLinkDocumentCategory): ProjectLinkDoc
 
 function openAddDialog(category: ProjectLinkDocumentCategory): void {
   addDialogCategory.value = category
+  addDialogInitialName.value = undefined
+  isAddDialogOpen.value = true
+}
+
+// Permits the client confirmed they already hold during project setup are
+// mandatory to add here. Filed under Government Documents since that's
+// where permits live; a permit counts as satisfied once some Government
+// link document's name has it, loosely matched since the person adding
+// it may title it "Building Permit - signed copy" etc.
+const permitChecklist = computed(() =>
+  (props.project.requiredPermitDocuments ?? []).map((permitName) => {
+    const satisfied = linkDocumentsFor('Government').some((document) =>
+      document.name.toLowerCase().includes(permitName.toLowerCase()),
+    )
+    return { name: permitName, satisfied }
+  }),
+)
+
+function openPermitDialog(permitName: string): void {
+  addDialogCategory.value = 'Government'
+  addDialogInitialName.value = permitName
   isAddDialogOpen.value = true
 }
 
@@ -216,6 +238,35 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
 
   <!-- Documents mode: four fixed categories. -->
   <div v-else class="flex flex-col gap-8">
+    <!-- 0. Required Permit Documents -->
+    <section v-if="permitChecklist.length > 0" class="flex flex-col gap-4">
+      <h3 class="text-sm font-semibold text-neutral-800">Required Permit Documents</h3>
+      <div class="rounded-xl border border-border-light bg-bg-card p-4">
+        <p class="mb-3 text-xs text-neutral-400">
+          Confirmed during project setup as permits the client already holds -- each must be added under Government
+          Documents below.
+        </p>
+        <ul class="flex flex-col gap-2">
+          <li
+            v-for="permit in permitChecklist"
+            :key="permit.name"
+            class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+            :class="permit.satisfied ? 'border-success-200 bg-success-50' : 'border-warning-200 bg-warning-50'"
+          >
+            <span class="flex items-center gap-2">
+              <CheckCircle2 v-if="permit.satisfied" class="h-4 w-4 shrink-0 text-success-600" />
+              <AlertTriangle v-else class="h-4 w-4 shrink-0 text-warning-600" />
+              <span :class="permit.satisfied ? 'text-neutral-700' : 'text-neutral-800 font-medium'">{{ permit.name }}</span>
+            </span>
+            <BaseButton v-if="!permit.satisfied" variant="secondary" size="sm" class="no-print" @click="openPermitDialog(permit.name)">
+              Add Document
+            </BaseButton>
+            <span v-else class="text-xs font-medium text-success-700">Added</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
@@ -314,7 +365,12 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       </div>
     </section>
 
-    <AddLinkDocumentDialog v-model="isAddDialogOpen" :project-id="project.id" :category="addDialogCategory" />
+    <AddLinkDocumentDialog
+      v-model="isAddDialogOpen"
+      :project-id="project.id"
+      :category="addDialogCategory"
+      :initial-name="addDialogInitialName"
+    />
     <ConfirmationDialog
       v-model="isLinkDeleteDialogOpen"
       title="Remove document"

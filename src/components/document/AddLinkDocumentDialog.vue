@@ -22,6 +22,9 @@ const props = defineProps<{
   // Preselects and locks the category when opened from a specific
   // section's "Add Document" button; left blank when opened generically.
   category?: ProjectLinkDocumentCategory
+  // Pre-fills the name when opened for a specific required document (e.g.
+  // a permit checklist item) instead of a blank entry.
+  initialName?: string
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +45,10 @@ const isSaving = ref(false)
 watch(
   () => props.modelValue,
   (open) => {
-    if (open) selectedCategory.value = props.category ?? ''
+    if (open) {
+      selectedCategory.value = props.category ?? ''
+      if (props.initialName) name.value = props.initialName
+    }
   },
 )
 
