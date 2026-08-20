@@ -405,7 +405,13 @@ CREATE TABLE IF NOT EXISTS financial_agreements (
     payment_mode            ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NOT NULL,
     payment_frequency       ENUM('One-time','Daily','Weekly','Monthly','Quarterly','Half-yearly','Yearly','Custom') NOT NULL,
     CONSTRAINT fk_financial_agreements_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
-    INDEX idx_financial_agreements_project (project_id)
+    -- Only one agreement per project -- the staff UI already only ever
+    -- offers "Create Agreement" when none exists yet, this makes that a
+    -- real, enforced rule rather than just a UI convention (see
+    -- migration 0015 and payment_service.create_agreement's own
+    -- proactive check for a clearer error message than a raw
+    -- constraint violation).
+    CONSTRAINT uq_financial_agreements_project UNIQUE (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payment_obligations (

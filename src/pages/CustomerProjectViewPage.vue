@@ -10,9 +10,10 @@ import ProjectUpdatesPanel from '@/components/customer/ProjectUpdatesPanel.vue'
 import ProjectActivitiesPanel from '@/components/customer/ProjectActivitiesPanel.vue'
 import ProjectBudgetPanel from '@/components/customer/ProjectBudgetPanel.vue'
 import Card from '@/components/common/Card.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { customerPortalService } from '@/services/customerPortalService'
+import { customerPortalService, CustomerPortalError } from '@/services/customerPortalService'
 import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, ProjectMilestone, ProjectDeliverable, ProjectUpdate } from '@/types/CustomerPortal'
 
 const router = useRouter()
@@ -57,6 +58,7 @@ async function loadProject(isManualRefresh = false): Promise<void> {
   }
 
   authorized.value = true
+  loadError.value = ''
   if (isManualRefresh) {
     isRefreshing.value = true
   } else {
@@ -71,13 +73,24 @@ async function loadProject(isManualRefresh = false): Promise<void> {
     updates.value = view.updates
     activities.value = view.activities
     budget.value = view.budget
-  } catch {
-    // The access token may have expired (it's valid for 60 minutes) or
-    // been for a different project -- send them back to verify again,
-    // with a query param so the login page can actually explain why,
-    // rather than navigating away before any message here is ever seen.
-    redirectToLogin('Your session has expired. Please verify your access again.')
-    return
+  } catch (error) {
+    // Only a genuine 401 (the token really is invalid, expired, or for
+    // the wrong project -- see get_project_for_token on the backend)
+    // means the session itself is actually over. Any other failure --
+    // a dropped connection, a transient 500, a timeout -- used to be
+    // treated exactly the same way: session wiped, forced back to
+    // login with a "your session has expired" message that was simply
+    // untrue. On a customer-facing, mobile-first page, that turned an
+    // ordinary network hiccup into a full re-verification with a
+    // misleading explanation. Now: only a real auth failure logs
+    // anyone out; everything else surfaces as a retryable error and
+    // leaves the existing token (and, on a refresh, whatever was
+    // already successfully loaded) completely alone.
+    if (error instanceof CustomerPortalError && error.status === 401) {
+      redirectToLogin('Your session has expired. Please verify your access again.')
+      return
+    }
+    loadError.value = "We couldn't reach the server. Please check your connection and try again."
   } finally {
     isLoading.value = false
     isRefreshing.value = false
@@ -113,6 +126,14 @@ onMounted(() => loadProject())
   </div>
 
   <div v-else-if="projectData" class="mx-auto max-w-7xl space-y-6 px-4 py-6 tablet:space-y-8 tablet:px-6 tablet:py-8">
+    <!-- A refresh failure (as opposed to the initial load) never hides
+         what's already on screen -- the data shown is still whatever
+         was last successfully loaded, just possibly stale, so this is
+         a small inline notice rather than replacing the page. -->
+    <div v-if="loadError" class="rounded-lg border border-danger-200 bg-danger-50 px-4 py-2.5 text-sm text-danger-700">
+      {{ loadError }}
+    </div>
+
     <!-- Top bar -->
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-text-muted">Project ID: <span class="font-medium text-text-secondary">{{ projectData.projectId }}</span></p>
@@ -207,7 +228,7 @@ onMounted(() => loadProject())
     </Card>
   </div>
 
-  <div v-else class="py-12 text-center text-text-secondary">
-    {{ loadError || 'Unable to load this project.' }}
+  <div v-else class="mx-auto max-w-lg px-4 py-8">
+    <ErrorState :description="loadError || 'Unable to load this project.'" @retry="loadProject()" />
   </div>
 </template>

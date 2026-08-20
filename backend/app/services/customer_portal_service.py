@@ -268,7 +268,10 @@ def get_project_view(db: Session, project: Project) -> dict:
 
     budget = None
     agreement = (
-        db.query(FinancialAgreement).filter(FinancialAgreement.project_id == project.id).first()
+        db.query(FinancialAgreement)
+        .filter(FinancialAgreement.project_id == project.id)
+        .order_by(FinancialAgreement.id.desc())
+        .first()
     )
     if agreement:
         obligations = payment_service.get_obligations(db, agreement.id)

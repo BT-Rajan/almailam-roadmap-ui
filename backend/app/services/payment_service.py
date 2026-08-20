@@ -88,6 +88,17 @@ def get_agreement_by_project(db: Session, project_no: str) -> FinancialAgreement
 
 def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
     project = _project_by_no(db, payload.projectId)
+    # The staff UI only ever offers "Create Agreement" when none exists
+    # yet (hides the button once one does) -- that's a UI convention,
+    # not a rule the backend itself enforced, so a race between two
+    # requests or a direct API call could previously create a second
+    # agreement for the same project with nothing stopping it. The
+    # database now also enforces this as a real constraint (see
+    # migration 0015), but checking here first means a clear, specific
+    # error instead of a raw constraint-violation message.
+    existing = get_agreement_by_project(db, payload.projectId)
+    if existing:
+        raise ValidationAppError(f"{project.project_no} already has a financial agreement -- only one is allowed per project.")
     agreement = FinancialAgreement(
         project_id=project.id,
         contract_amount=payload.contractAmount,
