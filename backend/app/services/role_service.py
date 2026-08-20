@@ -17,6 +17,7 @@ worker briefly serving a stale permission until its next cache miss is
 an acceptable tradeoff against querying the DB on every single request.
 """
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -38,22 +39,39 @@ def _invalidate_cache() -> None:
 def _ensure_seeded(db: Session) -> None:
     if db.query(RoleDefinition).first() is not None:
         return
-    for role in ROLES:
-        definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
-        db.add(definition)
-        db.flush()
-        for module in PERMISSION_MODULES:
-            flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
-            db.add(
-                RolePermission(
-                    role_id=definition.id,
-                    module=module,
-                    can_view=bool(flags.get("view", False)),
-                    can_edit=bool(flags.get("edit", False)),
-                    can_delete=bool(flags.get("delete", False)),
+    # This check-then-insert has a real race window: two requests can
+    # both see an empty table before either commits, and both attempt
+    # the same seed -- confirmed happening on a real deployment (a
+    # genuine IntegrityError on uq_role_definitions_role, not a
+    # hypothetical). Only matters once, ever, on whichever request
+    # happens to be first to touch a permission-gated endpoint after a
+    # fresh install or migration -- after that first successful commit,
+    # the query above always finds rows and this code never runs again.
+    # The fix isn't to prevent the race (a proper lock would be overkill
+    # for something that only matters once) but to lose it gracefully:
+    # if another request already won and committed the same seed data
+    # between our check and our own commit, that's fine -- the data's
+    # there either way -- so just roll back our half-done attempt
+    # instead of surfacing a raw 500/409 to whichever request lost.
+    try:
+        for role in ROLES:
+            definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
+            db.add(definition)
+            db.flush()
+            for module in PERMISSION_MODULES:
+                flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
+                db.add(
+                    RolePermission(
+                        role_id=definition.id,
+                        module=module,
+                        can_view=bool(flags.get("view", False)),
+                        can_edit=bool(flags.get("edit", False)),
+                        can_delete=bool(flags.get("delete", False)),
+                    )
                 )
-            )
-    db.commit()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
 
 
 def _definitions_query(db: Session):

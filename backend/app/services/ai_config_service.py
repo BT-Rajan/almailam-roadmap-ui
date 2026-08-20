@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -19,15 +20,23 @@ DEFAULT_PROMPT_TEMPLATES = [
 
 
 def _ensure_seeded(db: Session) -> None:
-    if db.query(AIConfiguration).filter(AIConfiguration.id == 1).first() is None:
-        db.add(AIConfiguration(id=1))
-    for provider_id in AI_PROVIDER_IDS:
-        if db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == provider_id).first() is None:
-            db.add(AIProviderConfig(provider_id=provider_id, label=DEFAULT_PROVIDER_LABELS[provider_id]))
-    if db.query(PromptTemplate).first() is None:
-        for name, description, module in DEFAULT_PROMPT_TEMPLATES:
-            db.add(PromptTemplate(name=name, description=description, module=module, template=""))
-    db.commit()
+    # Same race as role_service._ensure_seeded (see its own comment for
+    # the full explanation) -- explicit id=1 / provider_id here means a
+    # concurrent duplicate attempt hits a genuine primary/unique-key
+    # IntegrityError rather than silently duplicating rows, so the same
+    # catch-and-roll-back fix applies directly.
+    try:
+        if db.query(AIConfiguration).filter(AIConfiguration.id == 1).first() is None:
+            db.add(AIConfiguration(id=1))
+        for provider_id in AI_PROVIDER_IDS:
+            if db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == provider_id).first() is None:
+                db.add(AIProviderConfig(provider_id=provider_id, label=DEFAULT_PROVIDER_LABELS[provider_id]))
+        if db.query(PromptTemplate).first() is None:
+            for name, description, module in DEFAULT_PROMPT_TEMPLATES:
+                db.add(PromptTemplate(name=name, description=description, module=module, template=""))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
 
 
 def get_configuration(db: Session) -> tuple[AIConfiguration, list[AIProviderConfig]]:
