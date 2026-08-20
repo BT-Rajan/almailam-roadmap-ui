@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import ErrorState from '@/components/common/ErrorState.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -12,11 +12,17 @@ import TextInput from '@/components/common/TextInput.vue'
 import CompanyProfileCard from '@/components/administration/CompanyProfileCard.vue'
 import { useCompanyStore } from '@/stores/companyStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useUserStore } from '@/stores/userStore'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { SelectOption } from '@/types/Ui'
 
 const companyStore = useCompanyStore()
 const toastStore = useToastStore()
+const userStore = useUserStore()
+
+const statusReportRecipientOptions = computed<SelectOption[]>(() =>
+  userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
+)
 
 const LANGUAGE_OPTIONS: SelectOption[] = [
   { label: 'English', value: 'English' },
@@ -42,6 +48,7 @@ function loadData(): void {
 
 onMounted(() => {
   if (!companyStore.settings) loadData()
+  if (userStore.users.length === 0) userStore.loadUsers()
 })
 
 async function handleSave(): Promise<void> {
@@ -216,6 +223,18 @@ function handleCancel(): void {
               hint="A notification is sent once a client's onboarding status hasn't advanced for this many days."
               :min="1"
               @update:model-value="companyStore.updateField('staleOnboardingAlertDays', Number($event))"
+            />
+          </div>
+        </FormSection>
+
+        <FormSection title="Site Engineer Status Reports" description="Whoever is selected here reviews every incoming field status report and attaches it to the relevant project.">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+            <SelectBox
+              :model-value="companyStore.settings.statusReportRecipientId ?? ''"
+              label="Status Report Recipient"
+              placeholder="No one assigned"
+              :options="statusReportRecipientOptions"
+              @update:model-value="companyStore.updateField('statusReportRecipientId', $event || null)"
             />
           </div>
         </FormSection>

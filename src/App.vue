@@ -10,12 +10,14 @@ import CommandPalette from '@/components/search/CommandPalette.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CustomerPortalLayout from '@/layouts/CustomerPortalLayout.vue'
+import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 
 const route = useRoute()
 
 const layout = computed(() => {
   if (route.meta.layout === 'auth') return AuthLayout
   if (route.meta.layout === 'customer-portal') return CustomerPortalLayout
+  if (route.meta.layout === 'site-portal') return SitePortalLayout
   return DashboardLayout
 })
 </script>

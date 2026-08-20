@@ -20,7 +20,7 @@ from app.models.project import Project
 from app.models.status_report import StatusReport
 from app.models.task import Task
 from app.models.user import User
-from app.services import task_service, timeline_service
+from app.services import company_service, notification_service, task_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "STATUS_REPORT"
@@ -130,6 +130,24 @@ def file_todays_report(
         status="Pending",
     )
     db.add(report)
+    db.flush()
+
+    # "the designated person will receive it" -- a passive inbox nobody
+    # gets told to check isn't really receiving anything. Only fires for
+    # a genuinely new report, not every edit to today's -- editing an
+    # already-pending report doesn't need a second notification for the
+    # same thing.
+    settings = company_service.get_settings(db)
+    if settings.status_report_recipient_id:
+        engineer = db.query(User).filter(User.id == engineer_id).first()
+        notification_service.create_notification(
+            db, settings.status_report_recipient_id,
+            "New status report received",
+            f"{engineer.full_name if engineer else 'A site engineer'} filed a status report for {project.project_name}.",
+            "System",
+            link_route_name="status-reports-inbox",
+        )
+
     db.commit()
     db.refresh(report)
     return report

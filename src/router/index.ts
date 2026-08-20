@@ -29,6 +29,24 @@ const router = createRouter({
       meta: { layout: 'customer-portal' },
     },
     {
+      path: '/site-portal',
+      name: ROUTE_NAMES.SITE_PORTAL_LOGIN,
+      component: () => import('@/pages/SitePortalLoginPage.vue'),
+      meta: { layout: 'site-portal' },
+    },
+    {
+      path: '/site-portal/report',
+      name: ROUTE_NAMES.SITE_PORTAL_REPORT,
+      component: () => import('@/pages/SitePortalReportPage.vue'),
+      meta: { layout: 'site-portal', requiresAuth: true },
+    },
+    {
+      path: '/site-portal/calendar',
+      name: ROUTE_NAMES.SITE_PORTAL_CALENDAR,
+      component: () => import('@/pages/SitePortalCalendarPage.vue'),
+      meta: { layout: 'site-portal', requiresAuth: true },
+    },
+    {
       path: '/dashboard',
       name: ROUTE_NAMES.DASHBOARD,
       component: () => import('@/pages/DashboardPage.vue'),
@@ -216,6 +234,19 @@ const router = createRouter({
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Tasks', routeName: ROUTE_NAMES.TASKS },
           { label: 'My Tasks' },
+        ],
+      },
+    },
+    {
+      path: '/status-reports/inbox',
+      name: ROUTE_NAMES.STATUS_REPORTS_INBOX,
+      component: () => import('@/pages/StatusReportInboxPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Status Report Inbox' },
         ],
       },
     },
@@ -435,7 +466,12 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: ROUTE_NAMES.LOGIN, query: { redirect: to.fullPath } }
+    // Site portal routes bounce to the site portal's own login, not the
+    // staff one -- same session mechanism underneath, different entry
+    // point, and someone hitting a bare /site-portal/report link
+    // shouldn't land on the staff sign-in screen.
+    const loginRoute = to.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
+    return { name: loginRoute, query: { redirect: to.fullPath } }
   }
 
   if (to.name === ROUTE_NAMES.LOGIN && authStore.isAuthenticated) {

@@ -19,4 +19,5 @@ export interface CompanySettings {
   defaultQuotationValidityDays: number
   staleProjectAlertDays: number
   staleOnboardingAlertDays: number
+  statusReportRecipientId?: string | null
 }

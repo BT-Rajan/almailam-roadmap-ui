@@ -38,6 +38,17 @@ export const useAuthStore = defineStore('auth', {
       this.user = await authService.me()
     },
 
+    async loginWithEmployeeId(employeeId: string, password: string) {
+      // Same tokens, same session shape as staff login -- the Site
+      // Engineer Portal is a different frontend surface hitting a
+      // different login endpoint for the same underlying account, not
+      // a separate auth system. Everything downstream (the httpClient
+      // interceptor, tryRefresh, logout) is shared as-is.
+      const tokens = await authService.loginWithEmployeeId(employeeId, password)
+      this._setToken(tokens.access_token)
+      this.user = await authService.me()
+    },
+
     async logout() {
       try {
         await authService.logout()
