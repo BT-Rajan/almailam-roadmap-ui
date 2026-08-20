@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import TextInput from '@/components/common/TextInput.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Alert from '@/components/common/Alert.vue'
+import AuthCard from '@/components/auth/AuthCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { customerPortalService, CustomerPortalError } from '@/services/customerPortalService'
 
@@ -70,57 +71,51 @@ const handleKeydown = (e: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-12 tablet:py-16">
-    <div class="w-full max-w-md">
-      <div class="glass-panel rounded-xl p-6 shadow-glass tablet:p-8">
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-neutral-900 tablet:text-3xl">Track Your Project</h1>
-          <p class="mt-2 text-sm text-neutral-600">
-            Enter your mobile number and project ID to view live progress, milestones, and deliverables.
-          </p>
-        </div>
+  <AuthCard
+    title="Track Your Project"
+    subtitle="Enter your mobile number and project ID to view live progress, milestones, and deliverables."
+  >
+    <Alert v-if="error" variant="error" title="Couldn't verify your access" :description="error" class="mb-5" />
 
-        <Alert v-if="error" variant="error" title="Couldn't verify your access" :description="error" class="mb-5" />
+    <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
+      <TextInput
+        v-model="mobileNumber"
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel"
+        label="Mobile Number"
+        placeholder="Enter the mobile number on file"
+        hint="The number registered with your project's client contact"
+        required
+        @keydown="handleKeydown"
+      />
 
-        <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
-          <TextInput
-            v-model="mobileNumber"
-            type="tel"
-            inputmode="tel"
-            autocomplete="tel"
-            label="Mobile Number"
-            placeholder="Enter the mobile number on file"
-            hint="The number registered with your project's client contact"
-            required
-            @keydown="handleKeydown"
-          />
+      <TextInput
+        v-model="projectId"
+        inputmode="numeric"
+        label="Project ID"
+        placeholder="Enter your project ID"
+        hint="e.g., 2600001"
+        required
+        @keydown="handleKeydown"
+      />
 
-          <TextInput
-            v-model="projectId"
-            inputmode="numeric"
-            label="Project ID"
-            placeholder="Enter your project ID"
-            hint="e.g., 2600001"
-            required
-            @keydown="handleKeydown"
-          />
+      <BaseButton
+        type="submit"
+        :loading="loading"
+        :disabled="loading || !mobileNumber || !projectId"
+        full-width
+        class="mt-1"
+      >
+        Access Project
+      </BaseButton>
+    </form>
 
-          <BaseButton
-            type="submit"
-            :loading="loading"
-            :disabled="loading || !mobileNumber || !projectId"
-            full-width
-            class="mt-1"
-          >
-            Access Project
-          </BaseButton>
-        </form>
-
-        <p class="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-neutral-500">
-          <ShieldCheck class="h-3.5 w-3.5 shrink-0 text-neutral-400" />
-          Only you can view this project, verified against your registered mobile number.
-        </p>
-      </div>
-    </div>
-  </div>
+    <template #footer>
+      <p class="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-500">
+        <ShieldCheck class="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+        Only you can view this project, verified against your registered mobile number.
+      </p>
+    </template>
+  </AuthCard>
 </template>
