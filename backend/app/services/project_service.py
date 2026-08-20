@@ -15,7 +15,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.project import Project
+from app.models.project import Project, ProjectSelectedActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
@@ -106,6 +106,33 @@ def get_projects_by_client(db: Session, client_id: str) -> list[Project]:
     return list_projects(db, client_id=client_id)
 
 
+def get_selected_activities(db: Session, project_id: int) -> list[ProjectSelectedActivity]:
+    return (
+        db.query(ProjectSelectedActivity)
+        .filter(ProjectSelectedActivity.project_id == project_id)
+        .order_by(ProjectSelectedActivity.id.asc())
+        .all()
+    )
+
+
+def get_selected_activities_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedActivity]]:
+    """Batch version of get_selected_activities for list endpoints, so
+    rendering a page of projects doesn't run one query per row (same
+    pattern as engineer_names above)."""
+    if not project_ids:
+        return {}
+    result: dict[int, list[ProjectSelectedActivity]] = {pid: [] for pid in project_ids}
+    rows = (
+        db.query(ProjectSelectedActivity)
+        .filter(ProjectSelectedActivity.project_id.in_(project_ids))
+        .order_by(ProjectSelectedActivity.id.asc())
+        .all()
+    )
+    for row in rows:
+        result[row.project_id].append(row)
+    return result
+
+
 def create_project(db: Session, payload, user_id: int | None) -> Project:
     client = client_service.get_client(db, client_service.parse_client_id(payload.clientId))
     if client.onboarding_state != "Ready":
@@ -128,6 +155,16 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         raise ValidationAppError("engineerId does not refer to a known, active user.")
 
     project_no = next_number(db, "PROJECT")
+    # If the caller didn't send an explicit serviceTotal (older clients),
+    # fall back to summing the picked activities' fixedCost ourselves --
+    # keeps the column meaningful even without relying on the frontend's
+    # arithmetic being present in the payload.
+    selected_activities = payload.selectedActivities or []
+    service_total = (
+        float(payload.serviceTotal)
+        if payload.serviceTotal is not None
+        else (sum(float(a.fixedCost) for a in selected_activities) if selected_activities else None)
+    )
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
@@ -138,9 +175,23 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         priority=payload.priority,
         start_date=payload.startDate,
         target_date=payload.targetDate,
+        service_total=service_total,
     )
     db.add(project)
     db.flush()
+
+    for activity in selected_activities:
+        db.add(
+            ProjectSelectedActivity(
+                project_id=project.id,
+                service_id=activity.serviceId,
+                service_name=activity.serviceName,
+                activity_id=activity.activityId,
+                activity_name=activity.activityName,
+                fixed_cost=activity.fixedCost,
+            )
+        )
+
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
     db.refresh(project)

@@ -23,6 +23,11 @@ can_edit = require_permission("Projects", "edit")
 can_delete = require_permission("Projects", "delete")
 
 
+def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
+    activities = project_service.get_selected_activities(db, project.id)
+    return ProjectOut.from_model(project, engineer_name, activities)
+
+
 @router.get("", response_model=PagedResponse[ProjectOut])
 def list_projects(
     clientId: str | None = None,
@@ -40,8 +45,10 @@ def list_projects(
     result = project_service.list_projects(db, clientId, status, priority, stage, engineerId, search, sort, page, pageSize)
     engineer_ids = {p.engineer_id for p in result["items"]}
     names = project_service.engineer_names(db, engineer_ids)
+    activities_by_project = project_service.get_selected_activities_batch(db, {p.id for p in result["items"]})
     result["items"] = [
-        ProjectOut.from_model(p, names.get(p.engineer_id, "Unknown")) for p in result["items"]
+        ProjectOut.from_model(p, names.get(p.engineer_id, "Unknown"), activities_by_project.get(p.id, []))
+        for p in result["items"]
     ]
     return result
 
@@ -49,7 +56,7 @@ def list_projects(
 @router.get("/{project_no}", response_model=ProjectOut)
 def get_project(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     project = project_service.get_project(db, project_no)
-    return ProjectOut.from_model(project, project_service.engineer_name(db, project.engineer_id))
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.post("", response_model=ProjectOut, status_code=201)
@@ -59,7 +66,7 @@ def create_project(
     current_user: User = Depends(can_edit),
 ):
     project = project_service.create_project(db, payload, current_user.id)
-    return ProjectOut.from_model(project, project_service.engineer_name(db, project.engineer_id))
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.patch("/{project_no}", response_model=ProjectOut)
@@ -70,7 +77,7 @@ def update_project(
     current_user: User = Depends(can_edit),
 ):
     project = project_service.update_project(db, project_no, payload, current_user.id)
-    return ProjectOut.from_model(project, project_service.engineer_name(db, project.engineer_id))
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.patch("/{project_no}/stage", response_model=ProjectOut)
@@ -83,7 +90,7 @@ def set_stage(
     project = project_service.set_stage(
         db, project_no, payload.currentStage, payload.reason, current_user.id
     )
-    return ProjectOut.from_model(project, project_service.engineer_name(db, project.engineer_id))
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)
@@ -96,7 +103,7 @@ def set_status(
     project = project_service.set_status(
         db, project_no, payload.status, payload.reason, current_user.id
     )
-    return ProjectOut.from_model(project, project_service.engineer_name(db, project.engineer_id))
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.get("/{project_no}/audit-events")

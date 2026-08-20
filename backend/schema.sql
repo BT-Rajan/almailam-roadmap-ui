@@ -226,6 +226,7 @@ CREATE TABLE IF NOT EXISTS projects (
     target_date     DATE NOT NULL,
     status          ENUM('Active','On Hold','Completed','Cancelled') NOT NULL DEFAULT 'Active',
     stale_notified_at DATETIME NULL,
+    service_total   DECIMAL(12,2) NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -234,6 +235,18 @@ CREATE TABLE IF NOT EXISTS projects (
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS project_selected_activities (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id      BIGINT UNSIGNED NOT NULL,
+    service_id      VARCHAR(20) NOT NULL,
+    service_name    VARCHAR(150) NOT NULL,
+    activity_id     VARCHAR(20) NOT NULL,
+    activity_name   VARCHAR(150) NOT NULL,
+    fixed_cost      DECIMAL(12,2) NOT NULL,
+    CONSTRAINT fk_project_selected_activities_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_project_selected_activities_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS government_authorities (

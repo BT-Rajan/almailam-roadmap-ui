@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, condecimal, field_validator
 
 from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
 
@@ -12,6 +12,32 @@ def _enum_validator(allowed: tuple[str, ...], label: str):
         return value
 
     return _check
+
+
+class SelectedActivityOut(BaseModel):
+    serviceId: str
+    serviceName: str
+    activityId: str
+    activityName: str
+    fixedCost: float
+
+    @staticmethod
+    def from_model(activity) -> "SelectedActivityOut":
+        return SelectedActivityOut(
+            serviceId=activity.service_id,
+            serviceName=activity.service_name,
+            activityId=activity.activity_id,
+            activityName=activity.activity_name,
+            fixedCost=float(activity.fixed_cost),
+        )
+
+
+class SelectedActivityIn(BaseModel):
+    serviceId: str = Field(min_length=1, max_length=20)
+    serviceName: str = Field(min_length=1, max_length=150)
+    activityId: str = Field(min_length=1, max_length=20)
+    activityName: str = Field(min_length=1, max_length=150)
+    fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2)  # type: ignore[valid-type]
 
 
 class ProjectOut(BaseModel):
@@ -28,9 +54,15 @@ class ProjectOut(BaseModel):
     startDate: date
     targetDate: date
     status: str
+    # Granular breakdown from the service picker, and its total -- both
+    # optional/empty for projects created before this existed or without
+    # any picks. This is what NewQuotationDialog/NewContractDialog read to
+    # prefill line items from the services actually picked for the project.
+    selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
+    serviceTotal: float | None = None
 
     @staticmethod
-    def from_model(project, engineer_name: str) -> "ProjectOut":
+    def from_model(project, engineer_name: str, selected_activities: list | None = None) -> "ProjectOut":
         return ProjectOut(
             id=project.project_no,
             projectNo=project.project_no,
@@ -45,6 +77,8 @@ class ProjectOut(BaseModel):
             startDate=project.start_date,
             targetDate=project.target_date,
             status=project.status,
+            selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
+            serviceTotal=float(project.service_total) if project.service_total is not None else None,
         )
 
 
@@ -57,6 +91,8 @@ class ProjectCreate(BaseModel):
     priority: str = "Medium"
     startDate: date
     targetDate: date
+    selectedActivities: list[SelectedActivityIn] | None = None
+    serviceTotal: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
 

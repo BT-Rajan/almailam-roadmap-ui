@@ -1,7 +1,8 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, SmallInteger, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
@@ -55,3 +56,35 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # actually changes (set_stage()), so a fresh staleness period starts
     # from scratch rather than staying permanently silenced.
     stale_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Sum of the fixed costs of every row in ProjectSelectedActivity below,
+    # captured once at project creation (the New Project Wizard's service
+    # picker). Kept as its own column -- rather than always summing the
+    # child rows -- so it stays stable even if the underlying catalog
+    # prices change later, and so callers that only need the number (list
+    # views, cards) don't have to join/aggregate for it.
+    service_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+
+
+class ProjectSelectedActivity(Base):
+    """The granular service/activity breakdown picked in ServicePickerDialog
+    at project creation -- one row per activity. A snapshot of what was
+    picked and at what price, not a live reference to the service catalog
+    (service_id/activity_id are the catalog's display ids, e.g. 'SVC-001'/
+    'ACT-004', kept as-is rather than FK'd, so a later rename or price
+    change in the catalog doesn't retroactively alter what this project was
+    actually quoted). This is what NewQuotationDialog/NewContractDialog
+    read to prefill line items -- before this table existed, the frontend
+    computed and sent this breakdown on create but the backend had nowhere
+    to put it, so it was silently dropped and never came back on refetch."""
+
+    __tablename__ = "project_selected_activities"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    service_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    service_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
