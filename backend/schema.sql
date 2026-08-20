@@ -719,9 +719,10 @@ CREATE TABLE IF NOT EXISTS status_reports (
     CONSTRAINT fk_status_reports_task FOREIGN KEY (attached_task_id) REFERENCES tasks(id) ON DELETE SET NULL,
     CONSTRAINT fk_status_reports_timeline_event FOREIGN KEY (attached_timeline_event_id) REFERENCES project_timeline_events(id) ON DELETE SET NULL,
     CONSTRAINT fk_status_reports_attached_by FOREIGN KEY (attached_by) REFERENCES users(id) ON DELETE SET NULL,
-    -- One report per engineer per day -- "file today's report" is a
-    -- create-or-edit-today's-row operation by design.
-    CONSTRAINT uq_status_reports_engineer_date UNIQUE (engineer_id, report_date),
+    -- One report per engineer *per project* per day -- an engineer on
+    -- several projects files a separate report for each; "file today's
+    -- report" is scoped to (engineer, project, day), not just (engineer, day).
+    CONSTRAINT uq_status_reports_engineer_project_date UNIQUE (engineer_id, project_id, report_date),
     INDEX idx_status_reports_project (project_id),
     INDEX idx_status_reports_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

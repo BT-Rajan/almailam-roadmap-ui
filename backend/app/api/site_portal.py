@@ -47,10 +47,14 @@ def list_my_projects(db: Session = Depends(get_db), current_user: User = Depends
     return [EngineerProjectOption(id=p.project_no, projectName=p.project_name) for p in projects]
 
 
-@router.get("/reports/today", response_model=StatusReportOut | None)
-def get_todays_report(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    report = status_report_service.get_todays_report(db, current_user.id)
-    return _report_out(db, report) if report else None
+@router.get("/reports/today", response_model=list[StatusReportOut])
+def list_todays_reports(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Every report this engineer has already filed today, one per
+    project -- an engineer on multiple projects sees, per project,
+    whether today's report is filed yet. The frontend cross-references
+    this against /projects to know which are still outstanding."""
+    reports = status_report_service.list_todays_reports(db, current_user.id)
+    return [_report_out(db, r) for r in reports]
 
 
 @router.post("/reports/today", response_model=StatusReportOut)

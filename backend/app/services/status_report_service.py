@@ -74,11 +74,30 @@ def get_own_report(db: Session, report_id: int, engineer_id: int) -> StatusRepor
     return report
 
 
-def get_todays_report(db: Session, engineer_id: int) -> StatusReport | None:
+def get_todays_report_for_project(db: Session, engineer_id: int, project_id: int) -> StatusReport | None:
+    return (
+        db.query(StatusReport)
+        .filter(
+            StatusReport.engineer_id == engineer_id,
+            StatusReport.project_id == project_id,
+            StatusReport.report_date == _today(db),
+        )
+        .first()
+    )
+
+
+def list_todays_reports(db: Session, engineer_id: int) -> list[StatusReport]:
+    """Every report this engineer has already filed today, across all
+    their projects -- one engineer assigned to several projects files a
+    separate report per project each day, so "today's report" is
+    genuinely plural here. Used to show, per project, whether today's
+    report is already filed (and pre-fillable for editing) or still
+    outstanding."""
     return (
         db.query(StatusReport)
         .filter(StatusReport.engineer_id == engineer_id, StatusReport.report_date == _today(db))
-        .first()
+        .order_by(StatusReport.project_id.asc())
+        .all()
     )
 
 
@@ -105,15 +124,18 @@ def file_todays_report(
     supervision_type: str,
     notes: str,
 ) -> StatusReport:
-    """Create-or-update-today's-row -- "file today's report" is a single
-    action regardless of whether one already exists for today, not a
-    separate create vs. edit decision the caller has to make.
-    Deliberately blocked once the report has already been reviewed and
-    attached (see attach_report) -- at that point it's become the
-    permanent basis for a real project timeline entry, and silently
-    changing it out from under that record would make the timeline
-    entry describe a report that no longer exists in its original
-    form."""
+    """Create-or-update-today's-row *for this project* -- "file today's
+    report" is a single action regardless of whether one already exists
+    for today for this particular project, not a separate create vs.
+    edit decision the caller has to make. An engineer assigned to
+    several projects calls this once per project per day; each call is
+    scoped independently by (engineer, project, day), so filing today's
+    report for Project A has no effect on Project B's. Deliberately
+    blocked once the report has already been reviewed and attached (see
+    attach_report) -- at that point it's become the permanent basis for
+    a real project timeline entry, and silently changing it out from
+    under that record would make the timeline entry describe a report
+    that no longer exists in its original form."""
     project = (
         db.query(Project)
         .filter(Project.project_no == project_no, Project.deleted_at.is_(None))
@@ -125,13 +147,12 @@ def file_todays_report(
     if not notes.strip():
         raise ValidationAppError("Notes are required.")
 
-    existing = get_todays_report(db, engineer_id)
+    existing = get_todays_report_for_project(db, engineer_id, project.id)
     if existing:
         if existing.status == "Attached":
             raise ValidationAppError(
-                "Today's report has already been reviewed and attached to the project -- it can no longer be edited."
+                "Today's report for this project has already been reviewed and attached -- it can no longer be edited."
             )
-        existing.project_id = project.id
         existing.receipt_type = receipt_type
         existing.supervision_type = supervision_type
         existing.notes = notes

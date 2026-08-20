@@ -13,7 +13,10 @@ import type { StatusReport } from '@/types/StatusReport'
 const sitePortalStore = useSitePortalStore()
 
 const visibleMonth = ref(new Date())
-const selectedReport = ref<StatusReport>()
+// A day can now hold more than one report -- an engineer on several
+// projects files one per project, so the detail view for a date is a
+// list, not a single report.
+const selectedDateReports = ref<StatusReport[]>([])
 const isDetailOpen = ref(false)
 
 function formatDateKey(date: Date): string {
@@ -26,8 +29,12 @@ function formatDateKey(date: Date): string {
 const monthTitle = computed(() => visibleMonth.value.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }))
 
 const reportsByDate = computed(() => {
-  const map = new Map<string, StatusReport>()
-  for (const report of sitePortalStore.calendarReports) map.set(report.reportDate, report)
+  const map = new Map<string, StatusReport[]>()
+  for (const report of sitePortalStore.calendarReports) {
+    const existing = map.get(report.reportDate)
+    if (existing) existing.push(report)
+    else map.set(report.reportDate, [report])
+  }
   return map
 })
 
@@ -74,14 +81,21 @@ function goToNextMonth(): void {
 }
 
 function handleDayClick(day: Date): void {
-  const report = reportsByDate.value.get(formatDateKey(day))
-  if (!report) return
-  selectedReport.value = report
+  const reports = reportsByDate.value.get(formatDateKey(day))
+  if (!reports || reports.length === 0) return
+  selectedDateReports.value = reports
   isDetailOpen.value = true
 }
 
 function isCurrentMonth(day: Date): boolean {
   return day.getMonth() === visibleMonth.value.getMonth()
+}
+
+// One dot per report on a day, capped visually -- an engineer on many
+// projects filing several reports in one day shouldn't overflow the
+// cell; the count label below covers the exact number either way.
+function dotsFor(day: Date): StatusReport[] {
+  return (reportsByDate.value.get(formatDateKey(day)) ?? []).slice(0, 3)
 }
 </script>
 
@@ -89,7 +103,7 @@ function isCurrentMonth(day: Date): boolean {
   <div class="flex flex-col gap-4">
     <div>
       <h1 class="text-lg font-semibold text-text-primary">My Reports</h1>
-      <p class="text-sm text-text-muted">View-only -- tap a date to see that day's report.</p>
+      <p class="text-sm text-text-muted">View-only -- tap a date to see that day's report(s).</p>
     </div>
 
     <Card>
@@ -124,17 +138,20 @@ function isCurrentMonth(day: Date): boolean {
             class="relative flex aspect-square flex-col items-center justify-center rounded-lg border border-border-light text-sm transition-colors"
             :class="[
               isCurrentMonth(day) ? 'bg-bg-card text-text-primary' : 'bg-bg-secondary text-text-muted',
-              reportsByDate.get(formatDateKey(day)) ? 'cursor-pointer hover:border-primary-400 hover:bg-primary-50' : 'cursor-default',
+              (reportsByDate.get(formatDateKey(day))?.length ?? 0) > 0 ? 'cursor-pointer hover:border-primary-400 hover:bg-primary-50' : 'cursor-default',
               formatDateKey(day) === formatDateKey(new Date()) ? 'ring-2 ring-accent-400' : '',
             ]"
             @click="handleDayClick(day)"
           >
             <span>{{ day.getDate() }}</span>
-            <span
-              v-if="reportsByDate.get(formatDateKey(day))"
-              class="mt-0.5 h-1.5 w-1.5 rounded-full"
-              :class="reportsByDate.get(formatDateKey(day))?.status === 'Attached' ? 'bg-success-500' : 'bg-warning-500'"
-            />
+            <span v-if="dotsFor(day).length > 0" class="mt-0.5 flex items-center gap-0.5">
+              <span
+                v-for="report in dotsFor(day)"
+                :key="report.id"
+                class="h-1.5 w-1.5 rounded-full"
+                :class="report.status === 'Attached' ? 'bg-success-500' : 'bg-warning-500'"
+              />
+            </span>
           </button>
         </div>
 
@@ -147,34 +164,36 @@ function isCurrentMonth(day: Date): boolean {
       </div>
     </Card>
 
-    <BaseDialog v-model="isDetailOpen" :title="selectedReport?.reportNo" size="md">
-      <div v-if="selectedReport" class="flex flex-col gap-3 text-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-text-muted">Project</span>
-          <span class="font-medium text-text-primary">{{ selectedReport.projectName }}</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-text-muted">Date</span>
-          <span class="font-medium text-text-primary">{{ selectedReport.reportDate }}</span>
-        </div>
-        <div v-if="selectedReport.receiptType" class="flex items-center justify-between">
-          <span class="text-text-muted">Receipt / Handover</span>
-          <span class="font-medium text-text-primary">{{ selectedReport.receiptType }}</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-text-muted">Supervision</span>
-          <span class="font-medium text-text-primary">{{ selectedReport.supervisionType }}</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-text-muted">Status</span>
-          <StatusBadge
-            :label="selectedReport.status"
-            :variant="selectedReport.status === 'Attached' ? 'success' : 'warning'"
-          />
-        </div>
-        <div>
-          <p class="mb-1 text-text-muted">Notes</p>
-          <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ selectedReport.notes }}</p>
+    <BaseDialog
+      v-model="isDetailOpen"
+      :title="selectedDateReports.length > 0 ? selectedDateReports[0].reportDate : ''"
+      size="md"
+    >
+      <div class="flex flex-col gap-5">
+        <div v-for="report in selectedDateReports" :key="report.id" class="flex flex-col gap-3 border-b border-border-light pb-4 text-sm last:border-0 last:pb-0">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-text-primary">{{ report.projectName }}</span>
+            <StatusBadge
+              :label="report.status"
+              :variant="report.status === 'Attached' ? 'success' : 'warning'"
+            />
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-text-muted">Report No.</span>
+            <span class="font-medium text-text-primary">{{ report.reportNo }}</span>
+          </div>
+          <div v-if="report.receiptType" class="flex items-center justify-between">
+            <span class="text-text-muted">Receipt / Handover</span>
+            <span class="font-medium text-text-primary">{{ report.receiptType }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-text-muted">Supervision</span>
+            <span class="font-medium text-text-primary">{{ report.supervisionType }}</span>
+          </div>
+          <div>
+            <p class="mb-1 text-text-muted">Notes</p>
+            <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ report.notes }}</p>
+          </div>
         </div>
       </div>
     </BaseDialog>

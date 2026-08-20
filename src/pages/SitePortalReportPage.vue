@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, Save } from '@lucide/vue'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import Alert from '@/components/common/Alert.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -38,30 +38,44 @@ const todaysDate = new Date().toLocaleDateString('en-GB', { weekday: 'long', yea
 
 onMounted(async () => {
   try {
-    await Promise.all([sitePortalStore.loadProjects(), sitePortalStore.loadTodaysReport()])
+    await Promise.all([sitePortalStore.loadProjects(), sitePortalStore.loadTodaysReports()])
     projectOptions.value = sitePortalStore.projects.map((p) => ({ label: p.projectName, value: p.id }))
+    // Default to the first not-yet-filed project so the common case
+    // (an engineer opening the page to file whatever's still
+    // outstanding) doesn't require an extra selection -- falls back to
+    // the first project at all if everything's already filed today.
+    const firstUnfiled = sitePortalStore.projects.find((p) => !sitePortalStore.todaysReports[p.id])
+    form.projectId = (firstUnfiled ?? sitePortalStore.projects[0])?.id ?? ''
   } finally {
     isLoading.value = false
   }
 })
 
-// Pre-fill the form whenever today's report loads or changes (e.g. right
-// after saving) -- this is what makes the page double as both "file" (no
-// report yet, form starts blank) and "edit" (report exists, form shows
-// what's already there) without two separate screens.
+// The report for whichever project is currently selected -- an engineer
+// on several projects files one report per project per day, so "today's
+// report" depends entirely on which project is picked above.
+const currentReport = computed(() => sitePortalStore.todaysReports[form.projectId])
+
+// Pre-fills (or clears, for a project with nothing filed yet) the rest
+// of the form whenever the selected project changes -- this is what
+// makes the page double as both "file" (no report yet for this
+// project, form starts blank) and "edit" (report already exists for
+// this project, form shows what's already there), per project, without
+// separate screens for each.
 watch(
-  () => sitePortalStore.todaysReport,
-  (report) => {
-    if (!report) return
-    form.projectId = report.projectId
-    form.receiptType = report.receiptType ?? ''
-    form.supervisionType = report.supervisionType
-    form.notes = report.notes
+  () => form.projectId,
+  (projectId) => {
+    const report = projectId ? sitePortalStore.todaysReports[projectId] : undefined
+    form.receiptType = report?.receiptType ?? ''
+    form.supervisionType = report?.supervisionType ?? 'Full-time'
+    form.notes = report?.notes ?? ''
   },
   { immediate: true },
 )
 
-const isLocked = () => sitePortalStore.todaysReport?.status === 'Attached'
+const isLocked = () => currentReport.value?.status === 'Attached'
+
+const filedCount = computed(() => Object.keys(sitePortalStore.todaysReports).length)
 
 async function handleSubmit(): Promise<void> {
   if (!form.projectId) {
@@ -103,23 +117,40 @@ async function handleSubmit(): Promise<void> {
     </div>
 
     <template v-else>
+      <p v-if="sitePortalStore.projects.length > 1" class="text-xs text-text-muted">
+        {{ filedCount }} of {{ sitePortalStore.projects.length }} projects reported today
+      </p>
+
       <Alert
         v-if="isLocked()"
         variant="success"
         title="Reviewed"
-        description="This report has already been reviewed and attached to the project. It can no longer be edited."
+        description="This project's report has already been reviewed and attached. It can no longer be edited."
       />
 
       <Card>
         <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
-          <SelectBox
-            v-model="form.projectId"
-            label="Project"
-            placeholder="Select project"
-            required
-            :disabled="isLocked()"
-            :options="projectOptions"
-          />
+          <div>
+            <SelectBox
+              v-model="form.projectId"
+              label="Project"
+              placeholder="Select project"
+              required
+              :options="projectOptions"
+            />
+            <!-- Per-project filed/pending indicator -- an engineer on
+                 several projects needs to see, right where they're
+                 picking a project, whether this one still needs today's
+                 report or is already done. -->
+            <p v-if="form.projectId" class="mt-1.5 flex items-center gap-1.5 text-xs">
+              <template v-if="currentReport">
+                <CheckCircle2 class="h-3.5 w-3.5 text-success-600" />
+                <span class="text-success-600">Today's report filed for this project{{ isLocked() ? ' and reviewed' : '' }}</span>
+              </template>
+              <span v-else class="text-warning-600">No report filed yet for this project today</span>
+            </p>
+          </div>
+
           <TextInput
             v-model="form.receiptType"
             label="Receipt / Handover"
@@ -142,7 +173,7 @@ async function handleSubmit(): Promise<void> {
           />
 
           <BaseButton v-if="!isLocked()" type="submit" :icon="Save" :loading="isSaving" full-width>
-            Save Report
+            {{ currentReport ? 'Update Report' : 'Save Report' }}
           </BaseButton>
           <div v-else class="flex items-center justify-center gap-2 rounded-lg bg-success-50 py-2.5 text-sm font-medium text-success-700">
             <CheckCircle2 class="h-4 w-4" />

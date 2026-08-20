@@ -19,9 +19,12 @@ class StatusReport(Base, TimestampMixin):
     and the engineer's free-text notes (written in Arabic in practice;
     stored as plain Unicode text, no special handling needed).
 
-    One report per engineer per day (see the unique constraint in
-    schema.sql/the migration) -- "file today's report" is a create-or-
-    edit-today's-row operation, not an open-ended log.
+    One report per engineer *per project* per day (see the unique
+    constraint in schema.sql/the migration) -- an engineer assigned to
+    several projects files one report per project each day, not a
+    single report covering all of them. "File today's report" is a
+    create-or-edit-today's-row operation scoped to whichever project is
+    selected, not a single row per engineer per day.
 
     Pending until the designated recipient (CompanySettings.
     status_report_recipient_id) reviews it and attaches it to a project
