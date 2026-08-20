@@ -333,4 +333,20 @@ INSERT INTO number_series (doc_type, year, prefix, next_number, padding) VALUES
 ('NOTIFICATION',          2026, 'NTF', 6, 3)
 ON DUPLICATE KEY UPDATE next_number = VALUES(next_number);
 
+-- Seeded projects above are inserted as raw rows, not through
+-- project_service.create_project() -- so they never went through its
+-- execution-step snapshot step. Same backfill migration 0016 applies
+-- to an existing database; needed here too so a fresh install (schema.sql
+-- then this file, no migration in between) doesn't leave every demo
+-- project stuck with an empty checklist. Guarded the same way: only
+-- projects with zero existing steps get backfilled.
+INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage, status)
+SELECT p.id, t.name, t.sequence_number, t.weight_percentage, 'Pending'
+FROM projects p
+CROSS JOIN execution_step_templates t
+WHERE t.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id
+  );
+
 SET FOREIGN_KEY_CHECKS = 1;

@@ -19,7 +19,7 @@ from app.models.project import Project, ProjectSelectedActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, notification_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, execution_step_service, notification_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -192,6 +192,13 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
             )
         )
 
+    # Progress is computed from these, not typed in by hand -- see
+    # execution_step_service.py. Every project starts at 0% with the
+    # full checklist ahead of it, snapshotted from the current admin
+    # template so later template edits don't retroactively shift this
+    # project's own numbers.
+    execution_step_service.snapshot_steps_for_project(db, project.id)
+
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
     db.refresh(project)
@@ -221,9 +228,9 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
             raise ValidationAppError("targetDate must be after the project's startDate.")
         changes["target_date"] = (project.target_date, payload.targetDate)
         project.target_date = payload.targetDate
-    if payload.progress is not None and payload.progress != project.progress:
-        changes["progress"] = (project.progress, payload.progress)
-        project.progress = payload.progress
+    # progress is deliberately not settable here -- it's computed from
+    # the execution-step checklist (execution_step_service.py), not
+    # typed in by hand. See ProjectUpdate's own schema comment.
     if payload.engineerId is not None:
         new_engineer_id = user_service.parse_user_id(payload.engineerId)
         if new_engineer_id != project.engineer_id:
@@ -326,15 +333,16 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
         previous_value=previous_status, new_value=new_status, reason=reason,
     )
     project.status = new_status
-    if new_status == "Completed" and project.progress != 100:
-        # Otherwise a project could show "Completed" status next to a
-        # progress bar reading e.g. 40% -- a visible, confusing
-        # inconsistency between two fields that should agree once
-        # something is actually done. Auto-correct rather than block the
-        # transition on it, since making staff do a separate progress
-        # update first just for this would be needless friction for
-        # something this unambiguous.
-        project.progress = 100
+    # progress is no longer force-set to 100 here. It used to be, so a
+    # project marked "Completed" would never show an inconsistent-looking
+    # progress bar next to it -- but progress is now computed from the
+    # execution-step checklist (execution_step_service.py), not a number
+    # staff can freely edit. Overriding it here would mean the number
+    # could lie about how much of the actual checklist is done; leaving
+    # it alone means the progress bar stays honest even for a project
+    # marked Completed with steps still outstanding, which is real,
+    # useful information rather than a cosmetic inconsistency to paper
+    # over.
     db.commit()
     db.refresh(project)
     return project

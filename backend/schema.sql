@@ -22,6 +22,27 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_users_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS role_definitions (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    role            VARCHAR(50) NOT NULL,
+    description     VARCHAR(500) NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_role_definitions_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    role_id         BIGINT UNSIGNED NOT NULL,
+    module          VARCHAR(50) NOT NULL,
+    can_view        TINYINT(1) NOT NULL DEFAULT 0,
+    can_edit        TINYINT(1) NOT NULL DEFAULT 0,
+    can_delete      TINYINT(1) NOT NULL DEFAULT 0,
+    CONSTRAINT fk_role_permissions_role
+        FOREIGN KEY (role_id) REFERENCES role_definitions(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_role_permissions_role_module (role_id, module)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     jti             CHAR(36)     NOT NULL UNIQUE,
@@ -703,6 +724,65 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     CONSTRAINT fk_project_timeline_events_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_project_timeline_events_project (project_id, event_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS execution_step_templates (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name                VARCHAR(200) NOT NULL,
+    sequence_number     INT NOT NULL,
+    weight_percentage   DECIMAL(5,2) NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    INDEX idx_execution_step_templates_sequence (sequence_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS project_execution_steps (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    name                VARCHAR(200) NOT NULL,
+    sequence_number     INT NOT NULL,
+    weight_percentage   DECIMAL(5,2) NOT NULL,
+    status              ENUM('Pending','Completed') NOT NULL DEFAULT 'Pending',
+    completed_at        DATETIME NULL,
+    completed_by        BIGINT UNSIGNED NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_execution_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_execution_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+    -- One row per step per project -- a project can't accidentally end
+    -- up with the same step snapshotted twice.
+    CONSTRAINT uq_project_execution_steps_project_sequence UNIQUE (project_id, sequence_number),
+    INDEX idx_project_execution_steps_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed: the linear execution process (First Meeting through Lighting
+-- drawings), weighted evenly across 100.00 as a sensible starting
+-- point -- admin is expected to tune both the steps and their weights
+-- from here, this is not meant to be the final word on either.
+INSERT INTO execution_step_templates (name, sequence_number, weight_percentage) VALUES
+    ('Client requests captured', 1, 4.35),
+    ('Quotation prepared', 2, 4.35),
+    ('Client Civil ID collected', 3, 4.35),
+    ('Ownership document collected', 4, 4.35),
+    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35),
+    ('MEW approval request submitted', 6, 4.35),
+    ('Contract initiated', 7, 4.35),
+    ('Architectural drawings completed', 8, 4.35),
+    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35),
+    ('3D design completed', 10, 4.35),
+    ('Soil investigation report completed', 11, 4.35),
+    ('Structural drawings completed', 12, 4.35),
+    ('Window and door schedules completed', 13, 4.35),
+    ('Furniture plans completed', 14, 4.35),
+    ('Dimension plans completed', 15, 4.35),
+    ('Flooring plans completed', 16, 4.35),
+    ('Bathroom detail drawings completed', 17, 4.35),
+    ('Electrical power points completed', 18, 4.35),
+    ('Sanitary plans completed', 19, 4.34),
+    ('A/C drawings completed', 20, 4.34),
+    ('Structural drawings revised for A/C', 21, 4.34),
+    ('False ceiling drawings completed', 22, 4.34),
+    ('Lighting drawings completed', 23, 4.34);
 
 CREATE TABLE IF NOT EXISTS status_reports (
     id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

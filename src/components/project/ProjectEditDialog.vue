@@ -60,7 +60,6 @@ interface EditForm {
   description: string
   service: string
   priority: string
-  progress: number
   targetDate: string
   engineerId: string
 }
@@ -71,7 +70,6 @@ function emptyForm(): EditForm {
     description: '',
     service: '',
     priority: 'Medium',
-    progress: 0,
     targetDate: '',
     engineerId: '',
   }
@@ -95,7 +93,6 @@ watch(
     form.description = props.project.description ?? ''
     form.service = props.project.service
     form.priority = props.project.priority
-    form.progress = props.project.progress
     form.targetDate = props.project.targetDate
     // Project only stores the engineer's resolved display name, not
     // their id, so this is a best-effort match rather than a guaranteed
@@ -125,7 +122,6 @@ function handleConfirm(): void {
     description: form.description,
     service: form.service,
     priority: form.priority as ProjectPriority,
-    progress: form.progress,
     targetDate: form.targetDate,
     engineerId: form.engineerId,
   })
@@ -152,10 +148,8 @@ function handleConfirm(): void {
         <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-text-muted" for="project-edit-progress">Progress ({{ form.progress }}%)</label>
-        <input id="project-edit-progress" v-model.number="form.progress" type="range" min="0" max="100" step="5" class="w-full accent-primary-600" />
-      </div>
+      <!-- Progress is no longer editable here -- it's computed from the
+           execution-step checklist, not a number to slide by hand. -->
     </div>
 
     <template #footer>

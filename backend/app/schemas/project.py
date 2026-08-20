@@ -111,7 +111,9 @@ class ProjectUpdate(BaseModel):
     service: str | None = Field(default=None, min_length=1, max_length=100)
     engineerId: str | None = None
     priority: str | None = None
-    progress: int | None = Field(default=None, ge=0, le=100)
+    # progress is deliberately not here -- it's computed from the
+    # execution-step checklist (execution_step_service.py), not settable
+    # directly. See ProjectOut.progress for the (read-only) computed value.
     targetDate: date | None = None
     status: str | None = None
     currentStage: str | None = None

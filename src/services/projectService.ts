@@ -109,7 +109,9 @@ export interface ProjectUpdateInput {
   service?: string
   engineerId?: string
   priority?: ProjectPriority
-  progress?: number
+  // progress deliberately not here -- it's computed from the
+  // execution-step checklist (see backend's execution_step_service.py),
+  // not settable directly.
   targetDate?: string
 }
 
