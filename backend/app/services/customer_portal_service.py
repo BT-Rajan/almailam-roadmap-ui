@@ -9,10 +9,11 @@ from app.core.lockout import LockoutTracker
 from app.core.security import create_access_token, decode_token
 from app.models.client import Client, ClientContact
 from app.models.document import ProjectDocument
-from app.models.project import Project
+from app.models.payment import FinancialAgreement, PaymentObligation
+from app.models.project import Project, ProjectSelectedActivity
 from app.models.timeline import ProjectTimelineEvent
 from app.models.user import User
-from app.services import company_service
+from app.services import company_service, payment_service
 
 # Customer portal tokens are deliberately longer-lived than staff access
 # tokens (customers browsing their project shouldn't get logged out after
@@ -193,6 +194,12 @@ def get_project_view(db: Session, project: Project) -> dict:
         .order_by(ProjectDocument.upload_date.asc())
         .all()
     )
+    activities = (
+        db.query(ProjectSelectedActivity)
+        .filter(ProjectSelectedActivity.project_id == project.id)
+        .order_by(ProjectSelectedActivity.service_name.asc(), ProjectSelectedActivity.activity_name.asc())
+        .all()
+    )
 
     today = datetime.now(timezone.utc).date()
     milestones = [
@@ -246,11 +253,54 @@ def get_project_view(db: Session, project: Project) -> dict:
         f"{project.progress}% complete."
     )
 
+    # Groups the flat selected-activities rows by service, e.g.
+    # {"Structural Design": ["Foundation Analysis", "Beam Sizing"], ...}
+    # -- "what activities are covered" reads as scope-of-work coverage,
+    # not a price list (the budget section below is where the money
+    # lives), so this deliberately omits each activity's fixed_cost.
+    activities_by_service: dict[str, list[str]] = {}
+    for activity in activities:
+        activities_by_service.setdefault(activity.service_name, []).append(activity.activity_name)
+    activity_groups = [
+        {"serviceName": service_name, "activities": activity_names}
+        for service_name, activity_names in activities_by_service.items()
+    ]
+
+    budget = None
+    agreement = (
+        db.query(FinancialAgreement).filter(FinancialAgreement.project_id == project.id).first()
+    )
+    if agreement:
+        obligations = payment_service.get_obligations(db, agreement.id)
+        total_paid = sum(float(o.amount_received) for o in obligations)
+        budget = {
+            "contractAmount": float(agreement.contract_amount),
+            "currency": agreement.currency,
+            "totalPaid": total_paid,
+            "totalDue": float(agreement.contract_amount) - total_paid,
+            # "Upcoming" -- due, not yet fully paid, not cancelled/waived.
+            # Sorted soonest-first, since that's the order a client cares
+            # about ("what do I owe and when"), not creation order.
+            "upcomingPayments": sorted(
+                (
+                    {
+                        "description": o.description,
+                        "amountDue": float(o.amount_due),
+                        "amountReceived": float(o.amount_received),
+                        "dueDate": o.due_date,
+                    }
+                    for o in obligations
+                    if o.manual_status is None and float(o.amount_received) < float(o.amount_due)
+                ),
+                key=lambda o: o["dueDate"],
+            ),
+        }
+
     return {
         "project": {
             "projectId": project.project_no,
             "projectName": project.project_name,
-            "description": f"{project.service} for {client.company_name if client else 'the client'}.",
+            "description": project.description or f"{project.service} for {client.company_name if client else 'the client'}.",
             "clientName": client.company_name if client else "Unknown Client",
             "startDate": project.start_date,
             "expectedEndDate": project.target_date,
@@ -265,4 +315,6 @@ def get_project_view(db: Session, project: Project) -> dict:
         "milestones": milestones,
         "deliverables": deliverables,
         "updates": updates,
+        "activities": activity_groups,
+        "budget": budget,
     }

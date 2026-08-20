@@ -7,11 +7,13 @@ import CustomerProjectHeader from '@/components/customer/CustomerProjectHeader.v
 import MilestoneTimeline from '@/components/customer/MilestoneTimeline.vue'
 import DeliverablesPanel from '@/components/customer/DeliverablesPanel.vue'
 import ProjectUpdatesPanel from '@/components/customer/ProjectUpdatesPanel.vue'
+import ProjectActivitiesPanel from '@/components/customer/ProjectActivitiesPanel.vue'
+import ProjectBudgetPanel from '@/components/customer/ProjectBudgetPanel.vue'
 import Card from '@/components/common/Card.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { customerPortalService } from '@/services/customerPortalService'
-import type { CustomerProjectStatus, ProjectMilestone, ProjectDeliverable, ProjectUpdate } from '@/types/CustomerPortal'
+import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, ProjectMilestone, ProjectDeliverable, ProjectUpdate } from '@/types/CustomerPortal'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,6 +27,8 @@ const projectData = ref<CustomerProjectStatus | null>(null)
 const milestones = ref<ProjectMilestone[]>([])
 const deliverables = ref<ProjectDeliverable[]>([])
 const updates = ref<ProjectUpdate[]>([])
+const activities = ref<ProjectActivityGroup[]>([])
+const budget = ref<ProjectBudget | null>(null)
 
 function getAccessToken(): string | null {
   const session = localStorage.getItem('customerPortalSession')
@@ -65,6 +69,8 @@ async function loadProject(isManualRefresh = false): Promise<void> {
     milestones.value = view.milestones
     deliverables.value = view.deliverables
     updates.value = view.updates
+    activities.value = view.activities
+    budget.value = view.budget
   } catch {
     // The access token may have expired (it's valid for 60 minutes) or
     // been for a different project -- send them back to verify again,
@@ -126,6 +132,7 @@ onMounted(() => loadProject())
       <!-- Left Column: Milestones -->
       <div class="space-y-6 laptop:col-span-2">
         <MilestoneTimeline :milestones="milestones" />
+        <ProjectActivitiesPanel :activities="activities" />
       </div>
 
       <!-- Right Column: Info Cards -->
@@ -176,6 +183,9 @@ onMounted(() => loadProject())
         </Card>
       </div>
     </div>
+
+    <!-- Budget & Payments -->
+    <ProjectBudgetPanel :budget="budget" />
 
     <!-- Deliverables and Updates -->
     <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">

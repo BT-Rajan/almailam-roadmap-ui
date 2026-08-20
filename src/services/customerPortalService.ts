@@ -1,4 +1,4 @@
-import type { CustomerProjectStatus, ProjectDeliverable, ProjectMilestone, ProjectUpdate } from '@/types/CustomerPortal'
+import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, ProjectDeliverable, ProjectMilestone, ProjectUpdate } from '@/types/CustomerPortal'
 
 // Deliberately not using the shared apiClient (src/services/httpClient.ts):
 // that client attaches the staff session's access token to every request
@@ -53,6 +53,8 @@ interface CustomerProjectView {
   milestones: ProjectMilestone[]
   deliverables: ProjectDeliverable[]
   updates: ProjectUpdate[]
+  activities: ProjectActivityGroup[]
+  budget: ProjectBudget | null
 }
 
 /**

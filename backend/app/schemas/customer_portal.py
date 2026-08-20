@@ -56,8 +56,30 @@ class ProjectUpdate(BaseModel):
     type: str
 
 
+class ProjectActivityGroup(BaseModel):
+    serviceName: str
+    activities: list[str]
+
+
+class UpcomingPayment(BaseModel):
+    description: str
+    amountDue: float
+    amountReceived: float
+    dueDate: date
+
+
+class ProjectBudget(BaseModel):
+    contractAmount: float
+    currency: str
+    totalPaid: float
+    totalDue: float
+    upcomingPayments: list[UpcomingPayment]
+
+
 class CustomerProjectView(BaseModel):
     project: CustomerProjectStatus
     milestones: list[ProjectMilestone]
     deliverables: list[ProjectDeliverable]
     updates: list[ProjectUpdate]
+    activities: list[ProjectActivityGroup]
+    budget: ProjectBudget | None = None

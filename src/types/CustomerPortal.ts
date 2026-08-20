@@ -40,3 +40,23 @@ export interface ProjectUpdate {
   description: string
   type: 'milestone' | 'deliverable' | 'status' | 'general'
 }
+
+export interface ProjectActivityGroup {
+  serviceName: string
+  activities: string[]
+}
+
+export interface UpcomingPayment {
+  description: string
+  amountDue: number
+  amountReceived: number
+  dueDate: string
+}
+
+export interface ProjectBudget {
+  contractAmount: number
+  currency: string
+  totalPaid: number
+  totalDue: number
+  upcomingPayments: UpcomingPayment[]
+}
