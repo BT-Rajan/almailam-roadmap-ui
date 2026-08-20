@@ -12,6 +12,7 @@
 """
 
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -24,6 +25,25 @@ from app.services import company_service, notification_service, task_service, ti
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "STATUS_REPORT"
+
+
+def _today(db: Session) -> date:
+    """"Today" for report-filing purposes is the company's own configured
+    timezone (CompanySettings.timezone, e.g. "Asia/Kuwait"), not the
+    server's system clock. Matters specifically because this app's
+    servers commonly run on UTC: an engineer filing a report between
+    roughly midnight and 3am Kuwait time is still the *previous*
+    calendar day in UTC, so date.today() there would silently treat a
+    genuinely new day's report as an edit to yesterday's already-filed
+    one -- exactly the "only today's report is editable" rule failing
+    in the one window it actually matters. Falls back to plain
+    date.today() if the configured timezone string is somehow invalid,
+    rather than raising in the middle of an unrelated action."""
+    settings = company_service.get_settings(db)
+    try:
+        return datetime.now(ZoneInfo(settings.timezone)).date()
+    except Exception:
+        return date.today()
 
 
 def list_engineer_projects(db: Session, engineer_id: int) -> list[Project]:
@@ -57,7 +77,7 @@ def get_own_report(db: Session, report_id: int, engineer_id: int) -> StatusRepor
 def get_todays_report(db: Session, engineer_id: int) -> StatusReport | None:
     return (
         db.query(StatusReport)
-        .filter(StatusReport.engineer_id == engineer_id, StatusReport.report_date == date.today())
+        .filter(StatusReport.engineer_id == engineer_id, StatusReport.report_date == _today(db))
         .first()
     )
 
@@ -123,7 +143,7 @@ def file_todays_report(
         report_no=next_number(db, "STATUS_REPORT"),
         project_id=project.id,
         engineer_id=engineer_id,
-        report_date=date.today(),
+        report_date=_today(db),
         receipt_type=receipt_type,
         supervision_type=supervision_type,
         notes=notes,

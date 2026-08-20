@@ -9,12 +9,14 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useSitePortalStore } from '@/stores/sitePortalStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SelectOption } from '@/types/Ui'
 
 const sitePortalStore = useSitePortalStore()
 const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const isLoading = ref(true)
 const isSaving = ref(false)
@@ -79,10 +81,10 @@ async function handleSubmit(): Promise<void> {
       supervisionType: form.supervisionType,
       notes: form.notes.trim(),
     })
-    toastStore.show('success', 'Report saved', "Today's status report has been filed.")
+    resultDialogStore.showSuccess('Report saved', "Today's status report has been filed.")
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to save report', detail)
+    resultDialogStore.showError('Failed to save report', detail)
   } finally {
     isSaving.value = false
   }
