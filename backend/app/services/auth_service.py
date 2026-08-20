@@ -60,10 +60,28 @@ def login(db: Session, username: str, password: str) -> dict:
         .filter(User.username == username, User.deleted_at.is_(None))
         .first()
     )
+    return _authenticate_and_issue_tokens(db, user, password)
 
+
+def login_with_employee_id(db: Session, employee_id: str, password: str) -> dict:
+    """Site Engineer Portal's login (see api/site_portal.py) -- same
+    accounts, same password_hash, same lockout/security behaviour as the
+    staff username login above, just resolved by employee_id instead.
+    Deliberately the same generic error message either way, for the
+    same reason: this can't be used to enumerate valid employee IDs
+    either."""
+    user = (
+        db.query(User)
+        .filter(User.employee_id == employee_id, User.deleted_at.is_(None))
+        .first()
+    )
+    return _authenticate_and_issue_tokens(db, user, password)
+
+
+def _authenticate_and_issue_tokens(db: Session, user: User | None, password: str) -> dict:
     # Same generic message whether the account doesn't exist or the
     # password is wrong -- never confirms which, so this can't be used to
-    # enumerate valid usernames.
+    # enumerate valid usernames/employee IDs.
     if user is None:
         raise AuthError(GENERIC_LOGIN_ERROR)
 

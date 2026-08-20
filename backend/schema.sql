@@ -4,6 +4,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS users (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username                VARCHAR(50)  NOT NULL UNIQUE,
+    employee_id             VARCHAR(30)  NULL UNIQUE,
     email                   VARCHAR(120) NOT NULL UNIQUE,
     password_hash           VARCHAR(255) NOT NULL,
     full_name               VARCHAR(120) NOT NULL,
@@ -673,15 +674,18 @@ CREATE TABLE IF NOT EXISTS company_settings (
     default_quotation_validity_days    INT UNSIGNED NOT NULL DEFAULT 14,
     stale_project_alert_days           INT UNSIGNED NOT NULL DEFAULT 45,
     stale_onboarding_alert_days        INT UNSIGNED NOT NULL DEFAULT 5,
+    status_report_recipient_id         BIGINT UNSIGNED NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT chk_company_settings_singleton CHECK (id = 1)
+    CONSTRAINT chk_company_settings_singleton CHECK (id = 1),
+    CONSTRAINT fk_company_settings_status_report_recipient
+        FOREIGN KEY (status_report_recipient_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS project_timeline_events (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id      BIGINT UNSIGNED NOT NULL,
-    type            ENUM('stage','document','quotation','contract','submission','milestone','task','note') NOT NULL,
+    type            ENUM('stage','document','quotation','contract','submission','milestone','task','note','field_activity') NOT NULL,
     title           VARCHAR(200) NOT NULL,
     description     TEXT NULL,
     event_date      DATE NOT NULL,
@@ -692,6 +696,34 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     CONSTRAINT fk_project_timeline_events_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_timeline_events_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_project_timeline_events_project (project_id, event_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS status_reports (
+    id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    report_no                   VARCHAR(20)  NOT NULL UNIQUE,
+    project_id                  BIGINT UNSIGNED NOT NULL,
+    engineer_id                 BIGINT UNSIGNED NOT NULL,
+    report_date                 DATE NOT NULL,
+    receipt_type                VARCHAR(200) NULL,
+    supervision_type            ENUM('Full-time','Part-time') NOT NULL DEFAULT 'Full-time',
+    notes                       TEXT NOT NULL,
+    status                      ENUM('Pending','Attached') NOT NULL DEFAULT 'Pending',
+    attached_task_id            BIGINT UNSIGNED NULL,
+    attached_timeline_event_id  BIGINT UNSIGNED NULL,
+    attached_by                 BIGINT UNSIGNED NULL,
+    attached_at                 DATETIME NULL,
+    created_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_status_reports_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_status_reports_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_status_reports_task FOREIGN KEY (attached_task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    CONSTRAINT fk_status_reports_timeline_event FOREIGN KEY (attached_timeline_event_id) REFERENCES project_timeline_events(id) ON DELETE SET NULL,
+    CONSTRAINT fk_status_reports_attached_by FOREIGN KEY (attached_by) REFERENCES users(id) ON DELETE SET NULL,
+    -- One report per engineer per day -- "file today's report" is a
+    -- create-or-edit-today's-row operation by design.
+    CONSTRAINT uq_status_reports_engineer_date UNIQUE (engineer_id, report_date),
+    INDEX idx_status_reports_project (project_id),
+    INDEX idx_status_reports_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ai_configuration (

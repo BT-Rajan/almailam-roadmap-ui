@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.company import CompanySettings
-from app.services import audit_service
+from app.services import audit_service, user_service
 
 ENTITY_TYPE = "COMPANY_SETTINGS"
 
@@ -43,6 +43,9 @@ def save_settings(db: Session, payload, actor_id: int) -> CompanySettings:
     settings.default_quotation_validity_days = payload.defaultQuotationValidityDays
     settings.stale_project_alert_days = payload.staleProjectAlertDays
     settings.stale_onboarding_alert_days = payload.staleOnboardingAlertDays
+    settings.status_report_recipient_id = (
+        user_service.parse_user_id(payload.statusReportRecipientId) if payload.statusReportRecipientId else None
+    )
     db.commit()
     db.refresh(settings)
     return settings

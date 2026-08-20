@@ -1,8 +1,9 @@
-from sqlalchemy import Integer, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.mixins import TimestampMixin
+from app.models.user import BigPK
 
 
 class CompanySettings(Base, TimestampMixin):
@@ -40,3 +41,10 @@ class CompanySettings(Base, TimestampMixin):
     # reasonably span, so the two are kept as separate settings rather
     # than sharing one knob.
     stale_onboarding_alert_days: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    # Whoever this is set to receives every site-engineer status report
+    # for review and attachment to the relevant project (see
+    # status_report_service.py) -- nullable because the feature is
+    # simply inactive/unrouted until an admin picks someone.
+    status_report_recipient_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )

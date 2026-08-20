@@ -20,6 +20,7 @@ class CompanySettingsOut(BaseModel):
     defaultQuotationValidityDays: int
     staleProjectAlertDays: int
     staleOnboardingAlertDays: int
+    statusReportRecipientId: str | None = None
 
     @staticmethod
     def from_model(settings) -> "CompanySettingsOut":
@@ -42,6 +43,7 @@ class CompanySettingsOut(BaseModel):
             defaultQuotationValidityDays=settings.default_quotation_validity_days,
             staleProjectAlertDays=settings.stale_project_alert_days,
             staleOnboardingAlertDays=settings.stale_onboarding_alert_days,
+            statusReportRecipientId=f"USR-{settings.status_report_recipient_id:03d}" if settings.status_report_recipient_id else None,
         )
 
 
@@ -64,3 +66,4 @@ class CompanySettingsIn(BaseModel):
     defaultQuotationValidityDays: int = Field(default=14, ge=0, le=365)
     staleProjectAlertDays: int = Field(default=45, ge=1, le=365)
     staleOnboardingAlertDays: int = Field(default=5, ge=1, le=365)
+    statusReportRecipientId: str | None = None

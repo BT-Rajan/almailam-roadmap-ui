@@ -18,6 +18,13 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # Alternate login identifier, used only by the Site Engineer Portal
+    # (see api/site_portal.py) -- optional and nullable since only field
+    # engineers use that portal; every other login path keeps using
+    # username as before. Same password_hash serves both -- this is an
+    # additional way to identify the same account, not a separate
+    # credential or a separate identity.
+    employee_id: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)

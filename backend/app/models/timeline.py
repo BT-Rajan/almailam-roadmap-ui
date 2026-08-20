@@ -7,7 +7,15 @@ from app.core.database import Base
 from app.models.mixins import TimestampMixin
 from app.models.user import BigPK
 
-TIMELINE_EVENT_TYPES = ("stage", "document", "quotation", "contract", "submission", "milestone", "task", "note")
+TIMELINE_EVENT_TYPES = (
+    "stage", "document", "quotation", "contract", "submission", "milestone", "task", "note",
+    # Internal-only -- created when a site engineer's status report is
+    # attached to a project (see status_report_service.attach_report).
+    # Deliberately excluded from customer_portal_service.get_project_view's
+    # events list: field-supervision notes go to the project's own
+    # timeline for staff, not to the client-facing "Recent Updates" feed.
+    "field_activity",
+)
 TIMELINE_EVENT_STATUSES = ("completed", "in-progress", "upcoming")
 
 

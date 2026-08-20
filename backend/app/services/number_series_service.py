@@ -41,6 +41,7 @@ DOC_TYPE_CONFIG: dict[str, tuple[str, int]] = {
     "PROJECT_LINK_DOCUMENT": ("PLD", 3),
     "TASK": ("TSK", 3),
     "NOTIFICATION": ("NTF", 3),
+    "STATUS_REPORT": ("SR", 3),
 }
 
 

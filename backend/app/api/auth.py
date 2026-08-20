@@ -28,7 +28,7 @@ REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = "/api/auth"
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
@@ -40,14 +40,14 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     )
 
 
-def _clear_refresh_cookie(response: Response) -> None:
+def clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     tokens = auth_service.login(db, payload.username, payload.password)
-    _set_refresh_cookie(response, tokens["refresh_token"])
+    set_refresh_cookie(response, tokens["refresh_token"])
     return tokens
 
 
@@ -57,7 +57,7 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
     if not refresh_token:
         raise AuthError("Session expired. Please log in again.")
     tokens = auth_service.refresh(db, refresh_token)
-    _set_refresh_cookie(response, tokens["refresh_token"])
+    set_refresh_cookie(response, tokens["refresh_token"])
     return tokens
 
 
@@ -66,7 +66,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
     if refresh_token:
         auth_service.logout(db, refresh_token)
-    _clear_refresh_cookie(response)
+    clear_refresh_cookie(response)
     return {"message": "Logged out."}
 
 

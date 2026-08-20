@@ -30,6 +30,8 @@ from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
 from app.api.search import router as search_router
 from app.api.service_catalog import router as service_catalog_router
+from app.api.site_portal import router as site_portal_router
+from app.api.status_reports import router as status_reports_router
 from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
@@ -134,6 +136,8 @@ app.include_router(notifications_router)
 app.include_router(reports_router)
 app.include_router(messages_router)
 app.include_router(search_router)
+app.include_router(site_portal_router)
+app.include_router(status_reports_router)
 
 
 @app.get("/api/health")

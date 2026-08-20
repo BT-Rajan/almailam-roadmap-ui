@@ -177,7 +177,13 @@ def get_project_view(db: Session, project: Project) -> dict:
 
     events = (
         db.query(ProjectTimelineEvent)
-        .filter(ProjectTimelineEvent.project_id == project.id)
+        .filter(
+            ProjectTimelineEvent.project_id == project.id,
+            # field_activity entries are internal site-supervision notes
+            # (see status_report_service.attach_report) -- not something
+            # to surface on the client-facing "Recent Updates" feed.
+            ProjectTimelineEvent.type != "field_activity",
+        )
         .order_by(ProjectTimelineEvent.event_date.asc())
         .all()
     )
