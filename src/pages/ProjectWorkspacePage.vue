@@ -55,15 +55,18 @@ const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 
+// Quotation, Contract, Design, and Government aren't buttons here --
+// they're reachable from the Workflow Progress stepper above (see
+// WorkflowProgress.vue), which already says those exact same 4 words.
+// Keeping both would just be the same duplication moved one component
+// over. Their tab keys stay valid (VALID_TAB_KEYS below, and the
+// v-if chain further down) so the stepper -- and any existing
+// ?tab=quotation-style deep link -- can still land on them.
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'process', label: 'Process' },
   { key: 'documents', label: 'Documents' },
-  { key: 'quotation', label: 'Quotation' },
-  { key: 'contract', label: 'Contract' },
   { key: 'payments', label: 'Payments' },
-  { key: 'design', label: 'Design' },
-  { key: 'government', label: 'Government' },
   { key: 'tasks', label: 'Tasks' },
 ]
 
