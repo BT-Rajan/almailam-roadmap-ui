@@ -44,6 +44,30 @@ DROP TABLE IF EXISTS workflow_templates;
 -- ---------------------------------------------------------------------------
 -- Part 2: stage grouping + optional/waivable steps
 -- ---------------------------------------------------------------------------
+--
+-- The Waived-related additions below (waived_at/waived_by/waived_reason,
+-- their FK, the status ENUM, and project_approval_steps.is_optional)
+-- were all dropped again by migration 0022, which moved both tables
+-- off this linear status model entirely. install.sh reapplies every
+-- migration file on every run with no tracking of what already ran,
+-- so this file executes again on a database that's already past 0022
+-- -- at which point a plain "does this column exist yet" check can't
+-- tell "never added" apart from "added here, then dropped by 0022",
+-- and would wrongly re-add columns 0022 deliberately removed (or, for
+-- the ones with an "AFTER waived_by"/"AFTER completed_by" positional
+-- reference or an FK on a since-dropped column, fail outright the
+-- same way the INSERT/MODIFY COLUMN statements elsewhere in this
+-- migration chain did). @post_0022_exec/@post_0022_appr detect that
+-- case via a column 0022 adds and never removes, and gate every
+-- statement below that 0022 later undoes.
+SET @post_0022_exec = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'completion_percentage'
+);
+SET @post_0022_appr = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'storage_key'
+);
 
 SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -89,7 +113,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_at'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_exec = 0,
   'ALTER TABLE project_execution_steps ADD COLUMN waived_at DATETIME NULL AFTER completed_by',
   'SELECT 1'
 );
@@ -99,7 +123,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_by'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_exec = 0,
   'ALTER TABLE project_execution_steps ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at',
   'SELECT 1'
 );
@@ -109,7 +133,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_reason'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_exec = 0,
   'ALTER TABLE project_execution_steps ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by',
   'SELECT 1'
 );
@@ -120,18 +144,30 @@ SET @constraint_exists = (
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps'
     AND CONSTRAINT_NAME = 'fk_project_execution_steps_waived_by'
 );
-SET @sql = IF(@constraint_exists = 0,
+SET @sql = IF(@constraint_exists = 0 AND @post_0022_exec = 0,
   'ALTER TABLE project_execution_steps ADD CONSTRAINT fk_project_execution_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL',
   'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- MODIFY COLUMN is naturally idempotent -- re-running the same ENUM
--- definition against a column that already has it is a safe no-op, so
--- this doesn't need an information_schema guard (same as migration
--- 0013's ENUM widening).
-ALTER TABLE project_execution_steps
-  MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
+-- definition against a column that already has it is a safe no-op,
+-- same as migration 0013's ENUM widening. It does still need an
+-- existence guard, though: migration 0022 drops this column entirely,
+-- and install.sh reapplies every migration file on every run with no
+-- tracking of what already ran, so this statement executes again on a
+-- database that's already past 0022 -- a MODIFY COLUMN against a
+-- column that no longer exists fails with "Unknown column", same
+-- failure mode as the INSERT further up this file.
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'status'
+);
+SET @sql = IF(@col_exists > 0,
+  'ALTER TABLE project_execution_steps MODIFY COLUMN status ENUM(''Pending'',''Completed'',''Waived'') NOT NULL DEFAULT ''Pending''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -167,7 +203,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'is_optional'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_appr = 0,
   'ALTER TABLE project_approval_steps ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key',
   'SELECT 1'
 );
@@ -177,7 +213,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_at'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_appr = 0,
   'ALTER TABLE project_approval_steps ADD COLUMN waived_at DATETIME NULL AFTER completed_by',
   'SELECT 1'
 );
@@ -187,7 +223,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_by'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_appr = 0,
   'ALTER TABLE project_approval_steps ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at',
   'SELECT 1'
 );
@@ -197,7 +233,7 @@ SET @col_exists = (
   SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_reason'
 );
-SET @sql = IF(@col_exists = 0,
+SET @sql = IF(@col_exists = 0 AND @post_0022_appr = 0,
   'ALTER TABLE project_approval_steps ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by',
   'SELECT 1'
 );
@@ -208,14 +244,21 @@ SET @constraint_exists = (
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps'
     AND CONSTRAINT_NAME = 'fk_project_approval_steps_waived_by'
 );
-SET @sql = IF(@constraint_exists = 0,
+SET @sql = IF(@constraint_exists = 0 AND @post_0022_appr = 0,
   'ALTER TABLE project_approval_steps ADD CONSTRAINT fk_project_approval_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL',
   'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-ALTER TABLE project_approval_steps
-  MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'status'
+);
+SET @sql = IF(@col_exists > 0,
+  'ALTER TABLE project_approval_steps MODIFY COLUMN status ENUM(''Pending'',''Completed'',''Waived'') NOT NULL DEFAULT ''Pending''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ---------------------------------------------------------------------------
 -- Part 3: backfill stage_key on the 5 approval stages -- each stage is
