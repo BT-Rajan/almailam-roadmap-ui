@@ -111,13 +111,34 @@ WHERE NOT EXISTS (SELECT 1 FROM execution_step_templates);
 -- so this is safe to re-run: only projects that still have zero steps
 -- get backfilled, already-backfilled or newly-created projects are
 -- left untouched.
-INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage, status)
-SELECT p.id, t.name, t.sequence_number, t.weight_percentage, 'Pending'
-FROM projects p
-CROSS JOIN execution_step_templates t
-WHERE t.deleted_at IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id
-  );
+--
+-- The status column this originally inserted was dropped by migration
+-- 0022 (replaced with completion_percentage, which defaults to 0) --
+-- install.sh reapplies every migration file on every run with no
+-- tracking of what already ran, so this file executes again on a
+-- database that's already past 0022, at which point a hardcoded
+-- reference to status would fail with "Unknown column". Branches on
+-- whether the column is still there so this keeps working on both a
+-- true first-time sequential install and a re-run against an
+-- already-fully-migrated database.
+SET @has_status = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'status'
+);
+SET @sql = IF(@has_status > 0,
+  'INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage, status)
+   SELECT p.id, t.name, t.sequence_number, t.weight_percentage, ''Pending''
+   FROM projects p
+   CROSS JOIN execution_step_templates t
+   WHERE t.deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id)',
+  'INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage)
+   SELECT p.id, t.name, t.sequence_number, t.weight_percentage
+   FROM projects p
+   CROSS JOIN execution_step_templates t
+   WHERE t.deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SELECT 'Migration 0016 complete.' AS status;
