@@ -38,6 +38,7 @@ def _invalidate_cache() -> None:
 
 def _ensure_seeded(db: Session) -> None:
     if db.query(RoleDefinition).first() is not None:
+        _backfill_missing_modules(db)
         return
     # This check-then-insert has a real race window: two requests can
     # both see an empty table before either commits, and both attempt
@@ -72,6 +73,41 @@ def _ensure_seeded(db: Session) -> None:
         db.commit()
     except IntegrityError:
         db.rollback()
+
+
+def _backfill_missing_modules(db: Session) -> None:
+    """A module added to PERMISSION_MODULES after this database was
+    already seeded (e.g. "Government" on a database seeded before that
+    module existed) never gets a role_permissions row for any existing
+    role -- the seed-once check above only fires on a completely empty
+    table, so it never runs again to pick up the new module. has_permission()
+    then silently defaults to False for it on every role, including
+    Administrator: indistinguishable from a deliberate deny, but affects
+    every role at once and only that module. This only inserts rows that
+    are entirely missing -- it never touches a row that already exists,
+    so it can't undo an admin's actual choice to turn a permission off."""
+    added = False
+    for definition in db.query(RoleDefinition).options(joinedload(RoleDefinition.permissions)).all():
+        existing_modules = {perm.module for perm in definition.permissions}
+        missing_modules = [module for module in PERMISSION_MODULES if module not in existing_modules]
+        if not missing_modules:
+            continue
+        defaults = ROLE_PERMISSIONS.get(definition.role, {})
+        for module in missing_modules:
+            flags = defaults.get(module, {})
+            db.add(
+                RolePermission(
+                    role_id=definition.id,
+                    module=module,
+                    can_view=bool(flags.get("view", False)),
+                    can_edit=bool(flags.get("edit", False)),
+                    can_delete=bool(flags.get("delete", False)),
+                )
+            )
+            added = True
+    if added:
+        db.commit()
+        _invalidate_cache()
 
 
 def _definitions_query(db: Session):
