@@ -48,7 +48,7 @@ export type ProjectViewMode = 'grid' | 'table'
 
 export type ProjectWorkspaceTabKey =
   | 'overview'
-  | 'execution'
+  | 'process'
   | 'timeline'
   | 'documents'
   | 'design'

@@ -21,7 +21,6 @@ export const ROUTE_NAMES = {
   REPORT_WORKLOAD: 'report-workload',
   ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
-  ADMIN_WORKFLOWS: 'admin-workflows',
   ADMIN_SERVICE_CATALOG: 'admin-service-catalog',
   ADMIN_EXECUTION_STEPS: 'admin-execution-steps',
   ADMIN_FORMS: 'admin-forms',

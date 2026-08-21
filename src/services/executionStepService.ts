@@ -5,13 +5,23 @@ async function getTemplate(): Promise<ExecutionStepTemplateItem[]> {
   return apiClient.get<ExecutionStepTemplateItem[]>('/api/execution-step-template')
 }
 
-async function createTemplateStep(name: string, weightPercentage: number): Promise<ExecutionStepTemplateItem> {
-  return apiClient.post<ExecutionStepTemplateItem>('/api/execution-step-template', { name, weightPercentage })
+async function createTemplateStep(
+  name: string,
+  weightPercentage: number,
+  stageKey: string,
+  isOptional: boolean,
+): Promise<ExecutionStepTemplateItem> {
+  return apiClient.post<ExecutionStepTemplateItem>('/api/execution-step-template', {
+    name,
+    weightPercentage,
+    stageKey,
+    isOptional,
+  })
 }
 
 async function updateTemplateStep(
   stepId: string,
-  fields: { name?: string; weightPercentage?: number },
+  fields: { name?: string; weightPercentage?: number; stageKey?: string; isOptional?: boolean },
 ): Promise<ExecutionStepTemplateItem> {
   return apiClient.patch<ExecutionStepTemplateItem>(`/api/execution-step-template/${stepId}`, fields)
 }
@@ -36,6 +46,14 @@ async function uncompleteStep(projectId: string, stepId: string): Promise<Projec
   return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/uncomplete`)
 }
 
+async function waiveStep(projectId: string, stepId: string, reason: string): Promise<ProjectExecutionStep> {
+  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/waive`, { reason })
+}
+
+async function unwaiveStep(projectId: string, stepId: string): Promise<ProjectExecutionStep> {
+  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/unwaive`)
+}
+
 export const executionStepService = {
   getTemplate,
   createTemplateStep,
@@ -45,4 +63,6 @@ export const executionStepService = {
   getProjectSteps,
   completeStep,
   uncompleteStep,
+  waiveStep,
+  unwaiveStep,
 }

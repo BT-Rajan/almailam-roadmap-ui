@@ -33,7 +33,10 @@ function reportIfFailed(action: Promise<void>): void {
   })
 }
 
-function handleUpdate(stepId: string, fields: { name?: string; weightPercentage?: number }): void {
+function handleUpdate(
+  stepId: string,
+  fields: { name?: string; weightPercentage?: number; stageKey?: string; isOptional?: boolean },
+): void {
   reportIfFailed(store.updateStep(stepId, fields))
 }
 
@@ -45,8 +48,8 @@ function handleMove(stepId: string, direction: 'up' | 'down'): void {
   reportIfFailed(store.moveStep(stepId, direction))
 }
 
-function handleAdd(name: string, weightPercentage: number): void {
-  reportIfFailed(store.createStep(name, weightPercentage))
+function handleAdd(name: string, weightPercentage: number, stageKey: string, isOptional: boolean): void {
+  reportIfFailed(store.createStep(name, weightPercentage, stageKey, isOptional))
 }
 
 const weightIsExact = computed(() => Math.abs(store.totalWeight - 100) < 0.01)
@@ -55,8 +58,8 @@ const weightIsExact = computed(() => Math.abs(store.totalWeight - 100) < 0.01)
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader
-      title="Execution Steps"
-      subtitle="The linear, tangible-act checklist every project follows. Each project gets its own copy of this list the moment it's created -- editing it here only affects projects created afterward."
+      title="Process Steps"
+      subtitle="The 23-step execution checklist behind the Project Approval Process, grouped under its 5 stages. Each project gets its own copy of this list the moment it's created -- editing it here only affects projects created afterward."
     />
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />

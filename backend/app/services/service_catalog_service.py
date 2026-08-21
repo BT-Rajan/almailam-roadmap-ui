@@ -12,8 +12,7 @@ ENTITY_TYPE = "SERVICE_CATALOG_ITEM"
 # The services this app used to ship as a hardcoded, uneditable list
 # (PROJECT_SERVICES in the frontend). Seeded once so the admin catalog
 # page -- and the project-creation Service dropdown that now reads from
-# it -- isn't stuck on an empty state on a fresh install, same reasoning
-# as workflow_service._ensure_seeded.
+# it -- isn't stuck on an empty state on a fresh install.
 DEFAULT_SERVICE_NAMES = [
     "Structural Engineering",
     "MEP Design",

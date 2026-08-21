@@ -642,25 +642,17 @@ CREATE TABLE IF NOT EXISTS message_log (
     INDEX idx_message_log_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS workflow_templates (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name            VARCHAR(120) NOT NULL,
-    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at      DATETIME NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS workflow_stages (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    template_id     BIGINT UNSIGNED NOT NULL,
-    name            VARCHAR(120) NOT NULL,
-    description     TEXT NULL,
-    sequence_number INT NOT NULL,
-    CONSTRAINT fk_workflow_stages_template
-        FOREIGN KEY (template_id) REFERENCES workflow_templates(id) ON DELETE CASCADE,
-    INDEX idx_workflow_stages_template (template_id, sequence_number)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Note: no generic, admin-editable "workflow_templates"/"workflow_stages"
+-- system exists here. One used to, but it was never wired to anything
+-- real (projects.current_stage, defined above, is a fixed ENUM, not
+-- driven by rows in a table) -- it only duplicated and drifted from
+-- the real 9-stage stage list. Removed rather than kept as unused
+-- surface area (migration 0018). The project process is exactly two
+-- things: projects.current_stage (the sales/lifecycle stage) and the
+-- Project Approval Process + execution-step checklist (further down,
+-- execution_step_templates / approval_process_templates and their
+-- per-project counterparts) -- nothing else should define a third
+-- notion of "the stages a project goes through".
 
 CREATE TABLE IF NOT EXISTS service_catalog_items (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -725,11 +717,27 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     INDEX idx_project_timeline_events_project (project_id, event_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- The Project Approval Process (5 stages: Documents Signed -> MEW
+-- Approval -> Architectural Design Approved by Client -> Submit to
+-- Baladia or KFD -> Permit Approved) and the execution-step checklist
+-- (23 tangible-act steps, First Meeting through Lighting drawings)
+-- together are the whole of "the project process". Every execution
+-- step's stage_key groups it under one of the 5 approval stages, which
+-- is how the project UI shows one unified view (5 stages, each
+-- expandable to its related execution steps) instead of two
+-- independent trackers. Both step tables share the same Waived status
+-- (with an audit trail -- waived_at/by/reason) for steps a client's
+-- specific requirements don't call for; only steps marked is_optional
+-- on their template can be waived. See migration 0018 for the mapping
+-- reasoning between the two lists.
+
 CREATE TABLE IF NOT EXISTS execution_step_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name                VARCHAR(200) NOT NULL,
     sequence_number     INT NOT NULL,
     weight_percentage   DECIMAL(5,2) NOT NULL,
+    stage_key           VARCHAR(40) NOT NULL,
+    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
@@ -742,13 +750,19 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
     name                VARCHAR(200) NOT NULL,
     sequence_number     INT NOT NULL,
     weight_percentage   DECIMAL(5,2) NOT NULL,
-    status              ENUM('Pending','Completed') NOT NULL DEFAULT 'Pending',
+    stage_key           VARCHAR(40) NOT NULL,
+    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
+    status              ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending',
     completed_at        DATETIME NULL,
     completed_by        BIGINT UNSIGNED NULL,
+    waived_at           DATETIME NULL,
+    waived_by           BIGINT UNSIGNED NULL,
+    waived_reason        VARCHAR(500) NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_execution_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_execution_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_execution_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
     -- One row per step per project -- a project can't accidentally end
     -- up with the same step snapshotted twice.
     CONSTRAINT uq_project_execution_steps_project_sequence UNIQUE (project_id, sequence_number),
@@ -759,35 +773,44 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
 -- drawings), weighted evenly across 100.00 as a sensible starting
 -- point -- admin is expected to tune both the steps and their weights
 -- from here, this is not meant to be the final word on either.
-INSERT INTO execution_step_templates (name, sequence_number, weight_percentage) VALUES
-    ('Client requests captured', 1, 4.35),
-    ('Quotation prepared', 2, 4.35),
-    ('Client Civil ID collected', 3, 4.35),
-    ('Ownership document collected', 4, 4.35),
-    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35),
-    ('MEW approval request submitted', 6, 4.35),
-    ('Contract initiated', 7, 4.35),
-    ('Architectural drawings completed', 8, 4.35),
-    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35),
-    ('3D design completed', 10, 4.35),
-    ('Soil investigation report completed', 11, 4.35),
-    ('Structural drawings completed', 12, 4.35),
-    ('Window and door schedules completed', 13, 4.35),
-    ('Furniture plans completed', 14, 4.35),
-    ('Dimension plans completed', 15, 4.35),
-    ('Flooring plans completed', 16, 4.35),
-    ('Bathroom detail drawings completed', 17, 4.35),
-    ('Electrical power points completed', 18, 4.35),
-    ('Sanitary plans completed', 19, 4.34),
-    ('A/C drawings completed', 20, 4.34),
-    ('Structural drawings revised for A/C', 21, 4.34),
-    ('False ceiling drawings completed', 22, 4.34),
-    ('Lighting drawings completed', 23, 4.34);
+-- stage_key groups each step under the approval stage its outcome
+-- belongs to: documents_signed (client request through contract),
+-- mew_approval (the MEW request itself), architectural_approval
+-- (architectural + 3D design), submit_baladia_kfd (the drawing
+-- submission plus the full structural/interior/MEP technical package
+-- that follows it). "Permit Approved" has no execution steps of its
+-- own -- it's a pure external gate.
+INSERT INTO execution_step_templates (name, sequence_number, weight_percentage, stage_key, is_optional) VALUES
+    ('Client requests captured', 1, 4.35, 'documents_signed', 0),
+    ('Quotation prepared', 2, 4.35, 'documents_signed', 0),
+    ('Client Civil ID collected', 3, 4.35, 'documents_signed', 0),
+    ('Ownership document collected', 4, 4.35, 'documents_signed', 0),
+    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'documents_signed', 0),
+    ('MEW approval request submitted', 6, 4.35, 'mew_approval', 0),
+    ('Contract initiated', 7, 4.35, 'documents_signed', 0),
+    ('Architectural drawings completed', 8, 4.35, 'architectural_approval', 0),
+    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'submit_baladia_kfd', 0),
+    ('3D design completed', 10, 4.35, 'architectural_approval', 1),
+    ('Soil investigation report completed', 11, 4.35, 'submit_baladia_kfd', 0),
+    ('Structural drawings completed', 12, 4.35, 'submit_baladia_kfd', 0),
+    ('Window and door schedules completed', 13, 4.35, 'submit_baladia_kfd', 0),
+    ('Furniture plans completed', 14, 4.35, 'submit_baladia_kfd', 1),
+    ('Dimension plans completed', 15, 4.35, 'submit_baladia_kfd', 1),
+    ('Flooring plans completed', 16, 4.35, 'submit_baladia_kfd', 1),
+    ('Bathroom detail drawings completed', 17, 4.35, 'submit_baladia_kfd', 1),
+    ('Electrical power points completed', 18, 4.35, 'submit_baladia_kfd', 0),
+    ('Sanitary plans completed', 19, 4.34, 'submit_baladia_kfd', 0),
+    ('A/C drawings completed', 20, 4.34, 'submit_baladia_kfd', 1),
+    ('Structural drawings revised for A/C', 21, 4.34, 'submit_baladia_kfd', 1),
+    ('False ceiling drawings completed', 22, 4.34, 'submit_baladia_kfd', 1),
+    ('Lighting drawings completed', 23, 4.34, 'submit_baladia_kfd', 1);
 
 CREATE TABLE IF NOT EXISTS approval_process_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name                VARCHAR(200) NOT NULL,
+    stage_key           VARCHAR(40) NOT NULL,
     sequence_number     INT NOT NULL,
+    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
@@ -798,27 +821,31 @@ CREATE TABLE IF NOT EXISTS project_approval_steps (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id          BIGINT UNSIGNED NOT NULL,
     name                VARCHAR(200) NOT NULL,
+    stage_key           VARCHAR(40) NOT NULL,
     sequence_number     INT NOT NULL,
-    status              ENUM('Pending','Completed') NOT NULL DEFAULT 'Pending',
+    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
+    status              ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending',
     completed_at        DATETIME NULL,
     completed_by        BIGINT UNSIGNED NULL,
+    waived_at           DATETIME NULL,
+    waived_by           BIGINT UNSIGNED NULL,
+    waived_reason        VARCHAR(500) NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_approval_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_approval_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_approval_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT uq_project_approval_steps_project_sequence UNIQUE (project_id, sequence_number),
     INDEX idx_project_approval_steps_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Seed: the 5-step Project Approval Process, a separate, new trial --
--- see approval_process.py's own docstring for why this is deliberately
--- decoupled from the existing 9-stage project workflow.
-INSERT INTO approval_process_templates (name, sequence_number) VALUES
-    ('Documents Signed', 1),
-    ('MEW Approval', 2),
-    ('Architectural Design Approved by Client', 3),
-    ('Submit to Baladia or KFD', 4),
-    ('Permit Approved', 5);
+-- Seed: the 5-stage Project Approval Process.
+INSERT INTO approval_process_templates (name, stage_key, sequence_number) VALUES
+    ('Documents Signed', 'documents_signed', 1),
+    ('MEW Approval', 'mew_approval', 2),
+    ('Architectural Design Approved by Client', 'architectural_approval', 3),
+    ('Submit to Baladia or KFD', 'submit_baladia_kfd', 4),
+    ('Permit Approved', 'permit_approved', 5);
 
 CREATE TABLE IF NOT EXISTS status_reports (
     id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

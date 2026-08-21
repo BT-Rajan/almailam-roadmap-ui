@@ -24,6 +24,18 @@ from app.services import audit_service
 ENTITY_TYPE = "EXECUTION_STEP_TEMPLATE"
 PROJECT_ENTITY_TYPE = "PROJECT"
 
+# The 5 Project Approval Process stages every execution step is grouped
+# under (see approval_process.py) -- kept here, not re-derived from the
+# DB, since it's the same fixed list the approval_process_templates seed
+# uses and nothing about it is meant to be admin-editable.
+STAGE_KEYS = (
+    "documents_signed",
+    "mew_approval",
+    "architectural_approval",
+    "submit_baladia_kfd",
+    "permit_approved",
+)
+
 
 def parse_template_step_id(raw: str) -> int:
     text = raw.removeprefix("EST-") if raw.upper().startswith("EST-") else raw
@@ -57,17 +69,28 @@ def template_total_weight(db: Session) -> float:
     return sum(float(s.weight_percentage) for s in list_template(db))
 
 
-def create_template_step(db: Session, name: str, weight_percentage: float, user_id: int | None) -> ExecutionStepTemplate:
+def create_template_step(
+    db: Session,
+    name: str,
+    weight_percentage: float,
+    stage_key: str,
+    is_optional: bool,
+    user_id: int | None,
+) -> ExecutionStepTemplate:
     if not name.strip():
         raise ValidationAppError("Step name is required.")
     if weight_percentage <= 0:
         raise ValidationAppError("Weight must be greater than 0.")
+    if stage_key not in STAGE_KEYS:
+        raise ValidationAppError("Invalid stage.")
 
     max_sequence = db.query(ExecutionStepTemplate).filter(ExecutionStepTemplate.deleted_at.is_(None)).count()
     step = ExecutionStepTemplate(
         name=name.strip(),
         sequence_number=max_sequence + 1,
         weight_percentage=weight_percentage,
+        stage_key=stage_key,
+        is_optional=is_optional,
     )
     db.add(step)
     db.flush()
@@ -89,7 +112,13 @@ def get_template_step(db: Session, step_id: int) -> ExecutionStepTemplate:
 
 
 def update_template_step(
-    db: Session, step_id: int, name: str | None, weight_percentage: float | None, user_id: int | None
+    db: Session,
+    step_id: int,
+    name: str | None,
+    weight_percentage: float | None,
+    stage_key: str | None,
+    is_optional: bool | None,
+    user_id: int | None,
 ) -> ExecutionStepTemplate:
     step = get_template_step(db, step_id)
     if name is not None:
@@ -100,6 +129,12 @@ def update_template_step(
         if weight_percentage <= 0:
             raise ValidationAppError("Weight must be greater than 0.")
         step.weight_percentage = weight_percentage
+    if stage_key is not None:
+        if stage_key not in STAGE_KEYS:
+            raise ValidationAppError("Invalid stage.")
+        step.stage_key = stage_key
+    if is_optional is not None:
+        step.is_optional = is_optional
     audit_service.log_event(db, ENTITY_TYPE, step.id, "Execution step updated", user_id)
     db.commit()
     db.refresh(step)
@@ -164,6 +199,8 @@ def snapshot_steps_for_project(db: Session, project_id: int) -> None:
                 name=template_step.name,
                 sequence_number=template_step.sequence_number,
                 weight_percentage=template_step.weight_percentage,
+                stage_key=template_step.stage_key,
+                is_optional=template_step.is_optional,
                 status="Pending",
             )
         )
@@ -180,7 +217,10 @@ def list_project_steps(db: Session, project_id: int) -> list[ProjectExecutionSte
 
 def _recompute_progress(db: Session, project_id: int) -> int:
     steps = list_project_steps(db, project_id)
-    total = sum(float(s.weight_percentage) for s in steps if s.status == "Completed")
+    # A waived step counts toward progress exactly like a completed one --
+    # it's resolved, just not by doing the work, same as a waived payment
+    # obligation is resolved without being paid.
+    total = sum(float(s.weight_percentage) for s in steps if s.status in ("Completed", "Waived"))
     # project.progress is a bounded SMALLINT percentage -- clamp defends
     # against a template that doesn't sum to exactly 100 (admin is free
     # to leave it under- or over-100 temporarily while tuning weights)
@@ -207,13 +247,15 @@ def complete_step(db: Session, project_id: int, step_id: int, user_id: int | Non
     step = get_project_step(db, project_id, step_id)
     if step.status == "Completed":
         return step
+    if step.status == "Waived":
+        raise ValidationAppError("This step has been waived -- unwaive it first to complete it instead.")
 
     incomplete_before = (
         db.query(ProjectExecutionStep)
         .filter(
             ProjectExecutionStep.project_id == project_id,
             ProjectExecutionStep.sequence_number < step.sequence_number,
-            ProjectExecutionStep.status != "Completed",
+            ProjectExecutionStep.status == "Pending",
         )
         .count()
     )
@@ -236,25 +278,26 @@ def complete_step(db: Session, project_id: int, step_id: int, user_id: int | Non
 
 def uncomplete_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectExecutionStep:
     """Undoing a mistake is allowed -- but only for the most recently
-    completed step, so the checklist can never end up with a completed
-    step sitting after an incomplete one. To back out further, undo
-    them one at a time from the end, same as they were completed."""
+    resolved (Completed or Waived) step, so the checklist can never end
+    up with a resolved step sitting after an unresolved one. To back
+    out further, undo them one at a time from the end, same as they
+    were resolved."""
     step = get_project_step(db, project_id, step_id)
     if step.status != "Completed":
         return step
 
-    later_completed = (
+    later_resolved = (
         db.query(ProjectExecutionStep)
         .filter(
             ProjectExecutionStep.project_id == project_id,
             ProjectExecutionStep.sequence_number > step.sequence_number,
-            ProjectExecutionStep.status == "Completed",
+            ProjectExecutionStep.status != "Pending",
         )
         .count()
     )
-    if later_completed > 0:
+    if later_resolved > 0:
         raise ValidationAppError(
-            "Only the most recently completed step can be undone -- undo later steps first."
+            "Only the most recently completed or waived step can be undone -- undo later steps first."
         )
 
     step.status = "Pending"
@@ -262,6 +305,83 @@ def uncomplete_step(db: Session, project_id: int, step_id: int, user_id: int | N
     step.completed_by = None
     audit_service.log_event(
         db, PROJECT_ENTITY_TYPE, project_id, f"Execution step un-completed: {step.name}", user_id
+    )
+    _recompute_progress(db, project_id)
+    db.commit()
+    db.refresh(step)
+    return step
+
+
+def waive_step(db: Session, project_id: int, step_id: int, reason: str, user_id: int | None) -> ProjectExecutionStep:
+    """Marks a step as not applicable for this project -- e.g. a client
+    who doesn't want a false ceiling doesn't need "False ceiling
+    drawings completed" sitting Pending forever. Only reachable from
+    Pending, and only for a step marked is_optional on the template it
+    was snapshotted from; the mandatory steps of the process can't be
+    waived away. Same linear-order and audit-trail conventions as
+    complete_step / payment_service's Cancelled/Waived obligations."""
+    step = get_project_step(db, project_id, step_id)
+    if step.status != "Pending":
+        raise ValidationAppError("Only a pending step can be waived.")
+    if not step.is_optional:
+        raise ValidationAppError("This step is not optional and cannot be waived.")
+    if not reason.strip():
+        raise ValidationAppError("A reason is required to waive a step.")
+
+    incomplete_before = (
+        db.query(ProjectExecutionStep)
+        .filter(
+            ProjectExecutionStep.project_id == project_id,
+            ProjectExecutionStep.sequence_number < step.sequence_number,
+            ProjectExecutionStep.status == "Pending",
+        )
+        .count()
+    )
+    if incomplete_before > 0:
+        raise ValidationAppError(
+            "Steps must be resolved in order -- finish the steps before this one first."
+        )
+
+    step.status = "Waived"
+    step.waived_at = datetime.now(timezone.utc)
+    step.waived_by = user_id
+    step.waived_reason = reason.strip()
+    audit_service.log_event(
+        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step waived: {step.name}", user_id, reason=reason.strip()
+    )
+    _recompute_progress(db, project_id)
+    db.commit()
+    db.refresh(step)
+    return step
+
+
+def unwaive_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectExecutionStep:
+    """Reverses a waive back to Pending -- same "only the most recently
+    resolved step" rule as uncomplete_step."""
+    step = get_project_step(db, project_id, step_id)
+    if step.status != "Waived":
+        return step
+
+    later_resolved = (
+        db.query(ProjectExecutionStep)
+        .filter(
+            ProjectExecutionStep.project_id == project_id,
+            ProjectExecutionStep.sequence_number > step.sequence_number,
+            ProjectExecutionStep.status != "Pending",
+        )
+        .count()
+    )
+    if later_resolved > 0:
+        raise ValidationAppError(
+            "Only the most recently completed or waived step can be undone -- undo later steps first."
+        )
+
+    step.status = "Pending"
+    step.waived_at = None
+    step.waived_by = None
+    step.waived_reason = None
+    audit_service.log_event(
+        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step un-waived: {step.name}", user_id
     )
     _recompute_progress(db, project_id)
     db.commit()

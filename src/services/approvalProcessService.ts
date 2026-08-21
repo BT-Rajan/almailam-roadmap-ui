@@ -13,4 +13,12 @@ async function uncompleteStep(projectId: string, stepId: string): Promise<Projec
   return apiClient.post<ProjectApprovalStep>(`/api/projects/${projectId}/approval-steps/${stepId}/uncomplete`)
 }
 
-export const approvalProcessService = { getProjectSteps, completeStep, uncompleteStep }
+async function waiveStep(projectId: string, stepId: string, reason: string): Promise<ProjectApprovalStep> {
+  return apiClient.post<ProjectApprovalStep>(`/api/projects/${projectId}/approval-steps/${stepId}/waive`, { reason })
+}
+
+async function unwaiveStep(projectId: string, stepId: string): Promise<ProjectApprovalStep> {
+  return apiClient.post<ProjectApprovalStep>(`/api/projects/${projectId}/approval-steps/${stepId}/unwaive`)
+}
+
+export const approvalProcessService = { getProjectSteps, completeStep, uncompleteStep, waiveStep, unwaiveStep }
