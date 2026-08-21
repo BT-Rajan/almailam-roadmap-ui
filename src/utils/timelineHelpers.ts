@@ -17,7 +17,7 @@ const TYPE_ICONS: Record<TimelineEventType, Component> = {
 
 const STATUS_VARIANTS: Record<TimelineEventStatus, BadgeVariant> = {
   completed: 'success',
-  'in-progress': 'warning',
+  'in-progress': 'info',
   upcoming: 'neutral',
 }
 

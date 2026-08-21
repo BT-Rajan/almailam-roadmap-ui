@@ -22,9 +22,12 @@ defineEmits<{
   edit: [event: TimelineEvent]
 }>()
 
+// Completed = green, in-progress = blue (info -- the closest theme-aware
+// token to "blue"), upcoming = grey. Matches Stepper.vue's own status
+// coloring so the whole app uses one consistent status color language.
 const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
-  completed: 'border-primary-500 bg-primary-500 text-white',
-  'in-progress': 'border-warning-500 bg-bg-card text-warning-600',
+  completed: 'border-success-500 bg-success-500 text-white',
+  'in-progress': 'border-info-500 bg-bg-card text-info-600',
   upcoming: 'border-border-default bg-bg-card text-text-muted',
 }
 </script>

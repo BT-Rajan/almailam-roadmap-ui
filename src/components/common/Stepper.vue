@@ -47,12 +47,17 @@ function handleStepClick(index: number): void {
   if (isNavigable(index)) emit('select', index)
 }
 
+// Completed = green, work-in-progress (current) = blue (info -- the
+// closest theme-aware token to "blue"; there's no separate blue scale),
+// yet to begin (upcoming) = grey. All three shades used below (500/600)
+// have dark-mode overrides in styles/main.css already, same as every
+// other status color in the app.
 const circleClasses = computed(() => (index: number) => {
   const status = stepStatus(index)
   return [
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors duration-fast',
-    status === 'complete' ? 'border-primary-500 bg-primary-500 text-white' : '',
-    status === 'current' ? 'border-primary-500 bg-bg-card text-primary-600' : '',
+    status === 'complete' ? 'border-success-500 bg-success-500 text-white' : '',
+    status === 'current' ? 'border-info-500 bg-bg-card text-info-600' : '',
     status === 'upcoming' ? 'border-border-default bg-bg-card text-text-muted' : '',
     isNavigable(index) ? 'cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : '',
   ]
@@ -61,7 +66,7 @@ const circleClasses = computed(() => (index: number) => {
 function connectorClasses(index: number): string[] {
   return [
     'h-0.5 flex-1 transition-colors duration-fast',
-    index < props.currentStep ? 'bg-primary-500' : 'bg-border-default',
+    index < props.currentStep ? 'bg-success-500' : 'bg-border-default',
   ]
 }
 </script>
