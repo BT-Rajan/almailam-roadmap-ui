@@ -167,6 +167,38 @@
   .no-print {
     display: none !important;
   }
+
+  /* Printing a Quotation or Contract preview (ProjectQuotationTab /
+     ProjectContractTab's Print button) should print just that
+     document -- not the whole project workspace page around it
+     (header, stat cards, workflow stepper, tab bar). .no-print alone
+     only hides each tab's own chrome (lists, AI cards, buttons); it
+     doesn't touch ProjectHeader.vue or anything above the tab content,
+     which is why printing used to include the whole page. Scoped by
+     these print-area ids -- present only while a quotation/contract is
+     actually selected and being previewed -- so this has no effect on
+     printing from any other tab or a plain browser Ctrl+P elsewhere. */
+  body:has(#quotation-print-area) *,
+  body:has(#contract-print-area) * {
+    visibility: hidden;
+  }
+  /* !important is required here, not just declaration order: the
+     :has() argument's own specificity counts towards the selector
+     that contains it, so "body:has(#id) *" above is already more
+     specific than a bare "#id" -- a plain (non-important) show rule
+     would lose to it despite coming later in the file. */
+  #quotation-print-area,
+  #quotation-print-area *,
+  #contract-print-area,
+  #contract-print-area * {
+    visibility: visible !important;
+  }
+  #quotation-print-area,
+  #contract-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
