@@ -544,9 +544,18 @@ CREATE TABLE IF NOT EXISTS project_documents (
     uploaded_by         BIGINT UNSIGNED NOT NULL,
     upload_date         DATE NOT NULL,
     status              ENUM('Draft','Under Review','Approved','Rejected') NOT NULL DEFAULT 'Draft',
-    storage_key         VARCHAR(300) NOT NULL,
-    original_filename   VARCHAR(255) NOT NULL,
-    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    -- All three NULL -- a row can be a plain external link with no
+    -- uploaded file at all (see external_link below), an uploaded file
+    -- with no link, or both; document_service.create_document requires
+    -- at least one of the two at the application layer.
+    storage_key         VARCHAR(300) NULL,
+    original_filename   VARCHAR(255) NULL,
+    file_size_bytes     BIGINT UNSIGNED NULL,
+    -- A link to a document that lives outside the app (a shared drive,
+    -- cloud folder, etc.) -- same idea as ProjectLinkDocument, but on
+    -- ProjectDocument itself so the Design tab's list can mix uploaded
+    -- files and external links in one CRUD table.
+    external_link       VARCHAR(1000) NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,

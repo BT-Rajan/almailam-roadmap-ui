@@ -24,11 +24,12 @@ class DocumentOut(BaseModel):
     uploadedBy: str
     uploadDate: date
     status: str
-    fileSize: str
-    originalFilename: str
+    fileSize: str | None
+    originalFilename: str | None
+    externalLink: str | None
 
     @staticmethod
-    def from_model(document, project_no: str, uploaded_by_name: str, file_size_display: str) -> "DocumentOut":
+    def from_model(document, project_no: str, uploaded_by_name: str, file_size_display: str | None) -> "DocumentOut":
         return DocumentOut(
             id=document.document_no,
             projectId=project_no,
@@ -41,6 +42,7 @@ class DocumentOut(BaseModel):
             status=document.status,
             fileSize=file_size_display,
             originalFilename=document.original_filename,
+            externalLink=document.external_link,
         )
 
 
@@ -50,6 +52,10 @@ class DocumentUpdate(BaseModel):
     # omitted (None) leaves it untouched -- distinct meanings, see
     # document_service.update_document.
     stageKey: str | None = Field(default=None, max_length=40)
+    # Same omitted-vs-empty-string convention as stageKey above --
+    # empty string clears the link, omitted leaves it untouched.
+    externalLink: str | None = Field(default=None, max_length=1000)
+    uploadDate: date | None = None
 
 
 class DocumentStatusUpdate(BaseModel):

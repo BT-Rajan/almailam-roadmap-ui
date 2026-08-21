@@ -93,11 +93,12 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
 // never called this function at all, so uploaded documents never persisted
 // and didn't have a real, unique, server-issued id.
 async function uploadDocument(
-  file: File,
+  file: File | undefined,
   projectId: string,
   title: string,
   type: DocumentType,
   stageKey?: string,
+  externalLink?: string,
 ): Promise<ProjectDocument> {
   const authStore = useAuthStore()
   const formData = new FormData()
@@ -105,7 +106,8 @@ async function uploadDocument(
   formData.append('title', title)
   formData.append('type', type)
   if (stageKey) formData.append('stageKey', stageKey)
-  formData.append('file', file)
+  if (externalLink) formData.append('externalLink', externalLink)
+  if (file) formData.append('file', file)
 
   const doRequest = () =>
     fetch('/api/documents', {
@@ -141,15 +143,23 @@ async function uploadDocument(
  * Update a document's title and/or stage tag via backend API
  * (PATCH /api/documents/{id})
  */
-async function updateDocument(documentId: string, title: string, stageKey?: string | null): Promise<ProjectDocument> {
+async function updateDocument(
+  documentId: string,
+  title: string,
+  stageKey?: string | null,
+  externalLink?: string | null,
+  uploadDate?: string,
+): Promise<ProjectDocument> {
   try {
     return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}`, {
       title,
-      // Distinguish "clear the stage tag" (empty string) from "don't
-      // touch it" (omitted) -- undefined here means the key is left out
-      // of the request body entirely, matching the backend's own
-      // omitted-vs-empty-string convention (see schemas/document.py).
+      // Distinguish "clear the field" (empty string) from "don't touch
+      // it" (omitted) -- undefined here means the key is left out of
+      // the request body entirely, matching the backend's own omitted-
+      // vs-empty-string convention (see schemas/document.py).
       ...(stageKey !== undefined ? { stageKey: stageKey ?? '' } : {}),
+      ...(externalLink !== undefined ? { externalLink: externalLink ?? '' } : {}),
+      ...(uploadDate !== undefined ? { uploadDate } : {}),
     })
   } catch (error) {
     console.error(`Failed to update document ${documentId}:`, error)
