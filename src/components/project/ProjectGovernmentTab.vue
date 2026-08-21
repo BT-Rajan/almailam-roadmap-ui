@@ -6,9 +6,8 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
@@ -17,6 +16,8 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { SmartTableColumn } from '@/types/Table'
+import type { SubmissionStatus } from '@/types/Submission'
 import { formatDate } from '@/utils/dateFormatter'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 
@@ -35,6 +36,41 @@ const isCreating = ref(false)
 
 const projectSubmissions = computed(() =>
   governmentSubmissionStore.submissionsByProject(props.projectId),
+)
+
+interface SubmissionTableRow {
+  [key: string]: unknown
+  id: string
+  submissionNo: string
+  formTitle: string
+  authorityName: string
+  status: SubmissionStatus
+  submittedDate: string
+  expectedDecisionDate: string
+  decisionDate: string
+}
+
+const TABLE_COLUMNS: SmartTableColumn<SubmissionTableRow>[] = [
+  { key: 'submissionNo', label: 'Submission No.', sortable: true, width: '140px' },
+  { key: 'formTitle', label: 'Form', sortable: true },
+  { key: 'authorityName', label: 'Authority', sortable: true },
+  { key: 'submittedDate', label: 'Submitted', sortable: true },
+  { key: 'expectedDecisionDate', label: 'Estimated Response' },
+  { key: 'decisionDate', label: 'Actual Response' },
+  { key: 'status', label: 'Status', sortable: true },
+]
+
+const tableRows = computed<SubmissionTableRow[]>(() =>
+  projectSubmissions.value.map((submission) => ({
+    id: submission.id,
+    submissionNo: submission.submissionNo,
+    formTitle: governmentSubmissionStore.getFormById(submission.formId)?.title ?? 'Unknown Form',
+    authorityName: governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? 'Unknown Authority',
+    status: submission.status,
+    submittedDate: submission.submittedDate ?? '',
+    expectedDecisionDate: submission.expectedDecisionDate ?? '',
+    decisionDate: submission.decisionDate ?? '',
+  })),
 )
 
 const selectedSubmission = computed(() =>
@@ -56,16 +92,22 @@ const selectedSubmissionDetails = computed(() => {
         : 'Not submitted yet',
     },
     {
-      label: 'Expected Decision',
+      label: 'Estimated Response',
       value: selectedSubmission.value.expectedDecisionDate
         ? formatDate(selectedSubmission.value.expectedDecisionDate)
         : 'Not set',
     },
+    {
+      label: 'Actual Response',
+      value: selectedSubmission.value.decisionDate
+        ? formatDate(selectedSubmission.value.decisionDate)
+        : 'Not yet received',
+    },
   ]
 })
 
-function openSubmission(submissionId: string): void {
-  selectedSubmissionId.value = submissionId
+function openSubmission(row: SubmissionTableRow): void {
+  selectedSubmissionId.value = row.id
   isDrawerOpen.value = true
 }
 
@@ -89,42 +131,36 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
     <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Submission</BaseButton>
   </div>
 
-  <div v-if="governmentSubmissionStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
-    <SkeletonLoader :rows="6" />
-  </div>
-
   <ErrorState
-    v-else-if="governmentSubmissionStore.error"
+    v-if="governmentSubmissionStore.error"
     :description="governmentSubmissionStore.error"
     @retry="governmentSubmissionStore.loadSubmissions"
   />
 
-  <EmptyState
-    v-else-if="projectSubmissions.length === 0"
-    title="No submissions yet"
-    description="Government submissions filed for this project will appear here."
-    action-label="New Submission"
-    @action="isCreateDialogOpen = true"
-  />
-
-  <div v-else class="flex flex-col gap-3">
-    <button
-      v-for="submission in projectSubmissions"
-      :key="submission.id"
-      type="button"
-      class="flex flex-col gap-2 rounded-xl border border-border-light bg-bg-card p-4 text-left shadow-soft transition-colors duration-fast hover:bg-bg-hover tablet:flex-row tablet:items-center tablet:justify-between"
-      @click="openSubmission(submission.id)"
-    >
-      <div class="min-w-0">
-        <p class="text-sm font-semibold text-text-primary">{{ submission.submissionNo }}</p>
-        <p class="truncate text-xs text-text-muted">
-          {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? 'Unknown Form' }} ·
-          {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? 'Unknown Authority' }}
-        </p>
-      </div>
-      <StatusBadge :label="submission.status" :variant="getSubmissionStatusVariant(submission.status)" />
-    </button>
-  </div>
+  <SmartTable
+    v-else
+    :columns="TABLE_COLUMNS"
+    :rows="tableRows"
+    row-key="id"
+    :loading="governmentSubmissionStore.isLoading"
+    :searchable="false"
+    empty-title="No submissions yet"
+    empty-description="Government submissions filed for this project will appear here."
+    @row-click="openSubmission"
+  >
+    <template #cell-status="{ value }">
+      <StatusBadge :label="value as string" :variant="getSubmissionStatusVariant(value as SubmissionStatus)" />
+    </template>
+    <template #cell-submittedDate="{ value }">
+      {{ value ? formatDate(value as string) : 'Not submitted' }}
+    </template>
+    <template #cell-expectedDecisionDate="{ value }">
+      {{ value ? formatDate(value as string) : 'Not set' }}
+    </template>
+    <template #cell-decisionDate="{ value }">
+      {{ value ? formatDate(value as string) : 'Not yet received' }}
+    </template>
+  </SmartTable>
 
   <BaseButton
     variant="ghost"

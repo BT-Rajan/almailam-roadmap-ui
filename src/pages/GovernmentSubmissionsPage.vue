@@ -35,6 +35,7 @@ interface SubmissionTableRow {
   status: SubmissionStatus
   submittedDate: string
   expectedDecisionDate: string
+  decisionDate: string
 }
 
 const submissionStore = useGovernmentSubmissionStore()
@@ -87,7 +88,8 @@ const TABLE_COLUMNS: SmartTableColumn<SubmissionTableRow>[] = [
   { key: 'formTitle', label: 'Form' },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'submittedDate', label: 'Submitted', sortable: true },
-  { key: 'expectedDecisionDate', label: 'Expected Decision', align: 'right' },
+  { key: 'expectedDecisionDate', label: 'Estimated Response' },
+  { key: 'decisionDate', label: 'Actual Response', align: 'right' },
 ]
 
 const tableRows = computed<SubmissionTableRow[]>(() =>
@@ -100,6 +102,7 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
     status: submission.status,
     submittedDate: submission.submittedDate ?? '',
     expectedDecisionDate: submission.expectedDecisionDate ?? '',
+    decisionDate: submission.decisionDate ?? '',
   })),
 )
 
@@ -124,10 +127,16 @@ const selectedSubmissionDetails = computed(() => {
         : 'Not submitted yet',
     },
     {
-      label: 'Expected Decision',
+      label: 'Estimated Response',
       value: selectedSubmission.value.expectedDecisionDate
         ? formatDate(selectedSubmission.value.expectedDecisionDate)
         : 'Not set',
+    },
+    {
+      label: 'Actual Response',
+      value: selectedSubmission.value.decisionDate
+        ? formatDate(selectedSubmission.value.decisionDate)
+        : 'Not yet received',
     },
   ]
 })
@@ -234,6 +243,9 @@ async function confirmWithdraw(): Promise<void> {
       </template>
       <template #cell-expectedDecisionDate="{ value }">
         {{ value ? formatDate(value as string) : 'Not set' }}
+      </template>
+      <template #cell-decisionDate="{ value }">
+        {{ value ? formatDate(value as string) : 'Not yet received' }}
       </template>
     </SmartTable>
 
