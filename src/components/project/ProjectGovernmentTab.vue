@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -15,7 +15,7 @@ import SubmissionApprovalStepper from '@/components/government/SubmissionApprova
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SubmissionStatus } from '@/types/Submission'
 import { formatDate } from '@/utils/dateFormatter'
@@ -27,7 +27,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
@@ -37,6 +37,15 @@ const isCreating = ref(false)
 const projectSubmissions = computed(() =>
   governmentSubmissionStore.submissionsByProject(props.projectId),
 )
+
+// Without this, opening this tab directly (rather than via the global
+// Government Submissions Workspace page first) leaves the store's
+// projects/authorities/forms empty -- New Submission's Authority and
+// Form dropdowns would have nothing to select, silently blocking every
+// submission from being created.
+onMounted(() => {
+  if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
+})
 
 interface SubmissionTableRow {
   [key: string]: unknown
@@ -115,11 +124,11 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   isCreating.value = true
   try {
     const submission = await governmentSubmissionStore.createSubmission(payload)
-    toastStore.show('success', 'Submission created', `${submission.submissionNo} was created successfully.`)
+    resultDialogStore.showSuccess('Submission created', `${submission.submissionNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create submission', detail)
+    resultDialogStore.showError('Failed to create submission', detail)
   } finally {
     isCreating.value = false
   }

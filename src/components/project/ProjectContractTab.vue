@@ -12,7 +12,7 @@ import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import { useContractStore } from '@/stores/contractStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -23,7 +23,7 @@ const props = defineProps<{
 }>()
 
 const contractStore = useContractStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
@@ -32,11 +32,11 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
   isCreating.value = true
   try {
     const contract = await contractStore.createContract({ ...payload, projectId: props.project.id })
-    toastStore.show('success', 'Contract created', `${contract.contractNo} was created successfully.`)
+    resultDialogStore.showSuccess('Contract created', `${contract.contractNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create contract', detail)
+    resultDialogStore.showError('Failed to create contract', detail)
   } finally {
     isCreating.value = false
   }
