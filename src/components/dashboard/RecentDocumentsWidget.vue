@@ -26,7 +26,7 @@ const displayedDocuments = computed(() =>
     .slice(0, props.maxItems),
 )
 
-const formatSize = (size: string) => size
+const formatSize = (size: string | null) => size ?? 'No file'
 
 const formatDate = (date: string) => {
   const d = new Date(date)

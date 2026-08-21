@@ -155,7 +155,7 @@ export const useDocumentStore = defineStore('document', {
     async downloadCurrentDocument(): Promise<void> {
       if (!this.currentDocument) return
       const blob = await documentService.downloadDocument(this.currentDocument.id)
-      triggerBlobDownload(blob, this.currentDocument.originalFilename)
+      triggerBlobDownload(blob, this.currentDocument.originalFilename ?? this.currentDocument.title)
     },
 
     async downloadVersion(versionId: string, filename: string): Promise<void> {
@@ -214,24 +214,48 @@ export const useDocumentStore = defineStore('document', {
     // on documentService.uploadDocument for why this replaces the old
     // fake-id, non-persistent upload path.
     async uploadDocument(
-      file: File,
+      file: File | undefined,
       projectId: string,
       title: string,
       type: DocumentType,
       stageKey?: string,
+      externalLink?: string,
     ): Promise<ProjectDocument> {
-      const document = await documentService.uploadDocument(file, projectId, title, type, stageKey)
+      const document = await documentService.uploadDocument(file, projectId, title, type, stageKey, externalLink)
       this.documents = [document, ...this.documents]
       return document
     },
 
-    async updateDocument(documentId: string, title: string, stageKey?: string | null): Promise<ProjectDocument> {
-      const updated = await documentService.updateDocument(documentId, title, stageKey)
+    async updateDocument(
+      documentId: string,
+      title: string,
+      stageKey?: string | null,
+      externalLink?: string | null,
+      uploadDate?: string,
+    ): Promise<ProjectDocument> {
+      const updated = await documentService.updateDocument(documentId, title, stageKey, externalLink, uploadDate)
       this.documents = this.documents.map((document) => (document.id === documentId ? updated : document))
       if (this.currentDocument?.id === documentId) {
         this.currentDocument = updated
       }
       return updated
+    },
+
+    // Attaches/replaces a design document's uploaded file (via the
+    // existing version-upload endpoint, same as VersionHistory's "new
+    // revision" -- a design row can start link-only and gain a file
+    // later, same mechanism either way) and folds the result back into
+    // the local list without requiring currentDocument to be set.
+    async attachFile(documentId: string, file: File): Promise<ProjectDocument | undefined> {
+      await documentService.addVersion(documentId, file)
+      const document = await documentService.getDocumentById(documentId)
+      if (document) {
+        this.documents = this.documents.map((d) => (d.id === documentId ? document : d))
+        if (this.currentDocument?.id === documentId) {
+          this.currentDocument = document
+        }
+      }
+      return document
     },
 
     async deleteDocument(documentId: string): Promise<void> {

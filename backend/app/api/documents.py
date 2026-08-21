@@ -36,7 +36,7 @@ def _document_out(db: Session, document) -> DocumentOut:
         document,
         _project_no(db, document.project_id),
         document_service.user_name(db, document.uploaded_by),
-        format_file_size(document.file_size_bytes),
+        format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
     )
 
 
@@ -70,7 +70,7 @@ def list_documents(
             d,
             project_nos.get(d.project_id, ""),
             uploader_names.get(d.uploaded_by, "Unknown"),
-            format_file_size(d.file_size_bytes),
+            format_file_size(d.file_size_bytes) if d.file_size_bytes is not None else None,
         )
         for d in documents
     ]
@@ -88,11 +88,14 @@ def create_document(
     title: str = Form(...),
     type: str = Form(...),
     stageKey: str | None = Form(default=None),
-    file: UploadFile = File(...),
+    externalLink: str | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    document = document_service.create_document(db, projectId, title, type, file, current_user.id, stageKey)
+    document = document_service.create_document(
+        db, projectId, title, type, file, current_user.id, stageKey, externalLink
+    )
     return _document_out(db, document)
 
 

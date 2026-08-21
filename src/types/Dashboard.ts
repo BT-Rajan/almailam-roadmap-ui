@@ -55,5 +55,6 @@ export interface DocumentItem {
   type: string
   uploadedAt: string
   uploadedBy: string
-  size: string
+  // Null for a link-only document with no uploaded file.
+  size: string | null
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, FilePlus } from '@lucide/vue'
+import { AlertTriangle, CheckCircle2, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -7,12 +7,12 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import SmartTable from '@/components/common/SmartTable.vue'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
-import DocumentCard from '@/components/document/DocumentCard.vue'
-import DocumentEditDialog from '@/components/document/DocumentEditDialog.vue'
-import DocumentUploadDialog from '@/components/document/DocumentUploadDialog.vue'
+import DesignDocumentDialog from '@/components/document/DesignDocumentDialog.vue'
 import LinkDocumentCard from '@/components/document/LinkDocumentCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
@@ -22,6 +22,8 @@ import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
 import type { ProjectDocument, ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
 import type { Project } from '@/types/Project'
+import type { SmartTableColumn } from '@/types/Table'
+import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
   project: Project
@@ -34,11 +36,9 @@ const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
 const toastStore = useToastStore()
 
-const isUploadOpen = ref(false)
-
-const isEditDialogOpen = ref(false)
-const isEditSaving = ref(false)
-const editTarget = ref<ProjectDocument | null>(null)
+const isDesignDialogOpen = ref(false)
+const isDesignSaving = ref(false)
+const designDialogTarget = ref<ProjectDocument | null>(null)
 
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
@@ -52,23 +52,51 @@ const isLinkDeleteDialogOpen = ref(false)
 const isLinkDeleteSaving = ref(false)
 const linkDeleteTarget = ref<ProjectLinkDocument | null>(null)
 
-function openEditDialog(document: ProjectDocument): void {
-  editTarget.value = document
-  isEditDialogOpen.value = true
+function openAddDesignDialog(): void {
+  designDialogTarget.value = null
+  isDesignDialogOpen.value = true
 }
 
-async function handleConfirmEdit(payload: { title: string; stageKey: string | null }): Promise<void> {
-  if (!editTarget.value) return
-  isEditSaving.value = true
+function openEditDesignDialog(document: ProjectDocument): void {
+  designDialogTarget.value = document
+  isDesignDialogOpen.value = true
+}
+
+async function handleSaveDesignDocument(payload: {
+  title: string
+  date: string
+  link: string
+  file: File | undefined
+}): Promise<void> {
+  isDesignSaving.value = true
   try {
-    await documentStore.updateDocument(editTarget.value.id, payload.title, payload.stageKey)
-    toastStore.show('success', 'Document updated', 'Changes were saved successfully.')
-    isEditDialogOpen.value = false
+    if (designDialogTarget.value) {
+      const target = designDialogTarget.value
+      await documentStore.updateDocument(target.id, payload.title, undefined, payload.link || null, payload.date)
+      if (payload.file) {
+        await documentStore.attachFile(target.id, payload.file)
+      }
+      toastStore.show('success', 'Document updated', `${payload.title} was updated successfully.`)
+    } else {
+      const created = await documentStore.uploadDocument(
+        payload.file,
+        props.project.id,
+        payload.title,
+        'Drawing',
+        undefined,
+        payload.link || undefined,
+      )
+      if (payload.date !== created.uploadDate) {
+        await documentStore.updateDocument(created.id, payload.title, undefined, payload.link || null, payload.date)
+      }
+      toastStore.show('success', 'Document added', `${payload.title} was added successfully.`)
+    }
+    isDesignDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update document', detail)
+    toastStore.show('error', designDialogTarget.value ? 'Failed to update document' : 'Failed to add document', detail)
   } finally {
-    isEditSaving.value = false
+    isDesignSaving.value = false
   }
 }
 
@@ -99,10 +127,33 @@ const visibleDocuments = computed(() =>
     : projectDocuments.value.filter((document) => document.type === 'Drawing'),
 )
 
-function handleUpload(document: ProjectDocument): void {
-  toastStore.show('success', 'Document uploaded', `${document.title} was added to the repository.`)
-  isUploadOpen.value = false
+interface DesignDocumentRow {
+  [key: string]: unknown
+  id: string
+  title: string
+  fileName: string
+  date: string
+  link: string
+  raw: ProjectDocument
 }
+
+const DESIGN_TABLE_COLUMNS: SmartTableColumn<DesignDocumentRow>[] = [
+  { key: 'title', label: 'Document', sortable: true },
+  { key: 'fileName', label: 'File Name', sortable: true },
+  { key: 'date', label: 'Date', sortable: true, width: '140px' },
+  { key: 'link', label: 'Link', width: '120px' },
+]
+
+const designTableRows = computed<DesignDocumentRow[]>(() =>
+  visibleDocuments.value.map((document) => ({
+    id: document.id,
+    title: document.title,
+    fileName: document.originalFilename ?? '',
+    date: document.uploadDate,
+    link: document.externalLink ?? '',
+    raw: document,
+  })),
+)
 
 function openDocument(documentId: string): void {
   router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
@@ -190,51 +241,67 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
 </script>
 
 <template>
-  <!-- Design mode keeps the original single-list, upload-based view for Drawings. -->
+  <!-- Design mode: a single editable table of Document / File Name / Date / Link. -->
   <template v-if="mode === 'design'">
     <div class="flex items-center justify-end">
-      <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="isUploadOpen = true">
-        Upload Drawing
+      <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDesignDialog">
+        Add Document
       </BaseButton>
     </div>
 
-    <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-      <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
-        <SkeletonLoader :rows="5" />
-      </div>
-    </div>
+    <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
 
-    <ErrorState v-else-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
+    <SmartTable
+      v-else
+      :columns="DESIGN_TABLE_COLUMNS"
+      :rows="designTableRows"
+      row-key="id"
+      :loading="documentStore.isLoading"
+      :searchable="false"
+      empty-title="No documents yet"
+      empty-description="Design drawings and links added for this project will appear here."
+    >
+      <template #cell-fileName="{ row }">
+        <button
+          v-if="row.fileName"
+          type="button"
+          class="text-primary-600 hover:underline"
+          @click.stop="openDocument(row.id)"
+        >
+          {{ row.fileName }}
+        </button>
+        <span v-else class="text-text-muted">—</span>
+      </template>
+      <template #cell-date="{ value }">
+        {{ formatDate(value as string) }}
+      </template>
+      <template #cell-link="{ row }">
+        <a
+          v-if="row.link"
+          :href="row.link as string"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-primary-600 hover:underline"
+          @click.stop
+        >
+          <ExternalLink class="h-3.5 w-3.5" />
+          Open
+        </a>
+        <span v-else class="text-text-muted">—</span>
+      </template>
+      <template #row-actions="{ row }">
+        <div class="flex items-center justify-end gap-1" @click.stop>
+          <IconButton :icon="Pencil" label="Edit document" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
+          <IconButton :icon="Trash2" label="Delete document" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
+        </div>
+      </template>
+    </SmartTable>
 
-    <EmptyState
-      v-else-if="visibleDocuments.length === 0"
-      title="No documents yet"
-      description="Design drawings uploaded for this project will appear here."
-    />
-
-    <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-      <DocumentCard
-        v-for="document in visibleDocuments"
-        :key="document.id"
-        :document="document"
-        :project="project"
-        @open="openDocument"
-        @edit="openEditDialog"
-        @delete="requestDelete"
-      />
-    </div>
-
-    <DocumentUploadDialog
-      v-model="isUploadOpen"
-      :projects="[project]"
-      initial-document-type="Drawing"
-      @upload="handleUpload"
-    />
-    <DocumentEditDialog
-      v-model="isEditDialogOpen"
-      :document="editTarget"
-      :loading="isEditSaving"
-      @confirm="handleConfirmEdit"
+    <DesignDocumentDialog
+      v-model="isDesignDialogOpen"
+      :document="designDialogTarget"
+      :is-saving="isDesignSaving"
+      @save="handleSaveDesignDocument"
     />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"

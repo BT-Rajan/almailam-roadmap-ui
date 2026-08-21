@@ -35,9 +35,18 @@ class ProjectDocument(Base, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(
         Enum(*DOCUMENT_STATUSES, name="document_status"), nullable=False, default="Draft"
     )
-    storage_key: Mapped[str] = mapped_column(String(300), nullable=False)
-    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # All three nullable -- a row can be a plain external link with no
+    # uploaded file at all (see external_link below), an uploaded file
+    # with no link, or both; create_document requires at least one of
+    # the two at the application layer, not here.
+    storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # A link to a document that lives outside the app (a shared drive,
+    # cloud folder, etc.) -- same idea as ProjectLinkDocument, but on
+    # this model so the Design tab's list can mix uploaded files and
+    # external links in one CRUD table.
+    external_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Which of the 5 Project Approval Process stages (see
     # approval_process.py) this document belongs to -- e.g. an
     # architectural drawing tagged 'architectural_approval'. Nullable:
