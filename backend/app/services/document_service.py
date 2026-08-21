@@ -16,6 +16,7 @@ from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocume
 from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service, notification_service, project_service, timeline_service
+from app.services.execution_step_service import STAGE_KEYS
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -112,6 +113,8 @@ def create_document(
 ) -> ProjectDocument:
     project = _project_by_no(db, project_no)
     project_service.assert_project_open_for_new_work(project)
+    if stage_key and stage_key not in STAGE_KEYS:
+        raise ValidationAppError("Invalid stage key.")
     storage_key, original_filename, size_bytes = save_upload(file, "documents")
 
     document = ProjectDocument(
@@ -170,6 +173,8 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
         document.title = payload.title
     if payload.stageKey is not None:
         new_stage_key = payload.stageKey or None
+        if new_stage_key is not None and new_stage_key not in STAGE_KEYS:
+            raise ValidationAppError("Invalid stage key.")
         if new_stage_key != document.stage_key:
             changes["stage"] = (document.stage_key, new_stage_key)
             document.stage_key = new_stage_key

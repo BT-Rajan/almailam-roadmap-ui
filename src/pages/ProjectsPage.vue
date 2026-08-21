@@ -57,7 +57,6 @@ const STAGE_OPTIONS: SelectOption[] = [
   { label: 'Design', value: 'Design' },
   { label: 'Government Submission', value: 'Government Submission' },
   { label: 'Review', value: 'Review' },
-  { label: 'Correction', value: 'Correction' },
   { label: 'Approval', value: 'Approval' },
   { label: 'Completed', value: 'Completed' },
 ]
