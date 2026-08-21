@@ -197,6 +197,18 @@ async function updateCompletionNotes(projectId: string, notes: string): Promise<
   }
 }
 
+/**
+ * Save the PM's annotation on the auto-derived scope-deviation read via backend API.
+ */
+async function updateDeviationNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
+  try {
+    return await apiClient.patch<ProjectCompletionSummary>(`/api/projects/${projectId}/deviation-notes`, { notes })
+  } catch (error) {
+    console.error(`Failed to save deviation notes for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save deviation notes')
+  }
+}
+
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -209,4 +221,5 @@ export const projectService = {
   deleteProject,
   getCompletionSummary,
   updateCompletionNotes,
+  updateDeviationNotes,
 }

@@ -9,6 +9,7 @@ from app.schemas.common import PagedResponse
 from app.schemas.project import (
     CompletionNotesUpdate,
     CompletionSummaryOut,
+    DeviationNotesUpdate,
     ProjectCreate,
     ProjectOut,
     ProjectStageUpdate,
@@ -121,6 +122,17 @@ def update_completion_notes(
     current_user: User = Depends(can_edit),
 ):
     project_service.update_completion_notes(db, project_no, payload.notes, current_user.id)
+    return project_service.get_completion_summary(db, project_no)
+
+
+@router.patch("/{project_no}/deviation-notes", response_model=CompletionSummaryOut)
+def update_deviation_notes(
+    project_no: str,
+    payload: DeviationNotesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project_service.update_deviation_notes(db, project_no, payload.notes, current_user.id)
     return project_service.get_completion_summary(db, project_no)
 
 

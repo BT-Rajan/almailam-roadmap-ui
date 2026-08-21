@@ -255,9 +255,12 @@ CREATE TABLE IF NOT EXISTS projects (
     -- Set once by set_status() when status becomes Completed, cleared on
     -- reopen -- backs the Completion summary's actual-vs-planned
     -- duration. completion_notes is the same summary's free-text
-    -- handover/lessons-learned box.
+    -- handover/lessons-learned box. deviation_notes is a separate PM
+    -- annotation on the auto-derived "what changed vs. what was asked
+    -- for" read (contract revisions + budget/duration variance).
     completed_at    DATETIME NULL,
     completion_notes TEXT NULL,
+    deviation_notes TEXT NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
