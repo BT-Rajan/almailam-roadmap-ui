@@ -25,6 +25,12 @@
 --    applicable for a given client rather than blocking the checklist
 --    forever.
 --
+-- Idempotent -- guarded by information_schema checks, same pattern as
+-- migrations 0004/0008-0010/0013/0015. install.sh has no migration-
+-- tracking table; it reapplies every file in this directory on every
+-- run, so each one has to tolerate being run again against a database
+-- it's already been applied to.
+--
 -- Run this against your MySQL/MariaDB database, e.g.:
 --   mysql -u <user> -p <database> < backend/migrations/0018_process_cleanup.sql
 
@@ -39,31 +45,177 @@ DROP TABLE IF EXISTS workflow_templates;
 -- Part 2: stage grouping + optional/waivable steps
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE execution_step_templates
-    ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '' AFTER weight_percentage,
-    ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key;
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'execution_step_templates' AND COLUMN_NAME = 'stage_key'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE execution_step_templates ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '''' AFTER weight_percentage',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'execution_step_templates' AND COLUMN_NAME = 'is_optional'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE execution_step_templates ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'stage_key'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '''' AFTER weight_percentage',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'is_optional'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_at'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN waived_at DATETIME NULL AFTER completed_by',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_by'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'waived_reason'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @constraint_exists = (
+  SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps'
+    AND CONSTRAINT_NAME = 'fk_project_execution_steps_waived_by'
+);
+SET @sql = IF(@constraint_exists = 0,
+  'ALTER TABLE project_execution_steps ADD CONSTRAINT fk_project_execution_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- MODIFY COLUMN is naturally idempotent -- re-running the same ENUM
+-- definition against a column that already has it is a safe no-op, so
+-- this doesn't need an information_schema guard (same as migration
+-- 0013's ENUM widening).
 ALTER TABLE project_execution_steps
-    ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '' AFTER weight_percentage,
-    ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key,
-    ADD COLUMN waived_at DATETIME NULL AFTER completed_by,
-    ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at,
-    ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by,
-    ADD CONSTRAINT fk_project_execution_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
-    MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
+  MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
 
-ALTER TABLE approval_process_templates
-    ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '' AFTER name,
-    ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key;
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'approval_process_templates' AND COLUMN_NAME = 'stage_key'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE approval_process_templates ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '''' AFTER name',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'approval_process_templates' AND COLUMN_NAME = 'is_optional'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE approval_process_templates ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'stage_key'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_approval_steps ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '''' AFTER name',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'is_optional'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_approval_steps ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_at'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_approval_steps ADD COLUMN waived_at DATETIME NULL AFTER completed_by',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_by'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_approval_steps ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'waived_reason'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_approval_steps ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @constraint_exists = (
+  SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps'
+    AND CONSTRAINT_NAME = 'fk_project_approval_steps_waived_by'
+);
+SET @sql = IF(@constraint_exists = 0,
+  'ALTER TABLE project_approval_steps ADD CONSTRAINT fk_project_approval_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 ALTER TABLE project_approval_steps
-    ADD COLUMN stage_key VARCHAR(40) NOT NULL DEFAULT '' AFTER name,
-    ADD COLUMN is_optional TINYINT(1) NOT NULL DEFAULT 0 AFTER stage_key,
-    ADD COLUMN waived_at DATETIME NULL AFTER completed_by,
-    ADD COLUMN waived_by BIGINT UNSIGNED NULL AFTER waived_at,
-    ADD COLUMN waived_reason VARCHAR(500) NULL AFTER waived_by,
-    ADD CONSTRAINT fk_project_approval_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
-    MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
+  MODIFY COLUMN status ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending';
 
 -- ---------------------------------------------------------------------------
 -- Part 3: backfill stage_key on the 5 approval stages -- each stage is
