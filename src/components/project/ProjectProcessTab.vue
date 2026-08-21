@@ -1,33 +1,54 @@
 <script setup lang="ts">
-import { CheckCircle2, Circle, RotateCcw, XCircle } from '@lucide/vue'
+import { CheckCircle2, Circle, FileText, ListChecks, Plus, RotateCcw, XCircle } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
+import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
 import WaiveStepDialog from '@/components/project/WaiveStepDialog.vue'
 import { PROCESS_STAGES } from '@/constants/processStages'
+import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectApprovalStore } from '@/stores/projectApprovalStore'
 import { useProjectExecutionStore } from '@/stores/projectExecutionStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useTaskStore } from '@/stores/taskStore'
+import { useTimelineStore } from '@/stores/timelineStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ProjectApprovalStep } from '@/types/ApprovalProcess'
 import type { ProjectExecutionStep } from '@/types/ExecutionStep'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { TimelineEvent } from '@/types/Timeline'
 
 const props = defineProps<{
   project: Project
+}>()
+
+const emit = defineEmits<{
+  'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
 const executionStore = useProjectExecutionStore()
 const approvalStore = useProjectApprovalStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+const timelineStore = useTimelineStore()
+const documentStore = useDocumentStore()
+const taskStore = useTaskStore()
 
 function loadData(): void {
   executionStore.loadSteps(props.project.id)
   approvalStore.loadSteps(props.project.id)
+  timelineStore.loadTimelineForProject(props.project.id)
+  // Documents and Tasks are only needed here for the status cards'
+  // counts -- loaded once, lazily, same "load if not already loaded"
+  // convention as the Documents/Tasks tabs use themselves, so opening
+  // Process first doesn't cost a duplicate fetch if those tabs are
+  // opened afterward.
+  if (documentStore.documents.length === 0) documentStore.loadDocuments()
+  if (taskStore.tasks.length === 0) taskStore.loadTasks()
 }
 
 onMounted(loadData)
@@ -37,8 +58,17 @@ onMounted(loadData)
 // project's checklists.
 watch(() => props.project.id, loadData)
 
-const isLoading = computed(() => executionStore.isLoading || approvalStore.isLoading)
-const error = computed(() => executionStore.error ?? approvalStore.error)
+const isLoading = computed(() => executionStore.isLoading || approvalStore.isLoading || timelineStore.isLoading)
+const error = computed(() => executionStore.error ?? approvalStore.error ?? timelineStore.error)
+
+const projectDocuments = computed(() => documentStore.documentsByProject(props.project.id))
+const pendingReviewDocuments = computed(() => projectDocuments.value.filter((d) => d.status === 'Under Review'))
+
+const projectTasks = computed(() => taskStore.tasksByProject(props.project.id))
+const openTasks = computed(() => projectTasks.value.filter((t) => t.status !== 'Completed'))
+const overdueTasks = computed(() =>
+  openTasks.value.filter((t) => t.dueDate < new Date().toISOString().slice(0, 10)),
+)
 
 // One unified process view -- the 5 Project Approval Process stages,
 // each expanded to the execution steps that feed into it, instead of
@@ -154,6 +184,41 @@ async function handleConfirmWaive(reason: string): Promise<void> {
     isWaiveSubmitting.value = false
   }
 }
+
+// History -- the project's full timeline/activity feed, folded in here
+// rather than living on its own tab (it used to be duplicated across a
+// Timeline tab and an Activity tab that showed the exact same events,
+// just sorted in reverse).
+const isTimelineDialogOpen = ref(false)
+const editingTimelineEvent = ref<TimelineEvent | undefined>(undefined)
+
+function openAddTimelineEntry(): void {
+  editingTimelineEvent.value = undefined
+  isTimelineDialogOpen.value = true
+}
+
+function openEditTimelineEntry(event: TimelineEvent): void {
+  editingTimelineEvent.value = event
+  isTimelineDialogOpen.value = true
+}
+
+function handleSaveTimelineEntry(event: TimelineEvent): void {
+  if (editingTimelineEvent.value) {
+    void timelineStore.saveEventUpdate(props.project.id, event.id, {
+      title: event.title,
+      description: event.description,
+      status: event.status,
+      date: event.date,
+    })
+  } else {
+    void timelineStore.createEvent(props.project.id, {
+      title: event.title,
+      description: event.description,
+      status: event.status,
+      date: event.date,
+    })
+  }
+}
 </script>
 
 <template>
@@ -169,6 +234,44 @@ async function handleConfirmWaive(reason: string): Promise<void> {
         The Project Approval Process (5 stages) and its execution checklist (23 steps). Steps are resolved in order;
         an optional step can be waived instead of completed when a client's requirements don't call for it.
       </p>
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          class="flex items-center gap-3 rounded-xl border border-border-light bg-bg-card p-4 text-left shadow-glass-sm transition-shadow duration-normal hover:shadow-glass"
+          @click="emit('navigate-tab', 'documents')"
+        >
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info-50 text-info-600">
+            <FileText class="h-5 w-5" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold text-text-primary">
+              {{ documentStore.isLoading ? '…' : projectDocuments.length }} Documents
+            </span>
+            <span class="block text-xs text-text-muted">
+              {{ documentStore.isLoading ? 'Loading…' : `${pendingReviewDocuments.length} pending review` }}
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-3 rounded-xl border border-border-light bg-bg-card p-4 text-left shadow-glass-sm transition-shadow duration-normal hover:shadow-glass"
+          @click="emit('navigate-tab', 'tasks')"
+        >
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-50 text-warning-600">
+            <ListChecks class="h-5 w-5" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold text-text-primary">
+              {{ taskStore.isLoading ? '…' : openTasks.length }} Open Tasks
+            </span>
+            <span class="block text-xs text-text-muted">
+              {{ taskStore.isLoading ? 'Loading…' : `${overdueTasks.length} overdue` }}
+            </span>
+          </span>
+        </button>
+      </div>
 
       <Card v-for="{ stage, approvalStep, executionSteps } in stagesWithSteps" :key="stage.key">
         <template #header>
@@ -295,6 +398,14 @@ async function handleConfirmWaive(reason: string): Promise<void> {
           </li>
         </ol>
       </Card>
+
+      <div class="mt-2 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-text-primary">History</h2>
+        <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="openAddTimelineEntry">
+          Add Update
+        </BaseButton>
+      </div>
+      <ProjectTimeline :events="timelineStore.events" editable @edit="openEditTimelineEntry" />
     </template>
 
     <WaiveStepDialog
@@ -302,6 +413,13 @@ async function handleConfirmWaive(reason: string): Promise<void> {
       :step-name="waiveDialogStepName"
       :is-submitting="isWaiveSubmitting"
       @confirm="handleConfirmWaive"
+    />
+
+    <TimelineEntryDialog
+      v-model="isTimelineDialogOpen"
+      :project-id="project.id"
+      :event="editingTimelineEvent"
+      @save="handleSaveTimelineEntry"
     />
   </div>
 </template>

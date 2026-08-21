@@ -17,7 +17,6 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
 // shipping with the page on first load.
-const ProjectTimelineTab = defineAsyncComponent(() => import('@/components/project/ProjectTimelineTab.vue'))
 const ProjectProcessTab = defineAsyncComponent(() => import('@/components/project/ProjectProcessTab.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
@@ -33,7 +32,6 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useTimelineStore } from '@/stores/timelineStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ProjectUpdateInput } from '@/services/projectService'
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -43,7 +41,6 @@ const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
-const timelineStore = useTimelineStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
@@ -53,7 +50,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'process', 'timeline', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'activity']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -61,7 +58,6 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'process', label: 'Process' },
-  { key: 'timeline', label: 'Timeline' },
   { key: 'documents', label: 'Documents' },
   { key: 'quotation', label: 'Quotation' },
   { key: 'contract', label: 'Contract' },
@@ -69,20 +65,13 @@ const TABS: ProjectWorkspaceTab[] = [
   { key: 'design', label: 'Design' },
   { key: 'government', label: 'Government' },
   { key: 'tasks', label: 'Tasks' },
-  { key: 'activity', label: 'Activity' },
 ]
-
-const activityEvents = computed(() => [...timelineStore.events].sort((a, b) => b.date.localeCompare(a.date)))
 
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
-const isLoading = computed(
-  () => projectStore.isLoading || quotationStore.isLoading || timelineStore.isLoading || contractStore.isLoading,
-)
-const error = computed(
-  () => projectStore.error ?? quotationStore.error ?? timelineStore.error ?? contractStore.error,
-)
+const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading || contractStore.isLoading)
+const error = computed(() => projectStore.error ?? quotationStore.error ?? contractStore.error)
 
 async function loadData(): Promise<void> {
   if (projectStore.projects.length === 0) {
@@ -93,7 +82,6 @@ async function loadData(): Promise<void> {
   }
   await Promise.all([
     quotationStore.loadQuotationsForProject(projectId.value),
-    timelineStore.loadTimelineForProject(projectId.value),
     contractStore.loadContractsForProject(projectId.value),
   ])
 }
@@ -230,12 +218,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <ProjectOverviewTab v-if="activeTab === 'overview'" :project="project" :client="client" />
-      <ProjectProcessTab v-if="activeTab === 'process'" :project="project" />
-      <ProjectTimelineTab
-        v-else-if="activeTab === 'timeline'"
-        :events="timelineStore.events"
-        :project-id="projectId"
-      />
+      <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" />
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
       <ProjectDocumentsTab
@@ -245,11 +228,6 @@ async function handleConfirmDelete(): Promise<void> {
       />
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
       <ProjectTasksTab v-else-if="activeTab === 'tasks'" :project="project" />
-      <ProjectTimelineTab
-        v-else-if="activeTab === 'activity'"
-        :events="activityEvents"
-        :project-id="projectId"
-      />
       <PaymentWorkspacePanel v-else-if="activeTab === 'payments'" :project-id="projectId" />
 
       <ProjectEditDialog
