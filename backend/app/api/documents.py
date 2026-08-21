@@ -87,11 +87,12 @@ def create_document(
     projectId: str = Form(...),
     title: str = Form(...),
     type: str = Form(...),
+    stageKey: str | None = Form(default=None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    document = document_service.create_document(db, projectId, title, type, file, current_user.id)
+    document = document_service.create_document(db, projectId, title, type, file, current_user.id, stageKey)
     return _document_out(db, document)
 
 

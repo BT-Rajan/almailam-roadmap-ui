@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -9,6 +9,13 @@ from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
+# "Correction" used to be its own stage (Review <-> Correction, looping
+# back and forth for what's really one review cycle). Merged into
+# Review -- see migration 0019 -- since a stage transition wasn't
+# adding anything a reason-carrying note in the project's own history
+# doesn't already cover, and the back-and-forth stage hopping was
+# exactly the kind of thing worth collapsing rather than routing
+# elsewhere.
 WORKFLOW_STAGES = (
     "Enquiry",
     "Quotation",
@@ -16,7 +23,6 @@ WORKFLOW_STAGES = (
     "Design",
     "Government Submission",
     "Review",
-    "Correction",
     "Approval",
     "Completed",
 )
@@ -63,6 +69,16 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # prices change later, and so callers that only need the number (list
     # views, cards) don't have to join/aggregate for it.
     service_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # Set once by set_status() the moment status becomes "Completed",
+    # cleared if the project is later reopened -- the actual end-of-project
+    # timestamp, distinct from target_date (the planned one) and from
+    # updated_at (which changes on every unrelated edit). Used to compute
+    # the Completion summary's actual-vs-planned duration.
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Free-text handover/lessons-learned notes for the Completion summary
+    # -- distinct from `description` above (the project's own scope-of-
+    # work description, set at creation and shown on Overview).
+    completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ProjectSelectedActivity(Base):

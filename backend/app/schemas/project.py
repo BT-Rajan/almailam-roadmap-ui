@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, condecimal, field_validator
 
@@ -60,6 +60,7 @@ class ProjectOut(BaseModel):
     # prefill line items from the services actually picked for the project.
     selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
     serviceTotal: float | None = None
+    completedAt: datetime | None = None
 
     @staticmethod
     def from_model(project, engineer_name: str, selected_activities: list | None = None) -> "ProjectOut":
@@ -79,7 +80,21 @@ class ProjectOut(BaseModel):
             status=project.status,
             selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
             serviceTotal=float(project.service_total) if project.service_total is not None else None,
+            completedAt=project.completed_at,
         )
+
+
+class CompletionSummaryOut(BaseModel):
+    plannedBudget: float | None
+    actualBudget: float | None
+    plannedDurationDays: int
+    actualDurationDays: int | None
+    completedAt: datetime | None
+    notes: str | None
+
+
+class CompletionNotesUpdate(BaseModel):
+    notes: str = Field(default="", max_length=4000)
 
 
 class ProjectCreate(BaseModel):

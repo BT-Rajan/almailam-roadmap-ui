@@ -57,11 +57,11 @@ function openEditDialog(document: ProjectDocument): void {
   isEditDialogOpen.value = true
 }
 
-async function handleConfirmEdit(payload: { title: string }): Promise<void> {
+async function handleConfirmEdit(payload: { title: string; stageKey: string | null }): Promise<void> {
   if (!editTarget.value) return
   isEditSaving.value = true
   try {
-    await documentStore.updateDocument(editTarget.value.id, payload.title)
+    await documentStore.updateDocument(editTarget.value.id, payload.title, payload.stageKey)
     toastStore.show('success', 'Document updated', 'Changes were saved successfully.')
     isEditDialogOpen.value = false
   } catch (error) {
@@ -192,6 +192,12 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
 <template>
   <!-- Design mode keeps the original single-list, upload-based view for Drawings. -->
   <template v-if="mode === 'design'">
+    <div class="flex items-center justify-end">
+      <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="isUploadOpen = true">
+        Upload Drawing
+      </BaseButton>
+    </div>
+
     <div v-if="documentStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
       <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
         <SkeletonLoader :rows="5" />
@@ -218,7 +224,12 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       />
     </div>
 
-    <DocumentUploadDialog v-model="isUploadOpen" :projects="[project]" @upload="handleUpload" />
+    <DocumentUploadDialog
+      v-model="isUploadOpen"
+      :projects="[project]"
+      initial-document-type="Drawing"
+      @upload="handleUpload"
+    />
     <DocumentEditDialog
       v-model="isEditDialogOpen"
       :document="editTarget"

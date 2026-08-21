@@ -6,6 +6,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
+import { PROCESS_STAGES } from '@/constants/processStages'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { DocumentType, ProjectDocument } from '@/types/Document'
@@ -20,6 +21,10 @@ const DOCUMENT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Municipality Form', value: 'Municipality Form' },
   { label: 'Calculation Sheet', value: 'Calculation Sheet' },
 ]
+
+// Optional -- only documents relevant to the Process tab's per-stage
+// view (mainly drawings) need one at all; most document types don't.
+const STAGE_OPTIONS: SelectOption[] = PROCESS_STAGES.map((s) => ({ value: s.key, label: s.label }))
 
 const props = defineProps<{
   modelValue: boolean
@@ -41,6 +46,7 @@ const toastStore = useToastStore()
 const title = ref('')
 const documentType = ref<DocumentType | ''>('')
 const projectId = ref('')
+const stageKey = ref('')
 const selectedFile = ref<File>()
 const titleError = ref<string>()
 const fileError = ref<string>()
@@ -62,6 +68,7 @@ function resetForm(): void {
   title.value = ''
   documentType.value = ''
   projectId.value = ''
+  stageKey.value = ''
   selectedFile.value = undefined
   titleError.value = undefined
   fileError.value = undefined
@@ -95,6 +102,7 @@ async function submitUpload(): Promise<void> {
       projectId.value,
       title.value.trim(),
       documentType.value as DocumentType,
+      stageKey.value || undefined,
     )
     emit('upload', document)
     closeDialog()
@@ -124,6 +132,13 @@ async function submitUpload(): Promise<void> {
         :options="DOCUMENT_TYPE_OPTIONS"
         required
         @update:model-value="documentType = $event as DocumentType"
+      />
+
+      <SelectBox
+        v-model="stageKey"
+        label="Approval Process Stage (optional)"
+        placeholder="Not tied to a specific stage"
+        :options="STAGE_OPTIONS"
       />
 
       <div class="flex flex-col gap-1.5">

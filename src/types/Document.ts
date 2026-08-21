@@ -8,6 +8,12 @@ export interface ProjectDocument {
   title: string
   type: DocumentType
   revision: string
+  // Which of the 5 Project Approval Process stages (see
+  // constants/processStages.ts) this document belongs to -- null for
+  // documents not tied to a specific stage (contracts, quotations,
+  // etc.). Lets the Process tab show each stage's own document list
+  // with its revision history.
+  stageKey: string | null
   uploadedBy: string
   uploadDate: string
   status: DocumentStatus

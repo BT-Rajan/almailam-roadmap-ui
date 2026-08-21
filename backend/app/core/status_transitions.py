@@ -81,18 +81,27 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 # Completed project is exceptional and source-dependent -- enforced
 # directly in project_service.set_stage() rather than here, since
 # REQUIRING_REASON only keys on the target state.
+#
+# "Correction" used to be its own stage here (Review <-> Correction, a
+# loop back and forth with a required reason on the way into
+# Correction) -- merged into a single "Review" stage (migration 0019):
+# a document/submission sent back for fixes during review is still,
+# functionally, "under review", and the stage hop wasn't preserving
+# anything a reason-carrying project timeline note doesn't already
+# capture. See timeline_service.create_event -- staff log a correction
+# cycle as a reason-carrying note there now instead of moving the
+# project's stage back and forth.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Enquiry": {"Quotation"},
     "Quotation": {"Contract"},
     "Contract": {"Design"},
     "Design": {"Government Submission"},
     "Government Submission": {"Review"},
-    "Review": {"Correction", "Approval"},
-    "Correction": {"Review"},
+    "Review": {"Approval"},
     "Approval": {"Completed"},
     "Completed": {"Approval"},
 }
-PROJECT_STAGE_STATUSES_REQUIRING_REASON = {"Correction"}
+PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 
 # --- Project Status -- src/types/Project.ts: ProjectStatus
 #

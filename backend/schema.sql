@@ -240,7 +240,10 @@ CREATE TABLE IF NOT EXISTS projects (
     client_id       BIGINT UNSIGNED NOT NULL,
     service         VARCHAR(100) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,
-    current_stage   ENUM('Enquiry','Quotation','Contract','Design','Government Submission','Review','Correction','Approval','Completed')
+    -- "Correction" was merged into "Review" (migration 0019) -- a
+    -- correction cycle during review is logged as a reason-carrying
+    -- project timeline note now, not a separate stage.
+    current_stage   ENUM('Enquiry','Quotation','Contract','Design','Government Submission','Review','Approval','Completed')
                         NOT NULL DEFAULT 'Enquiry',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
@@ -249,6 +252,12 @@ CREATE TABLE IF NOT EXISTS projects (
     status          ENUM('Active','On Hold','Completed','Cancelled') NOT NULL DEFAULT 'Active',
     stale_notified_at DATETIME NULL,
     service_total   DECIMAL(12,2) NULL,
+    -- Set once by set_status() when status becomes Completed, cleared on
+    -- reopen -- backs the Completion summary's actual-vs-planned
+    -- duration. completion_notes is the same summary's free-text
+    -- handover/lessons-learned box.
+    completed_at    DATETIME NULL,
+    completion_notes TEXT NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -522,6 +531,10 @@ CREATE TABLE IF NOT EXISTS project_documents (
     title               VARCHAR(200) NOT NULL,
     type                ENUM('Drawing','Report','Contract','Quotation','Municipality Form','Calculation Sheet') NOT NULL,
     revision            VARCHAR(10) NOT NULL DEFAULT 'Rev A',
+    -- Which of the 5 Project Approval Process stages this document
+    -- belongs to (see approval_process_templates) -- NULL for documents
+    -- not tied to a specific stage (contracts, quotations, etc.).
+    stage_key           VARCHAR(40) NULL,
     uploaded_by         BIGINT UNSIGNED NOT NULL,
     upload_date         DATE NOT NULL,
     status              ENUM('Draft','Under Review','Approved','Rejected') NOT NULL DEFAULT 'Draft',

@@ -20,25 +20,26 @@ export const PROJECT_SERVICES: string[] = [
 // for the established pattern). The backend is still the source of
 // truth and re-validates independently; this only drives which options
 // the UI offers.
+// "Correction" used to be its own stage here (Review <-> Correction).
+// Merged into a single "Review" stage -- a correction cycle during
+// review is logged as a note on the project instead of a separate
+// stage hop. See backend/app/core/status_transitions.py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Enquiry: ['Quotation'],
   Quotation: ['Contract'],
   Contract: ['Design'],
   Design: ['Government Submission'],
   'Government Submission': ['Review'],
-  Review: ['Correction', 'Approval'],
-  Correction: ['Review'],
+  Review: ['Approval'],
   Approval: ['Completed'],
   Completed: ['Approval'],
 }
 
-// "Correction" always needs a reason. "Completed" -> "Approval" only
-// needs one when reopening a completed project specifically -- not the
-// normal "Review" -> "Approval" outcome, which shares the same target
-// state, so this has to be a (from, to) check rather than a flat set of
-// target states.
+// "Completed" -> "Approval" only needs a reason when reopening a
+// completed project specifically -- not the normal "Review" ->
+// "Approval" outcome, which shares the same target state, so this has
+// to be a (from, to) check rather than a flat set of target states.
 export function isStageReasonRequired(from: string, to: string): boolean {
-  if (to === 'Correction') return true
   if (from === 'Completed' && to === 'Approval') return true
   return false
 }
