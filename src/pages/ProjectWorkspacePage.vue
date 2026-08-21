@@ -64,7 +64,7 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // ?tab=quotation-style deep link -- can still land on them.
 const TABS: ProjectWorkspaceTab[] = [
   { key: 'overview', label: 'Overview' },
-  { key: 'process', label: 'Process' },
+  { key: 'process', label: 'Execution & Tracking' },
   { key: 'documents', label: 'Documents' },
   { key: 'payments', label: 'Payments' },
   { key: 'tasks', label: 'Tasks' },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, CheckCircle2, Circle, FileText, ListChecks, Plus, RotateCcw, XCircle } from '@lucide/vue'
+import { ChevronDown, ChevronRight, CheckCircle2, Circle, FileText, ListChecks, Plus } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -7,9 +7,11 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import ChangeScopeDialog from '@/components/project/ChangeScopeDialog.vue'
+import ExecutionStepRow from '@/components/project/ExecutionStepRow.vue'
+import FileUploader from '@/components/document/FileUploader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
-import WaiveStepDialog from '@/components/project/WaiveStepDialog.vue'
 import { PROCESS_STAGES } from '@/constants/processStages'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -19,10 +21,9 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ProjectApprovalStep } from '@/types/ApprovalProcess'
-import type { ProjectExecutionStep } from '@/types/ExecutionStep'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { TimelineEvent } from '@/types/Timeline'
+import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
   project: Project
@@ -48,7 +49,7 @@ function loadData(): void {
   // Documents and Tasks are only needed here for the status cards'
   // counts -- loaded once, lazily, same "load if not already loaded"
   // convention as the Documents/Tasks tabs use themselves, so opening
-  // Process first doesn't cost a duplicate fetch if those tabs are
+  // this tab first doesn't cost a duplicate fetch if those tabs are
   // opened afterward.
   if (documentStore.documents.length === 0) documentStore.loadDocuments()
   if (taskStore.tasks.length === 0) taskStore.loadTasks()
@@ -74,9 +75,8 @@ const overdueTasks = computed(() =>
 )
 
 // One unified process view -- the 5 Project Approval Process stages,
-// each expanded to the execution steps (and now documents) that feed
-// into it, instead of a separate Execution tab and a separate Approval
-// Process modal that never talked to each other.
+// each expanded to the execution steps, stage-gate document, and
+// project documents that feed into it.
 const stagesWithSteps = computed(() =>
   PROCESS_STAGES.map((stage) => ({
     stage,
@@ -87,6 +87,8 @@ const stagesWithSteps = computed(() =>
     documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
   })),
 )
+
+const stageGateCompleteCount = computed(() => approvalStore.steps.filter((s) => s.hasDocument).length)
 
 // Collapsed by default -- only one stage's detail (steps + documents)
 // is expanded at a time; opening another collapses whichever was open,
@@ -109,97 +111,37 @@ async function refreshProgress(): Promise<void> {
   await projectStore.refreshProject(props.project.id)
 }
 
-async function handleCompleteExecution(stepId: string): Promise<void> {
-  await executionStore.completeStep(props.project.id, stepId)
-  if (executionStore.mutationError) {
-    toastStore.show('error', 'Could not complete step', executionStore.mutationError)
-    return
-  }
-  await refreshProgress()
-}
+const savingStepId = ref<string | undefined>(undefined)
 
-async function handleUncompleteExecution(stepId: string): Promise<void> {
-  await executionStore.uncompleteStep(props.project.id, stepId)
-  if (executionStore.mutationError) {
-    toastStore.show('error', 'Could not undo step', executionStore.mutationError)
-    return
-  }
-  await refreshProgress()
-}
-
-async function handleCompleteApproval(stepId: string): Promise<void> {
-  await approvalStore.completeStep(props.project.id, stepId)
-  if (approvalStore.mutationError) {
-    toastStore.show('error', 'Could not complete stage', approvalStore.mutationError)
-  }
-}
-
-async function handleUncompleteApproval(stepId: string): Promise<void> {
-  await approvalStore.uncompleteStep(props.project.id, stepId)
-  if (approvalStore.mutationError) {
-    toastStore.show('error', 'Could not undo stage', approvalStore.mutationError)
-  }
-}
-
-async function handleUnwaiveExecution(stepId: string): Promise<void> {
-  await executionStore.unwaiveStep(props.project.id, stepId)
-  if (executionStore.mutationError) {
-    toastStore.show('error', 'Could not undo waiver', executionStore.mutationError)
-    return
-  }
-  await refreshProgress()
-}
-
-async function handleUnwaiveApproval(stepId: string): Promise<void> {
-  await approvalStore.unwaiveStep(props.project.id, stepId)
-  if (approvalStore.mutationError) {
-    toastStore.show('error', 'Could not undo waiver', approvalStore.mutationError)
-  }
-}
-
-// The waive dialog is shared between execution steps and approval
-// stages -- only one of these two refs is set at a time, depending on
-// which "Waive" button was clicked.
-const waiveExecutionTarget = ref<ProjectExecutionStep | undefined>(undefined)
-const waiveApprovalTarget = ref<ProjectApprovalStep | undefined>(undefined)
-const isWaiveDialogOpen = ref(false)
-const isWaiveSubmitting = ref(false)
-
-function openWaiveExecution(step: ProjectExecutionStep): void {
-  waiveExecutionTarget.value = step
-  waiveApprovalTarget.value = undefined
-  isWaiveDialogOpen.value = true
-}
-
-function openWaiveApproval(step: ProjectApprovalStep): void {
-  waiveApprovalTarget.value = step
-  waiveExecutionTarget.value = undefined
-  isWaiveDialogOpen.value = true
-}
-
-const waiveDialogStepName = computed(() => waiveExecutionTarget.value?.name ?? waiveApprovalTarget.value?.name)
-
-async function handleConfirmWaive(reason: string): Promise<void> {
-  isWaiveSubmitting.value = true
+async function handleSaveStepProgress(stepId: string, percentage: number, remarks: string): Promise<void> {
+  savingStepId.value = stepId
   try {
-    if (waiveExecutionTarget.value) {
-      await executionStore.waiveStep(props.project.id, waiveExecutionTarget.value.id, reason)
-      if (executionStore.mutationError) {
-        toastStore.show('error', 'Could not waive step', executionStore.mutationError)
-        return
-      }
-      await refreshProgress()
-    } else if (waiveApprovalTarget.value) {
-      await approvalStore.waiveStep(props.project.id, waiveApprovalTarget.value.id, reason)
-      if (approvalStore.mutationError) {
-        toastStore.show('error', 'Could not waive stage', approvalStore.mutationError)
-        return
-      }
+    await executionStore.setStepProgress(props.project.id, stepId, percentage, remarks)
+    if (executionStore.mutationError) {
+      toastStore.show('error', 'Could not save step progress', executionStore.mutationError)
+      return
     }
-    isWaiveDialogOpen.value = false
+    await refreshProgress()
   } finally {
-    isWaiveSubmitting.value = false
+    savingStepId.value = undefined
   }
+}
+
+const replacingStageKey = ref<string | null>(null)
+
+async function handleUploadStageGateDocument(stageKey: string, file: File | undefined): Promise<void> {
+  if (!file) return
+  await approvalStore.uploadStageGateDocument(props.project.id, stageKey, file)
+  if (approvalStore.mutationError) {
+    toastStore.show('error', 'Could not upload stage gate document', approvalStore.mutationError)
+    return
+  }
+  replacingStageKey.value = null
+  toastStore.show('success', 'Stage gate document uploaded', 'This stage is now marked complete.')
+}
+
+function handleViewStageGateDocument(stageKey: string, filename: string): void {
+  void approvalStore.downloadStageGateDocument(props.project.id, stageKey, filename)
 }
 
 // History -- the project's full timeline/activity feed, folded in here
@@ -236,6 +178,29 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
     })
   }
 }
+
+// Change Scope -- edits the project's scope-of-work description; if it
+// actually changed, asks whether Contract/Payment need a follow-up
+// update and notifies every Administrator when either does.
+const isChangeScopeDialogOpen = ref(false)
+const isChangingScope = ref(false)
+
+async function handleConfirmScopeChange(
+  description: string,
+  contractUpdateNeeded: boolean,
+  paymentUpdateNeeded: boolean,
+): Promise<void> {
+  isChangingScope.value = true
+  try {
+    await projectStore.changeScope(props.project.id, description, contractUpdateNeeded, paymentUpdateNeeded)
+    isChangeScopeDialogOpen.value = false
+    toastStore.show('success', 'Scope updated', 'The project scope was updated.')
+  } catch (error) {
+    toastStore.show('error', 'Could not update scope', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isChangingScope.value = false
+  }
+}
 </script>
 
 <template>
@@ -247,6 +212,29 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
     </div>
 
     <template v-else>
+      <Card>
+        <div class="flex flex-col gap-4 tablet:flex-row tablet:items-center tablet:justify-between">
+          <div class="min-w-0">
+            <h2 class="text-sm font-semibold text-text-primary">Overall Execution</h2>
+            <p class="text-xs text-text-muted">
+              Weighted across all 23 execution steps · {{ stageGateCompleteCount }} of 5 stage gates uploaded
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="h-2 w-40 overflow-hidden rounded-full bg-bg-secondary">
+              <div
+                class="h-full rounded-full bg-primary-600 transition-[width] duration-normal"
+                :style="{ width: `${executionStore.weightedProgress}%` }"
+              />
+            </div>
+            <span class="text-lg font-semibold text-text-primary">{{ executionStore.weightedProgress }}%</span>
+          </div>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="isChangeScopeDialogOpen = true">
+            Change Scope
+          </BaseButton>
+        </div>
+      </Card>
+
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -296,136 +284,61 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
             >
               <ChevronDown v-if="expandedStageKey === stage.key" class="h-4 w-4 shrink-0 text-text-muted" />
               <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
-              <CheckCircle2 v-if="approvalStep?.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
-              <XCircle v-else-if="approvalStep?.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
-              <Circle
-                v-else
-                class="h-5 w-5 shrink-0"
-                :class="approvalStep?.id === approvalStore.nextActionableStepId ? 'text-info-600' : 'text-text-muted'"
-              />
+              <CheckCircle2 v-if="approvalStep?.hasDocument" class="h-5 w-5 shrink-0 text-success-600" />
+              <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
             </button>
 
-            <div v-if="approvalStep" class="flex items-center gap-2">
-              <span v-if="approvalStep.status === 'Waived'" class="text-xs text-text-muted">
-                Waived{{ approvalStep.waivedByName ? ` by ${approvalStep.waivedByName}` : '' }}
-              </span>
-              <span v-else-if="approvalStep.status === 'Completed' && approvalStep.completedByName" class="text-xs text-text-muted">
-                Completed by {{ approvalStep.completedByName }}
-              </span>
-
-              <BaseButton
-                v-if="approvalStep.id === approvalStore.nextActionableStepId"
-                size="sm"
-                @click="handleCompleteApproval(approvalStep.id)"
-              >
-                Mark Stage Complete
-              </BaseButton>
-              <BaseButton
-                v-if="approvalStep.id === approvalStore.nextActionableStepId && approvalStep.isOptional"
-                size="sm"
-                variant="ghost"
-                @click="openWaiveApproval(approvalStep)"
-              >
-                Waive
-              </BaseButton>
-              <BaseButton
-                v-else-if="approvalStep.id === approvalStore.lastResolvedStepId && approvalStep.status === 'Completed'"
-                size="sm"
-                variant="ghost"
-                :icon="RotateCcw"
-                @click="handleUncompleteApproval(approvalStep.id)"
-              >
-                Undo
-              </BaseButton>
-              <BaseButton
-                v-else-if="approvalStep.id === approvalStore.lastResolvedStepId && approvalStep.status === 'Waived'"
-                size="sm"
-                variant="ghost"
-                :icon="RotateCcw"
-                @click="handleUnwaiveApproval(approvalStep.id)"
-              >
-                Undo Waiver
-              </BaseButton>
-            </div>
+            <span v-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
+              Uploaded{{ approvalStep.uploadedByName ? ` by ${approvalStep.uploadedByName}` : '' }}{{ approvalStep.uploadedAt ? ` on ${formatDate(approvalStep.uploadedAt)}` : '' }}
+            </span>
           </div>
         </template>
 
-        <p v-if="approvalStep?.status === 'Waived' && approvalStep.waivedReason" class="mb-3 text-xs text-text-muted">
-          Reason: {{ approvalStep.waivedReason }}
-        </p>
-
-        <div v-if="expandedStageKey === stage.key" class="flex flex-col gap-4">
+        <div v-if="expandedStageKey === stage.key" class="flex flex-col gap-5">
           <div>
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Stage Gate Review Document</h3>
+            <template v-if="approvalStep?.hasDocument">
+              <div class="flex items-center gap-3 rounded-lg border border-success-100 bg-success-50 p-3">
+                <FileText class="h-5 w-5 shrink-0 text-success-600" />
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">{{ approvalStep.originalFilename }}</span>
+                <BaseButton size="sm" variant="ghost" @click="handleViewStageGateDocument(stage.key, approvalStep.originalFilename ?? 'document')">
+                  View File
+                </BaseButton>
+                <BaseButton
+                  size="sm"
+                  variant="ghost"
+                  @click="replacingStageKey = replacingStageKey === stage.key ? null : stage.key"
+                >
+                  Replace
+                </BaseButton>
+              </div>
+              <FileUploader
+                v-if="replacingStageKey === stage.key"
+                class="mt-2"
+                @select="(file) => handleUploadStageGateDocument(stage.key, file)"
+              />
+            </template>
+            <FileUploader
+              v-else
+              hint="Uploading marks this stage complete"
+              @select="(file) => handleUploadStageGateDocument(stage.key, file)"
+            />
+          </div>
+
+          <div>
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Execution Steps</h3>
             <p v-if="executionSteps.length === 0" class="text-xs text-text-muted">
               No execution steps feed into this stage -- it's an external approval gate on its own.
             </p>
-
             <ol v-else class="flex flex-col gap-2">
-              <li
+              <ExecutionStepRow
                 v-for="step in executionSteps"
                 :key="step.id"
-                class="flex items-center gap-3 rounded-lg border p-3"
-                :class="{
-                  'border-success-100 bg-success-50': step.status === 'Completed',
-                  'border-border-light bg-bg-secondary': step.status === 'Waived',
-                  'border-info-100 bg-info-50': step.status === 'Pending' && step.id === executionStore.nextActionableStepId,
-                  'border-border-light bg-bg-card': step.status === 'Pending' && step.id !== executionStore.nextActionableStepId,
-                }"
-              >
-                <CheckCircle2 v-if="step.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
-                <XCircle v-else-if="step.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
-                <Circle
-                  v-else
-                  class="h-5 w-5 shrink-0"
-                  :class="step.id === executionStore.nextActionableStepId ? 'text-info-600' : 'text-text-muted'"
-                />
-
-                <div class="min-w-0 flex-1">
-                  <p class="text-sm font-medium text-text-primary">{{ step.name }}</p>
-                  <p class="text-xs text-text-muted">
-                    {{ step.weightPercentage }}%
-                    <span v-if="step.status === 'Completed' && step.completedByName"> · Completed by {{ step.completedByName }}</span>
-                    <span v-else-if="step.status === 'Waived'">
-                      · Waived{{ step.waivedByName ? ` by ${step.waivedByName}` : '' }}{{ step.waivedReason ? `: ${step.waivedReason}` : '' }}
-                    </span>
-                  </p>
-                </div>
-
-                <BaseButton
-                  v-if="step.id === executionStore.nextActionableStepId"
-                  size="sm"
-                  @click="handleCompleteExecution(step.id)"
-                >
-                  Mark Complete
-                </BaseButton>
-                <BaseButton
-                  v-if="step.id === executionStore.nextActionableStepId && step.isOptional"
-                  size="sm"
-                  variant="ghost"
-                  @click="openWaiveExecution(step)"
-                >
-                  Waive
-                </BaseButton>
-                <BaseButton
-                  v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Completed'"
-                  size="sm"
-                  variant="ghost"
-                  :icon="RotateCcw"
-                  @click="handleUncompleteExecution(step.id)"
-                >
-                  Undo
-                </BaseButton>
-                <BaseButton
-                  v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Waived'"
-                  size="sm"
-                  variant="ghost"
-                  :icon="RotateCcw"
-                  @click="handleUnwaiveExecution(step.id)"
-                >
-                  Undo Waiver
-                </BaseButton>
-              </li>
+                :step="step"
+                :is-saving="savingStepId === step.id"
+                @save="(percentage, remarks) => handleSaveStepProgress(step.id, percentage, remarks)"
+              />
             </ol>
           </div>
 
@@ -462,11 +375,11 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
       <ProjectTimeline :events="timelineStore.events" editable @edit="openEditTimelineEntry" />
     </template>
 
-    <WaiveStepDialog
-      v-model="isWaiveDialogOpen"
-      :step-name="waiveDialogStepName"
-      :is-submitting="isWaiveSubmitting"
-      @confirm="handleConfirmWaive"
+    <ChangeScopeDialog
+      v-model="isChangeScopeDialogOpen"
+      :current-description="project.description ?? ''"
+      :is-submitting="isChangingScope"
+      @confirm="handleConfirmScopeChange"
     />
 
     <TimelineEntryDialog

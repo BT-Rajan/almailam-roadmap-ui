@@ -16,14 +16,20 @@ PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
 # doesn't already cover, and the back-and-forth stage hopping was
 # exactly the kind of thing worth collapsing rather than routing
 # elsewhere.
+#
+# "Review" was itself renamed to "Execution & Tracking" and "Approval"
+# dropped entirely (migration 0022) -- the 23-step execution checklist
+# and the 5-stage approval-process stage gates (see execution_step.py /
+# approval_process.py) are what actually happen during this stage, so
+# "Review" undersold it and a separate "Approval" stage was redundant
+# with the stage gates themselves.
 WORKFLOW_STAGES = (
     "Enquiry",
     "Quotation",
     "Contract",
     "Design",
     "Government Submission",
-    "Review",
-    "Approval",
+    "Execution & Tracking",
     "Completed",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")

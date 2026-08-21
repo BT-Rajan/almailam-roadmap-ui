@@ -14,10 +14,6 @@ export interface ProjectExecutionStep {
   weightPercentage: number
   stageKey: string
   isOptional: boolean
-  status: 'Pending' | 'Completed' | 'Waived'
-  completedAt: string | null
-  completedByName: string | null
-  waivedAt: string | null
-  waivedByName: string | null
-  waivedReason: string | null
+  completionPercentage: number
+  remarks: string | null
 }

@@ -1,15 +1,17 @@
-"""The linear, weighted execution-step checklist that replaces manually
-typed project progress.
+"""The weighted execution-step checklist that replaces manually typed
+project progress.
 
 Two sides:
   - Admin (Administration:edit) manages the master template --
     ExecutionStepTemplate rows, ordered, each with a weight_percentage.
   - Every project gets its own independent copy of that template the
     moment it's created (see project_service.create_project) --
-    ProjectExecutionStep rows, snapshotted, not a live reference. A
-    project's steps are completed strictly in order; project.progress
-    is the sum of completed steps' weights, recomputed after every
-    change here, never typed in by hand.
+    ProjectExecutionStep rows, snapshotted, not a live reference. Since
+    migration 0022, each step carries its own free-standing 0-100
+    completion_percentage (set independently of every other step, no
+    enforced order) and optional remarks; project.progress is the
+    weight_percentage-weighted sum of every step's percentage,
+    recomputed after every change here, never typed in by hand.
 """
 
 from datetime import datetime, timezone
@@ -201,7 +203,7 @@ def snapshot_steps_for_project(db: Session, project_id: int) -> None:
                 weight_percentage=template_step.weight_percentage,
                 stage_key=template_step.stage_key,
                 is_optional=template_step.is_optional,
-                status="Pending",
+                completion_percentage=0,
             )
         )
 
@@ -217,10 +219,7 @@ def list_project_steps(db: Session, project_id: int) -> list[ProjectExecutionSte
 
 def _recompute_progress(db: Session, project_id: int) -> int:
     steps = list_project_steps(db, project_id)
-    # A waived step counts toward progress exactly like a completed one --
-    # it's resolved, just not by doing the work, same as a waived payment
-    # obligation is resolved without being paid.
-    total = sum(float(s.weight_percentage) for s in steps if s.status in ("Completed", "Waived"))
+    total = sum(float(s.weight_percentage) * s.completion_percentage / 100 for s in steps)
     # project.progress is a bounded SMALLINT percentage -- clamp defends
     # against a template that doesn't sum to exactly 100 (admin is free
     # to leave it under- or over-100 temporarily while tuning weights)
@@ -243,145 +242,23 @@ def get_project_step(db: Session, project_id: int, step_id: int) -> ProjectExecu
     return step
 
 
-def complete_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectExecutionStep:
+def set_step_progress(
+    db: Session, project_id: int, step_id: int, completion_percentage: int, remarks: str | None, user_id: int | None
+) -> ProjectExecutionStep:
+    """Sets one step's completion percentage (and optional remarks)
+    independently of every other step -- no order enforced, no linear
+    lock. A quick-mark button (20/40/60/80/100) and a manual number
+    entry both land here identically."""
+    if not 0 <= completion_percentage <= 100:
+        raise ValidationAppError("Completion percentage must be between 0 and 100.")
+
     step = get_project_step(db, project_id, step_id)
-    if step.status == "Completed":
-        return step
-    if step.status == "Waived":
-        raise ValidationAppError("This step has been waived -- unwaive it first to complete it instead.")
-
-    incomplete_before = (
-        db.query(ProjectExecutionStep)
-        .filter(
-            ProjectExecutionStep.project_id == project_id,
-            ProjectExecutionStep.sequence_number < step.sequence_number,
-            ProjectExecutionStep.status == "Pending",
-        )
-        .count()
-    )
-    if incomplete_before > 0:
-        raise ValidationAppError(
-            "Steps must be completed in order -- finish the steps before this one first."
-        )
-
-    step.status = "Completed"
-    step.completed_at = datetime.now(timezone.utc)
-    step.completed_by = user_id
+    step.completion_percentage = completion_percentage
+    step.remarks = (remarks or "").strip() or None
     audit_service.log_event(
-        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step completed: {step.name}", user_id
-    )
-    _recompute_progress(db, project_id)
-    db.commit()
-    db.refresh(step)
-    return step
-
-
-def uncomplete_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectExecutionStep:
-    """Undoing a mistake is allowed -- but only for the most recently
-    resolved (Completed or Waived) step, so the checklist can never end
-    up with a resolved step sitting after an unresolved one. To back
-    out further, undo them one at a time from the end, same as they
-    were resolved."""
-    step = get_project_step(db, project_id, step_id)
-    if step.status != "Completed":
-        return step
-
-    later_resolved = (
-        db.query(ProjectExecutionStep)
-        .filter(
-            ProjectExecutionStep.project_id == project_id,
-            ProjectExecutionStep.sequence_number > step.sequence_number,
-            ProjectExecutionStep.status != "Pending",
-        )
-        .count()
-    )
-    if later_resolved > 0:
-        raise ValidationAppError(
-            "Only the most recently completed or waived step can be undone -- undo later steps first."
-        )
-
-    step.status = "Pending"
-    step.completed_at = None
-    step.completed_by = None
-    audit_service.log_event(
-        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step un-completed: {step.name}", user_id
-    )
-    _recompute_progress(db, project_id)
-    db.commit()
-    db.refresh(step)
-    return step
-
-
-def waive_step(db: Session, project_id: int, step_id: int, reason: str, user_id: int | None) -> ProjectExecutionStep:
-    """Marks a step as not applicable for this project -- e.g. a client
-    who doesn't want a false ceiling doesn't need "False ceiling
-    drawings completed" sitting Pending forever. Only reachable from
-    Pending, and only for a step marked is_optional on the template it
-    was snapshotted from; the mandatory steps of the process can't be
-    waived away. Same linear-order and audit-trail conventions as
-    complete_step / payment_service's Cancelled/Waived obligations."""
-    step = get_project_step(db, project_id, step_id)
-    if step.status != "Pending":
-        raise ValidationAppError("Only a pending step can be waived.")
-    if not step.is_optional:
-        raise ValidationAppError("This step is not optional and cannot be waived.")
-    if not reason.strip():
-        raise ValidationAppError("A reason is required to waive a step.")
-
-    incomplete_before = (
-        db.query(ProjectExecutionStep)
-        .filter(
-            ProjectExecutionStep.project_id == project_id,
-            ProjectExecutionStep.sequence_number < step.sequence_number,
-            ProjectExecutionStep.status == "Pending",
-        )
-        .count()
-    )
-    if incomplete_before > 0:
-        raise ValidationAppError(
-            "Steps must be resolved in order -- finish the steps before this one first."
-        )
-
-    step.status = "Waived"
-    step.waived_at = datetime.now(timezone.utc)
-    step.waived_by = user_id
-    step.waived_reason = reason.strip()
-    audit_service.log_event(
-        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step waived: {step.name}", user_id, reason=reason.strip()
-    )
-    _recompute_progress(db, project_id)
-    db.commit()
-    db.refresh(step)
-    return step
-
-
-def unwaive_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectExecutionStep:
-    """Reverses a waive back to Pending -- same "only the most recently
-    resolved step" rule as uncomplete_step."""
-    step = get_project_step(db, project_id, step_id)
-    if step.status != "Waived":
-        return step
-
-    later_resolved = (
-        db.query(ProjectExecutionStep)
-        .filter(
-            ProjectExecutionStep.project_id == project_id,
-            ProjectExecutionStep.sequence_number > step.sequence_number,
-            ProjectExecutionStep.status != "Pending",
-        )
-        .count()
-    )
-    if later_resolved > 0:
-        raise ValidationAppError(
-            "Only the most recently completed or waived step can be undone -- undo later steps first."
-        )
-
-    step.status = "Pending"
-    step.waived_at = None
-    step.waived_by = None
-    step.waived_reason = None
-    audit_service.log_event(
-        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step un-waived: {step.name}", user_id
+        db, PROJECT_ENTITY_TYPE, project_id,
+        f"Execution step progress updated: {step.name}", user_id,
+        new_value=f"{completion_percentage}%",
     )
     _recompute_progress(db, project_id)
     db.commit()

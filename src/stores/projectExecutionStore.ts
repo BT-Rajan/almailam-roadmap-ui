@@ -19,22 +19,17 @@ export const useProjectExecutionStore = defineStore('projectExecution', {
   }),
 
   getters: {
-    // The one step the UI should actually offer to complete or waive
-    // right now -- the first Pending one in sequence. Every other
-    // Pending step is genuinely not actionable yet (linear order,
-    // enforced by the backend too), so the UI shouldn't pretend
-    // otherwise by showing an enabled button for a step that would
-    // just get rejected.
-    nextActionableStepId(state): string | undefined {
-      return [...state.steps].sort((a, b) => a.sequenceNumber - b.sequenceNumber).find((s) => s.status === 'Pending')?.id
-    },
-    // The only step eligible to be undone -- the most recently
-    // resolved (Completed or Waived) one by sequence order, mirroring
-    // the backend's own rule exactly.
-    lastResolvedStepId(state): string | undefined {
-      const resolved = state.steps.filter((s) => s.status !== 'Pending')
-      if (resolved.length === 0) return undefined
-      return resolved.reduce((latest, s) => (s.sequenceNumber > latest.sequenceNumber ? s : latest)).id
+    // The weightPercentage-weighted sum of every step's own completion
+    // percentage -- mirrors the server's own project.progress
+    // computation (execution_step_service._recompute_progress) so the
+    // UI can show a live number while a step is being edited, before
+    // the project record itself has been refreshed.
+    weightedProgress(state): number {
+      const total = state.steps.reduce(
+        (sum, step) => sum + (step.weightPercentage * step.completionPercentage) / 100,
+        0,
+      )
+      return Math.max(0, Math.min(100, Math.round(total)))
     },
   },
 
@@ -51,43 +46,13 @@ export const useProjectExecutionStore = defineStore('projectExecution', {
       }
     },
 
-    async completeStep(projectId: string, stepId: string) {
+    async setStepProgress(projectId: string, stepId: string, completionPercentage: number, remarks: string | null) {
       this.mutationError = undefined
       try {
-        const updated = await executionStepService.completeStep(projectId, stepId)
+        const updated = await executionStepService.setStepProgress(projectId, stepId, completionPercentage, remarks)
         this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
       } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to complete step.'
-      }
-    },
-
-    async uncompleteStep(projectId: string, stepId: string) {
-      this.mutationError = undefined
-      try {
-        const updated = await executionStepService.uncompleteStep(projectId, stepId)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to undo step.'
-      }
-    },
-
-    async waiveStep(projectId: string, stepId: string, reason: string) {
-      this.mutationError = undefined
-      try {
-        const updated = await executionStepService.waiveStep(projectId, stepId, reason)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to waive step.'
-      }
-    },
-
-    async unwaiveStep(projectId: string, stepId: string) {
-      this.mutationError = undefined
-      try {
-        const updated = await executionStepService.unwaiveStep(projectId, stepId)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to undo waive.'
+        this.mutationError = error instanceof Error ? error.message : 'Failed to update step progress.'
       }
     },
   },
