@@ -49,7 +49,6 @@ export type ProjectViewMode = 'grid' | 'table'
 export type ProjectWorkspaceTabKey =
   | 'overview'
   | 'process'
-  | 'timeline'
   | 'documents'
   | 'design'
   | 'government'
@@ -57,7 +56,6 @@ export type ProjectWorkspaceTabKey =
   | 'contract'
   | 'payments'
   | 'tasks'
-  | 'activity'
 
 export interface ProjectWorkspaceTab {
   key: ProjectWorkspaceTabKey
