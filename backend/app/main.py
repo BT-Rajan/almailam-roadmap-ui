@@ -37,7 +37,6 @@ from app.api.status_reports import router as status_reports_router
 from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
-from app.api.workflows import router as workflows_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.exceptions import register_exception_handlers
@@ -119,7 +118,6 @@ app.include_router(activity_router)
 app.include_router(my_activity_router)
 app.include_router(ai_router)
 app.include_router(users_router)
-app.include_router(workflows_router)
 app.include_router(service_catalog_router)
 app.include_router(roles_router)
 app.include_router(clients_router)

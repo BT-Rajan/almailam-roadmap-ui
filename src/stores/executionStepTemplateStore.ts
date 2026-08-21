@@ -42,17 +42,20 @@ export const useExecutionStepTemplateStore = defineStore('executionStepTemplate'
       }
     },
 
-    async createStep(name: string, weightPercentage: number) {
+    async createStep(name: string, weightPercentage: number, stageKey: string, isOptional: boolean) {
       this.mutationError = undefined
       try {
-        const step = await executionStepService.createTemplateStep(name, weightPercentage)
+        const step = await executionStepService.createTemplateStep(name, weightPercentage, stageKey, isOptional)
         this.steps = [...this.steps, step]
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Failed to add step.'
       }
     },
 
-    async updateStep(stepId: string, fields: { name?: string; weightPercentage?: number }) {
+    async updateStep(
+      stepId: string,
+      fields: { name?: string; weightPercentage?: number; stageKey?: string; isOptional?: boolean },
+    ) {
       this.mutationError = undefined
       try {
         const updated = await executionStepService.updateTemplateStep(stepId, fields)

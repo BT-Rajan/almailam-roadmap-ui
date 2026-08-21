@@ -3,6 +3,8 @@ export interface ExecutionStepTemplateItem {
   name: string
   sequenceNumber: number
   weightPercentage: number
+  stageKey: string
+  isOptional: boolean
 }
 
 export interface ProjectExecutionStep {
@@ -10,7 +12,12 @@ export interface ProjectExecutionStep {
   name: string
   sequenceNumber: number
   weightPercentage: number
-  status: 'Pending' | 'Completed'
+  stageKey: string
+  isOptional: boolean
+  status: 'Pending' | 'Completed' | 'Waived'
   completedAt: string | null
   completedByName: string | null
+  waivedAt: string | null
+  waivedByName: string | null
+  waivedReason: string | null
 }

@@ -9,6 +9,7 @@ from app.schemas.execution_step import (
     ExecutionStepTemplateCreate,
     ExecutionStepTemplateOut,
     ExecutionStepTemplateUpdate,
+    ExecutionStepWaiveRequest,
     ProjectExecutionStepOut,
 )
 from app.services import execution_step_service, project_service
@@ -32,7 +33,11 @@ def _step_out(db: Session, step) -> ProjectExecutionStepOut:
     if step.completed_by:
         user = db.query(User).filter(User.id == step.completed_by).first()
         completed_by_name = user.full_name if user else None
-    return ProjectExecutionStepOut.from_model(step, completed_by_name)
+    waived_by_name = None
+    if step.waived_by:
+        user = db.query(User).filter(User.id == step.waived_by).first()
+        waived_by_name = user.full_name if user else None
+    return ProjectExecutionStepOut.from_model(step, completed_by_name, waived_by_name)
 
 
 @router.get("/api/execution-step-template", response_model=list[ExecutionStepTemplateOut])
@@ -46,7 +51,9 @@ def create_template_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit_admin),
 ):
-    step = execution_step_service.create_template_step(db, payload.name, payload.weightPercentage, current_user.id)
+    step = execution_step_service.create_template_step(
+        db, payload.name, payload.weightPercentage, payload.stageKey, payload.isOptional, current_user.id
+    )
     return ExecutionStepTemplateOut.from_model(step)
 
 
@@ -58,7 +65,13 @@ def update_template_step(
     current_user: User = Depends(can_edit_admin),
 ):
     step = execution_step_service.update_template_step(
-        db, execution_step_service.parse_template_step_id(step_id), payload.name, payload.weightPercentage, current_user.id
+        db,
+        execution_step_service.parse_template_step_id(step_id),
+        payload.name,
+        payload.weightPercentage,
+        payload.stageKey,
+        payload.isOptional,
+        current_user.id,
     )
     return ExecutionStepTemplateOut.from_model(step)
 
@@ -110,6 +123,35 @@ def uncomplete_step(
 ):
     project = project_service.get_project(db, project_no)
     step = execution_step_service.uncomplete_step(
+        db, project.id, execution_step_service.parse_project_step_id(step_id), current_user.id
+    )
+    return _step_out(db, step)
+
+
+@router.post("/api/projects/{project_no}/execution-steps/{step_id}/waive", response_model=ProjectExecutionStepOut)
+def waive_step(
+    project_no: str,
+    step_id: str,
+    payload: ExecutionStepWaiveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = execution_step_service.waive_step(
+        db, project.id, execution_step_service.parse_project_step_id(step_id), payload.reason, current_user.id
+    )
+    return _step_out(db, step)
+
+
+@router.post("/api/projects/{project_no}/execution-steps/{step_id}/unwaive", response_model=ProjectExecutionStepOut)
+def unwaive_step(
+    project_no: str,
+    step_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = execution_step_service.unwaive_step(
         db, project.id, execution_step_service.parse_project_step_id(step_id), current_user.id
     )
     return _step_out(db, step)

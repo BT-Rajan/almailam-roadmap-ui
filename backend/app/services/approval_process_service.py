@@ -41,7 +41,9 @@ def snapshot_steps_for_project(db: Session, project_id: int) -> None:
             ProjectApprovalStep(
                 project_id=project_id,
                 name=template_step.name,
+                stage_key=template_step.stage_key,
                 sequence_number=template_step.sequence_number,
+                is_optional=template_step.is_optional,
                 status="Pending",
             )
         )
@@ -71,13 +73,15 @@ def complete_step(db: Session, project_id: int, step_id: int, user_id: int | Non
     step = get_project_step(db, project_id, step_id)
     if step.status == "Completed":
         return step
+    if step.status == "Waived":
+        raise ValidationAppError("This step has been waived -- unwaive it first to complete it instead.")
 
     incomplete_before = (
         db.query(ProjectApprovalStep)
         .filter(
             ProjectApprovalStep.project_id == project_id,
             ProjectApprovalStep.sequence_number < step.sequence_number,
-            ProjectApprovalStep.status != "Completed",
+            ProjectApprovalStep.status == "Pending",
         )
         .count()
     )
@@ -99,25 +103,26 @@ def complete_step(db: Session, project_id: int, step_id: int, user_id: int | Non
 
 def uncomplete_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectApprovalStep:
     """Undoing a mistake is allowed -- but only for the most recently
-    completed step, mirroring execution_step_service's own rule
-    exactly, so this checklist can never end up with a completed step
-    sitting after an incomplete one."""
+    resolved (Completed or Waived) step, mirroring
+    execution_step_service's own rule exactly, so this checklist can
+    never end up with a resolved step sitting after an unresolved
+    one."""
     step = get_project_step(db, project_id, step_id)
     if step.status != "Completed":
         return step
 
-    later_completed = (
+    later_resolved = (
         db.query(ProjectApprovalStep)
         .filter(
             ProjectApprovalStep.project_id == project_id,
             ProjectApprovalStep.sequence_number > step.sequence_number,
-            ProjectApprovalStep.status == "Completed",
+            ProjectApprovalStep.status != "Pending",
         )
         .count()
     )
-    if later_completed > 0:
+    if later_resolved > 0:
         raise ValidationAppError(
-            "Only the most recently completed step can be undone -- undo later steps first."
+            "Only the most recently completed or waived step can be undone -- undo later steps first."
         )
 
     step.status = "Pending"
@@ -125,6 +130,77 @@ def uncomplete_step(db: Session, project_id: int, step_id: int, user_id: int | N
     step.completed_by = None
     audit_service.log_event(
         db, ENTITY_TYPE, project_id, f"Approval process step un-completed: {step.name}", user_id
+    )
+    db.commit()
+    db.refresh(step)
+    return step
+
+
+def waive_step(db: Session, project_id: int, step_id: int, reason: str, user_id: int | None) -> ProjectApprovalStep:
+    """Mirrors execution_step_service.waive_step exactly -- only
+    reachable from Pending, only for a stage marked is_optional on the
+    template it was snapshotted from, requires a reason."""
+    step = get_project_step(db, project_id, step_id)
+    if step.status != "Pending":
+        raise ValidationAppError("Only a pending step can be waived.")
+    if not step.is_optional:
+        raise ValidationAppError("This step is not optional and cannot be waived.")
+    if not reason.strip():
+        raise ValidationAppError("A reason is required to waive a step.")
+
+    incomplete_before = (
+        db.query(ProjectApprovalStep)
+        .filter(
+            ProjectApprovalStep.project_id == project_id,
+            ProjectApprovalStep.sequence_number < step.sequence_number,
+            ProjectApprovalStep.status == "Pending",
+        )
+        .count()
+    )
+    if incomplete_before > 0:
+        raise ValidationAppError(
+            "Steps must be resolved in order -- finish the steps before this one first."
+        )
+
+    step.status = "Waived"
+    step.waived_at = datetime.now(timezone.utc)
+    step.waived_by = user_id
+    step.waived_reason = reason.strip()
+    audit_service.log_event(
+        db, ENTITY_TYPE, project_id, f"Approval process step waived: {step.name}", user_id, reason=reason.strip()
+    )
+    db.commit()
+    db.refresh(step)
+    return step
+
+
+def unwaive_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectApprovalStep:
+    """Reverses a waive back to Pending -- same "only the most recently
+    resolved step" rule as uncomplete_step."""
+    step = get_project_step(db, project_id, step_id)
+    if step.status != "Waived":
+        return step
+
+    later_resolved = (
+        db.query(ProjectApprovalStep)
+        .filter(
+            ProjectApprovalStep.project_id == project_id,
+            ProjectApprovalStep.sequence_number > step.sequence_number,
+            ProjectApprovalStep.status != "Pending",
+        )
+        .count()
+    )
+    if later_resolved > 0:
+        raise ValidationAppError(
+            "Only the most recently completed or waived step can be undone -- undo later steps first."
+        )
+
+    step.status = "Pending"
+    step.waived_at = None
+    step.waived_by = None
+    step.waived_reason = None
+    audit_service.log_event(
+        db, ENTITY_TYPE, project_id, f"Approval process step un-waived: {step.name}", user_id
     )
     db.commit()
     db.refresh(step)

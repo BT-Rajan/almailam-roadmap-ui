@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.approval_process import ProjectApprovalStepOut
+from app.schemas.approval_process import ApprovalProcessWaiveRequest, ProjectApprovalStepOut
 from app.services import approval_process_service, project_service
 
 router = APIRouter(tags=["approval-process"])
@@ -18,7 +18,11 @@ def _step_out(db: Session, step) -> ProjectApprovalStepOut:
     if step.completed_by:
         user = db.query(User).filter(User.id == step.completed_by).first()
         completed_by_name = user.full_name if user else None
-    return ProjectApprovalStepOut.from_model(step, completed_by_name)
+    waived_by_name = None
+    if step.waived_by:
+        user = db.query(User).filter(User.id == step.waived_by).first()
+        waived_by_name = user.full_name if user else None
+    return ProjectApprovalStepOut.from_model(step, completed_by_name, waived_by_name)
 
 
 @router.get("/api/projects/{project_no}/approval-steps", response_model=list[ProjectApprovalStepOut])
@@ -50,6 +54,35 @@ def uncomplete_approval_step(
 ):
     project = project_service.get_project(db, project_no)
     step = approval_process_service.uncomplete_step(
+        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), current_user.id
+    )
+    return _step_out(db, step)
+
+
+@router.post("/api/projects/{project_no}/approval-steps/{step_id}/waive", response_model=ProjectApprovalStepOut)
+def waive_approval_step(
+    project_no: str,
+    step_id: str,
+    payload: ApprovalProcessWaiveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = approval_process_service.waive_step(
+        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), payload.reason, current_user.id
+    )
+    return _step_out(db, step)
+
+
+@router.post("/api/projects/{project_no}/approval-steps/{step_id}/unwaive", response_model=ProjectApprovalStepOut)
+def unwaive_approval_step(
+    project_no: str,
+    step_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = approval_process_service.unwaive_step(
         db, project.id, approval_process_service.parse_project_approval_step_id(step_id), current_user.id
     )
     return _step_out(db, step)

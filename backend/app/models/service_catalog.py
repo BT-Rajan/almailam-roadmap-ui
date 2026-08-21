@@ -29,8 +29,8 @@ class ServiceCatalogItem(Base, TimestampMixin, SoftDeleteMixin):
 class ServiceCatalogActivity(Base):
     """A sub-service ('activity') under a service, with its own fixed
     cost -- e.g. Structural Engineering -> 'Site Inspection' at a fixed
-    price. No soft-delete/timestamps here, same as WorkflowStage: these
-    are simple child rows scoped entirely to their parent service."""
+    price. No soft-delete/timestamps here: these are simple child rows
+    scoped entirely to their parent service."""
 
     __tablename__ = "service_catalog_activities"
 

@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-PROJECT_EXECUTION_STEP_STATUSES = ("Pending", "Completed")
+PROJECT_EXECUTION_STEP_STATUSES = ("Pending", "Completed", "Waived")
 
 
 class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
@@ -32,6 +32,17 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     project type. Extending to multiple templates later is a natural
     fit for this same shape if that's ever needed, without disturbing
     projects already running against this one.
+
+    stage_key groups each step under one of the 5 Project Approval
+    Process stages (see approval_process.py) it feeds into -- e.g. the
+    architectural/3D design steps fall under "architectural_approval",
+    the structural/interior/MEP drawing steps fall under
+    "submit_baladia_kfd" since they're submitted together as the full
+    technical package. "Permit Approved" (the final approval stage) has
+    no execution steps of its own -- it's a pure external gate.
+    is_optional marks a step that a client's specific requirements can
+    waive (see ProjectExecutionStep.status) rather than every step
+    being mandatory for every project.
     """
 
     __tablename__ = "execution_step_templates"
@@ -40,6 +51,8 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class ProjectExecutionStep(Base, TimestampMixin):
@@ -47,16 +60,27 @@ class ProjectExecutionStep(Base, TimestampMixin):
     from ExecutionStepTemplate the moment the project is created.
 
     Linear by design: a step can only be marked complete once every
-    step before it (by sequence_number) already is, and can only be
-    un-marked if it's the most recently completed one -- undoing a
-    mistake is allowed, skipping ahead or leaving a gap in the middle
-    is not. See execution_step_service.complete_step /
-    uncomplete_last_step.
+    step before it (by sequence_number) is already Completed or
+    Waived, and can only be un-marked if it's the most recently
+    resolved one -- undoing a mistake is allowed, skipping ahead or
+    leaving a gap in the middle is not. See
+    execution_step_service.complete_step / uncomplete_step.
 
-    Project.progress is computed as the sum of completed steps'
-    weight_percentage (see execution_step_service.recompute_progress),
-    not typed in by hand -- this is what "clean, measurable progress"
-    means in practice: a number nobody had to estimate.
+    Waived (only reachable from Pending, only when is_optional is
+    true) covers a step a client's specific requirements don't call
+    for -- e.g. no false ceiling wanted, so "False ceiling drawings
+    completed" is waived rather than left permanently Pending. A
+    waived step counts toward progress exactly like a completed one
+    (see execution_step_service._recompute_progress) and unblocks the
+    steps after it, but keeps its own audit trail (waived_at/by/reason)
+    separate from completed_at/by so "why is this step done" stays
+    answerable.
+
+    Project.progress is computed as the sum of resolved (Completed or
+    Waived) steps' weight_percentage (see
+    execution_step_service.recompute_progress), not typed in by hand
+    -- this is what "clean, measurable progress" means in practice: a
+    number nobody had to estimate.
     """
 
     __tablename__ = "project_execution_steps"
@@ -68,6 +92,8 @@ class ProjectExecutionStep(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(
         Enum(*PROJECT_EXECUTION_STEP_STATUSES, name="project_execution_step_status"),
         nullable=False,
@@ -77,3 +103,8 @@ class ProjectExecutionStep(Base, TimestampMixin):
     completed_by: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    waived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    waived_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    waived_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)

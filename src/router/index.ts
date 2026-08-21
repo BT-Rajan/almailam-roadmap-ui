@@ -327,20 +327,6 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin/workflows',
-      name: ROUTE_NAMES.ADMIN_WORKFLOWS,
-      component: () => import('@/pages/AdminWorkflowsPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Workflows' },
-        ],
-      },
-    },
-    {
       path: '/admin/execution-steps',
       name: ROUTE_NAMES.ADMIN_EXECUTION_STEPS,
       component: () => import('@/pages/AdminExecutionStepsPage.vue'),
@@ -350,7 +336,7 @@ const router = createRouter({
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Execution Steps' },
+          { label: 'Process Steps' },
         ],
       },
     },
