@@ -213,7 +213,7 @@ async function handleConfirmDelete(): Promise<void> {
         />
       </div>
 
-      <WorkflowProgress class="no-print" :current-stage="project.currentStage" />
+      <WorkflowProgress class="no-print" :current-stage="project.currentStage" @navigate-tab="activeTab = $event" />
 
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
