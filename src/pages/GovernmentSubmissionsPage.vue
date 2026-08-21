@@ -18,6 +18,7 @@ import RequiredDocumentChecklist from '@/components/government/RequiredDocumentC
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SubmissionStatus } from '@/types/Submission'
@@ -40,6 +41,7 @@ interface SubmissionTableRow {
 
 const submissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
 const isCreateDialogOpen = ref(false)
@@ -49,11 +51,11 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   isCreating.value = true
   try {
     const submission = await submissionStore.createSubmission(payload)
-    toastStore.show('success', 'Submission created', `${submission.submissionNo} was created successfully.`)
+    resultDialogStore.showSuccess('Submission created', `${submission.submissionNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create submission', detail)
+    resultDialogStore.showError('Failed to create submission', detail)
   } finally {
     isCreating.value = false
   }
