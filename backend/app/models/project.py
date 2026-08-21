@@ -79,6 +79,14 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # -- distinct from `description` above (the project's own scope-of-
     # work description, set at creation and shown on Overview).
     completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # A PM's own annotation on the auto-derived delivery-deviation read
+    # (contract revisions beyond R0, plus budget/duration variance) --
+    # distinct from completion_notes, which is general handover/lessons-
+    # learned text. Never the source of truth for whether something
+    # deviated -- that's always computed live in
+    # project_service.get_completion_summary -- this is just the PM's
+    # explanation layered on top of it.
+    deviation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ProjectSelectedActivity(Base):

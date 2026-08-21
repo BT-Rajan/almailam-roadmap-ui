@@ -12,7 +12,7 @@ from app.core.status_transitions import (
     PROJECT_STATUS_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
-from app.models.contract import Contract
+from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
 from app.models.project import Project, ProjectSelectedActivity
@@ -383,6 +383,29 @@ def get_completion_summary(db: Session, project_no: str) -> dict:
         (project.completed_at.date() - project.start_date).days if project.completed_at else None
     )
 
+    # Scope deviations -- every ContractRevision beyond a contract's
+    # initial R0 across every contract this project has had. A contract
+    # only gets a ContractRevision row when its revision actually bumps
+    # (see contract_service.add_revision), so an empty list here is a
+    # real "nothing changed", not just "we didn't check".
+    revisions = (
+        db.query(ContractRevision, User)
+        .join(Contract, Contract.id == ContractRevision.contract_id)
+        .join(User, User.id == ContractRevision.changed_by)
+        .filter(Contract.project_id == project.id)
+        .order_by(ContractRevision.revised_at.asc(), ContractRevision.id.asc())
+        .all()
+    )
+    scope_deviations = [
+        {
+            "revision": revision.revision,
+            "date": revision.revised_at,
+            "changedBy": user.full_name,
+            "summary": revision.summary,
+        }
+        for revision, user in revisions
+    ]
+
     return {
         "plannedBudget": planned_budget,
         "actualBudget": actual_budget,
@@ -390,6 +413,8 @@ def get_completion_summary(db: Session, project_no: str) -> dict:
         "actualDurationDays": actual_duration_days,
         "completedAt": project.completed_at,
         "notes": project.completion_notes,
+        "scopeDeviations": scope_deviations,
+        "deviationNotes": project.deviation_notes,
     }
 
 
@@ -397,6 +422,15 @@ def update_completion_notes(db: Session, project_no: str, notes: str, user_id: i
     project = get_project(db, project_no)
     project.completion_notes = notes.strip() or None
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Completion notes updated", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def update_deviation_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
+    project = get_project(db, project_no)
+    project.deviation_notes = notes.strip() or None
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Deviation notes updated", user_id)
     db.commit()
     db.refresh(project)
     return project
