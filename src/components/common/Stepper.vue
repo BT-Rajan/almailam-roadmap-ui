@@ -17,9 +17,16 @@ interface Props {
   // else this component is used (workflow/stage progress displays,
   // where a step number isn't a valid thing to jump to).
   clickable?: boolean
+  // Overrides which steps are navigable, independent of clickable/
+  // status -- e.g. WorkflowProgress.vue uses this to make a step
+  // clickable whenever it has a matching project tab to jump to,
+  // regardless of whether that stage is complete, current, or still
+  // upcoming (a "go to" link, not a wizard "go back"). When omitted,
+  // navigability falls back to the clickable+complete rule above.
+  isStepNavigable?: (index: number) => boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { clickable: false })
+const props = withDefaults(defineProps<Props>(), { clickable: false, isStepNavigable: undefined })
 
 const emit = defineEmits<{
   select: [index: number]
@@ -32,6 +39,7 @@ function stepStatus(index: number): 'complete' | 'current' | 'upcoming' {
 }
 
 function isNavigable(index: number): boolean {
+  if (props.isStepNavigable) return props.isStepNavigable(index)
   return props.clickable && stepStatus(index) === 'complete'
 }
 
@@ -66,10 +74,11 @@ function connectorClasses(index: number): string[] {
           v-if="isNavigable(index)"
           type="button"
           :class="circleClasses(index)"
-          :aria-label="`Go back to step ${index + 1}: ${step.label}`"
+          :aria-label="`Go to step ${index + 1}: ${step.label}`"
           @click="handleStepClick(index)"
         >
-          <Check class="h-4 w-4" />
+          <Check v-if="stepStatus(index) === 'complete'" class="h-4 w-4" />
+          <span v-else>{{ index + 1 }}</span>
         </button>
         <div v-else :class="circleClasses(index)">
           <Check v-if="stepStatus(index) === 'complete'" class="h-4 w-4" />
