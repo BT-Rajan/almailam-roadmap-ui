@@ -38,20 +38,16 @@ async function getProjectSteps(projectId: string): Promise<ProjectExecutionStep[
   return apiClient.get<ProjectExecutionStep[]>(`/api/projects/${projectId}/execution-steps`)
 }
 
-async function completeStep(projectId: string, stepId: string): Promise<ProjectExecutionStep> {
-  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/complete`)
-}
-
-async function uncompleteStep(projectId: string, stepId: string): Promise<ProjectExecutionStep> {
-  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/uncomplete`)
-}
-
-async function waiveStep(projectId: string, stepId: string, reason: string): Promise<ProjectExecutionStep> {
-  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/waive`, { reason })
-}
-
-async function unwaiveStep(projectId: string, stepId: string): Promise<ProjectExecutionStep> {
-  return apiClient.post<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/unwaive`)
+async function setStepProgress(
+  projectId: string,
+  stepId: string,
+  completionPercentage: number,
+  remarks: string | null,
+): Promise<ProjectExecutionStep> {
+  return apiClient.patch<ProjectExecutionStep>(`/api/projects/${projectId}/execution-steps/${stepId}/progress`, {
+    completionPercentage,
+    remarks,
+  })
 }
 
 export const executionStepService = {
@@ -61,8 +57,5 @@ export const executionStepService = {
   deleteTemplateStep,
   moveTemplateStep,
   getProjectSteps,
-  completeStep,
-  uncompleteStep,
-  waiveStep,
-  unwaiveStep,
+  setStepProgress,
 }

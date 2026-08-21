@@ -2,12 +2,14 @@ import { defineStore } from 'pinia'
 
 import { approvalProcessService } from '@/services/approvalProcessService'
 import type { ProjectApprovalStep } from '@/types/ApprovalProcess'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 
 interface ProjectApprovalState {
   steps: ProjectApprovalStep[]
   isLoading: boolean
   error: string | undefined
   mutationError: string | undefined
+  isUploading: boolean
 }
 
 export const useProjectApprovalStore = defineStore('projectApproval', {
@@ -16,18 +18,8 @@ export const useProjectApprovalStore = defineStore('projectApproval', {
     isLoading: false,
     error: undefined,
     mutationError: undefined,
+    isUploading: false,
   }),
-
-  getters: {
-    nextActionableStepId(state): string | undefined {
-      return [...state.steps].sort((a, b) => a.sequenceNumber - b.sequenceNumber).find((s) => s.status === 'Pending')?.id
-    },
-    lastResolvedStepId(state): string | undefined {
-      const resolved = state.steps.filter((s) => s.status !== 'Pending')
-      if (resolved.length === 0) return undefined
-      return resolved.reduce((latest, s) => (s.sequenceNumber > latest.sequenceNumber ? s : latest)).id
-    },
-  },
 
   actions: {
     async loadSteps(projectId: string) {
@@ -42,43 +34,26 @@ export const useProjectApprovalStore = defineStore('projectApproval', {
       }
     },
 
-    async completeStep(projectId: string, stepId: string) {
+    async uploadStageGateDocument(projectId: string, stageKey: string, file: File) {
       this.mutationError = undefined
+      this.isUploading = true
       try {
-        const updated = await approvalProcessService.completeStep(projectId, stepId)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
+        const updated = await approvalProcessService.uploadStageGateDocument(projectId, stageKey, file)
+        this.steps = this.steps.map((s) => (s.stageKey === stageKey ? updated : s))
       } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to complete step.'
+        this.mutationError = error instanceof Error ? error.message : 'Failed to upload stage gate document.'
+      } finally {
+        this.isUploading = false
       }
     },
 
-    async uncompleteStep(projectId: string, stepId: string) {
+    async downloadStageGateDocument(projectId: string, stageKey: string, filename: string) {
       this.mutationError = undefined
       try {
-        const updated = await approvalProcessService.uncompleteStep(projectId, stepId)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
+        const blob = await approvalProcessService.downloadStageGateDocument(projectId, stageKey)
+        triggerBlobDownload(blob, filename)
       } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to undo step.'
-      }
-    },
-
-    async waiveStep(projectId: string, stepId: string, reason: string) {
-      this.mutationError = undefined
-      try {
-        const updated = await approvalProcessService.waiveStep(projectId, stepId, reason)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to waive step.'
-      }
-    },
-
-    async unwaiveStep(projectId: string, stepId: string) {
-      this.mutationError = undefined
-      try {
-        const updated = await approvalProcessService.unwaiveStep(projectId, stepId)
-        this.steps = this.steps.map((s) => (s.id === stepId ? updated : s))
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Failed to undo waive.'
+        this.mutationError = error instanceof Error ? error.message : 'Failed to download stage gate document.'
       }
     },
   },

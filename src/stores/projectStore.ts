@@ -196,6 +196,18 @@ export const useProjectStore = defineStore('project', {
       return updated
     },
 
+    async changeScope(
+      projectId: string,
+      description: string,
+      contractUpdateNeeded: boolean,
+      paymentUpdateNeeded: boolean,
+    ): Promise<Project> {
+      const updated = await projectService.changeScope(projectId, description, contractUpdateNeeded, paymentUpdateNeeded)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
     // Re-fetches one project and patches the local cache -- same shape
     // as setStage/setStatus above, for callers (the execution-step
     // checklist) that mutate a project's data through an endpoint that

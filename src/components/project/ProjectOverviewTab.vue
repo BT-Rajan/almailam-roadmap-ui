@@ -170,6 +170,19 @@ const clientDetailItems = computed(() => {
       <SkeletonLoader v-else-if="completionStore.isLoading" :rows="5" />
 
       <div v-else-if="summary" class="flex flex-col gap-6">
+        <div>
+          <div class="mb-1 flex items-center justify-between">
+            <p class="text-xs text-text-muted">Execution Progress</p>
+            <p class="text-sm font-semibold text-text-primary">{{ project.progress }}%</p>
+          </div>
+          <div class="h-2 w-full overflow-hidden rounded-full bg-bg-secondary">
+            <div
+              class="h-full rounded-full bg-primary-600 transition-[width] duration-normal"
+              :style="{ width: `${project.progress}%` }"
+            />
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div>
             <p class="text-xs text-text-muted">Planned Budget</p>

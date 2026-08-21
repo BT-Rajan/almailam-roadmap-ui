@@ -1,10 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
-
-
-class ApprovalProcessWaiveRequest(BaseModel):
-    reason: str = Field(min_length=1, max_length=500)
+from pydantic import BaseModel
 
 
 class ProjectApprovalStepOut(BaseModel):
@@ -12,28 +8,22 @@ class ProjectApprovalStepOut(BaseModel):
     name: str
     stageKey: str
     sequenceNumber: int
-    isOptional: bool
-    status: str
-    completedAt: datetime | None
-    completedByName: str | None
-    waivedAt: datetime | None
-    waivedByName: str | None
-    waivedReason: str | None
+    hasDocument: bool
+    originalFilename: str | None
+    fileSizeBytes: int | None
+    uploadedAt: datetime | None
+    uploadedByName: str | None
 
     @staticmethod
-    def from_model(
-        step, completed_by_name: str | None, waived_by_name: str | None = None
-    ) -> "ProjectApprovalStepOut":
+    def from_model(step, uploaded_by_name: str | None = None) -> "ProjectApprovalStepOut":
         return ProjectApprovalStepOut(
             id=f"PAS-{step.id:03d}",
             name=step.name,
             stageKey=step.stage_key,
             sequenceNumber=step.sequence_number,
-            isOptional=step.is_optional,
-            status=step.status,
-            completedAt=step.completed_at,
-            completedByName=completed_by_name,
-            waivedAt=step.waived_at,
-            waivedByName=waived_by_name,
-            waivedReason=step.waived_reason,
+            hasDocument=step.storage_key is not None,
+            originalFilename=step.original_filename,
+            fileSizeBytes=step.file_size_bytes,
+            uploadedAt=step.uploaded_at,
+            uploadedByName=uploaded_by_name,
         )

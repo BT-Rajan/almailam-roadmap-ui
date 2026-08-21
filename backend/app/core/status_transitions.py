@@ -73,14 +73,15 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 #
 # "Completed" was originally a true dead end with no way back -- a
 # project marked complete by mistake had no recovery path at all. Added
-# a single escape hatch back to "Approval" (the stage immediately
-# before) rather than opening up arbitrary backward jumps through the
-# whole pipeline, which is a real stage-gate process with its own
-# intentional structure. Unlike "Review" -> "Approval" (the normal,
-# frequent, reason-free outcome of a successful review), reopening a
-# Completed project is exceptional and source-dependent -- enforced
-# directly in project_service.set_stage() rather than here, since
-# REQUIRING_REASON only keys on the target state.
+# a single escape hatch back to "Execution & Tracking" (the stage
+# immediately before) rather than opening up arbitrary backward jumps
+# through the whole pipeline, which is a real stage-gate process with
+# its own intentional structure. Unlike "Execution & Tracking" ->
+# "Completed" (the normal, frequent, reason-free outcome of finishing
+# the checklist), reopening a Completed project is exceptional and
+# source-dependent -- enforced directly in project_service.set_stage()
+# rather than here, since REQUIRING_REASON only keys on the target
+# state.
 #
 # "Correction" used to be its own stage here (Review <-> Correction, a
 # loop back and forth with a required reason on the way into
@@ -91,15 +92,18 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 # capture. See timeline_service.create_event -- staff log a correction
 # cycle as a reason-carrying note there now instead of moving the
 # project's stage back and forth.
+#
+# "Review" was itself renamed to "Execution & Tracking" and "Approval"
+# dropped entirely (migration 0022) -- see project.py's WORKFLOW_STAGES
+# comment for why.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Enquiry": {"Quotation"},
     "Quotation": {"Contract"},
     "Contract": {"Design"},
     "Design": {"Government Submission"},
-    "Government Submission": {"Review"},
-    "Review": {"Approval"},
-    "Approval": {"Completed"},
-    "Completed": {"Approval"},
+    "Government Submission": {"Execution & Tracking"},
+    "Execution & Tracking": {"Completed"},
+    "Completed": {"Execution & Tracking"},
 }
 PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 

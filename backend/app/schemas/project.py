@@ -110,6 +110,12 @@ class DeviationNotesUpdate(BaseModel):
     notes: str = Field(default="", max_length=4000)
 
 
+class ScopeChangeUpdate(BaseModel):
+    description: str = Field(min_length=1, max_length=2000)
+    contractUpdateNeeded: bool
+    paymentUpdateNeeded: bool
+
+
 class ProjectCreate(BaseModel):
     projectName: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)

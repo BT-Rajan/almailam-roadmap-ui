@@ -1,13 +1,9 @@
-from datetime import datetime
-
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
-
-PROJECT_EXECUTION_STEP_STATUSES = ("Pending", "Completed", "Waived")
 
 
 class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
@@ -40,9 +36,12 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     "submit_baladia_kfd" since they're submitted together as the full
     technical package. "Permit Approved" (the final approval stage) has
     no execution steps of its own -- it's a pure external gate.
-    is_optional marks a step that a client's specific requirements can
-    waive (see ProjectExecutionStep.status) rather than every step
-    being mandatory for every project.
+    is_optional flags a step that doesn't apply to every project (e.g.
+    a client who doesn't want a false ceiling has no real use for
+    "False ceiling drawings completed") -- purely informational since
+    migration 0022: nothing gates on it, a PM can leave an
+    inapplicable step at 0% (with a remark saying why) same as any
+    other step.
     """
 
     __tablename__ = "execution_step_templates"
@@ -59,26 +58,15 @@ class ProjectExecutionStep(Base, TimestampMixin):
     """One project's own snapshot of the execution-step checklist, copied
     from ExecutionStepTemplate the moment the project is created.
 
-    Linear by design: a step can only be marked complete once every
-    step before it (by sequence_number) is already Completed or
-    Waived, and can only be un-marked if it's the most recently
-    resolved one -- undoing a mistake is allowed, skipping ahead or
-    leaving a gap in the middle is not. See
-    execution_step_service.complete_step / uncomplete_step.
+    Since migration 0022: each step carries its own free-standing
+    0-100 completion_percentage (see execution_step_service.
+    set_step_progress) -- not a linear Pending/Completed/Waived status.
+    A step can be set to any percentage independently of every other
+    step; nothing here enforces an order between them.
 
-    Waived (only reachable from Pending, only when is_optional is
-    true) covers a step a client's specific requirements don't call
-    for -- e.g. no false ceiling wanted, so "False ceiling drawings
-    completed" is waived rather than left permanently Pending. A
-    waived step counts toward progress exactly like a completed one
-    (see execution_step_service._recompute_progress) and unblocks the
-    steps after it, but keeps its own audit trail (waived_at/by/reason)
-    separate from completed_at/by so "why is this step done" stays
-    answerable.
-
-    Project.progress is computed as the sum of resolved (Completed or
-    Waived) steps' weight_percentage (see
-    execution_step_service.recompute_progress), not typed in by hand
+    Project.progress is computed as the weight_percentage-weighted sum
+    of every step's completion_percentage (see
+    execution_step_service._recompute_progress), not typed in by hand
     -- this is what "clean, measurable progress" means in practice: a
     number nobody had to estimate.
     """
@@ -94,17 +82,5 @@ class ProjectExecutionStep(Base, TimestampMixin):
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
     is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    status: Mapped[str] = mapped_column(
-        Enum(*PROJECT_EXECUTION_STEP_STATUSES, name="project_execution_step_status"),
-        nullable=False,
-        default="Pending",
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    completed_by: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    waived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    waived_by: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    waived_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    completion_percentage: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
