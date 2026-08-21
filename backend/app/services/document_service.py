@@ -108,7 +108,7 @@ def get_document(db: Session, document_no: str) -> ProjectDocument:
 
 
 def create_document(
-    db: Session, project_no: str, title: str, doc_type: str, file: UploadFile, user_id: int
+    db: Session, project_no: str, title: str, doc_type: str, file: UploadFile, user_id: int, stage_key: str | None = None
 ) -> ProjectDocument:
     project = _project_by_no(db, project_no)
     project_service.assert_project_open_for_new_work(project)
@@ -119,6 +119,7 @@ def create_document(
         project_id=project.id,
         title=title,
         type=doc_type,
+        stage_key=stage_key or None,
         uploaded_by=user_id,
         upload_date=date.today(),
         storage_key=storage_key,
@@ -167,6 +168,11 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
     if payload.title is not None and payload.title != document.title:
         changes["title"] = (document.title, payload.title)
         document.title = payload.title
+    if payload.stageKey is not None:
+        new_stage_key = payload.stageKey or None
+        if new_stage_key != document.stage_key:
+            changes["stage"] = (document.stage_key, new_stage_key)
+            document.stage_key = new_stage_key
 
     audit_service.log_field_changes(db, ENTITY_TYPE, document.id, changes, user_id)
     db.commit()

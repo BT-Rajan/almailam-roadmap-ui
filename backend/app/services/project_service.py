@@ -19,7 +19,7 @@ from app.models.project import Project, ProjectSelectedActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, timeline_service, user_service
+from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, payment_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -338,6 +338,12 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
         previous_value=previous_status, new_value=new_status, reason=reason,
     )
     project.status = new_status
+    # The Completion summary's actual-vs-planned duration needs a real
+    # "when did this project actually finish" timestamp -- target_date is
+    # only ever the plan, and updated_at changes on every unrelated edit.
+    # Cleared on reopen so a project completed twice reports its most
+    # recent completion, not a stale one from the first time around.
+    project.completed_at = datetime.now(timezone.utc) if new_status == "Completed" else None
     # progress is no longer force-set to 100 here. It used to be, so a
     # project marked "Completed" would never show an inconsistent-looking
     # progress bar next to it -- but progress is now computed from the
@@ -348,6 +354,49 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
     # marked Completed with steps still outstanding, which is real,
     # useful information rather than a cosmetic inconsistency to paper
     # over.
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def get_completion_summary(db: Session, project_no: str) -> dict:
+    """Planned vs. actual budget and duration for the Completion summary
+    (Overview tab). Budget is derived entirely from the existing payment
+    module -- planned = the project's one FinancialAgreement.contract_
+    amount (see migration 0015's one-agreement-per-project constraint),
+    actual = total received across it -- rather than a second, hand-typed
+    number that could drift from what payments actually show. Duration is
+    planned = target_date - start_date, actual = completed_at - start_date
+    (None until the project is actually marked Completed)."""
+    project = get_project(db, project_no)
+
+    planned_budget: float | None = None
+    actual_budget: float | None = None
+    agreement = payment_service.get_agreement_by_project(db, project_no)
+    if agreement:
+        summary = payment_service.get_financial_summary(db, agreement.id)
+        planned_budget = float(summary["contractAmount"])
+        actual_budget = float(summary["totalReceived"])
+
+    planned_duration_days = (project.target_date - project.start_date).days
+    actual_duration_days = (
+        (project.completed_at.date() - project.start_date).days if project.completed_at else None
+    )
+
+    return {
+        "plannedBudget": planned_budget,
+        "actualBudget": actual_budget,
+        "plannedDurationDays": planned_duration_days,
+        "actualDurationDays": actual_duration_days,
+        "completedAt": project.completed_at,
+        "notes": project.completion_notes,
+    }
+
+
+def update_completion_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
+    project = get_project(db, project_no)
+    project.completion_notes = notes.strip() or None
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Completion notes updated", user_id)
     db.commit()
     db.refresh(project)
     return project

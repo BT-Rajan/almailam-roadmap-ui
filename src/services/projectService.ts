@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { Project, ProjectPriority } from '@/types/Project'
+import type { ProjectCompletionSummary } from '@/types/ProjectCompletion'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -171,6 +172,31 @@ async function deleteProject(projectId: string): Promise<void> {
   }
 }
 
+/**
+ * Fetch the Completion summary (planned/actual budget and duration,
+ * plus notes) for a project via backend API.
+ */
+async function getCompletionSummary(projectId: string): Promise<ProjectCompletionSummary> {
+  try {
+    return await apiClient.get<ProjectCompletionSummary>(`/api/projects/${projectId}/completion-summary`)
+  } catch (error) {
+    console.error(`Failed to fetch completion summary for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch completion summary')
+  }
+}
+
+/**
+ * Save the Completion summary's free-text notes via backend API.
+ */
+async function updateCompletionNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
+  try {
+    return await apiClient.patch<ProjectCompletionSummary>(`/api/projects/${projectId}/completion-notes`, { notes })
+  } catch (error) {
+    console.error(`Failed to save completion notes for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save completion notes')
+  }
+}
+
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -181,4 +207,6 @@ export const projectService = {
   setStage,
   setStatus,
   deleteProject,
+  getCompletionSummary,
+  updateCompletionNotes,
 }

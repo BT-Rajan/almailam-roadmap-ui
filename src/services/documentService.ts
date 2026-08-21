@@ -92,12 +92,19 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
 // wired up: DocumentUploadDialog.vue fabricated a fake client-side id and
 // never called this function at all, so uploaded documents never persisted
 // and didn't have a real, unique, server-issued id.
-async function uploadDocument(file: File, projectId: string, title: string, type: DocumentType): Promise<ProjectDocument> {
+async function uploadDocument(
+  file: File,
+  projectId: string,
+  title: string,
+  type: DocumentType,
+  stageKey?: string,
+): Promise<ProjectDocument> {
   const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('projectId', projectId)
   formData.append('title', title)
   formData.append('type', type)
+  if (stageKey) formData.append('stageKey', stageKey)
   formData.append('file', file)
 
   const doRequest = () =>
@@ -131,11 +138,19 @@ async function uploadDocument(file: File, projectId: string, title: string, type
 }
 
 /**
- * Update a document's title via backend API (PATCH /api/documents/{id})
+ * Update a document's title and/or stage tag via backend API
+ * (PATCH /api/documents/{id})
  */
-async function updateDocument(documentId: string, title: string): Promise<ProjectDocument> {
+async function updateDocument(documentId: string, title: string, stageKey?: string | null): Promise<ProjectDocument> {
   try {
-    return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}`, { title })
+    return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}`, {
+      title,
+      // Distinguish "clear the stage tag" (empty string) from "don't
+      // touch it" (omitted) -- undefined here means the key is left out
+      // of the request body entirely, matching the backend's own
+      // omitted-vs-empty-string convention (see schemas/document.py).
+      ...(stageKey !== undefined ? { stageKey: stageKey ?? '' } : {}),
+    })
   } catch (error) {
     console.error(`Failed to update document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update document')

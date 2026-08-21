@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { CheckCircle2, Circle, FileText, ListChecks, Plus, RotateCcw, XCircle } from '@lucide/vue'
+import { ChevronDown, ChevronRight, CheckCircle2, Circle, FileText, ListChecks, Plus, RotateCcw, XCircle } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -10,6 +11,7 @@ import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
 import WaiveStepDialog from '@/components/project/WaiveStepDialog.vue'
 import { PROCESS_STAGES } from '@/constants/processStages'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectApprovalStore } from '@/stores/projectApprovalStore'
 import { useProjectExecutionStore } from '@/stores/projectExecutionStore'
@@ -30,6 +32,7 @@ const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
+const router = useRouter()
 const executionStore = useProjectExecutionStore()
 const approvalStore = useProjectApprovalStore()
 const projectStore = useProjectStore()
@@ -71,9 +74,9 @@ const overdueTasks = computed(() =>
 )
 
 // One unified process view -- the 5 Project Approval Process stages,
-// each expanded to the execution steps that feed into it, instead of
-// a separate Execution tab and a separate Approval Process modal that
-// never talked to each other.
+// each expanded to the execution steps (and now documents) that feed
+// into it, instead of a separate Execution tab and a separate Approval
+// Process modal that never talked to each other.
 const stagesWithSteps = computed(() =>
   PROCESS_STAGES.map((stage) => ({
     stage,
@@ -81,8 +84,22 @@ const stagesWithSteps = computed(() =>
     executionSteps: executionStore.steps
       .filter((s) => s.stageKey === stage.key)
       .sort((a, b) => a.sequenceNumber - b.sequenceNumber),
+    documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
   })),
 )
+
+// Collapsed by default -- only one stage's detail (steps + documents)
+// is expanded at a time; opening another collapses whichever was open,
+// same as any single-open accordion.
+const expandedStageKey = ref<string | null>(null)
+
+function toggleStage(key: string): void {
+  expandedStageKey.value = expandedStageKey.value === key ? null : key
+}
+
+function openDocument(documentId: string): void {
+  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
+}
 
 async function refreshProgress(): Promise<void> {
   // The backend recomputes project.progress as part of resolving an
@@ -230,11 +247,6 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
     </div>
 
     <template v-else>
-      <p class="text-xs text-text-muted">
-        The Project Approval Process (5 stages) and its execution checklist (23 steps). Steps are resolved in order;
-        an optional step can be waived instead of completed when a client's requirements don't call for it.
-      </p>
-
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -273,15 +285,22 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
         </button>
       </div>
 
-      <Card v-for="{ stage, approvalStep, executionSteps } in stagesWithSteps" :key="stage.key">
+      <Card v-for="{ stage, approvalStep, executionSteps, documents } in stagesWithSteps" :key="stage.key">
         <template #header>
           <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="flex min-w-0 items-center gap-2 text-left"
+              :aria-expanded="expandedStageKey === stage.key"
+              @click="toggleStage(stage.key)"
+            >
+              <ChevronDown v-if="expandedStageKey === stage.key" class="h-4 w-4 shrink-0 text-text-muted" />
+              <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
               <CheckCircle2 v-if="approvalStep?.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
               <XCircle v-else-if="approvalStep?.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
               <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
-            </div>
+            </button>
 
             <div v-if="approvalStep" class="flex items-center gap-2">
               <span v-if="approvalStep.status === 'Waived'" class="text-xs text-text-muted">
@@ -332,71 +351,97 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
           Reason: {{ approvalStep.waivedReason }}
         </p>
 
-        <p v-if="executionSteps.length === 0" class="text-xs text-text-muted">
-          No execution steps feed into this stage -- it's an external approval gate on its own.
-        </p>
+        <div v-if="expandedStageKey === stage.key" class="flex flex-col gap-4">
+          <div>
+            <p v-if="executionSteps.length === 0" class="text-xs text-text-muted">
+              No execution steps feed into this stage -- it's an external approval gate on its own.
+            </p>
 
-        <ol v-else class="flex flex-col gap-2">
-          <li
-            v-for="step in executionSteps"
-            :key="step.id"
-            class="flex items-center gap-3 rounded-lg border p-3"
-            :class="{
-              'border-success-200 bg-success-50': step.status === 'Completed',
-              'border-border-light bg-bg-secondary': step.status === 'Waived',
-              'border-border-light bg-bg-card': step.status === 'Pending',
-            }"
-          >
-            <CheckCircle2 v-if="step.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
-            <XCircle v-else-if="step.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
-            <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
+            <ol v-else class="flex flex-col gap-2">
+              <li
+                v-for="step in executionSteps"
+                :key="step.id"
+                class="flex items-center gap-3 rounded-lg border p-3"
+                :class="{
+                  'border-success-200 bg-success-50': step.status === 'Completed',
+                  'border-border-light bg-bg-secondary': step.status === 'Waived',
+                  'border-border-light bg-bg-card': step.status === 'Pending',
+                }"
+              >
+                <CheckCircle2 v-if="step.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
+                <XCircle v-else-if="step.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
+                <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
 
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-text-primary">{{ step.name }}</p>
-              <p class="text-xs text-text-muted">
-                {{ step.weightPercentage }}%
-                <span v-if="step.status === 'Completed' && step.completedByName"> · Completed by {{ step.completedByName }}</span>
-                <span v-else-if="step.status === 'Waived'">
-                  · Waived{{ step.waivedByName ? ` by ${step.waivedByName}` : '' }}{{ step.waivedReason ? `: ${step.waivedReason}` : '' }}
-                </span>
-              </p>
-            </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-text-primary">{{ step.name }}</p>
+                  <p class="text-xs text-text-muted">
+                    {{ step.weightPercentage }}%
+                    <span v-if="step.status === 'Completed' && step.completedByName"> · Completed by {{ step.completedByName }}</span>
+                    <span v-else-if="step.status === 'Waived'">
+                      · Waived{{ step.waivedByName ? ` by ${step.waivedByName}` : '' }}{{ step.waivedReason ? `: ${step.waivedReason}` : '' }}
+                    </span>
+                  </p>
+                </div>
 
-            <BaseButton
-              v-if="step.id === executionStore.nextActionableStepId"
-              size="sm"
-              @click="handleCompleteExecution(step.id)"
-            >
-              Mark Complete
-            </BaseButton>
-            <BaseButton
-              v-if="step.id === executionStore.nextActionableStepId && step.isOptional"
-              size="sm"
-              variant="ghost"
-              @click="openWaiveExecution(step)"
-            >
-              Waive
-            </BaseButton>
-            <BaseButton
-              v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Completed'"
-              size="sm"
-              variant="ghost"
-              :icon="RotateCcw"
-              @click="handleUncompleteExecution(step.id)"
-            >
-              Undo
-            </BaseButton>
-            <BaseButton
-              v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Waived'"
-              size="sm"
-              variant="ghost"
-              :icon="RotateCcw"
-              @click="handleUnwaiveExecution(step.id)"
-            >
-              Undo Waiver
-            </BaseButton>
-          </li>
-        </ol>
+                <BaseButton
+                  v-if="step.id === executionStore.nextActionableStepId"
+                  size="sm"
+                  @click="handleCompleteExecution(step.id)"
+                >
+                  Mark Complete
+                </BaseButton>
+                <BaseButton
+                  v-if="step.id === executionStore.nextActionableStepId && step.isOptional"
+                  size="sm"
+                  variant="ghost"
+                  @click="openWaiveExecution(step)"
+                >
+                  Waive
+                </BaseButton>
+                <BaseButton
+                  v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Completed'"
+                  size="sm"
+                  variant="ghost"
+                  :icon="RotateCcw"
+                  @click="handleUncompleteExecution(step.id)"
+                >
+                  Undo
+                </BaseButton>
+                <BaseButton
+                  v-else-if="step.id === executionStore.lastResolvedStepId && step.status === 'Waived'"
+                  size="sm"
+                  variant="ghost"
+                  :icon="RotateCcw"
+                  @click="handleUnwaiveExecution(step.id)"
+                >
+                  Undo Waiver
+                </BaseButton>
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Documents</h3>
+            <p v-if="documents.length === 0" class="text-xs text-text-muted">
+              No documents tagged to this stage yet -- add one from the Documents tab.
+            </p>
+            <ul v-else class="flex flex-col gap-2">
+              <li
+                v-for="document in documents"
+                :key="document.id"
+                class="flex items-center gap-3 rounded-lg border border-border-light bg-bg-card p-3"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-text-primary">{{ document.title }}</p>
+                  <p class="text-xs text-text-muted">
+                    {{ document.revision }} · {{ document.status }} · Uploaded by {{ document.uploadedBy }}
+                  </p>
+                </div>
+                <BaseButton size="sm" variant="ghost" @click="openDocument(document.id)">View</BaseButton>
+              </li>
+            </ul>
+          </div>
+        </div>
       </Card>
 
       <div class="mt-2 flex items-center justify-between">

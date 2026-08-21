@@ -2,6 +2,11 @@ import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 
 export type ProjectStatus = 'Active' | 'On Hold' | 'Completed' | 'Cancelled'
 
+// "Correction" used to be its own stage (Review <-> Correction, a loop
+// back and forth for what's really one review cycle). Merged into
+// Review -- a correction cycle is logged as a note on the project's
+// History instead of a separate stage. See status_transitions.py's own
+// comment on PROJECT_STAGE_ALLOWED_TRANSITIONS.
 export type WorkflowStage =
   | 'Enquiry'
   | 'Quotation'
@@ -9,7 +14,6 @@ export type WorkflowStage =
   | 'Design'
   | 'Government Submission'
   | 'Review'
-  | 'Correction'
   | 'Approval'
   | 'Completed'
 
@@ -42,6 +46,9 @@ export interface Project {
   // because most existing projects predate the permits step and because a
   // backend that hasn't been extended to persist this yet can just ignore it.
   requiredPermitDocuments?: string[]
+  // Set once the project's status becomes Completed, cleared on reopen
+  // -- see the Completion summary on the Overview tab.
+  completedAt?: string | null
 }
 
 export type ProjectViewMode = 'grid' | 'table'
