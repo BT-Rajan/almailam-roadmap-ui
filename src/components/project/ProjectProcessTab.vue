@@ -298,7 +298,11 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
               <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
               <CheckCircle2 v-if="approvalStep?.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
               <XCircle v-else-if="approvalStep?.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
-              <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
+              <Circle
+                v-else
+                class="h-5 w-5 shrink-0"
+                :class="approvalStep?.id === approvalStore.nextActionableStepId ? 'text-info-600' : 'text-text-muted'"
+              />
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
             </button>
 
@@ -363,14 +367,19 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
                 :key="step.id"
                 class="flex items-center gap-3 rounded-lg border p-3"
                 :class="{
-                  'border-success-200 bg-success-50': step.status === 'Completed',
+                  'border-success-100 bg-success-50': step.status === 'Completed',
                   'border-border-light bg-bg-secondary': step.status === 'Waived',
-                  'border-border-light bg-bg-card': step.status === 'Pending',
+                  'border-info-100 bg-info-50': step.status === 'Pending' && step.id === executionStore.nextActionableStepId,
+                  'border-border-light bg-bg-card': step.status === 'Pending' && step.id !== executionStore.nextActionableStepId,
                 }"
               >
                 <CheckCircle2 v-if="step.status === 'Completed'" class="h-5 w-5 shrink-0 text-success-600" />
                 <XCircle v-else-if="step.status === 'Waived'" class="h-5 w-5 shrink-0 text-text-muted" />
-                <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
+                <Circle
+                  v-else
+                  class="h-5 w-5 shrink-0"
+                  :class="step.id === executionStore.nextActionableStepId ? 'text-info-600' : 'text-text-muted'"
+                />
 
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-text-primary">{{ step.name }}</p>
