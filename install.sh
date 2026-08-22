@@ -183,13 +183,22 @@ set_env() {
 log "Checking system dependencies"
 
 if require_cmd apt-get; then
-    # Only touch apt at all if something we need is actually missing.
-    # "apt-get update" refreshes every repo configured on the box, not
-    # just ones relevant to us -- on a server that already has these
-    # packages, running it on every install/redeploy is both wasted
-    # work and a needless point of failure (e.g. an unrelated
-    # third-party repo's signing metadata changing upstream aborts the
-    # whole install even though nothing we actually need has changed).
+    # Only touch apt at all if something we need is actually missing --
+    # and even then, never run "apt-get update" first. update refreshes
+    # every repo configured on the box, not just ones relevant to us; a
+    # completely unrelated third-party repo (e.g. a MariaDB mirror the
+    # box happens to have configured) failing its own signing/trust
+    # check is enough to abort the whole install under "set -e", even
+    # though nothing this script needs has changed.
+    #
+    # "apt-get install" on its own doesn't need that: for a package
+    # that's already satisfied it doesn't touch the network at all, and
+    # for one that isn't it resolves purely from whatever package lists
+    # are already cached locally -- no repo is contacted either way. If
+    # that's not enough to find a genuinely missing package (e.g. this
+    # is a brand new machine that has never run apt-get update), it
+    # fails with a clear "Unable to locate package" error instead of
+    # silently trying to refresh every repo on the system.
     REQUIRED_PKGS=(git python3 python3-venv python3-pip build-essential curl openssl)
     MISSING_PKGS=()
 
@@ -199,8 +208,10 @@ if require_cmd apt-get; then
 
     if (( ${#MISSING_PKGS[@]} > 0 )); then
         log "Installing missing packages: ${MISSING_PKGS[*]}"
-        sudo apt-get update
-        sudo apt-get install -y "${MISSING_PKGS[@]}"
+
+        if ! sudo apt-get install -y "${MISSING_PKGS[@]}"; then
+            die "Could not install: ${MISSING_PKGS[*]}. If this is a fresh machine that has never run apt-get update, run 'sudo apt-get update' yourself first, then re-run this installer."
+        fi
     else
         log "All required system packages already installed -- skipping apt-get"
     fi
