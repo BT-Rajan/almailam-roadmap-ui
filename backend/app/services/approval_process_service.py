@@ -13,10 +13,9 @@ from datetime import datetime, timezone
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import NotFoundError
 from app.core.file_storage import resolve_path, save_upload
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
-from app.models.execution_step import ProjectExecutionStep
 from app.services import audit_service
 
 ENTITY_TYPE = "PROJECT"
@@ -67,27 +66,6 @@ def get_project_step_by_stage(db: Session, project_id: int, stage_key: str) -> P
     return step
 
 
-def _pending_execution_steps_count(db: Session, project_id: int, stage_key: str) -> int:
-    """How many of this project's execution steps (see execution_step.py)
-    are tagged to this approval stage and still below 100% completion.
-    The 23-step checklist and the 5-stage approval process are otherwise
-    independent tracks that only share stage_key for display grouping
-    (see ProjectProcessTab.vue's accordion) -- without this check, a
-    stage's gate document could be uploaded (closing it out) while the
-    execution steps grouped visually underneath it are still sitting
-    unfinished, which reads as a flat contradiction in that same
-    accordion."""
-    return (
-        db.query(ProjectExecutionStep)
-        .filter(
-            ProjectExecutionStep.project_id == project_id,
-            ProjectExecutionStep.stage_key == stage_key,
-            ProjectExecutionStep.completion_percentage < 100,
-        )
-        .count()
-    )
-
-
 def upload_stage_gate_document(
     db: Session, project_id: int, stage_key: str, file: UploadFile, user_id: int | None
 ) -> ProjectApprovalStep:
@@ -95,15 +73,17 @@ def upload_stage_gate_document(
     complete -- there is no separate "mark complete" action. Uploading
     again replaces the previous file (the old storage_key is simply
     overwritten; nothing keeps the superseded file around, this is a
-    single current gate document, not a version history)."""
-    step = get_project_step_by_stage(db, project_id, stage_key)
+    single current gate document, not a version history).
 
-    pending_steps = _pending_execution_steps_count(db, project_id, stage_key)
-    if pending_steps > 0:
-        raise ValidationAppError(
-            f"{pending_steps} execution step(s) for this stage are still below 100% -- "
-            "finish them before uploading this stage's gate document."
-        )
+    The 5-stage approval process and the 23-activity execution checklist
+    are independent tracks that both run against the project at the same
+    time -- a stage's gate document can be uploaded whether or not any
+    particular execution activity is finished, so there is deliberately
+    no check against ProjectExecutionStep completion here. (An earlier
+    version of this function blocked the upload until every execution
+    step sharing this stage_key hit 100%, on the assumption that the
+    activities were partitioned one-to-one under a stage; they aren't.)"""
+    step = get_project_step_by_stage(db, project_id, stage_key)
 
     storage_key, original_filename, size_bytes = save_upload(file, "stage-gates")
     step.storage_key = storage_key

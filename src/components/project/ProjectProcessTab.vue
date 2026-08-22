@@ -15,8 +15,7 @@ import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
 import { PROCESS_STAGES } from '@/constants/processStages'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
-import { useProjectApprovalStore } from '@/stores/projectApprovalStore'
-import { useProjectExecutionStore } from '@/stores/projectExecutionStore'
+import { useProjectStageStore } from '@/stores/projectStageStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useTimelineStore } from '@/stores/timelineStore'
@@ -34,8 +33,12 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const executionStore = useProjectExecutionStore()
-const approvalStore = useProjectApprovalStore()
+// The approval stages and execution activities are two independent
+// tracks that both run against the project at the same time -- neither
+// gates the other (see projectStageStore for why they were merged into
+// one store while staying two separate lists, not one nested inside
+// the other).
+const stageStore = useProjectStageStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const timelineStore = useTimelineStore()
@@ -43,8 +46,7 @@ const documentStore = useDocumentStore()
 const taskStore = useTaskStore()
 
 function loadData(): void {
-  executionStore.loadSteps(props.project.id)
-  approvalStore.loadSteps(props.project.id)
+  stageStore.load(props.project.id)
   timelineStore.loadTimelineForProject(props.project.id)
   // Documents and Tasks are only needed here for the status cards'
   // counts -- loaded once, lazily, same "load if not already loaded"
@@ -62,8 +64,8 @@ onMounted(loadData)
 // project's checklists.
 watch(() => props.project.id, loadData)
 
-const isLoading = computed(() => executionStore.isLoading || approvalStore.isLoading || timelineStore.isLoading)
-const error = computed(() => executionStore.error ?? approvalStore.error ?? timelineStore.error)
+const isLoading = computed(() => stageStore.isLoading || timelineStore.isLoading)
+const error = computed(() => stageStore.error ?? timelineStore.error)
 
 const projectDocuments = computed(() => documentStore.documentsByProject(props.project.id))
 const pendingReviewDocuments = computed(() => projectDocuments.value.filter((d) => d.status === 'Under Review'))
@@ -74,34 +76,21 @@ const overdueTasks = computed(() =>
   openTasks.value.filter((t) => t.dueDate < new Date().toISOString().slice(0, 10)),
 )
 
-// One unified process view -- the 5 Project Approval Process stages,
-// each expanded to the execution steps, stage-gate document, and
-// project documents that feed into it.
-const stagesWithSteps = computed(() =>
-  PROCESS_STAGES.map((stage) => {
-    const executionSteps = executionStore.steps
-      .filter((s) => s.stageKey === stage.key)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-    return {
-      stage,
-      approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
-      executionSteps,
-      // The backend blocks uploading a stage's gate document while any of
-      // its own execution steps are still below 100% -- checked here too
-      // so the uploader doesn't invite a file that's just going to fail
-      // with a toast. A stage with no execution steps of its own (e.g.
-      // "Permit Approved") has nothing to wait on.
-      hasPendingExecutionSteps: executionSteps.some((s) => s.completionPercentage < 100),
-      documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
-    }
-  }),
+// The Approval Stages panel -- 5 external/client gates, each with its
+// own gate document and its own tagged project documents. No execution
+// activities nested here: they aren't partitioned under a stage, they
+// just run in parallel (see the Execution Activities panel below).
+const approvalStagesView = computed(() =>
+  PROCESS_STAGES.map((stage) => ({
+    stage,
+    approvalStep: stageStore.approvalSteps.find((s) => s.stageKey === stage.key),
+    documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
+  })),
 )
 
-const stageGateCompleteCount = computed(() => approvalStore.steps.filter((s) => s.hasDocument).length)
-
-// Collapsed by default -- only one stage's detail (steps + documents)
-// is expanded at a time; opening another collapses whichever was open,
-// same as any single-open accordion.
+// Collapsed by default -- only one stage's detail (gate doc + tagged
+// documents) is expanded at a time; opening another collapses whichever
+// was open, same as any single-open accordion.
 const expandedStageKey = ref<string | null>(null)
 
 function toggleStage(key: string): void {
@@ -114,9 +103,9 @@ function openDocument(documentId: string): void {
 
 async function refreshProgress(): Promise<void> {
   // The backend recomputes project.progress as part of resolving an
-  // execution step -- refresh just this one project so the progress
+  // execution activity -- refresh just this one project so the progress
   // shown elsewhere on this page (header, overview card) picks up the
-  // new number too, not just this tab's own checklist state.
+  // new number too, not just this panel's own list.
   await projectStore.refreshProject(props.project.id)
 }
 
@@ -125,9 +114,9 @@ const savingStepId = ref<string | undefined>(undefined)
 async function handleSaveStepProgress(stepId: string, percentage: number, remarks: string): Promise<void> {
   savingStepId.value = stepId
   try {
-    await executionStore.setStepProgress(props.project.id, stepId, percentage, remarks)
-    if (executionStore.mutationError) {
-      toastStore.show('error', 'Could not save step progress', executionStore.mutationError)
+    await stageStore.setStepProgress(props.project.id, stepId, percentage, remarks)
+    if (stageStore.mutationError) {
+      toastStore.show('error', 'Could not save activity progress', stageStore.mutationError)
       return
     }
     await refreshProgress()
@@ -140,9 +129,9 @@ const replacingStageKey = ref<string | null>(null)
 
 async function handleUploadStageGateDocument(stageKey: string, file: File | undefined): Promise<void> {
   if (!file) return
-  await approvalStore.uploadStageGateDocument(props.project.id, stageKey, file)
-  if (approvalStore.mutationError) {
-    toastStore.show('error', 'Could not upload stage gate document', approvalStore.mutationError)
+  await stageStore.uploadStageGateDocument(props.project.id, stageKey, file)
+  if (stageStore.mutationError) {
+    toastStore.show('error', 'Could not upload stage gate document', stageStore.mutationError)
     return
   }
   replacingStageKey.value = null
@@ -150,7 +139,7 @@ async function handleUploadStageGateDocument(stageKey: string, file: File | unde
 }
 
 function handleViewStageGateDocument(stageKey: string, filename: string): void {
-  void approvalStore.downloadStageGateDocument(props.project.id, stageKey, filename)
+  void stageStore.downloadStageGateDocument(props.project.id, stageKey, filename)
 }
 
 // History -- the project's full timeline/activity feed, folded in here
@@ -226,17 +215,17 @@ async function handleConfirmScopeChange(
           <div class="min-w-0">
             <h2 class="text-sm font-semibold text-text-primary">Overall Execution</h2>
             <p class="text-xs text-text-muted">
-              Weighted across all 23 execution steps · {{ stageGateCompleteCount }} of 5 stage gates uploaded
+              Weighted across all 23 execution activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated · both run in parallel
             </p>
           </div>
           <div class="flex items-center gap-3">
             <div class="h-2 w-40 overflow-hidden rounded-full bg-bg-secondary">
               <div
                 class="h-full rounded-full bg-primary-600 transition-[width] duration-normal"
-                :style="{ width: `${executionStore.weightedProgress}%` }"
+                :style="{ width: `${stageStore.weightedProgress}%` }"
               />
             </div>
-            <span class="text-lg font-semibold text-text-primary">{{ executionStore.weightedProgress }}%</span>
+            <span class="text-lg font-semibold text-text-primary">{{ stageStore.weightedProgress }}%</span>
           </div>
           <BaseButton variant="secondary" size="sm" class="no-print" @click="isChangeScopeDialogOpen = true">
             Change Scope
@@ -282,7 +271,10 @@ async function handleConfirmScopeChange(
         </button>
       </div>
 
-      <Card v-for="{ stage, approvalStep, executionSteps, hasPendingExecutionSteps, documents } in stagesWithSteps" :key="stage.key">
+      <h2 class="text-sm font-semibold text-text-primary">Approval Stages</h2>
+      <p class="-mt-2 text-xs text-text-muted">5 external gates, tracked independently of the execution activities below.</p>
+
+      <Card v-for="{ stage, approvalStep, documents } in approvalStagesView" :key="stage.key">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <button
@@ -298,13 +290,7 @@ async function handleConfirmScopeChange(
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
             </button>
 
-            <span
-              v-if="approvalStep && !approvalStep.hasDocument && hasPendingExecutionSteps"
-              class="text-xs text-text-muted"
-            >
-              Waiting on this stage's execution steps
-            </span>
-            <span v-else-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
+            <span v-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
               Uploaded{{ approvalStep.uploadedByName ? ` by ${approvalStep.uploadedByName}` : '' }}{{ approvalStep.uploadedAt ? ` on ${formatDate(approvalStep.uploadedAt)}` : '' }}
             </span>
           </div>
@@ -336,25 +322,9 @@ async function handleConfirmScopeChange(
             </template>
             <FileUploader
               v-else
-              :hint="hasPendingExecutionSteps ? `Complete or waive this stage's execution steps first` : 'Uploading marks this stage complete'"
+              hint="Uploading marks this stage complete"
               @select="(file) => handleUploadStageGateDocument(stage.key, file)"
             />
-          </div>
-
-          <div>
-            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Execution Steps</h3>
-            <p v-if="executionSteps.length === 0" class="text-xs text-text-muted">
-              No execution steps feed into this stage -- it's an external approval gate on its own.
-            </p>
-            <ol v-else class="flex flex-col gap-2">
-              <ExecutionStepRow
-                v-for="step in executionSteps"
-                :key="step.id"
-                :step="step"
-                :is-saving="savingStepId === step.id"
-                @save="(percentage, remarks) => handleSaveStepProgress(step.id, percentage, remarks)"
-              />
-            </ol>
           </div>
 
           <div>
@@ -379,6 +349,21 @@ async function handleConfirmScopeChange(
             </ul>
           </div>
         </div>
+      </Card>
+
+      <h2 class="mt-2 text-sm font-semibold text-text-primary">Execution Activities</h2>
+      <p class="-mt-2 text-xs text-text-muted">23 activities, tracked independently of the approval stages above.</p>
+
+      <Card>
+        <ol class="flex flex-col gap-2">
+          <ExecutionStepRow
+            v-for="step in stageStore.orderedExecutionSteps"
+            :key="step.id"
+            :step="step"
+            :is-saving="savingStepId === step.id"
+            @save="(percentage, remarks) => handleSaveStepProgress(step.id, percentage, remarks)"
+          />
+        </ol>
       </Card>
 
       <div class="mt-2 flex items-center justify-between">
