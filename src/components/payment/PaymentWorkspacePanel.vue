@@ -11,8 +11,8 @@ import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import PaymentSummaryCards from '@/components/payment/PaymentSummaryCards.vue'
 import PaymentTimeline from '@/components/payment/PaymentTimeline.vue'
 import RecordPaymentDrawer from '@/components/payment/RecordPaymentDrawer.vue'
-import { useToast } from '@/composables/useToast'
 import { usePaymentStore } from '@/stores/paymentStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
 import type { AdjustmentType, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 
@@ -22,7 +22,11 @@ interface Props {
 
 const props = defineProps<Props>()
 const store = usePaymentStore()
-const toast = useToast()
+// Matches every other create/edit/delete-style action in the app
+// (Clients, Projects, Quotations, Contracts, Government Submissions) --
+// an explicit acknowledgment dialog for actions that change money on
+// record, not a toast that could be missed.
+const resultDialogStore = useResultDialogStore()
 
 const isAgreementFormOpen = ref(false)
 const isRecordPaymentOpen = ref(false)
@@ -71,20 +75,20 @@ function openObligationAction(mode: 'cancel' | 'waive', obligation: PaymentOblig
 async function handleCreateAgreement(input: Parameters<typeof store.createAgreement>[0]): Promise<void> {
   try {
     await store.createAgreement(input, 'Rajan Kumar')
-    toast.success('Financial agreement created', 'The payment schedule has been generated.')
+    resultDialogStore.showSuccess('Financial agreement created', 'The payment schedule has been generated.')
     isAgreementFormOpen.value = false
   } catch {
-    toast.error('Could not create agreement', 'Please try again.')
+    resultDialogStore.showError('Could not create agreement', 'Please try again.')
   }
 }
 
 async function handleRecordPayment(input: RecordPaymentInput): Promise<void> {
   try {
     await store.recordPayment(input, 'Rajan Kumar')
-    toast.success('Payment recorded', 'The payment schedule has been updated.')
+    resultDialogStore.showSuccess('Payment recorded', 'The payment schedule has been updated.')
     isRecordPaymentOpen.value = false
   } catch {
-    toast.error('Could not record payment', 'Please try again.')
+    resultDialogStore.showError('Could not record payment', 'Please try again.')
   }
 }
 
@@ -92,10 +96,10 @@ async function handleRefund(input: { obligationId: string; refundAmount: number;
   if (!agreement.value) return
   try {
     await store.recordRefund({ ...input, agreementId: agreement.value.id })
-    toast.success('Refund recorded', 'The obligation balance has been updated.')
+    resultDialogStore.showSuccess('Refund recorded', 'The obligation balance has been updated.')
     isFinancialActionOpen.value = false
   } catch {
-    toast.error('Could not record refund', 'Please try again.')
+    resultDialogStore.showError('Could not record refund', 'Please try again.')
   }
 }
 
@@ -103,10 +107,10 @@ async function handleAdjustment(input: { obligationId: string; type: AdjustmentT
   if (!agreement.value) return
   try {
     await store.recordAdjustment({ ...input, agreementId: agreement.value.id })
-    toast.success('Adjustment applied', 'The obligation amount has been updated.')
+    resultDialogStore.showSuccess('Adjustment applied', 'The obligation amount has been updated.')
     isFinancialActionOpen.value = false
   } catch {
-    toast.error('Could not apply adjustment', 'Please try again.')
+    resultDialogStore.showError('Could not apply adjustment', 'Please try again.')
   }
 }
 
@@ -115,14 +119,14 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
   try {
     if (obligationActionMode.value === 'cancel') {
       await store.cancelObligation(targetObligation.value.id, agreement.value.id, reason, 'Rajan Kumar')
-      toast.success('Obligation cancelled')
+      resultDialogStore.showSuccess('Obligation cancelled')
     } else {
       await store.waiveObligation(targetObligation.value.id, agreement.value.id, reason, 'Rajan Kumar')
-      toast.success('Obligation waived')
+      resultDialogStore.showSuccess('Obligation waived')
     }
     isObligationActionOpen.value = false
   } catch {
-    toast.error('Could not complete this action', 'Please try again.')
+    resultDialogStore.showError('Could not complete this action', 'Please try again.')
   }
 }
 </script>
