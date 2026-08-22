@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
+from app.models.execution_step import ProjectExecutionStep
 from app.services import audit_service
 
 ENTITY_TYPE = "PROJECT"
@@ -69,12 +70,39 @@ def get_project_step(db: Session, project_id: int, step_id: int) -> ProjectAppro
     return step
 
 
+def _pending_execution_steps_count(db: Session, project_id: int, stage_key: str) -> int:
+    """How many of this project's execution steps (see execution_step.py)
+    are tagged to this approval stage and still Pending. The 23-step
+    checklist and the 5-stage approval process are otherwise independent
+    tracks that only share stage_key for display grouping (see
+    ProjectProcessTab.vue's accordion) -- without this check, a stage
+    could be marked Completed while the execution steps grouped visually
+    underneath it are still sitting untouched, which reads as a flat
+    contradiction in that same accordion."""
+    return (
+        db.query(ProjectExecutionStep)
+        .filter(
+            ProjectExecutionStep.project_id == project_id,
+            ProjectExecutionStep.stage_key == stage_key,
+            ProjectExecutionStep.status == "Pending",
+        )
+        .count()
+    )
+
+
 def complete_step(db: Session, project_id: int, step_id: int, user_id: int | None) -> ProjectApprovalStep:
     step = get_project_step(db, project_id, step_id)
     if step.status == "Completed":
         return step
     if step.status == "Waived":
         raise ValidationAppError("This step has been waived -- unwaive it first to complete it instead.")
+
+    pending_steps = _pending_execution_steps_count(db, project_id, step.stage_key)
+    if pending_steps > 0:
+        raise ValidationAppError(
+            f"{pending_steps} execution step(s) for this stage are still pending -- "
+            "complete or waive them first."
+        )
 
     incomplete_before = (
         db.query(ProjectApprovalStep)

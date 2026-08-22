@@ -59,7 +59,7 @@ const circleClasses = computed(() => (index: number) => {
     status === 'complete' ? 'border-success-500 bg-success-500 text-white' : '',
     status === 'current' ? 'border-info-500 bg-bg-card text-info-600' : '',
     status === 'upcoming' ? 'border-border-default bg-bg-card text-text-muted' : '',
-    isNavigable(index) ? 'cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : '',
+    isNavigable(index) ? 'group-hover:brightness-110' : '',
   ]
 })
 
@@ -74,31 +74,35 @@ function connectorClasses(index: number): string[] {
 <template>
   <ol class="flex items-start">
     <li v-for="(step, index) in steps" :key="step.label" class="flex flex-1 items-center last:flex-none">
-      <div class="flex flex-col items-center gap-2 text-center">
-        <button
-          v-if="isNavigable(index)"
-          type="button"
-          :class="circleClasses(index)"
-          :aria-label="`Go to step ${index + 1}: ${step.label}`"
-          @click="handleStepClick(index)"
-        >
-          <Check v-if="stepStatus(index) === 'complete'" class="h-4 w-4" />
-          <span v-else>{{ index + 1 }}</span>
-        </button>
-        <div v-else :class="circleClasses(index)">
+      <!-- The whole circle+label column is the click target when
+           navigable, not just the small circle -- a step's name is a
+           much more natural (and larger) thing to click than its
+           32px status dot. -->
+      <component
+        :is="isNavigable(index) ? 'button' : 'div'"
+        :type="isNavigable(index) ? 'button' : undefined"
+        class="group flex flex-col items-center gap-2 text-center"
+        :class="isNavigable(index) ? 'cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : ''"
+        :aria-label="isNavigable(index) ? `Go to step ${index + 1}: ${step.label}` : undefined"
+        @click="handleStepClick(index)"
+      >
+        <div :class="circleClasses(index)">
           <Check v-if="stepStatus(index) === 'complete'" class="h-4 w-4" />
           <span v-else>{{ index + 1 }}</span>
         </div>
         <div class="max-w-[7rem]">
           <p
             class="text-xs font-medium"
-            :class="stepStatus(index) === 'upcoming' ? 'text-text-muted' : 'text-text-secondary'"
+            :class="[
+              stepStatus(index) === 'upcoming' ? 'text-text-muted' : 'text-text-secondary',
+              isNavigable(index) ? 'group-hover:text-accent-600' : '',
+            ]"
           >
             {{ step.label }}
           </p>
           <p v-if="step.description" class="text-[11px] text-text-muted">{{ step.description }}</p>
         </div>
-      </div>
+      </component>
       <div v-if="index < steps.length - 1" :class="connectorClasses(index)" class="mx-3 mt-4" />
     </li>
   </ol>

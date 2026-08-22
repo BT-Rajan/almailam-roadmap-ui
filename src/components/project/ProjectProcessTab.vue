@@ -78,14 +78,23 @@ const overdueTasks = computed(() =>
 // into it, instead of a separate Execution tab and a separate Approval
 // Process modal that never talked to each other.
 const stagesWithSteps = computed(() =>
-  PROCESS_STAGES.map((stage) => ({
-    stage,
-    approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
-    executionSteps: executionStore.steps
+  PROCESS_STAGES.map((stage) => {
+    const executionSteps = executionStore.steps
       .filter((s) => s.stageKey === stage.key)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber),
-    documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
-  })),
+      .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+    return {
+      stage,
+      approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
+      executionSteps,
+      // The backend blocks marking a stage Completed while any of its own
+      // execution steps are still Pending -- checked here too so the
+      // button doesn't invite a click that's just going to fail with a
+      // toast. A stage with no execution steps of its own (e.g. "Permit
+      // Approved") has nothing to wait on.
+      hasPendingExecutionSteps: executionSteps.some((s) => s.status === 'Pending'),
+      documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
+    }
+  }),
 )
 
 // Collapsed by default -- only one stage's detail (steps + documents)
@@ -285,7 +294,7 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
         </button>
       </div>
 
-      <Card v-for="{ stage, approvalStep, executionSteps, documents } in stagesWithSteps" :key="stage.key">
+      <Card v-for="{ stage, approvalStep, executionSteps, hasPendingExecutionSteps, documents } in stagesWithSteps" :key="stage.key">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <button
@@ -313,10 +322,18 @@ function handleSaveTimelineEntry(event: TimelineEvent): void {
               <span v-else-if="approvalStep.status === 'Completed' && approvalStep.completedByName" class="text-xs text-text-muted">
                 Completed by {{ approvalStep.completedByName }}
               </span>
+              <span
+                v-else-if="approvalStep.id === approvalStore.nextActionableStepId && hasPendingExecutionSteps"
+                class="text-xs text-text-muted"
+              >
+                Waiting on this stage's execution steps
+              </span>
 
               <BaseButton
                 v-if="approvalStep.id === approvalStore.nextActionableStepId"
                 size="sm"
+                :disabled="hasPendingExecutionSteps"
+                :title="hasPendingExecutionSteps ? 'Complete or waive this stage\'s execution steps first' : undefined"
                 @click="handleCompleteApproval(approvalStep.id)"
               >
                 Mark Stage Complete
