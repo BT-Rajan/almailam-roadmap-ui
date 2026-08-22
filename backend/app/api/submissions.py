@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_permission
+from app.api.deps import get_current_user, require_permission
 from app.core.database import get_db
 from app.models.project import Project
 from app.models.user import User
@@ -17,7 +17,11 @@ from app.services import submission_service
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
 
 can_view = require_permission("Government", "view")
-can_edit = require_permission("Government", "edit")
+# Deliberately not gated on the "Government: edit" role permission --
+# any authenticated user can create/edit/manage a submission, not just
+# roles that have been granted that permission in Administration >
+# Roles & Permissions. Still requires being logged in.
+can_edit = get_current_user
 
 
 def _to_out(db: Session, submission) -> SubmissionOut:
