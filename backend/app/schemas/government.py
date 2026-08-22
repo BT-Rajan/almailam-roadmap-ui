@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,6 +8,7 @@ from app.models.government import (
     FORM_LANGUAGES,
     FORM_STATUSES,
     REQUIRED_DOCUMENT_STATUSES,
+    RESPONSE_OUTCOMES,
     SUBMISSION_STATUSES,
 )
 
@@ -110,12 +111,63 @@ class FormStatusUpdate(BaseModel):
 
 
 class SubmissionDocumentOut(BaseModel):
+    id: int
     name: str
     status: str
+    originalFilename: str | None = None
+    fileSizeLabel: str | None = None
+    uploadDate: date | None = None
+    uploadedBy: str | None = None
 
     @staticmethod
-    def from_model(document) -> "SubmissionDocumentOut":
-        return SubmissionDocumentOut(name=document.name, status=document.status)
+    def from_model(document, uploaded_by_name: str | None) -> "SubmissionDocumentOut":
+        from app.core.file_storage import format_file_size
+
+        return SubmissionDocumentOut(
+            id=document.id,
+            name=document.name,
+            status=document.status,
+            originalFilename=document.original_filename,
+            fileSizeLabel=format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
+            uploadDate=document.upload_date,
+            uploadedBy=uploaded_by_name,
+        )
+
+
+class ProofOfFileOut(BaseModel):
+    originalFilename: str
+    fileSizeLabel: str
+    uploadDate: date
+    uploadedBy: str
+
+
+class FollowupOut(BaseModel):
+    id: str
+    followupDate: date
+    followupTime: str
+    contactPerson: str
+    notes: str | None
+    createdBy: str
+    createdAt: datetime
+
+    @staticmethod
+    def from_model(followup, created_by_name: str) -> "FollowupOut":
+        return FollowupOut(
+            id=f"FUP-{followup.id:04d}",
+            followupDate=followup.followup_date,
+            followupTime=followup.followup_time,
+            contactPerson=followup.contact_person,
+            notes=followup.notes,
+            createdBy=created_by_name,
+            createdAt=followup.created_at,
+        )
+
+
+class FollowupCreate(BaseModel):
+    followupDate: date
+    followupTime: str = Field(min_length=1, max_length=20)
+    contactPerson: str = Field(min_length=1, max_length=150)
+    notes: str | None = None
 
 
 class SubmissionOut(BaseModel):
@@ -130,9 +182,45 @@ class SubmissionOut(BaseModel):
     decisionDate: date | None
     documents: list[SubmissionDocumentOut]
     notes: str | None
+    allDocumentsSatisfied: bool
+    proofOfSubmission: ProofOfFileOut | None = None
+    proofOfResponse: ProofOfFileOut | None = None
+    responseOutcome: str | None = None
 
     @staticmethod
-    def from_model(submission, project_no: str, documents: list) -> "SubmissionOut":
+    def from_model(
+        submission,
+        project_no: str,
+        documents: list,
+        document_uploader_names: dict[int, str] | None = None,
+        proof_of_submission_uploader_name: str | None = None,
+        proof_of_response_uploader_name: str | None = None,
+    ) -> "SubmissionOut":
+        document_uploader_names = document_uploader_names or {}
+        all_satisfied = bool(documents) and all(d.status in ("Uploaded", "Verified") for d in documents)
+
+        proof_of_submission = None
+        if submission.proof_of_submission_storage_key:
+            from app.core.file_storage import format_file_size
+
+            proof_of_submission = ProofOfFileOut(
+                originalFilename=submission.proof_of_submission_filename,
+                fileSizeLabel=format_file_size(submission.proof_of_submission_size_bytes),
+                uploadDate=submission.proof_of_submission_upload_date,
+                uploadedBy=proof_of_submission_uploader_name or "Unknown",
+            )
+
+        proof_of_response = None
+        if submission.proof_of_response_storage_key:
+            from app.core.file_storage import format_file_size
+
+            proof_of_response = ProofOfFileOut(
+                originalFilename=submission.proof_of_response_filename,
+                fileSizeLabel=format_file_size(submission.proof_of_response_size_bytes),
+                uploadDate=submission.proof_of_response_upload_date,
+                uploadedBy=proof_of_response_uploader_name or "Unknown",
+            )
+
         return SubmissionOut(
             id=submission.submission_no,
             projectId=project_no,
@@ -143,8 +231,14 @@ class SubmissionOut(BaseModel):
             submittedDate=submission.submitted_date,
             expectedDecisionDate=submission.expected_decision_date,
             decisionDate=submission.decision_date,
-            documents=[SubmissionDocumentOut.from_model(d) for d in documents],
+            documents=[
+                SubmissionDocumentOut.from_model(d, document_uploader_names.get(d.id)) for d in documents
+            ],
             notes=submission.notes,
+            allDocumentsSatisfied=all_satisfied,
+            proofOfSubmission=proof_of_submission,
+            proofOfResponse=proof_of_response,
+            responseOutcome=submission.response_outcome,
         )
 
 
@@ -179,3 +273,7 @@ class SubmissionStatusUpdate(BaseModel):
 class SubmissionDocumentStatusUpdate(BaseModel):
     status: str
     _check = field_validator("status")(_enum_validator(REQUIRED_DOCUMENT_STATUSES, "status"))
+
+
+def check_response_outcome(value: str) -> str:
+    return _enum_validator(RESPONSE_OUTCOMES, "outcome")(value)

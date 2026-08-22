@@ -2,11 +2,11 @@ import { defineStore } from 'pinia'
 
 import { governmentFormService } from '@/services/governmentFormService'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
-import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
+import type { FollowupCreateInput, SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { projectService } from '@/services/projectService'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
-import type { GovernmentSubmission, SubmissionStatus } from '@/types/Submission'
+import type { GovernmentSubmission, ResponseOutcome, SubmissionFollowup, SubmissionStatus } from '@/types/Submission'
 
 interface GovernmentSubmissionStoreState {
   submissions: GovernmentSubmission[]
@@ -20,6 +20,8 @@ interface GovernmentSubmissionStoreState {
   authorityFilter: string | 'All'
   isMutating: boolean
   mutationError: string | undefined
+  followups: SubmissionFollowup[]
+  isFollowupsLoading: boolean
 }
 
 export const useGovernmentSubmissionStore = defineStore('governmentSubmission', {
@@ -35,6 +37,8 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     authorityFilter: 'All',
     isMutating: false,
     mutationError: undefined,
+    followups: [],
+    isFollowupsLoading: false,
   }),
 
   getters: {
@@ -75,6 +79,11 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     submissionsByProject(state) {
       return (projectId: string): GovernmentSubmission[] =>
         state.submissions.filter((submission) => submission.projectId === projectId)
+    },
+
+    getSubmissionByNo(state) {
+      return (submissionNo: string): GovernmentSubmission | undefined =>
+        state.submissions.find((submission) => submission.submissionNo === submissionNo)
     },
   },
 
@@ -143,6 +152,110 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       const submission = await governmentSubmissionService.createSubmission(input)
       this.submissions = [submission, ...this.submissions]
       return submission
+    },
+
+    // Loads a single submission by number into the store's list, for the
+    // full-screen workspace page (deep link / refresh, where the list may
+    // not be populated yet).
+    async loadSubmissionByNo(submissionNo: string): Promise<GovernmentSubmission | undefined> {
+      if (!this.getSubmissionByNo(submissionNo)) {
+        await this.loadSubmissions()
+      }
+      return this.getSubmissionByNo(submissionNo)
+    },
+
+    _replaceSubmission(updated: GovernmentSubmission) {
+      this.submissions = this.submissions.map((submission) =>
+        submission.submissionNo === updated.submissionNo ? updated : submission,
+      )
+    },
+
+    async uploadDocument(submissionId: string, documentId: number, file: File): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.uploadDocument(submissionId, documentId, file)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to upload the document.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    async uploadProofOfSubmission(submissionId: string, file: File): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.uploadProofOfSubmission(submissionId, file)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to upload proof of submission.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    async uploadProofOfResponse(submissionId: string, file: File, outcome: ResponseOutcome): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.uploadProofOfResponse(submissionId, file, outcome)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to upload proof of response.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    async markComplete(submissionId: string): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.markComplete(submissionId)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to mark the submission complete.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    async loadFollowups(submissionId: string) {
+      this.isFollowupsLoading = true
+      try {
+        this.followups = await governmentSubmissionService.getFollowups(submissionId)
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to load follow-ups.'
+      } finally {
+        this.isFollowupsLoading = false
+      }
+    },
+
+    async addFollowup(submissionId: string, input: FollowupCreateInput): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const followup = await governmentSubmissionService.addFollowup(submissionId, input)
+        this.followups = [followup, ...this.followups]
+        // Recording a follow-up can advance Submitted -> Under Review server-side.
+        await this.loadSubmissions()
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to record the follow-up.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
     },
   },
 })

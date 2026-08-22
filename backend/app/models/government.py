@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import JSON, Date, Enum, ForeignKey, String, Text
+from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -20,6 +20,11 @@ FORM_LANGUAGES = ("English", "Arabic", "English / Arabic")
 FORM_STATUSES = ("Active", "Archived")
 SUBMISSION_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected", "Withdrawn")
 REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
+# Outcome recorded against the "proof of response" upload -- kept as its
+# own field (rather than inferred from submission.status) so the UI can
+# gate the "Mark Complete" action on an explicit Approved/Rejected call,
+# independent of exactly which status the submission is sitting in.
+RESPONSE_OUTCOMES = ("Approved", "Rejected")
 
 
 class GovernmentAuthority(Base, TimestampMixin, SoftDeleteMixin):
@@ -74,6 +79,30 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Proof of submission -- uploaded once every required document is
+    # Uploaded/Verified, gates the Draft -> Submitted transition (see
+    # submission_service.upload_proof_of_submission).
+    proof_of_submission_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    proof_of_submission_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proof_of_submission_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    proof_of_submission_uploaded_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    proof_of_submission_upload_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Proof of the government's response -- uploaded once a decision comes
+    # back; response_outcome drives whether "Mark Complete" is available.
+    proof_of_response_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    proof_of_response_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proof_of_response_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    proof_of_response_uploaded_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    proof_of_response_upload_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    response_outcome: Mapped[str | None] = mapped_column(
+        Enum(*RESPONSE_OUTCOMES, name="submission_response_outcome"), nullable=True
+    )
+
 
 class SubmissionDocument(Base):
     __tablename__ = "submission_documents"
@@ -88,3 +117,29 @@ class SubmissionDocument(Base):
         nullable=False,
         default="Pending",
     )
+    storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    uploaded_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    upload_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class SubmissionFollowup(Base):
+    """A log entry recording a follow-up call/visit made to the
+    authority while a submission is awaiting a decision -- who checked,
+    and when. Purely additive (no edit/delete from the UI), same idea as
+    audit_log: an append-only trail, not a mutable field on the
+    submission itself."""
+
+    __tablename__ = "submission_followups"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    submission_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("government_submissions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    followup_date: Mapped[date] = mapped_column(Date, nullable=False)
+    followup_time: Mapped[str] = mapped_column(String(20), nullable=False)
+    contact_person: Mapped[str] = mapped_column(String(150), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
