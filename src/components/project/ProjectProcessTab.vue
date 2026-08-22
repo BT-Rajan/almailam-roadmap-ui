@@ -78,14 +78,23 @@ const overdueTasks = computed(() =>
 // each expanded to the execution steps, stage-gate document, and
 // project documents that feed into it.
 const stagesWithSteps = computed(() =>
-  PROCESS_STAGES.map((stage) => ({
-    stage,
-    approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
-    executionSteps: executionStore.steps
+  PROCESS_STAGES.map((stage) => {
+    const executionSteps = executionStore.steps
       .filter((s) => s.stageKey === stage.key)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber),
-    documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
-  })),
+      .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+    return {
+      stage,
+      approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
+      executionSteps,
+      // The backend blocks marking a stage Completed while any of its own
+      // execution steps are still Pending -- checked here too so the
+      // button doesn't invite a click that's just going to fail with a
+      // toast. A stage with no execution steps of its own (e.g. "Permit
+      // Approved") has nothing to wait on.
+      hasPendingExecutionSteps: executionSteps.some((s) => s.status === 'Pending'),
+      documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
+    }
+  }),
 )
 
 const stageGateCompleteCount = computed(() => approvalStore.steps.filter((s) => s.hasDocument).length)
@@ -273,7 +282,7 @@ async function handleConfirmScopeChange(
         </button>
       </div>
 
-      <Card v-for="{ stage, approvalStep, executionSteps, documents } in stagesWithSteps" :key="stage.key">
+      <Card v-for="{ stage, approvalStep, executionSteps, hasPendingExecutionSteps, documents } in stagesWithSteps" :key="stage.key">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <button
@@ -289,7 +298,13 @@ async function handleConfirmScopeChange(
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
             </button>
 
-            <span v-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
+            <span
+              v-if="approvalStep && !approvalStep.hasDocument && hasPendingExecutionSteps"
+              class="text-xs text-text-muted"
+            >
+              Waiting on this stage's execution steps
+            </span>
+            <span v-else-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
               Uploaded{{ approvalStep.uploadedByName ? ` by ${approvalStep.uploadedByName}` : '' }}{{ approvalStep.uploadedAt ? ` on ${formatDate(approvalStep.uploadedAt)}` : '' }}
             </span>
           </div>
@@ -321,7 +336,7 @@ async function handleConfirmScopeChange(
             </template>
             <FileUploader
               v-else
-              hint="Uploading marks this stage complete"
+              :hint="hasPendingExecutionSteps ? `Complete or waive this stage's execution steps first` : 'Uploading marks this stage complete'"
               @select="(file) => handleUploadStageGateDocument(stage.key, file)"
             />
           </div>

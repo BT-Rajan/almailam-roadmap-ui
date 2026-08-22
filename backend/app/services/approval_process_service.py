@@ -13,9 +13,10 @@ from datetime import datetime, timezone
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
+from app.models.execution_step import ProjectExecutionStep
 from app.services import audit_service
 
 ENTITY_TYPE = "PROJECT"
@@ -66,6 +67,26 @@ def get_project_step_by_stage(db: Session, project_id: int, stage_key: str) -> P
     return step
 
 
+def _pending_execution_steps_count(db: Session, project_id: int, stage_key: str) -> int:
+    """How many of this project's execution steps (see execution_step.py)
+    are tagged to this approval stage and still Pending. The 23-step
+    checklist and the 5-stage approval process are otherwise independent
+    tracks that only share stage_key for display grouping (see
+    ProjectProcessTab.vue's accordion) -- without this check, a stage's
+    gate document could be uploaded (closing it out) while the execution
+    steps grouped visually underneath it are still sitting untouched,
+    which reads as a flat contradiction in that same accordion."""
+    return (
+        db.query(ProjectExecutionStep)
+        .filter(
+            ProjectExecutionStep.project_id == project_id,
+            ProjectExecutionStep.stage_key == stage_key,
+            ProjectExecutionStep.status == "Pending",
+        )
+        .count()
+    )
+
+
 def upload_stage_gate_document(
     db: Session, project_id: int, stage_key: str, file: UploadFile, user_id: int | None
 ) -> ProjectApprovalStep:
@@ -75,6 +96,14 @@ def upload_stage_gate_document(
     overwritten; nothing keeps the superseded file around, this is a
     single current gate document, not a version history)."""
     step = get_project_step_by_stage(db, project_id, stage_key)
+
+    pending_steps = _pending_execution_steps_count(db, project_id, stage_key)
+    if pending_steps > 0:
+        raise ValidationAppError(
+            f"{pending_steps} execution step(s) for this stage are still pending -- "
+            "complete or waive them before uploading this stage's gate document."
+        )
+
     storage_key, original_filename, size_bytes = save_upload(file, "stage-gates")
     step.storage_key = storage_key
     step.original_filename = original_filename
