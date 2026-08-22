@@ -179,45 +179,34 @@ set_env() {
 # ----------------------------------------------------------------------------
 # 1. Basic packages
 # ----------------------------------------------------------------------------
+#
+# IMPORTANT:
+# This installer does not manage system packages -- no apt-get, no
+# package manager calls of any kind, ever. It assumes the target
+# machine already has what it needs, the same way the MariaDB/MySQL
+# check further down assumes the database is already installed and
+# reachable rather than trying to install or configure it. Touching
+# apt here (even just "apt-get install" for something missing) risks
+# tripping over whatever else is configured on the box -- e.g. a
+# third-party repo with a repo-trust/signing issue -- and taking down
+# an install that has nothing to do with any of that.
+#
+# If a required command is missing, install it yourself with your
+# system's own package manager, then re-run this installer.
+# ----------------------------------------------------------------------------
 
 log "Checking system dependencies"
 
-if require_cmd apt-get; then
-    # Only touch apt at all if something we need is actually missing --
-    # and even then, never run "apt-get update" first. update refreshes
-    # every repo configured on the box, not just ones relevant to us; a
-    # completely unrelated third-party repo (e.g. a MariaDB mirror the
-    # box happens to have configured) failing its own signing/trust
-    # check is enough to abort the whole install under "set -e", even
-    # though nothing this script needs has changed.
-    #
-    # "apt-get install" on its own doesn't need that: for a package
-    # that's already satisfied it doesn't touch the network at all, and
-    # for one that isn't it resolves purely from whatever package lists
-    # are already cached locally -- no repo is contacted either way. If
-    # that's not enough to find a genuinely missing package (e.g. this
-    # is a brand new machine that has never run apt-get update), it
-    # fails with a clear "Unable to locate package" error instead of
-    # silently trying to refresh every repo on the system.
-    REQUIRED_PKGS=(git python3 python3-venv python3-pip build-essential curl openssl)
-    MISSING_PKGS=()
+MISSING_CMDS=()
+for cmd in git python3 curl openssl; do
+    require_cmd "$cmd" || MISSING_CMDS+=("$cmd")
+done
 
-    for pkg in "${REQUIRED_PKGS[@]}"; do
-        dpkg -s "$pkg" >/dev/null 2>&1 || MISSING_PKGS+=("$pkg")
-    done
-
-    if (( ${#MISSING_PKGS[@]} > 0 )); then
-        log "Installing missing packages: ${MISSING_PKGS[*]}"
-
-        if ! sudo apt-get install -y "${MISSING_PKGS[@]}"; then
-            die "Could not install: ${MISSING_PKGS[*]}. If this is a fresh machine that has never run apt-get update, run 'sudo apt-get update' yourself first, then re-run this installer."
-        fi
-    else
-        log "All required system packages already installed -- skipping apt-get"
-    fi
-else
-    die "This installer requires Debian/Ubuntu with apt-get."
+if (( ${#MISSING_CMDS[@]} > 0 )); then
+    die "Missing required command(s): ${MISSING_CMDS[*]}. Install them with your system's package manager, then re-run this installer."
 fi
+
+log "Found: git, python3, curl, openssl"
 
 # ----------------------------------------------------------------------------
 # 2. Node.js
