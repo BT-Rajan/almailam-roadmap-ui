@@ -372,7 +372,7 @@ async function submitWizard(): Promise<void> {
       confirmationNote.value = ''
     }
 
-    // The dedicated "Client Onboarded" dialog below (showConfirmation)
+    // The dedicated "Client Submitted" dialog below (showConfirmation)
     // already covers the success case -- including the partial-failure
     // note inline -- so no separate pop-up here would just be a second,
     // redundant confirmation for the same one action.
@@ -436,7 +436,7 @@ function goToCreatedClient(): void {
         <FormActionBar
           v-else
           cancel-label="Back"
-          submit-label="Complete Onboarding"
+          submit-label="Submit Client"
           :loading="isSubmitting"
           @cancel="goBack"
           @submit="submitWizard"
@@ -444,12 +444,16 @@ function goToCreatedClient(): void {
       </div>
     </div>
 
-    <BaseDialog :model-value="showConfirmation" title="Client Onboarded" size="sm" :closable="false">
+    <BaseDialog :model-value="showConfirmation" title="Client Submitted" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
         <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
         was successfully created as client
         <strong>{{ createdClient?.code }}</strong>.
         <span v-if="confirmationNote"> {{ confirmationNote }}</span>
+      </p>
+      <p class="mt-2 text-sm text-text-secondary">
+        Onboarding starts at "Information Required" -- advance it through review from the client's workspace page
+        before it can be selected on a new project.
       </p>
 
       <template #footer>

@@ -49,6 +49,7 @@ function validate(): boolean {
   errors.value = {}
   if (!form.value.name.trim()) errors.value.name = 'Authority name is required'
   if (!form.value.website.trim()) errors.value.website = 'Website is required'
+  if (!form.value.description.trim()) errors.value.description = 'Description is required'
   return Object.keys(errors.value).length === 0
 }
 
@@ -69,7 +70,7 @@ function handleSave(): void {
       <TextInput v-model="form.name" label="Authority Name" placeholder="e.g. Kuwait Municipality" :error="errors.name" required />
       <SelectBox v-model="form.category" label="Category" :options="AUTHORITY_CATEGORY_OPTIONS" required />
       <TextInput v-model="form.website" label="Website" placeholder="https://" :error="errors.website" required />
-      <TextArea v-model="form.description" label="Description" :rows="3" />
+      <TextArea v-model="form.description" label="Description" :rows="3" :error="errors.description" required />
     </div>
 
     <template #footer>

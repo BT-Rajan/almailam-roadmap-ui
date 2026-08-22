@@ -69,6 +69,7 @@ function validate(): boolean {
   if (!draft.value.title.trim()) errors.value.title = 'Form title is required'
   if (!draft.value.formCode.trim()) errors.value.formCode = 'Form code is required'
   if (!draft.value.authorityId) errors.value.authorityId = 'Please select an authority'
+  if (!draft.value.description.trim()) errors.value.description = 'Description is required'
   return Object.keys(errors.value).length === 0
 }
 
@@ -118,7 +119,7 @@ function handleSave(): void {
       </div>
 
       <DatePicker v-model="draft.lastUpdated" label="Last Updated" />
-      <TextArea v-model="draft.description" label="Description" :rows="3" />
+      <TextArea v-model="draft.description" label="Description" :rows="3" :error="errors.description" required />
       <TextArea
         v-model="draft.requiredDocumentsText"
         label="Required Documents"
