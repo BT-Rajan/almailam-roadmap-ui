@@ -183,16 +183,27 @@ set_env() {
 log "Checking system dependencies"
 
 if require_cmd apt-get; then
-    sudo apt-get update
+    # Only touch apt at all if something we need is actually missing.
+    # "apt-get update" refreshes every repo configured on the box, not
+    # just ones relevant to us -- on a server that already has these
+    # packages, running it on every install/redeploy is both wasted
+    # work and a needless point of failure (e.g. an unrelated
+    # third-party repo's signing metadata changing upstream aborts the
+    # whole install even though nothing we actually need has changed).
+    REQUIRED_PKGS=(git python3 python3-venv python3-pip build-essential curl openssl)
+    MISSING_PKGS=()
 
-    sudo apt-get install -y \
-        git \
-        python3 \
-        python3-venv \
-        python3-pip \
-        build-essential \
-        curl \
-        openssl
+    for pkg in "${REQUIRED_PKGS[@]}"; do
+        dpkg -s "$pkg" >/dev/null 2>&1 || MISSING_PKGS+=("$pkg")
+    done
+
+    if (( ${#MISSING_PKGS[@]} > 0 )); then
+        log "Installing missing packages: ${MISSING_PKGS[*]}"
+        sudo apt-get update
+        sudo apt-get install -y "${MISSING_PKGS[@]}"
+    else
+        log "All required system packages already installed -- skipping apt-get"
+    fi
 else
     die "This installer requires Debian/Ubuntu with apt-get."
 fi
