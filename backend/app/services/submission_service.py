@@ -10,7 +10,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.government import GovernmentSubmission, SubmissionDocument
 from app.models.project import Project
-from app.services import audit_service, government_service, project_service, timeline_service
+from app.services import audit_service, government_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
@@ -57,13 +57,10 @@ def get_documents(db: Session, submission_id: int) -> list[SubmissionDocument]:
 
 def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSubmission:
     project = _parse_project_id_from_no(payload.projectId, db)
-    project_service.assert_project_open_for_new_work(project)
     authority_id = government_service.parse_authority_id(payload.authorityId)
     form_id = government_service.parse_form_id(payload.formId)
     government_service.get_authority(db, authority_id)  # 404 if unknown
     form = government_service.get_form(db, form_id)
-    if form.authority_id != authority_id:
-        raise ValidationAppError("formId does not belong to the given authorityId.")
 
     submission_no = next_number(db, "GOVERNMENT_SUBMISSION")
     submission = GovernmentSubmission(
