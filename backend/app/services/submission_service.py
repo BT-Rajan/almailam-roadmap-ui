@@ -118,6 +118,26 @@ def set_status(
     if new_status in SUBMISSION_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the submission to '{new_status}'.")
 
+    # An authority approving a submission implies every document it asked
+    # for has actually been checked, not just attached -- "Approved" while
+    # a required document still sits at "Pending" (never even uploaded) is
+    # a real state a reviewer could otherwise put the record in by
+    # clicking through the status dropdown alone. Only "Approved" is
+    # gated, not "Submitted": you're allowed to submit with paperwork
+    # still catching up, same as real filings often work, but the
+    # authority's own sign-off should mean the checklist is actually done.
+    if new_status == "Approved":
+        unverified = (
+            db.query(SubmissionDocument)
+            .filter(SubmissionDocument.submission_id == submission.id, SubmissionDocument.status != "Verified")
+            .all()
+        )
+        if unverified:
+            names = ", ".join(d.name for d in unverified)
+            raise ValidationAppError(
+                f"Cannot approve this submission -- these required documents are not yet Verified: {names}."
+            )
+
     audit_service.log_event(
         db, ENTITY_TYPE, submission.id, "Status changed", user_id,
         previous_value=submission.status, new_value=new_status, reason=reason,
