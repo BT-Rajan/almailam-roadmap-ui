@@ -329,12 +329,25 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,
     notes                        TEXT NULL,
+    proof_of_submission_storage_key   VARCHAR(300) NULL,
+    proof_of_submission_filename      VARCHAR(255) NULL,
+    proof_of_submission_size_bytes    BIGINT UNSIGNED NULL,
+    proof_of_submission_uploaded_by   BIGINT UNSIGNED NULL,
+    proof_of_submission_upload_date   DATE NULL,
+    proof_of_response_storage_key     VARCHAR(300) NULL,
+    proof_of_response_filename        VARCHAR(255) NULL,
+    proof_of_response_size_bytes      BIGINT UNSIGNED NULL,
+    proof_of_response_uploaded_by     BIGINT UNSIGNED NULL,
+    proof_of_response_upload_date     DATE NULL,
+    response_outcome                  ENUM('Approved','Rejected') NULL,
     created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at                   DATETIME NULL,
     CONSTRAINT fk_government_submissions_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_government_submissions_authority FOREIGN KEY (authority_id) REFERENCES government_authorities(id) ON DELETE RESTRICT,
     CONSTRAINT fk_government_submissions_form FOREIGN KEY (form_id) REFERENCES government_forms(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_government_submissions_proof_submission_by FOREIGN KEY (proof_of_submission_uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_government_submissions_proof_response_by FOREIGN KEY (proof_of_response_uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_government_submissions_project (project_id),
     INDEX idx_government_submissions_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -344,8 +357,28 @@ CREATE TABLE IF NOT EXISTS submission_documents (
     submission_id   BIGINT UNSIGNED NOT NULL,
     name            VARCHAR(150) NOT NULL,
     status          ENUM('Pending','Uploaded','Verified') NOT NULL DEFAULT 'Pending',
+    storage_key       VARCHAR(300) NULL,
+    original_filename VARCHAR(255) NULL,
+    file_size_bytes    BIGINT UNSIGNED NULL,
+    uploaded_by         BIGINT UNSIGNED NULL,
+    upload_date          DATE NULL,
     CONSTRAINT fk_submission_documents_submission FOREIGN KEY (submission_id) REFERENCES government_submissions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_submission_documents_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_submission_documents_submission (submission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS submission_followups (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    submission_id   BIGINT UNSIGNED NOT NULL,
+    followup_date   DATE NOT NULL,
+    followup_time   VARCHAR(20) NOT NULL,
+    contact_person  VARCHAR(150) NOT NULL,
+    notes           TEXT NULL,
+    created_by      BIGINT UNSIGNED NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_submission_followups_submission FOREIGN KEY (submission_id) REFERENCES government_submissions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_submission_followups_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_submission_followups_submission (submission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS quotations (

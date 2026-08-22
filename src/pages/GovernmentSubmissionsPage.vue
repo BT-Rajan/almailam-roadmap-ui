@@ -1,25 +1,20 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
-import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
-import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
-import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SubmissionStatus } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
@@ -39,11 +34,9 @@ interface SubmissionTableRow {
   decisionDate: string
 }
 
+const router = useRouter()
 const submissionStore = useGovernmentSubmissionStore()
-const toastStore = useToastStore()
 const resultDialogStore = useResultDialogStore()
-const selectedSubmissionId = ref<string | undefined>(undefined)
-const isDrawerOpen = ref(false)
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 
@@ -60,12 +53,6 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
     isCreating.value = false
   }
 }
-const isWithdrawDialogOpen = ref(false)
-const withdrawReason = ref('')
-
-// A submission can be withdrawn any time before a final decision has been
-// made -- once Approved or Rejected (or already Withdrawn), it's terminal.
-const NON_TERMINAL_STATUSES: SubmissionStatus[] = ['Draft', 'Submitted', 'Under Review', 'Comments Received']
 
 const STATUS_OPTIONS: SelectOption[] = [
   { label: 'All Statuses', value: 'All' },
@@ -108,41 +95,6 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
   })),
 )
 
-const selectedSubmission = computed(() =>
-  submissionStore.submissions.find((submission) => submission.id === selectedSubmissionId.value),
-)
-
-const selectedSubmissionDetails = computed(() => {
-  if (!selectedSubmission.value) return []
-  const project = submissionStore.getProjectById(selectedSubmission.value.projectId)
-  const authority = submissionStore.getAuthorityById(selectedSubmission.value.authorityId)
-  const form = submissionStore.getFormById(selectedSubmission.value.formId)
-
-  return [
-    { label: 'Project', value: project?.projectName ?? 'Unknown Project' },
-    { label: 'Authority', value: authority?.name ?? 'Unknown Authority' },
-    { label: 'Form', value: form?.title ?? 'Unknown Form' },
-    {
-      label: 'Submitted Date',
-      value: selectedSubmission.value.submittedDate
-        ? formatDate(selectedSubmission.value.submittedDate)
-        : 'Not submitted yet',
-    },
-    {
-      label: 'Estimated Response',
-      value: selectedSubmission.value.expectedDecisionDate
-        ? formatDate(selectedSubmission.value.expectedDecisionDate)
-        : 'Not set',
-    },
-    {
-      label: 'Actual Response',
-      value: selectedSubmission.value.decisionDate
-        ? formatDate(selectedSubmission.value.decisionDate)
-        : 'Not yet received',
-    },
-  ]
-})
-
 function loadData(): void {
   submissionStore.loadSubmissions()
 }
@@ -152,32 +104,7 @@ onMounted(() => {
 })
 
 function openSubmission(row: SubmissionTableRow): void {
-  selectedSubmissionId.value = row.id
-  isDrawerOpen.value = true
-}
-
-const canWithdrawSelected = computed(
-  () => !!selectedSubmission.value && NON_TERMINAL_STATUSES.includes(selectedSubmission.value.status),
-)
-
-function openWithdrawDialog(): void {
-  withdrawReason.value = ''
-  isWithdrawDialogOpen.value = true
-}
-
-async function confirmWithdraw(): Promise<void> {
-  if (!selectedSubmission.value || !withdrawReason.value.trim()) return
-  const success = await submissionStore.setSubmissionStatus(
-    selectedSubmission.value.id,
-    'Withdrawn',
-    withdrawReason.value.trim(),
-  )
-  if (success) {
-    isWithdrawDialogOpen.value = false
-    toastStore.show('success', 'Submission withdrawn', `${selectedSubmission.value.submissionNo} has been withdrawn.`)
-  } else {
-    toastStore.show('error', 'Unable to withdraw', submissionStore.mutationError ?? 'Please try again.')
-  }
+  router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: row.submissionNo } })
 }
 </script>
 
@@ -250,53 +177,5 @@ async function confirmWithdraw(): Promise<void> {
         {{ value ? formatDate(value as string) : 'Not yet received' }}
       </template>
     </SmartTable>
-
-    <BaseDrawer v-model="isDrawerOpen" :title="selectedSubmission?.submissionNo" width="lg">
-      <div v-if="selectedSubmission" class="flex flex-col gap-6">
-        <SubmissionApprovalStepper :status="selectedSubmission.status" />
-
-        <DetailPanel title="Submission Details" :items="selectedSubmissionDetails" />
-
-        <div>
-          <h3 class="mb-2 text-sm font-semibold text-text-primary">Required Documents</h3>
-          <RequiredDocumentChecklist :documents="selectedSubmission.documents" />
-        </div>
-
-        <div v-if="selectedSubmission.notes">
-          <h3 class="mb-1 text-sm font-semibold text-text-primary">Notes</h3>
-          <p class="text-sm text-text-secondary">{{ selectedSubmission.notes }}</p>
-        </div>
-
-        <div v-if="canWithdrawSelected" class="border-t border-border-light pt-4">
-          <BaseButton variant="danger" size="sm" @click="openWithdrawDialog">Withdraw Submission</BaseButton>
-        </div>
-      </div>
-    </BaseDrawer>
-
-    <BaseDialog v-model="isWithdrawDialogOpen" title="Withdraw Submission" size="sm">
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-text-secondary">
-          Withdrawing {{ selectedSubmission?.submissionNo }} tells the authority this submission is no longer being
-          pursued. This can't be undone from here -- a new submission would need to be created to resume.
-        </p>
-        <TextArea
-          v-model="withdrawReason"
-          label="Reason for withdrawal"
-          placeholder="e.g. Project scope changed, submitting a revised application instead"
-          :rows="3"
-        />
-        <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isWithdrawDialogOpen = false">Cancel</BaseButton>
-          <BaseButton
-            variant="danger"
-            :disabled="!withdrawReason.trim()"
-            :loading="submissionStore.isMutating"
-            @click="confirmWithdraw"
-          >
-            Withdraw
-          </BaseButton>
-        </div>
-      </div>
-    </BaseDialog>
   </div>
 </template>

@@ -176,6 +176,21 @@ const router = createRouter({
       },
     },
     {
+      path: '/government/submissions/:submissionNo',
+      name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
+      component: () => import('@/pages/SubmissionWorkspacePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Government Center' },
+          { label: 'Submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
+          { label: 'Submission' },
+        ],
+      },
+    },
+    {
       path: '/documents',
       name: ROUTE_NAMES.DOCUMENTS,
       component: () => import('@/pages/DocumentsPage.vue'),

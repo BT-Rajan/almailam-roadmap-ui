@@ -9,9 +9,33 @@ export type SubmissionStatus =
 
 export type RequiredDocumentStatus = 'Pending' | 'Uploaded' | 'Verified'
 
+export type ResponseOutcome = 'Approved' | 'Rejected'
+
 export interface SubmissionDocument {
+  id: number
   name: string
   status: RequiredDocumentStatus
+  originalFilename?: string | null
+  fileSizeLabel?: string | null
+  uploadDate?: string | null
+  uploadedBy?: string | null
+}
+
+export interface ProofOfFile {
+  originalFilename: string
+  fileSizeLabel: string
+  uploadDate: string
+  uploadedBy: string
+}
+
+export interface SubmissionFollowup {
+  id: string
+  followupDate: string
+  followupTime: string
+  contactPerson: string
+  notes?: string | null
+  createdBy: string
+  createdAt: string
 }
 
 export interface GovernmentSubmission {
@@ -26,4 +50,8 @@ export interface GovernmentSubmission {
   decisionDate?: string
   documents: SubmissionDocument[]
   notes?: string
+  allDocumentsSatisfied: boolean
+  proofOfSubmission?: ProofOfFile | null
+  proofOfResponse?: ProofOfFile | null
+  responseOutcome?: ResponseOutcome | null
 }
