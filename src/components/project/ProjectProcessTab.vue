@@ -86,12 +86,12 @@ const stagesWithSteps = computed(() =>
       stage,
       approvalStep: approvalStore.steps.find((s) => s.stageKey === stage.key),
       executionSteps,
-      // The backend blocks marking a stage Completed while any of its own
-      // execution steps are still Pending -- checked here too so the
-      // button doesn't invite a click that's just going to fail with a
-      // toast. A stage with no execution steps of its own (e.g. "Permit
-      // Approved") has nothing to wait on.
-      hasPendingExecutionSteps: executionSteps.some((s) => s.status === 'Pending'),
+      // The backend blocks uploading a stage's gate document while any of
+      // its own execution steps are still below 100% -- checked here too
+      // so the uploader doesn't invite a file that's just going to fail
+      // with a toast. A stage with no execution steps of its own (e.g.
+      // "Permit Approved") has nothing to wait on.
+      hasPendingExecutionSteps: executionSteps.some((s) => s.completionPercentage < 100),
       documents: projectDocuments.value.filter((d) => d.stageKey === stage.key),
     }
   }),

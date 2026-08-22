@@ -69,19 +69,20 @@ def get_project_step_by_stage(db: Session, project_id: int, stage_key: str) -> P
 
 def _pending_execution_steps_count(db: Session, project_id: int, stage_key: str) -> int:
     """How many of this project's execution steps (see execution_step.py)
-    are tagged to this approval stage and still Pending. The 23-step
-    checklist and the 5-stage approval process are otherwise independent
-    tracks that only share stage_key for display grouping (see
-    ProjectProcessTab.vue's accordion) -- without this check, a stage's
-    gate document could be uploaded (closing it out) while the execution
-    steps grouped visually underneath it are still sitting untouched,
-    which reads as a flat contradiction in that same accordion."""
+    are tagged to this approval stage and still below 100% completion.
+    The 23-step checklist and the 5-stage approval process are otherwise
+    independent tracks that only share stage_key for display grouping
+    (see ProjectProcessTab.vue's accordion) -- without this check, a
+    stage's gate document could be uploaded (closing it out) while the
+    execution steps grouped visually underneath it are still sitting
+    unfinished, which reads as a flat contradiction in that same
+    accordion."""
     return (
         db.query(ProjectExecutionStep)
         .filter(
             ProjectExecutionStep.project_id == project_id,
             ProjectExecutionStep.stage_key == stage_key,
-            ProjectExecutionStep.status == "Pending",
+            ProjectExecutionStep.completion_percentage < 100,
         )
         .count()
     )
@@ -100,8 +101,8 @@ def upload_stage_gate_document(
     pending_steps = _pending_execution_steps_count(db, project_id, stage_key)
     if pending_steps > 0:
         raise ValidationAppError(
-            f"{pending_steps} execution step(s) for this stage are still pending -- "
-            "complete or waive them before uploading this stage's gate document."
+            f"{pending_steps} execution step(s) for this stage are still below 100% -- "
+            "finish them before uploading this stage's gate document."
         )
 
     storage_key, original_filename, size_bytes = save_upload(file, "stage-gates")
