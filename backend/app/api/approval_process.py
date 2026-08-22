@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.approval_process import ApprovalProcessWaiveRequest, ProjectApprovalStepOut
+from app.schemas.approval_process import ProjectApprovalStepOut
 from app.services import approval_process_service, project_service
 
 router = APIRouter(tags=["approval-process"])
@@ -14,15 +15,11 @@ can_view_project = require_permission("Projects", "view")
 
 
 def _step_out(db: Session, step) -> ProjectApprovalStepOut:
-    completed_by_name = None
-    if step.completed_by:
-        user = db.query(User).filter(User.id == step.completed_by).first()
-        completed_by_name = user.full_name if user else None
-    waived_by_name = None
-    if step.waived_by:
-        user = db.query(User).filter(User.id == step.waived_by).first()
-        waived_by_name = user.full_name if user else None
-    return ProjectApprovalStepOut.from_model(step, completed_by_name, waived_by_name)
+    uploaded_by_name = None
+    if step.uploaded_by:
+        user = db.query(User).filter(User.id == step.uploaded_by).first()
+        uploaded_by_name = user.full_name if user else None
+    return ProjectApprovalStepOut.from_model(step, uploaded_by_name)
 
 
 @router.get("/api/projects/{project_no}/approval-steps", response_model=list[ProjectApprovalStepOut])
@@ -31,58 +28,23 @@ def list_project_approval_steps(project_no: str, db: Session = Depends(get_db), 
     return [_step_out(db, s) for s in approval_process_service.list_project_steps(db, project.id)]
 
 
-@router.post("/api/projects/{project_no}/approval-steps/{step_id}/complete", response_model=ProjectApprovalStepOut)
-def complete_approval_step(
+@router.post("/api/projects/{project_no}/approval-steps/{stage_key}/document", response_model=ProjectApprovalStepOut)
+def upload_stage_gate_document(
     project_no: str,
-    step_id: str,
+    stage_key: str,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit_project),
 ):
     project = project_service.get_project(db, project_no)
-    step = approval_process_service.complete_step(
-        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), current_user.id
-    )
+    step = approval_process_service.upload_stage_gate_document(db, project.id, stage_key, file, current_user.id)
     return _step_out(db, step)
 
 
-@router.post("/api/projects/{project_no}/approval-steps/{step_id}/uncomplete", response_model=ProjectApprovalStepOut)
-def uncomplete_approval_step(
-    project_no: str,
-    step_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit_project),
+@router.get("/api/projects/{project_no}/approval-steps/{stage_key}/document")
+def download_stage_gate_document(
+    project_no: str, stage_key: str, db: Session = Depends(get_db), _=Depends(can_view_project)
 ):
     project = project_service.get_project(db, project_no)
-    step = approval_process_service.uncomplete_step(
-        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), current_user.id
-    )
-    return _step_out(db, step)
-
-
-@router.post("/api/projects/{project_no}/approval-steps/{step_id}/waive", response_model=ProjectApprovalStepOut)
-def waive_approval_step(
-    project_no: str,
-    step_id: str,
-    payload: ApprovalProcessWaiveRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit_project),
-):
-    project = project_service.get_project(db, project_no)
-    step = approval_process_service.waive_step(
-        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), payload.reason, current_user.id
-    )
-    return _step_out(db, step)
-
-
-@router.post("/api/projects/{project_no}/approval-steps/{step_id}/unwaive", response_model=ProjectApprovalStepOut)
-def unwaive_approval_step(
-    project_no: str,
-    step_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit_project),
-):
-    project = project_service.get_project(db, project_no)
-    step = approval_process_service.unwaive_step(
-        db, project.id, approval_process_service.parse_project_approval_step_id(step_id), current_user.id
-    )
-    return _step_out(db, step)
+    path, original_filename = approval_process_service.get_stage_gate_download_target(db, project.id, stage_key)
+    return FileResponse(path, filename=original_filename)

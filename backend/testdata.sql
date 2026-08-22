@@ -340,8 +340,8 @@ ON DUPLICATE KEY UPDATE next_number = VALUES(next_number);
 -- then this file, no migration in between) doesn't leave every demo
 -- project stuck with an empty checklist. Guarded the same way: only
 -- projects with zero existing steps get backfilled.
-INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage, status)
-SELECT p.id, t.name, t.sequence_number, t.weight_percentage, 'Pending'
+INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage)
+SELECT p.id, t.name, t.sequence_number, t.weight_percentage
 FROM projects p
 CROSS JOIN execution_step_templates t
 WHERE t.deleted_at IS NULL
@@ -350,9 +350,11 @@ WHERE t.deleted_at IS NULL
   );
 
 -- Same reasoning, same backfill pattern, for the separate approval
--- process trial -- see approval_process.py's own docstring.
-INSERT INTO project_approval_steps (project_id, name, sequence_number, status)
-SELECT p.id, t.name, t.sequence_number, 'Pending'
+-- process trial -- see approval_process.py's own docstring. No status
+-- to seed here either -- a stage counts as complete once a document
+-- is uploaded for it (storage_key set), not via a status column.
+INSERT INTO project_approval_steps (project_id, name, sequence_number)
+SELECT p.id, t.name, t.sequence_number
 FROM projects p
 CROSS JOIN approval_process_templates t
 WHERE t.deleted_at IS NULL

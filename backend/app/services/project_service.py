@@ -12,7 +12,7 @@ from app.core.status_transitions import (
     PROJECT_STATUS_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
-from app.models.contract import Contract
+from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
 from app.models.project import Project, ProjectSelectedActivity
@@ -273,10 +273,11 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
     # Reopening a Completed project is exceptional and source-dependent
-    # (unlike "Review" -> "Approval", the normal reason-free outcome of
-    # a successful review), so this can't live in the target-state-only
-    # REQUIRING_REASON table -- it's checked here instead.
-    if previous_stage == "Completed" and new_stage == "Approval":
+    # (unlike "Execution & Tracking" -> "Completed", the normal reason-
+    # free outcome of finishing the checklist), so this can't live in
+    # the target-state-only REQUIRING_REASON table -- it's checked here
+    # instead.
+    if previous_stage == "Completed" and new_stage == "Execution & Tracking":
         assert_reason_given(reason, "A reason is required to reopen a completed project.")
 
     audit_service.log_event(
@@ -383,6 +384,29 @@ def get_completion_summary(db: Session, project_no: str) -> dict:
         (project.completed_at.date() - project.start_date).days if project.completed_at else None
     )
 
+    # Scope deviations -- every ContractRevision beyond a contract's
+    # initial R0 across every contract this project has had. A contract
+    # only gets a ContractRevision row when its revision actually bumps
+    # (see contract_service.add_revision), so an empty list here is a
+    # real "nothing changed", not just "we didn't check".
+    revisions = (
+        db.query(ContractRevision, User)
+        .join(Contract, Contract.id == ContractRevision.contract_id)
+        .join(User, User.id == ContractRevision.changed_by)
+        .filter(Contract.project_id == project.id)
+        .order_by(ContractRevision.revised_at.asc(), ContractRevision.id.asc())
+        .all()
+    )
+    scope_deviations = [
+        {
+            "revision": revision.revision,
+            "date": revision.revised_at,
+            "changedBy": user.full_name,
+            "summary": revision.summary,
+        }
+        for revision, user in revisions
+    ]
+
     return {
         "plannedBudget": planned_budget,
         "actualBudget": actual_budget,
@@ -390,6 +414,8 @@ def get_completion_summary(db: Session, project_no: str) -> dict:
         "actualDurationDays": actual_duration_days,
         "completedAt": project.completed_at,
         "notes": project.completion_notes,
+        "scopeDeviations": scope_deviations,
+        "deviationNotes": project.deviation_notes,
     }
 
 
@@ -397,6 +423,67 @@ def update_completion_notes(db: Session, project_no: str, notes: str, user_id: i
     project = get_project(db, project_no)
     project.completion_notes = notes.strip() or None
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Completion notes updated", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def update_deviation_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
+    project = get_project(db, project_no)
+    project.deviation_notes = notes.strip() or None
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Deviation notes updated", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def change_scope(
+    db: Session,
+    project_no: str,
+    new_description: str,
+    contract_update_needed: bool,
+    payment_update_needed: bool,
+    user_id: int | None,
+) -> Project:
+    """The Execution & Tracking tab's "Change Scope" action. Always
+    updates the scope-of-work description (project.description, the
+    same field Overview's "What the Customer Asked For" reads); if
+    either flag is set, every Administrator is notified to go make the
+    corresponding update themselves -- this only records that a scope
+    change happened and whether contract/payment need to catch up with
+    it, it doesn't touch either of those modules directly."""
+    project = get_project(db, project_no)
+    new_description = new_description.strip() or None
+    previous_description = project.description
+    if new_description == previous_description:
+        return project
+
+    project.description = new_description
+    audit_service.log_field_changes(
+        db, ENTITY_TYPE, project.id, {"description": (previous_description, new_description)}, user_id
+    )
+
+    flags: list[str] = []
+    if contract_update_needed:
+        flags.append("contract")
+    if payment_update_needed:
+        flags.append("payment")
+    note = "Scope changed." if not flags else f"Scope changed -- {' and '.join(flags)} update needed."
+    timeline_service.create_system_event(db, project.id, "note", title=note, description=new_description, actor_id=user_id)
+
+    if flags:
+        admins = db.query(User).filter(User.role == "Administrator", User.deleted_at.is_(None)).all()
+        for admin in admins:
+            notification_service.create_notification(
+                db, admin.id,
+                "Project scope changed",
+                f"{project.project_name} ({project.project_no})'s scope changed and needs a "
+                f"{' and '.join(flags)} update.",
+                "Project",
+                link_route_name="project-workspace",
+                link_params={"projectId": project.project_no},
+            )
+
     db.commit()
     db.refresh(project)
     return project

@@ -60,13 +60,33 @@ SELECT * FROM (
 ) AS seed
 WHERE NOT EXISTS (SELECT 1 FROM approval_process_templates);
 
-INSERT INTO project_approval_steps (project_id, name, sequence_number, status)
-SELECT p.id, t.name, t.sequence_number, 'Pending'
-FROM projects p
-CROSS JOIN approval_process_templates t
-WHERE t.deleted_at IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM project_approval_steps pas WHERE pas.project_id = p.id
-  );
+-- The status column this originally inserted was dropped by migration
+-- 0022 (project_approval_steps became a stage-gate document tracker --
+-- a stage counts as complete once storage_key is set, not via a
+-- status column). install.sh reapplies every migration file on every
+-- run with no tracking of what already ran, so this file executes
+-- again on a database that's already past 0022, at which point a
+-- hardcoded reference to status would fail with "Unknown column".
+-- Branches on whether the column is still there, same as migration
+-- 0016's identical fix for project_execution_steps.
+SET @has_status = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_approval_steps' AND COLUMN_NAME = 'status'
+);
+SET @sql = IF(@has_status > 0,
+  'INSERT INTO project_approval_steps (project_id, name, sequence_number, status)
+   SELECT p.id, t.name, t.sequence_number, ''Pending''
+   FROM projects p
+   CROSS JOIN approval_process_templates t
+   WHERE t.deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM project_approval_steps pas WHERE pas.project_id = p.id)',
+  'INSERT INTO project_approval_steps (project_id, name, sequence_number)
+   SELECT p.id, t.name, t.sequence_number
+   FROM projects p
+   CROSS JOIN approval_process_templates t
+   WHERE t.deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM project_approval_steps pas WHERE pas.project_id = p.id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SELECT 'Migration 0017 complete.' AS status;

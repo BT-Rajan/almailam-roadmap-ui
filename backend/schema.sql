@@ -242,8 +242,11 @@ CREATE TABLE IF NOT EXISTS projects (
     engineer_id     BIGINT UNSIGNED NOT NULL,
     -- "Correction" was merged into "Review" (migration 0019) -- a
     -- correction cycle during review is logged as a reason-carrying
-    -- project timeline note now, not a separate stage.
-    current_stage   ENUM('Enquiry','Quotation','Contract','Design','Government Submission','Review','Approval','Completed')
+    -- project timeline note now, not a separate stage. "Review" was
+    -- itself renamed to "Execution & Tracking" and "Approval" dropped
+    -- entirely (migration 0022) -- see execution_step_templates/
+    -- project_approval_steps below for what replaced it.
+    current_stage   ENUM('Enquiry','Quotation','Contract','Design','Government Submission','Execution & Tracking','Completed')
                         NOT NULL DEFAULT 'Enquiry',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
@@ -255,9 +258,12 @@ CREATE TABLE IF NOT EXISTS projects (
     -- Set once by set_status() when status becomes Completed, cleared on
     -- reopen -- backs the Completion summary's actual-vs-planned
     -- duration. completion_notes is the same summary's free-text
-    -- handover/lessons-learned box.
+    -- handover/lessons-learned box. deviation_notes is a separate PM
+    -- annotation on the auto-derived "what changed vs. what was asked
+    -- for" read (contract revisions + budget/duration variance).
     completed_at    DATETIME NULL,
     completion_notes TEXT NULL,
+    deviation_notes TEXT NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -538,9 +544,18 @@ CREATE TABLE IF NOT EXISTS project_documents (
     uploaded_by         BIGINT UNSIGNED NOT NULL,
     upload_date         DATE NOT NULL,
     status              ENUM('Draft','Under Review','Approved','Rejected') NOT NULL DEFAULT 'Draft',
-    storage_key         VARCHAR(300) NOT NULL,
-    original_filename   VARCHAR(255) NOT NULL,
-    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    -- All three NULL -- a row can be a plain external link with no
+    -- uploaded file at all (see external_link below), an uploaded file
+    -- with no link, or both; document_service.create_document requires
+    -- at least one of the two at the application layer.
+    storage_key         VARCHAR(300) NULL,
+    original_filename   VARCHAR(255) NULL,
+    file_size_bytes     BIGINT UNSIGNED NULL,
+    -- A link to a document that lives outside the app (a shared drive,
+    -- cloud folder, etc.) -- same idea as ProjectLinkDocument, but on
+    -- ProjectDocument itself so the Design tab's list can mix uploaded
+    -- files and external links in one CRUD table.
+    external_link       VARCHAR(1000) NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
@@ -738,11 +753,16 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
 -- step's stage_key groups it under one of the 5 approval stages, which
 -- is how the project UI shows one unified view (5 stages, each
 -- expandable to its related execution steps) instead of two
--- independent trackers. Both step tables share the same Waived status
--- (with an audit trail -- waived_at/by/reason) for steps a client's
--- specific requirements don't call for; only steps marked is_optional
--- on their template can be waived. See migration 0018 for the mapping
--- reasoning between the two lists.
+-- independent trackers. See migration 0018 for the mapping reasoning
+-- between the two lists.
+--
+-- Since migration 0022 (the Execution & Tracking redesign):
+-- project_execution_steps tracks a free 0-100 completion_percentage
+-- per step (plus optional remarks) instead of a linear Pending/
+-- Completed/Waived status -- project.progress is the weighted sum of
+-- these percentages. project_approval_steps' 5 rows are stage gates:
+-- a stage counts as complete the moment a document is uploaded for it
+-- (storage_key set), not via a separate manual "complete" action.
 
 CREATE TABLE IF NOT EXISTS execution_step_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -758,24 +778,18 @@ CREATE TABLE IF NOT EXISTS execution_step_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS project_execution_steps (
-    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    project_id          BIGINT UNSIGNED NOT NULL,
-    name                VARCHAR(200) NOT NULL,
-    sequence_number     INT NOT NULL,
-    weight_percentage   DECIMAL(5,2) NOT NULL,
-    stage_key           VARCHAR(40) NOT NULL,
-    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
-    status              ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending',
-    completed_at        DATETIME NULL,
-    completed_by        BIGINT UNSIGNED NULL,
-    waived_at           DATETIME NULL,
-    waived_by           BIGINT UNSIGNED NULL,
-    waived_reason        VARCHAR(500) NULL,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id            BIGINT UNSIGNED NOT NULL,
+    name                  VARCHAR(200) NOT NULL,
+    sequence_number       INT NOT NULL,
+    weight_percentage     DECIMAL(5,2) NOT NULL,
+    stage_key             VARCHAR(40) NOT NULL,
+    is_optional           TINYINT(1) NOT NULL DEFAULT 0,
+    completion_percentage SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    remarks               TEXT NULL,
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_execution_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    CONSTRAINT fk_project_execution_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_project_execution_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
     -- One row per step per project -- a project can't accidentally end
     -- up with the same step snapshotted twice.
     CONSTRAINT uq_project_execution_steps_project_sequence UNIQUE (project_id, sequence_number),
@@ -836,18 +850,18 @@ CREATE TABLE IF NOT EXISTS project_approval_steps (
     name                VARCHAR(200) NOT NULL,
     stage_key           VARCHAR(40) NOT NULL,
     sequence_number     INT NOT NULL,
-    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
-    status              ENUM('Pending','Completed','Waived') NOT NULL DEFAULT 'Pending',
-    completed_at        DATETIME NULL,
-    completed_by        BIGINT UNSIGNED NULL,
-    waived_at           DATETIME NULL,
-    waived_by           BIGINT UNSIGNED NULL,
-    waived_reason        VARCHAR(500) NULL,
+    -- A stage gate is "complete" the moment storage_key is set --
+    -- uploading the stage's review document IS what marks it done,
+    -- there is no separate manual complete/waive action.
+    storage_key         VARCHAR(255) NULL,
+    original_filename   VARCHAR(255) NULL,
+    file_size_bytes     BIGINT UNSIGNED NULL,
+    uploaded_at         DATETIME NULL,
+    uploaded_by         BIGINT UNSIGNED NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_approval_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    CONSTRAINT fk_project_approval_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_project_approval_steps_waived_by FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_approval_steps_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT uq_project_approval_steps_project_sequence UNIQUE (project_id, sequence_number),
     INDEX idx_project_approval_steps_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,13 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
-
-PROJECT_APPROVAL_STEP_STATUSES = ("Pending", "Completed", "Waived")
 
 
 class ApprovalProcessTemplate(Base, TimestampMixin, SoftDeleteMixin):
@@ -41,15 +39,16 @@ class ApprovalProcessTemplate(Base, TimestampMixin, SoftDeleteMixin):
 class ProjectApprovalStep(Base, TimestampMixin):
     """One project's own snapshot of the approval process, copied from
     ApprovalProcessTemplate at creation time -- same snapshot-not-live-
-    reference reasoning as ProjectExecutionStep. Linear: a step can
-    only be completed once every step before it is already Completed
-    or Waived, and can only be un-completed if it's the most recently
-    resolved one.
+    reference reasoning as ProjectExecutionStep.
 
-    Waived mirrors ProjectExecutionStep.status exactly -- some clients'
-    circumstances mean a stage doesn't apply (e.g. a permit already in
-    hand from a prior phase), so it can be waived with a reason rather
-    than blocking every step after it forever.
+    Since migration 0022, each of these 5 rows is a stage gate: the
+    stage counts as complete the moment its review document is
+    uploaded (storage_key set, see
+    approval_process_service.upload_stage_gate_document) -- there is
+    no separate manual "mark complete" action, and no order enforced
+    between stages the way execution steps used to be. Nothing here
+    tracks *who* did the underlying work, only who uploaded the
+    document that closes the gate out.
 
     Deliberately does not touch projects.progress or projects.
     current_stage -- this tracks its own, separate notion of progress
@@ -66,18 +65,10 @@ class ProjectApprovalStep(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    status: Mapped[str] = mapped_column(
-        Enum(*PROJECT_APPROVAL_STEP_STATUSES, name="project_approval_step_status"),
-        nullable=False,
-        default="Pending",
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    completed_by: Mapped[int | None] = mapped_column(
+    storage_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    uploaded_by: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    waived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    waived_by: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    waived_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)

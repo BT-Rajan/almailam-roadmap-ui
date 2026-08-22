@@ -23,24 +23,26 @@ export const PROJECT_SERVICES: string[] = [
 // "Correction" used to be its own stage here (Review <-> Correction).
 // Merged into a single "Review" stage -- a correction cycle during
 // review is logged as a note on the project instead of a separate
-// stage hop. See backend/app/core/status_transitions.py's own comment.
+// stage hop. "Review" was itself renamed to "Execution & Tracking" and
+// "Approval" dropped entirely. See backend/app/core/status_transitions
+// .py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Enquiry: ['Quotation'],
   Quotation: ['Contract'],
   Contract: ['Design'],
   Design: ['Government Submission'],
-  'Government Submission': ['Review'],
-  Review: ['Approval'],
-  Approval: ['Completed'],
-  Completed: ['Approval'],
+  'Government Submission': ['Execution & Tracking'],
+  'Execution & Tracking': ['Completed'],
+  Completed: ['Execution & Tracking'],
 }
 
-// "Completed" -> "Approval" only needs a reason when reopening a
-// completed project specifically -- not the normal "Review" ->
-// "Approval" outcome, which shares the same target state, so this has
-// to be a (from, to) check rather than a flat set of target states.
+// "Completed" -> "Execution & Tracking" only needs a reason when
+// reopening a completed project specifically -- not the normal
+// "Execution & Tracking" -> "Completed" outcome, which shares the same
+// target state, so this has to be a (from, to) check rather than a
+// flat set of target states.
 export function isStageReasonRequired(from: string, to: string): boolean {
-  if (from === 'Completed' && to === 'Approval') return true
+  if (from === 'Completed' && to === 'Execution & Tracking') return true
   return false
 }
 

@@ -16,6 +16,7 @@ from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocume
 from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service, notification_service, project_service, timeline_service
+from app.services.execution_step_service import STAGE_KEYS
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -108,11 +109,28 @@ def get_document(db: Session, document_no: str) -> ProjectDocument:
 
 
 def create_document(
-    db: Session, project_no: str, title: str, doc_type: str, file: UploadFile, user_id: int, stage_key: str | None = None
+    db: Session,
+    project_no: str,
+    title: str,
+    doc_type: str,
+    file: UploadFile | None,
+    user_id: int,
+    stage_key: str | None = None,
+    external_link: str | None = None,
 ) -> ProjectDocument:
     project = _project_by_no(db, project_no)
     project_service.assert_project_open_for_new_work(project)
-    storage_key, original_filename, size_bytes = save_upload(file, "documents")
+    if stage_key and stage_key not in STAGE_KEYS:
+        raise ValidationAppError("Invalid stage key.")
+    external_link = (external_link or "").strip() or None
+    if file is None and external_link is None:
+        raise ValidationAppError("Provide a file, a link, or both.")
+
+    storage_key: str | None = None
+    original_filename: str | None = None
+    size_bytes: int | None = None
+    if file is not None:
+        storage_key, original_filename, size_bytes = save_upload(file, "documents")
 
     document = ProjectDocument(
         document_no=next_number(db, "DOCUMENT"),
@@ -125,6 +143,7 @@ def create_document(
         storage_key=storage_key,
         original_filename=original_filename,
         file_size_bytes=size_bytes,
+        external_link=external_link,
     )
     db.add(document)
     db.flush()
@@ -138,18 +157,21 @@ def create_document(
     # unambiguously has a real, current version, and the Version History
     # panel showed "No previous versions" in a way that read as "this
     # document has no version" rather than "this is the only version".
-    db.add(
-        DocumentVersion(
-            document_id=document.id,
-            revision=document.revision,
-            uploaded_by=user_id,
-            upload_date=document.upload_date,
-            notes="Initial upload.",
-            storage_key=storage_key,
-            original_filename=original_filename,
-            file_size_bytes=size_bytes,
+    # Skipped for a link-only document (no file at all) -- a version
+    # history is inherently about file revisions.
+    if file is not None:
+        db.add(
+            DocumentVersion(
+                document_id=document.id,
+                revision=document.revision,
+                uploaded_by=user_id,
+                upload_date=document.upload_date,
+                notes="Initial upload.",
+                storage_key=storage_key,
+                original_filename=original_filename,
+                file_size_bytes=size_bytes,
+            )
         )
-    )
 
     audit_service.log_event(db, ENTITY_TYPE, document.id, "Document uploaded", user_id)
     timeline_service.create_system_event(
@@ -170,9 +192,21 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
         document.title = payload.title
     if payload.stageKey is not None:
         new_stage_key = payload.stageKey or None
+        if new_stage_key is not None and new_stage_key not in STAGE_KEYS:
+            raise ValidationAppError("Invalid stage key.")
         if new_stage_key != document.stage_key:
             changes["stage"] = (document.stage_key, new_stage_key)
             document.stage_key = new_stage_key
+    if payload.externalLink is not None:
+        new_link = payload.externalLink.strip() or None
+        if new_link is None and document.storage_key is None:
+            raise ValidationAppError("Can't remove the link from a document with no uploaded file.")
+        if new_link != document.external_link:
+            changes["link"] = (document.external_link, new_link)
+            document.external_link = new_link
+    if payload.uploadDate is not None and payload.uploadDate != document.upload_date:
+        changes["date"] = (str(document.upload_date), str(payload.uploadDate))
+        document.upload_date = payload.uploadDate
 
     audit_service.log_field_changes(db, ENTITY_TYPE, document.id, changes, user_id)
     db.commit()

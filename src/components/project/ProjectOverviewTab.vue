@@ -64,6 +64,36 @@ async function saveNotes(): Promise<void> {
   toastStore.show('success', 'Notes saved', 'Project notes were updated.')
 }
 
+// Whether anything actually deviated from what was originally asked
+// for -- scope (a contract revision beyond R0) or a nonzero budget/
+// duration variance. Drives the "None" read when nothing changed.
+const hasDeviation = computed(() => {
+  if (!summary.value) return false
+  if (summary.value.scopeDeviations.length > 0) return true
+  if (budgetVariance.value !== null && budgetVariance.value !== 0) return true
+  if (durationVarianceDays.value !== null && durationVarianceDays.value !== 0) return true
+  return false
+})
+
+const deviationNotesDraft = ref('')
+watch(
+  () => summary.value?.deviationNotes,
+  (notes) => {
+    deviationNotesDraft.value = notes ?? ''
+  },
+  { immediate: true },
+)
+const deviationNotesDirty = computed(() => deviationNotesDraft.value !== (summary.value?.deviationNotes ?? ''))
+
+async function saveDeviationNotes(): Promise<void> {
+  await completionStore.saveDeviationNotes(props.project.id, deviationNotesDraft.value)
+  if (completionStore.saveError) {
+    toastStore.show('error', 'Could not save deviation notes', completionStore.saveError)
+    return
+  }
+  toastStore.show('success', 'Deviation notes saved', 'The delivery-deviation note was updated.')
+}
+
 const projectDetailItems = computed(() => [
   { label: 'Service', value: props.project.service },
   { label: 'Responsible Engineer', value: props.project.engineer },
@@ -87,11 +117,21 @@ const clientDetailItems = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <Card v-if="project.description">
+    <Card v-if="project.description || (project.selectedActivities && project.selectedActivities.length > 0)">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Scope of Work</h3>
+        <h3 class="text-sm font-semibold text-text-primary">What the Customer Asked For</h3>
       </template>
-      <p class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
+      <p v-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
+      <ul v-if="project.selectedActivities && project.selectedActivities.length > 0" class="mt-3 flex flex-col gap-1 border-t border-border-light pt-3">
+        <li
+          v-for="item in project.selectedActivities"
+          :key="item.activityId"
+          class="flex items-center justify-between gap-3 text-sm text-text-secondary"
+        >
+          <span>{{ item.activityName }}</span>
+          <span class="shrink-0 text-text-muted">{{ formatCurrency(item.fixedCost) }}</span>
+        </li>
+      </ul>
     </Card>
 
     <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
@@ -130,6 +170,19 @@ const clientDetailItems = computed(() => {
       <SkeletonLoader v-else-if="completionStore.isLoading" :rows="5" />
 
       <div v-else-if="summary" class="flex flex-col gap-6">
+        <div>
+          <div class="mb-1 flex items-center justify-between">
+            <p class="text-xs text-text-muted">Execution Progress</p>
+            <p class="text-sm font-semibold text-text-primary">{{ project.progress }}%</p>
+          </div>
+          <div class="h-2 w-full overflow-hidden rounded-full bg-bg-secondary">
+            <div
+              class="h-full rounded-full bg-primary-600 transition-[width] duration-normal"
+              :style="{ width: `${project.progress}%` }"
+            />
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div>
             <p class="text-xs text-text-muted">Planned Budget</p>
@@ -147,9 +200,9 @@ const clientDetailItems = computed(() => {
             <p class="text-xs text-text-muted">Variance</p>
             <p
               class="text-sm font-semibold"
-              :class="budgetVariance === null ? 'text-text-primary' : budgetVariance < 0 ? 'text-danger-600' : 'text-success-600'"
+              :class="!budgetVariance ? 'text-text-primary' : budgetVariance < 0 ? 'text-danger-600' : 'text-success-600'"
             >
-              {{ budgetVariance !== null ? formatCurrency(budgetVariance) : '—' }}
+              {{ budgetVariance === null ? '—' : budgetVariance === 0 ? 'None' : formatCurrency(budgetVariance) }}
             </p>
           </div>
         </div>
@@ -169,10 +222,35 @@ const clientDetailItems = computed(() => {
             <p class="text-xs text-text-muted">Variance</p>
             <p
               class="text-sm font-semibold"
-              :class="durationVarianceDays === null ? 'text-text-primary' : durationVarianceDays > 0 ? 'text-danger-600' : 'text-success-600'"
+              :class="!durationVarianceDays ? 'text-text-primary' : durationVarianceDays > 0 ? 'text-danger-600' : 'text-success-600'"
             >
-              {{ durationVarianceDays !== null ? `${durationVarianceDays > 0 ? '+' : ''}${durationVarianceDays} days` : '—' }}
+              {{ durationVarianceDays === null ? '—' : durationVarianceDays === 0 ? 'None' : `${durationVarianceDays > 0 ? '+' : ''}${durationVarianceDays} days` }}
             </p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 border-t border-border-light pt-4">
+          <h4 class="text-sm font-semibold text-text-primary">What We Delivered</h4>
+          <p v-if="!hasDeviation && summary.completedAt" class="text-sm text-text-secondary">None — delivered per the original scope, on budget and on schedule.</p>
+          <p v-else-if="!hasDeviation" class="text-sm text-text-secondary">None so far — no scope, budget, or schedule deviations recorded yet.</p>
+          <ul v-else-if="summary.scopeDeviations.length > 0" class="flex flex-col gap-2">
+            <li v-for="deviation in summary.scopeDeviations" :key="deviation.revision" class="text-sm text-text-secondary">
+              <span class="font-medium text-text-primary">{{ deviation.revision }}</span>
+              ({{ formatDate(deviation.date) }}, {{ deviation.changedBy }}) — {{ deviation.summary }}
+            </li>
+          </ul>
+          <p v-else class="text-sm text-text-secondary">No scope changes, but budget and/or duration deviated from plan — see the variance above.</p>
+
+          <TextArea
+            v-model="deviationNotesDraft"
+            label="Deviation Notes"
+            placeholder="Confirm or explain the deviation read above, if it needs context..."
+            :rows="3"
+          />
+          <div class="flex justify-end no-print">
+            <BaseButton size="sm" :disabled="!deviationNotesDirty" :loading="completionStore.isSaving" @click="saveDeviationNotes">
+              Save Deviation Notes
+            </BaseButton>
           </div>
         </div>
 

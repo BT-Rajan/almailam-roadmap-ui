@@ -44,5 +44,17 @@ export const useProjectCompletionStore = defineStore('projectCompletion', {
         this.isSaving = false
       }
     },
+
+    async saveDeviationNotes(projectId: string, notes: string) {
+      this.isSaving = true
+      this.saveError = undefined
+      try {
+        this.summary = await projectService.updateDeviationNotes(projectId, notes)
+      } catch (error) {
+        this.saveError = error instanceof Error ? error.message : 'Failed to save deviation notes.'
+      } finally {
+        this.isSaving = false
+      }
+    },
   },
 })

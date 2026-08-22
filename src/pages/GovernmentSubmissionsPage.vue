@@ -18,6 +18,7 @@ import RequiredDocumentChecklist from '@/components/government/RequiredDocumentC
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SubmissionStatus } from '@/types/Submission'
@@ -35,10 +36,12 @@ interface SubmissionTableRow {
   status: SubmissionStatus
   submittedDate: string
   expectedDecisionDate: string
+  decisionDate: string
 }
 
 const submissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 const selectedSubmissionId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
 const isCreateDialogOpen = ref(false)
@@ -48,11 +51,11 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   isCreating.value = true
   try {
     const submission = await submissionStore.createSubmission(payload)
-    toastStore.show('success', 'Submission created', `${submission.submissionNo} was created successfully.`)
+    resultDialogStore.showSuccess('Submission created', `${submission.submissionNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create submission', detail)
+    resultDialogStore.showError('Failed to create submission', detail)
   } finally {
     isCreating.value = false
   }
@@ -87,7 +90,8 @@ const TABLE_COLUMNS: SmartTableColumn<SubmissionTableRow>[] = [
   { key: 'formTitle', label: 'Form' },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'submittedDate', label: 'Submitted', sortable: true },
-  { key: 'expectedDecisionDate', label: 'Expected Decision', align: 'right' },
+  { key: 'expectedDecisionDate', label: 'Estimated Response' },
+  { key: 'decisionDate', label: 'Actual Response', align: 'right' },
 ]
 
 const tableRows = computed<SubmissionTableRow[]>(() =>
@@ -100,6 +104,7 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
     status: submission.status,
     submittedDate: submission.submittedDate ?? '',
     expectedDecisionDate: submission.expectedDecisionDate ?? '',
+    decisionDate: submission.decisionDate ?? '',
   })),
 )
 
@@ -124,10 +129,16 @@ const selectedSubmissionDetails = computed(() => {
         : 'Not submitted yet',
     },
     {
-      label: 'Expected Decision',
+      label: 'Estimated Response',
       value: selectedSubmission.value.expectedDecisionDate
         ? formatDate(selectedSubmission.value.expectedDecisionDate)
         : 'Not set',
+    },
+    {
+      label: 'Actual Response',
+      value: selectedSubmission.value.decisionDate
+        ? formatDate(selectedSubmission.value.decisionDate)
+        : 'Not yet received',
     },
   ]
 })
@@ -234,6 +245,9 @@ async function confirmWithdraw(): Promise<void> {
       </template>
       <template #cell-expectedDecisionDate="{ value }">
         {{ value ? formatDate(value as string) : 'Not set' }}
+      </template>
+      <template #cell-decisionDate="{ value }">
+        {{ value ? formatDate(value as string) : 'Not yet received' }}
       </template>
     </SmartTable>
 

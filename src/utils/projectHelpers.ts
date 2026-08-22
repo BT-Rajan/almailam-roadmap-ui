@@ -7,8 +7,7 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Contract',
   'Design',
   'Government Submission',
-  'Review',
-  'Approval',
+  'Execution & Tracking',
   'Completed',
 ]
 

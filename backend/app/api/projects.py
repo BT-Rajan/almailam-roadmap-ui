@@ -9,11 +9,13 @@ from app.schemas.common import PagedResponse
 from app.schemas.project import (
     CompletionNotesUpdate,
     CompletionSummaryOut,
+    DeviationNotesUpdate,
     ProjectCreate,
     ProjectOut,
     ProjectStageUpdate,
     ProjectStatusUpdate,
     ProjectUpdate,
+    ScopeChangeUpdate,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
 from app.services import project_service, timeline_service
@@ -122,6 +124,30 @@ def update_completion_notes(
 ):
     project_service.update_completion_notes(db, project_no, payload.notes, current_user.id)
     return project_service.get_completion_summary(db, project_no)
+
+
+@router.patch("/{project_no}/deviation-notes", response_model=CompletionSummaryOut)
+def update_deviation_notes(
+    project_no: str,
+    payload: DeviationNotesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project_service.update_deviation_notes(db, project_no, payload.notes, current_user.id)
+    return project_service.get_completion_summary(db, project_no)
+
+
+@router.patch("/{project_no}/scope", response_model=ProjectOut)
+def change_scope(
+    project_no: str,
+    payload: ScopeChangeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.change_scope(
+        db, project_no, payload.description, payload.contractUpdateNeeded, payload.paymentUpdateNeeded, current_user.id
+    )
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.get("/{project_no}/audit-events")

@@ -16,14 +16,20 @@ PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
 # doesn't already cover, and the back-and-forth stage hopping was
 # exactly the kind of thing worth collapsing rather than routing
 # elsewhere.
+#
+# "Review" was itself renamed to "Execution & Tracking" and "Approval"
+# dropped entirely (migration 0022) -- the 23-step execution checklist
+# and the 5-stage approval-process stage gates (see execution_step.py /
+# approval_process.py) are what actually happen during this stage, so
+# "Review" undersold it and a separate "Approval" stage was redundant
+# with the stage gates themselves.
 WORKFLOW_STAGES = (
     "Enquiry",
     "Quotation",
     "Contract",
     "Design",
     "Government Submission",
-    "Review",
-    "Approval",
+    "Execution & Tracking",
     "Completed",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
@@ -79,6 +85,14 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # -- distinct from `description` above (the project's own scope-of-
     # work description, set at creation and shown on Overview).
     completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # A PM's own annotation on the auto-derived delivery-deviation read
+    # (contract revisions beyond R0, plus budget/duration variance) --
+    # distinct from completion_notes, which is general handover/lessons-
+    # learned text. Never the source of truth for whether something
+    # deviated -- that's always computed live in
+    # project_service.get_completion_summary -- this is just the PM's
+    # explanation layered on top of it.
+    deviation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ProjectSelectedActivity(Base):

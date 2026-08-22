@@ -17,8 +17,13 @@ export interface ProjectDocument {
   uploadedBy: string
   uploadDate: string
   status: DocumentStatus
-  fileSize: string
-  originalFilename: string
+  // Both null for a link-only document (no uploaded file) -- see
+  // externalLink below.
+  fileSize: string | null
+  originalFilename: string | null
+  // A link to a document that lives outside the app -- optional,
+  // independent of whether a file was also uploaded.
+  externalLink: string | null
 }
 
 export type DocumentViewMode = 'grid' | 'table'

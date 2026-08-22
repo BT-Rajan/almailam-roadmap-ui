@@ -16,22 +16,21 @@ const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
-// Every one of these 8 stages jumps to the tab that covers it -- this
+// Every one of these 7 stages jumps to the tab that covers it -- this
 // stepper is now the only place Quotation/Contract/Design/Government
 // Submission are reachable from (their own tab buttons were removed as
-// exact duplicates of these same 4 stage names). Review and Approval
-// both land on Process, since that's where the actual approval/
-// execution checklist -- and any corrections to it, via undo/waive --
-// lives; Enquiry and Completed land on Overview, the project's general
-// start/end-state summary.
+// exact duplicates of these same 4 stage names). Execution & Tracking
+// (formerly Review; Approval was dropped entirely) lands on Process,
+// since that's where the actual execution checklist and stage-gate
+// documents live; Enquiry and Completed land on Overview, the
+// project's general start/end-state summary.
 const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Enquiry: 'overview',
   Quotation: 'quotation',
   Contract: 'contract',
   Design: 'design',
   'Government Submission': 'government',
-  Review: 'process',
-  Approval: 'process',
+  'Execution & Tracking': 'process',
   Completed: 'overview',
 }
 

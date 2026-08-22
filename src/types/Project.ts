@@ -5,16 +5,18 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Completed' | 'Cancelled'
 // "Correction" used to be its own stage (Review <-> Correction, a loop
 // back and forth for what's really one review cycle). Merged into
 // Review -- a correction cycle is logged as a note on the project's
-// History instead of a separate stage. See status_transitions.py's own
-// comment on PROJECT_STAGE_ALLOWED_TRANSITIONS.
+// History instead of a separate stage. "Review" was itself renamed to
+// "Execution & Tracking" and "Approval" dropped entirely -- the
+// 23-step execution checklist and the 5-stage approval process stage
+// gates are what actually happen during this stage. See
+// backend/app/models/project.py's WORKFLOW_STAGES comment.
 export type WorkflowStage =
   | 'Enquiry'
   | 'Quotation'
   | 'Contract'
   | 'Design'
   | 'Government Submission'
-  | 'Review'
-  | 'Approval'
+  | 'Execution & Tracking'
   | 'Completed'
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'

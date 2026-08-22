@@ -146,6 +146,29 @@ async function setStage(projectId: string, currentStage: string, reason?: string
 }
 
 /**
+ * Change a project's scope-of-work description. When contractUpdateNeeded
+ * or paymentUpdateNeeded is true, every Administrator is notified to go
+ * make the corresponding update themselves.
+ */
+async function changeScope(
+  projectId: string,
+  description: string,
+  contractUpdateNeeded: boolean,
+  paymentUpdateNeeded: boolean,
+): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/scope`, {
+      description,
+      contractUpdateNeeded,
+      paymentUpdateNeeded,
+    })
+  } catch (error) {
+    console.error(`Failed to change scope for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change project scope')
+  }
+}
+
+/**
  * Change a project's operational status (Active/On Hold/Completed/
  * Cancelled). `reason` is required for some transitions (On Hold,
  * Cancelled, and reopening a Completed/Cancelled project) -- enforced
@@ -197,6 +220,18 @@ async function updateCompletionNotes(projectId: string, notes: string): Promise<
   }
 }
 
+/**
+ * Save the PM's annotation on the auto-derived scope-deviation read via backend API.
+ */
+async function updateDeviationNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
+  try {
+    return await apiClient.patch<ProjectCompletionSummary>(`/api/projects/${projectId}/deviation-notes`, { notes })
+  } catch (error) {
+    console.error(`Failed to save deviation notes for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save deviation notes')
+  }
+}
+
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -205,8 +240,10 @@ export const projectService = {
   createProject,
   updateProject,
   setStage,
+  changeScope,
   setStatus,
   deleteProject,
   getCompletionSummary,
   updateCompletionNotes,
+  updateDeviationNotes,
 }
