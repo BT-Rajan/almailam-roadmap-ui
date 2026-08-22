@@ -4,14 +4,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
-import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
-import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
-import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
@@ -29,8 +25,6 @@ const router = useRouter()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const resultDialogStore = useResultDialogStore()
 
-const selectedSubmissionId = ref<string | undefined>(undefined)
-const isDrawerOpen = ref(false)
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 
@@ -82,42 +76,8 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
   })),
 )
 
-const selectedSubmission = computed(() =>
-  projectSubmissions.value.find((submission) => submission.id === selectedSubmissionId.value),
-)
-
-const selectedSubmissionDetails = computed(() => {
-  if (!selectedSubmission.value) return []
-  const authority = governmentSubmissionStore.getAuthorityById(selectedSubmission.value.authorityId)
-  const form = governmentSubmissionStore.getFormById(selectedSubmission.value.formId)
-
-  return [
-    { label: 'Authority', value: authority?.name ?? 'Unknown Authority' },
-    { label: 'Form', value: form?.title ?? 'Unknown Form' },
-    {
-      label: 'Submitted Date',
-      value: selectedSubmission.value.submittedDate
-        ? formatDate(selectedSubmission.value.submittedDate)
-        : 'Not submitted yet',
-    },
-    {
-      label: 'Estimated Response',
-      value: selectedSubmission.value.expectedDecisionDate
-        ? formatDate(selectedSubmission.value.expectedDecisionDate)
-        : 'Not set',
-    },
-    {
-      label: 'Actual Response',
-      value: selectedSubmission.value.decisionDate
-        ? formatDate(selectedSubmission.value.decisionDate)
-        : 'Not yet received',
-    },
-  ]
-})
-
 function openSubmission(row: SubmissionTableRow): void {
-  selectedSubmissionId.value = row.id
-  isDrawerOpen.value = true
+  router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: row.submissionNo } })
 }
 
 async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {
@@ -189,19 +149,4 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
     :loading="isCreating"
     @confirm="handleCreateSubmission"
   />
-
-  <BaseDrawer v-model="isDrawerOpen" :title="selectedSubmission?.submissionNo" width="lg">
-    <div v-if="selectedSubmission" class="flex flex-col gap-6">
-      <SubmissionApprovalStepper :status="selectedSubmission.status" />
-      <DetailPanel title="Submission Details" :items="selectedSubmissionDetails" />
-      <div>
-        <h3 class="mb-2 text-sm font-semibold text-text-primary">Required Documents</h3>
-        <RequiredDocumentChecklist :documents="selectedSubmission.documents" />
-      </div>
-      <div v-if="selectedSubmission.notes">
-        <h3 class="mb-1 text-sm font-semibold text-text-primary">Notes</h3>
-        <p class="text-sm text-text-secondary">{{ selectedSubmission.notes }}</p>
-      </div>
-    </div>
-  </BaseDrawer>
 </template>
