@@ -32,9 +32,9 @@ const isEntityClient = computed(() => form.value.clientType !== 'Individual' && 
 
 const identificationDescription = computed(() => {
   if (isEntityClient.value) {
-    return "Optional -- record this client's trade licence. Once a document number is entered, issue and expiry dates are required."
+    return "Record this client's trade licence, including issue and expiry dates."
   }
-  return 'Optional -- record the primary identification document for this client if available. Once a document number is entered, issue and expiry dates are required.'
+  return "Record the client's primary identification document, including issue and expiry dates."
 })
 
 // If the client type changes (e.g. Individual -> Company) after a document
@@ -129,11 +129,11 @@ function handleUploaderError(message: string): void {
   <div class="flex flex-col gap-6">
     <FormSection title="Identification" :description="identificationDescription">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.identification.documentType" label="Document Type" :options="identificationTypeOptions" />
-        <TextInput v-model="form.identification.documentNumber" label="Document Number" />
-        <DatePicker v-model="form.identification.issueDate" label="Issue Date" :max="maxDate" :error="errors.issueDate" />
-        <DatePicker v-model="form.identification.expiryDate" label="Expiry Date" :error="errors.expiryDate" />
-        <TextInput v-model="form.identification.issuingCountry" label="Issuing Country" :error="errors.issuingCountry" />
+        <SelectBox v-model="form.identification.documentType" label="Document Type" required :options="identificationTypeOptions" />
+        <TextInput v-model="form.identification.documentNumber" label="Document Number" required :error="errors.documentNumber" />
+        <DatePicker v-model="form.identification.issueDate" label="Issue Date" required :max="maxDate" :error="errors.issueDate" />
+        <DatePicker v-model="form.identification.expiryDate" label="Expiry Date" required :error="errors.expiryDate" />
+        <TextInput v-model="form.identification.issuingCountry" label="Issuing Country" required :error="errors.issuingCountry" />
       </div>
     </FormSection>
 

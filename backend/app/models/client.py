@@ -31,7 +31,6 @@ IDENTIFICATION_TYPES = ("Civil ID", "Passport", "Trade Licence", "Other")
 CONSENT_TYPES = (
     "Process Personal Information",
     "Electronic Communication",
-    "Receive Notifications",
     "Process Documents",
 )
 PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")

@@ -98,11 +98,6 @@ export const CLIENT_CONSENT_TYPE_OPTIONS: { type: ClientConsentType; description
     mandatory: true,
   },
   {
-    type: 'Receive Notifications',
-    description: 'Allow notifications about document expiry, verification status and project milestones.',
-    mandatory: true,
-  },
-  {
     type: 'Process Documents',
     description: 'Allow uploaded identity and registration documents to be stored and processed.',
     mandatory: true,

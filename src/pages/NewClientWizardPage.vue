@@ -351,7 +351,7 @@ async function submitWizard(): Promise<void> {
     for (const [consentType, granted] of Object.entries(form.value.consents)) {
       subRecordRequests.push(
         clientStore.createConsent(client.id, {
-          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Receive Notifications' | 'Process Documents',
+          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Process Documents',
           version: 'v1.0',
           granted,
           method: 'Onboarding wizard',
@@ -436,7 +436,7 @@ function goToCreatedClient(): void {
         <FormActionBar
           v-else
           cancel-label="Back"
-          submit-label="Submit Client"
+          submit-label="Add Client"
           :loading="isSubmitting"
           @cancel="goBack"
           @submit="submitWizard"

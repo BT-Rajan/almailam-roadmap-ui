@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS client_identifications (
 CREATE TABLE IF NOT EXISTS client_consents (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id       BIGINT UNSIGNED NOT NULL,
-    consent_type    ENUM('Process Personal Information','Electronic Communication','Receive Notifications','Process Documents') NOT NULL,
+    consent_type    ENUM('Process Personal Information','Electronic Communication','Process Documents') NOT NULL,
     version         VARCHAR(20)  NOT NULL,
     granted         TINYINT(1)   NOT NULL,
     recorded_at     DATETIME     NOT NULL,

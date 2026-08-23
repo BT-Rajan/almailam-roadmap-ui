@@ -44,7 +44,7 @@ function handleContactTypeChange(index: number, type: string): void {
 
 <template>
   <div class="flex flex-col gap-6">
-    <FormSection title="Contacts" description="Optional -- add a contact for this client if one is available.">
+    <FormSection title="Contacts" description="Add at least one contact for this client.">
       <div class="flex flex-col gap-4">
         <p v-if="contactsFormError" class="text-xs text-danger-500">{{ contactsFormError }}</p>
         <div
@@ -65,15 +65,16 @@ function handleContactTypeChange(index: number, type: string): void {
             </button>
           </div>
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <TextInput v-model="contact.name" label="Name" :error="contactErrors[index]?.name" />
+            <TextInput v-model="contact.name" label="Name" required :error="contactErrors[index]?.name" />
             <SelectBox
               v-model="contact.contactType"
               label="Contact Type"
+              required
               :options="CLIENT_CONTACT_TYPE_OPTIONS"
               @update:model-value="(value) => handleContactTypeChange(index, value)"
             />
-            <TextInput v-model="contact.mobile" label="Mobile Number" :error="contactErrors[index]?.mobile" />
-            <TextInput v-model="contact.email" label="Email Address" type="email" :error="contactErrors[index]?.email" />
+            <TextInput v-model="contact.mobile" label="Mobile Number" required :error="contactErrors[index]?.mobile" />
+            <TextInput v-model="contact.email" label="Email Address" type="email" required :error="contactErrors[index]?.email" />
           </div>
           <ToggleSwitch v-model="contact.isAuthorisedRepresentative" label="Authorised to Act on Client's Behalf" />
         </div>
@@ -81,12 +82,12 @@ function handleContactTypeChange(index: number, type: string): void {
       </div>
     </FormSection>
 
-    <FormSection title="Address" description="Optional -- add an address if one is available.">
+    <FormSection title="Address" description="Add this client's address.">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.address.addressType" label="Address Type" :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
-        <TextInput v-model="form.address.country" label="Country" :error="addressErrors.country" />
-        <TextInput v-model="form.address.state" label="Governorate / State" :error="addressErrors.state" />
-        <TextInput v-model="form.address.city" label="City" :error="addressErrors.city" />
+        <SelectBox v-model="form.address.addressType" label="Address Type" required :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
+        <TextInput v-model="form.address.country" label="Country" required :error="addressErrors.country" />
+        <TextInput v-model="form.address.state" label="Governorate / State" required :error="addressErrors.state" />
+        <TextInput v-model="form.address.city" label="City" required :error="addressErrors.city" />
         <TextInput v-model="form.address.area" label="Area" />
         <TextInput v-model="form.address.street" label="Street" />
         <TextInput v-model="form.address.building" label="Building" />
