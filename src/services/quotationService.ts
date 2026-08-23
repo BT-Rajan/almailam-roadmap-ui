@@ -98,7 +98,7 @@ async function deleteQuotation(quotationId: string): Promise<void> {
 }
 
 /**
- * Lock a lettered quotation's content and mark it ready to print.
+ * Lock a quotation's content and mark it ready to print/send.
  */
 async function finalizeQuotation(quotationId: string): Promise<Quotation> {
   try {
@@ -110,7 +110,7 @@ async function finalizeQuotation(quotationId: string): Promise<Quotation> {
 }
 
 /**
- * Unlock a finalized quotation letter for further editing.
+ * Unlock a finalized quotation for further editing.
  */
 async function reopenQuotation(quotationId: string): Promise<Quotation> {
   try {

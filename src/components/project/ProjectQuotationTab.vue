@@ -79,7 +79,7 @@ async function handleFinalizeToggle(): Promise<void> {
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">New Quotation</BaseButton>
     <div class="no-print flex items-center gap-2">
       <BaseButton
-        v-if="quotationStore.selectedQuotation?.templateKey"
+        v-if="quotationStore.selectedQuotation"
         variant="secondary"
         size="sm"
         :icon="quotationStore.selectedQuotation.finalizedAt ? LockOpen : Lock"

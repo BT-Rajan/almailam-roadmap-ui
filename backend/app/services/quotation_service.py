@@ -131,7 +131,7 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
     touches_content = any(getattr(payload, field, None) is not None for field in _QUOTATION_CONTENT_FIELDS)
     if quotation.finalized_at is not None and touches_content:
         raise ValidationAppError(
-            "This quotation letter has been finalized and its content is locked. Reopen it first to make changes."
+            "This quotation has been finalized and its content is locked. Reopen it first to make changes."
         )
     changes: dict[str, tuple] = {}
 
@@ -220,9 +220,10 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
 
 
 def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
-    """Move a lettered quotation from Draft (editable) to Final (locked,
-    print-ready). No-op guard against double-finalizing; reopen_quotation
-    is the only way back to editable."""
+    """Lock a quotation's editable content and mark it Final, ready to
+    print/send. Applies to any quotation (lettered or the generic
+    itemised layout) -- No-op guard against double-finalizing;
+    reopen_quotation is the only way back to editable."""
     quotation = get_quotation(db, quotation_no)
     if quotation.finalized_at is not None:
         return quotation

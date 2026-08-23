@@ -4,15 +4,17 @@ import { FileText } from '@lucide/vue'
 import Card from '@/components/common/Card.vue'
 import Divider from '@/components/common/Divider.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import EditableLineItems from '@/components/project/EditableLineItems.vue'
 import PricingSummary from '@/components/project/PricingSummary.vue'
 import QuotationLetterDesignPermits from '@/components/project/letters/QuotationLetterDesignPermits.vue'
 import QuotationLetterSupervision from '@/components/project/letters/QuotationLetterSupervision.vue'
-import { formatCurrency } from '@/utils/currencyFormatter'
+import EditableList from '@/components/project/letters/EditableList.vue'
+import EditableText from '@/components/project/letters/EditableText.vue'
 import { formatDate } from '@/utils/dateFormatter'
 import { getQuotationStatusVariant } from '@/utils/quotationHelpers'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
-import type { Quotation } from '@/types/Quotation'
+import type { Quotation, QuotationLineItem } from '@/types/Quotation'
 
 interface Props {
   quotation: Quotation
@@ -30,6 +32,18 @@ const LETTER_COMPONENTS = {
   'design-and-permits': QuotationLetterDesignPermits,
   supervision: QuotationLetterSupervision,
 } as const
+
+function updateLineItems(items: QuotationLineItem[]): void {
+  emit('patch', { lineItems: items })
+}
+
+function updateNotes(value: string): void {
+  emit('patch', { notes: value })
+}
+
+function updateTerms(value: string[]): void {
+  emit('patch', { termsAndConditions: value })
+}
 </script>
 
 <template>
@@ -57,6 +71,14 @@ const LETTER_COMPONENTS = {
       </template>
 
       <template v-else>
+      <div class="no-print flex justify-end">
+        <span
+          class="rounded-full px-2.5 py-1 text-xs font-medium"
+          :class="quotation.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+        >
+          {{ quotation.finalizedAt ? 'Final' : 'Draft — click text to edit' }}
+        </span>
+      </div>
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
@@ -101,38 +123,12 @@ const LETTER_COMPONENTS = {
 
       <Divider />
 
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="border-b border-border-light bg-bg-secondary">
-              <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Description
-              </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Qty
-              </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Unit Price
-              </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in quotation.lineItems" :key="item.id" class="border-b border-border-light last:border-0">
-              <td class="px-3 py-3 text-sm text-text-secondary">{{ item.description }}</td>
-              <td class="px-3 py-3 text-right text-sm text-text-secondary">{{ item.quantity }}</td>
-              <td class="px-3 py-3 text-right text-sm text-text-secondary">
-                {{ formatCurrency(item.unitPrice, quotation.currency) }}
-              </td>
-              <td class="px-3 py-3 text-right text-sm font-medium text-text-primary">
-                {{ formatCurrency(item.quantity * item.unitPrice, quotation.currency) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <EditableLineItems
+        :model-value="quotation.lineItems"
+        :editable="!quotation.finalizedAt"
+        :currency="quotation.currency"
+        @update:model-value="updateLineItems"
+      />
 
       <div class="flex justify-end">
         <div class="w-full tablet:w-80">
@@ -140,23 +136,25 @@ const LETTER_COMPONENTS = {
         </div>
       </div>
 
-      <div v-if="quotation.notes" class="flex flex-col gap-1">
+      <div v-if="quotation.notes || !quotation.finalizedAt" class="flex flex-col gap-1">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Notes</p>
-        <p class="text-sm text-text-secondary">{{ quotation.notes }}</p>
+        <EditableText
+          :model-value="quotation.notes"
+          :editable="!quotation.finalizedAt"
+          multiline
+          placeholder="Optional notes for this quotation"
+          class="text-sm text-text-secondary"
+          @update:model-value="updateNotes"
+        />
       </div>
 
       <div class="flex flex-col gap-2">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Terms & Conditions</p>
-        <ul class="flex flex-col gap-1">
-          <li
-            v-for="(term, index) in quotation.termsAndConditions"
-            :key="index"
-            class="flex gap-2 text-sm text-text-muted"
-          >
-            <span class="text-text-muted">•</span>
-            <span>{{ term }}</span>
-          </li>
-        </ul>
+        <EditableList
+          :model-value="quotation.termsAndConditions"
+          :editable="!quotation.finalizedAt"
+          @update:model-value="updateTerms"
+        />
       </div>
       </template>
     </div>
