@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS clients (
     city                            VARCHAR(80)  NOT NULL,
     status                          ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
     onboarding_state                ENUM('Information Required','Documents Required','Verification Required','Under Review','Ready','Rejected','Suspended')
-                                        NOT NULL DEFAULT 'Information Required',
+                                        NOT NULL DEFAULT 'Ready',
     onboarding_notified_at          DATETIME NULL,
     ind_full_legal_name             VARCHAR(150) NULL,
     ind_preferred_name              VARCHAR(100) NULL,

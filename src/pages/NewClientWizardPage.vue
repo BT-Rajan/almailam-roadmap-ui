@@ -452,8 +452,7 @@ function goToCreatedClient(): void {
         <span v-if="confirmationNote"> {{ confirmationNote }}</span>
       </p>
       <p class="mt-2 text-sm text-text-secondary">
-        Onboarding starts at "Information Required" -- advance it through review from the client's workspace page
-        before it can be selected on a new project.
+        The client is Ready and can be selected on a new project right away.
       </p>
 
       <template #footer>
