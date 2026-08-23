@@ -77,7 +77,11 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
 )
 
 function openSubmission(row: SubmissionTableRow): void {
-  router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: row.submissionNo } })
+  router.push({
+    name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
+    params: { submissionNo: row.submissionNo },
+    query: { projectId: props.projectId },
+  })
 }
 
 async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {

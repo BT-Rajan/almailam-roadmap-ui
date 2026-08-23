@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -43,6 +44,18 @@ const designDialogTarget = ref<ProjectDocument | null>(null)
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
 const deleteTarget = ref<ProjectDocument | null>(null)
+
+// Mirrors the "Client Submitted" confirmation in the New Client wizard --
+// a dedicated pop-up confirming what was just added (title + link),
+// not just a toast, and only for a new document (editing an existing
+// one's link doesn't re-show this).
+const isDocumentAddedDialogOpen = ref(false)
+const addedDocumentTitle = ref('')
+const addedDocumentLink = ref('')
+
+function closeDocumentAddedDialog(): void {
+  isDocumentAddedDialogOpen.value = false
+}
 
 const isAddDialogOpen = ref(false)
 const addDialogCategory = ref<ProjectLinkDocumentCategory>('Property')
@@ -89,7 +102,9 @@ async function handleSaveDesignDocument(payload: {
       if (payload.date !== created.uploadDate) {
         await documentStore.updateDocument(created.id, payload.title, undefined, payload.link || null, payload.date)
       }
-      toastStore.show('success', 'Document added', `${payload.title} was added successfully.`)
+      addedDocumentTitle.value = payload.title
+      addedDocumentLink.value = payload.link
+      isDocumentAddedDialogOpen.value = true
     }
     isDesignDialogOpen.value = false
   } catch (error) {
@@ -312,6 +327,20 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       :loading="isDeleteSaving"
       @confirm="handleConfirmDelete"
     />
+    <BaseDialog :model-value="isDocumentAddedDialogOpen" title="Document Added" size="sm" :closable="false">
+      <p class="text-sm text-text-secondary">
+        <strong>{{ addedDocumentTitle }}</strong> was added with a link to:
+      </p>
+      <p class="mt-1 truncate text-sm">
+        <a :href="addedDocumentLink" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline">
+          {{ addedDocumentLink }}
+        </a>
+      </p>
+
+      <template #footer>
+        <BaseButton variant="primary" @click="closeDocumentAddedDialog">OK</BaseButton>
+      </template>
+    </BaseDialog>
   </template>
 
   <!-- Documents mode: four fixed categories. -->

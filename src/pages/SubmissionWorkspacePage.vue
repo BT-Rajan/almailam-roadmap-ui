@@ -34,6 +34,17 @@ const submissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
 
 const submissionNo = computed(() => route.params.submissionNo as string)
+// Present when this page was opened from a Project workspace's
+// Government tab (see ProjectGovernmentTab.vue's openSubmission) --
+// carried in the query rather than assumed from route history, so a
+// hard refresh or a shared link still remembers where "back" goes.
+// Without this, every route in here (Back button, breadcrumb) always
+// pointed at the global Government Center submissions list, dropping
+// the user out of the project they were working in.
+const originProjectId = computed(() => {
+  const value = route.query.projectId
+  return typeof value === 'string' ? value : undefined
+})
 const isLoading = ref(true)
 const loadError = ref<string | undefined>(undefined)
 
@@ -255,6 +266,10 @@ async function handleMarkComplete(): Promise<void> {
 }
 
 function goBack(): void {
+  if (originProjectId.value) {
+    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: originProjectId.value }, query: { tab: 'government' } })
+    return
+  }
   router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })
 }
 
@@ -304,7 +319,7 @@ async function handleMoveToDraft(): Promise<void> {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <BaseButton variant="ghost" size="sm" :icon="ArrowLeft" class="self-start no-print" @click="goBack">
-      Back to Submissions
+      {{ originProjectId ? 'Back to Project' : 'Back to Submissions' }}
     </BaseButton>
 
     <ErrorState v-if="loadError" :description="loadError" @retry="loadData" />
