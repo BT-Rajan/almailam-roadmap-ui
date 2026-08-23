@@ -119,7 +119,6 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
     consents: {
       'Process Personal Information': false,
       'Electronic Communication': false,
-      'Receive Notifications': false,
       'Process Documents': false,
     },
     communicationPreference: {

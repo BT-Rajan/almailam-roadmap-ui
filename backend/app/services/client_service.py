@@ -153,6 +153,17 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
         mobile=payload.mobile,
         email=payload.email,
         city=payload.city,
+        # New clients go straight to "Ready" instead of starting the
+        # multi-step onboarding pipeline (Information Required ->
+        # Documents Required -> Under Review) -- the New Client wizard
+        # already requires full contact, address, identification and
+        # consent details up front, so there is nothing left for that
+        # pipeline to gate. They can be selected on a project immediately
+        # (see project_service.create_project's onboarding_state ==
+        # "Ready" check). Staff can still move a client to any of the
+        # review states manually afterwards via "Change Status" on the
+        # client workspace page if something needs a closer look.
+        onboarding_state="Ready",
         preferred_language=payload.communicationPreference.preferredLanguage,
         preferred_channel=payload.communicationPreference.preferredChannel,
         email_consent=payload.communicationPreference.emailConsent,

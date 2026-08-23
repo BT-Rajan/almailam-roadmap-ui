@@ -35,7 +35,6 @@ export type ClientVerificationResult = 'Pending' | 'Verified' | 'Rejected'
 export type ClientConsentType =
   | 'Process Personal Information'
   | 'Electronic Communication'
-  | 'Receive Notifications'
   | 'Process Documents'
 
 export type ClientPreferredChannel = 'Email' | 'WhatsApp' | 'SMS' | 'Phone'

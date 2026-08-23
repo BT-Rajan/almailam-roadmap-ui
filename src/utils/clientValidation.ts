@@ -80,17 +80,14 @@ export interface ContactsValidationResult {
 }
 
 /**
- * Step 1's contacts. Contacts are optional as a whole -- a fully blank
- * row is simply skipped -- but a partially-filled row (matching the
- * backend's all-or-nothing ClientContactCreate) must be completed
- * properly, and no two contacts on the same client may share a mobile
- * number or email (also enforced server-side in client_service.create_contact).
+ * Step 1's contacts. At least one contact is required, and every row
+ * (blank or not) must be fully completed -- matching the backend's
+ * all-or-nothing ClientContactCreate -- with no two contacts on the
+ * same client sharing a mobile number or email (also enforced
+ * server-side in client_service.create_contact).
  */
 export function validateContacts(contacts: ClientWizardContactDraft[]): ContactsValidationResult {
   const rowErrors: FieldErrors[] = contacts.map((contact) => {
-    const touched = contact.name.trim() || contact.mobile.trim() || contact.email.trim()
-    if (!touched) return {}
-
     const errors: FieldErrors = {}
     if (!contact.name.trim()) errors.name = 'Name is required'
     if (!contact.mobile.trim()) errors.mobile = 'Mobile number is required'
@@ -100,13 +97,14 @@ export function validateContacts(contacts: ClientWizardContactDraft[]): Contacts
     return errors
   })
 
-  const activeContacts = contacts
-    .map((contact, index) => ({ contact, index }))
-    .filter(({ contact }) => contact.name.trim() || contact.mobile.trim() || contact.email.trim())
+  const activeContacts = contacts.map((contact, index) => ({ contact, index }))
 
   const seenMobiles = new Map<string, number>()
   const seenEmails = new Map<string, number>()
   let formError: string | undefined
+  if (contacts.length === 0) {
+    formError = 'At least one contact is required'
+  }
 
   for (const { contact, index } of activeContacts) {
     const mobileKey = contact.mobile.replace(/\D/g, '')
@@ -131,16 +129,12 @@ export function validateContacts(contacts: ClientWizardContactDraft[]): Contacts
 }
 
 /**
- * Step 1's address. The address section as a whole is optional (it's
- * only submitted if a city was entered -- see NewClientWizardPage.vue),
- * but state/governorate is required by the backend (ClientAddressCreate)
- * whenever an address is submitted, same as country and city.
+ * Step 1's address. Required in full -- country, state/governorate and
+ * city all match what the backend (ClientAddressCreate) requires
+ * whenever an address is submitted.
  */
 export function validateAddress(address: ClientWizardAddressDraft): FieldErrors {
   const errors: FieldErrors = {}
-  const touched = address.city.trim().length > 0
-  if (!touched) return errors
-
   if (!address.country.trim()) errors.country = 'Country is required'
   if (!address.state.trim()) errors.state = 'Governorate / State is required'
   if (!address.city.trim()) errors.city = 'City is required'
@@ -148,15 +142,14 @@ export function validateAddress(address: ClientWizardAddressDraft): FieldErrors 
 }
 
 /**
- * Step 2's identification. Optional as a whole, but once a document
- * number is entered, issue/expiry dates are required (the backend's
- * ClientIdentificationCreate has no defaults for either) and must be in
- * a sane order.
+ * Step 2's identification. Required in full -- document number,
+ * issue/expiry dates (the backend's ClientIdentificationCreate has no
+ * defaults for either, and they must be in a sane order) and issuing
+ * country.
  */
 export function validateIdentification(identification: ClientWizardIdentificationDraft): FieldErrors {
   const errors: FieldErrors = {}
-  const touched = identification.documentNumber.trim().length > 0
-  if (!touched) return errors
+  if (!identification.documentNumber.trim()) errors.documentNumber = 'Document number is required'
 
   if (!identification.issueDate) errors.issueDate = 'Issue date is required'
   else if (isFutureDate(identification.issueDate)) errors.issueDate = 'Issue date cannot be in the future'

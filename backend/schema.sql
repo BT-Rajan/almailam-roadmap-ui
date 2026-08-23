@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS clients (
     city                            VARCHAR(80)  NOT NULL,
     status                          ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
     onboarding_state                ENUM('Information Required','Documents Required','Under Review','Ready','Rejected','Suspended')
-                                        NOT NULL DEFAULT 'Information Required',
+                                        NOT NULL DEFAULT 'Ready',
     onboarding_notified_at          DATETIME NULL,
     ind_full_legal_name             VARCHAR(150) NULL,
     ind_preferred_name              VARCHAR(100) NULL,
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS client_identifications (
 CREATE TABLE IF NOT EXISTS client_consents (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id       BIGINT UNSIGNED NOT NULL,
-    consent_type    ENUM('Process Personal Information','Electronic Communication','Receive Notifications','Process Documents') NOT NULL,
+    consent_type    ENUM('Process Personal Information','Electronic Communication','Process Documents') NOT NULL,
     version         VARCHAR(20)  NOT NULL,
     granted         TINYINT(1)   NOT NULL,
     recorded_at     DATETIME     NOT NULL,

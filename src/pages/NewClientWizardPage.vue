@@ -351,7 +351,7 @@ async function submitWizard(): Promise<void> {
     for (const [consentType, granted] of Object.entries(form.value.consents)) {
       subRecordRequests.push(
         clientStore.createConsent(client.id, {
-          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Receive Notifications' | 'Process Documents',
+          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Process Documents',
           version: 'v1.0',
           granted,
           method: 'Onboarding wizard',
@@ -428,7 +428,7 @@ function goToCreatedClient(): void {
       <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
         <FormActionBar
           v-if="currentStep < WIZARD_STEPS.length - 1"
-          cancel-label="Cancel"
+          :cancel-label="currentStep === 0 ? 'Cancel' : 'Back'"
           submit-label="Next"
           @cancel="currentStep === 0 ? cancelWizard() : goBack()"
           @submit="goNext"
@@ -436,7 +436,7 @@ function goToCreatedClient(): void {
         <FormActionBar
           v-else
           cancel-label="Back"
-          submit-label="Submit Client"
+          submit-label="Add Client"
           :loading="isSubmitting"
           @cancel="goBack"
           @submit="submitWizard"
@@ -452,8 +452,7 @@ function goToCreatedClient(): void {
         <span v-if="confirmationNote"> {{ confirmationNote }}</span>
       </p>
       <p class="mt-2 text-sm text-text-secondary">
-        Onboarding starts at "Information Required" -- advance it through review from the client's workspace page
-        before it can be selected on a new project.
+        The client is Ready and can be selected on a new project right away.
       </p>
 
       <template #footer>

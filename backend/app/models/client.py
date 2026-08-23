@@ -30,7 +30,6 @@ IDENTIFICATION_TYPES = ("Civil ID", "Passport", "Trade Licence", "Other")
 CONSENT_TYPES = (
     "Process Personal Information",
     "Electronic Communication",
-    "Receive Notifications",
     "Process Documents",
 )
 PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")
@@ -52,7 +51,7 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     onboarding_state: Mapped[str] = mapped_column(
         Enum(*CLIENT_ONBOARDING_STATES, name="client_onboarding_state"),
         nullable=False,
-        default="Information Required",
+        default="Ready",
     )
     # Set by client_service.check_and_notify_stale_onboarding() once the
     # account manager has been notified that this client's onboarding

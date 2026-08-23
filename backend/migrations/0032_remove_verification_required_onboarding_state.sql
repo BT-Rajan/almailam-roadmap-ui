@@ -1,4 +1,4 @@
--- Migration 0030: drop "Verification Required" from clients.onboarding_state
+-- Migration 0032: drop "Verification Required" from clients.onboarding_state
 --
 -- Client onboarding completeness is now judged on Identification and
 -- Consent being on file (see src/utils/clientHelpers.ts's
@@ -16,16 +16,18 @@
 -- Any client currently sitting at "Verification Required" is moved to
 -- "Under Review", the state immediately after it in the old flow, so
 -- clients don't jump backward or skip stages they'd already cleared.
--- Each step re-runs harmlessly if this migration is applied more than
--- once.
+-- Default carried forward as 'Ready', matching migration 0031's change
+-- (new clients no longer start the onboarding pipeline at all -- see
+-- client_service.py's create_client). Each step re-runs harmlessly if
+-- this migration is applied more than once.
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0030_remove_verification_required_onboarding_state.sql
+--   mysql -u <user> -p <database> < backend/migrations/0032_remove_verification_required_onboarding_state.sql
 
 UPDATE clients SET onboarding_state = 'Under Review' WHERE onboarding_state = 'Verification Required';
 
 ALTER TABLE clients
   MODIFY COLUMN onboarding_state ENUM('Information Required','Documents Required','Under Review','Ready','Rejected','Suspended')
-    NOT NULL DEFAULT 'Information Required';
+    NOT NULL DEFAULT 'Ready';
 
-SELECT 'Migration 0030 complete.' AS status;
+SELECT 'Migration 0032 complete.' AS status;
