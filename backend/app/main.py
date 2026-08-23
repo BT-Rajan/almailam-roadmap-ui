@@ -43,6 +43,7 @@ from app.core.database import SessionLocal
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.services.client_service import check_and_notify_stale_onboarding
+from app.services.payment_service import check_and_notify_payment_reminders
 from app.services.project_service import check_and_notify_stale_projects
 
 settings = get_settings()
@@ -72,6 +73,14 @@ def _run_staleness_checks() -> None:
             logger.info("Stale-onboarding check: notified %d client(s).", notified)
     except Exception:
         logger.exception("Stale-onboarding check failed.")
+        db.rollback()
+
+    try:
+        notified = check_and_notify_payment_reminders(db)
+        if notified:
+            logger.info("Payment-reminder check: sent %d reminder(s).", notified)
+    except Exception:
+        logger.exception("Payment-reminder check failed.")
         db.rollback()
     finally:
         db.close()

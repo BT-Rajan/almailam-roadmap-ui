@@ -291,6 +291,16 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         gate = approval_process_service.get_project_step_by_stage(db, project.id, "documents_signed")
         if gate.storage_key is None:
             problems.append("the 'Documents Signed' stage gate")
+        # A financial agreement -- payment dates and amounts -- has to be
+        # prepared right after the contract, not left until the project
+        # is finishing up (that's what the "Completed" check further
+        # down is for; this one is deliberately earlier). Only the
+        # agreement's existence is required here, not that it's fully
+        # paid -- payment is expected to happen across the project's
+        # lifetime, tracked by the reminder job below, and settled by
+        # the time "Completed" is reached.
+        if payment_service.get_agreement_by_project(db, project.project_no) is None:
+            problems.append("a financial agreement (payment dates and amount)")
 
     elif new_stage == "Government Submission":
         gate = approval_process_service.get_project_step_by_stage(db, project.id, "architectural_approval")

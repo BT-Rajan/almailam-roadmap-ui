@@ -56,6 +56,14 @@ class PaymentObligation(Base):
     )
     reference_number: Mapped[str | None] = mapped_column(String(60), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Idempotency guards for the daily payment-reminder job (see
+    # payment_service.check_and_notify_payment_reminders) -- one per
+    # reminder point so each fires exactly once. No "stop" flag is
+    # needed: date_paid being set is itself "payment confirmation has
+    # arrived" and the job simply excludes settled obligations.
+    reminder_before_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reminder_due_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reminder_after_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Payment(Base):
