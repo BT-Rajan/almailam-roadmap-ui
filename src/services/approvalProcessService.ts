@@ -75,4 +75,18 @@ async function downloadStageGateDocument(projectId: string, stageKey: string): P
   }
 }
 
-export const approvalProcessService = { getProjectSteps, uploadStageGateDocument, downloadStageGateDocument }
+/**
+ * Confirms a stage is complete based on its tagged documents being
+ * reviewed, instead of uploading a gate review document. No file --
+ * plain POST through apiClient, unlike uploadStageGateDocument above.
+ */
+async function completeStageFromDocuments(projectId: string, stageKey: string): Promise<ProjectApprovalStep> {
+  return apiClient.post<ProjectApprovalStep>(`/api/projects/${projectId}/approval-steps/${stageKey}/complete-from-documents`)
+}
+
+export const approvalProcessService = {
+  getProjectSteps,
+  uploadStageGateDocument,
+  downloadStageGateDocument,
+  completeStageFromDocuments,
+}

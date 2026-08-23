@@ -13,9 +13,10 @@ from datetime import datetime, timezone
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
+from app.models.document import ProjectDocument
 from app.services import audit_service
 
 ENTITY_TYPE = "PROJECT"
@@ -93,6 +94,49 @@ def upload_stage_gate_document(
     step.uploaded_by = user_id
     audit_service.log_event(
         db, ENTITY_TYPE, project_id, f"Stage gate document uploaded: {step.name}", user_id, new_value=original_filename
+    )
+    db.commit()
+    db.refresh(step)
+    return step
+
+
+def complete_stage_from_documents(db: Session, project_id: int, stage_key: str, user_id: int | None) -> ProjectApprovalStep:
+    """Second, independent way to close a stage gate: instead of
+    uploading a review document, the tagged design documents
+    (project_documents.stage_key == this stage_key) are approved and
+    a user confirms. Re-validated here, not just trusted from the
+    frontend's own count -- requires at least one tagged document,
+    doesn't require every one to be Approved (a stage can still be
+    confirmed complete with some Rejected/Under Review, same as the
+    frontend's "either way, confirm" flow), but does refuse an empty
+    tag set outright since there'd be nothing to have approved.
+    Calling this again just re-stamps completed_at/completed_by --
+    idempotent, no separate "already complete" error."""
+    step = get_project_step_by_stage(db, project_id, stage_key)
+
+    tagged_documents = (
+        db.query(ProjectDocument)
+        .filter(
+            ProjectDocument.project_id == project_id,
+            ProjectDocument.stage_key == stage_key,
+            ProjectDocument.deleted_at.is_(None),
+        )
+        .all()
+    )
+    if not tagged_documents:
+        raise ValidationAppError("No documents are tagged to this stage yet.")
+
+    approved_count = sum(1 for d in tagged_documents if d.status == "Approved")
+
+    step.completed_at = datetime.now(timezone.utc)
+    step.completed_by = user_id
+    audit_service.log_event(
+        db,
+        ENTITY_TYPE,
+        project_id,
+        f"Stage marked complete from document approvals: {step.name} "
+        f"({approved_count}/{len(tagged_documents)} documents approved)",
+        user_id,
     )
     db.commit()
     db.refresh(step)

@@ -19,7 +19,11 @@ def _step_out(db: Session, step) -> ProjectApprovalStepOut:
     if step.uploaded_by:
         user = db.query(User).filter(User.id == step.uploaded_by).first()
         uploaded_by_name = user.full_name if user else None
-    return ProjectApprovalStepOut.from_model(step, uploaded_by_name)
+    completed_by_name = None
+    if step.completed_by:
+        user = db.query(User).filter(User.id == step.completed_by).first()
+        completed_by_name = user.full_name if user else None
+    return ProjectApprovalStepOut.from_model(step, uploaded_by_name, completed_by_name)
 
 
 @router.get("/api/projects/{project_no}/approval-steps", response_model=list[ProjectApprovalStepOut])
@@ -48,3 +52,18 @@ def download_stage_gate_document(
     project = project_service.get_project(db, project_no)
     path, original_filename = approval_process_service.get_stage_gate_download_target(db, project.id, stage_key)
     return FileResponse(path, filename=original_filename)
+
+
+@router.post(
+    "/api/projects/{project_no}/approval-steps/{stage_key}/complete-from-documents",
+    response_model=ProjectApprovalStepOut,
+)
+def complete_stage_from_documents(
+    project_no: str,
+    stage_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = approval_process_service.complete_stage_from_documents(db, project.id, stage_key, current_user.id)
+    return _step_out(db, step)

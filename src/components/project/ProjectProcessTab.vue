@@ -285,13 +285,16 @@ async function handleConfirmScopeChange(
             >
               <ChevronDown v-if="expandedStageKey === stage.key" class="h-4 w-4 shrink-0 text-text-muted" />
               <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
-              <CheckCircle2 v-if="approvalStep?.hasDocument" class="h-5 w-5 shrink-0 text-success-600" />
+              <CheckCircle2 v-if="approvalStep?.isComplete" class="h-5 w-5 shrink-0 text-success-600" />
               <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
             </button>
 
             <span v-if="approvalStep?.hasDocument" class="text-xs text-text-muted">
               Uploaded{{ approvalStep.uploadedByName ? ` by ${approvalStep.uploadedByName}` : '' }}{{ approvalStep.uploadedAt ? ` on ${formatDate(approvalStep.uploadedAt)}` : '' }}
+            </span>
+            <span v-else-if="approvalStep?.isComplete" class="text-xs text-text-muted">
+              Completed from document approvals{{ approvalStep.completedByName ? ` by ${approvalStep.completedByName}` : '' }}{{ approvalStep.completedAt ? ` on ${formatDate(approvalStep.completedAt)}` : '' }}
             </span>
           </div>
         </template>

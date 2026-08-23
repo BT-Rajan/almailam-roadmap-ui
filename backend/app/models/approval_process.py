@@ -44,11 +44,15 @@ class ProjectApprovalStep(Base, TimestampMixin):
     Since migration 0022, each of these 5 rows is a stage gate: the
     stage counts as complete the moment its review document is
     uploaded (storage_key set, see
-    approval_process_service.upload_stage_gate_document) -- there is
-    no separate manual "mark complete" action, and no order enforced
-    between stages the way execution steps used to be. Nothing here
-    tracks *who* did the underlying work, only who uploaded the
-    document that closes the gate out.
+    approval_process_service.upload_stage_gate_document). Migration
+    0033 added a second, independent path: completed_at/completed_by,
+    set once every project_documents row tagged to this stage_key
+    (see ProjectDocument.stage_key) is Approved and a user confirms
+    (see approval_process_service.complete_stage_from_documents). The
+    two paths don't interact -- storage_key never gets cleared by the
+    documents path and vice versa. hasDocument (schema layer) still
+    means storage_key is set specifically; isComplete means either
+    path fired. No order enforced between stages either way.
 
     Deliberately does not touch projects.progress or projects.
     current_stage -- this tracks its own, separate notion of progress
@@ -70,5 +74,9 @@ class ProjectApprovalStep(Base, TimestampMixin):
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     uploaded_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_by: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

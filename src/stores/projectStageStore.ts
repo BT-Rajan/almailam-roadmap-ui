@@ -53,7 +53,7 @@ export const useProjectStageStore = defineStore('projectStage', {
     },
 
     stageGateCompleteCount(state): number {
-      return state.approvalSteps.filter((s) => s.hasDocument).length
+      return state.approvalSteps.filter((s) => s.isComplete).length
     },
 
     // Flat, sequence-ordered -- activities are not grouped under a stage.
@@ -100,6 +100,22 @@ export const useProjectStageStore = defineStore('projectStage', {
         this.mutationError = error instanceof Error ? error.message : 'Failed to upload stage gate document.'
       } finally {
         this.isUploading = false
+      }
+    },
+
+    // Second, independent path to close a stage gate: confirming
+    // completion once the documents tagged to this stage (Documents
+    // tab, ProjectDocument.stageKey) have been reviewed -- no file
+    // involved, unlike uploadStageGateDocument above.
+    async completeStageFromDocuments(projectId: string, stageKey: string) {
+      this.mutationError = undefined
+      try {
+        const updated = await approvalProcessService.completeStageFromDocuments(projectId, stageKey)
+        this.approvalSteps = this.approvalSteps.map((s) => (s.stageKey === stageKey ? updated : s))
+        return updated
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Failed to mark stage complete.'
+        return undefined
       }
     },
 

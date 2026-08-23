@@ -13,9 +13,18 @@ class ProjectApprovalStepOut(BaseModel):
     fileSizeBytes: int | None
     uploadedAt: datetime | None
     uploadedByName: str | None
+    # True once either completion path has fired: hasDocument (a gate
+    # review document was uploaded) or completedAt (tagged documents
+    # were approved and a user confirmed completion). Use this, not
+    # hasDocument, for "is this stage done".
+    isComplete: bool
+    completedAt: datetime | None
+    completedByName: str | None
 
     @staticmethod
-    def from_model(step, uploaded_by_name: str | None = None) -> "ProjectApprovalStepOut":
+    def from_model(
+        step, uploaded_by_name: str | None = None, completed_by_name: str | None = None
+    ) -> "ProjectApprovalStepOut":
         return ProjectApprovalStepOut(
             id=f"PAS-{step.id:03d}",
             name=step.name,
@@ -26,4 +35,7 @@ class ProjectApprovalStepOut(BaseModel):
             fileSizeBytes=step.file_size_bytes,
             uploadedAt=step.uploaded_at,
             uploadedByName=uploaded_by_name,
+            isComplete=step.storage_key is not None or step.completed_at is not None,
+            completedAt=step.completed_at,
+            completedByName=completed_by_name,
         )
