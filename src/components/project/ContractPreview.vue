@@ -4,6 +4,8 @@ import { FileSignature } from '@lucide/vue'
 import Card from '@/components/common/Card.vue'
 import Divider from '@/components/common/Divider.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import ContractLetterDesignPermits from '@/components/project/letters/ContractLetterDesignPermits.vue'
+import ContractLetterSupervision from '@/components/project/letters/ContractLetterSupervision.vue'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getContractStatusVariant } from '@/utils/contractHelpers'
@@ -20,11 +22,40 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   client: undefined,
 })
+
+const emit = defineEmits<{ patch: [value: Partial<Contract>] }>()
+
+const LETTER_COMPONENTS = {
+  'design-and-permits': ContractLetterDesignPermits,
+  supervision: ContractLetterSupervision,
+} as const
 </script>
 
 <template>
   <Card class="print:shadow-none" :padded="true">
     <div id="contract-print-area" class="flex flex-col gap-6">
+      <template v-if="contract.templateKey">
+        <div class="no-print flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-text-primary">{{ contract.contractNo }}</h2>
+            <StatusBadge :label="contract.status" :variant="getContractStatusVariant(contract.status)" />
+          </div>
+          <span
+            class="rounded-full px-2.5 py-1 text-xs font-medium"
+            :class="contract.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+          >
+            {{ contract.finalizedAt ? 'Final' : 'Draft — click text to edit' }}
+          </span>
+        </div>
+        <component
+          :is="LETTER_COMPONENTS[contract.templateKey]"
+          :contract="contract"
+          :editable="!contract.finalizedAt"
+          @patch="(v) => emit('patch', v)"
+        />
+      </template>
+
+      <template v-else>
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
@@ -97,6 +128,7 @@ withDefaults(defineProps<Props>(), {
       <p class="no-print text-center text-xs text-text-muted">
         This is a prototype preview. Final legal documents are prepared and issued outside this system.
       </p>
+      </template>
     </div>
   </Card>
 </template>

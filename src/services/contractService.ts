@@ -63,6 +63,16 @@ export interface ContractCreateInput {
   clientRepresentative: string
   scopeSummary: string
   clauses: ContractClauseInput[]
+  templateKey?: string
+  isBilingual?: boolean
+  subjectLineAr?: string
+  subjectLineEn?: string
+  projectReference?: string
+  feeFrequency?: string
+  scopeItemsAr?: string[]
+  scopeItemsEn?: string[]
+  paymentTermsAr?: string[]
+  paymentTermsEn?: string[]
 }
 
 /**
@@ -101,6 +111,30 @@ async function deleteContract(contractId: string): Promise<void> {
   }
 }
 
+/**
+ * Lock a lettered contract's content and mark it ready to print.
+ */
+async function finalizeContract(contractId: string): Promise<Contract> {
+  try {
+    return await apiClient.post<Contract>(`/api/contracts/${contractId}/finalize`, {})
+  } catch (error) {
+    console.error(`Failed to finalize contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to finalize contract')
+  }
+}
+
+/**
+ * Unlock a finalized contract letter for further editing.
+ */
+async function reopenContract(contractId: string): Promise<Contract> {
+  try {
+    return await apiClient.post<Contract>(`/api/contracts/${contractId}/reopen`, {})
+  } catch (error) {
+    console.error(`Failed to reopen contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to reopen contract')
+  }
+}
+
 export const contractService = {
   getContractsByProject,
   getContractById,
@@ -109,4 +143,6 @@ export const contractService = {
   createContract,
   updateContract,
   deleteContract,
+  finalizeContract,
+  reopenContract,
 }

@@ -56,5 +56,23 @@ export const useQuotationStore = defineStore('quotation', {
       this.selectedQuotationId = quotation.id
       return quotation
     },
+
+    async updateQuotation(quotationId: string, patch: Partial<Quotation>): Promise<Quotation> {
+      const updated = await quotationService.updateQuotation(quotationId, patch)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
+
+    async finalizeQuotation(quotationId: string): Promise<Quotation> {
+      const updated = await quotationService.finalizeQuotation(quotationId)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
+
+    async reopenQuotation(quotationId: string): Promise<Quotation> {
+      const updated = await quotationService.reopenQuotation(quotationId)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
   },
 })

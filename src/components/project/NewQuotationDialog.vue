@@ -17,6 +17,8 @@ import type { Project } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { validators } from '@/utils/validators'
 import type { SelectOption } from '@/types/Ui'
+import { QUOTATION_TEMPLATE_LABELS, type QuotationTemplateKey } from '@/types/Quotation'
+import { QUOTATION_LETTER_DEFAULTS } from '@/utils/quotationLetterDefaults'
 
 const props = defineProps<{
   modelValue: boolean
@@ -41,6 +43,11 @@ const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'EUR', value: 'EUR' },
 ]
 
+const TEMPLATE_OPTIONS: SelectOption[] = [
+  { label: 'Custom / Itemised Quotation', value: '' },
+  ...Object.entries(QUOTATION_TEMPLATE_LABELS).map(([value, label]) => ({ label, value })),
+]
+
 interface DraftLineItem {
   description: string
   quantity: number
@@ -53,6 +60,7 @@ function emptyLineItem(): DraftLineItem {
 
 function emptyForm() {
   return {
+    templateKey: '' as '' | QuotationTemplateKey,
     validity: '',
     currency: 'KWD',
     taxRatePercent: 0,
@@ -60,6 +68,13 @@ function emptyForm() {
     notes: '',
     termsText: '',
     lineItems: [emptyLineItem()] as DraftLineItem[],
+    // Lettered-letter fields, only used when templateKey is set.
+    clientRepresentative: '',
+    subjectLine: '',
+    projectReference: '',
+    feeAmount: 0,
+    scopeItems: [] as string[],
+    paymentTerms: [] as string[],
   }
 }
 
@@ -97,6 +112,22 @@ watch(
   },
 )
 
+// Picking a lettered template seeds the real scope/payment boilerplate
+// from the source document so staff start from the actual wording
+// rather than a blank list. Switching back to Custom leaves the
+// itemised line items exactly as the user already had them.
+watch(
+  () => form.templateKey,
+  (key) => {
+    if (!key) return
+    const defaults = QUOTATION_LETTER_DEFAULTS[key]
+    form.scopeItems = [...defaults.scopeItems]
+    form.paymentTerms = [...defaults.paymentTerms]
+  },
+)
+
+const isLettered = computed(() => form.templateKey !== '')
+
 function addLineItem(): void {
   form.lineItems.push(emptyLineItem())
 }
@@ -120,6 +151,33 @@ function closeDialog(): void {
 
 function handleConfirm(): void {
   const formValid = validateAll(form)
+
+  if (isLettered.value) {
+    const lettererErrors: string[] = []
+    if (!form.clientRepresentative.trim()) lettererErrors.push('Recipient name is required')
+    if (!form.subjectLine.trim()) lettererErrors.push('Subject line is required')
+    if (form.feeAmount <= 0) lettererErrors.push('Fee amount must be greater than 0')
+    if (!formValid || lettererErrors.length) return
+
+    emit('confirm', {
+      projectId: '', // filled in by the caller, which already has the project in scope
+      validity: form.validity,
+      currency: form.currency,
+      taxRatePercent: 0,
+      discountAmount: 0,
+      notes: form.notes.trim() || undefined,
+      termsAndConditions: [],
+      lineItems: [{ description: 'الأتعاب الاستشارية / Consultancy Fees', quantity: 1, unitPrice: form.feeAmount }],
+      templateKey: form.templateKey || undefined,
+      clientRepresentative: form.clientRepresentative.trim(),
+      subjectLine: form.subjectLine.trim(),
+      projectReference: form.projectReference.trim() || undefined,
+      feeFrequency: QUOTATION_LETTER_DEFAULTS[form.templateKey as QuotationTemplateKey].feeFrequency,
+      scopeItems: form.scopeItems,
+      paymentTerms: form.paymentTerms,
+    })
+    return
+  }
 
   const itemErrors = form.lineItems.map((item) => {
     if (!item.description.trim()) return 'Description is required'
@@ -157,6 +215,31 @@ function handleConfirm(): void {
 <template>
   <BaseDialog :model-value="modelValue" title="New Quotation" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
+      <SelectBox v-model="form.templateKey" label="Quotation Format" :options="TEMPLATE_OPTIONS" />
+
+      <template v-if="isLettered">
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <DatePicker v-model="form.validity" label="Valid Until" required :error="errors.validity" />
+          <NumberInput
+            :model-value="form.feeAmount"
+            :label="`Fee Amount (KWD)${form.templateKey === 'supervision' ? ' / month' : ''}`"
+            :min="0"
+            step="0.01"
+            @update:model-value="form.feeAmount = Number($event)"
+          />
+        </div>
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <TextInput v-model="form.clientRepresentative" label="Recipient (السيد/ ...)" required />
+          <TextInput v-model="form.projectReference" label="Project Reference (Plot / Parcel / Area)" />
+        </div>
+        <TextInput v-model="form.subjectLine" label="Subject" required />
+        <p class="text-xs text-text-muted">
+          Scope of work and payment terms are prefilled from the template below and can be edited after the
+          quotation is created, before you finalize it.
+        </p>
+      </template>
+
+      <template v-else>
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
         <DatePicker v-model="form.validity" label="Valid Until" required :error="errors.validity" />
         <SelectBox v-model="form.currency" label="Currency" :options="CURRENCY_OPTIONS" />
@@ -249,6 +332,7 @@ function handleConfirm(): void {
           <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, form.currency) }}</span>
         </div>
       </div>
+      </template>
     </div>
 
     <template #footer>

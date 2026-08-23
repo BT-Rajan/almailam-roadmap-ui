@@ -6,6 +6,9 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Used by the lettered quotation/contract templates for their
+        // Arabic blocks (see src/components/project/letters/).
+        arabic: ['"Noto Naskh Arabic"', '"Segoe UI"', 'Tahoma', 'sans-serif'],
       },
       colors: {
         // Rich graphite/charcoal — the "Uber-black" premium action colour

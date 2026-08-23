@@ -85,6 +85,13 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         notes=payload.notes,
         terms_and_conditions=payload.termsAndConditions,
         amount=amount,
+        template_key=payload.templateKey,
+        client_representative=payload.clientRepresentative,
+        subject_line=payload.subjectLine,
+        project_reference=payload.projectReference,
+        fee_frequency=payload.feeFrequency,
+        scope_items=payload.scopeItems,
+        payment_terms=payload.paymentTerms,
     )
     db.add(quotation)
     db.flush()
@@ -110,9 +117,41 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     return quotation
 
 
+_QUOTATION_CONTENT_FIELDS = (
+    "validity", "taxRatePercent", "discountAmount", "notes", "termsAndConditions", "lineItems",
+    "clientRepresentative", "subjectLine", "projectReference", "feeFrequency", "scopeItems", "paymentTerms",
+)
+
+
 def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Quotation:
     quotation = get_quotation(db, quotation_no)
+    # The finalize lock only protects document *content* -- status moves
+    # (Send/Approve/Reject) stay allowed on a finalized letter, since
+    # finalizing is what makes it ready to send in the first place.
+    touches_content = any(getattr(payload, field, None) is not None for field in _QUOTATION_CONTENT_FIELDS)
+    if quotation.finalized_at is not None and touches_content:
+        raise ValidationAppError(
+            "This quotation letter has been finalized and its content is locked. Reopen it first to make changes."
+        )
     changes: dict[str, tuple] = {}
+
+    for api_field, attr in (
+        ("clientRepresentative", "client_representative"),
+        ("subjectLine", "subject_line"),
+        ("projectReference", "project_reference"),
+        ("feeFrequency", "fee_frequency"),
+    ):
+        value = getattr(payload, api_field)
+        if value is not None:
+            old = getattr(quotation, attr)
+            if old != value:
+                changes[attr] = (old, value)
+            setattr(quotation, attr, value)
+
+    if payload.scopeItems is not None:
+        quotation.scope_items = payload.scopeItems
+    if payload.paymentTerms is not None:
+        quotation.payment_terms = payload.paymentTerms
 
     if payload.validity is not None and payload.validity != quotation.validity:
         changes["validity"] = (quotation.validity, payload.validity)
@@ -175,6 +214,30 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
         previous_value=quotation.status, new_value=new_status, reason=reason,
     )
     quotation.status = new_status
+    db.commit()
+    db.refresh(quotation)
+    return quotation
+
+
+def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
+    """Move a lettered quotation from Draft (editable) to Final (locked,
+    print-ready). No-op guard against double-finalizing; reopen_quotation
+    is the only way back to editable."""
+    quotation = get_quotation(db, quotation_no)
+    if quotation.finalized_at is not None:
+        return quotation
+    quotation.finalized_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation finalized", user_id)
+    db.commit()
+    db.refresh(quotation)
+    return quotation
+
+
+def reopen_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
+    """Unlock a finalized quotation letter for further editing."""
+    quotation = get_quotation(db, quotation_no)
+    quotation.finalized_at = None
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation reopened for editing", user_id)
     db.commit()
     db.refresh(quotation)
     return quotation

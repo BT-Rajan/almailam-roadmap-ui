@@ -68,6 +68,18 @@ def update_quotation(
     return _to_out(db, quotation)
 
 
+@router.post("/{quotation_no}/finalize", response_model=QuotationOut)
+def finalize_quotation(quotation_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    quotation = quotation_service.finalize_quotation(db, quotation_no, current_user.id)
+    return _to_out(db, quotation)
+
+
+@router.post("/{quotation_no}/reopen", response_model=QuotationOut)
+def reopen_quotation(quotation_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    quotation = quotation_service.reopen_quotation(db, quotation_no, current_user.id)
+    return _to_out(db, quotation)
+
+
 @router.patch("/{quotation_no}/status", response_model=QuotationOut)
 def set_status(
     quotation_no: str,

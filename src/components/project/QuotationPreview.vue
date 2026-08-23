@@ -5,6 +5,8 @@ import Card from '@/components/common/Card.vue'
 import Divider from '@/components/common/Divider.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PricingSummary from '@/components/project/PricingSummary.vue'
+import QuotationLetterDesignPermits from '@/components/project/letters/QuotationLetterDesignPermits.vue'
+import QuotationLetterSupervision from '@/components/project/letters/QuotationLetterSupervision.vue'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getQuotationStatusVariant } from '@/utils/quotationHelpers'
@@ -21,11 +23,40 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   client: undefined,
 })
+
+const emit = defineEmits<{ patch: [value: Partial<Quotation>] }>()
+
+const LETTER_COMPONENTS = {
+  'design-and-permits': QuotationLetterDesignPermits,
+  supervision: QuotationLetterSupervision,
+} as const
 </script>
 
 <template>
   <Card class="print:shadow-none" :padded="true">
     <div id="quotation-print-area" class="flex flex-col gap-6">
+      <template v-if="quotation.templateKey">
+        <div class="no-print flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-text-primary">{{ quotation.quotationNo }}</h2>
+            <StatusBadge :label="quotation.status" :variant="getQuotationStatusVariant(quotation.status)" />
+          </div>
+          <span
+            class="rounded-full px-2.5 py-1 text-xs font-medium"
+            :class="quotation.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+          >
+            {{ quotation.finalizedAt ? 'Final' : 'Draft — click text to edit' }}
+          </span>
+        </div>
+        <component
+          :is="LETTER_COMPONENTS[quotation.templateKey]"
+          :quotation="quotation"
+          :editable="!quotation.finalizedAt"
+          @patch="(v) => emit('patch', v)"
+        />
+      </template>
+
+      <template v-else>
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
@@ -127,6 +158,8 @@ withDefaults(defineProps<Props>(), {
           </li>
         </ul>
       </div>
+      </template>
     </div>
   </Card>
 </template>
+

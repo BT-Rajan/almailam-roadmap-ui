@@ -81,5 +81,23 @@ export const useContractStore = defineStore('contract', {
       await this.selectContract(contract.id)
       return contract
     },
+
+    async updateContract(contractId: string, patch: Partial<Contract>): Promise<Contract> {
+      const updated = await contractService.updateContract(contractId, patch)
+      this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
+      return updated
+    },
+
+    async finalizeContract(contractId: string): Promise<Contract> {
+      const updated = await contractService.finalizeContract(contractId)
+      this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
+      return updated
+    },
+
+    async reopenContract(contractId: string): Promise<Contract> {
+      const updated = await contractService.reopenContract(contractId)
+      this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
+      return updated
+    },
   },
 })

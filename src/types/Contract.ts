@@ -1,5 +1,17 @@
 export type ContractStatus = 'Draft' | 'Sent' | 'Signed' | 'Active' | 'Expired' | 'Terminated'
 
+// The two pre-written, bilingual (Arabic-then-English) contract letters
+// staff can pick when creating a contract. undefined/null keeps the
+// original generic clause-list contract for anything not using a letter.
+export type ContractTemplateKey = 'design-and-permits' | 'supervision'
+
+export const CONTRACT_TEMPLATE_LABELS: Record<ContractTemplateKey, string> = {
+  'design-and-permits': 'Design & Permits Contract (Bilingual: Arabic then English)',
+  supervision: 'Supervision Contract (Bilingual: Arabic then English)',
+}
+
+export type ContractFeeFrequency = 'Lump Sum' | 'Monthly'
+
 export interface ContractClause {
   id: string
   title: string
@@ -31,6 +43,19 @@ export interface Contract {
   scopeSummary: string
   clauses: ContractClause[]
   revisions: ContractRevision[]
+  // Lettered-template fields -- all empty/default unless templateKey is set.
+  templateKey?: ContractTemplateKey
+  isBilingual: boolean
+  subjectLineAr?: string
+  subjectLineEn?: string
+  projectReference?: string
+  feeFrequency: ContractFeeFrequency
+  scopeItemsAr: string[]
+  scopeItemsEn: string[]
+  paymentTermsAr: string[]
+  paymentTermsEn: string[]
+  // undefined while the letter is an editable draft; set once finalized.
+  finalizedAt?: string
 }
 
 export interface ContractAISummary {

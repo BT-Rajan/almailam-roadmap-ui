@@ -71,6 +71,18 @@ def update_contract(
     return _to_out(db, contract)
 
 
+@router.post("/{contract_no}/finalize", response_model=ContractOut)
+def finalize_contract(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    contract = contract_service.finalize_contract(db, contract_no, current_user.id)
+    return _to_out(db, contract)
+
+
+@router.post("/{contract_no}/reopen", response_model=ContractOut)
+def reopen_contract(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    contract = contract_service.reopen_contract(db, contract_no, current_user.id)
+    return _to_out(db, contract)
+
+
 @router.patch("/{contract_no}/status", response_model=ContractOut)
 def set_status(
     contract_no: str,

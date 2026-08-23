@@ -88,6 +88,16 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
         prepared_by=user_id,
         client_representative=payload.clientRepresentative,
         scope_summary=payload.scopeSummary,
+        template_key=payload.templateKey,
+        is_bilingual=payload.isBilingual,
+        subject_line_ar=payload.subjectLineAr,
+        subject_line_en=payload.subjectLineEn,
+        project_reference=payload.projectReference,
+        fee_frequency=payload.feeFrequency,
+        scope_items_ar=payload.scopeItemsAr,
+        scope_items_en=payload.scopeItemsEn,
+        payment_terms_ar=payload.paymentTermsAr,
+        payment_terms_en=payload.paymentTermsEn,
     )
     db.add(contract)
     db.flush()
@@ -110,8 +120,23 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     return contract
 
 
+_CONTRACT_CONTENT_FIELDS = (
+    "templateName", "contractValue", "expiryDate", "clientRepresentative", "scopeSummary", "clauses",
+    "subjectLineAr", "subjectLineEn", "projectReference", "feeFrequency",
+    "scopeItemsAr", "scopeItemsEn", "paymentTermsAr", "paymentTermsEn",
+)
+
+
 def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Contract:
     contract = get_contract(db, contract_no)
+    # Mirrors quotation_service.update_quotation: the finalize lock only
+    # protects document content -- status moves (Send/Sign/...) stay
+    # allowed on a finalized contract.
+    touches_content = any(getattr(payload, field, None) is not None for field in _CONTRACT_CONTENT_FIELDS)
+    if contract.finalized_at is not None and touches_content:
+        raise ValidationAppError(
+            "This contract letter has been finalized and its content is locked. Reopen it first to make changes."
+        )
     changes: dict[str, tuple] = {}
 
     for api_field, attr in (
@@ -120,6 +145,10 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
         ("expiryDate", "expiry_date"),
         ("clientRepresentative", "client_representative"),
         ("scopeSummary", "scope_summary"),
+        ("subjectLineAr", "subject_line_ar"),
+        ("subjectLineEn", "subject_line_en"),
+        ("projectReference", "project_reference"),
+        ("feeFrequency", "fee_frequency"),
     ):
         value = getattr(payload, api_field)
         if value is not None:
@@ -127,6 +156,15 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
             if old != value:
                 changes[attr] = (old, value)
             setattr(contract, attr, value)
+
+    if payload.scopeItemsAr is not None:
+        contract.scope_items_ar = payload.scopeItemsAr
+    if payload.scopeItemsEn is not None:
+        contract.scope_items_en = payload.scopeItemsEn
+    if payload.paymentTermsAr is not None:
+        contract.payment_terms_ar = payload.paymentTermsAr
+    if payload.paymentTermsEn is not None:
+        contract.payment_terms_en = payload.paymentTermsEn
 
     if payload.clauses is not None:
         db.query(ContractClause).filter(ContractClause.contract_id == contract.id).delete()
@@ -180,6 +218,30 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
         previous_value=contract.revision, new_value=new_label, reason=summary,
     )
     contract.revision = new_label
+    db.commit()
+    db.refresh(contract)
+    return contract
+
+
+def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
+    """Move a lettered contract from Draft (editable) to Final (locked,
+    print-ready). No-op guard against double-finalizing; reopen_contract
+    is the only way back to editable."""
+    contract = get_contract(db, contract_no)
+    if contract.finalized_at is not None:
+        return contract
+    contract.finalized_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract finalized", user_id)
+    db.commit()
+    db.refresh(contract)
+    return contract
+
+
+def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
+    """Unlock a finalized contract letter for further editing."""
+    contract = get_contract(db, contract_no)
+    contract.finalized_at = None
+    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract reopened for editing", user_id)
     db.commit()
     db.refresh(contract)
     return contract

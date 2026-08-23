@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.contract import CONTRACT_STATUSES
+from app.models.contract import CONTRACT_FEE_FREQUENCIES, CONTRACT_STATUSES, CONTRACT_TEMPLATE_KEYS
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -68,6 +68,17 @@ class ContractOut(BaseModel):
     scopeSummary: str
     clauses: list[ContractClauseOut]
     revisions: list[ContractRevisionOut]
+    templateKey: str | None
+    isBilingual: bool
+    subjectLineAr: str | None
+    subjectLineEn: str | None
+    projectReference: str | None
+    feeFrequency: str
+    scopeItemsAr: list[str]
+    scopeItemsEn: list[str]
+    paymentTermsAr: list[str]
+    paymentTermsEn: list[str]
+    finalizedAt: datetime | None
 
     @staticmethod
     def from_model(
@@ -90,6 +101,17 @@ class ContractOut(BaseModel):
             scopeSummary=contract.scope_summary,
             clauses=[ContractClauseOut.from_model(c) for c in clauses],
             revisions=[ContractRevisionOut.from_model(r, name) for r, name in revisions],
+            templateKey=contract.template_key,
+            isBilingual=contract.is_bilingual,
+            subjectLineAr=contract.subject_line_ar,
+            subjectLineEn=contract.subject_line_en,
+            projectReference=contract.project_reference,
+            feeFrequency=contract.fee_frequency,
+            scopeItemsAr=contract.scope_items_ar,
+            scopeItemsEn=contract.scope_items_en,
+            paymentTermsAr=contract.payment_terms_ar,
+            paymentTermsEn=contract.payment_terms_en,
+            finalizedAt=contract.finalized_at,
         )
 
 
@@ -102,6 +124,32 @@ class ContractCreate(BaseModel):
     clientRepresentative: str = Field(min_length=1, max_length=150)
     scopeSummary: str = Field(min_length=1)
     clauses: list[ContractClauseIn] = Field(default_factory=list)
+    # Lettered-template fields -- all optional; a contract created
+    # without templateKey renders in the original generic clause layout.
+    templateKey: str | None = None
+    isBilingual: bool = False
+    subjectLineAr: str | None = Field(default=None, max_length=300)
+    subjectLineEn: str | None = Field(default=None, max_length=300)
+    projectReference: str | None = Field(default=None, max_length=300)
+    feeFrequency: str = Field(default="Lump Sum")
+    scopeItemsAr: list[str] = Field(default_factory=list)
+    scopeItemsEn: list[str] = Field(default_factory=list)
+    paymentTermsAr: list[str] = Field(default_factory=list)
+    paymentTermsEn: list[str] = Field(default_factory=list)
+
+    @field_validator("templateKey")
+    @classmethod
+    def check_template_key(cls, value: str | None) -> str | None:
+        if value is not None and value not in CONTRACT_TEMPLATE_KEYS:
+            raise ValueError(f"templateKey must be one of {CONTRACT_TEMPLATE_KEYS}")
+        return value
+
+    @field_validator("feeFrequency")
+    @classmethod
+    def check_fee_frequency(cls, value: str) -> str:
+        if value not in CONTRACT_FEE_FREQUENCIES:
+            raise ValueError(f"feeFrequency must be one of {CONTRACT_FEE_FREQUENCIES}")
+        return value
 
 
 class ContractUpdate(BaseModel):
@@ -113,12 +161,27 @@ class ContractUpdate(BaseModel):
     clauses: list[ContractClauseIn] | None = None
     status: str | None = None
     reason: str | None = None
+    subjectLineAr: str | None = Field(default=None, max_length=300)
+    subjectLineEn: str | None = Field(default=None, max_length=300)
+    projectReference: str | None = Field(default=None, max_length=300)
+    feeFrequency: str | None = None
+    scopeItemsAr: list[str] | None = None
+    scopeItemsEn: list[str] | None = None
+    paymentTermsAr: list[str] | None = None
+    paymentTermsEn: list[str] | None = None
 
     @field_validator("status")
     @classmethod
     def check_status(cls, value: str | None) -> str | None:
         if value is not None and value not in CONTRACT_STATUSES:
             raise ValueError(f"status must be one of {CONTRACT_STATUSES}")
+        return value
+
+    @field_validator("feeFrequency")
+    @classmethod
+    def check_fee_frequency(cls, value: str | None) -> str | None:
+        if value is not None and value not in CONTRACT_FEE_FREQUENCIES:
+            raise ValueError(f"feeFrequency must be one of {CONTRACT_FEE_FREQUENCIES}")
         return value
 
 

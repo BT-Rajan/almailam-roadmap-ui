@@ -52,6 +52,13 @@ export interface QuotationCreateInput {
   notes?: string
   termsAndConditions: string[]
   lineItems: QuotationLineItemInput[]
+  templateKey?: string
+  clientRepresentative?: string
+  subjectLine?: string
+  projectReference?: string
+  feeFrequency?: string
+  scopeItems?: string[]
+  paymentTerms?: string[]
 }
 
 /**
@@ -90,6 +97,30 @@ async function deleteQuotation(quotationId: string): Promise<void> {
   }
 }
 
+/**
+ * Lock a lettered quotation's content and mark it ready to print.
+ */
+async function finalizeQuotation(quotationId: string): Promise<Quotation> {
+  try {
+    return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/finalize`, {})
+  } catch (error) {
+    console.error(`Failed to finalize quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to finalize quotation')
+  }
+}
+
+/**
+ * Unlock a finalized quotation letter for further editing.
+ */
+async function reopenQuotation(quotationId: string): Promise<Quotation> {
+  try {
+    return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/reopen`, {})
+  } catch (error) {
+    console.error(`Failed to reopen quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to reopen quotation')
+  }
+}
+
 export const quotationService = {
   getQuotationsByProject,
   getQuotationById,
@@ -97,4 +128,6 @@ export const quotationService = {
   createQuotation,
   updateQuotation,
   deleteQuotation,
+  finalizeQuotation,
+  reopenQuotation,
 }
