@@ -74,6 +74,24 @@ class Quotation(Base, TimestampMixin, SoftDeleteMixin):
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class QuotationRevision(Base):
+    """Mirrors ContractRevision (see models/contract.py) -- one row per
+    saved change to a quotation's content, written automatically by
+    quotation_service (on create, and on every content-changing update),
+    not just via an explicit user action."""
+
+    __tablename__ = "quotation_revisions"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    quotation_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("quotations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    revision: Mapped[str] = mapped_column(String(10), nullable=False)
+    revised_at: Mapped[date] = mapped_column(Date, nullable=False)
+    changed_by: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class QuotationLineItem(Base):
     __tablename__ = "quotation_line_items"
 

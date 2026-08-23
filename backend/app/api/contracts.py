@@ -28,12 +28,18 @@ def _user_name(db: Session, user_id: int) -> str:
 
 
 def _to_out(db: Session, contract) -> ContractOut:
+    from app.models.quotation import Quotation
+
     project = db.query(Project).filter(Project.id == contract.project_id).first()
     prepared_by_name = _user_name(db, contract.prepared_by)
     clauses = contract_service.get_clauses(db, contract.id)
     revisions = contract_service.get_revisions_with_names(db, contract.id)
+    quotation_no = None
+    if contract.quotation_id is not None:
+        quotation = db.query(Quotation).filter(Quotation.id == contract.quotation_id).first()
+        quotation_no = quotation.quotation_no if quotation else None
     return ContractOut.from_model(
-        contract, project.project_no if project else "", prepared_by_name, clauses, revisions
+        contract, project.project_no if project else "", prepared_by_name, clauses, revisions, quotation_no
     )
 
 

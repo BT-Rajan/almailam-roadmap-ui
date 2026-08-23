@@ -29,6 +29,11 @@ export interface ContractRevision {
 export interface Contract {
   id: string
   projectId: string
+  // The quotation this contract was generated from -- every contract
+  // created through the normal flow has one (see the workflow rule
+  // that a contract requires an Approved, finalized quotation);
+  // undefined only for contracts that predate that rule.
+  quotationNo?: string
   contractNo: string
   templateName: string
   revision: string

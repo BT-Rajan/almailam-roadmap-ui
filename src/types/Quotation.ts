@@ -19,6 +19,14 @@ export interface QuotationLineItem {
   unitPrice: number
 }
 
+export interface QuotationRevision {
+  id: string
+  revision: string
+  date: string
+  changedBy: string
+  summary: string
+}
+
 export interface Quotation {
   id: string
   projectId: string
@@ -45,4 +53,5 @@ export interface Quotation {
   paymentTerms: string[]
   // undefined while the letter is an editable draft; set once finalized.
   finalizedAt?: string
+  revisions: QuotationRevision[]
 }

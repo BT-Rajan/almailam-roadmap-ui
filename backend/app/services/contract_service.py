@@ -10,6 +10,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
+from app.models.quotation import Quotation
 from app.models.user import User
 from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
@@ -24,6 +25,34 @@ def _project_by_no(db: Session, project_no: str) -> Project:
     return project
 
 
+def _approved_quotation(db: Session, quotation_no: str, project: Project) -> Quotation:
+    """A contract can only be generated from a quotation that (a) exists,
+    (b) belongs to the same project, (c) has been approved, and (d) is
+    finalized ('Final', i.e. its content is locked and print-ready) --
+    matching the front-end's 'Advance to Contract' gate, but enforced
+    here too since the API is the real boundary."""
+    quotation = (
+        db.query(Quotation)
+        .filter(Quotation.quotation_no == quotation_no, Quotation.deleted_at.is_(None))
+        .first()
+    )
+    if quotation is None:
+        raise ValidationAppError("quotationId does not refer to a known quotation.")
+    if quotation.project_id != project.id:
+        raise ValidationAppError("That quotation does not belong to this project.")
+    if quotation.status != "Approved":
+        raise ValidationAppError(
+            f"Quotation {quotation.quotation_no} must be Approved before a contract can be generated "
+            f"from it (currently '{quotation.status}')."
+        )
+    if quotation.finalized_at is None:
+        raise ValidationAppError(
+            f"Quotation {quotation.quotation_no} must be saved as Final before a contract can be "
+            "generated from it."
+        )
+    return quotation
+
+
 def _user_name(db: Session, user_id: int) -> str:
     user = db.query(User).filter(User.id == user_id).first()
     return user.full_name if user else "Unknown"
@@ -34,6 +63,23 @@ def _next_revision_label(current: str) -> str:
     if current.startswith("R") and current[1:].isdigit():
         return f"R{int(current[1:]) + 1}"
     return "R1"
+
+
+def _record_revision(db: Session, contract: Contract, summary: str, user_id: int, *, bump: bool) -> Contract:
+    """Writes one contract_revisions row. bump=True (every content save
+    after the first) also advances contract.revision itself; the first
+    row (written at creation) keeps the contract at its starting 'R0'
+    label since nothing has changed yet at that point."""
+    new_label = _next_revision_label(contract.revision) if bump else contract.revision
+    db.add(
+        ContractRevision(
+            contract_id=contract.id, revision=new_label, revised_at=date.today(),
+            changed_by=user_id, summary=summary,
+        )
+    )
+    if bump:
+        contract.revision = new_label
+    return contract
 
 
 def list_contracts(db: Session, project_no: str | None = None, status: str | None = None) -> list[Contract]:
@@ -77,9 +123,11 @@ def get_revisions_with_names(db: Session, contract_id: int) -> list[tuple]:
 def create_contract(db: Session, payload, user_id: int) -> Contract:
     project = _project_by_no(db, payload.projectId)
     project_service.assert_project_open_for_new_work(project)
+    quotation = _approved_quotation(db, payload.quotationId, project)
     contract = Contract(
         contract_no=next_number(db, "CONTRACT"),
         project_id=project.id,
+        quotation_id=quotation.id,
         template_name=payload.templateName,
         currency=payload.currency,
         contract_value=payload.contractValue,
@@ -112,9 +160,12 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract created", user_id, new_value=contract.contract_no)
     timeline_service.create_system_event(
         db, project.id, "contract",
-        title=f"Contract {contract.contract_no} created",
+        title=f"Contract {contract.contract_no} created from quotation {quotation.quotation_no}",
         actor_id=user_id,
     )
+    # First revision history entry, written automatically -- not just on
+    # every later save, but from the very first time the contract exists.
+    _record_revision(db, contract, f"Initial contract created from quotation {quotation.quotation_no}", user_id, bump=False)
     db.commit()
     db.refresh(contract)
     return contract
@@ -176,6 +227,17 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
             )
 
     audit_service.log_field_changes(db, ENTITY_TYPE, contract.id, changes, user_id)
+
+    # Every save that actually changes content gets its own revision
+    # history entry -- mirrors quotation_service.update_quotation. Clauses
+    # are content too, even though they don't go through `changes` above
+    # since they're a separate table.
+    if changes or payload.clauses is not None:
+        summary = "Clauses updated" if not changes else "Updated " + ", ".join(sorted(changes.keys()))
+        if changes and payload.clauses is not None:
+            summary += " and clauses"
+        _record_revision(db, contract, summary, user_id, bump=True)
+
     db.commit()
     db.refresh(contract)
 
@@ -205,19 +267,17 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
 
 
 def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> Contract:
+    """Explicit user-triggered revision note (POST /contracts/{id}/revisions)
+    -- kept alongside the automatic per-save revisions written by
+    create_contract/update_contract, for a manual annotation that isn't
+    tied to a content change (e.g. summarizing an out-of-band discussion)."""
     contract = get_contract(db, contract_no)
-    new_label = _next_revision_label(contract.revision)
-    db.add(
-        ContractRevision(
-            contract_id=contract.id, revision=new_label, revised_at=date.today(),
-            changed_by=user_id, summary=summary,
-        )
-    )
+    previous_label = contract.revision
+    _record_revision(db, contract, summary, user_id, bump=True)
     audit_service.log_event(
         db, ENTITY_TYPE, contract.id, "Revision recorded", user_id,
-        previous_value=contract.revision, new_value=new_label, reason=summary,
+        previous_value=previous_label, new_value=contract.revision, reason=summary,
     )
-    contract.revision = new_label
     db.commit()
     db.refresh(contract)
     return contract
