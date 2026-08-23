@@ -10,6 +10,7 @@ import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import Stepper from '@/components/common/Stepper.vue'
@@ -17,12 +18,13 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { useGovernmentFormStore } from '@/stores/governmentFormStore'
+import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
+import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { Project, ProjectPriority } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
@@ -37,7 +39,7 @@ const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
-const governmentFormStore = useGovernmentFormStore()
+const permitCatalogStore = usePermitCatalogStore()
 const taskStore = useTaskStore()
 
 const WIZARD_STEPS = [
@@ -59,6 +61,9 @@ const YES_NO_OPTIONS: SelectOption[] = [
 ]
 
 interface WizardPermit {
+  // The permit catalog item's id -- picked via PermitPickerDialog, same
+  // as SelectedServiceActivity keys off catalog ids rather than a
+  // locally generated one.
   id: string
   name: string
   // '' means not yet answered -- required before the step can advance.
@@ -70,6 +75,7 @@ const isSubmitting = ref(false)
 const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
+const isPermitPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -90,39 +96,16 @@ const form = reactive({
   permits: [] as WizardPermit[],
 })
 
-const permitSearchTerm = ref('')
-
-// Suggestions come from the government form library (same data the
-// Government tab and form catalog use), deduped by title and filtered
-// down to real matches only once the user has typed at least 3 letters --
-// three characters is generally enough to disambiguate a permit name
-// without flooding the list on every keystroke.
-const permitSuggestions = computed(() => {
-  const term = permitSearchTerm.value.trim().toLowerCase()
-  if (term.length < 3) return []
-
-  const alreadyAdded = new Set(form.permits.map((permit) => permit.name.toLowerCase()))
-  const seen = new Set<string>()
-  const matches: string[] = []
-
-  for (const govForm of governmentFormStore.forms) {
-    const title = govForm.title
-    const key = title.toLowerCase()
-    if (!key.includes(term) || seen.has(key) || alreadyAdded.has(key)) continue
-    seen.add(key)
-    matches.push(title)
-    if (matches.length >= 8) break
-  }
-
-  return matches
-})
-
-function addPermit(name: string): void {
-  const trimmed = name.trim()
-  if (!trimmed) return
-  if (form.permits.some((permit) => permit.name.toLowerCase() === trimmed.toLowerCase())) return
-  form.permits.push({ id: crypto.randomUUID(), name: trimmed, clientHas: '' })
-  permitSearchTerm.value = ''
+// Confirming the picker replaces the whole selection, same as
+// ServicePickerDialog -- existing picks keep whatever clientHas answer
+// was already given, newly added ones start unanswered.
+function handlePermitsConfirm(selected: PermitCatalogItem[]): void {
+  const existingById = new Map(form.permits.map((permit) => [permit.id, permit]))
+  form.permits = selected.map((permit) => ({
+    id: permit.id,
+    name: permit.name,
+    clientHas: existingById.get(permit.id)?.clientHas ?? '',
+  }))
 }
 
 function removePermit(id: string): void {
@@ -198,10 +181,10 @@ onMounted(async () => {
     .filter((user) => user.role === 'Engineer' && user.status === 'Active')
     .map((user) => ({ label: user.name, value: user.id }))
 
-  // Backs the permit search below -- loaded once here rather than lazily
-  // on first keystroke so suggestions appear immediately as the user types.
-  if (governmentFormStore.forms.length === 0) {
-    await governmentFormStore.loadForms()
+  // Backs the permit picker below -- loaded once here rather than
+  // lazily on first dialog open so the list is ready immediately.
+  if (permitCatalogStore.permits.length === 0) {
+    await permitCatalogStore.loadPermits()
   }
 })
 
@@ -438,36 +421,18 @@ function goToCreatedProject(): void {
 
           <template v-if="form.involvesPermits === 'yes'">
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-text-secondary">Search permits</label>
-              <div class="relative">
-                <TextInput
-                  v-model="permitSearchTerm"
-                  placeholder="Type at least 3 letters, e.g. 'building'"
-                  @keydown.enter.prevent="permitSuggestions.length > 0 && addPermit(permitSuggestions[0])"
-                />
-                <ul
-                  v-if="permitSuggestions.length > 0"
-                  class="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border-default bg-bg-card shadow-lg"
-                >
-                  <li
-                    v-for="suggestion in permitSuggestions"
-                    :key="suggestion"
-                    class="cursor-pointer px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover"
-                    @click="addPermit(suggestion)"
-                  >
-                    {{ suggestion }}
-                  </li>
-                </ul>
-              </div>
-              <p
-                v-if="permitSearchTerm.trim().length >= 3 && permitSuggestions.length === 0"
-                class="text-xs text-text-muted"
+              <label class="text-sm font-medium text-text-secondary">Permits <span class="text-danger-500">*</span></label>
+              <button
+                type="button"
+                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
+                @click="isPermitPickerOpen = true"
               >
-                No matching permits found.
-                <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="addPermit(permitSearchTerm)">
-                  Add "{{ permitSearchTerm.trim() }}" as a custom permit
-                </button>
-              </p>
+                <span v-if="form.permits.length === 0" class="text-text-muted">Select permits</span>
+                <span v-else class="text-text-primary">
+                  {{ form.permits.length }} permit{{ form.permits.length === 1 ? '' : 's' }} selected
+                </span>
+                <span class="text-xs font-medium text-primary-600">{{ form.permits.length === 0 ? 'Choose' : 'Edit' }}</span>
+              </button>
             </div>
 
             <div v-if="form.permits.length > 0" class="flex flex-col gap-2">
@@ -477,6 +442,7 @@ function goToCreatedProject(): void {
                 class="flex flex-col gap-2 rounded-lg border border-border-light p-3 tablet:flex-row tablet:items-center tablet:justify-between"
               >
                 <span class="text-sm font-medium text-text-primary">{{ permit.name }}</span>
+
                 <div class="flex items-center gap-3">
                   <RadioGroup
                     :model-value="permit.clientHas"
@@ -595,6 +561,13 @@ function goToCreatedProject(): void {
       :selected="form.selectedActivities"
       currency="KWD"
       @confirm="handleServicesConfirmed"
+    />
+
+    <PermitPickerDialog
+      v-model="isPermitPickerOpen"
+      :permits="permitCatalogStore.permits"
+      :selected-ids="form.permits.map((permit) => permit.id)"
+      @confirm="handlePermitsConfirm"
     />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
