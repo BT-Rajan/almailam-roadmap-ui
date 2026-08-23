@@ -99,9 +99,15 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Enquiry": {"Quotation"},
     "Quotation": {"Contract"},
-    "Contract": {"Design"},
-    "Design": {"Government Submission"},
-    "Government Submission": {"Execution & Tracking"},
+    # Design and Government Submission run in parallel, not sequentially
+    # -- see project_service._assert_stage_exit_criteria's docstring for
+    # why. Either can be entered first out of Contract, and the project
+    # can move freely between the two (an engineer might start Design,
+    # switch to chase a government submission, then come back) before
+    # both converge into Execution & Tracking.
+    "Contract": {"Design", "Government Submission"},
+    "Design": {"Government Submission", "Execution & Tracking"},
+    "Government Submission": {"Design", "Execution & Tracking"},
     "Execution & Tracking": {"Completed"},
     "Completed": {"Execution & Tracking"},
 }

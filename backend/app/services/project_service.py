@@ -271,6 +271,18 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # only one stage can be "previous_stage" for any given new_stage, so the
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
+    """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Design and
+    Government Submission run in parallel (PROJECT_STAGE_ALLOWED_
+    TRANSITIONS allows entering either first out of Contract, and moving
+    freely between the two), so their checks are organized around that
+    fork/converge shape rather than one check per named stage:
+      - leaving "Contract" for the first time (whichever of the two
+        branches is entered first) requires the Contract-completion
+        items, once
+      - entering "Execution & Tracking" -- where both branches converge
+        -- requires every gate from BOTH branches, regardless of which
+        branch was current last
+    """
     problems: list[str] = []
 
     if new_stage == "Contract":
@@ -282,7 +294,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if approved_quotation is None:
             problems.append("an Approved quotation")
 
-    elif new_stage == "Design":
+    elif previous_stage == "Contract" and new_stage in ("Design", "Government Submission"):
         contract_exists = (
             db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
         )
@@ -302,19 +314,16 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if payment_service.get_agreement_by_project(db, project.project_no) is None:
             problems.append("a financial agreement (payment dates and amount)")
 
-    elif new_stage == "Government Submission":
-        gate = approval_process_service.get_project_step_by_stage(db, project.id, "architectural_approval")
-        if gate.storage_key is None:
-            problems.append("the 'Architectural Design Approved by Client' stage gate")
-
-    # "Execution & Tracking" is reachable from two different previous
-    # stages: forward progress from "Government Submission" (should
-    # require the remaining gates), or reopening from "Completed" (should
-    # not -- those gates were already satisfied to get to Completed in
-    # the first place, and reopening already requires its own reason,
-    # asserted separately below).
-    elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
+    # "Execution & Tracking" is reachable from three different previous
+    # stages: convergence from either parallel branch ("Design" or
+    # "Government Submission" -- both require every gate from both
+    # branches, since either could be the one just finished), or
+    # reopening from "Completed" (requires nothing here -- those gates
+    # were already satisfied once, and reopening already requires its
+    # own reason, asserted separately below).
+    elif new_stage == "Execution & Tracking" and previous_stage in ("Design", "Government Submission"):
         for stage_key, label in (
+            ("architectural_approval", "'Architectural Design Approved by Client'"),
             ("mew_approval", "'MEW Approval'"),
             ("submit_baladia_kfd", "'Submit to Baladia or KFD'"),
             ("permit_approved", "'Permit Approved'"),
