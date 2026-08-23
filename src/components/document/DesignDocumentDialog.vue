@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import FileUploader from '@/components/document/FileUploader.vue'
 import type { ProjectDocument } from '@/types/Document'
 
 const props = defineProps<{
@@ -23,9 +22,8 @@ const emit = defineEmits<{
 const title = ref('')
 const date = ref('')
 const link = ref('')
-const selectedFile = ref<File>()
 const titleError = ref<string>()
-const fileOrLinkError = ref<string>()
+const linkError = ref<string>()
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -36,8 +34,7 @@ watch(
   (open) => {
     if (!open) return
     titleError.value = undefined
-    fileOrLinkError.value = undefined
-    selectedFile.value = undefined
+    linkError.value = undefined
     if (props.document) {
       title.value = props.document.title
       date.value = props.document.uploadDate
@@ -50,15 +47,22 @@ watch(
   },
 )
 
-const hasExistingFile = computed(() => Boolean(props.document?.originalFilename))
+function isValidUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 function handleSave(): void {
   titleError.value = title.value.trim() ? undefined : 'Document name is required'
-  fileOrLinkError.value =
-    selectedFile.value || link.value.trim() || hasExistingFile.value ? undefined : 'Provide a file, a link, or both'
-  if (titleError.value || fileOrLinkError.value) return
+  const trimmedLink = link.value.trim()
+  linkError.value = !trimmedLink ? 'Link is required' : !isValidUrl(trimmedLink) ? 'Enter a valid http(s) link' : undefined
+  if (titleError.value || linkError.value) return
 
-  emit('save', { title: title.value.trim(), date: date.value, link: link.value.trim(), file: selectedFile.value })
+  emit('save', { title: title.value.trim(), date: date.value, link: trimmedLink, file: undefined })
 }
 
 function closeDialog(): void {
@@ -78,14 +82,7 @@ function closeDialog(): void {
     <div class="flex flex-col gap-4">
       <TextInput v-model="title" label="Document" placeholder="e.g. Structural Drawing R1" required :error="titleError" />
       <DatePicker v-model="date" label="Date" required />
-      <TextInput v-model="link" label="Link (optional)" placeholder="https://..." />
-      <div class="flex flex-col gap-1.5">
-        <FileUploader
-          :hint="hasExistingFile ? `Replace ${document?.originalFilename}` : 'PDF, Word, Excel, DWG or image files'"
-          @select="selectedFile = $event"
-        />
-        <p v-if="fileOrLinkError" class="text-xs text-danger-500">{{ fileOrLinkError }}</p>
-      </div>
+      <TextInput v-model="link" label="Link" placeholder="https://..." required :error="linkError" />
     </div>
 
     <template #footer>
