@@ -31,6 +31,7 @@ from app.api.quotations import router as quotations_router
 from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
 from app.api.search import router as search_router
+from app.api.permit_catalog import router as permit_catalog_router
 from app.api.service_catalog import router as service_catalog_router
 from app.api.site_portal import router as site_portal_router
 from app.api.status_reports import router as status_reports_router
@@ -119,6 +120,7 @@ app.include_router(my_activity_router)
 app.include_router(ai_router)
 app.include_router(users_router)
 app.include_router(service_catalog_router)
+app.include_router(permit_catalog_router)
 app.include_router(roles_router)
 app.include_router(clients_router)
 app.include_router(company_router)

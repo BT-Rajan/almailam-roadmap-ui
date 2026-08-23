@@ -44,6 +44,12 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         routeName: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
       },
       {
+        label: 'Permit Catalog',
+        description: 'Configure the permits that can be attached to a project during setup.',
+        icon: 'FileCheck2',
+        routeName: ROUTE_NAMES.ADMIN_PERMIT_CATALOG,
+      },
+      {
         label: 'Government Forms Management',
         description: 'Maintain government forms, authorities, and document requirements.',
         icon: 'Landmark',

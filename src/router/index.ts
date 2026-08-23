@@ -370,6 +370,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/permit-catalog',
+      name: ROUTE_NAMES.ADMIN_PERMIT_CATALOG,
+      component: () => import('@/pages/AdminPermitCatalogPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Permit Catalog' },
+        ],
+      },
+    },
+    {
       path: '/admin/forms',
       name: ROUTE_NAMES.ADMIN_FORMS,
       component: () => import('@/pages/AdminFormsPage.vue'),
