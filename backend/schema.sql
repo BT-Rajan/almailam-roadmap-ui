@@ -813,16 +813,15 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     INDEX idx_project_timeline_events_project (project_id, event_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- The Project Approval Process (5 stages: Documents Signed -> MEW
--- Approval -> Architectural Design Approved by Client -> Submit to
--- Baladia or KFD -> Permit Approved) and the execution-step checklist
--- (23 tangible-act steps, First Meeting through Lighting drawings)
--- together are the whole of "the project process". Every execution
--- step's stage_key groups it under one of the 5 approval stages, which
--- is how the project UI shows one unified view (5 stages, each
--- expandable to its related execution steps) instead of two
--- independent trackers. See migration 0018 for the mapping reasoning
--- between the two lists.
+-- The Project Approval Process (5 external sign-off gates: Documents
+-- Signed -> MEW Approval -> Architectural Design Approved by Client ->
+-- Submit to Baladia or KFD -> Permit Approved) and the execution-step
+-- checklist (23 tangible-act steps, First Meeting through Lighting
+-- drawings) are two independent tracks that both run against the
+-- project at the same time -- neither gates the other (see
+-- project_service._assert_stage_exit_criteria for where their
+-- completion actually matters: entering "Execution & Tracking"
+-- requires every one of the 5 gates, regardless of activity progress).
 --
 -- Since migration 0022 (the Execution & Tracking redesign):
 -- project_execution_steps tracks a free 0-100 completion_percentage
@@ -831,6 +830,13 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
 -- these percentages. project_approval_steps' 5 rows are stage gates:
 -- a stage counts as complete the moment a document is uploaded for it
 -- (storage_key set), not via a separate manual "complete" action.
+--
+-- Each execution step's stage_key (below) says which of the 7 project
+-- WORKFLOW_STAGES (see project.py) the activity is expected to happen
+-- during -- e.g. "Client Civil ID collected" during Contract,
+-- "Architectural drawings completed" during Design. This is unrelated
+-- to the 5 approval gates above; nothing currently enforces an activity
+-- being done during its tagged stage, it's informational.
 
 CREATE TABLE IF NOT EXISTS execution_step_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -876,29 +882,29 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
 -- that follows it). "Permit Approved" has no execution steps of its
 -- own -- it's a pure external gate.
 INSERT INTO execution_step_templates (name, sequence_number, weight_percentage, stage_key, is_optional) VALUES
-    ('Client requests captured', 1, 4.35, 'documents_signed', 0),
-    ('Quotation prepared', 2, 4.35, 'documents_signed', 0),
-    ('Client Civil ID collected', 3, 4.35, 'documents_signed', 0),
-    ('Ownership document collected', 4, 4.35, 'documents_signed', 0),
-    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'documents_signed', 0),
-    ('MEW approval request submitted', 6, 4.35, 'mew_approval', 0),
-    ('Contract initiated', 7, 4.35, 'documents_signed', 0),
-    ('Architectural drawings completed', 8, 4.35, 'architectural_approval', 0),
-    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'submit_baladia_kfd', 0),
-    ('3D design completed', 10, 4.35, 'architectural_approval', 1),
-    ('Soil investigation report completed', 11, 4.35, 'submit_baladia_kfd', 0),
-    ('Structural drawings completed', 12, 4.35, 'submit_baladia_kfd', 0),
-    ('Window and door schedules completed', 13, 4.35, 'submit_baladia_kfd', 0),
-    ('Furniture plans completed', 14, 4.35, 'submit_baladia_kfd', 1),
-    ('Dimension plans completed', 15, 4.35, 'submit_baladia_kfd', 1),
-    ('Flooring plans completed', 16, 4.35, 'submit_baladia_kfd', 1),
-    ('Bathroom detail drawings completed', 17, 4.35, 'submit_baladia_kfd', 1),
-    ('Electrical power points completed', 18, 4.35, 'submit_baladia_kfd', 0),
-    ('Sanitary plans completed', 19, 4.34, 'submit_baladia_kfd', 0),
-    ('A/C drawings completed', 20, 4.34, 'submit_baladia_kfd', 1),
-    ('Structural drawings revised for A/C', 21, 4.34, 'submit_baladia_kfd', 1),
-    ('False ceiling drawings completed', 22, 4.34, 'submit_baladia_kfd', 1),
-    ('Lighting drawings completed', 23, 4.34, 'submit_baladia_kfd', 1);
+    ('Client requests captured', 1, 4.35, 'Enquiry', 0),
+    ('Quotation prepared', 2, 4.35, 'Quotation', 0),
+    ('Client Civil ID collected', 3, 4.35, 'Contract', 0),
+    ('Ownership document collected', 4, 4.35, 'Contract', 0),
+    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'Contract', 0),
+    ('MEW approval request submitted', 6, 4.35, 'Government Submission', 0),
+    ('Contract initiated', 7, 4.35, 'Contract', 0),
+    ('Architectural drawings completed', 8, 4.35, 'Design', 0),
+    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'Government Submission', 0),
+    ('3D design completed', 10, 4.35, 'Design', 1),
+    ('Soil investigation report completed', 11, 4.35, 'Government Submission', 0),
+    ('Structural drawings completed', 12, 4.35, 'Government Submission', 0),
+    ('Window and door schedules completed', 13, 4.35, 'Government Submission', 0),
+    ('Furniture plans completed', 14, 4.35, 'Government Submission', 1),
+    ('Dimension plans completed', 15, 4.35, 'Government Submission', 1),
+    ('Flooring plans completed', 16, 4.35, 'Government Submission', 1),
+    ('Bathroom detail drawings completed', 17, 4.35, 'Government Submission', 1),
+    ('Electrical power points completed', 18, 4.35, 'Government Submission', 0),
+    ('Sanitary plans completed', 19, 4.34, 'Government Submission', 0),
+    ('A/C drawings completed', 20, 4.34, 'Government Submission', 1),
+    ('Structural drawings revised for A/C', 21, 4.34, 'Government Submission', 1),
+    ('False ceiling drawings completed', 22, 4.34, 'Government Submission', 1),
+    ('Lighting drawings completed', 23, 4.34, 'Government Submission', 1);
 
 CREATE TABLE IF NOT EXISTS approval_process_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -26,16 +26,21 @@ from app.services import audit_service
 ENTITY_TYPE = "EXECUTION_STEP_TEMPLATE"
 PROJECT_ENTITY_TYPE = "PROJECT"
 
-# The 5 Project Approval Process stages every execution step is grouped
-# under (see approval_process.py) -- kept here, not re-derived from the
-# DB, since it's the same fixed list the approval_process_templates seed
-# uses and nothing about it is meant to be admin-editable.
+# Which of the 7 project workflow stages an execution activity is
+# tagged to (see project.py's WORKFLOW_STAGES) -- only the first 5,
+# since no activity is ever expected to belong to "Execution &
+# Tracking" itself (that's the stage that tracks all 23 of them at
+# once, not one they're filed under) or "Completed" (an end state, not
+# a stage work happens during). Not to be confused with the 5 Project
+# Approval Process gates in approval_process.py -- those are separate,
+# external sign-offs, not something an execution activity is filed
+# under.
 STAGE_KEYS = (
-    "documents_signed",
-    "mew_approval",
-    "architectural_approval",
-    "submit_baladia_kfd",
-    "permit_approved",
+    "Enquiry",
+    "Quotation",
+    "Contract",
+    "Design",
+    "Government Submission",
 )
 
 

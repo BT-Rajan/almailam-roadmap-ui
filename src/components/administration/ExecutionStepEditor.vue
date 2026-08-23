@@ -7,7 +7,7 @@ import Checkbox from '@/components/common/Checkbox.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { PROCESS_STAGES } from '@/constants/processStages'
+import { EXECUTION_STEP_STAGE_OPTIONS } from '@/utils/projectHelpers'
 import type { ExecutionStepTemplateItem } from '@/types/ExecutionStep'
 import type { SelectOption } from '@/types/Ui'
 
@@ -22,11 +22,15 @@ const emit = defineEmits<{
   add: [name: string, weightPercentage: number, stageKey: string, isOptional: boolean]
 }>()
 
-// "Permit Approved" is a pure external gate with no execution steps of
-// its own -- not offered here as a stage a step can be assigned to.
-const STAGE_OPTIONS: SelectOption[] = PROCESS_STAGES.filter((s) => s.key !== 'permit_approved').map((s) => ({
-  value: s.key,
-  label: s.label,
+// Which of the 7 project workflow stages this activity is expected to
+// happen during -- e.g. "Client Civil ID collected" during Contract,
+// "Architectural drawings completed" during Design. Not to be confused
+// with the 5 Project Approval Process gates (Documents Signed, MEW
+// Approval, etc.) -- those are separate, external sign-offs tracked on
+// their own tab, not something an execution activity is filed under.
+const STAGE_OPTIONS: SelectOption[] = EXECUTION_STEP_STAGE_OPTIONS.map((stage) => ({
+  value: stage,
+  label: stage,
 }))
 
 const newStepName = ref('')

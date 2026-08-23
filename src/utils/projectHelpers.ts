@@ -11,6 +11,16 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Completed',
 ]
 
+// Which of the 7 workflow stages an execution activity is tagged to
+// (see ExecutionStepEditor.vue) -- only the first 5 are relevant, since
+// no activity is ever expected to belong to "Execution & Tracking"
+// itself (that's the stage that tracks all 23 of them at once, not one
+// they're filed under) or "Completed" (an end state, not a stage work
+// happens during).
+export const EXECUTION_STEP_STAGE_OPTIONS = WORKFLOW_STAGES.filter(
+  (stage) => stage !== 'Execution & Tracking' && stage !== 'Completed',
+)
+
 const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {
   Active: 'success',
   'On Hold': 'warning',

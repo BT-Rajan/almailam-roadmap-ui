@@ -1,8 +1,9 @@
-// The 5 stages of the Project Approval Process. This is the one place
-// the 5 stage names/keys/order are defined on the frontend -- every
-// execution step's stageKey (see types/ExecutionStep.ts) is one of
-// these keys, and ProjectProcessTab.vue groups both checklists under
-// this same list so the UI shows one unified process view.
+// The 5 stages of the Project Approval Process -- the external
+// sign-off gates (Documents Signed, MEW Approval, etc.), each closed
+// out by uploading its review document. Not to be confused with the 7
+// project workflow stages (see WORKFLOW_STAGES in projectHelpers.ts) --
+// execution activities are tagged to one of those instead (see
+// ExecutionStepEditor.vue), not to these.
 export interface ProcessStageDefinition {
   key: string
   label: string
