@@ -44,6 +44,17 @@ function addLine(): void {
 function addHeading(): void {
   emit('update:modelValue', [...props.modelValue, '## '])
 }
+
+// A local directive (auto-registered by the vXxx naming convention in
+// <script setup>) that sets the element's text on mount/update, but
+// skips the update while the element is the one currently focused --
+// otherwise an unrelated save elsewhere on the page (which re-renders
+// this whole list from the server response) would reset whatever the
+// user is mid-typing in this particular line.
+function vEditableText(el: HTMLElement, binding: { value: string }): void {
+  if (document.activeElement === el) return
+  el.textContent = binding.value
+}
 </script>
 
 <template>
@@ -56,12 +67,12 @@ function addHeading(): void {
     >
       <span v-if="!isHeading(item)" class="select-none">•</span>
       <span
+        v-editable-text="isHeading(item) ? headingText(item) : item"
         class="flex-1 outline-none"
-        :contenteditable="editable"
+        :contenteditable="editable ? 'true' : 'false'"
         :class="editable ? 'rounded px-0.5 hover:bg-amber-50 focus:bg-amber-50 focus:ring-1 focus:ring-amber-400 print:hover:bg-transparent print:focus:ring-0' : ''"
         @blur="(e) => updateItem(index, (e.target as HTMLElement).innerText.trim(), isHeading(item))"
-        >{{ isHeading(item) ? headingText(item) : item }}</span
-      >
+      />
       <button
         v-if="editable"
         type="button"
