@@ -22,13 +22,15 @@ GENERIC_LOGIN_ERROR = "Invalid username or password."
 def _issue_tokens(db: Session, user: User) -> dict:
     access_token = create_access_token(str(user.id), {"role": user.role})
     refresh_token, jti, expires_at = create_refresh_token(str(user.id))
+    now = datetime.now(timezone.utc)
 
     db.add(
         RefreshToken(
             jti=jti,
             user_id=user.id,
             expires_at=expires_at,
-            created_at=datetime.now(timezone.utc),
+            created_at=now,
+            last_used_at=now,
         )
     )
     db.commit()
@@ -124,6 +126,20 @@ def refresh(db: Session, refresh_token: str) -> dict:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if expires_at < datetime.now(timezone.utc):
         raise AuthError("Session expired. Please log in again.")
+
+    last_used_at = record.last_used_at
+    if last_used_at.tzinfo is None:
+        last_used_at = last_used_at.replace(tzinfo=timezone.utc)
+    idle_cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.INACTIVITY_TIMEOUT_MINUTES)
+    if last_used_at < idle_cutoff:
+        # Backstop for the 30-minute idle logout (see useIdleLogout.ts on
+        # the frontend): this token was minted long enough ago, with no
+        # activity in between to redeem it sooner, that the session counts
+        # as abandoned even though the token itself hasn't technically
+        # expired yet. Revoke it so it can't be redeemed later either.
+        record.revoked = True
+        db.commit()
+        raise AuthError("Session expired due to inactivity. Please log in again.")
 
     user = (
         db.query(User)

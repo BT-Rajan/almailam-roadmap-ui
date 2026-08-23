@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     revoked         TINYINT(1)   NOT NULL DEFAULT 0,
     expires_at      DATETIME     NOT NULL,
     created_at      DATETIME     NOT NULL,
+    last_used_at    DATETIME     NOT NULL,
     CONSTRAINT fk_refresh_tokens_user
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_refresh_tokens_user (user_id),

@@ -9,6 +9,11 @@ const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
+// Set by useIdleLogout (30-minute inactivity auto-logout) when it bounces
+// here -- without this, someone dropped back on the login screen mid-work
+// has no idea why and it looks like the app just broke.
+const initialMessage = typeof route.query.reason === 'string' ? route.query.reason : undefined
+
 async function handleSuccess(): Promise<void> {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
   await router.push(redirect ?? { name: ROUTE_NAMES.DASHBOARD })
@@ -27,6 +32,7 @@ async function handleSuccess(): Promise<void> {
         id-label="User ID"
         id-placeholder="Enter your user ID"
         :login-fn="authStore.login"
+        :initial-message="initialMessage"
         show-remember-me
         show-forgot-password
         show-clear

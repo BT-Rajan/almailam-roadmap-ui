@@ -5,8 +5,6 @@ import { authService, type CurrentUser } from '@/services/authService'
 interface AuthState {
   accessToken: string | null
   user: CurrentUser | null
-  /** Tracks whether we've attempted to restore a session from storage yet. */
-  isHydrated: boolean
   /**
    * In-flight refresh call, shared across concurrent 401s.
    * The backend rotates (single-use) refresh tokens, so if several
@@ -23,7 +21,6 @@ export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     accessToken: null,
     user: null,
-    isHydrated: false,
     refreshPromise: null,
   }),
 
@@ -59,7 +56,11 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success.
-     * Safe to call concurrently -- overlapping calls share a single in-flight request. */
+     * Safe to call concurrently -- overlapping calls share a single in-flight request.
+     * Used mid-session by the httpClient 401-retry (see services/httpClient.ts) to renew an
+     * expired access token transparently while the user is actively working in the same tab.
+     * Deliberately NOT called on app startup/page load -- see the removed hydrate() below;
+     * a session must not survive a page refresh, tab close, or browser restart. */
     async tryRefresh(): Promise<boolean> {
       if (this.refreshPromise) return this.refreshPromise
 
@@ -77,22 +78,6 @@ export const useAuthStore = defineStore('auth', {
       })()
 
       return this.refreshPromise
-    },
-
-    /** Call once on app startup to silently restore a session from the refresh cookie, if any.
-     * The cookie is httpOnly, so there's no way to check for it up front -- attempting the
-     * refresh is the only way to find out, and a 401 here just means there wasn't one. */
-    async hydrate() {
-      if (this.isHydrated) return
-      const refreshed = await this.tryRefresh()
-      if (refreshed) {
-        try {
-          this.user = await authService.me()
-        } catch {
-          this._clearToken()
-        }
-      }
-      this.isHydrated = true
     },
 
     _setToken(accessToken: string) {
