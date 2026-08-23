@@ -1,4 +1,4 @@
-export type NotificationCategory = 'Project' | 'Task' | 'Government' | 'AI' | 'System'
+export type NotificationCategory = 'Project' | 'Task' | 'Government' | 'Payment' | 'AI' | 'System'
 
 export interface NotificationLink {
   routeName: string

@@ -528,6 +528,9 @@ CREATE TABLE IF NOT EXISTS payment_obligations (
     payment_method      ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NULL,
     reference_number    VARCHAR(60) NULL,
     notes               TEXT NULL,
+    reminder_before_sent_at DATETIME NULL,
+    reminder_due_sent_at    DATETIME NULL,
+    reminder_after_sent_at  DATETIME NULL,
     CONSTRAINT fk_payment_obligations_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE CASCADE,
     UNIQUE KEY uq_payment_obligations_agreement_sequence (agreement_id, sequence_number),
     INDEX idx_payment_obligations_agreement (agreement_id)
@@ -703,7 +706,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     user_id             BIGINT UNSIGNED NOT NULL,
     title               VARCHAR(150) NOT NULL,
     message             TEXT NOT NULL,
-    category            ENUM('Project','Task','Government','AI','System') NOT NULL,
+    category            ENUM('Project','Task','Government','Payment','AI','System') NOT NULL,
     created_at          DATETIME NOT NULL,
     `read`              TINYINT(1) NOT NULL DEFAULT 0,
     link_route_name     VARCHAR(100) NULL,

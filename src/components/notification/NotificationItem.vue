@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Bell, Bot, FolderKanban, Landmark, ListChecks } from '@lucide/vue'
+import { Bell, Bot, FolderKanban, Landmark, ListChecks, Wallet } from '@lucide/vue'
 import type { Component } from 'vue'
 
 import type { AppNotification, NotificationCategory } from '@/types/Notification'
@@ -19,6 +19,7 @@ const CATEGORY_ICONS: Record<NotificationCategory, Component> = {
   Project: FolderKanban,
   Task: ListChecks,
   Government: Landmark,
+  Payment: Wallet,
   AI: Bot,
   System: Bell,
 }
@@ -27,6 +28,7 @@ const CATEGORY_CLASSES: Record<NotificationCategory, string> = {
   Project: 'bg-primary-50 text-primary-600',
   Task: 'bg-success-50 text-success-700',
   Government: 'bg-warning-50 text-warning-700',
+  Payment: 'bg-success-50 text-success-700',
   AI: 'bg-ai-50 text-ai-700',
   System: 'bg-bg-secondary text-text-muted',
 }

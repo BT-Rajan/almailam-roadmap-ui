@@ -264,12 +264,91 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     return project
 
 
+# Per-transition exit criteria -- see docs/PROJECT_WORKFLOW_MAP for the
+# source diagram this implements. Keyed by the target stage, since each
+# entry describes what must be true of the stage being LEFT before the
+# move is allowed; PROJECT_STAGE_ALLOWED_TRANSITIONS already guarantees
+# only one stage can be "previous_stage" for any given new_stage, so the
+# target alone is enough to know which check applies.
+def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
+    problems: list[str] = []
+
+    if new_stage == "Contract":
+        approved_quotation = (
+            db.query(Quotation)
+            .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
+            .first()
+        )
+        if approved_quotation is None:
+            problems.append("an Approved quotation")
+
+    elif new_stage == "Design":
+        contract_exists = (
+            db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
+        )
+        if contract_exists is None:
+            problems.append("a contract")
+        gate = approval_process_service.get_project_step_by_stage(db, project.id, "documents_signed")
+        if gate.storage_key is None:
+            problems.append("the 'Documents Signed' stage gate")
+        # A financial agreement -- payment dates and amounts -- has to be
+        # prepared right after the contract, not left until the project
+        # is finishing up (that's what the "Completed" check further
+        # down is for; this one is deliberately earlier). Only the
+        # agreement's existence is required here, not that it's fully
+        # paid -- payment is expected to happen across the project's
+        # lifetime, tracked by the reminder job below, and settled by
+        # the time "Completed" is reached.
+        if payment_service.get_agreement_by_project(db, project.project_no) is None:
+            problems.append("a financial agreement (payment dates and amount)")
+
+    elif new_stage == "Government Submission":
+        gate = approval_process_service.get_project_step_by_stage(db, project.id, "architectural_approval")
+        if gate.storage_key is None:
+            problems.append("the 'Architectural Design Approved by Client' stage gate")
+
+    # "Execution & Tracking" is reachable from two different previous
+    # stages: forward progress from "Government Submission" (should
+    # require the remaining gates), or reopening from "Completed" (should
+    # not -- those gates were already satisfied to get to Completed in
+    # the first place, and reopening already requires its own reason,
+    # asserted separately below).
+    elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
+        for stage_key, label in (
+            ("mew_approval", "'MEW Approval'"),
+            ("submit_baladia_kfd", "'Submit to Baladia or KFD'"),
+            ("permit_approved", "'Permit Approved'"),
+        ):
+            gate = approval_process_service.get_project_step_by_stage(db, project.id, stage_key)
+            if gate.storage_key is None:
+                problems.append(f"the {label} stage gate")
+
+    elif new_stage == "Completed":
+        steps = execution_step_service.list_project_steps(db, project.id)
+        incomplete = [s for s in steps if s.completion_percentage < 100]
+        if incomplete:
+            problems.append(f"{len(incomplete)} of {len(steps)} execution activities still incomplete")
+        agreement = payment_service.get_agreement_by_project(db, project.project_no)
+        if agreement is None:
+            problems.append("a financial agreement")
+        else:
+            summary = payment_service.get_financial_summary(db, agreement.id)
+            if summary["totalPending"] > 0:
+                problems.append(f"{summary['totalPending']} {agreement.currency} still outstanding")
+
+    if problems:
+        raise ValidationAppError(
+            f"Cannot move this project to '{new_stage}' yet -- missing: {'; '.join(problems)}."
+        )
+
+
 def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, user_id: int | None) -> Project:
     project = get_project(db, project_no)
     previous_stage = project.current_stage
     assert_transition_allowed(
         PROJECT_STAGE_ALLOWED_TRANSITIONS, previous_stage, new_stage, "project"
     )
+    _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
     # Reopening a Completed project is exceptional and source-dependent

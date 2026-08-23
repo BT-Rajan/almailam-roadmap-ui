@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -18,6 +18,8 @@ from app.models.payment import (
     PaymentObligation,
     Refund,
 )
+from app.models.project import Project
+from app.services import notification_service
 from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service
@@ -373,3 +375,71 @@ def get_financial_summary(db: Session, agreement_id: int) -> dict:
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:
     get_agreement(db, agreement_id)
     return audit_service.get_history(db, ENTITY_TYPE, agreement_id)
+
+
+# (due_date offset in days, the column that guards against re-sending,
+# title, and the message-tense to use) -- one entry per reminder point.
+_REMINDER_POINTS = (
+    (-2, "reminder_before_sent_at", "Payment due in 2 days", "is due in 2 days, on"),
+    (0, "reminder_due_sent_at", "Payment due today", "is due today,"),
+    (2, "reminder_after_sent_at", "Payment overdue", "was due 2 days ago, on"),
+)
+
+
+def check_and_notify_payment_reminders(db: Session, today: date | None = None) -> int:
+    """Finds payment obligations due_date +/- 2 days from today and not
+    yet settled, and notifies the project's engineer once per reminder
+    point (2 days before, on the day, 2 days after) -- the
+    reminder_*_sent_at columns are the same once-per-episode idempotency
+    guard as Project.stale_notified_at, just three of them since there
+    are three distinct points instead of one ongoing state.
+
+    Stops entirely, permanently, the moment date_paid is set -- "payment
+    confirmation has arrived" -- rather than tracking a separate
+    cancellation flag; Cancelled/Waived obligations are excluded the same
+    way active_obligations excludes them in get_financial_summary, since
+    neither represents money still expected to arrive.
+
+    Called periodically by the background scheduler (see main.py's
+    lifespan), but is itself a plain, directly-callable function --
+    deliberately not scheduling logic of its own, so the actual
+    due-date arithmetic can be tested without waiting on a real clock.
+    `today` is only ever overridden by tests; production calls always
+    let it default.
+
+    Returns how many reminders were newly sent in this run.
+    """
+    today = today or datetime.now(timezone.utc).date()
+
+    candidates = (
+        db.query(PaymentObligation)
+        .filter(PaymentObligation.date_paid.is_(None), PaymentObligation.manual_status.is_(None))
+        .all()
+    )
+
+    notified_count = 0
+    for obligation in candidates:
+        for offset_days, guard_column, title, tense in _REMINDER_POINTS:
+            if obligation.due_date != today - timedelta(days=offset_days):
+                continue
+            if getattr(obligation, guard_column) is not None:
+                continue
+
+            agreement = get_agreement(db, obligation.agreement_id)
+            project = db.query(Project).filter(Project.id == agreement.project_id).first()
+            if project is None or project.engineer_id is None:
+                continue
+
+            notification_service.create_notification(
+                db, project.engineer_id,
+                title,
+                f"Payment of {obligation.amount_due} {agreement.currency} for {project.project_name} "
+                f"({project.project_no}) {tense} {obligation.due_date.isoformat()}.",
+                "Payment",
+                link_route_name="payments",
+            )
+            setattr(obligation, guard_column, datetime.now(timezone.utc))
+            notified_count += 1
+
+    db.commit()
+    return notified_count

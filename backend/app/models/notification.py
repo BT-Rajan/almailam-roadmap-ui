@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.models.user import BigPK
 
-NOTIFICATION_CATEGORIES = ("Project", "Task", "Government", "AI", "System")
+NOTIFICATION_CATEGORIES = ("Project", "Task", "Government", "Payment", "AI", "System")
 
 
 class Notification(Base):
