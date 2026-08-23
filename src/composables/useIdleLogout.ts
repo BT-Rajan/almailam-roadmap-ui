@@ -19,10 +19,9 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchsta
  * and bounces to the right login screen for whichever portal the person
  * was using, with a message explaining why they landed there.
  *
- * Deliberately keyed off authStore.isAuthenticated -- covers the staff
- * app and the Site Engineer Portal, which both authenticate through
- * authStore. The Customer Portal manages its own separate (pre-existing,
- * not-yet-unified) session and isn't covered by this timer.
+ * Deliberately keyed off authStore.isAuthenticated -- covers all three
+ * frontends (staff app, Site Engineer Portal, Customer Portal), since
+ * all three now authenticate through authStore.
  */
 export function useIdleLogout(): void {
   const authStore = useAuthStore()
@@ -44,7 +43,11 @@ export function useIdleLogout(): void {
 
     const currentRoute = router.currentRoute.value
     const loginRoute =
-      currentRoute.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
+      currentRoute.meta.layout === 'site-portal'
+        ? ROUTE_NAMES.SITE_PORTAL_LOGIN
+        : currentRoute.meta.layout === 'customer-portal'
+          ? ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
+          : ROUTE_NAMES.LOGIN
 
     await authStore.logout()
     await router.push({ name: loginRoute, query: { reason: 'You were signed out after 30 minutes of inactivity.' } })

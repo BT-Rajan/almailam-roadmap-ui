@@ -1,4 +1,4 @@
-export type UserRole = 'Administrator' | 'Project Manager' | 'Engineer' | 'Document Controller' | 'Viewer'
+export type UserRole = 'Administrator' | 'Project Manager' | 'Engineer' | 'Document Controller' | 'Viewer' | 'Customer'
 
 export type UserStatus = 'Active' | 'Inactive'
 

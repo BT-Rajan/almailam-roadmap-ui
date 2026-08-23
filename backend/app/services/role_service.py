@@ -38,6 +38,7 @@ def _invalidate_cache() -> None:
 
 def _ensure_seeded(db: Session) -> None:
     if db.query(RoleDefinition).first() is not None:
+        _backfill_missing_roles(db)
         _backfill_missing_modules(db)
         return
     # This check-then-insert has a real race window: two requests can
@@ -71,6 +72,41 @@ def _ensure_seeded(db: Session) -> None:
                     )
                 )
         db.commit()
+    except IntegrityError:
+        db.rollback()
+
+
+def _backfill_missing_roles(db: Session) -> None:
+    """A role added to ROLES after this database was already seeded (e.g.
+    "Customer", added when the Customer Portal was unified onto the same
+    login/permission system) never gets a role_definitions row at all --
+    the seed-once check above only fires on a completely empty table.
+    Without this, the Administration > Roles & Permissions screen simply
+    never lists the new role. Only inserts a definition (+ its module
+    rows) for a role that's entirely missing; never touches one that
+    already exists."""
+    existing_roles = {definition.role for definition in db.query(RoleDefinition).all()}
+    missing_roles = [role for role in ROLES if role not in existing_roles]
+    if not missing_roles:
+        return
+    try:
+        for role in missing_roles:
+            definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
+            db.add(definition)
+            db.flush()
+            for module in PERMISSION_MODULES:
+                flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
+                db.add(
+                    RolePermission(
+                        role_id=definition.id,
+                        module=module,
+                        can_view=bool(flags.get("view", False)),
+                        can_edit=bool(flags.get("edit", False)),
+                        can_delete=bool(flags.get("delete", False)),
+                    )
+                )
+        db.commit()
+        _invalidate_cache()
     except IntegrityError:
         db.rollback()
 

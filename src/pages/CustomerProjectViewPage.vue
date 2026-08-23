@@ -13,13 +13,15 @@ import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { customerPortalService, CustomerPortalError } from '@/services/customerPortalService'
+import { customerPortalService } from '@/services/customerPortalService'
+import { ApiError } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
 import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, ProjectMilestone, ProjectDeliverable, ProjectUpdate } from '@/types/CustomerPortal'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
-const authorized = ref(false)
 const isLoading = ref(true)
 const isRefreshing = ref(false)
 const loadError = ref('')
@@ -31,33 +33,12 @@ const updates = ref<ProjectUpdate[]>([])
 const activities = ref<ProjectActivityGroup[]>([])
 const budget = ref<ProjectBudget | null>(null)
 
-function getAccessToken(): string | null {
-  const session = localStorage.getItem('customerPortalSession')
-  if (!session) return null
-  try {
-    const parsed = JSON.parse(session)
-    if (parsed.projectId !== route.params.projectId || !parsed.accessToken) return null
-    return parsed.accessToken as string
-  } catch {
-    return null
-  }
+async function handleLogout(): Promise<void> {
+  await authStore.logout()
+  await router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN })
 }
-
-function redirectToLogin(reason?: string): void {
-  localStorage.removeItem('customerPortalSession')
-  router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN, query: reason ? { reason } : undefined })
-}
-
-const handleLogout = () => redirectToLogin()
 
 async function loadProject(isManualRefresh = false): Promise<void> {
-  const accessToken = getAccessToken()
-  if (!accessToken) {
-    redirectToLogin()
-    return
-  }
-
-  authorized.value = true
   loadError.value = ''
   if (isManualRefresh) {
     isRefreshing.value = true
@@ -66,7 +47,7 @@ async function loadProject(isManualRefresh = false): Promise<void> {
   }
   try {
     const projectId = route.params.projectId as string
-    const view = await customerPortalService.getProjectView(projectId, accessToken)
+    const view = await customerPortalService.getProjectView(projectId)
     projectData.value = view.project
     milestones.value = view.milestones
     deliverables.value = view.deliverables
@@ -74,20 +55,21 @@ async function loadProject(isManualRefresh = false): Promise<void> {
     activities.value = view.activities
     budget.value = view.budget
   } catch (error) {
-    // Only a genuine 401 (the token really is invalid, expired, or for
-    // the wrong project -- see get_project_for_token on the backend)
-    // means the session itself is actually over. Any other failure --
-    // a dropped connection, a transient 500, a timeout -- used to be
-    // treated exactly the same way: session wiped, forced back to
-    // login with a "your session has expired" message that was simply
-    // untrue. On a customer-facing, mobile-first page, that turned an
-    // ordinary network hiccup into a full re-verification with a
-    // misleading explanation. Now: only a real auth failure logs
-    // anyone out; everything else surfaces as a retryable error and
-    // leaves the existing token (and, on a refresh, whatever was
-    // already successfully loaded) completely alone.
-    if (error instanceof CustomerPortalError && error.status === 401) {
-      redirectToLogin('Your session has expired. Please verify your access again.')
+    // Only a genuine 401/403 (the session really is invalid, or this
+    // project isn't the customer's) means access itself is over. Any
+    // other failure -- a dropped connection, a transient 500, a timeout
+    // -- used to be treated exactly the same way: session wiped, forced
+    // back to login with a "your session has expired" message that was
+    // simply untrue. On a customer-facing, mobile-first page, that
+    // turned an ordinary network hiccup into a full re-login with a
+    // misleading explanation. Now: only a real auth failure logs anyone
+    // out; everything else surfaces as a retryable error and leaves
+    // whatever was already successfully loaded completely alone.
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      await router.push({
+        name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN,
+        query: { reason: 'Your session has expired. Please sign in again.' },
+      })
       return
     }
     loadError.value = "We couldn't reach the server. Please check your connection and try again."
@@ -98,12 +80,11 @@ async function loadProject(isManualRefresh = false): Promise<void> {
 }
 
 async function handleDownload(documentId: string): Promise<void> {
-  const accessToken = getAccessToken()
   const projectId = route.params.projectId as string
-  if (!accessToken || !projectData.value) return
+  if (!projectData.value) return
   downloadError.value = ''
   try {
-    const blob = await customerPortalService.downloadDocument(projectId, documentId, accessToken)
+    const blob = await customerPortalService.downloadDocument(projectId, documentId)
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -119,7 +100,7 @@ onMounted(() => loadProject())
 </script>
 
 <template>
-  <div v-if="!authorized || isLoading" class="mx-auto max-w-3xl space-y-4 px-4 py-8 tablet:px-6">
+  <div v-if="isLoading" class="mx-auto max-w-3xl space-y-4 px-4 py-8 tablet:px-6">
     <SkeletonLoader variant="block" height="8rem" />
     <SkeletonLoader variant="block" height="12rem" />
     <SkeletonLoader variant="block" height="10rem" />

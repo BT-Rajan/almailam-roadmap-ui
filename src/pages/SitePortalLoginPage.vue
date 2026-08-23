@@ -23,7 +23,7 @@ async function handleSuccess(): Promise<void> {
     <StaffLoginForm
       id-label="Employee ID"
       id-placeholder="Enter your Employee ID"
-      :login-fn="authStore.loginWithEmployeeId"
+      :login-fn="authStore.login"
       :initial-message="initialMessage"
       @success="handleSuccess"
     />

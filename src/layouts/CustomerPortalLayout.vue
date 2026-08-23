@@ -45,7 +45,7 @@ const goHome = () => {
           &copy; {{ new Date().getFullYear() }} Almailam Engineering Consultants. All rights reserved.
         </p>
         <p class="text-xs text-text-muted mt-2">
-          This portal allows clients to track project progress using their mobile number and project ID.
+          This portal allows clients to track project progress using their Customer ID and password.
         </p>
       </div>
     </footer>

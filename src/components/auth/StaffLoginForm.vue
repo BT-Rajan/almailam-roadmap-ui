@@ -29,7 +29,7 @@ interface Props {
   // reusing the red sign-in-failure alert below.
   initialMessage?: string
   initialMessageVariant?: ToastVariant
-  // Same tokens/session either way (see authStore.loginWithEmployeeId) --
+  // Same tokens/session for all three portals (see authStore.login) --
   // only the endpoint differs, so the form itself just needs whichever
   // login function applies and stays agnostic to which one it is.
   loginFn: (id: string, password: string) => Promise<void>

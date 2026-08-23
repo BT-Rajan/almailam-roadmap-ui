@@ -1,16 +1,14 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.auth import set_refresh_cookie
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.auth import EmployeeLoginRequest, TokenResponse
 from app.schemas.status_report import EngineerProjectOption, StatusReportFileRequest, StatusReportOut
-from app.services import auth_service, status_report_service
+from app.services import status_report_service
 
 router = APIRouter(prefix="/api/site-portal", tags=["site-portal"])
 
@@ -32,13 +30,6 @@ def _report_out(db: Session, report) -> StatusReportOut:
         attached_by.full_name if attached_by else None,
         attached_task.task_no if attached_task else None,
     )
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(payload: EmployeeLoginRequest, response: Response, db: Session = Depends(get_db)):
-    tokens = auth_service.login_with_employee_id(db, payload.employeeId, payload.password)
-    set_refresh_cookie(response, tokens["refresh_token"])
-    return tokens
 
 
 @router.get("/projects", response_model=list[EngineerProjectOption])
