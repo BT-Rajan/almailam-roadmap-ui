@@ -72,6 +72,24 @@ async function handleFinalizeToggle(): Promise<void> {
     isFinalizing.value = false
   }
 }
+
+// Save-as-Final from inside the edit view: persist whatever was changed,
+// then finalize -- sequential, not parallel, so finalize can't land
+// before the content it's supposed to lock in has actually been saved.
+async function handleSaveAsFinal(patch: Partial<Quotation>): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  isFinalizing.value = true
+  try {
+    await quotationStore.updateQuotation(quotation.id, patch)
+    await quotationStore.finalizeQuotation(quotation.id)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to finalize quotation', detail)
+  } finally {
+    isFinalizing.value = false
+  }
+}
 </script>
 
 <template>
@@ -79,7 +97,7 @@ async function handleFinalizeToggle(): Promise<void> {
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">New Quotation</BaseButton>
     <div class="no-print flex items-center gap-2">
       <BaseButton
-        v-if="quotationStore.selectedQuotation?.templateKey"
+        v-if="quotationStore.selectedQuotation"
         variant="secondary"
         size="sm"
         :icon="quotationStore.selectedQuotation.finalizedAt ? LockOpen : Lock"
@@ -115,6 +133,7 @@ async function handleFinalizeToggle(): Promise<void> {
         :project="project"
         :client="client"
         @patch="handlePatch"
+        @save-as-final="handleSaveAsFinal"
       />
     </div>
 

@@ -12,6 +12,7 @@ import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import { useContractStore } from '@/stores/contractStore'
+import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
@@ -24,6 +25,7 @@ const props = defineProps<{
 }>()
 
 const contractStore = useContractStore()
+const quotationStore = useQuotationStore()
 const resultDialogStore = useResultDialogStore()
 
 const isCreateDialogOpen = ref(false)
@@ -76,6 +78,24 @@ async function handleFinalizeToggle(): Promise<void> {
     isFinalizing.value = false
   }
 }
+
+// Save-as-Final from inside the edit view: persist whatever was changed,
+// then finalize -- sequential, not parallel, so finalize can't land
+// before the content it's supposed to lock in has actually been saved.
+async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  isFinalizing.value = true
+  try {
+    await contractStore.updateContract(contract.id, patch)
+    await contractStore.finalizeContract(contract.id)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to finalize contract', detail)
+  } finally {
+    isFinalizing.value = false
+  }
+}
 </script>
 
 <template>
@@ -83,7 +103,7 @@ async function handleFinalizeToggle(): Promise<void> {
     <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Contract</BaseButton>
     <div class="flex items-center gap-2">
       <BaseButton
-        v-if="contractStore.selectedContract?.templateKey"
+        v-if="contractStore.selectedContract"
         variant="secondary"
         size="sm"
         :icon="contractStore.selectedContract.finalizedAt ? LockOpen : Lock"
@@ -119,6 +139,7 @@ async function handleFinalizeToggle(): Promise<void> {
         :project="project"
         :client="client"
         @patch="handlePatch"
+        @save-as-final="handleSaveAsFinal"
       />
 
       <div class="no-print">
@@ -154,6 +175,7 @@ async function handleFinalizeToggle(): Promise<void> {
   <NewContractDialog
     v-model="isCreateDialogOpen"
     :project="project"
+    :quotation="quotationStore.selectedQuotation ?? quotationStore.latestQuotation"
     :default-client-representative="client?.contactPerson"
     :loading="isCreating"
     @confirm="handleCreateContract"

@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { FileSignature } from '@lucide/vue'
+import { Check, FileSignature, Pencil, Plus, Trash2, X } from '@lucide/vue'
+import { reactive, ref, watch } from 'vue'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
+import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import NumberInput from '@/components/common/NumberInput.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
+import TextInput from '@/components/common/TextInput.vue'
 import ContractLetterDesignPermits from '@/components/project/letters/ContractLetterDesignPermits.vue'
 import ContractLetterSupervision from '@/components/project/letters/ContractLetterSupervision.vue'
+import type { Client } from '@/types/Client'
+import type { Contract, ContractClause } from '@/types/Contract'
+import type { Project } from '@/types/Project'
+import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getContractStatusVariant } from '@/utils/contractHelpers'
-import type { Client } from '@/types/Client'
-import type { Contract } from '@/types/Contract'
-import type { Project } from '@/types/Project'
 
 interface Props {
   contract: Contract
@@ -19,38 +28,135 @@ interface Props {
   client?: Client
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   client: undefined,
 })
 
-const emit = defineEmits<{ patch: [value: Partial<Contract>] }>()
+const emit = defineEmits<{
+  patch: [value: Partial<Contract>]
+  saveAsFinal: [value: Partial<Contract>]
+}>()
 
 const LETTER_COMPONENTS = {
   'design-and-permits': ContractLetterDesignPermits,
   supervision: ContractLetterSupervision,
 } as const
+
+const CURRENCY_OPTIONS: SelectOption[] = [
+  { label: 'KWD', value: 'KWD' },
+  { label: 'USD', value: 'USD' },
+  { label: 'EUR', value: 'EUR' },
+]
+
+// Same edit-mode flow as QuotationPreview -- click Edit to unlock changes,
+// Save/Save as Final to lock them back down, for both contract flavours.
+const isEditing = ref(false)
+
+interface DraftClause {
+  id: string
+  title: string
+  content: string
+}
+
+function draftFromContract(contract: Contract) {
+  return {
+    templateName: contract.templateName,
+    currency: contract.currency,
+    contractValue: contract.contractValue,
+    expiryDate: contract.expiryDate,
+    clientRepresentative: contract.clientRepresentative,
+    scopeSummary: contract.scopeSummary,
+    clauses: contract.clauses.map((clause) => ({ ...clause })) as DraftClause[],
+  }
+}
+
+const draft = reactive(draftFromContract(props.contract))
+
+// Switching to a different contract (or the store refreshing this one
+// after finalize/reopen) always drops out of edit mode rather than
+// silently continuing to edit against what's now stale data.
+watch(
+  () => props.contract.id,
+  () => {
+    isEditing.value = false
+  },
+)
+
+function startEditing(): void {
+  Object.assign(draft, draftFromContract(props.contract))
+  isEditing.value = true
+}
+
+function cancelEditing(): void {
+  isEditing.value = false
+}
+
+function addClause(): void {
+  draft.clauses.push({ id: `new-${draft.clauses.length}-${Date.now()}`, title: '', content: '' })
+}
+
+function removeClause(index: number): void {
+  draft.clauses.splice(index, 1)
+}
+
+function buildPatch(): Partial<Contract> {
+  return {
+    templateName: draft.templateName.trim(),
+    currency: draft.currency,
+    contractValue: draft.contractValue,
+    expiryDate: draft.expiryDate,
+    clientRepresentative: draft.clientRepresentative.trim(),
+    scopeSummary: draft.scopeSummary.trim(),
+    clauses: draft.clauses.map((clause) => ({
+      id: clause.id,
+      title: clause.title.trim(),
+      content: clause.content.trim(),
+    })) as ContractClause[],
+  }
+}
+
+function saveDraft(): void {
+  emit('patch', buildPatch())
+  isEditing.value = false
+}
+
+function saveAsFinal(): void {
+  emit('saveAsFinal', buildPatch())
+  isEditing.value = false
+}
 </script>
 
 <template>
   <Card class="print:shadow-none" :padded="true">
     <div id="contract-print-area" class="flex flex-col gap-6">
-      <template v-if="contract.templateKey">
-        <div class="no-print flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h2 class="text-lg font-semibold text-text-primary">{{ contract.contractNo }}</h2>
-            <StatusBadge :label="contract.status" :variant="getContractStatusVariant(contract.status)" />
-          </div>
+      <div class="no-print flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-semibold text-text-primary">{{ contract.contractNo }}</h2>
+          <StatusBadge :label="contract.status" :variant="getContractStatusVariant(contract.status)" />
+        </div>
+        <div class="flex items-center gap-2">
           <span
             class="rounded-full px-2.5 py-1 text-xs font-medium"
             :class="contract.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
           >
-            {{ contract.finalizedAt ? 'Final' : 'Draft — click text to edit' }}
+            {{ contract.finalizedAt ? 'Final' : isEditing ? 'Editing' : 'Draft' }}
           </span>
+          <BaseButton v-if="!contract.finalizedAt && !isEditing" variant="secondary" size="sm" :icon="Pencil" @click="startEditing">
+            Edit
+          </BaseButton>
+          <template v-else-if="isEditing">
+            <BaseButton variant="ghost" size="sm" :icon="X" @click="cancelEditing">Cancel</BaseButton>
+            <BaseButton variant="secondary" size="sm" :icon="Check" @click="saveDraft">Save</BaseButton>
+            <BaseButton size="sm" @click="saveAsFinal">Save as Final</BaseButton>
+          </template>
         </div>
+      </div>
+
+      <template v-if="contract.templateKey">
         <component
           :is="LETTER_COMPONENTS[contract.templateKey]"
           :contract="contract"
-          :editable="!contract.finalizedAt"
+          :editable="isEditing"
           @patch="(v) => emit('patch', v)"
         />
       </template>
@@ -68,11 +174,8 @@ const LETTER_COMPONENTS = {
         </div>
 
         <div class="flex flex-col gap-1 tablet:items-end">
-          <div class="flex items-center gap-2">
-            <h2 class="text-lg font-semibold text-text-primary">{{ contract.contractNo }}</h2>
-            <StatusBadge :label="contract.status" :variant="getContractStatusVariant(contract.status)" />
-          </div>
-          <p class="text-xs text-text-muted">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
+          <p v-if="!isEditing" class="text-xs text-text-muted">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
+          <TextInput v-else v-model="draft.templateName" label="Template Name" class="w-64" />
         </div>
       </div>
 
@@ -82,7 +185,8 @@ const LETTER_COMPONENTS = {
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Client</p>
           <p class="text-sm font-semibold text-text-primary">{{ client?.companyName ?? 'Unknown Client' }}</p>
-          <p class="text-sm text-text-muted">Represented by {{ contract.clientRepresentative }}</p>
+          <TextInput v-if="isEditing" v-model="draft.clientRepresentative" placeholder="Client representative" class="mt-1" />
+          <p v-else class="text-sm text-text-muted">Represented by {{ contract.clientRepresentative }}</p>
         </div>
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Project</p>
@@ -95,7 +199,11 @@ const LETTER_COMPONENTS = {
           <p v-if="contract.signedDate" class="text-sm text-text-muted">
             Signed: {{ formatDate(contract.signedDate) }}
           </p>
-          <p class="text-sm text-text-muted">Expires: {{ formatDate(contract.expiryDate) }}</p>
+          <template v-if="isEditing">
+            <DatePicker v-model="draft.expiryDate" label="Expiry Date" />
+            <SelectBox v-model="draft.currency" label="Currency" :options="CURRENCY_OPTIONS" />
+          </template>
+          <p v-else class="text-sm text-text-muted">Expires: {{ formatDate(contract.expiryDate) }}</p>
         </div>
       </div>
 
@@ -103,26 +211,52 @@ const LETTER_COMPONENTS = {
 
       <div class="flex flex-col gap-2">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Scope Summary</p>
-        <p class="text-sm leading-relaxed text-text-secondary">{{ contract.scopeSummary }}</p>
+        <TextArea v-if="isEditing" v-model="draft.scopeSummary" :rows="3" />
+        <p v-else class="text-sm leading-relaxed text-text-secondary">{{ contract.scopeSummary }}</p>
       </div>
 
       <div class="flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
         <span class="text-sm font-medium text-text-secondary">Contract Value</span>
-        <span class="text-lg font-semibold text-primary-700">
+        <NumberInput
+          v-if="isEditing"
+          :model-value="draft.contractValue"
+          :min="0.01"
+          step="0.01"
+          class="w-40"
+          @update:model-value="draft.contractValue = Number($event)"
+        />
+        <span v-else class="text-lg font-semibold text-primary-700">
           {{ formatCurrency(contract.contractValue, contract.currency) }}
         </span>
       </div>
 
       <div class="flex flex-col gap-4">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Clauses</p>
-        <div
-          v-for="(clause, index) in contract.clauses"
-          :key="clause.id"
-          class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
-        >
-          <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
-          <p class="text-sm leading-relaxed text-text-secondary">{{ clause.content }}</p>
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Clauses</p>
+          <BaseButton v-if="isEditing" variant="ghost" size="sm" :icon="Plus" @click="addClause">Add Clause</BaseButton>
         </div>
+
+        <template v-if="!isEditing">
+          <div
+            v-for="(clause, index) in contract.clauses"
+            :key="clause.id"
+            class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
+          >
+            <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
+            <p class="text-sm leading-relaxed text-text-secondary">{{ clause.content }}</p>
+          </div>
+        </template>
+        <template v-else>
+          <div v-for="(clause, index) in draft.clauses" :key="clause.id" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
+            <div class="flex items-start gap-2">
+              <div class="flex-1">
+                <TextInput v-model="clause.title" placeholder="Clause title" />
+              </div>
+              <IconButton :icon="Trash2" label="Remove clause" size="sm" @click="removeClause(index)" />
+            </div>
+            <TextArea v-model="clause.content" placeholder="Clause content" :rows="2" />
+          </div>
+        </template>
       </div>
 
       <p class="no-print text-center text-xs text-text-muted">
