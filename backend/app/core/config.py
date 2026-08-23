@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # Server-side backstop for the 30-minute idle logout: independent of
+    # the client-side activity timer (see useIdleLogout.ts), a refresh
+    # token that hasn't actually been used to mint a new access token in
+    # this long is treated as an abandoned session, not a live one, even
+    # though it isn't outright expired yet. Kept equal to the frontend's
+    # timeout so both layers agree on what "idle" means.
+    INACTIVITY_TIMEOUT_MINUTES: int = 30
 
     # Controls the `Secure` attribute on the refresh-token cookie. Left
     # unset (None) by default, in which case it falls back to is_production

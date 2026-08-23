@@ -7,12 +7,15 @@ import ResultDialog from '@/components/common/ResultDialog.vue'
 import AIAssistantDrawer from '@/components/ai/AIAssistantDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
+import { useIdleLogout } from '@/composables/useIdleLogout'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CustomerPortalLayout from '@/layouts/CustomerPortalLayout.vue'
 import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 
 const route = useRoute()
+
+useIdleLogout()
 
 const layout = computed(() => {
   if (route.meta.layout === 'auth') return AuthLayout

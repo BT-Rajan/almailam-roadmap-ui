@@ -32,7 +32,13 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        # No max_age/expires: this is deliberately a session cookie, not a
+        # persistent one. Browsers drop session cookies when the browser
+        # itself (not just the tab) is closed, so a closed browser can't
+        # come back and silently resume the session. The refresh token's
+        # own JWT/DB expiry (REFRESH_TOKEN_EXPIRE_DAYS) still caps how
+        # long it would be usable if a browser's "restore previous
+        # session" setting keeps the cookie alive across a restart anyway.
         path=REFRESH_COOKIE_PATH,
         httponly=True,
         secure=settings.cookie_secure,
