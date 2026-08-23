@@ -471,14 +471,15 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore()
 
-  // Restore the session from the stored refresh token on first navigation
-  // (e.g. after a page reload) before deciding whether to redirect.
-  if (!authStore.isHydrated) {
-    await authStore.hydrate()
-  }
+  // No session-restore-on-load here, deliberately -- a page refresh, a
+  // reopened tab, or a freshly relaunched browser all start logged out.
+  // (authStore no longer has a hydrate()/silent-cookie-restore step; see
+  // its tryRefresh() comment.) Only genuine mid-session token renewal
+  // (via httpClient's 401 retry, while the SPA is still running) uses the
+  // refresh cookie.
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Site portal routes bounce to the site portal's own login, not the

@@ -36,6 +36,5 @@ export function useAuth() {
     login: (username: string, password: string) => authStore.login(username, password),
     logout: () => authStore.logout(),
     tryRefresh: () => authStore.tryRefresh(),
-    hydrate: () => authStore.hydrate(),
   }
 }
