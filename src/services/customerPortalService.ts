@@ -1,51 +1,28 @@
-import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, ProjectDeliverable, ProjectMilestone, ProjectUpdate } from '@/types/CustomerPortal'
+import { apiClient } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
+import type {
+  CustomerProjectStatus,
+  ProjectActivityGroup,
+  ProjectBudget,
+  ProjectDeliverable,
+  ProjectMilestone,
+  ProjectUpdate,
+} from '@/types/CustomerPortal'
 
-// Deliberately not using the shared apiClient (src/services/httpClient.ts):
-// that client attaches the staff session's access token to every request
-// and logs the staff member out on a 401. The customer portal is a
-// completely separate, public-facing auth flow with its own token type --
-// mixing the two could incorrectly invalidate an unrelated staff session
-// if a customer's access link expires while an admin has the app open in
-// another tab.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+// Now the same authenticated apiClient (src/services/httpClient.ts) every
+// other service uses -- the Customer Portal authenticates through the
+// shared authStore/access-token session like the staff app and Site
+// Engineer Portal, not a separate bespoke token type, so there's no
+// longer a reason to keep it on its own raw-fetch plumbing.
 
-export class CustomerPortalError extends Error {
-  status: number
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
-async function extractErrorMessage(response: Response): Promise<string> {
-  try {
-    const data = await response.json()
-    return data?.error ?? data?.detail ?? data?.message ?? `Request failed (${response.status})`
-  } catch {
-    return `Request failed (${response.status})`
-  }
-}
-
-interface VerifyResponse {
-  accessToken: string
+export interface CustomerProjectOption {
   projectId: string
+  projectName: string
 }
 
-/**
- * Verify a customer's access to a project by project ID and mobile number,
- * via the real backend. Returns the access token to use for subsequent
- * requests, or throws if verification fails.
- */
-async function verify(projectId: string, mobileNumber: string): Promise<VerifyResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/customer-portal/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, mobileNumber }),
-  })
-  if (!response.ok) {
-    throw new CustomerPortalError(response.status, await extractErrorMessage(response))
-  }
-  return (await response.json()) as VerifyResponse
+/** Every project belonging to the logged-in customer's client record. */
+async function listMyProjects(): Promise<CustomerProjectOption[]> {
+  return apiClient.get<CustomerProjectOption[]>('/api/customer-portal/projects')
 }
 
 interface CustomerProjectView {
@@ -57,37 +34,42 @@ interface CustomerProjectView {
   budget: ProjectBudget | null
 }
 
-/**
- * Fetch the full project view (status, milestones, deliverables, updates)
- * for a verified customer session.
- */
-async function getProjectView(projectId: string, accessToken: string): Promise<CustomerProjectView> {
-  const response = await fetch(`${API_BASE_URL}/api/customer-portal/projects/${projectId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!response.ok) {
-    throw new CustomerPortalError(response.status, await extractErrorMessage(response))
-  }
-  return (await response.json()) as CustomerProjectView
+/** Fetch the full project view (status, milestones, deliverables, updates). */
+async function getProjectView(projectId: string): Promise<CustomerProjectView> {
+  return apiClient.get<CustomerProjectView>(`/api/customer-portal/projects/${projectId}`)
 }
 
 /**
  * Download a deliverable document's stored file. Only documents that
  * have actually been shared (not "Draft") are downloadable -- the
  * backend enforces this regardless of what the frontend requests.
+ *
+ * apiClient.get parses JSON, so a raw authenticated fetch is used here
+ * instead -- same 401-retry-once handling as the rest of apiClient.
  */
-async function downloadDocument(projectId: string, documentId: string, accessToken: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}/api/customer-portal/projects/${projectId}/documents/${documentId}/download`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
+async function downloadDocument(projectId: string, documentId: string): Promise<Blob> {
+  const authStore = useAuthStore()
+  const path = `/api/customer-portal/projects/${projectId}/documents/${documentId}/download`
+
+  const doRequest = () =>
+    fetch(path, {
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+    })
+
+  let response = await doRequest()
+  if (response.status === 401) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) response = await doRequest()
+  }
   if (!response.ok) {
-    throw new CustomerPortalError(response.status, await extractErrorMessage(response))
+    throw new Error(`Download failed with status ${response.status}`)
   }
   return await response.blob()
 }
 
 export const customerPortalService = {
-  verify,
+  listMyProjects,
   getProjectView,
   downloadDocument,
 }

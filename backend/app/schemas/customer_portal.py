@@ -1,16 +1,15 @@
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
-class CustomerPortalVerifyRequest(BaseModel):
-    projectId: str = Field(min_length=1, max_length=20)
-    mobileNumber: str = Field(min_length=1, max_length=30)
+class CustomerProjectOption(BaseModel):
+    """One project a logged-in customer can view -- returned by GET
+    /api/customer-portal/projects so the frontend can auto-redirect when
+    there's exactly one, or show a picker when there's more than one."""
 
-
-class CustomerPortalVerifyResponse(BaseModel):
-    accessToken: str
     projectId: str
+    projectName: str
 
 
 class CustomerProjectStatus(BaseModel):

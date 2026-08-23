@@ -23,7 +23,7 @@ const goHome = () => {
             <p class="text-xs text-text-muted">Project Tracking</p>
           </div>
         </button>
-        <div class="text-right">
+        <div class="hidden text-right tablet:block">
           <p class="text-xs text-text-muted">Almailam Engineering Consultants</p>
         </div>
       </div>
@@ -45,7 +45,7 @@ const goHome = () => {
           &copy; {{ new Date().getFullYear() }} Almailam Engineering Consultants. All rights reserved.
         </p>
         <p class="text-xs text-text-muted mt-2">
-          This portal allows clients to track project progress using their mobile number and project ID.
+          This portal allows clients to track project progress using their Customer ID and password.
         </p>
       </div>
     </footer>
