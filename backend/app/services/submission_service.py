@@ -135,23 +135,24 @@ def set_status(
         assert_reason_given(reason, f"A reason is required to move the submission to '{new_status}'.")
 
     # An authority approving a submission implies every document it asked
-    # for has actually been checked, not just attached -- "Approved" while
-    # a required document still sits at "Pending" (never even uploaded) is
-    # a real state a reviewer could otherwise put the record in by
-    # clicking through the status dropdown alone. Only "Approved" is
-    # gated, not "Submitted": you're allowed to submit with paperwork
-    # still catching up, same as real filings often work, but the
-    # authority's own sign-off should mean the checklist is actually done.
+    # for has actually been provided, not left at "Pending" (never even
+    # uploaded) -- that's a real state a reviewer could otherwise put the
+    # record in by clicking through the status dropdown directly instead
+    # of going through mark_complete(). Reuses the same bar
+    # all_documents_satisfied() already uses elsewhere in this file
+    # ("Uploaded" or "Verified") rather than inventing a stricter one --
+    # this workflow has no separate verification step, so requiring
+    # "Verified" specifically would make a fully-Approved,
+    # fully-documented submission unable to ever complete. Only
+    # "Approved" is gated, not "Submitted": paperwork can trail a
+    # submission being filed, but the authority's own sign-off should mean
+    # the checklist is actually done.
     if new_status == "Approved":
-        unverified = (
-            db.query(SubmissionDocument)
-            .filter(SubmissionDocument.submission_id == submission.id, SubmissionDocument.status != "Verified")
-            .all()
-        )
-        if unverified:
-            names = ", ".join(d.name for d in unverified)
+        documents = get_documents(db, submission.id)
+        if not all_documents_satisfied(documents):
+            missing = [d.name for d in documents if d.status not in ("Uploaded", "Verified")]
             raise ValidationAppError(
-                f"Cannot approve this submission -- these required documents are not yet Verified: {names}."
+                f"Cannot approve this submission -- these required documents are still pending: {', '.join(missing)}."
             )
 
     audit_service.log_event(
