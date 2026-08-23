@@ -12,7 +12,6 @@ CLIENT_STATUSES = ("Active", "Inactive")
 CLIENT_ONBOARDING_STATES = (
     "Information Required",
     "Documents Required",
-    "Verification Required",
     "Under Review",
     "Ready",
     "Rejected",

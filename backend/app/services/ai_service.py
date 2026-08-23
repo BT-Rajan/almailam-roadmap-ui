@@ -373,11 +373,10 @@ async def verify_identification_document(db, image_base64: str, media_type: str,
     are a real result or AIUnavailableError, never a fabricated guess.
 
     This is a lightweight plausibility check, not a substitute for the
-    app's existing verification workflow (ClientVerification records,
-    the "Verification Required" onboarding stage) -- it catches an
-    obviously wrong upload (a selfie, a random photo, a different
-    document type) at the moment of upload, not whether a genuine
-    Civil ID is itself authentic or unexpired.
+    app's existing verification workflow (ClientVerification records) --
+    it catches an obviously wrong upload (a selfie, a random photo, a
+    different document type) at the moment of upload, not whether a
+    genuine Civil ID is itself authentic or unexpired.
     """
     config, _providers = ai_config_service.get_configuration(db)
     if not config.is_enabled:

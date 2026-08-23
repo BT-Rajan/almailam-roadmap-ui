@@ -140,7 +140,6 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
   { label: 'All Onboarding States', value: 'All' },
   { label: 'Information Required', value: 'Information Required' },
   { label: 'Documents Required', value: 'Documents Required' },
-  { label: 'Verification Required', value: 'Verification Required' },
   { label: 'Under Review', value: 'Under Review' },
   { label: 'Ready', value: 'Ready' },
   { label: 'Rejected', value: 'Rejected' },
@@ -154,8 +153,7 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
 // backend rejects it) rather than open.
 export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState, ClientOnboardingState[]> = {
   'Information Required': ['Documents Required'],
-  'Documents Required': ['Verification Required'],
-  'Verification Required': ['Under Review'],
+  'Documents Required': ['Under Review'],
   'Under Review': ['Ready', 'Rejected', 'Documents Required'],
   Ready: ['Suspended'],
   Suspended: ['Under Review', 'Rejected'],
@@ -190,6 +188,18 @@ const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
     required: false,
     isSatisfied: (ctx) => ctx.addresses.length > 0,
   },
+  {
+    label: 'Identification recorded',
+    category: 'Identification',
+    required: true,
+    isSatisfied: (ctx) => ctx.identifications.length > 0,
+  },
+  {
+    label: 'Consent recorded',
+    category: 'Consent',
+    required: true,
+    isSatisfied: (ctx) => CLIENT_CONSENT_TYPE_OPTIONS.every((c) => !c.mandatory || ctx.consents.some((consent) => consent.consentType === c.type && consent.granted)),
+  },
 ]
 
 const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
@@ -222,6 +232,18 @@ const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
     category: 'Document',
     required: false,
     isSatisfied: (ctx) => ctx.documents.length > 1,
+  },
+  {
+    label: 'Identification recorded',
+    category: 'Identification',
+    required: true,
+    isSatisfied: (ctx) => ctx.identifications.length > 0,
+  },
+  {
+    label: 'Consent recorded',
+    category: 'Consent',
+    required: true,
+    isSatisfied: (ctx) => CLIENT_CONSENT_TYPE_OPTIONS.every((c) => !c.mandatory || ctx.consents.some((consent) => consent.consentType === c.type && consent.granted)),
   },
 ]
 

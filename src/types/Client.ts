@@ -5,7 +5,6 @@ export type ClientType = 'Individual' | 'Company' | 'Organisation' | 'Government
 export type ClientOnboardingState =
   | 'Information Required'
   | 'Documents Required'
-  | 'Verification Required'
   | 'Under Review'
   | 'Ready'
   | 'Rejected'
@@ -152,11 +151,13 @@ export interface OnboardingCheckContext {
   documents: ClientDocument[]
   contacts: ClientContact[]
   addresses: ClientAddress[]
+  identifications: ClientIdentification[]
+  consents: ClientConsent[]
 }
 
 export interface ClientOnboardingRequirement {
   label: string
-  category: 'Information' | 'Document'
+  category: 'Information' | 'Document' | 'Identification' | 'Consent'
   required: boolean
   isSatisfied: (ctx: OnboardingCheckContext) => boolean
 }
@@ -196,7 +197,7 @@ export interface ClientAuditEvent {
 
 export type ClientViewMode = 'grid' | 'table'
 
-export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'verification' | 'consent' | 'projects' | 'activity'
+export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'consent' | 'projects' | 'activity'
 
 export interface ClientWorkspaceTab {
   key: ClientWorkspaceTabKey

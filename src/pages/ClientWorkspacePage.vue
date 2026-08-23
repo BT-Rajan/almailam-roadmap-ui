@@ -32,7 +32,6 @@ const ClientDocumentCard = defineAsyncComponent(() => import('@/components/clien
 const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
 const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
 const ClientDocumentVersionDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentVersionDialog.vue'))
-const ClientVerificationList = defineAsyncComponent(() => import('@/components/client/ClientVerificationList.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
 const ClientConsentDialog = defineAsyncComponent(() => import('@/components/client/ClientConsentDialog.vue'))
@@ -115,7 +114,6 @@ const TABS: ClientWorkspaceTab[] = [
   { key: 'contacts', label: 'Contacts' },
   { key: 'identification', label: 'Identification' },
   { key: 'documents', label: 'Documents' },
-  { key: 'verification', label: 'Verification' },
   { key: 'consent', label: 'Consent' },
   { key: 'projects', label: 'Projects' },
   { key: 'activity', label: 'Activity' },
@@ -706,12 +704,16 @@ function createProjectForClient(): void {
             :documents="clientStore.documents"
             :contacts="clientStore.contacts"
             :addresses="clientStore.addresses"
+            :identifications="clientStore.identifications"
+            :consents="clientStore.consents"
           />
           <ClientOnboardingActions
             :client="client"
             :documents="clientStore.documents"
             :contacts="clientStore.contacts"
             :addresses="clientStore.addresses"
+            :identifications="clientStore.identifications"
+            :consents="clientStore.consents"
             :verifications="clientStore.verifications"
             :loading="isOnboardingStateSaving"
             @autoAdvance="handleAutoAdvanceOnboarding"
@@ -792,13 +794,6 @@ function createProjectForClient(): void {
           :loading="isVersionHistoryLoading"
           @download="handleDownloadVersion"
         />
-      </template>
-
-      <template v-else-if="activeTab === 'verification'">
-        <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="ShieldCheck" @click="openVerificationDialog()">Record Verification</BaseButton>
-        </div>
-        <ClientVerificationList :verifications="clientStore.verifications" />
       </template>
 
       <template v-else-if="activeTab === 'consent'">

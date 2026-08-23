@@ -55,10 +55,16 @@ TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 # original scope only covered submissions/quotations/contracts/tasks/
 # payment overrides and didn't anticipate this one, but it's the same
 # mechanism and belongs in the same table of tables.
+#
+# "Verification Required" was removed as its own state: onboarding
+# completeness is now judged on Identification and Consent being on
+# file (see clientHelpers.ts's calculateOnboardingState), not on
+# document verification, so "Documents Required" now moves straight to
+# "Under Review". Document verification itself is unaffected -- it's
+# still recorded per-document, it just no longer gates onboarding.
 CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Information Required": {"Documents Required"},
-    "Documents Required": {"Verification Required"},
-    "Verification Required": {"Under Review"},
+    "Documents Required": {"Under Review"},
     "Under Review": {"Ready", "Rejected", "Documents Required"},
     "Ready": {"Suspended"},
     "Suspended": {"Under Review", "Rejected"},

@@ -101,7 +101,7 @@ def main() -> None:
         },
     )
     site_client = client_service.create_client(db, site_client_payload, actor.id)
-    for state in ["Documents Required", "Verification Required", "Under Review", "Ready"]:
+    for state in ["Documents Required", "Under Review", "Ready"]:
         client_service.set_onboarding_state(db, site_client.id, state, None, actor.id)
 
     site_project = project_service.create_project(
@@ -144,7 +144,7 @@ def main() -> None:
         },
     )
     portal_client = client_service.create_client(db, portal_client_payload, actor.id)
-    for state in ["Documents Required", "Verification Required", "Under Review", "Ready"]:
+    for state in ["Documents Required", "Under Review", "Ready"]:
         client_service.set_onboarding_state(db, portal_client.id, state, None, actor.id)
 
     portal_project = project_service.create_project(

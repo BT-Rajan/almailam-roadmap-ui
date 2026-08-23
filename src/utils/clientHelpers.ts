@@ -2,8 +2,11 @@ import { CLIENT_ONBOARDING_REQUIREMENTS } from '@/constants/clientOptions'
 import type {
   Client,
   ClientAddress,
+  ClientConsent,
   ClientContact,
   ClientDocument,
+  ClientIdentification,
+  ClientOnboardingRequirement,
   ClientOnboardingState,
   ClientStatus,
   ClientVerification,
@@ -15,7 +18,6 @@ import type { BadgeVariant } from '@/types/Ui'
 const ONBOARDING_STATE_VARIANTS: Record<ClientOnboardingState, BadgeVariant> = {
   'Information Required': 'warning',
   'Documents Required': 'warning',
-  'Verification Required': 'info',
   'Under Review': 'info',
   Ready: 'success',
   Rejected: 'danger',
@@ -66,6 +68,11 @@ interface OnboardingSummary {
   totalCount: number
   completionPercentage: number
   missingItems: string[]
+  /** Categories of the required-but-unsatisfied items in missingItems --
+   * lets calculateOnboardingState() below route a client to the right
+   * onboarding state (e.g. a missing Document vs a missing Identification
+   * or Consent) without string-matching on the label text. */
+  missingCategories: ClientOnboardingRequirement['category'][]
   /** Every configured item's satisfied/not state, including optional ones
    * (which don't affect missingItems/completion% but still need a real
    * answer for display -- previously optional items were never evaluated
@@ -88,11 +95,15 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
   const requiredItems = requirements.filter((requirement) => requirement.required)
 
   const missingItems: string[] = []
+  const missingCategories: ClientOnboardingRequirement['category'][] = []
   const satisfiedByLabel: Record<string, boolean> = {}
   requirements.forEach((requirement) => {
     const satisfied = requirement.isSatisfied(ctx)
     satisfiedByLabel[requirement.label] = satisfied
-    if (requirement.required && !satisfied) missingItems.push(requirement.label)
+    if (requirement.required && !satisfied) {
+      missingItems.push(requirement.label)
+      missingCategories.push(requirement.category)
+    }
   })
 
   const completedCount = requiredItems.length - missingItems.length
@@ -102,6 +113,7 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
     totalCount: requiredItems.length,
     completionPercentage: requiredItems.length === 0 ? 100 : Math.round((completedCount / requiredItems.length) * 100),
     missingItems,
+    missingCategories,
     satisfiedByLabel,
   }
 }
@@ -110,12 +122,11 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
  * Verifications are append-only history (see client_service.py's
  * create_verification -- re-verifying something adds a new row, it
  * never edits or removes the old one, on purpose, so the audit trail
- * of who checked what and when is never lost). That's correct for the
- * Verification tab's own display, but calculateOnboardingState() below
- * needs to know the CURRENT state of each item, not its whole history --
- * without this, a document that was Pending and later re-verified as
- * Verified would still count as pending forever, because the old
- * Pending row is still sitting in the list. Same bug, worse
+ * of who checked what and when is never lost). calculateOnboardingState()
+ * below needs to know the CURRENT state of each item, not its whole
+ * history -- without this, a document that was Pending and later
+ * re-verified as Verified would still count as pending forever, because
+ * the old Pending row is still sitting in the list. Same bug, worse
  * consequence, for Rejected: a client could get permanently stuck in
  * the Rejected onboarding state even after the actual problem was
  * fixed and re-verified, since the stale Rejected row never goes away
@@ -139,26 +150,35 @@ function latestVerificationPerItem(verifications: ClientVerification[]): ClientV
   return Array.from(latestByKey.values())
 }
 
+/**
+ * Onboarding is only complete (Ready) once Identification and Consent
+ * are both on file -- documents (category 'Document') and basic profile
+ * info (category 'Information') are earlier gates (Documents Required /
+ * Information Required respectively). A document that's been actively
+ * rejected on verification still short-circuits straight to Rejected,
+ * same as before -- that's a real problem flag, independent of which
+ * step the client happens to be on.
+ */
 export function calculateOnboardingState(
   client: Client,
   documents: ClientDocument[],
   contacts: ClientContact[],
   addresses: ClientAddress[],
+  identifications: ClientIdentification[],
+  consents: ClientConsent[],
   verifications: ClientVerification[],
 ): ClientOnboardingState {
   if (client.onboardingState === 'Rejected' || client.onboardingState === 'Suspended') {
     return client.onboardingState
   }
 
-  const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses })
+  const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses, identifications, consents })
   const currentVerifications = latestVerificationPerItem(verifications)
   const hasRejectedVerification = currentVerifications.some((verification) => verification.result === 'Rejected')
-  const hasPendingVerification = currentVerifications.some((verification) => verification.result === 'Pending')
 
   if (hasRejectedVerification) return 'Rejected'
-  if (summary.missingItems.some((item) => item.toLowerCase().includes('document'))) return 'Documents Required'
-  if (summary.missingItems.length > 0) return 'Information Required'
-  if (hasPendingVerification) return 'Verification Required'
-  if (currentVerifications.length === 0) return 'Under Review'
+  if (summary.missingCategories.includes('Document')) return 'Documents Required'
+  if (summary.missingCategories.includes('Information')) return 'Information Required'
+  if (summary.missingCategories.includes('Identification') || summary.missingCategories.includes('Consent')) return 'Under Review'
   return 'Ready'
 }

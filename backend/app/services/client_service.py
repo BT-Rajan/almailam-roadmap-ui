@@ -386,7 +386,7 @@ def check_and_notify_stale_onboarding(db: Session) -> int:
     (see main.py) rather than a second one -- one background job doing
     two related checks, not two nearly-identical jobs.
     """
-    IN_PROGRESS_STATES = ("Information Required", "Documents Required", "Verification Required", "Under Review")
+    IN_PROGRESS_STATES = ("Information Required", "Documents Required", "Under Review")
 
     settings = company_service.get_settings(db)
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=settings.stale_onboarding_alert_days)
