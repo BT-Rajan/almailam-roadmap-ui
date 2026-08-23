@@ -193,29 +193,12 @@ const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
   1: ['projectName', 'startDate', 'targetDate'],
 }
 
-const permitsStepError = ref<string>()
-
-function validatePermitsStep(): boolean {
-  permitsStepError.value = undefined
-  if (form.involvesPermits === '') {
-    permitsStepError.value = 'Please indicate whether this project involves any permits.'
-    return false
-  }
-  if (form.involvesPermits === 'yes') {
-    if (form.permits.length === 0) {
-      permitsStepError.value = 'Add at least one permit, or answer "No" above if none apply.'
-      return false
-    }
-    if (form.permits.some((permit) => permit.clientHas === '')) {
-      permitsStepError.value = 'Confirm whether the client already has each permit listed.'
-      return false
-    }
-  }
-  return true
-}
-
 function validateStep(step: number): boolean {
-  if (step === 2) return validatePermitsStep()
+  // Step 2 (Permits) is informational only -- it's never allowed to
+  // block moving on or creating the project, regardless of whether
+  // "involves permits" was answered or every listed permit has a
+  // client-has answer.
+  if (step === 2) return true
 
   const fields = STEP_FIELDS[step]
   if (!fields) return true
@@ -251,10 +234,6 @@ function selectedEngineerName(): string {
 async function submitWizard(): Promise<void> {
   if (!validateStep(0) || !validateStep(1)) {
     currentStep.value = 0
-    return
-  }
-  if (!validateStep(2)) {
-    currentStep.value = 2
     return
   }
 
@@ -465,8 +444,6 @@ function goToCreatedProject(): void {
               </p>
             </div>
           </template>
-
-          <p v-if="permitsStepError" class="text-xs text-danger-600">{{ permitsStepError }}</p>
         </FormSection>
 
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
