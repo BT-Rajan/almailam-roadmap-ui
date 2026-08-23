@@ -1,13 +1,10 @@
-import re
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AuthError, NotFoundError
+from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.file_storage import resolve_path
-from app.core.lockout import LockoutTracker
-from app.core.security import create_access_token, decode_token
-from app.models.client import Client, ClientContact
+from app.models.client import Client
 from app.models.document import ProjectDocument
 from app.models.payment import FinancialAgreement, PaymentObligation
 from app.models.project import Project, ProjectSelectedActivity
@@ -15,96 +12,46 @@ from app.models.timeline import ProjectTimelineEvent
 from app.models.user import User
 from app.services import company_service, payment_service
 
-# Customer portal tokens are deliberately longer-lived than staff access
-# tokens (customers browsing their project shouldn't get logged out after
-# 15 minutes), and are their own token "type" so they can never be used
-# to call any staff-facing endpoint even if somehow presented there --
-# get_current_user (app/api/deps.py) only accepts type == "access".
-CUSTOMER_PORTAL_TOKEN_TYPE = "customer_portal"
-CUSTOMER_PORTAL_TOKEN_EXPIRE_MINUTES = 60
 
-# Unlike staff login (5 attempts / 15 min, persisted on the user row via
-# failed_login_attempts/locked_until), there's no account row per portal
-# visitor to persist a counter on -- this is keyed by project instead,
-# in-memory, same trade-off as core/rate_limit.py. Without this, the
-# only thing standing between an attacker and brute-forcing the last-9-
-# digits mobile match for a known project ID was the blanket 300 req/min
-# IP limiter, which is far too loose for a single-field guessing attack.
-_verify_lockout = LockoutTracker(max_attempts=5, lockout_seconds=15 * 60)
+def _require_customer(current_user: User) -> User:
+    """Every Customer Portal endpoint goes through this -- role gating
+    plus the client_id scope every other function here filters by.
+    Rejecting a Customer account with no client_id (shouldn't happen via
+    the normal account-creation path, but a corrupt/manually-edited row
+    is cheap to guard against) rather than silently returning nothing
+    for it, which would look like "you have zero projects" instead of
+    the actual misconfiguration."""
+    if current_user.role != "Customer" or current_user.client_id is None:
+        raise PermissionDeniedError()
+    return current_user
 
 
-def _digits(value: str) -> str:
-    return re.sub(r"\D", "", value)
-
-
-def _mobile_matches(candidate: str, input_mobile: str) -> bool:
-    # Compares the last 9 digits so formatting differences (+971 vs 0
-    # prefix, spaces, dashes) don't block a legitimate match.
-    candidate_digits = _digits(candidate)[-9:]
-    input_digits = _digits(input_mobile)[-9:]
-    return bool(candidate_digits) and candidate_digits == input_digits
-
-
-def verify_and_issue_token(db: Session, project_no: str, mobile_number: str) -> str | None:
-    """Returns an access token if the mobile number matches the client's
-    own number or one of their contacts' numbers for this project, else
-    None. Deliberately does not distinguish "project not found" from
-    "mobile didn't match" in what it returns, mirroring the generic
-    failure message auth_service.py uses for staff login -- so this
-    can't be used to enumerate valid project IDs.
-
-    Lockout is only tracked once a real project is resolved: a made-up
-    project_no can't grow the tracker or lock anything, since there's
-    nothing real to protect there."""
-    project = db.query(Project).filter(Project.project_no == project_no, Project.deleted_at.is_(None)).first()
-    if not project:
-        return None
-
-    lockout_key = f"portal-verify:{project.id}"
-    seconds_locked = _verify_lockout.seconds_locked(lockout_key)
-    if seconds_locked:
-        minutes = max(1, int(seconds_locked // 60) + 1)
-        raise AuthError(f"Too many failed attempts. Try again in {minutes} minute(s).")
-
-    client = db.query(Client).filter(Client.id == project.client_id, Client.deleted_at.is_(None)).first()
-    if not client:
-        _verify_lockout.register_failure(lockout_key)
-        return None
-
-    candidates = [client.mobile]
-    contacts = (
-        db.query(ClientContact)
-        .filter(ClientContact.client_id == client.id, ClientContact.deleted_at.is_(None))
+def list_projects_for_customer(db: Session, current_user: User) -> list[Project]:
+    current_user = _require_customer(current_user)
+    return (
+        db.query(Project)
+        .filter(Project.client_id == current_user.client_id, Project.deleted_at.is_(None))
+        .order_by(Project.created_at.desc())
         .all()
     )
-    candidates.extend(contact.mobile for contact in contacts)
 
-    if not any(_mobile_matches(candidate, mobile_number) for candidate in candidates):
-        _verify_lockout.register_failure(lockout_key)
-        return None
 
-    _verify_lockout.register_success(lockout_key)
-
-    return create_access_token(
-        subject=str(project.id),
-        extra_claims={"type": CUSTOMER_PORTAL_TOKEN_TYPE, "projectNo": project.project_no},
-        expire_minutes=CUSTOMER_PORTAL_TOKEN_EXPIRE_MINUTES,
+def get_project_for_customer(db: Session, current_user: User, project_no: str) -> Project:
+    current_user = _require_customer(current_user)
+    project = (
+        db.query(Project)
+        .filter(
+            Project.project_no == project_no,
+            Project.client_id == current_user.client_id,
+            Project.deleted_at.is_(None),
+        )
+        .first()
     )
-
-
-def get_project_for_token(db: Session, token: str, requested_project_no: str) -> Project:
-    try:
-        payload = decode_token(token)
-    except ValueError as exc:
-        raise AuthError("Invalid or expired access link. Please verify your access again.") from exc
-
-    if payload.get("type") != CUSTOMER_PORTAL_TOKEN_TYPE:
-        raise AuthError("Invalid access token.")
-    if payload.get("projectNo") != requested_project_no:
-        raise AuthError("This access link is not valid for the requested project.")
-
-    project = db.query(Project).filter(Project.id == int(payload["sub"]), Project.deleted_at.is_(None)).first()
-    if not project:
+    if project is None:
+        # Doesn't distinguish "no such project" from "exists but isn't
+        # yours" -- a customer scoped to their own client_id can't use
+        # this to learn anything about another client's projects either
+        # way.
         raise NotFoundError("Project")
     return project
 

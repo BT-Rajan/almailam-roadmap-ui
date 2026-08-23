@@ -5,7 +5,7 @@
 # database is the actual source of truth after that, editable from
 # Administration > Users > Roles & Permissions. Runtime permission checks
 # go through role_service.has_permission(), not these dicts.
-ROLES = ("Administrator", "Project Manager", "Engineer", "Document Controller", "Viewer")
+ROLES = ("Administrator", "Project Manager", "Engineer", "Document Controller", "Viewer", "Customer")
 
 PERMISSION_MODULES = ("Projects", "Clients", "Documents", "Government", "Finance", "Reports", "Administration")
 
@@ -15,6 +15,11 @@ ROLE_DESCRIPTIONS: dict[str, str] = {
     "Engineer": "Works on assigned projects and documents, with read access to government tracking and financial status.",
     "Document Controller": "Maintains the document repository and revision history across projects, and onboards clients.",
     "Viewer": "Read-only access for stakeholders who need visibility without edit rights.",
+    # Not part of the internal app's permission matrix below at all --
+    # a Customer account only ever reaches the Customer Portal's own
+    # endpoints (api/customer_portal.py), gated by role == "Customer" +
+    # client_id scoping, never by has_permission()/these module flags.
+    "Customer": "External client access to the Customer Portal only -- no access to the internal application.",
 }
 
 # role -> module -> {view, edit, delete}

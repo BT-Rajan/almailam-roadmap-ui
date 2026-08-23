@@ -35,17 +35,6 @@ export const useAuthStore = defineStore('auth', {
       this.user = await authService.me()
     },
 
-    async loginWithEmployeeId(employeeId: string, password: string) {
-      // Same tokens, same session shape as staff login -- the Site
-      // Engineer Portal is a different frontend surface hitting a
-      // different login endpoint for the same underlying account, not
-      // a separate auth system. Everything downstream (the httpClient
-      // interceptor, tryRefresh, logout) is shared as-is.
-      const tokens = await authService.loginWithEmployeeId(employeeId, password)
-      this._setToken(tokens.access_token)
-      this.user = await authService.me()
-    },
-
     async logout() {
       try {
         await authService.logout()
@@ -59,8 +48,8 @@ export const useAuthStore = defineStore('auth', {
      * Safe to call concurrently -- overlapping calls share a single in-flight request.
      * Used mid-session by the httpClient 401-retry (see services/httpClient.ts) to renew an
      * expired access token transparently while the user is actively working in the same tab.
-     * Deliberately NOT called on app startup/page load -- see the removed hydrate() below;
-     * a session must not survive a page refresh, tab close, or browser restart. */
+     * Deliberately NOT called on app startup/page load: a session must not survive a page
+     * refresh, tab close, or browser restart (see router/index.ts's navigation guard). */
     async tryRefresh(): Promise<boolean> {
       if (this.refreshPromise) return this.refreshPromise
 

@@ -24,14 +24,6 @@ function login(username: string, password: string): Promise<TokenResponse> {
   )
 }
 
-function loginWithEmployeeId(employeeId: string, password: string): Promise<TokenResponse> {
-  return apiClient.post<TokenResponse>(
-    '/api/site-portal/login',
-    { employeeId, password },
-    { skipAuth: true },
-  )
-}
-
 function refresh(): Promise<TokenResponse> {
   return apiClient.post<TokenResponse>('/api/auth/refresh', undefined, { skipAuth: true })
 }
@@ -44,4 +36,4 @@ function me(): Promise<CurrentUser> {
   return apiClient.get<CurrentUser>('/api/auth/me')
 }
 
-export const authService = { login, loginWithEmployeeId, refresh, logout, me }
+export const authService = { login, refresh, logout, me }

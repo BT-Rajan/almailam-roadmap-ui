@@ -47,6 +47,12 @@ INSERT INTO users (username, email, password_hash, full_name, designation, mobil
 ('f.noor',    'f.noor@almailam.example',   '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Fatima Noor',          'Document Controller',      '+971501000006', 'Document Controller',  1),
 ('o.khalid',  'o.khalid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Omar Khalid',          'Stakeholder',               '+971501000007', 'Viewer',               1);
 
+-- Site Engineer Portal demo logins -- same accounts/password as above,
+-- just also resolvable by employee_id (see auth_service.login).
+UPDATE users SET employee_id = 'EMP-1003' WHERE username = 'l.haddad';
+UPDATE users SET employee_id = 'EMP-1004' WHERE username = 'a.rashid';
+UPDATE users SET employee_id = 'EMP-1005' WHERE username = 'm.iqbal';
+
 SET @u_admin    = (SELECT id FROM users WHERE username = 'admin');
 SET @u_pm       = (SELECT id FROM users WHERE username = 's.alfarsi');
 SET @u_layla    = (SELECT id FROM users WHERE username = 'l.haddad');
@@ -73,6 +79,13 @@ SET @c_falcon  = (SELECT id FROM clients WHERE company_name = 'Falcon Heights Lo
 SET @c_marina  = (SELECT id FROM clients WHERE company_name = 'Marina Bay Hospitality Group');
 SET @c_ahmadi = (SELECT id FROM clients WHERE company_name = 'Ahmadi Industrial Holdings');
 SET @c_khalid  = (SELECT id FROM clients WHERE company_name = 'Khalid Al Mansoori');
+
+-- Customer Portal demo logins -- same password hash as every other demo
+-- account, resolved via customer_id (see auth_service.login) and scoped
+-- to their own client's projects via client_id.
+INSERT INTO users (username, customer_id, client_id, email, password_hash, full_name, mobile, role, is_active) VALUES
+('cust.alreem', 'CUST-1001', @c_alreem, 'khalid@alreemdev.example',     '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Khalid Al Reem',  '+96550200001', 'Customer', 1),
+('cust.falcon', 'CUST-1002', @c_falcon, 'yousef@falconheights.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Yousef Al Amiri', '+96550200002', 'Customer', 1);
 
 INSERT INTO client_contacts (client_id, name, contact_type, mobile, email, is_authorised_representative) VALUES
 (@c_alreem,  'Khalid Al Reem',  'Primary Contact', '+96550200001', 'khalid@alreemdev.example', 1),

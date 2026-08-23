@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -56,25 +57,22 @@ def _register_failed_attempt(db: Session, user: User) -> None:
     db.commit()
 
 
-def login(db: Session, username: str, password: str) -> dict:
+def login(db: Session, identifier: str, password: str) -> dict:
+    """Single entry point for all three frontends (staff app, Site
+    Engineer Portal, Customer Portal) -- resolves the identifier against
+    username, employee_id, or customer_id, whichever matches. A user only
+    ever has one of these actually set (aside from every account having a
+    username), so this can never match two different accounts at once.
+    Same generic error message regardless of which field (or none) would
+    have matched, for the same reason the old per-portal logins used one:
+    this can't be used to enumerate valid usernames/employee IDs/customer
+    IDs."""
     user = (
         db.query(User)
-        .filter(User.username == username, User.deleted_at.is_(None))
-        .first()
-    )
-    return _authenticate_and_issue_tokens(db, user, password)
-
-
-def login_with_employee_id(db: Session, employee_id: str, password: str) -> dict:
-    """Site Engineer Portal's login (see api/site_portal.py) -- same
-    accounts, same password_hash, same lockout/security behaviour as the
-    staff username login above, just resolved by employee_id instead.
-    Deliberately the same generic error message either way, for the
-    same reason: this can't be used to enumerate valid employee IDs
-    either."""
-    user = (
-        db.query(User)
-        .filter(User.employee_id == employee_id, User.deleted_at.is_(None))
+        .filter(
+            or_(User.username == identifier, User.employee_id == identifier, User.customer_id == identifier),
+            User.deleted_at.is_(None),
+        )
         .first()
     )
     return _authenticate_and_issue_tokens(db, user, password)
