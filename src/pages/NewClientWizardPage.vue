@@ -428,7 +428,7 @@ function goToCreatedClient(): void {
       <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
         <FormActionBar
           v-if="currentStep < WIZARD_STEPS.length - 1"
-          cancel-label="Cancel"
+          :cancel-label="currentStep === 0 ? 'Cancel' : 'Back'"
           submit-label="Next"
           @cancel="currentStep === 0 ? cancelWizard() : goBack()"
           @submit="goNext"
