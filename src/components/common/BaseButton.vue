@@ -27,9 +27,25 @@ const props = withDefaults(defineProps<Props>(), {
   fullWidth: false,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
+
+// Guards the emit itself, not just the native `disabled` attribute --
+// Vue applies a reactive prop change (loading/disabled going true) to
+// the DOM asynchronously (its own render scheduler), so a fast
+// double-click or an impatient second click while an async action is
+// already running can otherwise fire a second `click` before the
+// button visually disables. Reading `isDisabled` here is synchronous
+// and reflects the current prop value immediately, closing that gap
+// for every consumer of this component at once -- this is what a
+// double-submit anywhere in the app (see NewProjectWizardPage.vue's
+// duplicate-project bug) actually needs guarded against, not just the
+// page-level handler.
+function handleClick(event: MouseEvent): void {
+  if (isDisabled.value) return
+  emit('click', event)
+}
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -62,7 +78,7 @@ const buttonClasses = computed(() => [
 </script>
 
 <template>
-  <button :type="type" :class="buttonClasses" :disabled="isDisabled" @click="$emit('click', $event)">
+  <button :type="type" :class="buttonClasses" :disabled="isDisabled" @click="handleClick">
     <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
     <component :is="icon" v-else-if="icon && iconPosition === 'left'" class="h-4 w-4" />
     <slot />

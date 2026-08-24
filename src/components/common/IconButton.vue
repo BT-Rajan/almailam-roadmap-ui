@@ -18,9 +18,19 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
+
+// See BaseButton.vue's identical guard: reading `disabled` here is
+// synchronous, closing the gap where Vue hasn't yet painted the native
+// `disabled` attribute after a consumer sets it true (e.g. a delete
+// action mid-flight), which could otherwise let a fast second click
+// through.
+function handleClick(event: MouseEvent): void {
+  if (props.disabled) return
+  emit('click', event)
+}
 
 const variantClasses: Record<string, string> = {
   ghost: 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
@@ -57,7 +67,7 @@ const buttonClasses = computed(() => [
     :disabled="disabled"
     :aria-label="label"
     :title="label"
-    @click="$emit('click', $event)"
+    @click="handleClick"
   >
     <component :is="icon" :class="iconSizeClasses[size]" />
   </button>
