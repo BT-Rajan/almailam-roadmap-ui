@@ -202,21 +202,30 @@ function goNext(): void {
     )
     return
   }
-  // Leaving step 0 (Client Type): for an Individual client the primary
-  // contact is almost always the client themselves, and step 0 just
-  // collected their mobile/email -- pre-fill the first contact with
-  // those same values rather than making staff retype the same phone
-  // number and email they entered seconds ago. Only fills blanks, and
-  // only the client's own name for the contact name too; anything
-  // already typed (e.g. this really is someone else, like an
-  // assistant) is left alone, and it's still fully editable either way.
-  if (currentStep.value === 0 && form.value.clientType === 'Individual') {
+  // Leaving step 0 (Client Type): step 0 already collected mobile/email
+  // (needed early for the duplicate-client check) and city -- pre-fill
+  // the primary contact and address with those same values rather than
+  // making staff retype the same phone number, email and city they
+  // entered seconds ago. Mobile/email apply to every client type (an
+  // org's registered contact info is still almost always its first
+  // contact's too, entered in the same sitting); the client's own name
+  // only pre-fills the contact name for an Individual, where the primary
+  // contact is almost always the client themselves -- a company's legal
+  // name isn't a person's name. Only fills blanks either way, so
+  // anything already typed (e.g. this really is someone else, like an
+  // assistant, or the org's main office is in a different city than a
+  // specific branch address) is left alone, and it's still fully
+  // editable regardless.
+  if (currentStep.value === 0) {
     const primaryContact = form.value.contacts[0]
     if (primaryContact) {
-      if (!primaryContact.name.trim()) primaryContact.name = form.value.individualProfile.fullLegalName
+      if (form.value.clientType === 'Individual' && !primaryContact.name.trim()) {
+        primaryContact.name = form.value.individualProfile.fullLegalName
+      }
       if (!primaryContact.mobile.trim()) primaryContact.mobile = form.value.mobile
       if (!primaryContact.email.trim()) primaryContact.email = form.value.email
     }
+    if (!form.value.address.city.trim()) form.value.address.city = form.value.city
   }
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }

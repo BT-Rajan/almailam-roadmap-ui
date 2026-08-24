@@ -53,6 +53,31 @@ watch(
   { immediate: true },
 )
 
+// A Trade Licence's own number and issuing country are the same values
+// already typed into step 1's Organisation Information section
+// ("Trade Licence Number", "Country of Registration") -- pre-fill
+// rather than making staff retype the same licence number and country
+// a second time. Only fills blanks, re-checked every time this step is
+// shown, so anything already typed (a different actual document, or a
+// deliberate correction) is left alone.
+watch(
+  () => [
+    form.value.identification.documentType,
+    form.value.organisationProfile.tradeLicenceNumber,
+    form.value.organisationProfile.countryOfRegistration,
+  ] as const,
+  ([documentType, tradeLicenceNumber, countryOfRegistration]) => {
+    if (documentType !== 'Trade Licence') return
+    if (!form.value.identification.documentNumber.trim() && tradeLicenceNumber.trim()) {
+      form.value.identification.documentNumber = tradeLicenceNumber
+    }
+    if (!form.value.identification.issuingCountry.trim() && countryOfRegistration.trim()) {
+      form.value.identification.issuingCountry = countryOfRegistration
+    }
+  },
+  { immediate: true },
+)
+
 // ------------------------------------------------------------------
 // AI plausibility check: does the uploaded image actually look like
 // the selected document type? Only ever attempted for jpg/jpeg/png --
