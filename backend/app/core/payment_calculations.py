@@ -69,8 +69,30 @@ def get_financial_summary(
     today = date.today()
     active_obligations = [o for o in obligations if o.manual_status not in ("Cancelled", "Waived")]
 
+    # Pending and overdue are mutually exclusive: once an obligation's due
+    # date passes, its outstanding balance moves out of Total Pending and
+    # into Total Overdue rather than being counted in both. Both totals
+    # are always derived straight from each obligation's own live
+    # amount_due/amount_received -- deliberately NOT anchored to
+    # contract_amount (a static number an Adjustment doesn't touch) --
+    # so a change to what an obligation actually owes (a payment, a
+    # refund, a waiver, an Adjustment) is reflected immediately and can
+    # only ever move Pending and Overdue in the correct direction. An
+    # anchored subtraction (contract_amount - received - overdue) was
+    # tried here before and got this backwards: decreasing an overdue
+    # obligation's amount_due shrank total_overdue without shrinking the
+    # anchor to match, so the subtraction remainder -- Total Pending --
+    # went *up* by the same amount the obligation's balance went down.
     total_overdue = sum(
         (get_obligation_amount_overdue(o, today) for o in active_obligations), Decimal("0")
+    )
+    total_pending = sum(
+        (
+            get_obligation_amount_pending(o)
+            for o in active_obligations
+            if compute_obligation_status(o, today) not in ("Overdue", "Partially Overdue")
+        ),
+        Decimal("0"),
     )
 
     # A waived/cancelled obligation's un-received balance is money the
@@ -89,65 +111,20 @@ def get_financial_summary(
     if payments is None:
         # Per-obligation ledger view -- correct as long as every payment
         # was fully allocated to an obligation when recorded.
-        #
-        # Pending and overdue are mutually exclusive: once an obligation's
-        # due date passes, its outstanding balance moves out of Total
-        # Pending and into Total Overdue rather than being counted in both.
         total_received = sum((Decimal(str(o.amount_received)) for o in obligations), Decimal("0"))
-        total_pending = sum(
-            (
-                get_obligation_amount_pending(o)
-                for o in active_obligations
-                if compute_obligation_status(o, today) not in ("Overdue", "Partially Overdue")
-            ),
-            Decimal("0"),
-        )
     else:
         # Actual-money view: total received is what payments actually
         # recorded, not what got allocated to an obligation row -- a
         # payment can be recorded for the full amount due while an
         # allocation mistake (or a payment made before its obligation
         # existed) leaves an obligation's own amount_received short.
-        #
-        # Total payable is the agreement's own contract_amount -- NOT
-        # sum(obligation.amount_due). Those two are supposed to match
-        # (an even schedule is generated to sum exactly to
-        # contract_amount, see generate_even_schedule), but 'One-time'
-        # and 'Custom' schedules are entered by hand and nothing
-        # enforces that they reconcile against the contract value, so
-        # obligations can drift from what the agreement actually says is
-        # payable (an extra or mis-entered obligation row inflates the
-        # sum without the contract itself changing). contract_amount is
-        # the number the UI calls "Contract Value" and the one Total
-        # Pending has to reconcile against, so it's the anchor here, not
-        # a derived sum that can silently disagree with it.
-        #
-        # Rounded down to whole currency units so a fils-level rounding
-        # remainder (the same schedule generation's remainder-folding)
-        # never reads as still outstanding once the real money is all
-        # in.
-        #
-        # total_overdue is subtracted out here too, for the same reason as
-        # the ledger view above: once an obligation crosses its due date,
-        # its balance belongs to Total Overdue, not Total Pending.
-        #
-        # The anchor is contract_amount minus whatever's been waived or
-        # cancelled -- not raw contract_amount -- for the same reason the
-        # ledger view excludes those obligations from total_pending: a
-        # waived/cancelled balance is no longer part of what's actually
-        # still payable.
-        #
-        # total_received also nets out refunds: a refund only ever
-        # touches the obligation ledger's amount_received today, never
-        # the original Payment row, so without this a refunded amount
-        # would still read as received here even though the money went
-        # back out.
-        total_payable = Decimal(str(agreement.contract_amount)) - total_waived - total_cancelled
+        # Nets out refunds too: a refund only ever touches the obligation
+        # ledger's amount_received today, never the original Payment row,
+        # so without this a refunded amount would still read as received
+        # here even though the money went back out.
         gross_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
         total_refunded = sum((Decimal(str(r.refund_amount)) for r in (refunds or ())), Decimal("0"))
         total_received = gross_received - total_refunded
-        outstanding = (total_payable - total_received - total_overdue).quantize(Decimal("1"), rounding=ROUND_DOWN)
-        total_pending = max(Decimal("0"), outstanding)
 
     next_obligation = get_next_payment_obligation(obligations, today)
     days_until_due = get_days_until_due(next_obligation.due_date, today) if next_obligation else None
