@@ -20,6 +20,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -36,6 +37,7 @@ import { validators } from '@/utils/validators'
 const router = useRouter()
 const route = useRoute()
 const projectStore = useProjectStore()
+const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
@@ -211,7 +213,18 @@ function validateStep(step: number): boolean {
 }
 
 function goNext(): void {
-  if (!validateStep(currentStep.value)) return
+  if (!validateStep(currentStep.value)) {
+    // Previously a silent no-op: the button just did nothing, with the
+    // only sign anything was wrong being red text under a field that
+    // might be scrolled out of view -- easy to read as "this isn't
+    // working" rather than "something needs fixing here."
+    toastStore.show(
+      'error',
+      'Please fix the highlighted fields',
+      `Some fields under "${WIZARD_STEPS[currentStep.value].label}" need attention before continuing.`,
+    )
+    return
+  }
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }
 
@@ -232,17 +245,28 @@ function selectedEngineerName(): string {
 }
 
 async function submitWizard(): Promise<void> {
+  // Previously silent: this could send someone from the Review step
+  // straight back to step 0 with no toast and no explanation, easy to
+  // read as "the button didn't do anything" rather than "something on
+  // an earlier step needs fixing." Re-validating on submit (not just on
+  // each Next) catches a step broken after the fact -- e.g. jumping
+  // back via the stepper and clearing a field -- so it can't be skipped.
   if (!validateStep(0) || !validateStep(1)) {
+    toastStore.show(
+      'error',
+      'Please fix the highlighted fields',
+      "Some earlier fields need attention before this project can be created.",
+    )
     currentStep.value = 0
     return
   }
 
   isSubmitting.value = true
 
-  const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
-  const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
-
   try {
+    const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
+    const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
+
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: form.scope || undefined,
@@ -290,8 +314,14 @@ async function submitWizard(): Promise<void> {
     createdProject.value = project
     showConfirmation.value = true
   } catch (error) {
+    // An explicit, must-acknowledge dialog rather than a toast -- same
+    // reasoning as every other create-style wizard in the app (see
+    // NewClientWizardPage.vue): a toast auto-dismisses in 4 seconds, so
+    // a failure here could come and go while attention was on the form
+    // (or the confirmation that never appeared), reading as "nothing
+    // happened" rather than "this needs a fix."
     const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
-    toastStore.show('error', 'Failed to create project', detail)
+    resultDialogStore.showError('Failed to create project', detail)
   } finally {
     isSubmitting.value = false
   }
