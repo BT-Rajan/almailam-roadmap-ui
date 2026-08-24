@@ -17,6 +17,7 @@ from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
 from app.models.document import ProjectDocument
+from app.models.project import Project
 from app.services import audit_service
 
 ENTITY_TYPE = "PROJECT"
@@ -67,6 +68,22 @@ def get_project_step_by_stage(db: Session, project_id: int, stage_key: str) -> P
     return step
 
 
+def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int | None) -> None:
+    """Closing the last of the 4 approval gates required to leave
+    "Design"/"Government Submission" (see project_service.
+    _assert_stage_exit_criteria) is exactly what lets a project converge
+    into "Execution & Tracking" -- advance it automatically instead of
+    requiring a separate manual stage click once that's already true.
+    Local import: project_service already imports this module at module
+    level, so importing it back at module level here would be circular
+    (see audit_service.get_history for the same pattern)."""
+    from app.services import project_service
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is not None:
+        project_service.try_auto_advance_stage(db, project, user_id)
+
+
 def upload_stage_gate_document(
     db: Session, project_id: int, stage_key: str, file: UploadFile, user_id: int | None
 ) -> ProjectApprovalStep:
@@ -95,6 +112,7 @@ def upload_stage_gate_document(
     audit_service.log_event(
         db, ENTITY_TYPE, project_id, f"Stage gate document uploaded: {step.name}", user_id, new_value=original_filename
     )
+    _try_auto_advance_project_stage(db, project_id, user_id)
     db.commit()
     db.refresh(step)
     return step
@@ -138,6 +156,7 @@ def complete_stage_from_documents(db: Session, project_id: int, stage_key: str, 
         f"({approved_count}/{len(tagged_documents)} documents approved)",
         user_id,
     )
+    _try_auto_advance_project_stage(db, project_id, user_id)
     db.commit()
     db.refresh(step)
     return step

@@ -362,25 +362,76 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
 
 
-def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, user_id: int | None) -> Project:
-    project = get_project(db, project_no)
-    previous_stage = project.current_stage
-    assert_transition_allowed(
-        PROJECT_STAGE_ALLOWED_TRANSITIONS, previous_stage, new_stage, "project"
-    )
-    _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
-    if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
-        assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
-    # Reopening a Completed project is exceptional and source-dependent
-    # (unlike "Execution & Tracking" -> "Completed", the normal reason-
-    # free outcome of finishing the checklist), so this can't live in
-    # the target-state-only REQUIRING_REASON table -- it's checked here
-    # instead.
-    if previous_stage == "Completed" and new_stage == "Execution & Tracking":
-        assert_reason_given(reason, "A reason is required to reopen a completed project.")
+# --- workflow stage / progress -- merged so "how far along is this
+# project" is always one consistent story instead of two independently
+# maintained numbers (a 7-value stage the UI reads directly everywhere,
+# and a 0-100 progress bar that used to be driven solely by the
+# execution checklist -- see recompute_progress below).
+#
+# "Design" and "Government Submission" share one band since
+# PROJECT_STAGE_ALLOWED_TRANSITIONS lets a project move freely between
+# them (they run in parallel, not sequentially) -- treating them as
+# different sequential slots would make progress visibly jump backward
+# when staff switch which branch they're chasing.
+_STAGE_PROGRESS_BAND: dict[str, int] = {
+    "Enquiry": 0,
+    "Quotation": 1,
+    "Contract": 2,
+    "Design": 3,
+    "Government Submission": 3,
+    "Execution & Tracking": 4,
+}
+_PROGRESS_BAND_COUNT = 6  # the 5 bands above, plus "Completed" as the 6th, terminal slot
 
+
+def recompute_progress(db: Session, project: Project) -> int:
+    """Derives project.progress from current_stage -- entering a stage
+    jumps progress to that stage's band floor; within "Execution &
+    Tracking" the weighted execution-checklist percentage
+    (execution_step_service.compute_weighted_completion) fills the rest
+    of that final band, since that's the one stage with its own
+    continuous, natural progress signal. "Completed" is always exactly
+    100. Does not commit -- callers already do.
+    """
+    if project.current_stage == "Completed":
+        progress = 100
+    else:
+        band = _STAGE_PROGRESS_BAND[project.current_stage]
+        floor = band * 100 / _PROGRESS_BAND_COUNT
+        if project.current_stage == "Execution & Tracking":
+            checklist_pct = execution_step_service.compute_weighted_completion(db, project.id)
+            progress = round(floor + (checklist_pct / 100) * (100 / _PROGRESS_BAND_COUNT))
+        else:
+            progress = round(floor)
+    project.progress = max(0, min(100, progress))
+    return project.progress
+
+
+# Every transition below has exactly one valid next stage once its exit
+# criteria (_assert_stage_exit_criteria) are met, so firing it
+# automatically doesn't remove a real choice from anyone -- it just
+# saves the separate manual click after the condition that already
+# gates it becomes true (approving a quotation, closing the last
+# approval gate, finishing the checklist and settling payment).
+# Deliberately excludes "Contract" (a genuine fork between the "Design"
+# and "Government Submission" parallel branches -- staff pick which to
+# start) and reopening from "Completed" (exceptional, reason-required)
+# -- both stay manual, exactly as before.
+_AUTO_ADVANCE_TARGET: dict[str, str] = {
+    "Enquiry": "Quotation",
+    "Quotation": "Contract",
+    "Design": "Execution & Tracking",
+    "Government Submission": "Execution & Tracking",
+    "Execution & Tracking": "Completed",
+}
+
+
+def _apply_stage_change(
+    db: Session, project: Project, new_stage: str, reason: str | None, user_id: int | None, event_label: str = "Stage changed"
+) -> None:
+    previous_stage = project.current_stage
     audit_service.log_event(
-        db, ENTITY_TYPE, project.id, "Stage changed", user_id,
+        db, ENTITY_TYPE, project.id, event_label, user_id,
         previous_value=previous_stage, new_value=new_stage, reason=reason,
     )
     project.current_stage = new_stage
@@ -404,10 +455,59 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
         description=reason,
         actor_id=user_id,
     )
+    recompute_progress(db, project)
+
+
+def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, user_id: int | None) -> Project:
+    project = get_project(db, project_no)
+    previous_stage = project.current_stage
+    assert_transition_allowed(
+        PROJECT_STAGE_ALLOWED_TRANSITIONS, previous_stage, new_stage, "project"
+    )
+    _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
+    if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
+        assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
+    # Reopening a Completed project is exceptional and source-dependent
+    # (unlike "Execution & Tracking" -> "Completed", the normal reason-
+    # free outcome of finishing the checklist), so this can't live in
+    # the target-state-only REQUIRING_REASON table -- it's checked here
+    # instead.
+    if previous_stage == "Completed" and new_stage == "Execution & Tracking":
+        assert_reason_given(reason, "A reason is required to reopen a completed project.")
+
+    _apply_stage_change(db, project, new_stage, reason, user_id)
 
     db.commit()
     db.refresh(project)
     return project
+
+
+def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -> None:
+    """Automates the manual "move stage" action for the transitions in
+    _AUTO_ADVANCE_TARGET, once their exit criteria are already met --
+    e.g. approving a quotation is exactly what _assert_stage_exit_criteria
+    already requires before a project can enter "Contract", so there's
+    no reason to also wait on a separate click once that becomes true.
+
+    Called from whichever service action just made the criteria true
+    (quotation/approval-process/execution-step/payment services),
+    before that action's own db.commit() -- sharing one transaction so a
+    mid-way failure can't leave stage/progress out of sync with the
+    action that triggered it. Does not commit itself.
+
+    Silently does nothing if the target stage's exit criteria aren't met
+    yet -- "not yet eligible" is the expected, common case here, not a
+    failure the caller's own action should be blocked by.
+    """
+    target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
+    if target_stage is None:
+        return
+    try:
+        assert_transition_allowed(PROJECT_STAGE_ALLOWED_TRANSITIONS, project.current_stage, target_stage, "project")
+        _assert_stage_exit_criteria(db, project, project.current_stage, target_stage)
+    except ValidationAppError:
+        return
+    _apply_stage_change(db, project, target_stage, None, user_id, event_label="Stage auto-advanced")
 
 
 def set_status(db: Session, project_no: str, new_status: str, reason: str | None, user_id: int | None) -> Project:

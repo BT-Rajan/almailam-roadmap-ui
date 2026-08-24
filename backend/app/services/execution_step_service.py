@@ -229,22 +229,43 @@ def included_steps(steps: list[ProjectExecutionStep]) -> list[ProjectExecutionSt
     return [s for s in steps if not s.is_excluded]
 
 
-def _recompute_progress(db: Session, project_id: int) -> int:
+def compute_weighted_completion(db: Session, project_id: int) -> int:
+    """The weight_percentage-weighted sum of every included step's own
+    completion_percentage, renormalized against the included weight
+    total -- pure calculation, no write. Used both as the fractional
+    fill for the "Execution & Tracking" band of project_service.
+    recompute_progress (the sole writer of project.progress) and,
+    before this checklist was folded into that stage-driven number, as
+    the entirety of project.progress itself."""
     steps = included_steps(list_project_steps(db, project_id))
     total_weight = sum(float(s.weight_percentage) for s in steps)
     if total_weight <= 0:
-        progress = 0
-    else:
-        # Renormalized against only the included weight, so excluding a
-        # step never drags %complete down for work that was never
-        # applicable to this project -- the remaining steps still scale
-        # to a full 0-100.
-        weighted = sum(float(s.weight_percentage) * s.completion_percentage / 100 for s in steps)
-        progress = max(0, min(100, round(weighted / total_weight * 100)))
+        return 0
+    # Renormalized against only the included weight, so excluding a
+    # step never drags %complete down for work that was never
+    # applicable to this project -- the remaining steps still scale
+    # to a full 0-100.
+    weighted = sum(float(s.weight_percentage) * s.completion_percentage / 100 for s in steps)
+    return max(0, min(100, round(weighted / total_weight * 100)))
+
+
+def _recompute_progress(db: Session, project_id: int) -> Project | None:
+    """Recomputes and persists project.progress -- delegates to
+    project_service.recompute_progress (a local import to avoid a
+    circular import: project_service already imports this module at
+    module level, see audit_service.get_history for the same pattern)
+    since that's now the single place project.progress is written, so a
+    checklist update moves the right fractional amount within whichever
+    stage band the project is actually in instead of overwriting it
+    with the checklist percentage alone. Returns the project (or None if
+    it's gone) so callers can also try an auto stage-advance with it."""
+    from app.services import project_service
+
     project = db.query(Project).filter(Project.id == project_id).first()
-    if project:
-        project.progress = progress
-    return progress
+    if project is None:
+        return None
+    project_service.recompute_progress(db, project)
+    return project
 
 
 def get_project_step(db: Session, project_id: int, step_id: int) -> ProjectExecutionStep:
@@ -276,7 +297,11 @@ def set_step_progress(
         f"Execution step progress updated: {step.name}", user_id,
         new_value=f"{completion_percentage}%",
     )
-    _recompute_progress(db, project_id)
+    project = _recompute_progress(db, project_id)
+    if project is not None:
+        from app.services import project_service
+
+        project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(step)
     return step
@@ -314,6 +339,10 @@ def bulk_set_steps(
             "Execution checklist saved", user_id,
             new_value=f"{len(changed_names)} activities updated: {', '.join(changed_names)}",
         )
-    _recompute_progress(db, project_id)
+    project = _recompute_progress(db, project_id)
+    if project is not None:
+        from app.services import project_service
+
+        project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     return list_project_steps(db, project_id)

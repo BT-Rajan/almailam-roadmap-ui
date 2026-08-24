@@ -170,6 +170,12 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the quotation exists.
     _record_revision(db, quotation, "Initial quotation created", user_id, bump=False)
+    # A project's first quotation is what "Enquiry" -> "Quotation" is
+    # waiting on -- advance it automatically instead of requiring a
+    # separate manual stage click for something this action already
+    # made true. No-op if the project isn't at "Enquiry" (a later
+    # quotation on the same project) or already moved on.
+    project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -300,6 +306,14 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
     if new_status == "Draft" and quotation.finalized_at is not None:
         quotation.finalized_at = None
         audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation reopened for editing", user_id)
+    if new_status == "Approved":
+        # An Approved quotation is exactly what _assert_stage_exit_criteria
+        # requires before a project can enter "Contract" -- advance it
+        # automatically instead of requiring a separate manual stage
+        # click for a condition this action already satisfied.
+        project = db.query(Project).filter(Project.id == quotation.project_id).first()
+        if project is not None:
+            project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(quotation)
     return quotation

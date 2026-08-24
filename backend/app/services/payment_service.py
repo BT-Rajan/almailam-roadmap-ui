@@ -27,6 +27,23 @@ from app.services import audit_service
 ENTITY_TYPE = "FINANCIAL_AGREEMENT"
 
 
+def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int | None) -> None:
+    """A payment, refund, or adjustment can be the thing that finally
+    settles an agreement -- exactly one of the two conditions
+    project_service._assert_stage_exit_criteria requires before
+    "Execution & Tracking" can move to "Completed" (the checklist being
+    the other). Advance automatically instead of requiring a separate
+    manual stage click once both are already true. Local import:
+    project_service already imports this module at module level, so
+    importing it back at module level here would be circular (see
+    audit_service.get_history for the same pattern)."""
+    from app.services import project_service
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is not None:
+        project_service.try_auto_advance_stage(db, project, user_id)
+
+
 def parse_agreement_id(raw: str) -> int:
     text = raw.removeprefix("FA-") if raw.upper().startswith("FA-") else raw
     if not text.isdigit():
@@ -283,6 +300,7 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
             db, ENTITY_TYPE, agreement.id, "Payment Allocated", user_id, new_value=allocation_summary
         )
 
+    _try_auto_advance_project_stage(db, agreement.project_id, user_id)
     db.commit()
     db.refresh(payment)
     return payment
@@ -322,6 +340,10 @@ def create_refund(db: Session, payload, user_id: int, agreement_id: int) -> Refu
         new_value=f"{payload.refundAmount} refunded against OBL-{agreement_id:03d}-{obligation.sequence_number:02d}",
         reason=payload.reason,
     )
+    # No auto-advance here, unlike record_payment/create_adjustment below --
+    # a refund only ever reduces amount_received, so it can never newly
+    # satisfy the "payment settled" exit criterion, only make it harder to
+    # reach.
     db.commit()
     db.refresh(refund)
     return refund
@@ -359,6 +381,10 @@ def create_adjustment(db: Session, payload, user_id: int, agreement_id: int) -> 
         previous_value=previous_value, new_value=f"{obligation.description}: {obligation.amount_due}",
         reason=payload.reason,
     )
+    # A Decrease can be exactly what brings an agreement to fully paid --
+    # harmless to check regardless of adjustment type, since
+    # try_auto_advance_stage no-ops if the exit criteria aren't met.
+    _try_auto_advance_project_stage(db, get_agreement(db, agreement_id).project_id, user_id)
     db.commit()
     db.refresh(adjustment)
     return adjustment
