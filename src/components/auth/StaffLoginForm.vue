@@ -68,6 +68,11 @@ setRules({
 })
 
 async function signIn(): Promise<void> {
+  // Native form submission (Enter key) is a separate trigger path from
+  // BaseButton's click handler -- its own click-level guard doesn't cover
+  // this, so the re-entrancy check has to live here too.
+  if (isSubmitting.value) return
+
   authError.value = undefined
   infoMessage.value = undefined
   if (!validateAll({ id: id.value, password: password.value })) return

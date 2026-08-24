@@ -78,6 +78,11 @@ const isLocked = () => currentReport.value?.status === 'Attached'
 const filedCount = computed(() => Object.keys(sitePortalStore.todaysReports).length)
 
 async function handleSubmit(): Promise<void> {
+  // Native form submission (Enter key) is a separate trigger path from
+  // BaseButton's click handler -- its own click-level guard doesn't cover
+  // this, so the re-entrancy check has to live here too.
+  if (isSaving.value) return
+
   if (!form.projectId) {
     toastStore.show('error', 'Project is required', 'Please select which project this report is for.')
     return
