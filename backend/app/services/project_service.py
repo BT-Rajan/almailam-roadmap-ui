@@ -414,10 +414,11 @@ def recompute_progress(db: Session, project: Project) -> int:
 # saves the separate manual click after the condition that already
 # gates it becomes true (approving a quotation, closing the last
 # approval gate, finishing the checklist and settling payment).
-# Deliberately excludes "Contract" (a genuine fork between the "Design"
-# and "Government Submission" parallel branches -- staff pick which to
-# start) and reopening from "Completed" (exceptional, reason-required)
-# -- both stay manual, exactly as before.
+# "Contract" isn't here -- it has two valid next stages (the parallel
+# Design/Government Submission fork), handled as a special case in
+# try_auto_advance_stage itself rather than this fixed one-target map.
+# Reopening from "Completed" also stays manual (exceptional,
+# reason-required), same as before.
 _AUTO_ADVANCE_TARGET: dict[str, str] = {
     "Enquiry": "Quotation",
     "Quotation": "Contract",
@@ -491,16 +492,41 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     no reason to also wait on a separate click once that becomes true.
 
     Called from whichever service action just made the criteria true
-    (quotation/approval-process/execution-step/payment services),
-    before that action's own db.commit() -- sharing one transaction so a
-    mid-way failure can't leave stage/progress out of sync with the
-    action that triggered it. Does not commit itself.
+    (quotation/contract/payment/approval-process/execution-step
+    services), before that action's own db.commit() -- sharing one
+    transaction so a mid-way failure can't leave stage/progress out of
+    sync with the action that triggered it. Does not commit itself.
 
     Silently does nothing if the target stage's exit criteria aren't met
     yet -- "not yet eligible" is the expected, common case here, not a
     failure the caller's own action should be blocked by.
+
+    "Contract" is handled separately from the simple one-target-per-stage
+    map below: its exit criteria (contract + Documents Signed gate +
+    financial agreement) are identical regardless of which of the two
+    parallel branches comes next, so there's no real decision being
+    made automatically here, just which one to land on first. Defaults
+    to "Design" -- the natural first step per the source process
+    document (drawings exist before they can be submitted to any
+    authority) -- unless a Government Submission record already exists
+    for this project, in which case that's clearly the branch already
+    under way and gets picked instead. Either way, staff can still
+    freely move between the two afterward (PROJECT_STAGE_ALLOWED_
+    TRANSITIONS already permits it) -- this only decides where the
+    project lands the moment it becomes eligible to leave "Contract",
+    not which branch is "correct" for it.
     """
-    target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
+    if project.current_stage == "Contract":
+        target_stage = (
+            "Government Submission"
+            if db.query(GovernmentSubmission)
+            .filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None))
+            .first()
+            is not None
+            else "Design"
+        )
+    else:
+        target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
     if target_stage is None:
         return
     try:

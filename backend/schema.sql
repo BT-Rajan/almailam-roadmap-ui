@@ -890,6 +890,8 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
     weight_percentage     DECIMAL(5,2) NOT NULL,
     stage_key             VARCHAR(40) NOT NULL,
     is_optional           TINYINT(1) NOT NULL DEFAULT 0,
+    is_excluded           TINYINT(1) NOT NULL DEFAULT 0,
+    excluded_reason       VARCHAR(200) NULL,
     completion_percentage SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     remarks               TEXT NULL,
     created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -963,10 +965,18 @@ CREATE TABLE IF NOT EXISTS project_approval_steps (
     file_size_bytes     BIGINT UNSIGNED NULL,
     uploaded_at         DATETIME NULL,
     uploaded_by         BIGINT UNSIGNED NULL,
+    -- Second, independent completion path (migration 0033): a stage
+    -- also counts as complete once every project_documents row tagged
+    -- to it is Approved and a user confirms (see approval_process_
+    -- service.complete_stage_from_documents). Doesn't interact with
+    -- storage_key either direction -- either path can fire on its own.
+    completed_at        DATETIME NULL,
+    completed_by        BIGINT UNSIGNED NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_approval_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_approval_steps_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_approval_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT uq_project_approval_steps_project_sequence UNIQUE (project_id, sequence_number),
     INDEX idx_project_approval_steps_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

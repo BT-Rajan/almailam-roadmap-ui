@@ -153,6 +153,16 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
     for _ in schedule:
         audit_service.log_event(db, ENTITY_TYPE, agreement.id, "Obligation Created", user_id)
 
+    # A financial agreement existing is one of three things "Contract" ->
+    # "Design"/"Government Submission" is waiting on (see project_
+    # service._assert_stage_exit_criteria) -- typically the last of the
+    # three to be completed in practice, so this is the moment that
+    # condition most often newly becomes true. Missing this call
+    # entirely was the actual reason a project could satisfy every real
+    # requirement and still sit at "Contract" indefinitely, waiting on
+    # nothing but a manual click nobody knew to make.
+    _try_auto_advance_project_stage(db, project.id, user_id)
+
     db.commit()
     db.refresh(agreement)
     return agreement

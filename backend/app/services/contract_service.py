@@ -170,6 +170,14 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     # mere existence of this record -- auto-complete it instead of
     # making staff separately tick the same fact on the checklist.
     execution_step_service.try_auto_fill(db, project.id, "contract_created", user_id)
+    # A contract existing is one of three things "Contract" -> "Design"/
+    # "Government Submission" is waiting on (see project_service.
+    # _assert_stage_exit_criteria) -- the other two (the Documents
+    # Signed gate, a financial agreement) may already be satisfied by
+    # the time this runs, or may not be for a while yet; either way,
+    # this is one of the three moments that condition could newly
+    # become true, so it needs to check too, not just the other two.
+    project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(contract)
     return contract
