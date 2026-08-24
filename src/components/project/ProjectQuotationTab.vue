@@ -106,9 +106,9 @@ async function handleSaveAsFinal(patch: Partial<Quotation>): Promise<void> {
   }
 }
 
-// Draft -> Sent -> Approved/Rejected/Expired, and back to Draft from
-// either of the latter two. The backend refuses Draft -> Sent unless
-// the quotation is already saved as Final (see quotation_service.
+// Draft -> Approved/Rejected/Expired, and back to Draft from either of
+// the latter two. The backend refuses moving out of Draft unless the
+// quotation is already saved as Final (see quotation_service.
 // set_status), so this is the only path to "Approved" -- there's no
 // separate approve action, moving status IS the approval.
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {

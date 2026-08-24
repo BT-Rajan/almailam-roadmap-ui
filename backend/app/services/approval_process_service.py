@@ -18,7 +18,7 @@ from app.core.file_storage import resolve_path, save_upload
 from app.models.approval_process import ApprovalProcessTemplate, ProjectApprovalStep
 from app.models.document import ProjectDocument
 from app.models.project import Project
-from app.services import audit_service
+from app.services import audit_service, execution_step_service
 
 ENTITY_TYPE = "PROJECT"
 
@@ -113,6 +113,12 @@ def upload_stage_gate_document(
         db, ENTITY_TYPE, project_id, f"Stage gate document uploaded: {step.name}", user_id, new_value=original_filename
     )
     _try_auto_advance_project_stage(db, project_id, user_id)
+    # One-directional only, unlike the removed blocking check this
+    # function's own docstring mentions above: closing this gate can
+    # auto-complete the one execution step that duplicates it (see
+    # execution_step_service._AUTO_FILL_TRIGGERS), but an execution
+    # step's own completion never gates or auto-closes a stage gate.
+    execution_step_service.try_auto_fill(db, project_id, f"gate:{stage_key}", user_id)
     db.commit()
     db.refresh(step)
     return step
@@ -157,6 +163,7 @@ def complete_stage_from_documents(db: Session, project_id: int, stage_key: str, 
         user_id,
     )
     _try_auto_advance_project_stage(db, project_id, user_id)
+    execution_step_service.try_auto_fill(db, project_id, f"gate:{stage_key}", user_id)
     db.commit()
     db.refresh(step)
     return step

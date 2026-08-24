@@ -59,7 +59,7 @@ const weightIsExact = computed(() => Math.abs(store.totalWeight - 100) < 0.01)
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader
       title="Process Steps"
-      subtitle="The 23-step execution checklist behind the Project Approval Process, grouped under its 5 stages. Each project gets its own copy of this list the moment it's created -- editing it here only affects projects created afterward."
+      subtitle="The 23-step execution checklist tracked alongside (not grouped under) the Project Approval Process -- each step is tagged to the workflow stage it happens during. Each project gets its own copy of this list the moment it's created -- editing it here only affects projects created afterward."
     />
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />

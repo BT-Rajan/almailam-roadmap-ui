@@ -12,7 +12,7 @@ from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service, project_service, timeline_service
+from app.services import audit_service, execution_step_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -166,6 +166,10 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the contract exists.
     _record_revision(db, contract, f"Initial contract created from quotation {quotation.quotation_no}", user_id, bump=False)
+    # Execution-checklist step 7 ("Contract initiated") duplicates the
+    # mere existence of this record -- auto-complete it instead of
+    # making staff separately tick the same fact on the checklist.
+    execution_step_service.try_auto_fill(db, project.id, "contract_created", user_id)
     db.commit()
     db.refresh(contract)
     return contract
@@ -181,7 +185,7 @@ _CONTRACT_CONTENT_FIELDS = (
 def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Contract:
     contract = get_contract(db, contract_no)
     # Mirrors quotation_service.update_quotation: the finalize lock only
-    # protects document content -- status moves (Send/Sign/...) stay
+    # protects document content -- status moves (Sign/Activate/...) stay
     # allowed on a finalized contract.
     touches_content = any(getattr(payload, field, None) is not None for field in _CONTRACT_CONTENT_FIELDS)
     if contract.finalized_at is not None and touches_content:
@@ -254,12 +258,12 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
         assert_reason_given(reason, f"A reason is required to move the contract to '{new_status}'.")
 
     # Mirrors quotation_service.set_status: a contract can only leave
-    # Draft once its content is locked -- it shouldn't be sent for
-    # signature while still an editable work-in-progress.
+    # Draft once its content is locked -- it shouldn't go for signature
+    # while still an editable work-in-progress.
     if contract.status == "Draft" and new_status != "Draft" and contract.finalized_at is None:
         raise ValidationAppError(
             "Save the contract as Final before moving it out of Draft -- "
-            "its content needs to be locked before it can be sent."
+            "its content needs to be locked before it can be signed."
         )
 
     audit_service.log_event(
@@ -299,7 +303,7 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
 
 def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
     """Move a lettered contract from Draft (editable) to Final (locked,
-    print-ready) -- required before it can be sent (see set_status).
+    print-ready) -- required before it can be signed (see set_status).
     No-op guard against double-finalizing; reopen_contract is the only
     way back to editable, and only while still in Draft status."""
     contract = get_contract(db, contract_no)

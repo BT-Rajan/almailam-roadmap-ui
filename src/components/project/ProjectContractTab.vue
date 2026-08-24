@@ -152,9 +152,9 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
   }
 }
 
-// Draft -> Sent -> Signed -> Active -> Expired/Terminated, and back to
-// Draft from Sent or Expired. The backend refuses Draft -> Sent unless
-// the contract is already saved as Final (see contract_service.
+// Draft -> Signed -> Active -> Expired/Terminated, and back to Draft
+// from Expired. The backend refuses moving out of Draft unless the
+// contract is already saved as Final (see contract_service.
 // set_status).
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
   const contract = contractStore.selectedContract

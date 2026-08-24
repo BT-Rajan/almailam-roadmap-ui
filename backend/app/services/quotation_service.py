@@ -13,7 +13,7 @@ from app.models.client import Client
 from app.models.project import Project
 from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
 from app.models.user import User
-from app.services import audit_service, project_service, timeline_service
+from app.services import audit_service, execution_step_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -176,6 +176,10 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # made true. No-op if the project isn't at "Enquiry" (a later
     # quotation on the same project) or already moved on.
     project_service.try_auto_advance_stage(db, project, user_id)
+    # Execution-checklist step 2 ("Quotation prepared") duplicates the
+    # mere existence of this record -- auto-complete it instead of
+    # making staff separately tick the same fact on the checklist.
+    execution_step_service.try_auto_fill(db, project.id, "quotation_created", user_id)
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -284,13 +288,13 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
         assert_reason_given(reason, f"A reason is required to move the quotation to '{new_status}'.")
 
     # A quotation can only leave Draft once its content is locked -- the
-    # client shouldn't be sent (or asked to approve) something that's
-    # still an editable work-in-progress. finalize_quotation()/
-    # "Save as Final" is how it gets locked.
+    # client shouldn't be asked to approve something that's still an
+    # editable work-in-progress. finalize_quotation()/"Save as Final" is
+    # how it gets locked.
     if quotation.status == "Draft" and new_status != "Draft" and quotation.finalized_at is None:
         raise ValidationAppError(
             "Save the quotation as Final before moving it out of Draft -- "
-            "its content needs to be locked before it can be sent."
+            "its content needs to be locked before a decision is recorded on it."
         )
 
     audit_service.log_event(
@@ -336,10 +340,10 @@ def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotatio
 
 def reopen_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
     """Unlock a finalized quotation letter for further editing. Only
-    allowed while status is still 'Draft' -- once a quotation has been
-    Sent, its locked content can't be silently pulled back into an
-    editable state (send it back to Draft via Rejected/Expired first,
-    which reopens it automatically -- see set_status)."""
+    allowed while status is still 'Draft' -- once a decision has been
+    recorded on it, its locked content can't be silently pulled back
+    into an editable state (move it back to Draft via Rejected/Expired
+    first, which reopens it automatically -- see set_status)."""
     quotation = get_quotation(db, quotation_no)
     if quotation.status != "Draft":
         raise ValidationAppError(

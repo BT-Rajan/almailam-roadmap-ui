@@ -11,8 +11,7 @@
 // set). See ProjectQuotationTab.vue / ProjectContractTab.vue, which
 // only offer "Change Status" once that's true.
 export const QUOTATION_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Draft: ['Sent'],
-  Sent: ['Approved', 'Rejected', 'Expired'],
+  Draft: ['Approved', 'Rejected', 'Expired'],
   Approved: [],
   Rejected: ['Draft'],
   Expired: ['Draft'],
@@ -25,8 +24,7 @@ export function isQuotationReasonRequired(newStatus: string): boolean {
 }
 
 export const CONTRACT_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Draft: ['Sent'],
-  Sent: ['Signed', 'Draft'],
+  Draft: ['Signed'],
   Signed: ['Active'],
   Active: ['Expired', 'Terminated'],
   Expired: ['Draft'],

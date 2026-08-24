@@ -3,7 +3,6 @@ import type { Contract, ContractStatus } from '@/types/Contract'
 
 const STATUS_VARIANTS: Record<ContractStatus, BadgeVariant> = {
   Draft: 'primary',
-  Sent: 'info',
   Signed: 'success',
   Active: 'success',
   Expired: 'neutral',

@@ -7,7 +7,7 @@ from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-CONTRACT_STATUSES = ("Draft", "Sent", "Signed", "Active", "Expired", "Terminated")
+CONTRACT_STATUSES = ("Draft", "Signed", "Active", "Expired", "Terminated")
 
 # Selectable pre-written, bilingual contract letters (see the lettered
 # quotation templates this shares its source documents with). None keeps

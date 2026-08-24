@@ -19,9 +19,14 @@ SUBMISSION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 SUBMISSION_STATUSES_REQUIRING_REASON = {"Rejected", "Comments Received", "Withdrawn"}
 
 # --- Quotations -- src/types/Quotation.ts: QuotationStatus
+#
+# "Sent" was removed (migration 0035) -- it was a pure intermediate
+# value with no attached behavior (no email, no notification, nothing
+# else in the app keyed off it), just one value in the generic status
+# picklist. Draft now transitions directly to the same outcomes it used
+# to reach only via Sent.
 QUOTATION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Draft": {"Sent"},
-    "Sent": {"Approved", "Rejected", "Expired"},
+    "Draft": {"Approved", "Rejected", "Expired"},
     "Approved": set(),
     "Rejected": {"Draft"},
     "Expired": {"Draft"},
@@ -29,9 +34,14 @@ QUOTATION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 QUOTATION_STATUSES_REQUIRING_REASON = {"Rejected"}
 
 # --- Contracts -- src/types/Contract.ts: ContractStatus
+#
+# "Sent" was removed (migration 0035), same reasoning as quotations
+# above. Draft now transitions directly to Signed. Contracts do lose
+# their one pre-signing correction path (Sent -> Draft) as a result --
+# accepted, since nothing was ever attached to "Sent" for it to have
+# been guarding.
 CONTRACT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Draft": {"Sent"},
-    "Sent": {"Signed", "Draft"},
+    "Draft": {"Signed"},
     "Signed": {"Active"},
     "Active": {"Expired", "Terminated"},
     "Expired": {"Draft"},

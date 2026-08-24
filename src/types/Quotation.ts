@@ -1,4 +1,4 @@
-export type QuotationStatus = 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Expired'
+export type QuotationStatus = 'Draft' | 'Approved' | 'Rejected' | 'Expired'
 
 // The two pre-written, verbatim quotation letters staff can pick when
 // creating a quotation. undefined/null keeps the original generic

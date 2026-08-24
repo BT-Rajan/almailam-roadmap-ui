@@ -7,7 +7,7 @@ from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-QUOTATION_STATUSES = ("Draft", "Sent", "Approved", "Rejected", "Expired")
+QUOTATION_STATUSES = ("Draft", "Approved", "Rejected", "Expired")
 
 # Selectable pre-written quotation letters (see docs on the two source
 # .docx templates this was built from). None means the original generic

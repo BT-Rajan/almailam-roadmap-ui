@@ -18,13 +18,21 @@ class ApprovalProcessTemplate(Base, TimestampMixin, SoftDeleteMixin):
 
     stage_key is this stage's own identity (documents_signed,
     mew_approval, architectural_approval, submit_baladia_kfd,
-    permit_approved) -- ExecutionStepTemplate rows reference it via
-    their own stage_key to say which of these 5 stages they belong
-    under, which is how the unified project Process view (one tab,
-    5 stages, each expandable to its related execution steps) groups
-    the two lists together. is_optional exists for symmetry with
-    ExecutionStepTemplate and to allow a future stage to be marked
-    client-waivable, though none of the 5 seeded stages are today.
+    permit_approved). Despite sharing a column name, ExecutionStepTemplate's
+    own stage_key is a disjoint concept (one of the 7 project workflow
+    stages, not one of these 5 gates) -- the two templates are two
+    genuinely independent tracks, shown as two separate sections on one
+    Process tab, not one nested under the other (an earlier attempt at
+    exactly that grouping was tried and abandoned, since the 23 steps
+    were never actually partitioned one-to-one under these 5 stages).
+    A handful of specific steps that duplicate a specific gate closing
+    (or a Quotation/Contract being created) auto-complete when that gate
+    closes -- see execution_step_service.try_auto_fill and its
+    _AUTO_FILL_TRIGGERS table -- but that's a one-directional convenience
+    on 7 of the 23 steps, not a structural link between the two
+    templates. is_optional exists for symmetry with ExecutionStepTemplate
+    and to allow a future stage to be marked client-waivable, though none
+    of the 5 seeded stages are today.
     """
 
     __tablename__ = "approval_process_templates"

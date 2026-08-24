@@ -3,7 +3,6 @@ import type { Quotation, QuotationStatus } from '@/types/Quotation'
 
 const STATUS_VARIANTS: Record<QuotationStatus, BadgeVariant> = {
   Draft: 'primary',
-  Sent: 'info',
   Approved: 'success',
   Rejected: 'danger',
   Expired: 'neutral',

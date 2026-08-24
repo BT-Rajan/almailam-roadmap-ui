@@ -179,7 +179,7 @@ INSERT INTO submission_documents (submission_id, name, status) VALUES
 -- Quotations
 -- ----------------------------------------------------------------------------
 INSERT INTO quotations (quotation_no, project_id, revision, issue_date, validity, status, currency, prepared_by, tax_rate_percent, discount_amount, notes, terms_and_conditions, amount) VALUES
-('QUO-2026-001', @p_alreem,  'R0', '2026-06-05', '2026-07-05', 'Sent',     'AED', @u_pm, 5.00, 0,    'Initial structural design quotation for the residential tower.', JSON_ARRAY('Valid for 30 days from issue date.','50% advance payment required to commence design.','Excludes government submission fees.'), 185000.00),
+('QUO-2026-001', @p_alreem,  'R0', '2026-06-05', '2026-07-05', 'Draft',    'AED', @u_pm, 5.00, 0,    'Initial structural design quotation for the residential tower.', JSON_ARRAY('Valid for 30 days from issue date.','50% advance payment required to commence design.','Excludes government submission fees.'), 185000.00),
 ('QUO-2026-002', @p_falcon,  'R1', '2026-05-20', '2026-06-19', 'Approved', 'AED', @u_pm, 5.00, 5000, 'MEP design for the warehouse expansion, revised after client feedback.', JSON_ARRAY('Valid for 30 days from issue date.','Payment terms per signed agreement.'), 246000.00),
 ('QUO-2026-003', @p_marina,  'R0', '2026-03-15', '2026-04-14', 'Approved', 'AED', @u_pm, 5.00, 0,    'Architectural renovation design for Marina Bay Hotel.', JSON_ARRAY('Valid for 30 days from issue date.','Site survey included in scope.'), 412000.00);
 

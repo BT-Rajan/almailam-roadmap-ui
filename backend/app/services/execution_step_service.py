@@ -268,6 +268,72 @@ def _recompute_progress(db: Session, project_id: int) -> Project | None:
     return project
 
 
+# Several of the 23 execution steps duplicate a real-world fact the app
+# already tracks somewhere else entirely -- e.g. step 2 ("Quotation
+# prepared") is just the existence of a Quotation record
+# (quotation_service.create_quotation), and step 6 ("MEW approval
+# request submitted") is one of the 5 Project Approval Process gates
+# (approval_process_service, stage_key "mew_approval") staff already
+# close independently. Rather than making staff tick the same fact
+# twice, the service that just made it true calls try_auto_fill below.
+#
+# Keyed by sequence_number, the same convention migration 0029 already
+# used for this exact template (see its own header comment) -- not a
+# new column, since this is a single, fixed, rarely-reordered process
+# ("one global template... not one that currently varies," per
+# ExecutionStepTemplate's own docstring). If the template is ever
+# reordered, this mapping needs updating to match.
+#
+# Every entry here is a conservative, one-directional inference ("if
+# the trigger fired, this step is *at least* as done as it claims") --
+# never a fabricated guess. The remaining 16 steps (actual design/
+# drawing production -- 3D design, structural, MEP, interior fit-out
+# drawings, etc.) have no other system tracking them and stay a manual
+# checklist; there's nothing to auto-fill them from without inventing
+# progress that hasn't genuinely happened.
+_AUTO_FILL_TRIGGERS: dict[int, str] = {
+    2: "quotation_created",  # "Quotation prepared"
+    5: "gate:documents_signed",  # "Documents prepared for client signature (Baladia/KFD/MEW)"
+    6: "gate:mew_approval",  # "MEW approval request submitted"
+    7: "contract_created",  # "Contract initiated"
+    8: "gate:architectural_approval",  # "Architectural drawings completed"
+    9: "gate:submit_baladia_kfd",  # "Drawings submitted to Baladia/KFD (post client approval)"
+}
+
+
+def try_auto_fill(db: Session, project_id: int, trigger: str, user_id: int | None) -> None:
+    """Auto-completes the one execution step (if any) linked to `trigger`
+    in _AUTO_FILL_TRIGGERS above. Sets completion_percentage to 100 only
+    if it's currently lower (never overrides a value staff already
+    pushed higher or lower it back down) and only if the step isn't
+    excluded from this project; sets a short default remark only if
+    remarks is currently empty, so it never clobbers a staff-written
+    note. Staff can still edit the percentage afterward exactly like any
+    other step -- this sets a sensible default the moment the real fact
+    becomes known, it doesn't lock anything. Silently does nothing if no
+    step maps to this trigger, or the matching step is excluded or
+    already at 100%."""
+    sequence_number = next((seq for seq, key in _AUTO_FILL_TRIGGERS.items() if key == trigger), None)
+    if sequence_number is None:
+        return
+    step = (
+        db.query(ProjectExecutionStep)
+        .filter(ProjectExecutionStep.project_id == project_id, ProjectExecutionStep.sequence_number == sequence_number)
+        .first()
+    )
+    if step is None or step.is_excluded or step.completion_percentage >= 100:
+        return
+
+    step.completion_percentage = 100
+    if not (step.remarks or "").strip():
+        step.remarks = "Auto-completed -- tracked automatically elsewhere in the project."
+    audit_service.log_event(
+        db, PROJECT_ENTITY_TYPE, project_id, f"Execution step auto-completed: {step.name}", user_id,
+        new_value="100%",
+    )
+    _recompute_progress(db, project_id)
+
+
 def get_project_step(db: Session, project_id: int, step_id: int) -> ProjectExecutionStep:
     step = (
         db.query(ProjectExecutionStep)

@@ -1,4 +1,4 @@
-export type ContractStatus = 'Draft' | 'Sent' | 'Signed' | 'Active' | 'Expired' | 'Terminated'
+export type ContractStatus = 'Draft' | 'Signed' | 'Active' | 'Expired' | 'Terminated'
 
 // The two pre-written, bilingual (Arabic-then-English) contract letters
 // staff can pick when creating a contract. undefined/null keeps the

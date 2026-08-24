@@ -29,13 +29,20 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     fit for this same shape if that's ever needed, without disturbing
     projects already running against this one.
 
-    stage_key groups each step under one of the 5 Project Approval
-    Process stages (see approval_process.py) it feeds into -- e.g. the
-    architectural/3D design steps fall under "architectural_approval",
-    the structural/interior/MEP drawing steps fall under
-    "submit_baladia_kfd" since they're submitted together as the full
-    technical package. "Permit Approved" (the final approval stage) has
-    no execution steps of its own -- it's a pure external gate.
+    stage_key groups each step under one of the 7 project workflow
+    stages it happens during (see project.py's WORKFLOW_STAGES and
+    execution_step_service.STAGE_KEYS) -- e.g. "Client Civil ID
+    collected" during Contract, "Architectural drawings completed"
+    during Design (migration 0029 repointed this column to workflow
+    stages; it used to hold one of the 5 ApprovalProcessTemplate gate
+    keys instead). Despite ApprovalProcessTemplate also having a
+    stage_key column, the two are disjoint concepts on two genuinely
+    independent tracks -- see that model's own docstring. A handful of
+    specific steps that duplicate a specific gate closing (or a
+    Quotation/Contract being created) auto-complete when that gate
+    closes instead of making staff tick the same fact twice -- see
+    execution_step_service.try_auto_fill and its _AUTO_FILL_TRIGGERS
+    table, keyed by sequence_number, not stage_key.
     is_optional flags a step that doesn't apply to every project (e.g.
     a client who doesn't want a false ceiling has no real use for
     "False ceiling drawings completed") -- purely informational since
