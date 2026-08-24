@@ -5,6 +5,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { uuid } from '@/utils/uuid'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import type { AppUser, UserRole } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
@@ -74,7 +75,7 @@ function submitForm(): void {
   if (nameError.value || emailError.value || role.value === '') return
 
   const user: AppUser = {
-    id: props.user?.id ?? `USR-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
+    id: props.user?.id ?? `USR-${uuid().slice(0, 6).toUpperCase()}`,
     name: name.value.trim(),
     designation: designation.value.trim(),
     email: email.value.trim(),

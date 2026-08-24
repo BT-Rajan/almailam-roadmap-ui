@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import type { ToastMessage, ToastVariant } from '@/types/Toast'
+import { uuid } from '@/utils/uuid'
 
 const DEFAULT_TOAST_DURATION = 4000
 
@@ -11,7 +12,7 @@ export const useToastStore = defineStore('toast', {
 
   actions: {
     show(variant: ToastVariant, title: string, description?: string, duration = DEFAULT_TOAST_DURATION) {
-      const id = crypto.randomUUID()
+      const id = uuid()
       this.toasts.push({ id, variant, title, description, duration })
 
       if (duration > 0) {

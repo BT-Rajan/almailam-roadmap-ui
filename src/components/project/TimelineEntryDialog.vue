@@ -10,6 +10,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import { useAuthStore } from '@/stores/authStore'
 import type { TimelineEvent, TimelineEventStatus } from '@/types/Timeline'
 import type { SelectOption } from '@/types/Ui'
+import { uuid } from '@/utils/uuid'
 
 const authStore = useAuthStore()
 
@@ -64,7 +65,7 @@ function submit(): void {
   }
 
   const savedEvent: TimelineEvent = {
-    id: props.event?.id ?? `TLE-NOTE-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+    id: props.event?.id ?? `TLE-NOTE-${uuid().slice(0, 8).toUpperCase()}`,
     projectId: props.projectId,
     type: props.event?.type ?? 'note',
     title: title.value.trim(),
