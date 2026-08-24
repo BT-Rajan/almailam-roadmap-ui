@@ -245,6 +245,18 @@ function selectedEngineerName(): string {
 }
 
 async function submitWizard(): Promise<void> {
+  // Re-entrancy guard, checked first and synchronously: the submit
+  // button's own :disabled="isSubmitting" doesn't fully prevent a
+  // double-submit -- Vue applies that to the DOM asynchronously (its
+  // own render scheduler), so a fast double-click (or an impatient
+  // second click while the network request is in flight) can fire this
+  // handler a second time before the button visually disables. Without
+  // this, that second call ran the same create request again --
+  // duplicate projects, duplicate permit tasks, and a confirmation
+  // dialog that ended up reflecting whichever call finished last rather
+  // than clearly confirming the one thing that was asked for.
+  if (isSubmitting.value) return
+
   // Previously silent: this could send someone from the Review step
   // straight back to step 0 with no toast and no explanation, easy to
   // read as "the button didn't do anything" rather than "something on

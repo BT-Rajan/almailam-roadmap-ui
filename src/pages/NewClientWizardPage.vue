@@ -258,6 +258,14 @@ function isContactTouched(contact: (typeof form.value.contacts)[number]): boolea
 }
 
 async function submitWizard(): Promise<void> {
+  // Re-entrancy guard, checked first and synchronously: the submit
+  // button's own :loading="isSubmitting" doesn't fully prevent a
+  // double-submit -- Vue applies that disabled state to the DOM
+  // asynchronously, so a fast double-click can fire this handler a
+  // second time before the button visually disables, creating a
+  // duplicate client. See NewProjectWizardPage.vue's identical guard.
+  if (isSubmitting.value) return
+
   // Re-validate every step, not just the current one -- someone could
   // have gone back and broken an earlier step, or jumped here via the
   // stepper. This is the final gate before anything reaches the backend.
