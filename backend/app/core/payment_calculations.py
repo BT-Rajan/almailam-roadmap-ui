@@ -82,11 +82,25 @@ def get_financial_summary(agreement, obligations: list, payments: list | None = 
         # payment can be recorded for the full amount due while an
         # allocation mistake (or a payment made before its obligation
         # existed) leaves an obligation's own amount_received short.
-        # Outstanding is total payable minus total actually received,
-        # rounded to whole currency units so a fils-level rounding
-        # remainder (see generate_even_schedule) never reads as still
-        # outstanding once the real money is all in.
-        total_payable = sum((Decimal(str(o.amount_due)) for o in active_obligations), Decimal("0"))
+        #
+        # Total payable is the agreement's own contract_amount -- NOT
+        # sum(obligation.amount_due). Those two are supposed to match
+        # (an even schedule is generated to sum exactly to
+        # contract_amount, see generate_even_schedule), but 'One-time'
+        # and 'Custom' schedules are entered by hand and nothing
+        # enforces that they reconcile against the contract value, so
+        # obligations can drift from what the agreement actually says is
+        # payable (an extra or mis-entered obligation row inflates the
+        # sum without the contract itself changing). contract_amount is
+        # the number the UI calls "Contract Value" and the one Total
+        # Pending has to reconcile against, so it's the anchor here, not
+        # a derived sum that can silently disagree with it.
+        #
+        # Rounded down to whole currency units so a fils-level rounding
+        # remainder (the same schedule generation's remainder-folding)
+        # never reads as still outstanding once the real money is all
+        # in.
+        total_payable = Decimal(str(agreement.contract_amount))
         total_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
         outstanding = (total_payable - total_received).quantize(Decimal("1"), rounding=ROUND_DOWN)
         total_pending = max(Decimal("0"), outstanding)
