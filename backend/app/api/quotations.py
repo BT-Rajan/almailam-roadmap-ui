@@ -29,8 +29,9 @@ def _to_out(db: Session, quotation) -> QuotationOut:
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
     prepared_by_name = _user_name(db, quotation.prepared_by)
     line_items = quotation_service.get_line_items(db, quotation.id)
+    revisions = quotation_service.get_revisions_with_names(db, quotation.id)
     return QuotationOut.from_model(
-        quotation, project.project_no if project else "", prepared_by_name, line_items
+        quotation, project.project_no if project else "", prepared_by_name, line_items, revisions
     )
 
 

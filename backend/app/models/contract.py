@@ -25,6 +25,14 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin):
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    # The quotation this contract was generated from. Required going
+    # forward (see contract_service.create_contract, which enforces the
+    # quotation is 'Approved' and finalized before allowing this to be
+    # set) -- nullable only so contracts created before this rule
+    # existed remain valid rows.
+    quotation_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("quotations.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     template_name: Mapped[str] = mapped_column(String(150), nullable=False)
     revision: Mapped[str] = mapped_column(String(10), nullable=False, default="R0")
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="KWD")

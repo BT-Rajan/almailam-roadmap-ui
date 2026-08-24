@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Lock, LockOpen, Plus, Printer } from '@lucide/vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import AIResponseCard from '@/components/ai/AIResponseCard.vue'
 import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
@@ -32,10 +32,55 @@ const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
 
+// A contract must come from a specific quotation that's Approved and
+// Final (see contract_service.create_contract) -- this is that
+// quotation, whichever the quotation tab currently has selected.
+// "New Contract" stays disabled without one so staff can't even open a
+// dialog that the backend would just reject.
+const eligibleQuotation = () => {
+  const quotation = quotationStore.selectedQuotation ?? quotationStore.latestQuotation
+  return quotation && quotation.status === 'Approved' && quotation.finalizedAt ? quotation : undefined
+}
+
+function openCreateDialog(): void {
+  if (!eligibleQuotation()) {
+    resultDialogStore.showError(
+      'No eligible quotation',
+      'A contract can only be generated from a quotation that has been Approved and saved as Final. ' +
+        'Finalize and approve a quotation on the Quotation tab first.',
+    )
+    return
+  }
+  isCreateDialogOpen.value = true
+}
+
+// Picked up when the user clicks "Advance to Contract" on the quotation
+// tab -- selects that quotation here too (in case a different one was
+// selected on this tab) and opens the dialog straight away.
+onMounted(() => {
+  const pendingId = quotationStore.consumePendingContractRequest()
+  if (pendingId) {
+    quotationStore.selectQuotation(pendingId)
+    isCreateDialogOpen.value = true
+  }
+})
+
 async function handleCreateContract(payload: ContractCreateInput): Promise<void> {
+  const quotation = eligibleQuotation()
+  if (!quotation) {
+    resultDialogStore.showError(
+      'No eligible quotation',
+      'A contract can only be generated from a quotation that has been Approved and saved as Final.',
+    )
+    return
+  }
   isCreating.value = true
   try {
-    const contract = await contractStore.createContract({ ...payload, projectId: props.project.id })
+    const contract = await contractStore.createContract({
+      ...payload,
+      projectId: props.project.id,
+      quotationId: quotation.id,
+    })
     resultDialogStore.showSuccess('Contract created', `${contract.contractNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
@@ -100,7 +145,7 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between no-print">
-    <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Contract</BaseButton>
+    <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">New Contract</BaseButton>
     <div class="flex items-center gap-2">
       <BaseButton
         v-if="contractStore.selectedContract"
@@ -129,7 +174,7 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
     title="No contract selected"
     :description="contractStore.contracts.length === 0 ? 'Create the first contract for this project.' : 'Select a contract from the list to preview it.'"
     :action-label="contractStore.contracts.length === 0 ? 'New Contract' : undefined"
-    @action="isCreateDialogOpen = true"
+    @action="openCreateDialog"
   />
 
   <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
@@ -175,7 +220,7 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
   <NewContractDialog
     v-model="isCreateDialogOpen"
     :project="project"
-    :quotation="quotationStore.selectedQuotation ?? quotationStore.latestQuotation"
+    :quotation="eligibleQuotation()"
     :default-client-representative="client?.contactPerson"
     :loading="isCreating"
     @confirm="handleCreateContract"

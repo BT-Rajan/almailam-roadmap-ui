@@ -434,10 +434,26 @@ CREATE TABLE IF NOT EXISTS quotation_line_items (
     INDEX idx_quotation_line_items_quotation (quotation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS quotation_revisions (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    quotation_id    BIGINT UNSIGNED NOT NULL,
+    revision        VARCHAR(10) NOT NULL,
+    revised_at      DATE NOT NULL,
+    changed_by      BIGINT UNSIGNED NOT NULL,
+    summary         TEXT NOT NULL,
+    CONSTRAINT fk_quotation_revisions_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_quotation_revisions_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_quotation_revisions_quotation (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS contracts (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     contract_no             VARCHAR(20) NOT NULL UNIQUE,
     project_id              BIGINT UNSIGNED NOT NULL,
+    -- The quotation this contract was generated from (migration 0033).
+    -- Nullable only for contracts that predate the rule that a contract
+    -- must come from an Approved, finalized quotation.
+    quotation_id            BIGINT UNSIGNED NULL,
     template_name           VARCHAR(150) NOT NULL,
     revision                VARCHAR(10) NOT NULL DEFAULT 'R0',
     currency                VARCHAR(10) NOT NULL DEFAULT 'KWD',
@@ -467,8 +483,10 @@ CREATE TABLE IF NOT EXISTS contracts (
     deleted_at              DATETIME NULL,
     CONSTRAINT fk_contracts_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_contracts_prepared_by FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_contracts_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE RESTRICT,
     INDEX idx_contracts_project (project_id),
-    INDEX idx_contracts_status (status)
+    INDEX idx_contracts_status (status),
+    INDEX idx_contracts_quotation (quotation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS contract_clauses (

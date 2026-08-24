@@ -9,8 +9,10 @@ from app.core.status_transitions import (
     QUOTATION_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.client import Client
 from app.models.project import Project
-from app.models.quotation import Quotation, QuotationLineItem
+from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
+from app.models.user import User
 from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
@@ -36,6 +38,48 @@ def _project_by_no(db: Session, project_no: str) -> Project:
     return project
 
 
+def _assert_valid_client(db: Session, project: Project) -> None:
+    """A project's client_id is a NOT NULL FK, so a project can never be
+    created without pointing at some client row -- but that row can
+    still have been soft-deleted since. Block quotation creation in
+    that case so nothing gets generated against a client record that
+    is no longer valid."""
+    client = db.query(Client).filter(Client.id == project.client_id, Client.deleted_at.is_(None)).first()
+    if client is None:
+        raise ValidationAppError(
+            "This project's client record is missing or has been removed. "
+            "A quotation cannot be created without a valid client."
+        )
+
+
+def _user_name(db: Session, user_id: int) -> str:
+    user = db.query(User).filter(User.id == user_id).first()
+    return user.full_name if user else "Unknown"
+
+
+def _next_revision_label(current: str) -> str:
+    # Revision labels are 'R0', 'R1', 'R2', ... -- bump the numeric suffix.
+    if current.startswith("R") and current[1:].isdigit():
+        return f"R{int(current[1:]) + 1}"
+    return "R1"
+
+
+def _record_revision(db: Session, quotation: Quotation, summary: str, user_id: int, *, bump: bool) -> None:
+    """Writes one quotation_revisions row. bump=True (every content save
+    after the first) also advances quotation.revision itself; the very
+    first row (written at creation) keeps the quotation at its starting
+    'R0' label since nothing has changed yet at that point."""
+    new_label = _next_revision_label(quotation.revision) if bump else quotation.revision
+    db.add(
+        QuotationRevision(
+            quotation_id=quotation.id, revision=new_label, revised_at=date.today(),
+            changed_by=user_id, summary=summary,
+        )
+    )
+    if bump:
+        quotation.revision = new_label
+
+
 def list_quotations(db: Session, project_no: str | None = None, status: str | None = None) -> list[Quotation]:
     query = db.query(Quotation).filter(Quotation.deleted_at.is_(None))
     if project_no:
@@ -57,6 +101,16 @@ def get_quotation(db: Session, quotation_no: str) -> Quotation:
     return quotation
 
 
+def get_revisions_with_names(db: Session, quotation_id: int) -> list[tuple]:
+    revisions = (
+        db.query(QuotationRevision)
+        .filter(QuotationRevision.quotation_id == quotation_id)
+        .order_by(QuotationRevision.id.desc())
+        .all()
+    )
+    return [(r, _user_name(db, r.changed_by)) for r in revisions]
+
+
 def get_line_items(db: Session, quotation_id: int) -> list[QuotationLineItem]:
     return (
         db.query(QuotationLineItem)
@@ -68,6 +122,7 @@ def get_line_items(db: Session, quotation_id: int) -> list[QuotationLineItem]:
 
 def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     project = _project_by_no(db, payload.projectId)
+    _assert_valid_client(db, project)
     project_service.assert_project_open_for_new_work(project)
     amount = compute_amount(
         [(item.quantity, item.unitPrice) for item in payload.lineItems], payload.taxRatePercent, payload.discountAmount
@@ -112,6 +167,9 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         title=f"Quotation {quotation.quotation_no} created",
         actor_id=user_id,
     )
+    # First revision history entry, written automatically -- not just on
+    # every later save, but from the very first time the quotation exists.
+    _record_revision(db, quotation, "Initial quotation created", user_id, bump=False)
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -194,6 +252,16 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
         quotation.amount = new_amount
 
     audit_service.log_field_changes(db, ENTITY_TYPE, quotation.id, changes, user_id)
+
+    # Every save that actually changes content gets its own revision
+    # history entry (line items are content too, even though they don't
+    # go through the `changes` dict above since they're a separate table).
+    if changes or payload.lineItems is not None:
+        summary = "Line items updated" if not changes else "Updated " + ", ".join(sorted(changes.keys()))
+        if changes and payload.lineItems is not None:
+            summary += " and line items"
+        _record_revision(db, quotation, summary, user_id, bump=True)
+
     db.commit()
     db.refresh(quotation)
 

@@ -169,6 +169,7 @@ function closeDialog(): void {
 }
 
 function handleConfirm(): void {
+  const quotationId = props.quotation?.quotationNo ?? ''
   if (isLettered.value) {
     // These two are required by the schema but not meaningful in
     // lettered mode -- auto-fill them from the template so validation
@@ -187,6 +188,7 @@ function handleConfirm(): void {
 
     emit('confirm', {
       projectId: '', // filled in by the caller, which already has the project in scope
+      quotationId, // filled in from the eligible quotation the caller resolved for this dialog
       templateName: form.templateName,
       currency: form.currency,
       contractValue: form.contractValue,
@@ -224,6 +226,7 @@ function handleConfirm(): void {
 
   emit('confirm', {
     projectId: '', // filled in by the caller, which already has the project in scope
+    quotationId, // filled in from the eligible quotation the caller resolved for this dialog
     templateName: form.templateName.trim(),
     currency: form.currency,
     contractValue: form.contractValue,

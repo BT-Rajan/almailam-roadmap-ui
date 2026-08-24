@@ -54,6 +54,7 @@ class ContractRevisionCreate(BaseModel):
 class ContractOut(BaseModel):
     id: str
     projectId: str
+    quotationNo: str | None
     contractNo: str
     templateName: str
     revision: str
@@ -82,11 +83,13 @@ class ContractOut(BaseModel):
 
     @staticmethod
     def from_model(
-        contract, project_no: str, prepared_by_name: str, clauses: list, revisions: list[tuple]
+        contract, project_no: str, prepared_by_name: str, clauses: list, revisions: list[tuple],
+        quotation_no: str | None = None,
     ) -> "ContractOut":
         return ContractOut(
             id=contract.contract_no,
             projectId=project_no,
+            quotationNo=quotation_no,
             contractNo=contract.contract_no,
             templateName=contract.template_name,
             revision=contract.revision,
@@ -117,6 +120,7 @@ class ContractOut(BaseModel):
 
 class ContractCreate(BaseModel):
     projectId: str
+    quotationId: str = Field(min_length=1)
     templateName: str = Field(min_length=1, max_length=150)
     currency: str = Field(default="KWD", min_length=1, max_length=10)
     contractValue: float = Field(gt=0)

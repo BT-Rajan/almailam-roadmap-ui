@@ -36,6 +36,24 @@ class QuotationLineItemOut(BaseModel):
         )
 
 
+class QuotationRevisionOut(BaseModel):
+    id: str
+    revision: str
+    date: date
+    changedBy: str
+    summary: str
+
+    @staticmethod
+    def from_model(revision, changed_by_name: str) -> "QuotationRevisionOut":
+        return QuotationRevisionOut(
+            id=f"REV-{revision.id:03d}",
+            revision=revision.revision,
+            date=revision.revised_at,
+            changedBy=changed_by_name,
+            summary=revision.summary,
+        )
+
+
 class QuotationOut(BaseModel):
     id: str
     projectId: str
@@ -60,9 +78,10 @@ class QuotationOut(BaseModel):
     scopeItems: list[str]
     paymentTerms: list[str]
     finalizedAt: datetime | None
+    revisions: list[QuotationRevisionOut]
 
     @staticmethod
-    def from_model(quotation, project_no: str, prepared_by_name: str, line_items: list) -> "QuotationOut":
+    def from_model(quotation, project_no: str, prepared_by_name: str, line_items: list, revisions: list[tuple]) -> "QuotationOut":
         return QuotationOut(
             id=quotation.quotation_no,
             projectId=project_no,
@@ -87,6 +106,7 @@ class QuotationOut(BaseModel):
             scopeItems=quotation.scope_items,
             paymentTerms=quotation.payment_terms,
             finalizedAt=quotation.finalized_at,
+            revisions=[QuotationRevisionOut.from_model(r, name) for r, name in revisions],
         )
 
 
