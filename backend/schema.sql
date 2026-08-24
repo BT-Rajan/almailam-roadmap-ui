@@ -778,7 +778,16 @@ CREATE TABLE IF NOT EXISTS service_catalog_items (
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
-    INDEX idx_service_catalog_items_name (name)
+    -- NULL for soft-deleted rows (so a deleted service's name can be
+    -- reused), the lowercased name for active ones -- MySQL/MariaDB
+    -- treat multiple NULLs in a UNIQUE index as non-conflicting, so
+    -- this enforces case-insensitive uniqueness only among active rows,
+    -- matching what _assert_name_available already checks at the
+    -- application layer, now also as a real, race-proof constraint
+    -- (see migration 0037).
+    active_name_lower VARCHAR(150) GENERATED ALWAYS AS (IF(deleted_at IS NULL, LOWER(name), NULL)) STORED,
+    INDEX idx_service_catalog_items_name (name),
+    UNIQUE KEY uq_service_catalog_items_active_name (active_name_lower)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS service_catalog_activities (

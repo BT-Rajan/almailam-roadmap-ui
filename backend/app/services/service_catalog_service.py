@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
@@ -25,9 +26,19 @@ DEFAULT_SERVICE_NAMES = [
 def _ensure_seeded(db: Session) -> None:
     if db.query(ServiceCatalogItem).filter(ServiceCatalogItem.deleted_at.is_(None)).first() is not None:
         return
-    for name in DEFAULT_SERVICE_NAMES:
-        db.add(ServiceCatalogItem(name=name))
-    db.commit()
+    # Same check-then-insert race as role_service._ensure_seeded /
+    # ai_config_service._ensure_seeded (see those for the fuller
+    # explanation, confirmed happening on the live server for
+    # role_definitions) -- now backed by a real database constraint
+    # (uq_service_catalog_items_active_name, see migration 0037) rather
+    # than nothing, so a concurrent duplicate attempt has something to
+    # catch instead of silently inserting duplicate default services.
+    try:
+        for name in DEFAULT_SERVICE_NAMES:
+            db.add(ServiceCatalogItem(name=name))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
 
 
 def _services_query(db: Session):
