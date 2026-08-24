@@ -14,6 +14,7 @@ from app.core.status_transitions import (
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.user import User
+from app.models.project import Project
 from app.models.client import (
     CLIENT_DOCUMENT_CATEGORIES,
     CLIENT_VERIFICATION_RESULTS,
@@ -894,6 +895,20 @@ def create_identification(db: Session, client_id: int, payload, user_id: int | N
         db, ENTITY_TYPE, client_id, "Identification added", user_id,
         new_value=f"{identification.document_type}: {identification.document_number}",
     )
+    # The client's identification is what project_service._assert_stage_
+    # exit_criteria requires before any of THIS client's projects can
+    # leave "Enquiry" -- a client can have several projects at once, and
+    # this one identification record can be exactly what unblocks all
+    # of them, not just whichever project happened to prompt it. Local
+    # import: project_service already imports this module at module
+    # level, so importing it back at module level here would be
+    # circular (same pattern as payment_service._try_auto_advance_
+    # project_stage).
+    from app.services import project_service
+
+    for project in db.query(Project).filter(Project.client_id == client_id, Project.current_stage == "Enquiry").all():
+        project_service.try_auto_advance_stage(db, project, user_id)
+
     db.commit()
     db.refresh(identification)
     return identification

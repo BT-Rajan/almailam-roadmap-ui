@@ -12,6 +12,7 @@ from app.core.status_transitions import (
     PROJECT_STATUS_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.client import ClientIdentification
 from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
@@ -273,20 +274,38 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
     """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Design and
-    Government Submission run in parallel (PROJECT_STAGE_ALLOWED_
-    TRANSITIONS allows entering either first out of Contract, and moving
-    freely between the two), so their checks are organized around that
-    fork/converge shape rather than one check per named stage:
-      - leaving "Contract" for the first time (whichever of the two
-        branches is entered first) requires the Contract-completion
-        items, once
-      - entering "Execution & Tracking" -- where both branches converge
-        -- requires every gate from BOTH branches, regardless of which
-        branch was current last
+    Government Submission are sequential, not parallel -- Design must be
+    approved by the client before Government Submission begins (you
+    can't submit unapproved drawings to an authority for permit
+    approval), and each stage gates the next in a straight line:
+    Contract -> Design -> Government Submission -> Execution & Tracking.
+    PROJECT_STAGE_ALLOWED_TRANSITIONS keeps exactly one reopening path
+    backward (Government Submission -> Design, for when an authority's
+    feedback requires design changes) -- that's the one exception, and
+    it requires a reason like any other reopening.
     """
     problems: list[str] = []
 
-    if new_stage == "Contract":
+    if new_stage == "Quotation":
+        # The vital requirement for leaving Enquiry -- the client's
+        # identification (Civil ID for an individual, Trade Licence for
+        # an organization, etc.) has to be on file before real
+        # commercial work starts. Not part of ClientCreate itself
+        # (identification is added separately, after the client
+        # record exists -- see client_service.create_identification),
+        # so a client can genuinely exist with none yet; this is a
+        # real, sometimes-blocking gate, not a formality that's always
+        # already satisfied by the time a project exists.
+        has_identification = (
+            db.query(ClientIdentification)
+            .filter(ClientIdentification.client_id == project.client_id, ClientIdentification.deleted_at.is_(None))
+            .first()
+            is not None
+        )
+        if not has_identification:
+            problems.append("the client's identification document (e.g. Civil ID) on file")
+
+    elif new_stage == "Contract":
         approved_quotation = (
             db.query(Quotation)
             .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
@@ -295,14 +314,13 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if approved_quotation is None:
             problems.append("an Approved quotation")
 
-    elif previous_stage == "Contract" and new_stage in ("Design", "Government Submission"):
+    elif new_stage == "Design" and previous_stage == "Contract":
         contract_exists = (
             db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
         )
         if contract_exists is None:
             problems.append("a contract")
-        gate = approval_process_service.get_project_step_by_stage(db, project.id, "documents_signed")
-        if gate.storage_key is None:
+        if not approval_process_service.is_stage_gate_complete(db, project.id, "documents_signed"):
             problems.append("the 'Documents Signed' stage gate")
         # A financial agreement -- payment dates and amounts -- has to be
         # prepared right after the contract, not left until the project
@@ -315,22 +333,21 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if payment_service.get_agreement_by_project(db, project.project_no) is None:
             problems.append("a financial agreement (payment dates and amount)")
 
-    # "Execution & Tracking" is reachable from three different previous
-    # stages: convergence from either parallel branch ("Design" or
-    # "Government Submission" -- both require every gate from both
-    # branches, since either could be the one just finished), or
-    # reopening from "Completed" (requires nothing here -- those gates
-    # were already satisfied once, and reopening already requires its
-    # own reason, asserted separately below).
-    elif new_stage == "Execution & Tracking" and previous_stage in ("Design", "Government Submission"):
+    elif new_stage == "Government Submission" and previous_stage == "Design":
+        # The one checkpoint the client themselves signs off on before
+        # anything goes to a government authority -- matches the source
+        # process document's own ordering (design approval, then
+        # submission), not something either stage could reasonably skip.
+        if not approval_process_service.is_stage_gate_complete(db, project.id, "architectural_approval"):
+            problems.append("the 'Architectural Design Approved by Client' stage gate")
+
+    elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
         for stage_key, label in (
-            ("architectural_approval", "'Architectural Design Approved by Client'"),
             ("mew_approval", "'MEW Approval'"),
             ("submit_baladia_kfd", "'Submit to Baladia or KFD'"),
             ("permit_approved", "'Permit Approved'"),
         ):
-            gate = approval_process_service.get_project_step_by_stage(db, project.id, stage_key)
-            if gate.storage_key is None:
+            if not approval_process_service.is_stage_gate_complete(db, project.id, stage_key):
                 problems.append(f"the {label} stage gate")
 
     elif new_stage == "Completed":
@@ -369,20 +386,22 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 # and a 0-100 progress bar that used to be driven solely by the
 # execution checklist -- see recompute_progress below).
 #
-# "Design" and "Government Submission" share one band since
-# PROJECT_STAGE_ALLOWED_TRANSITIONS lets a project move freely between
-# them (they run in parallel, not sequentially) -- treating them as
-# different sequential slots would make progress visibly jump backward
-# when staff switch which branch they're chasing.
+# Design and Government Submission are sequential now, each its own
+# band -- they used to share one band because a project could move
+# freely between them (parallel branches), which would have made
+# progress visibly jump backward switching branches; now that Design
+# must be approved before Government Submission even begins, there's
+# no backward movement to guard against, and each stage genuinely
+# represents further progress than the one before it.
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Enquiry": 0,
     "Quotation": 1,
     "Contract": 2,
     "Design": 3,
-    "Government Submission": 3,
-    "Execution & Tracking": 4,
+    "Government Submission": 4,
+    "Execution & Tracking": 5,
 }
-_PROGRESS_BAND_COUNT = 6  # the 5 bands above, plus "Completed" as the 6th, terminal slot
+_PROGRESS_BAND_COUNT = 7  # the 6 bands above, plus "Completed" as the 7th, terminal slot
 
 
 def recompute_progress(db: Session, project: Project) -> int:
@@ -414,15 +433,15 @@ def recompute_progress(db: Session, project: Project) -> int:
 # saves the separate manual click after the condition that already
 # gates it becomes true (approving a quotation, closing the last
 # approval gate, finishing the checklist and settling payment).
-# "Contract" isn't here -- it has two valid next stages (the parallel
-# Design/Government Submission fork), handled as a special case in
-# try_auto_advance_stage itself rather than this fixed one-target map.
-# Reopening from "Completed" also stays manual (exceptional,
-# reason-required), same as before.
+# Reopening (Completed -> Execution & Tracking, Government Submission
+# -> Design) stays manual -- both exceptional, reason-required
+# corrections, not something that should ever happen as a side effect
+# of an unrelated action.
 _AUTO_ADVANCE_TARGET: dict[str, str] = {
     "Enquiry": "Quotation",
     "Quotation": "Contract",
-    "Design": "Execution & Tracking",
+    "Contract": "Design",
+    "Design": "Government Submission",
     "Government Submission": "Execution & Tracking",
     "Execution & Tracking": "Completed",
 }
@@ -476,6 +495,13 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     # instead.
     if previous_stage == "Completed" and new_stage == "Execution & Tracking":
         assert_reason_given(reason, "A reason is required to reopen a completed project.")
+    # Same reasoning, same pattern -- reopening Government Submission
+    # back to Design (an authority's feedback requiring design changes)
+    # is a correction, not the normal forward flow that also targets
+    # "Design" (from Contract) -- can't live in the target-only
+    # REQUIRING_REASON table for the identical reason as above.
+    if previous_stage == "Government Submission" and new_stage == "Design":
+        assert_reason_given(reason, "A reason is required to send the project back to Design.")
 
     _apply_stage_change(db, project, new_stage, reason, user_id)
 
@@ -500,33 +526,8 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     Silently does nothing if the target stage's exit criteria aren't met
     yet -- "not yet eligible" is the expected, common case here, not a
     failure the caller's own action should be blocked by.
-
-    "Contract" is handled separately from the simple one-target-per-stage
-    map below: its exit criteria (contract + Documents Signed gate +
-    financial agreement) are identical regardless of which of the two
-    parallel branches comes next, so there's no real decision being
-    made automatically here, just which one to land on first. Defaults
-    to "Design" -- the natural first step per the source process
-    document (drawings exist before they can be submitted to any
-    authority) -- unless a Government Submission record already exists
-    for this project, in which case that's clearly the branch already
-    under way and gets picked instead. Either way, staff can still
-    freely move between the two afterward (PROJECT_STAGE_ALLOWED_
-    TRANSITIONS already permits it) -- this only decides where the
-    project lands the moment it becomes eligible to leave "Contract",
-    not which branch is "correct" for it.
     """
-    if project.current_stage == "Contract":
-        target_stage = (
-            "Government Submission"
-            if db.query(GovernmentSubmission)
-            .filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None))
-            .first()
-            is not None
-            else "Design"
-        )
-    else:
-        target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
+    target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
     if target_stage is None:
         return
     try:
@@ -642,6 +643,70 @@ def get_completion_summary(db: Session, project_no: str) -> dict:
         "notes": project.completion_notes,
         "scopeDeviations": scope_deviations,
         "deviationNotes": project.deviation_notes,
+    }
+
+
+def get_completion_checklist(db: Session, project_no: str) -> dict:
+    """The milestone-status checklist for the Completion stage -- did
+    each major phase of the project actually finish, not the budget/
+    duration comparison get_completion_summary above covers (a
+    genuinely different question; this is additive to that, not a
+    replacement for it). Mirrors _assert_stage_exit_criteria's own
+    requirements exactly, so this checklist and the actual gate that
+    allows a project to reach "Completed" never disagree with each
+    other -- it's meant to be a readable, structured view of the same
+    underlying facts _assert_stage_exit_criteria already checks, not a
+    second, independently-maintained notion of "done".
+    """
+    project = get_project(db, project_no)
+
+    contract_exists = (
+        db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
+    )
+    agreement = payment_service.get_agreement_by_project(db, project_no)
+    payments_settled = False
+    payments_detail = "No financial agreement on file."
+    if agreement:
+        summary = payment_service.get_financial_summary(db, agreement.id)
+        payments_settled = round(summary["totalPending"]) <= 0
+        payments_detail = (
+            "Fully settled." if payments_settled else f"{summary['totalPending']} {agreement.currency} still outstanding."
+        )
+
+    design_approved = approval_process_service.is_stage_gate_complete(db, project.id, "architectural_approval")
+    government_gates = ("mew_approval", "submit_baladia_kfd", "permit_approved")
+    government_complete = all(approval_process_service.is_stage_gate_complete(db, project.id, k) for k in government_gates)
+
+    execution_steps = execution_step_service.included_steps(execution_step_service.list_project_steps(db, project.id))
+    incomplete_steps = [s for s in execution_steps if s.completion_percentage < 100]
+    field_work_complete = len(incomplete_steps) == 0
+
+    return {
+        "contract": {
+            "complete": contract_exists is not None,
+            "detail": f"{contract_exists.contract_no} on file." if contract_exists else "No contract on file.",
+        },
+        "payments": {"complete": payments_settled, "detail": payments_detail},
+        "design": {
+            "complete": design_approved,
+            "detail": "Approved by client." if design_approved else "Awaiting client approval.",
+        },
+        "governmentApproval": {
+            "complete": government_complete,
+            "detail": (
+                "All submission stages closed."
+                if government_complete
+                else f"{sum(1 for k in government_gates if not approval_process_service.is_stage_gate_complete(db, project.id, k))} of {len(government_gates)} stages still open."
+            ),
+        },
+        "fieldWork": {
+            "complete": field_work_complete,
+            "detail": (
+                "All execution activities complete."
+                if field_work_complete
+                else f"{len(incomplete_steps)} of {len(execution_steps)} execution activities still incomplete."
+            ),
+        },
     }
 
 

@@ -68,6 +68,19 @@ def get_project_step_by_stage(db: Session, project_id: int, stage_key: str) -> P
     return step
 
 
+def is_stage_gate_complete(db: Session, project_id: int, stage_key: str) -> bool:
+    """A stage gate closes via either of two independent paths (migration
+    0033) -- its own review document uploaded (storage_key set), or every
+    project_documents row tagged to it approved and confirmed
+    (completed_at set). Matches ProjectApprovalStepOut.isComplete exactly
+    -- the one place this OR condition should be written, since checking
+    only storage_key (as project_service._assert_stage_exit_criteria did
+    before this helper existed) silently ignores the second path
+    entirely, blocking a project that's genuinely eligible to advance."""
+    gate = get_project_step_by_stage(db, project_id, stage_key)
+    return gate.storage_key is not None or gate.completed_at is not None
+
+
 def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int | None) -> None:
     """Closing the last of the 4 approval gates required to leave
     "Design"/"Government Submission" (see project_service.
