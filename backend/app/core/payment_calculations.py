@@ -74,8 +74,19 @@ def get_financial_summary(agreement, obligations: list, payments: list | None = 
     if payments is None:
         # Per-obligation ledger view -- correct as long as every payment
         # was fully allocated to an obligation when recorded.
+        #
+        # Pending and overdue are mutually exclusive: once an obligation's
+        # due date passes, its outstanding balance moves out of Total
+        # Pending and into Total Overdue rather than being counted in both.
         total_received = sum((Decimal(str(o.amount_received)) for o in obligations), Decimal("0"))
-        total_pending = sum((get_obligation_amount_pending(o) for o in active_obligations), Decimal("0"))
+        total_pending = sum(
+            (
+                get_obligation_amount_pending(o)
+                for o in active_obligations
+                if compute_obligation_status(o, today) not in ("Overdue", "Partially Overdue")
+            ),
+            Decimal("0"),
+        )
     else:
         # Actual-money view: total received is what payments actually
         # recorded, not what got allocated to an obligation row -- a
@@ -100,9 +111,13 @@ def get_financial_summary(agreement, obligations: list, payments: list | None = 
         # remainder (the same schedule generation's remainder-folding)
         # never reads as still outstanding once the real money is all
         # in.
+        #
+        # total_overdue is subtracted out here too, for the same reason as
+        # the ledger view above: once an obligation crosses its due date,
+        # its balance belongs to Total Overdue, not Total Pending.
         total_payable = Decimal(str(agreement.contract_amount))
         total_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
-        outstanding = (total_payable - total_received).quantize(Decimal("1"), rounding=ROUND_DOWN)
+        outstanding = (total_payable - total_received - total_overdue).quantize(Decimal("1"), rounding=ROUND_DOWN)
         total_pending = max(Decimal("0"), outstanding)
 
     next_obligation = get_next_payment_obligation(obligations, today)

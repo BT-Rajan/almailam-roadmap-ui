@@ -85,8 +85,15 @@ export function getFinancialSummary(agreement: FinancialAgreement, obligations: 
   const activeObligations = obligations.filter((obligation) => obligation.manualStatus !== 'Cancelled' && obligation.manualStatus !== 'Waived')
 
   const totalReceived = obligations.reduce((sum, obligation) => sum + obligation.amountReceived, 0)
-  const totalPending = activeObligations.reduce((sum, obligation) => sum + getObligationAmountPending(obligation), 0)
+  // Pending and overdue are mutually exclusive: once an obligation's due
+  // date passes, its outstanding balance moves out of Total Pending and
+  // into Total Overdue rather than being counted in both.
   const totalOverdue = activeObligations.reduce((sum, obligation) => sum + getObligationAmountOverdue(obligation, today), 0)
+  const totalPending = activeObligations.reduce((sum, obligation) => {
+    const status = computeObligationStatus(obligation, today)
+    if (status === 'Overdue' || status === 'Partially Overdue') return sum
+    return sum + getObligationAmountPending(obligation)
+  }, 0)
 
   const nextPaymentObligation = getNextPaymentObligation(obligations, today)
   const nextPaymentDaysUntilDue = nextPaymentObligation ? getDaysUntilDue(nextPaymentObligation.dueDate, today) : undefined
