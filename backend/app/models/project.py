@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -75,6 +75,15 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # prices change later, and so callers that only need the number (list
     # views, cards) don't have to join/aggregate for it.
     service_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # Permit names the client confirmed, at project setup (New Project
+    # Wizard's Permits step), they already hold -- each becomes a
+    # mandatory upload requirement on the Documents tab (see
+    # ProjectDocumentsTab.vue's permitChecklist, which loosely matches a
+    # Government-category link document's name against these). Permits
+    # the client does NOT yet have aren't stored here at all -- those
+    # become Tasks instead (create_project's caller), since they're work
+    # to do, not a document to chase.
+    required_permit_documents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     # Set once by set_status() the moment status becomes "Completed",
     # cleared if the project is later reopened -- the actual end-of-project
     # timestamp, distinct from target_date (the planned one) and from

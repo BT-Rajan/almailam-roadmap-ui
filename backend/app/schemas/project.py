@@ -61,6 +61,10 @@ class ProjectOut(BaseModel):
     selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
     serviceTotal: float | None = None
     completedAt: datetime | None = None
+    # Permit names the client confirmed, at project setup, they already
+    # hold -- each is a mandatory upload requirement on the Documents
+    # tab (see ProjectDocumentsTab.vue's permitChecklist).
+    requiredPermitDocuments: list[str] = Field(default_factory=list)
 
     @staticmethod
     def from_model(project, engineer_name: str, selected_activities: list | None = None) -> "ProjectOut":
@@ -81,6 +85,7 @@ class ProjectOut(BaseModel):
             selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
             serviceTotal=float(project.service_total) if project.service_total is not None else None,
             completedAt=project.completed_at,
+            requiredPermitDocuments=list(project.required_permit_documents or []),
         )
 
 
@@ -127,6 +132,11 @@ class ProjectCreate(BaseModel):
     targetDate: date
     selectedActivities: list[SelectedActivityIn] | None = None
     serviceTotal: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
+    # Permits the client confirmed they already hold -- each becomes a
+    # mandatory upload requirement on the Documents tab. Permits the
+    # client doesn't have yet aren't sent here at all; the wizard turns
+    # those into Tasks instead, against the project this call returns.
+    requiredPermitDocuments: list[str] = Field(default_factory=list)
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
 

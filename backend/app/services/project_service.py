@@ -176,6 +176,7 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         start_date=payload.startDate,
         target_date=payload.targetDate,
         service_total=service_total,
+        required_permit_documents=payload.requiredPermitDocuments or [],
     )
     db.add(project)
     db.flush()
