@@ -461,9 +461,48 @@ if [[ -d "$BACKEND_DIR/migrations" ]]; then
 
             export MYSQL_PWD="$DB_PASSWORD"
 
+            # Tracks which migration files have already been run against
+            # this database, so re-running install.sh (or --migrate on
+            # its own) skips them instead of replaying every .sql file
+            # from scratch every time. Each migration is still written
+            # to be idempotent on its own (information_schema-guarded
+            # ADD COLUMN, etc.) -- this table is a second, cheaper line
+            # of defense: skip the whole file rather than rely on every
+            # statement inside it tolerating a second run.
+            "$DB_CLIENT" \
+                --protocol=tcp \
+                -h "$DB_HOST" \
+                -P "$DB_PORT" \
+                -u "$DB_USER" \
+                "$DB_NAME" <<< "
+                    CREATE TABLE IF NOT EXISTS schema_migrations (
+                        filename VARCHAR(255) NOT NULL PRIMARY KEY,
+                        applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                "
+
             for migration in "${MIGRATIONS[@]}"; do
 
-                log "Migration: $(basename "$migration")"
+                migration_name="$(basename "$migration")"
+
+                already_applied="$(
+                    "$DB_CLIENT" \
+                        --protocol=tcp \
+                        -h "$DB_HOST" \
+                        -P "$DB_PORT" \
+                        -u "$DB_USER" \
+                        -N -s \
+                        "$DB_NAME" <<< "
+                            SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';
+                        "
+                )"
+
+                if [[ "$already_applied" != "0" ]]; then
+                    log "Migration: $migration_name (already applied, skipping)"
+                    continue
+                fi
+
+                log "Migration: $migration_name"
 
                 "$DB_CLIENT" \
                     --protocol=tcp \
@@ -471,6 +510,15 @@ if [[ -d "$BACKEND_DIR/migrations" ]]; then
                     -P "$DB_PORT" \
                     -u "$DB_USER" \
                     "$DB_NAME" < "$migration"
+
+                "$DB_CLIENT" \
+                    --protocol=tcp \
+                    -h "$DB_HOST" \
+                    -P "$DB_PORT" \
+                    -u "$DB_USER" \
+                    "$DB_NAME" <<< "
+                        INSERT INTO schema_migrations (filename) VALUES ('$migration_name');
+                    "
             done
 
             unset MYSQL_PWD

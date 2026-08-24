@@ -9,11 +9,30 @@
 -- snapshot was copied from -- hence a new column on
 -- project_execution_steps only, not on execution_step_templates.
 --
+-- Idempotent -- every ADD COLUMN is guarded by an information_schema
+-- check, same pattern as earlier migrations (see 0026). Safe to
+-- re-run, including against a database install.sh has already applied
+-- this to.
+--
 -- Run:
 --   mysql -u <user> -p <database> < backend/migrations/0034_project_execution_step_exclusion.sql
 
-ALTER TABLE project_execution_steps
-    ADD COLUMN is_excluded TINYINT(1) NOT NULL DEFAULT 0 AFTER is_optional,
-    ADD COLUMN excluded_reason VARCHAR(200) NULL AFTER is_excluded;
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'is_excluded'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN is_excluded TINYINT(1) NOT NULL DEFAULT 0 AFTER is_optional',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project_execution_steps' AND COLUMN_NAME = 'excluded_reason'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE project_execution_steps ADD COLUMN excluded_reason VARCHAR(200) NULL AFTER is_excluded',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SELECT 'Migration 0034 complete.' AS status;
