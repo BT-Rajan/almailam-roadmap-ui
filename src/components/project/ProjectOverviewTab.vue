@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { MessageSquare } from '@lucide/vue'
+import { MessageSquare, Printer } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
+import CompletionChecklistPanel from '@/components/project/CompletionChecklistPanel.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -162,7 +163,19 @@ const clientDetailItems = computed(() => {
 
     <Card>
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Project Summary</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-text-primary">Project Summary</h3>
+          <BaseButton
+            v-if="summary"
+            variant="secondary"
+            size="sm"
+            :icon="Printer"
+            class="no-print"
+            @click="router.push({ name: ROUTE_NAMES.PROJECT_SUMMARY_REPORT, params: { projectId: project.id } })"
+          >
+            Print Summary Report
+          </BaseButton>
+        </div>
       </template>
 
       <ErrorState v-if="completionStore.error" :description="completionStore.error" @retry="loadSummary" />
@@ -170,6 +183,8 @@ const clientDetailItems = computed(() => {
       <SkeletonLoader v-else-if="completionStore.isLoading" :rows="5" />
 
       <div v-else-if="summary" class="flex flex-col gap-6">
+        <CompletionChecklistPanel v-if="completionStore.checklist" :checklist="completionStore.checklist" />
+
         <div>
           <div class="mb-1 flex items-center justify-between">
             <p class="text-xs text-text-muted">Execution Progress</p>

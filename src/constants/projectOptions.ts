@@ -31,7 +31,11 @@ export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Quotation: ['Contract'],
   Contract: ['Design'],
   Design: ['Government Submission'],
-  'Government Submission': ['Execution & Tracking'],
+  // "Design" here is the one reopening path backward -- an authority's
+  // feedback during Government Submission can require design changes.
+  // Requires a reason (see isStageReasonRequired below), unlike the
+  // normal forward flow to "Execution & Tracking".
+  'Government Submission': ['Design', 'Execution & Tracking'],
   'Execution & Tracking': ['Completed'],
   Completed: ['Execution & Tracking'],
 }
@@ -40,9 +44,13 @@ export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
 // reopening a completed project specifically -- not the normal
 // "Execution & Tracking" -> "Completed" outcome, which shares the same
 // target state, so this has to be a (from, to) check rather than a
-// flat set of target states.
+// flat set of target states. Same reasoning for "Government
+// Submission" -> "Design": that's a correction (an authority's
+// feedback requiring design changes), not the normal forward flow that
+// also targets "Design" (from "Contract").
 export function isStageReasonRequired(from: string, to: string): boolean {
   if (from === 'Completed' && to === 'Execution & Tracking') return true
+  if (from === 'Government Submission' && to === 'Design') return true
   return false
 }
 

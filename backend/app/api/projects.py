@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.common import PagedResponse
 from app.schemas.project import (
     CompletionNotesUpdate,
+    CompletionChecklistOut,
     CompletionSummaryOut,
     DeviationNotesUpdate,
     ProjectCreate,
@@ -113,6 +114,11 @@ def set_status(
 @router.get("/{project_no}/completion-summary", response_model=CompletionSummaryOut)
 def get_completion_summary(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return project_service.get_completion_summary(db, project_no)
+
+
+@router.get("/{project_no}/completion-checklist", response_model=CompletionChecklistOut)
+def get_completion_checklist(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return project_service.get_completion_checklist(db, project_no)
 
 
 @router.patch("/{project_no}/completion-notes", response_model=CompletionSummaryOut)

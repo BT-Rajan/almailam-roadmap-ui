@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { Project, ProjectPriority } from '@/types/Project'
-import type { ProjectCompletionSummary } from '@/types/ProjectCompletion'
+import type { ProjectCompletionChecklist, ProjectCompletionSummary } from '@/types/ProjectCompletion'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -209,6 +209,19 @@ async function getCompletionSummary(projectId: string): Promise<ProjectCompletio
 }
 
 /**
+ * Milestone-status checklist (contract/payments/design/government
+ * approval/field work) for a project's Completion stage.
+ */
+async function getCompletionChecklist(projectId: string): Promise<ProjectCompletionChecklist> {
+  try {
+    return await apiClient.get<ProjectCompletionChecklist>(`/api/projects/${projectId}/completion-checklist`)
+  } catch (error) {
+    console.error(`Failed to fetch completion checklist for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch completion checklist')
+  }
+}
+
+/**
  * Save the Completion summary's free-text notes via backend API.
  */
 async function updateCompletionNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
@@ -244,6 +257,7 @@ export const projectService = {
   setStatus,
   deleteProject,
   getCompletionSummary,
+  getCompletionChecklist,
   updateCompletionNotes,
   updateDeviationNotes,
 }

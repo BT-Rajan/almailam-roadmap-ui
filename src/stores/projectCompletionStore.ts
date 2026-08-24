@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 
 import { projectService } from '@/services/projectService'
-import type { ProjectCompletionSummary } from '@/types/ProjectCompletion'
+import type { ProjectCompletionChecklist, ProjectCompletionSummary } from '@/types/ProjectCompletion'
 
 interface ProjectCompletionState {
   summary: ProjectCompletionSummary | undefined
+  checklist: ProjectCompletionChecklist | undefined
   isLoading: boolean
   error: string | undefined
   isSaving: boolean
@@ -14,6 +15,7 @@ interface ProjectCompletionState {
 export const useProjectCompletionStore = defineStore('projectCompletion', {
   state: (): ProjectCompletionState => ({
     summary: undefined,
+    checklist: undefined,
     isLoading: false,
     error: undefined,
     isSaving: false,
@@ -25,7 +27,12 @@ export const useProjectCompletionStore = defineStore('projectCompletion', {
       this.isLoading = true
       this.error = undefined
       try {
-        this.summary = await projectService.getCompletionSummary(projectId)
+        const [summary, checklist] = await Promise.all([
+          projectService.getCompletionSummary(projectId),
+          projectService.getCompletionChecklist(projectId),
+        ])
+        this.summary = summary
+        this.checklist = checklist
       } catch {
         this.error = 'Unable to load the project summary. Please try again.'
       } finally {

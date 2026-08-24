@@ -26,3 +26,21 @@ export interface ProjectCompletionSummary {
   scopeDeviations: ScopeDeviation[]
   deviationNotes: string | null
 }
+
+export interface CompletionChecklistItem {
+  complete: boolean
+  detail: string
+}
+
+// Mirrors backend project_service.get_completion_checklist exactly --
+// contract/payments/design/governmentApproval/fieldWork, each with a
+// pass/fail flag and a short human-readable reason. Deliberately a
+// separate type from ProjectCompletionSummary above (budget/duration),
+// a genuinely different question, not a replacement for it.
+export interface ProjectCompletionChecklist {
+  contract: CompletionChecklistItem
+  payments: CompletionChecklistItem
+  design: CompletionChecklistItem
+  governmentApproval: CompletionChecklistItem
+  fieldWork: CompletionChecklistItem
+}

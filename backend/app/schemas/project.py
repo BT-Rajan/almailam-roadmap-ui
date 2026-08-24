@@ -107,6 +107,19 @@ class CompletionSummaryOut(BaseModel):
     deviationNotes: str | None
 
 
+class CompletionChecklistItem(BaseModel):
+    complete: bool
+    detail: str
+
+
+class CompletionChecklistOut(BaseModel):
+    contract: CompletionChecklistItem
+    payments: CompletionChecklistItem
+    design: CompletionChecklistItem
+    governmentApproval: CompletionChecklistItem
+    fieldWork: CompletionChecklistItem
+
+
 class CompletionNotesUpdate(BaseModel):
     notes: str = Field(default="", max_length=4000)
 

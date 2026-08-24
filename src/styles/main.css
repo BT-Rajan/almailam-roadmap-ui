@@ -168,18 +168,19 @@
     display: none !important;
   }
 
-  /* Printing a Quotation or Contract preview (ProjectQuotationTab /
-     ProjectContractTab's Print button) should print just that
-     document -- not the whole project workspace page around it
-     (header, stat cards, workflow stepper, tab bar). .no-print alone
-     only hides each tab's own chrome (lists, AI cards, buttons); it
-     doesn't touch ProjectHeader.vue or anything above the tab content,
-     which is why printing used to include the whole page. Scoped by
-     these print-area ids -- present only while a quotation/contract is
-     actually selected and being previewed -- so this has no effect on
-     printing from any other tab or a plain browser Ctrl+P elsewhere. */
+  /* Printing a Quotation, Contract, or project Summary Report should
+     print just that document -- not the whole page around it (header,
+     stat cards, workflow stepper, tab bar, sidebar). .no-print alone
+     only hides each page's own chrome (lists, AI cards, buttons); it
+     doesn't touch ProjectHeader.vue, the dashboard layout's sidebar,
+     or anything else outside the content itself, which is why
+     printing used to include the whole page. Scoped by these
+     print-area ids -- present only while the relevant document is
+     actually being previewed -- so this has no effect on printing
+     from any other page or a plain browser Ctrl+P elsewhere. */
   body:has(#quotation-print-area) *,
-  body:has(#contract-print-area) * {
+  body:has(#contract-print-area) *,
+  body:has(#summary-report-print-area) * {
     visibility: hidden;
   }
   /* !important is required here, not just declaration order: the
@@ -190,11 +191,14 @@
   #quotation-print-area,
   #quotation-print-area *,
   #contract-print-area,
-  #contract-print-area * {
+  #contract-print-area *,
+  #summary-report-print-area,
+  #summary-report-print-area * {
     visibility: visible !important;
   }
   #quotation-print-area,
-  #contract-print-area {
+  #contract-print-area,
+  #summary-report-print-area {
     position: absolute;
     inset: 0;
     width: 100%;
