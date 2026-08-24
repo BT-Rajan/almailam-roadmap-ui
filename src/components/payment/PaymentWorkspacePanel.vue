@@ -2,15 +2,15 @@
 import { Banknote, RefreshCcw, Wallet } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import AgreementFormDrawer from '@/components/payment/AgreementFormDrawer.vue'
+import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import FinancialActionDrawer from '@/components/payment/FinancialActionDrawer.vue'
+import FinancialActionDialog from '@/components/payment/FinancialActionDialog.vue'
 import ObligationActionDialog from '@/components/payment/ObligationActionDialog.vue'
 import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import PaymentSummaryCards from '@/components/payment/PaymentSummaryCards.vue'
 import PaymentTimeline from '@/components/payment/PaymentTimeline.vue'
-import RecordPaymentDrawer from '@/components/payment/RecordPaymentDrawer.vue'
+import RecordPaymentDialog from '@/components/payment/RecordPaymentDialog.vue'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
@@ -161,7 +161,7 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
 
       <PaymentHistoryPanel :events="auditEvents" />
 
-      <RecordPaymentDrawer
+      <RecordPaymentDialog
         v-model="isRecordPaymentOpen"
         :agreement-id="agreement.id"
         :project-id="projectId"
@@ -172,7 +172,7 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
         @submit="handleRecordPayment"
       />
 
-      <FinancialActionDrawer
+      <FinancialActionDialog
         v-model="isFinancialActionOpen"
         :mode="financialActionMode"
         :obligations="obligations"
@@ -191,6 +191,6 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       />
     </template>
 
-    <AgreementFormDrawer v-model="isAgreementFormOpen" :project-id="projectId" :is-submitting="store.isSubmitting" @submit="handleCreateAgreement" />
+    <AgreementFormDialog v-model="isAgreementFormOpen" :project-id="projectId" :is-submitting="store.isSubmitting" @submit="handleCreateAgreement" />
   </div>
 </template>

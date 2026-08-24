@@ -95,15 +95,32 @@ export function getFinancialSummary(agreement: FinancialAgreement, obligations: 
     return sum + getObligationAmountPending(obligation)
   }, 0)
 
+  // A waived/cancelled obligation's un-received balance is money the
+  // contract said was payable but that will never be collected --
+  // excluded from Total Pending above, but still accounted for here so
+  // Contract Value stays reconciled to Received + Pending + Overdue +
+  // Waived + Cancelled instead of silently vanishing.
+  const totalWaived = obligations.reduce((sum, obligation) => (obligation.manualStatus === 'Waived' ? sum + getObligationAmountPending(obligation) : sum), 0)
+  const totalCancelled = obligations.reduce((sum, obligation) => (obligation.manualStatus === 'Cancelled' ? sum + getObligationAmountPending(obligation) : sum), 0)
+
   const nextPaymentObligation = getNextPaymentObligation(obligations, today)
   const nextPaymentDaysUntilDue = nextPaymentObligation ? getDaysUntilDue(nextPaymentObligation.dueDate, today) : undefined
   const nextPaymentIsOverdue = nextPaymentObligation ? nextPaymentDaysUntilDue !== undefined && nextPaymentDaysUntilDue < 0 : false
+
+  // Should normally be zero -- nonzero only means an Adjustment has moved
+  // obligation amounts without a matching change to contractAmount, so
+  // the schedule and the contract have drifted apart. Surfaced rather
+  // than silently absorbed either way.
+  const scheduleVariance = agreement.contractAmount - (totalReceived + totalPending + totalOverdue + totalWaived + totalCancelled)
 
   return {
     contractAmount: agreement.contractAmount,
     totalReceived,
     totalPending,
     totalOverdue,
+    totalWaived,
+    totalCancelled,
+    scheduleVariance,
     nextPaymentObligation,
     nextPaymentDaysUntilDue,
     nextPaymentIsOverdue,

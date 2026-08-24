@@ -109,6 +109,9 @@ export interface FinancialSummary {
   totalReceived: number
   totalPending: number
   totalOverdue: number
+  totalWaived: number
+  totalCancelled: number
+  scheduleVariance: number
   nextPaymentObligation?: PaymentObligation
   nextPaymentDaysUntilDue?: number
   nextPaymentIsOverdue: boolean

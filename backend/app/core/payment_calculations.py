@@ -63,12 +63,27 @@ def get_days_until_due(due_date: date, today: date | None = None) -> int:
     return (due_date - today).days
 
 
-def get_financial_summary(agreement, obligations: list, payments: list | None = None) -> dict:
+def get_financial_summary(
+    agreement, obligations: list, payments: list | None = None, refunds: list | None = None
+) -> dict:
     today = date.today()
     active_obligations = [o for o in obligations if o.manual_status not in ("Cancelled", "Waived")]
 
     total_overdue = sum(
         (get_obligation_amount_overdue(o, today) for o in active_obligations), Decimal("0")
+    )
+
+    # A waived/cancelled obligation's un-received balance is money the
+    # contract said was payable but that will never be collected --
+    # excluded from Total Pending (see active_obligations above), but it
+    # still needs to be accounted for somewhere so Contract Value stays
+    # reconciled to Received + Pending + Overdue + Waived + Cancelled
+    # instead of just silently vanishing.
+    total_waived = sum(
+        (get_obligation_amount_pending(o) for o in obligations if o.manual_status == "Waived"), Decimal("0")
+    )
+    total_cancelled = sum(
+        (get_obligation_amount_pending(o) for o in obligations if o.manual_status == "Cancelled"), Decimal("0")
     )
 
     if payments is None:
@@ -115,8 +130,22 @@ def get_financial_summary(agreement, obligations: list, payments: list | None = 
         # total_overdue is subtracted out here too, for the same reason as
         # the ledger view above: once an obligation crosses its due date,
         # its balance belongs to Total Overdue, not Total Pending.
-        total_payable = Decimal(str(agreement.contract_amount))
-        total_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
+        #
+        # The anchor is contract_amount minus whatever's been waived or
+        # cancelled -- not raw contract_amount -- for the same reason the
+        # ledger view excludes those obligations from total_pending: a
+        # waived/cancelled balance is no longer part of what's actually
+        # still payable.
+        #
+        # total_received also nets out refunds: a refund only ever
+        # touches the obligation ledger's amount_received today, never
+        # the original Payment row, so without this a refunded amount
+        # would still read as received here even though the money went
+        # back out.
+        total_payable = Decimal(str(agreement.contract_amount)) - total_waived - total_cancelled
+        gross_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
+        total_refunded = sum((Decimal(str(r.refund_amount)) for r in (refunds or ())), Decimal("0"))
+        total_received = gross_received - total_refunded
         outstanding = (total_payable - total_received - total_overdue).quantize(Decimal("1"), rounding=ROUND_DOWN)
         total_pending = max(Decimal("0"), outstanding)
 
@@ -124,11 +153,22 @@ def get_financial_summary(agreement, obligations: list, payments: list | None = 
     days_until_due = get_days_until_due(next_obligation.due_date, today) if next_obligation else None
     is_overdue = days_until_due is not None and days_until_due < 0
 
+    # Should normally be zero -- nonzero only means an Adjustment has
+    # moved obligation amounts without a matching change to
+    # contract_amount, so the schedule and the contract have drifted
+    # apart. Surfaced rather than silently absorbed either way.
+    schedule_variance = Decimal(str(agreement.contract_amount)) - (
+        total_received + total_pending + total_overdue + total_waived + total_cancelled
+    )
+
     return {
         "contractAmount": agreement.contract_amount,
         "totalReceived": total_received,
         "totalPending": total_pending,
         "totalOverdue": total_overdue,
+        "totalWaived": total_waived,
+        "totalCancelled": total_cancelled,
+        "scheduleVariance": schedule_variance,
         "nextPaymentObligation": next_obligation,
         "nextPaymentDaysUntilDue": days_until_due,
         "nextPaymentIsOverdue": is_overdue,

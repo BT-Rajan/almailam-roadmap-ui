@@ -259,6 +259,11 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
     db.flush()
 
     for obligation, amount in allocation_targets:
+        remaining = Decimal(str(obligation.amount_due)) - Decimal(str(obligation.amount_received))
+        if Decimal(str(amount)) > remaining:
+            raise ValidationAppError(
+                f"Allocation of {amount} to '{obligation.description}' exceeds the {remaining} still outstanding on it."
+            )
         db.add(PaymentAllocation(payment_id=payment.id, obligation_id=obligation.id, amount_allocated=amount))
         was_settled = obligation.amount_received >= obligation.amount_due
         obligation.amount_received = float(Decimal(str(obligation.amount_received)) + Decimal(str(amount)))
@@ -370,7 +375,8 @@ def get_financial_summary(db: Session, agreement_id: int) -> dict:
     agreement = get_agreement(db, agreement_id)
     obligations = get_obligations(db, agreement_id)
     payments = get_payments(db, agreement_id)
-    return calc.get_financial_summary(agreement, obligations, payments)
+    refunds = get_refunds(db, agreement_id)
+    return calc.get_financial_summary(agreement, obligations, payments, refunds)
 
 
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:

@@ -216,6 +216,9 @@ class FinancialSummaryOut(BaseModel):
     totalReceived: float
     totalPending: float
     totalOverdue: float
+    totalWaived: float
+    totalCancelled: float
+    scheduleVariance: float
     nextPaymentObligation: ObligationOut | None
     nextPaymentDaysUntilDue: int | None
     nextPaymentIsOverdue: bool

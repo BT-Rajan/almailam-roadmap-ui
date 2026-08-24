@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
@@ -99,7 +99,7 @@ function handleClose(): void {
 </script>
 
 <template>
-  <BaseDrawer :model-value="modelValue" title="Create Financial Agreement" width="md" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" title="Create Financial Agreement" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <FormSection title="Contract Value" description="The total agreed value of the engagement with this client.">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <NumberInput :model-value="contractAmount" label="Total Contract Amount" :min="0" step="0.01" required @update:model-value="contractAmount = Number($event)" />
@@ -125,5 +125,5 @@ function handleClose(): void {
     <template #footer>
       <FormActionBar submit-label="Create Agreement" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
     </template>
-  </BaseDrawer>
+  </BaseDialog>
 </template>

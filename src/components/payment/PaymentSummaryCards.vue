@@ -28,6 +28,14 @@ const nextPaymentDateLabel = computed(() => {
   }
   return `Due ${dueLabel}`
 })
+
+// Waived/cancelled obligations and adjustment drift are excluded from
+// the 5 cards above by design (they're not still payable, or they're an
+// accounting variance rather than a balance) -- surfaced here instead of
+// silently vanishing from the total, and only shown when non-zero so the
+// common case (no waivers, no drift) stays a clean 5-card row.
+const totalForgiven = computed(() => props.summary.totalWaived + props.summary.totalCancelled)
+const hasScheduleVariance = computed(() => Math.abs(props.summary.scheduleVariance) > 0.01)
 </script>
 
 <template>
@@ -41,4 +49,6 @@ const nextPaymentDateLabel = computed(() => {
   <p v-if="summary.nextPaymentObligation" class="mt-2 text-xs" :class="summary.nextPaymentIsOverdue ? 'font-medium text-danger-600' : 'text-text-muted'">
     {{ nextPaymentDateLabel }}
   </p>
+  <p v-if="totalForgiven > 0" class="mt-1 text-xs text-text-muted">{{ formatCurrency(totalForgiven, currency) }} waived/cancelled — excluded from Pending.</p>
+  <p v-if="hasScheduleVariance" class="mt-1 text-xs text-text-muted">Schedule differs from Contract Value by {{ formatCurrency(Math.abs(summary.scheduleVariance), currency) }} due to adjustments.</p>
 </template>

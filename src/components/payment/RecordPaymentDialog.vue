@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -104,12 +104,26 @@ const totalAllocated = computed(() =>
 
 const allocationMismatch = computed(() => Math.abs(totalAllocated.value - amountReceived.value) > 0.009)
 
+// A manual override can otherwise allocate more to one obligation than
+// it actually needs (as long as the total still matches amountReceived
+// overall) -- caught here per-row, mirroring the same cap the backend
+// now enforces in payment_service.record_payment.
+const overAllocatedObligationIds = computed(() =>
+  new Set(
+    props.outstandingObligations
+      .filter((obligation) => selectedObligationIds.value.includes(obligation.id))
+      .filter((obligation) => (allocationAmounts[obligation.id] ?? 0) > getObligationAmountPending(obligation) + 0.009)
+      .map((obligation) => obligation.id),
+  ),
+)
+
 const canSubmit = computed(
   () =>
     amountReceived.value > 0 &&
     payer.value.trim().length > 0 &&
     selectedObligationIds.value.length > 0 &&
-    !allocationMismatch.value,
+    !allocationMismatch.value &&
+    overAllocatedObligationIds.value.size === 0,
 )
 
 function handleSubmit(): void {
@@ -134,7 +148,7 @@ function handleClose(): void {
 </script>
 
 <template>
-  <BaseDrawer :model-value="modelValue" title="Record Payment" width="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" title="Record Payment" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-6">
       <FormSection title="Payment Details">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
@@ -161,8 +175,10 @@ function handleClose(): void {
               v-if="selectedObligationIds.includes(obligation.id)"
               :model-value="allocationAmounts[obligation.id] ?? 0"
               :min="0"
+              :max="getObligationAmountPending(obligation)"
               step="0.01"
               class="w-32"
+              :error="overAllocatedObligationIds.has(obligation.id) ? `Exceeds pending (${formatCurrency(getObligationAmountPending(obligation), currency)})` : undefined"
               @update:model-value="allocationAmounts[obligation.id] = Number($event)"
             />
           </div>
@@ -176,5 +192,5 @@ function handleClose(): void {
     <template #footer>
       <FormActionBar submit-label="Record Payment" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
     </template>
-  </BaseDrawer>
+  </BaseDialog>
 </template>

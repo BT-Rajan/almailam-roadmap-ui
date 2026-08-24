@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
@@ -94,7 +94,7 @@ function handleClose(): void {
 </script>
 
 <template>
-  <BaseDrawer :model-value="modelValue" :title="mode === 'refund' ? 'Issue Refund' : 'Adjust Obligation'" width="md" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="mode === 'refund' ? 'Issue Refund' : 'Adjust Obligation'" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <FormSection :description="mode === 'refund' ? 'Refunds are recorded against the original payment record — the payment itself is never altered.' : 'Adjustments require a reason and are fully auditable.'">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox :model-value="obligationId" label="Obligation" :options="obligationOptions" @update:model-value="obligationId = String($event)" />
@@ -110,5 +110,5 @@ function handleClose(): void {
     <template #footer>
       <FormActionBar :submit-label="mode === 'refund' ? 'Issue Refund' : 'Apply Adjustment'" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
     </template>
-  </BaseDrawer>
+  </BaseDialog>
 </template>
