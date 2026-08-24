@@ -44,6 +44,18 @@ class ExecutionStepProgressUpdate(BaseModel):
     remarks: str | None = Field(default=None, max_length=2000)
 
 
+class ExecutionStepBulkItem(BaseModel):
+    id: str
+    completionPercentage: int = Field(ge=0, le=100)
+    remarks: str | None = Field(default=None, max_length=2000)
+    isExcluded: bool = False
+    excludedReason: str | None = Field(default=None, max_length=200)
+
+
+class ExecutionStepBulkUpdate(BaseModel):
+    steps: list[ExecutionStepBulkItem]
+
+
 class ProjectExecutionStepOut(BaseModel):
     id: str
     name: str
@@ -51,6 +63,8 @@ class ProjectExecutionStepOut(BaseModel):
     weightPercentage: float
     stageKey: str
     isOptional: bool
+    isExcluded: bool
+    excludedReason: str | None
     completionPercentage: int
     remarks: str | None
 
@@ -63,6 +77,8 @@ class ProjectExecutionStepOut(BaseModel):
             weightPercentage=float(step.weight_percentage),
             stageKey=step.stage_key,
             isOptional=step.is_optional,
+            isExcluded=step.is_excluded,
+            excludedReason=step.excluded_reason,
             completionPercentage=step.completion_percentage,
             remarks=step.remarks,
         )

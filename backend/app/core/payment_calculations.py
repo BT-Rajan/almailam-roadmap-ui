@@ -63,15 +63,33 @@ def get_days_until_due(due_date: date, today: date | None = None) -> int:
     return (due_date - today).days
 
 
-def get_financial_summary(agreement, obligations: list) -> dict:
+def get_financial_summary(agreement, obligations: list, payments: list | None = None) -> dict:
     today = date.today()
     active_obligations = [o for o in obligations if o.manual_status not in ("Cancelled", "Waived")]
 
-    total_received = sum((Decimal(str(o.amount_received)) for o in obligations), Decimal("0"))
-    total_pending = sum((get_obligation_amount_pending(o) for o in active_obligations), Decimal("0"))
     total_overdue = sum(
         (get_obligation_amount_overdue(o, today) for o in active_obligations), Decimal("0")
     )
+
+    if payments is None:
+        # Per-obligation ledger view -- correct as long as every payment
+        # was fully allocated to an obligation when recorded.
+        total_received = sum((Decimal(str(o.amount_received)) for o in obligations), Decimal("0"))
+        total_pending = sum((get_obligation_amount_pending(o) for o in active_obligations), Decimal("0"))
+    else:
+        # Actual-money view: total received is what payments actually
+        # recorded, not what got allocated to an obligation row -- a
+        # payment can be recorded for the full amount due while an
+        # allocation mistake (or a payment made before its obligation
+        # existed) leaves an obligation's own amount_received short.
+        # Outstanding is total payable minus total actually received,
+        # rounded to whole currency units so a fils-level rounding
+        # remainder (see generate_even_schedule) never reads as still
+        # outstanding once the real money is all in.
+        total_payable = sum((Decimal(str(o.amount_due)) for o in active_obligations), Decimal("0"))
+        total_received = sum((Decimal(str(p.amount_received)) for p in payments), Decimal("0"))
+        outstanding = (total_payable - total_received).quantize(Decimal("1"), rounding=ROUND_DOWN)
+        total_pending = max(Decimal("0"), outstanding)
 
     next_obligation = get_next_payment_obligation(obligations, today)
     days_until_due = get_days_until_due(next_obligation.due_date, today) if next_obligation else None

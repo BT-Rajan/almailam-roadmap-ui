@@ -333,7 +333,12 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                 problems.append(f"the {label} stage gate")
 
     elif new_stage == "Completed":
-        steps = execution_step_service.list_project_steps(db, project.id)
+        # Steps this specific project has excluded (is_excluded) don't
+        # count -- they were never applicable to this project, so they
+        # can't be the reason it's stuck (see execution_step_service.
+        # included_steps / _recompute_progress, which excludes them
+        # from %complete the same way).
+        steps = execution_step_service.included_steps(execution_step_service.list_project_steps(db, project.id))
         incomplete = [s for s in steps if s.completion_percentage < 100]
         if incomplete:
             problems.append(f"{len(incomplete)} of {len(steps)} execution activities still incomplete")
@@ -342,7 +347,13 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("a financial agreement")
         else:
             summary = payment_service.get_financial_summary(db, agreement.id)
-            if summary["totalPending"] > 0:
+            # totalPending is rounded to whole currency units before this
+            # check -- a payment that settles the agreement can leave a
+            # sub-unit (fils-level) residue behind from installment
+            # rounding (see payment_calculations.generate_even_schedule,
+            # which folds any remainder into the last installment); that
+            # residue should read as paid-in-full, not block the move.
+            if round(summary["totalPending"]) > 0:
                 problems.append(f"{summary['totalPending']} {agreement.currency} still outstanding")
 
     if problems:

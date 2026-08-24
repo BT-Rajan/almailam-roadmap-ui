@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { approvalProcessService } from '@/services/approvalProcessService'
 import { executionStepService } from '@/services/executionStepService'
 import type { ProjectApprovalStep } from '@/types/ApprovalProcess'
-import type { ProjectExecutionStep } from '@/types/ExecutionStep'
+import type { ExecutionStepBulkItem, ProjectExecutionStep } from '@/types/ExecutionStep'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 
 // Replaces projectApprovalStore + projectExecutionStore. The 5 approval
@@ -39,17 +39,24 @@ export const useProjectStageStore = defineStore('projectStage', {
   }),
 
   getters: {
-    // The weightPercentage-weighted sum of every execution activity's own
-    // completion percentage -- mirrors the server's own project.progress
+    // Excludes activities this project has marked not applicable --
+    // mirrors execution_step_service.included_steps.
+    includedExecutionSteps(state): ProjectExecutionStep[] {
+      return state.executionSteps.filter((s) => !s.isExcluded)
+    },
+
+    // The weightPercentage-weighted sum of every INCLUDED execution
+    // activity's own completion percentage, renormalized against the
+    // included weight total -- mirrors the server's own project.progress
     // computation (execution_step_service._recompute_progress) so the UI
     // can show a live number while an activity is being edited, before
     // the project record itself has been refreshed.
-    weightedProgress(state): number {
-      const total = state.executionSteps.reduce(
-        (sum, step) => sum + (step.weightPercentage * step.completionPercentage) / 100,
-        0,
-      )
-      return Math.max(0, Math.min(100, Math.round(total)))
+    weightedProgress(): number {
+      const steps = this.includedExecutionSteps as ProjectExecutionStep[]
+      const totalWeight = steps.reduce((sum, step) => sum + step.weightPercentage, 0)
+      if (totalWeight <= 0) return 0
+      const weighted = steps.reduce((sum, step) => sum + (step.weightPercentage * step.completionPercentage) / 100, 0)
+      return Math.max(0, Math.min(100, Math.round((weighted / totalWeight) * 100)))
     },
 
     stageGateCompleteCount(state): number {
@@ -87,6 +94,17 @@ export const useProjectStageStore = defineStore('projectStage', {
         this.executionSteps = this.executionSteps.map((s) => (s.id === stepId ? updated : s))
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Failed to update activity progress.'
+      }
+    },
+
+    // The checklist's single Save button -- every changed activity
+    // (progress, remarks, excluded/reason) lands in one request.
+    async bulkSaveSteps(projectId: string, items: ExecutionStepBulkItem[]) {
+      this.mutationError = undefined
+      try {
+        this.executionSteps = await executionStepService.bulkSaveProjectSteps(projectId, items)
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Failed to save checklist.'
       }
     },
 

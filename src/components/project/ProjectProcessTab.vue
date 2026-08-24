@@ -8,7 +8,7 @@ import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ChangeScopeDialog from '@/components/project/ChangeScopeDialog.vue'
-import ExecutionStepRow from '@/components/project/ExecutionStepRow.vue'
+import ExecutionStepChecklist from '@/components/project/ExecutionStepChecklist.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
@@ -22,6 +22,7 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { TimelineEvent } from '@/types/Timeline'
+import type { ExecutionStepBulkItem } from '@/types/ExecutionStep'
 import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
@@ -109,19 +110,20 @@ async function refreshProgress(): Promise<void> {
   await projectStore.refreshProject(props.project.id)
 }
 
-const savingStepId = ref<string | undefined>(undefined)
+const isSavingChecklist = ref(false)
 
-async function handleSaveStepProgress(stepId: string, percentage: number, remarks: string): Promise<void> {
-  savingStepId.value = stepId
+async function handleSaveChecklist(items: ExecutionStepBulkItem[]): Promise<void> {
+  isSavingChecklist.value = true
   try {
-    await stageStore.setStepProgress(props.project.id, stepId, percentage, remarks)
+    await stageStore.bulkSaveSteps(props.project.id, items)
     if (stageStore.mutationError) {
-      toastStore.show('error', 'Could not save activity progress', stageStore.mutationError)
+      toastStore.show('error', 'Could not save checklist', stageStore.mutationError)
       return
     }
     await refreshProgress()
+    toastStore.show('success', 'Checklist saved', `${items.length} ${items.length === 1 ? 'activity' : 'activities'} updated.`)
   } finally {
-    savingStepId.value = undefined
+    isSavingChecklist.value = false
   }
 }
 
@@ -215,7 +217,7 @@ async function handleConfirmScopeChange(
           <div class="min-w-0">
             <h2 class="text-sm font-semibold text-text-primary">Overall Execution</h2>
             <p class="text-xs text-text-muted">
-              Weighted across all 23 execution activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated · both run in parallel
+              Weighted across {{ stageStore.includedExecutionSteps.length }} of 23 execution activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated · both run in parallel
             </p>
           </div>
           <div class="flex items-center gap-3">
@@ -358,15 +360,11 @@ async function handleConfirmScopeChange(
       <p class="-mt-2 text-xs text-text-muted">23 activities, tracked independently of the approval stages above.</p>
 
       <Card>
-        <ol class="flex flex-col gap-2">
-          <ExecutionStepRow
-            v-for="step in stageStore.orderedExecutionSteps"
-            :key="step.id"
-            :step="step"
-            :is-saving="savingStepId === step.id"
-            @save="(percentage, remarks) => handleSaveStepProgress(step.id, percentage, remarks)"
-          />
-        </ol>
+        <ExecutionStepChecklist
+          :steps="stageStore.orderedExecutionSteps"
+          :is-saving="isSavingChecklist"
+          @save="handleSaveChecklist"
+        />
       </Card>
 
       <div class="mt-2 flex items-center justify-between">

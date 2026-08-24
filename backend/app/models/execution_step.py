@@ -82,5 +82,14 @@ class ProjectExecutionStep(Base, TimestampMixin):
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
     is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Project-local, unlike is_optional (copied from the template and
+    # shared across every project's snapshot): drops this one activity,
+    # for this one project only, out of both the Completed-stage gate
+    # (project_service._assert_stage_exit_criteria) and the weighted
+    # %complete calculation (_recompute_progress), which renormalizes
+    # against the remaining included weight so the scale still reads
+    # 0-100. Toggled from the project's own checklist, not admin.
+    is_excluded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    excluded_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     completion_percentage: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)

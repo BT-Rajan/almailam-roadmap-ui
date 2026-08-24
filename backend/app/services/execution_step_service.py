@@ -222,14 +222,25 @@ def list_project_steps(db: Session, project_id: int) -> list[ProjectExecutionSte
     )
 
 
+def included_steps(steps: list[ProjectExecutionStep]) -> list[ProjectExecutionStep]:
+    """Steps that count toward %complete and the Completed-stage gate --
+    everything except what this specific project has excluded (see
+    ProjectExecutionStep.is_excluded)."""
+    return [s for s in steps if not s.is_excluded]
+
+
 def _recompute_progress(db: Session, project_id: int) -> int:
-    steps = list_project_steps(db, project_id)
-    total = sum(float(s.weight_percentage) * s.completion_percentage / 100 for s in steps)
-    # project.progress is a bounded SMALLINT percentage -- clamp defends
-    # against a template that doesn't sum to exactly 100 (admin is free
-    # to leave it under- or over-100 temporarily while tuning weights)
-    # ever producing a nonsensical stored value.
-    progress = max(0, min(100, round(total)))
+    steps = included_steps(list_project_steps(db, project_id))
+    total_weight = sum(float(s.weight_percentage) for s in steps)
+    if total_weight <= 0:
+        progress = 0
+    else:
+        # Renormalized against only the included weight, so excluding a
+        # step never drags %complete down for work that was never
+        # applicable to this project -- the remaining steps still scale
+        # to a full 0-100.
+        weighted = sum(float(s.weight_percentage) * s.completion_percentage / 100 for s in steps)
+        progress = max(0, min(100, round(weighted / total_weight * 100)))
     project = db.query(Project).filter(Project.id == project_id).first()
     if project:
         project.progress = progress
@@ -269,3 +280,40 @@ def set_step_progress(
     db.commit()
     db.refresh(step)
     return step
+
+
+def bulk_set_steps(
+    db: Session,
+    project_id: int,
+    items: list,
+    user_id: int | None,
+) -> list[ProjectExecutionStep]:
+    """The checklist's single Save button -- every one of the 23 rows
+    (percentage, remarks, excluded/reason) lands in one transaction and
+    one audit entry instead of 23 separate PATCH calls each with its
+    own row-level Save button. `items` is a list of (parsed int id,
+    ExecutionStepBulkItem) pairs."""
+    changed_names: list[str] = []
+    for parsed_id, item in items:
+        step = get_project_step(db, project_id, parsed_id)
+        if (
+            step.completion_percentage != item.completionPercentage
+            or (step.remarks or None) != ((item.remarks or "").strip() or None)
+            or step.is_excluded != item.isExcluded
+            or (step.excluded_reason or None) != ((item.excludedReason or "").strip() or None)
+        ):
+            changed_names.append(step.name)
+        step.completion_percentage = item.completionPercentage
+        step.remarks = (item.remarks or "").strip() or None
+        step.is_excluded = item.isExcluded
+        step.excluded_reason = (item.excludedReason or "").strip() or None if item.isExcluded else None
+
+    if changed_names:
+        audit_service.log_event(
+            db, PROJECT_ENTITY_TYPE, project_id,
+            "Execution checklist saved", user_id,
+            new_value=f"{len(changed_names)} activities updated: {', '.join(changed_names)}",
+        )
+    _recompute_progress(db, project_id)
+    db.commit()
+    return list_project_steps(db, project_id)

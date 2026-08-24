@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { ExecutionStepTemplateItem, ProjectExecutionStep } from '@/types/ExecutionStep'
+import type { ExecutionStepBulkItem, ExecutionStepTemplateItem, ProjectExecutionStep } from '@/types/ExecutionStep'
 
 async function getTemplate(): Promise<ExecutionStepTemplateItem[]> {
   return apiClient.get<ExecutionStepTemplateItem[]>('/api/execution-step-template')
@@ -50,6 +50,13 @@ async function setStepProgress(
   })
 }
 
+async function bulkSaveProjectSteps(
+  projectId: string,
+  steps: ExecutionStepBulkItem[],
+): Promise<ProjectExecutionStep[]> {
+  return apiClient.patch<ProjectExecutionStep[]>(`/api/projects/${projectId}/execution-steps`, { steps })
+}
+
 export const executionStepService = {
   getTemplate,
   createTemplateStep,
@@ -58,4 +65,5 @@ export const executionStepService = {
   moveTemplateStep,
   getProjectSteps,
   setStepProgress,
+  bulkSaveProjectSteps,
 }

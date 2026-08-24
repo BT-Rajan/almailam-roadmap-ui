@@ -369,7 +369,8 @@ def get_adjustments(db: Session, agreement_id: int) -> list[Adjustment]:
 def get_financial_summary(db: Session, agreement_id: int) -> dict:
     agreement = get_agreement(db, agreement_id)
     obligations = get_obligations(db, agreement_id)
-    return calc.get_financial_summary(agreement, obligations)
+    payments = get_payments(db, agreement_id)
+    return calc.get_financial_summary(agreement, obligations, payments)
 
 
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:

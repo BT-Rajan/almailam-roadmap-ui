@@ -5,6 +5,7 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.execution_step import (
+    ExecutionStepBulkUpdate,
     ExecutionStepMoveRequest,
     ExecutionStepProgressUpdate,
     ExecutionStepTemplateCreate,
@@ -102,3 +103,20 @@ def set_step_progress(
         payload.completionPercentage, payload.remarks, current_user.id,
     )
     return ProjectExecutionStepOut.from_model(step)
+
+
+@router.patch("/api/projects/{project_no}/execution-steps", response_model=list[ProjectExecutionStepOut])
+def bulk_update_project_steps(
+    project_no: str,
+    payload: ExecutionStepBulkUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    """The checklist's single Save button -- saves every changed
+    activity (progress, remarks, excluded/reason) in one call."""
+    project = project_service.get_project(db, project_no)
+    parsed_items = [
+        (execution_step_service.parse_project_step_id(item.id), item) for item in payload.steps
+    ]
+    steps = execution_step_service.bulk_set_steps(db, project.id, parsed_items, current_user.id)
+    return [ProjectExecutionStepOut.from_model(s) for s in steps]
