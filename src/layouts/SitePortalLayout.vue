@@ -41,7 +41,13 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
         </button>
       </div>
 
-      <nav v-if="!isLoginPage()" class="mx-auto flex max-w-2xl gap-1 px-4">
+      <!-- px-1 here, not px-4 like the row above -- RouterLink already
+           carries its own px-3 for a comfortable tap target, and 1+3
+           (16px total) is what lines the tab label up flush with the
+           logo/content edge above and below it. px-4 here would stack
+           on top of that and push every tab label ~12px right of
+           everything else on the page. -->
+      <nav v-if="!isLoginPage()" class="mx-auto flex max-w-2xl gap-1 px-1">
         <RouterLink
           :to="{ name: ROUTE_NAMES.SITE_PORTAL_REPORT }"
           class="border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
