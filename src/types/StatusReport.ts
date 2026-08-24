@@ -22,4 +22,10 @@ export interface StatusReport {
 export interface EngineerProjectOption {
   id: string
   projectName: string
+  // Computed server-side against the Kuwait-time filing cutoff (see
+  // status_report_service.py's filing_window_block_reason) -- lets the
+  // portal show/disable the right thing before the engineer even opens
+  // the form, rather than only rejecting on submit.
+  canFileReport: boolean
+  blockReason: string | null
 }

@@ -9,6 +9,7 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useSitePortalStore } from '@/stores/sitePortalStore'
 import type { StatusReport } from '@/types/StatusReport'
+import { engineerStatusLabel, engineerStatusVariant } from '@/utils/statusReportHelpers'
 
 const sitePortalStore = useSitePortalStore()
 
@@ -149,7 +150,7 @@ function dotsFor(day: Date): StatusReport[] {
                 v-for="report in dotsFor(day)"
                 :key="report.id"
                 class="h-1.5 w-1.5 rounded-full"
-                :class="report.status === 'Attached' ? 'bg-success-500' : 'bg-warning-500'"
+                :class="report.status === 'Attached' ? 'bg-success-500' : 'bg-info-500'"
               />
             </span>
           </button>
@@ -174,8 +175,8 @@ function dotsFor(day: Date): StatusReport[] {
           <div class="flex items-center justify-between">
             <span class="font-semibold text-text-primary">{{ report.projectName }}</span>
             <StatusBadge
-              :label="report.status"
-              :variant="report.status === 'Attached' ? 'success' : 'warning'"
+              :label="engineerStatusLabel(report.status)"
+              :variant="engineerStatusVariant(report.status)"
             />
           </div>
           <div class="flex items-center justify-between">

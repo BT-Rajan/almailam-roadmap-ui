@@ -35,7 +35,13 @@ def _report_out(db: Session, report) -> StatusReportOut:
 @router.get("/projects", response_model=list[EngineerProjectOption])
 def list_my_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     projects = status_report_service.list_engineer_projects(db, current_user.id)
-    return [EngineerProjectOption(id=p.project_no, projectName=p.project_name) for p in projects]
+    today = status_report_service.report_filing_today(db)
+
+    def _to_option(p: Project) -> EngineerProjectOption:
+        reason = status_report_service.filing_window_block_reason(p, today)
+        return EngineerProjectOption(id=p.project_no, projectName=p.project_name, canFileReport=reason is None, blockReason=reason)
+
+    return [_to_option(p) for p in projects]
 
 
 @router.get("/reports/today", response_model=list[StatusReportOut])

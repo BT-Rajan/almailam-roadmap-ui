@@ -26,24 +26,77 @@ from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "STATUS_REPORT"
 
+# Deliberately hardcoded, not read from CompanySettings.timezone -- that
+# setting is a general display preference (invoices, dashboards, and
+# defaults to "Asia/Dubai" today) that an admin can change at any time
+# for unrelated reasons. The daily report cutoff is a specific, stated
+# business rule ("editable until 11:59 PM Kuwait time, wherever the
+# engineer physically is"), not a display preference -- it must not
+# silently shift if someone later changes the company's display
+# timezone. Kuwait is UTC+3; Dubai is UTC+4, so conflating the two
+# would move the real cutoff by an hour.
+REPORT_FILING_TIMEZONE = "Asia/Kuwait"
+
+# Projects in either of these states are finished -- no more field
+# activity is expected on them, so no new/edited reports either,
+# independent of what start_date/target_date happen to say.
+_CLOSED_PROJECT_STATUSES = ("Completed", "Cancelled")
+
 
 def _today(db: Session) -> date:
-    """"Today" for report-filing purposes is the company's own configured
-    timezone (CompanySettings.timezone, e.g. "Asia/Kuwait"), not the
-    server's system clock. Matters specifically because this app's
-    servers commonly run on UTC: an engineer filing a report between
-    roughly midnight and 3am Kuwait time is still the *previous*
-    calendar day in UTC, so date.today() there would silently treat a
-    genuinely new day's report as an edit to yesterday's already-filed
-    one -- exactly the "only today's report is editable" rule failing
-    in the one window it actually matters. Falls back to plain
-    date.today() if the configured timezone string is somehow invalid,
-    rather than raising in the middle of an unrelated action."""
-    settings = company_service.get_settings(db)
+    """"Today" for report-filing purposes is always Kuwait local time,
+    never the server's system clock or the engineer's device clock.
+    Matters specifically because this app's servers commonly run on
+    UTC: an engineer filing a report between roughly midnight and 3am
+    Kuwait time is still the *previous* calendar day in UTC, so
+    date.today() there would silently treat a genuinely new day's
+    report as an edit to yesterday's already-filed one -- exactly the
+    "only today's report is editable, until 11:59 PM Kuwait time"
+    rule failing in the one window it actually matters. The `db`
+    parameter is unused now (kept so callers don't need to change) --
+    see REPORT_FILING_TIMEZONE above for why this no longer reads
+    CompanySettings.timezone. Falls back to plain date.today() if
+    the "Asia/Kuwait" zone can't be loaded (e.g. no tzdata installed)
+    rather than raising in the middle of an unrelated action.
+    """
     try:
-        return datetime.now(ZoneInfo(settings.timezone)).date()
+        return datetime.now(ZoneInfo(REPORT_FILING_TIMEZONE)).date()
     except Exception:
         return date.today()
+
+
+def report_filing_today(db: Session) -> date:
+    """Public wrapper around _today() -- for callers outside this module
+    (e.g. the API layer, computing per-project filing-window state)
+    that need "today" by the same clock this module uses internally,
+    without reaching into a private helper."""
+    return _today(db)
+
+
+def filing_window_block_reason(project: Project, report_date: date) -> str | None:
+    """None if `report_date` is a valid day to file/edit a report for
+    this project; otherwise a user-facing reason it isn't. Shared by
+    the actual filing gate (file_todays_report) and by the projects
+    list (so the portal can show/disable the right thing before the
+    engineer even opens the form, not just reject on submit).
+
+    The window is simply [start_date, target_date] inclusive -- since
+    this is checked live against the project's *current* target_date
+    rather than a value captured once, an extension (target_date
+    pushed later) automatically widens the window with no extra code,
+    and the same is true in reverse if it's ever pulled in. A closed
+    project (Completed/Cancelled) blocks filing outright, even for a
+    date that would otherwise be in range -- once the project is
+    actually finished there's nothing left to report on regardless of
+    what the planned dates say.
+    """
+    if project.status in _CLOSED_PROJECT_STATUSES:
+        return "This project is closed. Status reports can no longer be filed for it."
+    if report_date < project.start_date:
+        return "This project hasn't started yet."
+    if report_date > project.target_date:
+        return "This project's report filing window has closed."
+    return None
 
 
 def list_engineer_projects(db: Session, engineer_id: int) -> list[Project]:
@@ -147,6 +200,11 @@ def file_todays_report(
     if not notes.strip():
         raise ValidationAppError("Notes are required.")
 
+    today = _today(db)
+    block_reason = filing_window_block_reason(project, today)
+    if block_reason:
+        raise ValidationAppError(block_reason)
+
     existing = get_todays_report_for_project(db, engineer_id, project.id)
     if existing:
         if existing.status == "Attached":
@@ -164,7 +222,7 @@ def file_todays_report(
         report_no=next_number(db, "STATUS_REPORT"),
         project_id=project.id,
         engineer_id=engineer_id,
-        report_date=_today(db),
+        report_date=today,
         receipt_type=receipt_type,
         supervision_type=supervision_type,
         notes=notes,

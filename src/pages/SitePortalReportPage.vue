@@ -34,18 +34,37 @@ const supervisionOptions: SelectOption[] = [
   { label: 'Part-time', value: 'Part-time' },
 ]
 
-const todaysDate = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+// Kuwait time explicitly, not the device's local timezone -- this is
+// purely the header label, but it has to agree with what the server
+// actually files the report against (see status_report_service.py's
+// REPORT_FILING_TIMEZONE), or an engineer whose phone clock is set to
+// their own timezone could see a date here that doesn't match which
+// day their report actually lands on.
+const todaysDate = new Date().toLocaleDateString('en-GB', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'Asia/Kuwait',
+})
 
 onMounted(async () => {
   try {
     await Promise.all([sitePortalStore.loadProjects(), sitePortalStore.loadTodaysReports()])
-    projectOptions.value = sitePortalStore.projects.map((p) => ({ label: p.projectName, value: p.id }))
-    // Default to the first not-yet-filed project so the common case
-    // (an engineer opening the page to file whatever's still
-    // outstanding) doesn't require an extra selection -- falls back to
-    // the first project at all if everything's already filed today.
-    const firstUnfiled = sitePortalStore.projects.find((p) => !sitePortalStore.todaysReports[p.id])
-    form.projectId = (firstUnfiled ?? sitePortalStore.projects[0])?.id ?? ''
+    projectOptions.value = sitePortalStore.projects.map((p) => ({
+      label: p.canFileReport ? p.projectName : `${p.projectName} (window closed)`,
+      value: p.id,
+      disabled: !p.canFileReport,
+    }))
+    // Default to the first still-open, not-yet-filed project so the
+    // common case (an engineer opening the page to file whatever's
+    // still outstanding) doesn't require an extra selection -- falls
+    // back to the first open project, and only to a closed one if
+    // every assigned project's window has actually closed (so there's
+    // still something selected to show why).
+    const openProjects = sitePortalStore.projects.filter((p) => p.canFileReport)
+    const firstUnfiled = openProjects.find((p) => !sitePortalStore.todaysReports[p.id])
+    form.projectId = (firstUnfiled ?? openProjects[0] ?? sitePortalStore.projects[0])?.id ?? ''
   } finally {
     isLoading.value = false
   }
@@ -55,6 +74,8 @@ onMounted(async () => {
 // on several projects files one report per project per day, so "today's
 // report" depends entirely on which project is picked above.
 const currentReport = computed(() => sitePortalStore.todaysReports[form.projectId])
+
+const selectedProject = computed(() => sitePortalStore.projects.find((p) => p.id === form.projectId))
 
 // Pre-fills (or clears, for a project with nothing filed yet) the rest
 // of the form whenever the selected project changes -- this is what
@@ -73,7 +94,16 @@ watch(
   { immediate: true },
 )
 
-const isLocked = () => currentReport.value?.status === 'Attached'
+// Two separate reasons the form can be read-only, each with its own
+// message: the recipient has already reviewed & attached today's
+// report (permanent, this one report), or the selected project's
+// filing window itself is closed (every report, today and any other
+// day -- see EngineerProjectOption.blockReason from the server, the
+// same Kuwait-time/start-target-date/closed-status check the actual
+// submit is gated on).
+const isReviewed = () => currentReport.value?.status === 'Attached'
+const isWindowClosed = computed(() => selectedProject.value ? !selectedProject.value.canFileReport : false)
+const isLocked = () => isReviewed() || isWindowClosed.value
 
 const filedCount = computed(() => Object.keys(sitePortalStore.todaysReports).length)
 
@@ -100,7 +130,7 @@ async function handleSubmit(): Promise<void> {
       supervisionType: form.supervisionType,
       notes: form.notes.trim(),
     })
-    resultDialogStore.showSuccess('Report saved', "Today's status report has been filed.")
+    resultDialogStore.showSuccess('Report submitted', "Today's status report has been submitted. You can keep editing and re-submitting it until 11:59 PM Kuwait time.")
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
     resultDialogStore.showError('Failed to save report', detail)
@@ -127,10 +157,22 @@ async function handleSubmit(): Promise<void> {
       </p>
 
       <Alert
-        v-if="isLocked()"
+        v-if="isReviewed()"
         variant="success"
         title="Reviewed"
         description="This project's report has already been reviewed and attached. It can no longer be edited."
+      />
+      <Alert
+        v-else-if="isWindowClosed"
+        variant="warning"
+        title="Filing window closed"
+        :description="selectedProject?.blockReason ?? 'Reports can no longer be filed for this project.'"
+      />
+      <Alert
+        v-else
+        variant="info"
+        title="Editable until 11:59 PM Kuwait time"
+        description="You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait -- wherever you're filing from."
       />
 
       <Card>
@@ -147,10 +189,10 @@ async function handleSubmit(): Promise<void> {
                  several projects needs to see, right where they're
                  picking a project, whether this one still needs today's
                  report or is already done. -->
-            <p v-if="form.projectId" class="mt-1.5 flex items-center gap-1.5 text-xs">
+            <p v-if="form.projectId && !isWindowClosed" class="mt-1.5 flex items-center gap-1.5 text-xs">
               <template v-if="currentReport">
                 <CheckCircle2 class="h-3.5 w-3.5 text-success-600" />
-                <span class="text-success-600">Today's report filed for this project{{ isLocked() ? ' and reviewed' : '' }}</span>
+                <span class="text-success-600">Today's report {{ isReviewed() ? 'filed and reviewed' : 'submitted' }} for this project</span>
               </template>
               <span v-else class="text-warning-600">No report filed yet for this project today</span>
             </p>
@@ -178,9 +220,9 @@ async function handleSubmit(): Promise<void> {
           />
 
           <BaseButton v-if="!isLocked()" type="submit" :icon="Save" :loading="isSaving" full-width>
-            {{ currentReport ? 'Update Report' : 'Save Report' }}
+            {{ currentReport ? 'Update & Re-submit' : 'Submit Report' }}
           </BaseButton>
-          <div v-else class="flex items-center justify-center gap-2 rounded-lg bg-success-50 py-2.5 text-sm font-medium text-success-700">
+          <div v-else-if="isReviewed()" class="flex items-center justify-center gap-2 rounded-lg bg-success-50 py-2.5 text-sm font-medium text-success-700">
             <CheckCircle2 class="h-4 w-4" />
             Filed and reviewed
           </div>

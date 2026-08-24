@@ -7,4 +7,5 @@ export type BadgeVariant = 'neutral' | 'primary' | 'success' | 'warning' | 'dang
 export interface SelectOption {
   label: string
   value: string
+  disabled?: boolean
 }

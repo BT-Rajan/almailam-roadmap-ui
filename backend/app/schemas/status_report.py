@@ -72,3 +72,12 @@ class StatusReportAttachRequest(BaseModel):
 class EngineerProjectOption(BaseModel):
     id: str
     projectName: str
+    # Computed server-side against "today" in Kuwait time (the same
+    # clock that governs the actual filing gate) so the portal can
+    # show/disable the right thing before the engineer even opens the
+    # form, rather than only rejecting on submit. canFileReport is
+    # False, with blockReason explaining why, once the project's
+    # start_date/target_date window has passed or the project has
+    # closed (Completed/Cancelled).
+    canFileReport: bool = True
+    blockReason: str | None = None

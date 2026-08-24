@@ -12,3 +12,9 @@ email-validator==2.3.0
 python-multipart==0.0.20
 httpx==0.28.1
 APScheduler==3.11.3
+# zoneinfo (used for the Kuwait-time report-filing cutoff, see
+# status_report_service.py) needs an IANA tz database on the host --
+# present by default on most Linux distros but not guaranteed in
+# minimal/slim container images. tzdata bundles it directly so the
+# lookup never silently falls back to server-local time.
+tzdata==2025.2
