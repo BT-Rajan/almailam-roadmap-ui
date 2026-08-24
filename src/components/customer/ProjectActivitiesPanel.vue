@@ -13,7 +13,7 @@ defineProps<{
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-neutral-900">Scope of Work</h2>
+      <h2 class="text-xl font-semibold text-text-primary">Scope of Work</h2>
     </template>
 
     <EmptyState
@@ -25,9 +25,9 @@ defineProps<{
 
     <div v-else class="flex flex-col gap-4">
       <div v-for="group in activities" :key="group.serviceName">
-        <p class="text-sm font-semibold text-neutral-800">{{ group.serviceName }}</p>
+        <p class="text-sm font-semibold text-text-primary">{{ group.serviceName }}</p>
         <ul class="mt-1.5 flex flex-col gap-1">
-          <li v-for="activity in group.activities" :key="activity" class="flex items-center gap-2 text-sm text-neutral-600">
+          <li v-for="activity in group.activities" :key="activity" class="flex items-center gap-2 text-sm text-text-secondary">
             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
             {{ activity }}
           </li>

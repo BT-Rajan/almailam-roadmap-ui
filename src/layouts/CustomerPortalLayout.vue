@@ -1,53 +1,57 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { LogOut } from '@lucide/vue'
+import { useRoute, useRouter } from 'vue-router'
+
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useAuthStore } from '@/stores/authStore'
 
+const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
-const goHome = () => {
+async function handleLogout(): Promise<void> {
+  await authStore.logout()
   router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN })
 }
+
+// Same app-shell chrome as the Site Engineer Portal (see
+// SitePortalLayout) -- one header pattern shared by both portals
+// instead of two different ones, and Logout lives here once instead
+// of being duplicated on every page.
+const isLoginPage = () => route.name === ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <!-- Header -->
+  <div class="flex min-h-screen flex-col bg-bg-secondary">
     <header class="sticky top-0 z-sticky border-b border-border-light bg-bg-header shadow-glass-sm backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 tablet:px-6">
-        <button class="flex items-center gap-2 transition-opacity hover:opacity-80" @click="goHome">
+      <div class="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
+        <div class="flex items-center gap-2">
           <div class="gradient-luxe flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
             SO
           </div>
           <div class="text-left">
-            <p class="text-sm font-semibold text-text-primary">ServiceOS</p>
-            <p class="text-xs text-text-muted">Project Tracking</p>
+            <p class="text-sm font-semibold text-text-primary">Customer Portal</p>
+            <p class="hidden text-xs text-text-muted tablet:block">Almailam Engineering Consultants</p>
           </div>
-        </button>
-        <div class="hidden text-right tablet:block">
-          <p class="text-xs text-text-muted">Almailam Engineering Consultants</p>
         </div>
+        <button
+          v-if="!isLoginPage()"
+          type="button"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+          @click="handleLogout"
+        >
+          <LogOut class="h-4 w-4" />
+          Log Out
+        </button>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main id="main-content" tabindex="-1" class="flex-1 outline-none">
+    <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl flex-1 px-4 py-6 outline-none">
       <RouterView v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
           <component :is="Component" />
         </Transition>
       </RouterView>
     </main>
-
-    <!-- Footer -->
-    <footer class="border-t border-border-light bg-bg-header py-6 mt-12">
-      <div class="max-w-7xl mx-auto px-4 tablet:px-6 text-center">
-        <p class="text-xs text-text-muted">
-          &copy; {{ new Date().getFullYear() }} Almailam Engineering Consultants. All rights reserved.
-        </p>
-        <p class="text-xs text-text-muted mt-2">
-          This portal allows clients to track project progress using their Customer ID and password.
-        </p>
-      </div>
-    </footer>
   </div>
 </template>

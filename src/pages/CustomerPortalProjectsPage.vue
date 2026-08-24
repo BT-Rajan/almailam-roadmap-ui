@@ -7,10 +7,8 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { customerPortalService, type CustomerProjectOption } from '@/services/customerPortalService'
-import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
-const authStore = useAuthStore()
 
 const isLoading = ref(true)
 const loadError = ref('')
@@ -39,16 +37,11 @@ function openProject(projectId: string): void {
   router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECT, params: { projectId } })
 }
 
-async function handleLogout(): Promise<void> {
-  await authStore.logout()
-  await router.push({ name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN })
-}
-
 onMounted(loadProjects)
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-4 px-4 py-8 tablet:px-6">
+  <div class="flex flex-col gap-4">
     <div v-if="isLoading" class="space-y-3">
       <SkeletonLoader variant="block" height="4rem" />
       <SkeletonLoader variant="block" height="4rem" />
@@ -65,12 +58,7 @@ onMounted(loadProjects)
     />
 
     <template v-else>
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-text-primary">Your Projects</h1>
-        <button type="button" class="text-sm text-text-muted hover:text-text-secondary" @click="handleLogout">
-          Logout
-        </button>
-      </div>
+      <h1 class="text-lg font-semibold text-text-primary">Your Projects</h1>
       <button
         v-for="project in projects"
         :key="project.projectId"

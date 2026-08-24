@@ -25,7 +25,7 @@ function isOverdue(dueDate: string): boolean {
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-neutral-900">Budget & Payments</h2>
+      <h2 class="text-xl font-semibold text-text-primary">Budget & Payments</h2>
     </template>
 
     <EmptyState
@@ -38,25 +38,25 @@ function isOverdue(dueDate: string): boolean {
     <div v-else class="flex flex-col gap-5">
       <div class="grid grid-cols-2 gap-4 tablet:grid-cols-3">
         <div>
-          <p class="text-xs text-neutral-500">Contract Amount</p>
-          <p class="mt-0.5 text-lg font-semibold text-neutral-900">{{ formatCurrency(budget.contractAmount, budget.currency) }}</p>
+          <p class="text-xs text-text-secondary">Contract Amount</p>
+          <p class="mt-0.5 text-lg font-semibold text-text-primary">{{ formatCurrency(budget.contractAmount, budget.currency) }}</p>
         </div>
         <div>
-          <p class="text-xs text-neutral-500">Paid to Date</p>
+          <p class="text-xs text-text-secondary">Paid to Date</p>
           <p class="mt-0.5 text-lg font-semibold text-success-600">{{ formatCurrency(budget.totalPaid, budget.currency) }}</p>
         </div>
         <div>
-          <p class="text-xs text-neutral-500">Remaining</p>
-          <p class="mt-0.5 text-lg font-semibold text-neutral-900">{{ formatCurrency(budget.totalDue, budget.currency) }}</p>
+          <p class="text-xs text-text-secondary">Remaining</p>
+          <p class="mt-0.5 text-lg font-semibold text-text-primary">{{ formatCurrency(budget.totalDue, budget.currency) }}</p>
         </div>
       </div>
 
-      <div class="h-2 overflow-hidden rounded-full bg-neutral-200">
+      <div class="h-2 overflow-hidden rounded-full bg-border-default">
         <div class="h-full rounded-full bg-success-500" :style="{ width: `${paidPercent}%` }" />
       </div>
 
       <div>
-        <p class="mb-2 text-sm font-semibold text-neutral-800">Upcoming Payments</p>
+        <p class="mb-2 text-sm font-semibold text-text-primary">Upcoming Payments</p>
         <EmptyState
           v-if="budget.upcomingPayments.length === 0"
           title="Nothing outstanding"
@@ -70,17 +70,17 @@ function isOverdue(dueDate: string): boolean {
             :class="isOverdue(payment.dueDate) ? 'border-danger-200 bg-danger-50' : 'border-border-light bg-bg-card'"
           >
             <div>
-              <p class="text-sm font-medium text-neutral-800">{{ payment.description }}</p>
-              <p class="text-xs" :class="isOverdue(payment.dueDate) ? 'text-danger-600' : 'text-neutral-500'">
+              <p class="text-sm font-medium text-text-primary">{{ payment.description }}</p>
+              <p class="text-xs" :class="isOverdue(payment.dueDate) ? 'text-danger-600' : 'text-text-secondary'">
                 Due {{ formatDate(payment.dueDate) }}
                 <span v-if="isOverdue(payment.dueDate)">· Overdue</span>
               </p>
             </div>
             <div class="text-right">
-              <p class="text-sm font-semibold text-neutral-800">
+              <p class="text-sm font-semibold text-text-primary">
                 {{ formatCurrency(payment.amountDue - payment.amountReceived, budget.currency) }}
               </p>
-              <p v-if="payment.amountReceived > 0" class="text-xs text-neutral-500">
+              <p v-if="payment.amountReceived > 0" class="text-xs text-text-secondary">
                 {{ formatCurrency(payment.amountReceived, budget.currency) }} received
               </p>
             </div>
