@@ -103,6 +103,21 @@ async function updateContract(contractId: string, contractData: Partial<Contract
 }
 
 /**
+ * Move a contract to a new status (Sent/Signed/Active/Expired/
+ * Terminated/back to Draft) -- a separate call from updateContract
+ * since `reason` is write-only and isn't part of the Contract read
+ * model.
+ */
+async function setContractStatus(contractId: string, status: string, reason?: string): Promise<Contract> {
+  try {
+    return await apiClient.patch<Contract>(`/api/contracts/${contractId}`, { status, reason })
+  } catch (error) {
+    console.error(`Failed to change status for contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change contract status')
+  }
+}
+
+/**
  * Delete a contract via backend API
  */
 async function deleteContract(contractId: string): Promise<void> {
@@ -145,6 +160,7 @@ export const contractService = {
   getContracts,
   createContract,
   updateContract,
+  setContractStatus,
   deleteContract,
   finalizeContract,
   reopenContract,

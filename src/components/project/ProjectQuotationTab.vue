@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
-import { ref } from 'vue'
+import { ArrowLeftRight, ArrowRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { computed, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -8,6 +8,8 @@ import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
+import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
+import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
 import type { QuotationCreateInput } from '@/services/quotationService'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -30,6 +32,14 @@ const resultDialogStore = useResultDialogStore()
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
+const isStatusDialogOpen = ref(false)
+const isStatusSaving = ref(false)
+
+// Approved is a dead end (no further transitions) -- hide the button
+// entirely rather than open a dialog with nothing to pick.
+const hasStatusOptions = computed(
+  () => (QUOTATION_ALLOWED_TRANSITIONS[quotationStore.selectedQuotation?.status ?? ''] ?? []).length > 0,
+)
 
 function handlePrint(): void {
   window.print()
@@ -96,6 +106,26 @@ async function handleSaveAsFinal(patch: Partial<Quotation>): Promise<void> {
   }
 }
 
+// Draft -> Sent -> Approved/Rejected/Expired, and back to Draft from
+// either of the latter two. The backend refuses Draft -> Sent unless
+// the quotation is already saved as Final (see quotation_service.
+// set_status), so this is the only path to "Approved" -- there's no
+// separate approve action, moving status IS the approval.
+async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  isStatusSaving.value = true
+  try {
+    await quotationStore.setQuotationStatus(quotation.id, payload.value, payload.reason)
+    isStatusDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to change status', detail)
+  } finally {
+    isStatusSaving.value = false
+  }
+}
+
 // Only an Approved, Final quotation can become a contract -- mirrors the
 // backend check in contract_service.create_contract. Hands the chosen
 // quotation off via the store and switches to the Contract tab, which
@@ -122,7 +152,16 @@ function handleAdvanceToContract(): void {
         Advance to Contract
       </BaseButton>
       <BaseButton
-        v-if="quotationStore.selectedQuotation"
+        v-if="quotationStore.selectedQuotation && hasStatusOptions"
+        variant="secondary"
+        size="sm"
+        :icon="ArrowLeftRight"
+        @click="isStatusDialogOpen = true"
+      >
+        Change Status
+      </BaseButton>
+      <BaseButton
+        v-if="quotationStore.selectedQuotation?.status === 'Draft'"
         variant="secondary"
         size="sm"
         :icon="quotationStore.selectedQuotation.finalizedAt ? LockOpen : Lock"
@@ -173,5 +212,15 @@ function handleAdvanceToContract(): void {
   </div>
 
   <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :loading="isCreating" @confirm="handleCreateQuotation" />
+  <StatusTransitionDialog
+    v-if="quotationStore.selectedQuotation"
+    v-model="isStatusDialogOpen"
+    title="Change Quotation Status"
+    :current-value="quotationStore.selectedQuotation.status"
+    :allowed-transitions="QUOTATION_ALLOWED_TRANSITIONS"
+    :is-reason-required="isQuotationReasonRequired"
+    :loading="isStatusSaving"
+    @confirm="handleStatusConfirm"
+  />
 </template>
 

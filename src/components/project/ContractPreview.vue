@@ -139,7 +139,7 @@ function saveAsFinal(): void {
             class="rounded-full px-2.5 py-1 text-xs font-medium"
             :class="contract.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
           >
-            {{ contract.finalizedAt ? 'Final' : isEditing ? 'Editing' : 'Draft' }}
+            {{ contract.finalizedAt ? 'Content Locked' : isEditing ? 'Editing' : 'Editable' }}
           </span>
           <BaseButton v-if="!contract.finalizedAt && !isEditing" variant="secondary" size="sm" :icon="Pencil" @click="startEditing">
             Edit

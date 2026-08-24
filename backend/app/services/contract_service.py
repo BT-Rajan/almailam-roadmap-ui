@@ -253,6 +253,15 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
     if new_status in CONTRACT_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the contract to '{new_status}'.")
 
+    # Mirrors quotation_service.set_status: a contract can only leave
+    # Draft once its content is locked -- it shouldn't be sent for
+    # signature while still an editable work-in-progress.
+    if contract.status == "Draft" and new_status != "Draft" and contract.finalized_at is None:
+        raise ValidationAppError(
+            "Save the contract as Final before moving it out of Draft -- "
+            "its content needs to be locked before it can be sent."
+        )
+
     audit_service.log_event(
         db, ENTITY_TYPE, contract.id, "Status changed", user_id,
         previous_value=contract.status, new_value=new_status, reason=reason,
@@ -260,6 +269,11 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
     contract.status = new_status
     if new_status == "Signed" and contract.signed_date is None:
         contract.signed_date = date.today()
+    # Moving back to Draft always reopens the content for editing again
+    # -- status == 'Draft' and locked content are mutually exclusive.
+    if new_status == "Draft" and contract.finalized_at is not None:
+        contract.finalized_at = None
+        audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract reopened for editing", user_id)
 
     db.commit()
     db.refresh(contract)
@@ -285,8 +299,9 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
 
 def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
     """Move a lettered contract from Draft (editable) to Final (locked,
-    print-ready). No-op guard against double-finalizing; reopen_contract
-    is the only way back to editable."""
+    print-ready) -- required before it can be sent (see set_status).
+    No-op guard against double-finalizing; reopen_contract is the only
+    way back to editable, and only while still in Draft status."""
     contract = get_contract(db, contract_no)
     if contract.finalized_at is not None:
         return contract
@@ -298,8 +313,14 @@ def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
 
 
 def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
-    """Unlock a finalized contract letter for further editing."""
+    """Unlock a finalized contract letter for further editing. Only
+    allowed while status is still 'Draft' -- mirrors
+    quotation_service.reopen_quotation."""
     contract = get_contract(db, contract_no)
+    if contract.status != "Draft":
+        raise ValidationAppError(
+            f"Only a contract still in Draft status can be reopened for editing (currently '{contract.status}')."
+        )
     contract.finalized_at = None
     audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract reopened for editing", user_id)
     db.commit()

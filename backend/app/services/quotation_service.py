@@ -277,20 +277,39 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
     if new_status in QUOTATION_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the quotation to '{new_status}'.")
 
+    # A quotation can only leave Draft once its content is locked -- the
+    # client shouldn't be sent (or asked to approve) something that's
+    # still an editable work-in-progress. finalize_quotation()/
+    # "Save as Final" is how it gets locked.
+    if quotation.status == "Draft" and new_status != "Draft" and quotation.finalized_at is None:
+        raise ValidationAppError(
+            "Save the quotation as Final before moving it out of Draft -- "
+            "its content needs to be locked before it can be sent."
+        )
+
     audit_service.log_event(
         db, ENTITY_TYPE, quotation.id, "Status changed", user_id,
         previous_value=quotation.status, new_value=new_status, reason=reason,
     )
     quotation.status = new_status
+    # Moving back to Draft (from Rejected or Expired) always reopens the
+    # content for editing again. This is the other half of the rule
+    # above: status == 'Draft' and locked content are mutually
+    # exclusive, so a quotation is never shown as both "Draft" and
+    # "Final" at once -- whichever way it got there.
+    if new_status == "Draft" and quotation.finalized_at is not None:
+        quotation.finalized_at = None
+        audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation reopened for editing", user_id)
     db.commit()
     db.refresh(quotation)
     return quotation
 
 
 def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
-    """Move a lettered quotation from Draft (editable) to Final (locked,
-    print-ready). No-op guard against double-finalizing; reopen_quotation
-    is the only way back to editable."""
+    """Move a quotation from Draft (editable) to Final (locked,
+    print-ready) -- required before it can be sent (see set_status).
+    No-op guard against double-finalizing; reopen_quotation is the only
+    way back to editable, and only while still in Draft status."""
     quotation = get_quotation(db, quotation_no)
     if quotation.finalized_at is not None:
         return quotation
@@ -302,8 +321,16 @@ def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotatio
 
 
 def reopen_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
-    """Unlock a finalized quotation letter for further editing."""
+    """Unlock a finalized quotation letter for further editing. Only
+    allowed while status is still 'Draft' -- once a quotation has been
+    Sent, its locked content can't be silently pulled back into an
+    editable state (send it back to Draft via Rejected/Expired first,
+    which reopens it automatically -- see set_status)."""
     quotation = get_quotation(db, quotation_no)
+    if quotation.status != "Draft":
+        raise ValidationAppError(
+            f"Only a quotation still in Draft status can be reopened for editing (currently '{quotation.status}')."
+        )
     quotation.finalized_at = None
     audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation reopened for editing", user_id)
     db.commit()

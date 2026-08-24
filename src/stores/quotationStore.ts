@@ -94,5 +94,11 @@ export const useQuotationStore = defineStore('quotation', {
       this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
       return updated
     },
+
+    async setQuotationStatus(quotationId: string, status: string, reason?: string): Promise<Quotation> {
+      const updated = await quotationService.setQuotationStatus(quotationId, status, reason)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
   },
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Lock, LockOpen, Plus, Printer } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { ArrowLeftRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 
 import AIResponseCard from '@/components/ai/AIResponseCard.vue'
 import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
@@ -11,6 +11,8 @@ import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
+import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
+import { CONTRACT_ALLOWED_TRANSITIONS, isContractReasonRequired } from '@/constants/quotationContractOptions'
 import { useContractStore } from '@/stores/contractStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -31,6 +33,14 @@ const resultDialogStore = useResultDialogStore()
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
+const isStatusDialogOpen = ref(false)
+const isStatusSaving = ref(false)
+
+// Terminated is a dead end (no further transitions) -- hide the button
+// entirely rather than open a dialog with nothing to pick.
+const hasStatusOptions = computed(
+  () => (CONTRACT_ALLOWED_TRANSITIONS[contractStore.selectedContract?.status ?? ''] ?? []).length > 0,
+)
 
 // A contract must come from a specific quotation that's Approved and
 // Final (see contract_service.create_contract) -- this is that
@@ -141,6 +151,25 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
     isFinalizing.value = false
   }
 }
+
+// Draft -> Sent -> Signed -> Active -> Expired/Terminated, and back to
+// Draft from Sent or Expired. The backend refuses Draft -> Sent unless
+// the contract is already saved as Final (see contract_service.
+// set_status).
+async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  isStatusSaving.value = true
+  try {
+    await contractStore.setContractStatus(contract.id, payload.value, payload.reason)
+    isStatusDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to change status', detail)
+  } finally {
+    isStatusSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -148,7 +177,16 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
     <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">New Contract</BaseButton>
     <div class="flex items-center gap-2">
       <BaseButton
-        v-if="contractStore.selectedContract"
+        v-if="contractStore.selectedContract && hasStatusOptions"
+        variant="secondary"
+        size="sm"
+        :icon="ArrowLeftRight"
+        @click="isStatusDialogOpen = true"
+      >
+        Change Status
+      </BaseButton>
+      <BaseButton
+        v-if="contractStore.selectedContract?.status === 'Draft'"
         variant="secondary"
         size="sm"
         :icon="contractStore.selectedContract.finalizedAt ? LockOpen : Lock"
@@ -224,5 +262,15 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
     :default-client-representative="client?.contactPerson"
     :loading="isCreating"
     @confirm="handleCreateContract"
+  />
+  <StatusTransitionDialog
+    v-if="contractStore.selectedContract"
+    v-model="isStatusDialogOpen"
+    title="Change Contract Status"
+    :current-value="contractStore.selectedContract.status"
+    :allowed-transitions="CONTRACT_ALLOWED_TRANSITIONS"
+    :is-reason-required="isContractReasonRequired"
+    :loading="isStatusSaving"
+    @confirm="handleStatusConfirm"
   />
 </template>

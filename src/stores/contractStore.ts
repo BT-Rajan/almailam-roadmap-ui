@@ -99,5 +99,11 @@ export const useContractStore = defineStore('contract', {
       this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
       return updated
     },
+
+    async setContractStatus(contractId: string, status: string, reason?: string): Promise<Contract> {
+      const updated = await contractService.setContractStatus(contractId, status, reason)
+      this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
+      return updated
+    },
   },
 })

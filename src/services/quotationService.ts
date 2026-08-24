@@ -86,6 +86,20 @@ async function updateQuotation(quotationId: string, quotationData: Partial<Quota
 }
 
 /**
+ * Move a quotation to a new status (Sent/Approved/Rejected/Expired/back
+ * to Draft) -- a separate call from updateQuotation since `reason` is
+ * write-only and isn't part of the Quotation read model.
+ */
+async function setQuotationStatus(quotationId: string, status: string, reason?: string): Promise<Quotation> {
+  try {
+    return await apiClient.patch<Quotation>(`/api/quotations/${quotationId}`, { status, reason })
+  } catch (error) {
+    console.error(`Failed to change status for quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to change quotation status')
+  }
+}
+
+/**
  * Delete a quotation via backend API
  */
 async function deleteQuotation(quotationId: string): Promise<void> {
@@ -127,6 +141,7 @@ export const quotationService = {
   getQuotations,
   createQuotation,
   updateQuotation,
+  setQuotationStatus,
   deleteQuotation,
   finalizeQuotation,
   reopenQuotation,
