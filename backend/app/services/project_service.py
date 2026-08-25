@@ -512,6 +512,14 @@ def _apply_stage_change(
         description=reason,
         actor_id=user_id,
     )
+    # Close out any of the 23 execution activities tagged to a stage the
+    # project has now moved past entirely -- see its own docstring for
+    # why this is safe (only raises completion, never lowers it, never
+    # touches excluded/already-complete steps). Must run before
+    # recompute_progress below so the freshly-closed steps are reflected
+    # in the same progress number this stage change produces, rather
+    # than lagging a request behind.
+    execution_step_service.auto_fill_steps_for_passed_stages(db, project.id, new_stage, user_id)
     recompute_progress(db, project)
 
 

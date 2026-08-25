@@ -129,7 +129,7 @@ const goBack = () => {
             <p class="text-sm font-medium text-text-primary mt-2">{{ project.currentStage }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-secondary uppercase font-medium">Responsible Engineer</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">Field Engineer</p>
             <p class="text-sm font-medium text-text-primary mt-2">{{ project.engineer }}</p>
           </div>
         </div>

@@ -54,7 +54,6 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
         <TextInput v-model="form.individualProfile.preferredName" label="Preferred Name" />
         <TextInput v-model="form.individualProfile.nationality" label="Nationality" required :error="errors.nationality" />
         <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required :max="maxDate" :error="errors.dateOfBirth" />
-        <TextInput v-model="form.individualProfile.countryOfResidence" label="Country of Residence" required :error="errors.countryOfResidence" />
         <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
@@ -75,7 +74,14 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
 
     <FormSection title="Contact Details">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="form.mobile" label="Mobile Number" placeholder="+965 5XXX XXXX" required :error="errors.mobile" />
+        <TextInput
+          v-model="form.mobile"
+          label="Mobile Number"
+          placeholder="+965 5XXX XXXX"
+          required
+          maxlength="13"
+          :error="errors.mobile"
+        />
         <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
         <SelectBox
           v-model="form.communicationPreference.preferredLanguage"

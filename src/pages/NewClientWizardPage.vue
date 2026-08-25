@@ -10,7 +10,6 @@ import Stepper from '@/components/common/Stepper.vue'
 
 // Lazy-loaded: only one wizard step is visible at a time.
 const ClientBasicInfoStep = defineAsyncComponent(() => import('@/components/client/ClientBasicInfoStep.vue'))
-const ClientConsentStep = defineAsyncComponent(() => import('@/components/client/ClientConsentStep.vue'))
 const ClientContactAddressStep = defineAsyncComponent(() => import('@/components/client/ClientContactAddressStep.vue'))
 const ClientIdentificationStep = defineAsyncComponent(() => import('@/components/client/ClientIdentificationStep.vue'))
 const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
@@ -22,7 +21,7 @@ import { useToastStore } from '@/stores/toastStore'
 import type { Client, ClientDuplicateMatch } from '@/types/Client'
 import { createEmptyClientWizardForm } from '@/types/ClientWizard'
 import { getClientDisplayName } from '@/utils/clientHelpers'
-import { hasErrors, validateAddress, validateBasicInfo, validateConsent, validateContacts, validateIdentification } from '@/utils/clientValidation'
+import { hasErrors, validateAddress, validateBasicInfo, validateContacts, validateIdentification } from '@/utils/clientValidation'
 import type { FieldErrors } from '@/utils/clientValidation'
 
 const router = useRouter()
@@ -34,7 +33,6 @@ const WIZARD_STEPS = [
   { label: 'Client Type' },
   { label: 'Contacts & Address' },
   { label: 'Identification' },
-  { label: 'Consent' },
   { label: 'Review & Confirm' },
 ]
 
@@ -176,7 +174,6 @@ const addressErrors = computed<FieldErrors>(() => validateAddress(form.value.add
 const identificationErrors = computed<FieldErrors>(() =>
   validateIdentification(form.value.identification, form.value.identificationFile),
 )
-const consentErrors = computed<FieldErrors>(() => validateConsent(form.value.consents))
 
 const contactsStepHasErrors = computed(
   () =>
@@ -189,11 +186,10 @@ function stepHasErrors(step: number): boolean {
   if (step === 0) return hasErrors(basicInfoErrors.value)
   if (step === 1) return contactsStepHasErrors.value
   if (step === 2) return hasErrors(identificationErrors.value)
-  if (step === 3) return hasErrors(consentErrors.value)
   return false
 }
 
-const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification', 'Consent']
+const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification']
 
 function goNext(): void {
   if (stepHasErrors(currentStep.value)) {
@@ -271,7 +267,7 @@ async function submitWizard(): Promise<void> {
   // Re-validate every step, not just the current one -- someone could
   // have gone back and broken an earlier step, or jumped here via the
   // stepper. This is the final gate before anything reaches the backend.
-  const invalidStep = [0, 1, 2, 3].find((step) => stepHasErrors(step))
+  const invalidStep = [0, 1, 2].find((step) => stepHasErrors(step))
   if (invalidStep !== undefined) {
     toastStore.show(
       'error',
@@ -363,21 +359,6 @@ async function submitWizard(): Promise<void> {
       )
     }
 
-    // Every consent type gets an explicit recorded decision -- granted or
-    // declined -- rather than only recording the ones the client agreed
-    // to. A missing record and a recorded "no" mean different things for
-    // compliance purposes, so silently skipping declines was a real gap.
-    for (const [consentType, granted] of Object.entries(form.value.consents)) {
-      subRecordRequests.push(
-        clientStore.createConsent(client.id, {
-          consentType: consentType as 'Process Personal Information' | 'Electronic Communication' | 'Process Documents',
-          version: 'v1.0',
-          granted,
-          method: 'Onboarding wizard',
-        }),
-      )
-    }
-
     // Sub-records are independent of one another, so run them concurrently
     // once the client itself exists. A failure here is surfaced but
     // doesn't roll back the client -- it already exists in the system and
@@ -440,7 +421,6 @@ function goToCreatedClient(): void {
           :address-errors="addressErrors"
         />
         <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" :errors="identificationErrors" />
-        <ClientConsentStep v-else-if="currentStep === 3" v-model="form" :errors="consentErrors" />
         <ClientReviewStep v-else v-model="form" />
       </div>
 

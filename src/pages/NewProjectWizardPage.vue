@@ -399,7 +399,7 @@ function goToCreatedProject(): void {
             </div>
             <SelectBox
               v-model="form.engineer"
-              label="Responsible Engineer"
+              label="Field Engineer"
               placeholder="Assign an engineer"
               required
               :options="engineerOptions"
@@ -509,7 +509,7 @@ function goToCreatedProject(): void {
               </ul>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Responsible Engineer</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Field Engineer</p>
               <p class="text-sm text-text-primary">{{ selectedEngineerName() }}</p>
             </div>
             <div>

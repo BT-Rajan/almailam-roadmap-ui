@@ -11,12 +11,6 @@ const isIndividual = computed(() => form.value.clientType === 'Individual')
 const displayName = computed(() =>
   isIndividual.value ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
 )
-
-const grantedConsents = computed(() =>
-  Object.entries(form.value.consents)
-    .filter(([, granted]) => granted)
-    .map(([type]) => type),
-)
 </script>
 
 <template>
@@ -44,11 +38,6 @@ const grantedConsents = computed(() =>
         { label: 'Document Number', value: form.identification.documentNumber || '—' },
         { label: 'Document Uploaded', value: form.identificationFile ? form.identificationFile.name : 'Not yet uploaded' },
       ]"
-    />
-
-    <DetailPanel
-      title="Consent"
-      :items="[{ label: 'Consents Granted', value: grantedConsents.length > 0 ? grantedConsents.join(', ') : 'None recorded' }]"
     />
   </div>
 </template>

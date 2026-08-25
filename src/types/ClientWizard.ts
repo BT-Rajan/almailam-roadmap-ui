@@ -83,9 +83,14 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
     individualProfile: {
       fullLegalName: '',
       preferredName: '',
-      nationality: '',
+      // Almailam only onboards Kuwait-based clients -- defaulted rather
+      // than left blank so the wizard doesn't ask for it, but the field
+      // itself stays (the backend still records it, and Country of
+      // Residence isn't shown in the UI at all anymore, see
+      // ClientBasicInfoStep.vue).
+      nationality: 'Kuwait',
       dateOfBirth: '',
-      countryOfResidence: '',
+      countryOfResidence: 'Kuwait',
     },
     organisationProfile: {
       legalName: '',
