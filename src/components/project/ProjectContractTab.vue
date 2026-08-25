@@ -19,11 +19,15 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Contract } from '@/types/Contract'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 
 const props = defineProps<{
   project: Project
   client: Client | undefined
+}>()
+
+const emit = defineEmits<{
+  'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
 const contractStore = useContractStore()
@@ -155,7 +159,9 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
 // Draft -> Signed -> Active -> Expired/Terminated, and back to Draft
 // from Expired. The backend refuses moving out of Draft unless the
 // contract is already saved as Final (see contract_service.
-// set_status).
+// set_status). Marking a contract Signed is what payment configuration
+// is waiting on next, so jump straight to the Payments tab rather than
+// leaving staff to find it themselves.
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
@@ -163,6 +169,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   try {
     await contractStore.setContractStatus(contract.id, payload.value, payload.reason)
     isStatusDialogOpen.value = false
+    if (payload.value === 'Signed') emit('navigate-tab', 'payments')
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
     resultDialogStore.showError('Failed to change status', detail)

@@ -342,6 +342,23 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("a financial agreement (payment dates and amount)")
 
     elif new_stage == "Government Submission" and previous_stage == "Design":
+        # The Design tab itself has to have something in it -- at least
+        # one drawing link saved (see DesignDocumentDialog.vue, which
+        # requires a link on every 'Drawing'-type document it creates) --
+        # before there's anything to have approved in the first place.
+        has_design_link = (
+            db.query(ProjectDocument)
+            .filter(
+                ProjectDocument.project_id == project.id,
+                ProjectDocument.type == "Drawing",
+                ProjectDocument.external_link.isnot(None),
+                ProjectDocument.deleted_at.is_(None),
+            )
+            .first()
+            is not None
+        )
+        if not has_design_link:
+            problems.append("at least one design document link saved")
         # The one checkpoint the client themselves signs off on before
         # anything goes to a government authority -- matches the source
         # process document's own ordering (design approval, then
