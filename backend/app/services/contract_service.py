@@ -287,6 +287,18 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
         contract.finalized_at = None
         audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract reopened for editing", user_id)
 
+    # A contract actually being signed is one of two things "Contract" ->
+    # "Design" is waiting on (see project_service._assert_stage_exit_
+    # criteria) -- if a financial agreement already exists (created
+    # ahead of the contract being signed, an unusual but possible order),
+    # this is the moment that condition newly becomes true; the normal
+    # order (sign first, then configure payment) is already covered by
+    # payment_service.create_agreement's own call.
+    if new_status == "Signed":
+        project = db.query(Project).filter(Project.id == contract.project_id).first()
+        if project is not None:
+            project_service.try_auto_advance_stage(db, project, user_id)
+
     db.commit()
     db.refresh(contract)
     return contract
