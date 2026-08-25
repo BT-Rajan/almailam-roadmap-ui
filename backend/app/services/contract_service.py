@@ -177,6 +177,11 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     # the time this runs, or may not be for a while yet; either way,
     # this is one of the three moments that condition could newly
     # become true, so it needs to check too, not just the other two.
+    # The session is autoflush=False -- flush first so the exit-
+    # criteria check's own fresh DB queries actually see this contract
+    # (and try_auto_fill's step update above) rather than stale,
+    # pre-transaction data.
+    db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(contract)
@@ -295,6 +300,11 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
     # order (sign first, then configure payment) is already covered by
     # payment_service.create_agreement's own call.
     if new_status == "Signed":
+        # The session is autoflush=False -- flush first so the exit-
+        # criteria check's own fresh query for a Signed/Active contract
+        # actually sees this status change rather than the pre-change
+        # ("Draft") value still on file.
+        db.flush()
         project = db.query(Project).filter(Project.id == contract.project_id).first()
         if project is not None:
             project_service.try_auto_advance_stage(db, project, user_id)

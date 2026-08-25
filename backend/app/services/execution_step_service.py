@@ -367,6 +367,11 @@ def set_step_progress(
     if project is not None:
         from app.services import project_service
 
+        # The session is autoflush=False -- flush first so the exit-
+        # criteria check's own fresh query over every execution step
+        # actually sees this step's new completion_percentage rather
+        # than the pre-change value still on file.
+        db.flush()
         project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(step)
@@ -409,6 +414,8 @@ def bulk_set_steps(
     if project is not None:
         from app.services import project_service
 
+        # Same autoflush=False reasoning as save_step_progress above.
+        db.flush()
         project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     return list_project_steps(db, project_id)

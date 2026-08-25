@@ -11,6 +11,7 @@ import QuotationRevisionHistory from '@/components/project/QuotationRevisionHist
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
 import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
 import type { QuotationCreateInput } from '@/services/quotationService'
+import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const quotationStore = useQuotationStore()
+const projectStore = useProjectStore()
 const resultDialogStore = useResultDialogStore()
 
 const isCreateDialogOpen = ref(false)
@@ -117,6 +119,11 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   isStatusSaving.value = true
   try {
     await quotationStore.setQuotationStatus(quotation.id, payload.value, payload.reason)
+    // Approving a quotation is the sole thing "Quotation" -> "Contract"
+    // waits on (project_service._assert_stage_exit_criteria) -- refresh
+    // the shared project store so the header badge and Workflow
+    // Progress stepper reflect an auto-advance immediately.
+    if (payload.value === 'Approved') await projectStore.refreshProject(props.project.id)
     isStatusDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'

@@ -137,6 +137,10 @@ async function handleUploadStageGateDocument(stageKey: string, file: File | unde
     return
   }
   replacingStageKey.value = null
+  // Closing the last of the required stage gates is one of the things
+  // "Government Submission" -> "Execution & Tracking" waits on -- same
+  // reasoning as refreshProgress() above for the execution checklist.
+  await projectStore.refreshProject(props.project.id)
   toastStore.show('success', 'Stage gate document uploaded', 'This stage is now marked complete.')
 }
 
