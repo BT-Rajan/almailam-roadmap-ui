@@ -17,6 +17,7 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
 // shipping with the page on first load.
+const ProjectRequirementTab = defineAsyncComponent(() => import('@/components/project/ProjectRequirementTab.vue'))
 const ProjectProcessTab = defineAsyncComponent(() => import('@/components/project/ProjectProcessTab.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
@@ -50,7 +51,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -221,6 +222,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <ProjectOverviewTab v-if="activeTab === 'overview'" :project="project" :client="client" />
+      <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />

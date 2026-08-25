@@ -36,7 +36,7 @@ PROJECT_ENTITY_TYPE = "PROJECT"
 # external sign-offs, not something an execution activity is filed
 # under.
 STAGE_KEYS = (
-    "Enquiry",
+    "Requirement",
     "Quotation",
     "Contract",
     "Design",

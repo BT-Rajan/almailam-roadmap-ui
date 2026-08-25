@@ -170,10 +170,10 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the quotation exists.
     _record_revision(db, quotation, "Initial quotation created", user_id, bump=False)
-    # A project's first quotation is what "Enquiry" -> "Quotation" is
+    # A project's first quotation is what "Requirement" -> "Quotation" is
     # waiting on -- advance it automatically instead of requiring a
     # separate manual stage click for something this action already
-    # made true. No-op if the project isn't at "Enquiry" (a later
+    # made true. No-op if the project isn't at "Requirement" (a later
     # quotation on the same project) or already moved on.
     project_service.try_auto_advance_stage(db, project, user_id)
     # Execution-checklist step 2 ("Quotation prepared") duplicates the

@@ -45,6 +45,11 @@ class ProjectOut(BaseModel):
     projectNo: str
     projectName: str
     description: str | None = None
+    # Internal approval of `description` (the scope-of-work text) at the
+    # Requirement stage -- see ScopeOfWorkOut for the full revision
+    # history behind it.
+    scopeStatus: str
+    scopeApprovedAt: datetime | None = None
     clientId: str
     service: str
     engineer: str
@@ -73,6 +78,8 @@ class ProjectOut(BaseModel):
             projectNo=project.project_no,
             projectName=project.project_name,
             description=project.description,
+            scopeStatus=project.scope_status,
+            scopeApprovedAt=project.scope_approved_at,
             clientId=f"CLT-{project.client_id:03d}",
             service=project.service,
             engineer=engineer_name,
@@ -132,6 +139,36 @@ class ScopeChangeUpdate(BaseModel):
     description: str = Field(min_length=1, max_length=2000)
     contractUpdateNeeded: bool
     paymentUpdateNeeded: bool
+
+
+class ScopeRevisionOut(BaseModel):
+    id: str
+    revision: str
+    date: date
+    changedBy: str
+    summary: str
+    hasDocument: bool
+    documentName: str | None = None
+
+    @staticmethod
+    def from_model(revision, changed_by_name: str) -> "ScopeRevisionOut":
+        return ScopeRevisionOut(
+            id=f"PSR-{revision.id:03d}",
+            revision=revision.revision,
+            date=revision.revised_at,
+            changedBy=changed_by_name,
+            summary=revision.summary,
+            hasDocument=bool(revision.storage_key),
+            documentName=revision.original_filename,
+        )
+
+
+class ScopeOfWorkOut(BaseModel):
+    description: str | None
+    scopeStatus: str
+    scopeApprovedAt: datetime | None
+    scopeApprovedBy: str | None
+    revisions: list[ScopeRevisionOut] = Field(default_factory=list)
 
 
 class ProjectCreate(BaseModel):

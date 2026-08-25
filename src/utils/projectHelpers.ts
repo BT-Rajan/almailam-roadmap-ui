@@ -2,7 +2,7 @@ import type { BadgeVariant } from '@/types/Ui'
 import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
 
 export const WORKFLOW_STAGES: WorkflowStage[] = [
-  'Enquiry',
+  'Requirement',
   'Quotation',
   'Contract',
   'Design',
