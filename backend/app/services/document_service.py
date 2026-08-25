@@ -183,7 +183,10 @@ def create_document(
     # Submission" now waits on (see project_service.
     # _assert_stage_exit_criteria) -- this is the moment that condition
     # can newly become true, same pattern as approval_process_service's
-    # own stage-gate calls.
+    # own stage-gate calls. The session is autoflush=False -- flush
+    # first so the exit-criteria check's own fresh query for a Drawing
+    # document with a link actually sees this new row.
+    db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(document)
@@ -216,6 +219,11 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
 
     audit_service.log_field_changes(db, ENTITY_TYPE, document.id, changes, user_id)
     if "link" in changes:
+        # The session is autoflush=False -- flush first so the exit-
+        # criteria check's own fresh query for a Drawing document with a
+        # link actually sees this change rather than the pre-change
+        # value still on file.
+        db.flush()
         project = db.query(Project).filter(Project.id == document.project_id).first()
         if project is not None:
             project_service.try_auto_advance_stage(db, project, user_id)

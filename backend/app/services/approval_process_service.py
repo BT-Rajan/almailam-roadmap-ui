@@ -92,6 +92,13 @@ def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int |
     (see audit_service.get_history for the same pattern)."""
     from app.services import project_service
 
+    # The session is autoflush=False -- without this, a stage gate's own
+    # storage_key/completed_at change made earlier in this same
+    # transaction wouldn't be visible yet to the fresh DB query
+    # is_stage_gate_complete() runs as part of _assert_stage_exit_
+    # criteria, so the check would silently see stale (pre-change) data
+    # and never actually advance.
+    db.flush()
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is not None:
         project_service.try_auto_advance_stage(db, project, user_id)

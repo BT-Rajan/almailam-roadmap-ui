@@ -14,6 +14,7 @@ import FileUploader from '@/components/document/FileUploader.vue'
 import ScopeRevisionHistory from '@/components/project/ScopeRevisionHistory.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
+import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey, ScopeOfWork, ScopeRevision } from '@/types/Project'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const isLoading = ref(false)
@@ -88,6 +90,13 @@ async function handleApprove(): Promise<void> {
   try {
     const updated = await projectService.approveScopeOfWork(props.project.id)
     await load()
+    // approveScopeOfWork can move current_stage server-side (see
+    // project_service.try_auto_advance_stage) -- the shared project
+    // store's cached copy (what the header badge and Workflow Progress
+    // stepper above this tab actually read) doesn't know that on its
+    // own, since this call goes straight through projectService rather
+    // than one of the store's own mutating actions.
+    await projectStore.refreshProject(props.project.id)
     if (updated.currentStage === 'Quotation') {
       toastStore.show('success', 'Scope of work approved', 'The project moved on to Quotation.')
       emit('navigate-tab', 'quotation')

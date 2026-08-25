@@ -14,6 +14,7 @@ import ContractRevisionHistory from '@/components/project/ContractRevisionHistor
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
 import { CONTRACT_ALLOWED_TRANSITIONS, isContractReasonRequired } from '@/constants/quotationContractOptions'
 import { useContractStore } from '@/stores/contractStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 
 const contractStore = useContractStore()
 const quotationStore = useQuotationStore()
+const projectStore = useProjectStore()
 const resultDialogStore = useResultDialogStore()
 
 const isCreateDialogOpen = ref(false)
@@ -95,6 +97,12 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
       projectId: props.project.id,
       quotationId: quotation.id,
     })
+    // A contract's mere existence is one of the things "Quotation" ->
+    // "Contract" waits on (project_service._assert_stage_exit_criteria)
+    // -- the shared project store's cached stage is what the header
+    // badge and Workflow Progress stepper read, and creating a contract
+    // through contractStore never touches it on its own.
+    await projectStore.refreshProject(props.project.id)
     resultDialogStore.showSuccess('Contract created', `${contract.contractNo} was created successfully.`)
     isCreateDialogOpen.value = false
   } catch (error) {
@@ -169,7 +177,14 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   try {
     await contractStore.setContractStatus(contract.id, payload.value, payload.reason)
     isStatusDialogOpen.value = false
-    if (payload.value === 'Signed') emit('navigate-tab', 'payments')
+    if (payload.value === 'Signed') {
+      // Marking a contract Signed can itself be the last thing "Contract"
+      // -> "Design" was waiting on (e.g. a financial agreement already
+      // exists) -- refresh the shared project store so the header/
+      // stepper reflect it immediately rather than only on next reload.
+      await projectStore.refreshProject(props.project.id)
+      emit('navigate-tab', 'payments')
+    }
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
     resultDialogStore.showError('Failed to change status', detail)

@@ -39,6 +39,12 @@ def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int |
     audit_service.get_history for the same pattern)."""
     from app.services import project_service
 
+    # The session is autoflush=False -- without this, a payment/refund/
+    # adjustment made earlier in this same transaction wouldn't be
+    # visible yet to the fresh DB queries _assert_stage_exit_criteria
+    # runs (get_financial_summary etc.), so the check would silently see
+    # stale (pre-change) data and never actually advance.
+    db.flush()
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is not None:
         project_service.try_auto_advance_stage(db, project, user_id)

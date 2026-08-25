@@ -12,6 +12,7 @@ import PaymentSummaryCards from '@/components/payment/PaymentSummaryCards.vue'
 import PaymentTimeline from '@/components/payment/PaymentTimeline.vue'
 import RecordPaymentDialog from '@/components/payment/RecordPaymentDialog.vue'
 import { usePaymentStore } from '@/stores/paymentStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
 import type { AdjustmentType, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const store = usePaymentStore()
+const projectStore = useProjectStore()
 // Matches every other create/edit/delete-style action in the app
 // (Clients, Projects, Quotations, Contracts, Government Submissions) --
 // an explicit acknowledgment dialog for actions that change money on
@@ -85,6 +87,10 @@ function openObligationAction(mode: 'cancel' | 'waive', obligation: PaymentOblig
 async function handleCreateAgreement(input: Parameters<typeof store.createAgreement>[0]): Promise<void> {
   try {
     await store.createAgreement(input, 'Rajan Kumar')
+    // The shared project store's cached stage is what the header badge
+    // and Workflow Progress stepper read -- paymentStore's own auto-
+    // advance on the backend doesn't update it on its own.
+    await projectStore.refreshProject(props.projectId)
     resultDialogStore.showSuccess('Financial agreement created', 'The payment schedule has been generated.')
     isAgreementFormOpen.value = false
     emit('navigate-tab', 'design')
@@ -96,6 +102,10 @@ async function handleCreateAgreement(input: Parameters<typeof store.createAgreem
 async function handleRecordPayment(input: RecordPaymentInput): Promise<void> {
   try {
     await store.recordPayment(input, 'Rajan Kumar')
+    // A payment that fully settles the agreement is one of two things
+    // "Execution & Tracking" -> "Completed" waits on -- same reasoning
+    // as handleCreateAgreement above.
+    await projectStore.refreshProject(props.projectId)
     resultDialogStore.showSuccess('Payment recorded', 'The payment schedule has been updated.')
     isRecordPaymentOpen.value = false
   } catch {

@@ -920,6 +920,13 @@ def approve_scope_of_work(db: Session, project_no: str, user_id: int) -> Project
     timeline_service.create_system_event(
         db, project.id, "note", title="Scope of work approved", description=project.description, actor_id=user_id
     )
+    # The session is autoflush=False -- flush first so the exit-criteria
+    # check's own fresh queries (e.g. client identification) see
+    # everything written so far in this transaction. project.scope_
+    # status itself is read as a live in-memory attribute, not a fresh
+    # query, so it's already safe either way -- this is for consistency
+    # with every other try_auto_advance_stage call site.
+    db.flush()
     try_auto_advance_stage(db, project, user_id)
 
     db.commit()

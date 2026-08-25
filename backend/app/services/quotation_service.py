@@ -170,11 +170,13 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the quotation exists.
     _record_revision(db, quotation, "Initial quotation created", user_id, bump=False)
-    # A project's first quotation is what "Requirement" -> "Quotation" is
-    # waiting on -- advance it automatically instead of requiring a
-    # separate manual stage click for something this action already
-    # made true. No-op if the project isn't at "Requirement" (a later
-    # quotation on the same project) or already moved on.
+    # Safety-net catch-up call -- "Requirement" -> "Quotation" no longer
+    # depends on a quotation existing (it waits on scope-of-work approval
+    # + client identification instead, see project_service._assert_
+    # stage_exit_criteria), but this is still a moment those could
+    # coincidentally already both be true without anything else having
+    # triggered the move yet. No-op otherwise.
+    db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
     # Execution-checklist step 2 ("Quotation prepared") duplicates the
     # mere existence of this record -- auto-complete it instead of
@@ -314,7 +316,12 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
         # An Approved quotation is exactly what _assert_stage_exit_criteria
         # requires before a project can enter "Contract" -- advance it
         # automatically instead of requiring a separate manual stage
-        # click for a condition this action already satisfied.
+        # click for a condition this action already satisfied. The
+        # session is autoflush=False -- flush first so the exit-criteria
+        # check's own fresh query for an Approved quotation actually
+        # sees this status change rather than the pre-change ("Draft")
+        # value still on file.
+        db.flush()
         project = db.query(Project).filter(Project.id == quotation.project_id).first()
         if project is not None:
             project_service.try_auto_advance_stage(db, project, user_id)
