@@ -323,13 +323,24 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("an Approved quotation")
 
     elif new_stage == "Design" and previous_stage == "Contract":
-        contract_exists = (
-            db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
+        # A contract has to actually be signed, not merely exist as a
+        # Draft -- this is what "Documents Signed" means in practice
+        # (the separate documents_signed approval-process gate used to
+        # be checked here instead, but that's a second, easy-to-forget
+        # manual upload nothing else in the flow prompts anyone to do;
+        # the contract's own status is the real, already-visible signal
+        # for this).
+        signed_contract = (
+            db.query(Contract)
+            .filter(
+                Contract.project_id == project.id,
+                Contract.status.in_(("Signed", "Active")),
+                Contract.deleted_at.is_(None),
+            )
+            .first()
         )
-        if contract_exists is None:
-            problems.append("a contract")
-        if not approval_process_service.is_stage_gate_complete(db, project.id, "documents_signed"):
-            problems.append("the 'Documents Signed' stage gate")
+        if signed_contract is None:
+            problems.append("a signed contract")
         # A financial agreement -- payment dates and amounts -- has to be
         # prepared right after the contract, not left until the project
         # is finishing up (that's what the "Completed" check further
@@ -359,12 +370,12 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if not has_design_link:
             problems.append("at least one design document link saved")
-        # The one checkpoint the client themselves signs off on before
-        # anything goes to a government authority -- matches the source
-        # process document's own ordering (design approval, then
-        # submission), not something either stage could reasonably skip.
-        if not approval_process_service.is_stage_gate_complete(db, project.id, "architectural_approval"):
-            problems.append("the 'Architectural Design Approved by Client' stage gate")
+        # The separate architectural_approval approval-process gate used
+        # to also be required here -- dropped as a blocking exit
+        # criterion (it's still trackable on the Process tab, just no
+        # longer gates this move) so that saving a design link is
+        # genuinely enough on its own to reach Government Submission,
+        # matching how this stage is actually meant to work.
 
     elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
         for stage_key, label in (
