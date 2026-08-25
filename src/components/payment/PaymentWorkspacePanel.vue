@@ -15,12 +15,18 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
 import type { AdjustmentType, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
+import type { ProjectWorkspaceTabKey } from '@/types/Project'
 
 interface Props {
   projectId: string
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'navigate-tab': [tab: ProjectWorkspaceTabKey]
+}>()
+
 const store = usePaymentStore()
 // Matches every other create/edit/delete-style action in the app
 // (Clients, Projects, Quotations, Contracts, Government Submissions) --
@@ -72,11 +78,16 @@ function openObligationAction(mode: 'cancel' | 'waive', obligation: PaymentOblig
   isObligationActionOpen.value = true
 }
 
+// Once the payment configuration (the financial agreement) is saved,
+// the project is ready to move on to Design (see project_service.
+// _assert_stage_exit_criteria's "Contract" -> "Design" check) -- follow
+// it there rather than leaving staff on the Payments tab.
 async function handleCreateAgreement(input: Parameters<typeof store.createAgreement>[0]): Promise<void> {
   try {
     await store.createAgreement(input, 'Rajan Kumar')
     resultDialogStore.showSuccess('Financial agreement created', 'The payment schedule has been generated.')
     isAgreementFormOpen.value = false
+    emit('navigate-tab', 'design')
   } catch {
     resultDialogStore.showError('Could not create agreement', 'Please try again.')
   }

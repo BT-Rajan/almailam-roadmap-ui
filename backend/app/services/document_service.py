@@ -179,6 +179,12 @@ def create_document(
         title=f"Document uploaded: {title}",
         actor_id=user_id,
     )
+    # A saved design link is one of the things "Design" -> "Government
+    # Submission" now waits on (see project_service.
+    # _assert_stage_exit_criteria) -- this is the moment that condition
+    # can newly become true, same pattern as approval_process_service's
+    # own stage-gate calls.
+    project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(document)
     return document
@@ -209,6 +215,10 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
         document.upload_date = payload.uploadDate
 
     audit_service.log_field_changes(db, ENTITY_TYPE, document.id, changes, user_id)
+    if "link" in changes:
+        project = db.query(Project).filter(Project.id == document.project_id).first()
+        if project is not None:
+            project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(document)
     return document

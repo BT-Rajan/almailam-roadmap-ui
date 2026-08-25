@@ -225,7 +225,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
-      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
+      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectDocumentsTab
         v-else-if="activeTab === 'documents' || activeTab === 'design'"
         :project="project"
@@ -233,7 +233,7 @@ async function handleConfirmDelete(): Promise<void> {
       />
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
       <ProjectTasksTab v-else-if="activeTab === 'tasks'" :project="project" />
-      <PaymentWorkspacePanel v-else-if="activeTab === 'payments'" :project-id="projectId" />
+      <PaymentWorkspacePanel v-else-if="activeTab === 'payments'" :project-id="projectId" @navigate-tab="activeTab = $event" />
 
       <ProjectEditDialog
         v-model="isEditDialogOpen"
