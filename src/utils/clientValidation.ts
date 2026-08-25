@@ -22,6 +22,17 @@ function isValidPhone(value: string): boolean {
   return PHONE_PATTERN.test(value) && digits.length >= 7
 }
 
+// Almailam only operates in Kuwait, so every client-facing mobile number
+// must be a Kuwait mobile: country code 965, followed by an 8-digit local
+// number starting with 5, 6, or 9 (the ranges Kuwait's telecom regulator
+// actually assigns to mobile lines) -- kept in sync with backend/app/
+// schemas/client.py's _kuwait_mobile_validator.
+const KUWAIT_MOBILE_PATTERN = /^\+?965[\s-]?[569]\d{3}[\s-]?\d{4}$/
+
+function isValidKuwaitMobile(value: string): boolean {
+  return KUWAIT_MOBILE_PATTERN.test(value.trim())
+}
+
 // Mirrors backend/app/schemas/client.py's _website_validator regex exactly
 // -- permissive enough to accept "example.com" as well as a full URL,
 // since website fields here are typed in freely rather than pasted.
@@ -42,7 +53,7 @@ export function validateBasicInfo(form: ClientWizardForm): FieldErrors {
   const errors: FieldErrors = {}
 
   if (!form.mobile.trim()) errors.mobile = 'Mobile number is required'
-  else if (!isValidPhone(form.mobile)) errors.mobile = 'Enter a valid phone number (at least 7 digits)'
+  else if (!isValidKuwaitMobile(form.mobile)) errors.mobile = 'Enter a valid Kuwait mobile number, e.g. +965 5XXX XXXX'
 
   if (!form.email.trim()) errors.email = 'Email address is required'
   else if (validators.email()(form.email) !== true) errors.email = 'Enter a valid email address'
@@ -55,7 +66,6 @@ export function validateBasicInfo(form: ClientWizardForm): FieldErrors {
     const p = form.individualProfile
     if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
     if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
-    if (!p.countryOfResidence.trim()) errors.countryOfResidence = 'Country of residence is required'
     if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
     else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
   } else {
@@ -236,7 +246,7 @@ export function validateClientEditForm(form: ClientEditForm, clientType: 'Indivi
 
   if (!form.contactPerson.trim()) errors.contactPerson = 'Contact person is required'
   if (!form.mobile.trim()) errors.mobile = 'Mobile number is required'
-  else if (!isValidPhone(form.mobile)) errors.mobile = 'Enter a valid phone number (at least 7 digits)'
+  else if (!isValidKuwaitMobile(form.mobile)) errors.mobile = 'Enter a valid Kuwait mobile number, e.g. +965 5XXX XXXX'
   if (!form.email.trim()) errors.email = 'Email address is required'
   else if (validators.email()(form.email) !== true) errors.email = 'Enter a valid email address'
   if (!form.city.trim()) errors.city = 'City is required'
@@ -246,7 +256,6 @@ export function validateClientEditForm(form: ClientEditForm, clientType: 'Indivi
     const p = form.individualProfile
     if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
     if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
-    if (!p.countryOfResidence.trim()) errors.countryOfResidence = 'Country of residence is required'
     if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
     else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
   } else {

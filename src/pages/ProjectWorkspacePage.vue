@@ -207,7 +207,7 @@ async function handleConfirmDelete(): Promise<void> {
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4 no-print">
         <InfoPanel label="Service" :value="project.service" :icon="Layers" />
         <InfoPanel label="Client" :value="client?.companyName ?? 'Unassigned'" :icon="Building2" color="info" />
-        <InfoPanel label="Responsible Engineer" :value="project.engineer" :icon="User" color="ai" />
+        <InfoPanel label="Field Engineer" :value="project.engineer" :icon="User" color="ai" />
         <InfoPanel
           label="Timeline"
           :value="`${formatDate(project.startDate)} \u2013 ${formatDate(project.targetDate)}`"

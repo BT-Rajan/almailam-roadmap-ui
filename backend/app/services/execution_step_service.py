@@ -334,6 +334,57 @@ def try_auto_fill(db: Session, project_id: int, trigger: str, user_id: int | Non
     _recompute_progress(db, project_id)
 
 
+# Companion to _AUTO_FILL_TRIGGERS above, but coarser: rather than one
+# specific real-world fact per step, this closes out *every* step whose
+# stage_key belongs to a workflow stage the project has already moved
+# past entirely. A project can't reach "Design" without "Contract"
+# having already cleared its own exit criteria (see
+# _assert_stage_exit_criteria), so by the time the project is sitting
+# in a later stage, every step tagged to an earlier one is -- at
+# minimum -- as good as done; there's no reason to make staff tick 23
+# boxes by hand for stages that are already firmly in the past just
+# because no single specific trigger above happened to cover them.
+#
+# Same conservative rule as try_auto_fill: only ever raises a step's
+# completion_percentage, never lowers one staff already set, and never
+# touches a step the project has excluded (is_excluded) or already
+# marked complete.
+def auto_fill_steps_for_passed_stages(db: Session, project_id: int, current_stage: str, user_id: int | None) -> None:
+    from app.models.project import WORKFLOW_STAGES
+
+    if current_stage not in WORKFLOW_STAGES:
+        return
+    current_index = WORKFLOW_STAGES.index(current_stage)
+    # Every STAGE_KEYS entry strictly before the project's current
+    # stage is "passed"; STAGE_KEYS only covers the first 5 workflow
+    # stages (see its own docstring above), so this naturally excludes
+    # "Execution & Tracking" and "Completed" from ever being treated as
+    # a passed *prerequisite* stage for another step.
+    passed_stages = {stage for stage in STAGE_KEYS if WORKFLOW_STAGES.index(stage) < current_index}
+    if not passed_stages:
+        return
+
+    steps = list_project_steps(db, project_id)
+    changed_names: list[str] = []
+    for step in steps:
+        if step.is_excluded or step.completion_percentage >= 100:
+            continue
+        if step.stage_key not in passed_stages:
+            continue
+        step.completion_percentage = 100
+        if not (step.remarks or "").strip():
+            step.remarks = f"Auto-completed -- the project has already moved past the '{step.stage_key}' stage."
+        changed_names.append(step.name)
+
+    if changed_names:
+        audit_service.log_event(
+            db, PROJECT_ENTITY_TYPE, project_id,
+            "Execution steps auto-completed for passed stages", user_id,
+            new_value=f"{len(changed_names)} activities: {', '.join(changed_names)}",
+        )
+        _recompute_progress(db, project_id)
+
+
 def get_project_step(db: Session, project_id: int, step_id: int) -> ProjectExecutionStep:
     step = (
         db.query(ProjectExecutionStep)

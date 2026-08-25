@@ -64,6 +64,18 @@ onMounted(loadData)
 // happen) should reload rather than keep showing the previous
 // project's checklists.
 watch(() => props.project.id, loadData)
+// The "Stage" control lives in the page header, a sibling of this tab,
+// not inside it -- so a stage change while this tab is already mounted
+// updates the backend (including auto-completing any of the 23
+// execution activities and closing any approval gates tied to stages
+// the project has now moved past -- see execution_step_service.
+// auto_fill_steps_for_passed_stages) without this tab ever hearing
+// about it. Without this watcher the checklist below silently goes
+// stale: activities/gates that are genuinely done on the server keep
+// showing as outstanding until the user navigates away and back,
+// forcing a remount. Reloading on every stage change keeps the two in
+// sync the moment the header action completes.
+watch(() => props.project.currentStage, loadData)
 
 const isLoading = computed(() => stageStore.isLoading || timelineStore.isLoading)
 const error = computed(() => stageStore.error ?? timelineStore.error)

@@ -800,6 +800,26 @@ CREATE TABLE IF NOT EXISTS service_catalog_activities (
     INDEX idx_service_catalog_activities_service (service_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Was referenced by app/models/permit_catalog.py and queried by
+-- /api/permit-catalog/permits (the New Project wizard's Permits step),
+-- but missing here entirely -- a fresh install 500s that step the
+-- moment it loads. Flat, like service_catalog_items minus the
+-- activities sub-level (see PermitCatalogItem's own docstring): a
+-- permit is picked as a whole, not broken into priced sub-items.
+CREATE TABLE IF NOT EXISTS permit_catalog_items (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL,
+    INDEX idx_permit_catalog_items_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Almailam only ever files for these two Kuwait authorities -- seeded
+-- here rather than left for an admin to type in by hand on day one.
+-- Still fully admin-editable afterward from Admin > Permit Catalog.
+INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
+
 CREATE TABLE IF NOT EXISTS company_settings (
     id                                  INT PRIMARY KEY DEFAULT 1,
     company_name                       VARCHAR(150) NOT NULL DEFAULT 'Al Mailam Consulting',

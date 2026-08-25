@@ -97,7 +97,7 @@ async function saveDeviationNotes(): Promise<void> {
 
 const projectDetailItems = computed(() => [
   { label: 'Service', value: props.project.service },
-  { label: 'Responsible Engineer', value: props.project.engineer },
+  { label: 'Field Engineer', value: props.project.engineer },
   { label: 'Start Date', value: formatDate(props.project.startDate) },
   { label: 'Target Completion Date', value: formatDate(props.project.targetDate) },
   { label: 'Current Stage', value: props.project.currentStage },
