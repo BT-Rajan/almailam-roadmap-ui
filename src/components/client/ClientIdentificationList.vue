@@ -1,22 +1,39 @@
 <script setup lang="ts">
-import { AlertTriangle, IdCard, Pencil, Trash2 } from '@lucide/vue'
+import { AlertTriangle, Eye, IdCard, Pencil, Trash2 } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import type { ClientIdentification } from '@/types/Client'
+import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
+import type { ClientDocument, ClientIdentification } from '@/types/Client'
 import { formatDate } from '@/utils/dateFormatter'
 import { isIdentificationExpired } from '@/utils/clientHelpers'
 
-defineProps<{
+const props = defineProps<{
   identifications: ClientIdentification[]
+  documents: ClientDocument[]
 }>()
 
 defineEmits<{
   edit: [identification: ClientIdentification]
   delete: [identification: ClientIdentification]
+  view: [document: ClientDocument]
 }>()
+
+// Identification records and the uploaded file are separate entities on
+// the backend (no direct FK -- see clientStore.createIdentification vs.
+// createDocument in NewClientWizardPage.vue), only linked implicitly by
+// the document category the identification type maps to. Best-effort
+// match on category, picking the most recently uploaded copy if there's
+// more than one -- good enough to put a "View" button next to the
+// identification it belongs to without inventing a new backend link.
+function matchedDocument(identification: ClientIdentification): ClientDocument | undefined {
+  const category = getDocumentCategoryForIdentificationType(identification.documentType)
+  return props.documents
+    .filter((document) => document.category === category)
+    .sort((a, b) => (a.uploadDate < b.uploadDate ? 1 : -1))[0]
+}
 </script>
 
 <template>
@@ -45,6 +62,13 @@ defineEmits<{
               label="Expired"
               variant="danger"
               size="sm"
+            />
+            <IconButton
+              v-if="matchedDocument(identification)"
+              :icon="Eye"
+              label="View uploaded document"
+              size="sm"
+              @click="$emit('view', matchedDocument(identification)!)"
             />
             <IconButton :icon="Pencil" label="Edit identification" size="sm" @click="$emit('edit', identification)" />
             <IconButton :icon="Trash2" label="Remove identification" size="sm" variant="danger" @click="$emit('delete', identification)" />

@@ -173,7 +173,9 @@ function viewDuplicate(clientId: string): void {
 const basicInfoErrors = computed<FieldErrors>(() => validateBasicInfo(form.value))
 const contactsValidation = computed(() => validateContacts(form.value.contacts))
 const addressErrors = computed<FieldErrors>(() => validateAddress(form.value.address))
-const identificationErrors = computed<FieldErrors>(() => validateIdentification(form.value.identification))
+const identificationErrors = computed<FieldErrors>(() =>
+  validateIdentification(form.value.identification, form.value.identificationFile),
+)
 const consentErrors = computed<FieldErrors>(() => validateConsent(form.value.consents))
 
 const contactsStepHasErrors = computed(

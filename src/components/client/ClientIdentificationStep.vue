@@ -162,7 +162,7 @@ function handleUploaderError(message: string): void {
       </div>
     </FormSection>
 
-    <FormSection title="Upload Document" description="Upload a copy of the identification or trade licence document. JPG, PNG or PDF, up to 5 MB.">
+    <FormSection title="Upload Document" description="Upload a copy of the identification or trade licence document. JPG, PNG or PDF, up to 5 MB. Required.">
       <FileUploader
         hint="JPG, PNG or PDF, up to 5 MB"
         accept=".jpg,.jpeg,.png,.pdf"
@@ -173,6 +173,7 @@ function handleUploaderError(message: string): void {
       />
 
       <p v-if="uploadError" class="mt-2 text-xs text-danger-500">{{ uploadError }}</p>
+      <p v-else-if="errors.identificationFile" class="mt-2 text-xs text-danger-500">{{ errors.identificationFile }}</p>
 
       <div v-if="checkState === 'checking'" class="mt-2 flex items-center gap-2 text-xs text-text-muted">
         <Loader2 class="h-3.5 w-3.5 animate-spin" />

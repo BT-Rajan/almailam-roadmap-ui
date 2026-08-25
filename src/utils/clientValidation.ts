@@ -144,10 +144,15 @@ export function validateAddress(address: ClientWizardAddressDraft): FieldErrors 
 /**
  * Step 2's identification. Required in full -- document number,
  * issue/expiry dates (the backend's ClientIdentificationCreate has no
- * defaults for either, and they must be in a sane order) and issuing
- * country.
+ * defaults for either, and they must be in a sane order), issuing
+ * country, and the identification file itself (Civil ID / trade licence
+ * copy) -- previously the wizard could be advanced with no file attached
+ * at all, leaving onboarding "complete" with nothing to verify against.
  */
-export function validateIdentification(identification: ClientWizardIdentificationDraft): FieldErrors {
+export function validateIdentification(
+  identification: ClientWizardIdentificationDraft,
+  identificationFile: File | null = null,
+): FieldErrors {
   const errors: FieldErrors = {}
   if (!identification.documentNumber.trim()) errors.documentNumber = 'Document number is required'
 
@@ -160,6 +165,8 @@ export function validateIdentification(identification: ClientWizardIdentificatio
   }
 
   if (!identification.issuingCountry.trim()) errors.issuingCountry = 'Issuing country is required'
+
+  if (!identificationFile) errors.identificationFile = 'Upload a copy of the identification document to continue'
 
   return errors
 }

@@ -215,6 +215,16 @@ async function handleDocumentDownload(document: ClientDocument): Promise<void> {
   }
 }
 
+async function handleViewIdentificationDocument(document: ClientDocument): Promise<void> {
+  if (!client.value) return
+  try {
+    await clientStore.viewDocument(client.value.id, document.id)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to open document', detail)
+  }
+}
+
 async function handleReplaceDocumentFile(document: ClientDocument, file: File): Promise<void> {
   if (!client.value) return
   try {
@@ -757,8 +767,10 @@ function createProjectForClient(): void {
         </div>
         <ClientIdentificationList
           :identifications="clientStore.identifications"
+          :documents="clientStore.documents"
           @edit="openIdentificationDialog"
           @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
+          @view="handleViewIdentificationDocument"
         />
       </template>
 
