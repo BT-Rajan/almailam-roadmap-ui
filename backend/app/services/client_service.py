@@ -897,7 +897,7 @@ def create_identification(db: Session, client_id: int, payload, user_id: int | N
     )
     # The client's identification is what project_service._assert_stage_
     # exit_criteria requires before any of THIS client's projects can
-    # leave "Enquiry" -- a client can have several projects at once, and
+    # leave "Requirement" -- a client can have several projects at once, and
     # this one identification record can be exactly what unblocks all
     # of them, not just whichever project happened to prompt it. Local
     # import: project_service already imports this module at module
@@ -906,7 +906,7 @@ def create_identification(db: Session, client_id: int, payload, user_id: int | N
     # project_stage).
     from app.services import project_service
 
-    for project in db.query(Project).filter(Project.client_id == client_id, Project.current_stage == "Enquiry").all():
+    for project in db.query(Project).filter(Project.client_id == client_id, Project.current_stage == "Requirement").all():
         project_service.try_auto_advance_stage(db, project, user_id)
 
     db.commit()

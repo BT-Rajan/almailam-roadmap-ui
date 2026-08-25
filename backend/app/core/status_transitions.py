@@ -113,7 +113,7 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 # dropped entirely (migration 0022) -- see project.py's WORKFLOW_STAGES
 # comment for why.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Enquiry": {"Quotation"},
+    "Requirement": {"Quotation"},
     "Quotation": {"Contract"},
     "Contract": {"Design"},
     "Design": {"Government Submission"},

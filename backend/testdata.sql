@@ -127,7 +127,7 @@ INSERT INTO client_verifications (client_id, item, result, verified_by, verified
 -- Projects
 -- ----------------------------------------------------------------------------
 INSERT INTO projects (project_no, project_name, client_id, service, engineer_id, current_stage, progress, priority, start_date, target_date, status) VALUES
-('2600001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Enquiry',               8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
+('2600001', 'Al Reem Residential Tower - Structural Design',       @c_alreem,  'Structural Engineering',    @u_layla,    'Requirement',           8,   'Medium', '2026-06-02', '2026-12-18', 'Active'),
 ('2600002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
 ('2600003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
 ('2600004', 'Ahmadi Industrial Facility - Fire Safety Approval',   @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),

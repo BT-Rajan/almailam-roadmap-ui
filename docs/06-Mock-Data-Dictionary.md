@@ -108,7 +108,7 @@ Represents one consulting engagement.
 
 Stages
 
-- Enquiry
+- Requirement
 - Quotation
 - Contract
 - Design
@@ -497,7 +497,7 @@ These should be maintained as reusable constants.
 
 ## Workflow Stage
 
-- Enquiry
+- Requirement
 - Quotation
 - Contract
 - Design
