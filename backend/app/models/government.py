@@ -25,6 +25,14 @@ REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
 # gate the "Mark Complete" action on an explicit Approved/Rejected call,
 # independent of exactly which status the submission is sitting in.
 RESPONSE_OUTCOMES = ("Approved", "Rejected")
+# Which of the project's 5 Project Approval Process gates (see
+# approval_process.py) this submission's own approval satisfies --
+# only the 3 that represent an actual government authority's sign-off,
+# not "Documents Signed" (a contract milestone) or "Architectural
+# Design Approved by Client" (the client's own sign-off, not an
+# authority's). Optional: a submission not tagged to one of these
+# doesn't drive any project-level gate on its own.
+GOVERNMENT_SUBMISSION_STAGE_KEYS = ("mew_approval", "submit_baladia_kfd", "permit_approved")
 
 
 class GovernmentAuthority(Base, TimestampMixin, SoftDeleteMixin):
@@ -78,6 +86,12 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     expected_decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # See GOVERNMENT_SUBMISSION_STAGE_KEYS above -- set at creation,
+    # optional. Once this submission reaches "Approved", submission_
+    # service.set_status marks the matching ProjectApprovalStep
+    # complete and tries the project's own stage auto-advance, the same
+    # way a stage-gate document upload already does.
+    stage_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     # Proof of submission -- uploaded once every required document is
     # Uploaded/Verified, gates the Draft -> Submitted transition (see

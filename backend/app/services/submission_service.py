@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.government import GovernmentSubmission, SubmissionDocument, SubmissionFollowup
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, government_service, timeline_service
+from app.services import approval_process_service, audit_service, government_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
@@ -86,6 +86,7 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
         form_id=form_id,
         expected_decision_date=payload.expectedDecisionDate,
         notes=payload.notes,
+        stage_key=payload.stageKey,
     )
     db.add(submission)
     db.flush()
@@ -167,6 +168,29 @@ def set_status(
         submission.submitted_date = date.today()
     if new_status in ("Approved", "Rejected") and submission.decision_date is None:
         submission.decision_date = date.today()
+
+    # An authority's own approval of a submission tagged to one of the
+    # project's 3 authority-facing gates (see GOVERNMENT_SUBMISSION_
+    # STAGE_KEYS) is that gate closing -- same effect as uploading its
+    # review document directly, just arriving via the real submission
+    # being tracked instead of the Process tab's generic upload. Flush
+    # first (autoflush=False) so the exit-criteria check that follows
+    # sees this step's completed_at, then try the project's own
+    # auto-advance the same way approval_process_service's own callers
+    # already do.
+    if new_status == "Approved" and submission.stage_key is not None:
+        step = approval_process_service.get_project_step_by_stage(db, submission.project_id, submission.stage_key)
+        step.completed_at = datetime.now(timezone.utc)
+        step.completed_by = user_id
+        audit_service.log_event(
+            db, "PROJECT", submission.project_id,
+            f"Stage gate completed from government submission: {step.name}", user_id,
+            new_value=submission.submission_no,
+        )
+        project = db.query(Project).filter(Project.id == submission.project_id).first()
+        if project is not None:
+            db.flush()
+            project_service.try_auto_advance_stage(db, project, user_id)
 
     db.commit()
     db.refresh(submission)

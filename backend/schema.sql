@@ -369,6 +369,11 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,
     notes                        TEXT NULL,
+    -- Which of the 5 Project Approval Process gates this submission's
+    -- own approval satisfies -- 'mew_approval', 'submit_baladia_kfd', or
+    -- 'permit_approved' -- optional. See GOVERNMENT_SUBMISSION_STAGE_KEYS
+    -- in models/government.py.
+    stage_key                    VARCHAR(40) NULL,
     proof_of_submission_storage_key   VARCHAR(300) NULL,
     proof_of_submission_filename      VARCHAR(255) NULL,
     proof_of_submission_size_bytes    BIGINT UNSIGNED NULL,

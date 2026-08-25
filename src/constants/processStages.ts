@@ -17,3 +17,13 @@ export const PROCESS_STAGES: ProcessStageDefinition[] = [
   { key: 'submit_baladia_kfd', label: 'Submit to Baladia or KFD', sequenceNumber: 4 },
   { key: 'permit_approved', label: 'Permit Approved', sequenceNumber: 5 },
 ]
+
+// The 3 of the 5 gates above that represent an actual government
+// authority's own sign-off, not a contract milestone (Documents Signed)
+// or the client's own sign-off (Architectural Design Approved by
+// Client) -- the only ones a GovernmentSubmission can be tagged to (see
+// backend's GOVERNMENT_SUBMISSION_STAGE_KEYS). Once a tagged submission
+// is Approved, this is the gate it closes automatically.
+export const GOVERNMENT_SUBMISSION_STAGE_OPTIONS = PROCESS_STAGES.filter((stage) =>
+  ['mew_approval', 'submit_baladia_kfd', 'permit_approved'].includes(stage.key),
+)
