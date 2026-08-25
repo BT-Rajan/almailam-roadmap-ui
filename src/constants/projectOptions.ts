@@ -27,7 +27,7 @@ export const PROJECT_SERVICES: string[] = [
 // "Approval" dropped entirely. See backend/app/core/status_transitions
 // .py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Enquiry: ['Quotation'],
+  Requirement: ['Quotation'],
   Quotation: ['Contract'],
   Contract: ['Design'],
   Design: ['Government Submission'],

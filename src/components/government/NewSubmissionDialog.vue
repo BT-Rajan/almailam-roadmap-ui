@@ -7,6 +7,7 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { GOVERNMENT_SUBMISSION_STAGE_OPTIONS } from '@/constants/processStages'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
@@ -34,8 +35,14 @@ function emptyForm() {
     formId: '',
     expectedDecisionDate: '',
     notes: '',
+    stageKey: '',
   }
 }
+
+const stageKeyOptions: SelectOption[] = GOVERNMENT_SUBMISSION_STAGE_OPTIONS.map((stage) => ({
+  label: stage.label,
+  value: stage.key,
+}))
 
 const form = reactive(emptyForm())
 const { errors, setRules, validateAll } = useFormValidation()
@@ -97,6 +104,7 @@ function handleConfirm(): void {
     formId: form.formId,
     expectedDecisionDate: form.expectedDecisionDate || undefined,
     notes: form.notes.trim() || undefined,
+    stageKey: form.stageKey || undefined,
   })
 }
 </script>
@@ -120,6 +128,13 @@ function handleConfirm(): void {
       </div>
 
       <DatePicker v-model="form.expectedDecisionDate" label="Expected Decision Date (optional)" />
+      <SelectBox
+        v-model="form.stageKey"
+        label="Approval Gate (optional)"
+        placeholder="Not tied to a project approval gate"
+        :options="stageKeyOptions"
+        hint="Once this submission is Approved, the matching gate on the project's Process tab closes automatically."
+      />
       <TextArea v-model="form.notes" label="Notes" placeholder="Optional notes for this submission" :rows="2" />
 
       <div v-if="selectedForm && selectedForm.requiredDocuments.length > 0" class="rounded-lg bg-bg-secondary p-4 text-sm">

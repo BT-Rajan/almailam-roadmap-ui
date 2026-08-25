@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -17,6 +18,8 @@ from app.schemas.project import (
     ProjectStatusUpdate,
     ProjectUpdate,
     ScopeChangeUpdate,
+    ScopeOfWorkOut,
+    ScopeRevisionOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
 from app.services import project_service, timeline_service
@@ -31,6 +34,20 @@ can_delete = require_permission("Projects", "delete")
 def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
     activities = project_service.get_selected_activities(db, project.id)
     return ProjectOut.from_model(project, engineer_name, activities)
+
+
+def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
+    revisions = project_service.get_scope_revisions_with_names(db, project.id)
+    approved_by_name = (
+        project_service.engineer_name(db, project.scope_approved_by) if project.scope_approved_by else None
+    )
+    return ScopeOfWorkOut(
+        description=project.description,
+        scopeStatus=project.scope_status,
+        scopeApprovedAt=project.scope_approved_at,
+        scopeApprovedBy=approved_by_name,
+        revisions=[ScopeRevisionOut.from_model(revision, name) for revision, name in revisions],
+    )
 
 
 @router.get("", response_model=PagedResponse[ProjectOut])
@@ -154,6 +171,41 @@ def change_scope(
         db, project_no, payload.description, payload.contractUpdateNeeded, payload.paymentUpdateNeeded, current_user.id
     )
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.get("/{project_no}/scope-of-work", response_model=ScopeOfWorkOut)
+def get_scope_of_work(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    return _scope_of_work_out(db, project)
+
+
+@router.post("/{project_no}/scope-of-work", response_model=ScopeOfWorkOut)
+def save_scope_of_work(
+    project_no: str,
+    scopeText: str = Form(...),
+    summary: str | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.save_scope_of_work(db, project_no, scopeText, summary, current_user.id, file)
+    return _scope_of_work_out(db, project)
+
+
+@router.post("/{project_no}/scope-of-work/approve", response_model=ProjectOut)
+def approve_scope_of_work(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.approve_scope_of_work(db, project_no, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.get("/{project_no}/scope-of-work/{revision_id}/document")
+def download_scope_revision_document(
+    project_no: str, revision_id: str, db: Session = Depends(get_db), _=Depends(can_view)
+):
+    project = project_service.get_project(db, project_no)
+    numeric_id = revision_id.removeprefix("PSR-") if revision_id.upper().startswith("PSR-") else revision_id
+    path, original_filename = project_service.get_scope_revision_download_target(db, project.id, int(numeric_id))
+    return FileResponse(path, filename=original_filename)
 
 
 @router.get("/{project_no}/audit-events")

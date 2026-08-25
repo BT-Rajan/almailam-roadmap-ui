@@ -21,6 +21,7 @@ import SubmissionApprovalStepper from '@/components/government/SubmissionApprova
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ResponseOutcome, SubmissionStatus } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
@@ -31,6 +32,7 @@ import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 const route = useRoute()
 const router = useRouter()
 const submissionStore = useGovernmentSubmissionStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const submissionNo = computed(() => route.params.submissionNo as string)
@@ -257,9 +259,16 @@ const canMarkComplete = computed(
 )
 
 async function handleMarkComplete(): Promise<void> {
+  const projectId = submission.value?.projectId
   const success = await submissionStore.markComplete(submissionNo.value)
   if (success) {
     toastStore.show('success', 'Submission complete', `${submissionNo.value} has been marked Approved.`)
+    // A tagged submission's approval can close a project approval-process
+    // gate and auto-advance the project's own stage server-side (see
+    // submission_service.set_status) -- refresh so the project's cached
+    // stage (used by the header/stepper if the user navigates back) isn't
+    // left stale, same pattern as the other stage-advancing actions.
+    if (projectId) await projectStore.refreshProject(projectId)
   } else {
     toastStore.show('error', 'Unable to mark complete', submissionStore.mutationError ?? 'Please try again.')
   }

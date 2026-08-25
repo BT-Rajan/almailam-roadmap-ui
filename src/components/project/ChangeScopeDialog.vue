@@ -80,8 +80,7 @@ function handleConfirm(): void {
   >
     <div v-if="step === 'edit'" class="flex flex-col gap-2">
       <p class="text-sm text-text-secondary">
-        This is the project's scope-of-work description -- the same text shown as "What the Customer Asked For" on
-        Overview.
+        This is the project's scope-of-work description, set at the Requirement stage.
       </p>
       <TextArea v-model="descriptionDraft" label="Scope of Work" :rows="6" />
     </div>

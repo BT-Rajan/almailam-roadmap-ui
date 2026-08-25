@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Project, ProjectPriority } from '@/types/Project'
+import type { Project, ProjectPriority, ScopeOfWork } from '@/types/Project'
 import type { ProjectCompletionChecklist, ProjectCompletionSummary } from '@/types/ProjectCompletion'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
@@ -245,6 +246,106 @@ async function updateDeviationNotes(projectId: string, notes: string): Promise<P
   }
 }
 
+/**
+ * Shared multipart upload helper -- same 401-retry-once + error-shape
+ * handling as documentService's uploadDocument, since apiClient always
+ * JSON-encodes its body and can't be used for file uploads.
+ */
+async function uploadMultipart<T>(path: string, formData: FormData): Promise<T> {
+  const authStore = useAuthStore()
+  const doRequest = () =>
+    fetch(path, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  let response = await doRequest()
+  if (response.status === 401) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) response = await doRequest()
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => undefined)
+    throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+  }
+  return (await response.json()) as T
+}
+
+/**
+ * Fetch the Requirement stage's scope-of-work text, approval status, and
+ * revision history for a project via backend API.
+ */
+async function getScopeOfWork(projectId: string): Promise<ScopeOfWork> {
+  try {
+    return await apiClient.get<ScopeOfWork>(`/api/projects/${projectId}/scope-of-work`)
+  } catch (error) {
+    console.error(`Failed to fetch scope of work for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch scope of work')
+  }
+}
+
+/**
+ * Save the Requirement stage's scope-of-work text, writing a new revision.
+ * Reopens an already-approved scope back to Draft -- see project_service.
+ * save_scope_of_work.
+ */
+async function saveScopeOfWork(
+  projectId: string,
+  scopeText: string,
+  summary: string | undefined,
+  file: File | undefined,
+): Promise<ScopeOfWork> {
+  try {
+    const formData = new FormData()
+    formData.append('scopeText', scopeText)
+    if (summary) formData.append('summary', summary)
+    if (file) formData.append('file', file)
+    return await uploadMultipart<ScopeOfWork>(`/api/projects/${projectId}/scope-of-work`, formData)
+  } catch (error) {
+    console.error(`Failed to save scope of work for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save scope of work')
+  }
+}
+
+/**
+ * Internal approval of the scope of work -- once approved, the backend
+ * automatically moves the project on to the Quotation stage (assuming its
+ * other exit criteria, e.g. client identification, are already met).
+ */
+async function approveScopeOfWork(projectId: string): Promise<Project> {
+  try {
+    return await apiClient.post<Project>(`/api/projects/${projectId}/scope-of-work/approve`, {})
+  } catch (error) {
+    console.error(`Failed to approve scope of work for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to approve scope of work')
+  }
+}
+
+/**
+ * Download the document attached to one scope-of-work revision.
+ */
+async function downloadScopeRevisionDocument(projectId: string, revisionId: string): Promise<Blob> {
+  const authStore = useAuthStore()
+  const doRequest = () =>
+    fetch(`/api/projects/${projectId}/scope-of-work/${revisionId}/document`, {
+      method: 'GET',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+    })
+
+  let response = await doRequest()
+  if (response.status === 401) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) response = await doRequest()
+  }
+  if (!response.ok) {
+    throw new Error(`Download failed with status ${response.status}`)
+  }
+  return await response.blob()
+}
+
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -260,4 +361,8 @@ export const projectService = {
   getCompletionChecklist,
   updateCompletionNotes,
   updateDeviationNotes,
+  getScopeOfWork,
+  saveScopeOfWork,
+  approveScopeOfWork,
+  downloadScopeRevisionDocument,
 }

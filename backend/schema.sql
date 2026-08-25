@@ -246,6 +246,13 @@ CREATE TABLE IF NOT EXISTS projects (
     project_no      VARCHAR(20)  NOT NULL UNIQUE,
     project_name    VARCHAR(200) NOT NULL,
     description     VARCHAR(2000) NULL,
+    -- Internal approval of the scope-of-work text above -- set by the
+    -- Requirement stage's Approve action (migration 0038), which is what
+    -- gates the automatic move to "Quotation". scope_approved_at/_by
+    -- record when/who; both NULL until first approved.
+    scope_status        ENUM('Draft','Approved') NOT NULL DEFAULT 'Draft',
+    scope_approved_at   DATETIME NULL,
+    scope_approved_by   BIGINT UNSIGNED NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
     service         VARCHAR(100) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,
@@ -254,9 +261,12 @@ CREATE TABLE IF NOT EXISTS projects (
     -- project timeline note now, not a separate stage. "Review" was
     -- itself renamed to "Execution & Tracking" and "Approval" dropped
     -- entirely (migration 0022) -- see execution_step_templates/
-    -- project_approval_steps below for what replaced it.
-    current_stage   ENUM('Enquiry','Quotation','Contract','Design','Government Submission','Execution & Tracking','Completed')
-                        NOT NULL DEFAULT 'Enquiry',
+    -- project_approval_steps below for what replaced it. "Enquiry" was
+    -- itself renamed to "Requirement" (migration 0038) -- see
+    -- project_scope_revisions below for the scope-of-work revision
+    -- history that stage now manages.
+    current_stage   ENUM('Requirement','Quotation','Contract','Design','Government Submission','Execution & Tracking','Completed')
+                        NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
     start_date      DATE NOT NULL,
@@ -282,9 +292,26 @@ CREATE TABLE IF NOT EXISTS projects (
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_projects_scope_approved_by FOREIGN KEY (scope_approved_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS project_scope_revisions (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    revision            VARCHAR(10) NOT NULL,
+    scope_text          TEXT NOT NULL,
+    storage_key         VARCHAR(300) NULL,
+    original_filename   VARCHAR(255) NULL,
+    file_size_bytes     BIGINT UNSIGNED NULL,
+    revised_at          DATE NOT NULL,
+    changed_by          BIGINT UNSIGNED NOT NULL,
+    summary             TEXT NOT NULL,
+    CONSTRAINT fk_project_scope_revisions_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_scope_revisions_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_project_scope_revisions_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS project_selected_activities (
@@ -342,6 +369,11 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,
     notes                        TEXT NULL,
+    -- Which of the 5 Project Approval Process gates this submission's
+    -- own approval satisfies -- 'mew_approval', 'submit_baladia_kfd', or
+    -- 'permit_approved' -- optional. See GOVERNMENT_SUBMISSION_STAGE_KEYS
+    -- in models/government.py.
+    stage_key                    VARCHAR(40) NULL,
     proof_of_submission_storage_key   VARCHAR(300) NULL,
     proof_of_submission_filename      VARCHAR(255) NULL,
     proof_of_submission_size_bytes    BIGINT UNSIGNED NULL,
@@ -935,7 +967,7 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
 -- that follows it). "Permit Approved" has no execution steps of its
 -- own -- it's a pure external gate.
 INSERT INTO execution_step_templates (name, sequence_number, weight_percentage, stage_key, is_optional) VALUES
-    ('Client requests captured', 1, 4.35, 'Enquiry', 0),
+    ('Client requests captured', 1, 4.35, 'Requirement', 0),
     ('Quotation prepared', 2, 4.35, 'Quotation', 0),
     ('Client Civil ID collected', 3, 4.35, 'Contract', 0),
     ('Ownership document collected', 4, 4.35, 'Contract', 0),

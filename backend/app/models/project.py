@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -23,8 +23,15 @@ PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
 # approval_process.py) are what actually happen during this stage, so
 # "Review" undersold it and a separate "Approval" stage was redundant
 # with the stage gates themselves.
+#
+# "Enquiry" was itself renamed to "Requirement" (migration 0038) -- it
+# now has its own dedicated tab (ProjectRequirementTab.vue) for managing
+# the scope-of-work text with revision history and an internal approval
+# step, rather than sharing the general Overview tab with "Completed".
+# See scope_status/PROJECT_SCOPE_STATUSES below and
+# project_service.approve_scope_of_work.
 WORKFLOW_STAGES = (
-    "Enquiry",
+    "Requirement",
     "Quotation",
     "Contract",
     "Design",
@@ -33,6 +40,12 @@ WORKFLOW_STAGES = (
     "Completed",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
+# Internal approval of the project's scope-of-work text (the
+# `description` field below) -- set by the Requirement stage's Approve
+# action, which is what gates the automatic move to "Quotation" (see
+# project_service._assert_stage_exit_criteria / approve_scope_of_work).
+# Not client-facing -- "it is internal approval".
+PROJECT_SCOPE_STATUSES = ("Draft", "Approved")
 
 
 class Project(Base, TimestampMixin, SoftDeleteMixin):
@@ -42,6 +55,16 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     project_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     project_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    # Internal approval of `description` (the scope-of-work text) at the
+    # Requirement stage -- see PROJECT_SCOPE_STATUSES above.
+    # scope_approved_at/_by are both None until first approved.
+    scope_status: Mapped[str] = mapped_column(
+        Enum(*PROJECT_SCOPE_STATUSES, name="project_scope_status"), nullable=False, default="Draft"
+    )
+    scope_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    scope_approved_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True
     )
@@ -50,7 +73,7 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     current_stage: Mapped[str] = mapped_column(
-        Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Enquiry"
+        Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Requirement"
     )
     progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     priority: Mapped[str] = mapped_column(
@@ -102,6 +125,35 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # project_service.get_completion_summary -- this is just the PM's
     # explanation layered on top of it.
     deviation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ProjectScopeRevision(Base):
+    """Mirrors QuotationRevision/ContractRevision -- one row per saved
+    change to the Requirement stage's scope-of-work text
+    (project.description), written automatically by
+    project_service.save_scope_of_work. Distinct from that same table's
+    change_scope() action (the Execution & Tracking tab's "Change Scope"),
+    which doesn't write these rows -- this history is specifically the
+    pre-Quotation Requirement stage's own revision trail, up to and
+    including the revision that got approved."""
+
+    __tablename__ = "project_scope_revisions"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    revision: Mapped[str] = mapped_column(String(10), nullable=False)
+    scope_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional supporting document (e.g. a client brief/RFQ) attached to
+    # this revision -- same storage_key/original_filename/file_size_bytes
+    # shape as ProjectApprovalStep's stage-gate document.
+    storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    revised_at: Mapped[date] = mapped_column(Date, nullable=False)
+    changed_by: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class ProjectSelectedActivity(Base):

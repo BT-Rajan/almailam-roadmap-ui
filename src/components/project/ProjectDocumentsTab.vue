@@ -19,6 +19,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
 import type { ProjectDocument, ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
@@ -35,6 +36,7 @@ const router = useRouter()
 const documentStore = useDocumentStore()
 const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const isDesignDialogOpen = ref(false)
@@ -106,6 +108,11 @@ async function handleSaveDesignDocument(payload: {
       addedDocumentLink.value = payload.link
       isDocumentAddedDialogOpen.value = true
     }
+    // A saved design link is one of the things "Design" -> "Government
+    // Submission" waits on (project_service._assert_stage_exit_criteria)
+    // -- refresh the shared project store so the header badge and
+    // Workflow Progress stepper reflect an auto-advance immediately.
+    await projectStore.refreshProject(props.project.id)
     isDesignDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'

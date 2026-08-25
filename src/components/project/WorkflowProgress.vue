@@ -22,10 +22,13 @@ const emit = defineEmits<{
 // exact duplicates of these same 4 stage names). Execution & Tracking
 // (formerly Review; Approval was dropped entirely) lands on Process,
 // since that's where the actual execution checklist and stage-gate
-// documents live; Enquiry and Completed land on Overview, the
-// project's general start/end-state summary.
+// documents live; Completed lands on Overview, the project's general
+// end-state summary. Requirement (formerly Enquiry) has its own
+// dedicated tab now -- client/project details, scope of work, and its
+// revision history/internal approval -- deliberately decoupled from
+// Overview's Completed-stage content rather than sharing it.
 const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
-  Enquiry: 'overview',
+  Requirement: 'requirement',
   Quotation: 'quotation',
   Contract: 'contract',
   Design: 'design',

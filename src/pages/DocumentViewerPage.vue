@@ -21,12 +21,14 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { approvalProcessService } from '@/services/approvalProcessService'
 import { documentService } from '@/services/documentService'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { DocumentStatus, DocumentVersion } from '@/types/Document'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const documentId = computed(() => route.params.documentId as string)
@@ -131,6 +133,10 @@ async function handleConfirmStageCompletion(): Promise<void> {
   isCompletingStage.value = true
   try {
     await approvalProcessService.completeStageFromDocuments(ctx.projectId, ctx.stageKey)
+    // Stage gates can move project.currentStage (and its progress) on
+    // the backend -- refresh the cached project so the workflow stepper
+    // and progress bar reflect it immediately instead of on next reload.
+    await projectStore.refreshProject(ctx.projectId)
     toastStore.show('success', 'Stage marked complete', `"${ctx.stageLabel}" is now marked complete.`)
     isStageCompleteDialogOpen.value = false
   } catch (error) {

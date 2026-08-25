@@ -8,10 +8,13 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Completed' | 'Cancelled'
 // History instead of a separate stage. "Review" was itself renamed to
 // "Execution & Tracking" and "Approval" dropped entirely -- the
 // 23-step execution checklist and the 5-stage approval process stage
-// gates are what actually happen during this stage. See
+// gates are what actually happen during this stage. "Enquiry" was
+// itself renamed to "Requirement" -- it now has its own dedicated tab
+// (ProjectRequirementTab.vue) for managing the scope-of-work text with
+// revision history and an internal approval step. See
 // backend/app/models/project.py's WORKFLOW_STAGES comment.
 export type WorkflowStage =
-  | 'Enquiry'
+  | 'Requirement'
   | 'Quotation'
   | 'Contract'
   | 'Design'
@@ -21,11 +24,17 @@ export type WorkflowStage =
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
+// Internal approval of a project's scope-of-work text -- see
+// ScopeOfWork below. Not client-facing.
+export type ScopeStatus = 'Draft' | 'Approved'
+
 export interface Project {
   id: string
   projectNo: string
   projectName: string
   description?: string
+  scopeStatus: ScopeStatus
+  scopeApprovedAt?: string | null
   clientId: string
   service: string
   engineer: string
@@ -57,6 +66,7 @@ export type ProjectViewMode = 'grid' | 'table'
 
 export type ProjectWorkspaceTabKey =
   | 'overview'
+  | 'requirement'
   | 'process'
   | 'documents'
   | 'design'
@@ -69,4 +79,25 @@ export type ProjectWorkspaceTabKey =
 export interface ProjectWorkspaceTab {
   key: ProjectWorkspaceTabKey
   label: string
+}
+
+// One saved change to the Requirement stage's scope-of-work text --
+// mirrors QuotationRevision (types/Quotation.ts), plus an optional
+// attached document.
+export interface ScopeRevision {
+  id: string
+  revision: string
+  date: string
+  changedBy: string
+  summary: string
+  hasDocument: boolean
+  documentName?: string | null
+}
+
+export interface ScopeOfWork {
+  description: string | null
+  scopeStatus: ScopeStatus
+  scopeApprovedAt?: string | null
+  scopeApprovedBy?: string | null
+  revisions: ScopeRevision[]
 }

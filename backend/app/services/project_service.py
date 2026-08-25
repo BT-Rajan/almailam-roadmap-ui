@@ -1,9 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
+from fastapi import UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     PROJECT_STAGE_ALLOWED_TRANSITIONS,
@@ -16,7 +18,7 @@ from app.models.client import ClientIdentification
 from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.project import Project, ProjectSelectedActivity
+from app.models.project import Project, ProjectScopeRevision, ProjectSelectedActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
@@ -287,7 +289,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
     problems: list[str] = []
 
     if new_stage == "Quotation":
-        # The vital requirement for leaving Enquiry -- the client's
+        # The vital requirement for leaving Requirement -- the client's
         # identification (Civil ID for an individual, Trade Licence for
         # an organization, etc.) has to be on file before real
         # commercial work starts. Not part of ClientCreate itself
@@ -304,6 +306,12 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if not has_identification:
             problems.append("the client's identification document (e.g. Civil ID) on file")
+        # The other half of the Requirement stage's redesign -- scope of
+        # work has to be reviewed and internally approved before the
+        # project can move into commercial quoting, not just have some
+        # text sitting in Draft.
+        if project.scope_status != "Approved":
+            problems.append("the scope of work approved")
 
     elif new_stage == "Contract":
         approved_quotation = (
@@ -315,13 +323,24 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("an Approved quotation")
 
     elif new_stage == "Design" and previous_stage == "Contract":
-        contract_exists = (
-            db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
+        # A contract has to actually be signed, not merely exist as a
+        # Draft -- this is what "Documents Signed" means in practice
+        # (the separate documents_signed approval-process gate used to
+        # be checked here instead, but that's a second, easy-to-forget
+        # manual upload nothing else in the flow prompts anyone to do;
+        # the contract's own status is the real, already-visible signal
+        # for this).
+        signed_contract = (
+            db.query(Contract)
+            .filter(
+                Contract.project_id == project.id,
+                Contract.status.in_(("Signed", "Active")),
+                Contract.deleted_at.is_(None),
+            )
+            .first()
         )
-        if contract_exists is None:
-            problems.append("a contract")
-        if not approval_process_service.is_stage_gate_complete(db, project.id, "documents_signed"):
-            problems.append("the 'Documents Signed' stage gate")
+        if signed_contract is None:
+            problems.append("a signed contract")
         # A financial agreement -- payment dates and amounts -- has to be
         # prepared right after the contract, not left until the project
         # is finishing up (that's what the "Completed" check further
@@ -334,12 +353,29 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("a financial agreement (payment dates and amount)")
 
     elif new_stage == "Government Submission" and previous_stage == "Design":
-        # The one checkpoint the client themselves signs off on before
-        # anything goes to a government authority -- matches the source
-        # process document's own ordering (design approval, then
-        # submission), not something either stage could reasonably skip.
-        if not approval_process_service.is_stage_gate_complete(db, project.id, "architectural_approval"):
-            problems.append("the 'Architectural Design Approved by Client' stage gate")
+        # The Design tab itself has to have something in it -- at least
+        # one drawing link saved (see DesignDocumentDialog.vue, which
+        # requires a link on every 'Drawing'-type document it creates) --
+        # before there's anything to have approved in the first place.
+        has_design_link = (
+            db.query(ProjectDocument)
+            .filter(
+                ProjectDocument.project_id == project.id,
+                ProjectDocument.type == "Drawing",
+                ProjectDocument.external_link.isnot(None),
+                ProjectDocument.deleted_at.is_(None),
+            )
+            .first()
+            is not None
+        )
+        if not has_design_link:
+            problems.append("at least one design document link saved")
+        # The separate architectural_approval approval-process gate used
+        # to also be required here -- dropped as a blocking exit
+        # criterion (it's still trackable on the Process tab, just no
+        # longer gates this move) so that saving a design link is
+        # genuinely enough on its own to reach Government Submission,
+        # matching how this stage is actually meant to work.
 
     elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
         for stage_key, label in (
@@ -394,7 +430,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 # no backward movement to guard against, and each stage genuinely
 # represents further progress than the one before it.
 _STAGE_PROGRESS_BAND: dict[str, int] = {
-    "Enquiry": 0,
+    "Requirement": 0,
     "Quotation": 1,
     "Contract": 2,
     "Design": 3,
@@ -438,7 +474,7 @@ def recompute_progress(db: Session, project: Project) -> int:
 # corrections, not something that should ever happen as a side effect
 # of an unrelated action.
 _AUTO_ADVANCE_TARGET: dict[str, str] = {
-    "Enquiry": "Quotation",
+    "Requirement": "Quotation",
     "Quotation": "Contract",
     "Contract": "Design",
     "Design": "Government Submission",
@@ -562,7 +598,7 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
         assert_reason_given(reason, f"A reason is required to reopen a {previous_status.lower()} project.")
     # The two parallel fields (status and current_stage) could otherwise
     # silently disagree -- nothing previously stopped a project still
-    # sitting at "Enquiry" stage from being marked "Completed" status.
+    # sitting at "Requirement" stage from being marked "Completed" status.
     if new_status == "Completed" and project.current_stage != "Completed":
         raise ValidationAppError(
             "A project's status can only become 'Completed' once its workflow stage has also "
@@ -786,6 +822,135 @@ def change_scope(
     db.commit()
     db.refresh(project)
     return project
+
+
+def _next_scope_revision_label(current: str) -> str:
+    # Same 'R0', 'R1', 'R2', ... scheme as quotation/contract revisions.
+    if current.startswith("R") and current[1:].isdigit():
+        return f"R{int(current[1:]) + 1}"
+    return "R1"
+
+
+def _latest_scope_revision(db: Session, project_id: int) -> ProjectScopeRevision | None:
+    return (
+        db.query(ProjectScopeRevision)
+        .filter(ProjectScopeRevision.project_id == project_id)
+        .order_by(ProjectScopeRevision.id.desc())
+        .first()
+    )
+
+
+def get_scope_revisions_with_names(db: Session, project_id: int) -> list[tuple[ProjectScopeRevision, str]]:
+    revisions = (
+        db.query(ProjectScopeRevision)
+        .filter(ProjectScopeRevision.project_id == project_id)
+        .order_by(ProjectScopeRevision.id.desc())
+        .all()
+    )
+    return [(r, engineer_name(db, r.changed_by)) for r in revisions]
+
+
+def save_scope_of_work(
+    db: Session,
+    project_no: str,
+    scope_text: str,
+    summary: str | None,
+    user_id: int,
+    file: UploadFile | None = None,
+) -> Project:
+    """The Requirement stage's own scope-of-work editor -- distinct from
+    change_scope() above (the Execution & Tracking tab's later
+    amendment, which doesn't write revision rows). Every save here
+    writes a project_scope_revisions row (R0, R1, ...) and, if the
+    scope had already been approved, reopens it back to "Draft" -- an
+    approval is a sign-off on specific text, not a status that should
+    silently keep covering whatever the text becomes after further
+    edits."""
+    project = get_project(db, project_no)
+    scope_text = scope_text.strip()
+    if not scope_text:
+        raise ValidationAppError("Scope of work cannot be empty.")
+
+    previous_description = project.description
+    project.description = scope_text
+
+    storage_key = original_filename = None
+    file_size_bytes = None
+    if file is not None:
+        storage_key, original_filename, file_size_bytes = save_upload(file, "scope-of-work")
+
+    latest = _latest_scope_revision(db, project.id)
+    new_label = _next_scope_revision_label(latest.revision) if latest else "R0"
+    db.add(
+        ProjectScopeRevision(
+            project_id=project.id,
+            revision=new_label,
+            scope_text=scope_text,
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=file_size_bytes,
+            revised_at=date.today(),
+            changed_by=user_id,
+            summary=(summary or "Scope of work updated").strip(),
+        )
+    )
+
+    if project.scope_status == "Approved":
+        project.scope_status = "Draft"
+        project.scope_approved_at = None
+        project.scope_approved_by = None
+
+    audit_service.log_field_changes(
+        db, ENTITY_TYPE, project.id, {"description": (previous_description, scope_text)}, user_id
+    )
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def approve_scope_of_work(db: Session, project_no: str, user_id: int) -> Project:
+    """Internal approval of the Requirement stage's scope of work --
+    "it is internal approval", not a client-facing sign-off. Once
+    approved, try_auto_advance_stage picks it up (alongside the client-
+    identification check already in _assert_stage_exit_criteria) and
+    moves the project straight to "Quotation" without a separate manual
+    click."""
+    project = get_project(db, project_no)
+    if not (project.description or "").strip():
+        raise ValidationAppError("Add the scope of work before approving it.")
+    if project.scope_status == "Approved":
+        return project
+
+    project.scope_status = "Approved"
+    project.scope_approved_at = datetime.now(timezone.utc)
+    project.scope_approved_by = user_id
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work approved", user_id)
+    timeline_service.create_system_event(
+        db, project.id, "note", title="Scope of work approved", description=project.description, actor_id=user_id
+    )
+    # The session is autoflush=False -- flush first so the exit-criteria
+    # check's own fresh queries (e.g. client identification) see
+    # everything written so far in this transaction. project.scope_
+    # status itself is read as a live in-memory attribute, not a fresh
+    # query, so it's already safe either way -- this is for consistency
+    # with every other try_auto_advance_stage call site.
+    db.flush()
+    try_auto_advance_stage(db, project, user_id)
+
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def get_scope_revision_download_target(db: Session, project_id: int, revision_id: int):
+    revision = (
+        db.query(ProjectScopeRevision)
+        .filter(ProjectScopeRevision.id == revision_id, ProjectScopeRevision.project_id == project_id)
+        .first()
+    )
+    if revision is None or not revision.storage_key:
+        raise NotFoundError("Scope of work document")
+    return resolve_path(revision.storage_key), revision.original_filename
 
 
 def _project_exists(db: Session, project_no: str) -> Project:
