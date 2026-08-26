@@ -51,6 +51,7 @@ const TYPE_OPTIONS: SelectOption[] = [
   { label: 'Quotation', value: 'Quotation' },
   { label: 'Municipality Form', value: 'Municipality Form' },
   { label: 'Calculation Sheet', value: 'Calculation Sheet' },
+  { label: 'Government Agreement', value: 'Government Agreement' },
 ]
 
 const STATUS_OPTIONS: SelectOption[] = [

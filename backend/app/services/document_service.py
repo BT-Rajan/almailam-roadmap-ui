@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
-from app.core.file_storage import resolve_path, save_upload
+from app.core.file_storage import resolve_path, save_bytes, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     DOCUMENT_ALLOWED_TRANSITIONS,
@@ -186,6 +186,64 @@ def create_document(
     # own stage-gate calls. The session is autoflush=False -- flush
     # first so the exit-criteria check's own fresh query for a Drawing
     # document with a link actually sees this new row.
+    db.flush()
+    project_service.try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def create_document_from_bytes(
+    db: Session,
+    project: Project,
+    title: str,
+    doc_type: str,
+    content: bytes,
+    filename: str,
+    user_id: int,
+) -> ProjectDocument:
+    """Same persistence as create_document, for a file generated server-
+    side (e.g. a filled government-form PDF, see
+    government_service.fill_form) rather than received as an upload --
+    the caller already has the Project row and has already checked
+    project_service.assert_project_open_for_new_work, so this only
+    covers the storage + document-row + version-history + audit steps
+    create_document also does for an uploaded file."""
+    storage_key, original_filename, size_bytes = save_bytes(content, "documents", ".pdf", filename)
+
+    document = ProjectDocument(
+        document_no=next_number(db, "DOCUMENT"),
+        project_id=project.id,
+        title=title,
+        type=doc_type,
+        uploaded_by=user_id,
+        upload_date=date.today(),
+        storage_key=storage_key,
+        original_filename=original_filename,
+        file_size_bytes=size_bytes,
+    )
+    db.add(document)
+    db.flush()
+
+    db.add(
+        DocumentVersion(
+            document_id=document.id,
+            revision=document.revision,
+            uploaded_by=user_id,
+            upload_date=document.upload_date,
+            notes="Generated from a government form template.",
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+        )
+    )
+
+    audit_service.log_event(db, ENTITY_TYPE, document.id, "Document uploaded", user_id)
+    timeline_service.create_system_event(
+        db, project.id, "document",
+        title=f"Document generated: {title}",
+        actor_id=user_id,
+    )
     db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()

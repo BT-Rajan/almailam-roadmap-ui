@@ -26,3 +26,15 @@ python-docx==1.1.2
 # minimal/slim container images. tzdata bundles it directly so the
 # lookup never silently falls back to server-local time.
 tzdata==2025.2
+# HTML -> PDF rendering for a filled government-form template (see
+# app/services/pdf_render.py) -- turns a merged {{token}} template into
+# a real, printable PDF saved as a project Document, not just an
+# on-screen preview. Unlike tzdata above, this is NOT a pure-Python
+# wheel: it needs Pango, Cairo, and GDK-Pixbuf shared libraries already
+# installed on the host (e.g. Debian/Ubuntu: libpango-1.0-0,
+# libpangocairo-1.0-0, libcairo2, libgdk-pixbuf-2.0-0). install.sh
+# deliberately never runs apt-get itself (see its own header comment),
+# so these must already be present on the server -- if `pip install -r
+# requirements.txt` succeeds but importing weasyprint fails, that's the
+# missing piece, not a Python problem.
+weasyprint==69.0

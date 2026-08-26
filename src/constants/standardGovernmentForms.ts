@@ -369,4 +369,39 @@ This form confirms the precise location of the house and/or its utility connecti
 
 ${SIGNATURE_BLOCK}`,
   },
+  {
+    formCode: 'GF-29',
+    title: 'Design & Licensing Agreement Contract (Kuwait Municipality – Arabic)',
+    category: 'Agreement',
+    language: 'Arabic',
+    description:
+      'Arabic-language agreement contract between the engineering office and the property owner, submitted to Kuwait Municipality’s Engineering Licensing Department, covering design and licensing services and the plot’s Area/Sector/Block/Parcel details.',
+    template: `التاريخ: {{date}}
+
+السادة / بلدية الكويت - إدارة التراخيص الهندسية المحترمين
+
+تحية طيبة وبعد،،،
+
+الموضوع: عقد الإتفاق
+
+بالاشارة الى الموضوع اعلاه تم الاتفاق بين كلا من:
+
+الطرف الأول: مكتب/ {{companyName}}
+الطرف الثاني: السادة / {{clientName}}
+
+على أن يقوم الطرف الأول بأعمال التصميم والترخيص للمشروع لدى الجهات المختصة، وذلك حسب المواصفات التي تم اختيارها من قبل المالك وحسب قوانين البلدية، وعليه يتم تمثيل المالك امام كافة الجهات المخولة لترخيص البناء المذكور، وتكون الأتعاب المالية خارج هذا العقد.
+
+تفاصيل الموقع:
+منطقة: {{plotArea}}
+قطاع: {{plotSector}}
+قطعة: {{plotBlock}}
+قسيمة: {{plotParcel}}
+
+وتفضلوا بقبول فائق الإحترام ،،
+
+طرف أول (المكتب الهندسي): {{companyName}}          التوقيع: ………………
+طرف ثاني (مالك العقار): {{clientName}}          التوقيع: ………………
+
+الجهة التنظيمية: بلدية الكويت`,
+  },
 ]

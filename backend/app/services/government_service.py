@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.models.government import GovernmentAuthority, GovernmentForm
-from app.services import audit_service
+from app.services import audit_service, document_service, pdf_render, project_service
 
 AUTHORITY_ENTITY_TYPE = "GOVERNMENT_AUTHORITY"
 FORM_ENTITY_TYPE = "GOVERNMENT_FORM"
@@ -129,6 +129,8 @@ def create_form(db: Session, payload, actor_id: int) -> GovernmentForm:
         description=payload.description,
         required_documents=payload.requiredDocuments,
         preview_url=payload.previewUrl,
+        template=payload.template,
+        service_tags=payload.serviceTags,
     )
     db.add(form)
     db.flush()
@@ -156,6 +158,8 @@ def update_form(db: Session, form_id: int, payload, actor_id: int) -> Government
     form.description = payload.description
     form.required_documents = payload.requiredDocuments
     form.preview_url = payload.previewUrl
+    form.template = payload.template
+    form.service_tags = payload.serviceTags
     db.commit()
     db.refresh(form)
     return form
@@ -168,6 +172,32 @@ def delete_form(db: Session, form_id: int, actor_id: int) -> None:
     )
     form.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def fill_form(db: Session, form_id: int, payload, actor_id: int):
+    """Merges a form's {{token}} template with the given context, renders
+    it to a PDF (see pdf_render), and saves it as a Project Document
+    (type "Government Agreement") -- the real, DB-backed counterpart to
+    the client-side-only FormTemplatePreviewDialog.vue preview."""
+    form = get_form(db, form_id)
+    if not form.template:
+        raise ValidationAppError("This form has no template to fill in.")
+
+    project = project_service.get_project(db, payload.projectId)
+    project_service.assert_project_open_for_new_work(project)
+
+    rendered_body = pdf_render.render_template(form.template, payload.context)
+    title = (payload.title or form.title).strip() or form.title
+    pdf_bytes = pdf_render.render_agreement_pdf(title, rendered_body)
+
+    document = document_service.create_document_from_bytes(
+        db, project, title, "Government Agreement", pdf_bytes, f"{title}.pdf", actor_id
+    )
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Form filled and saved as a document", actor_id, new_value=title
+    )
+    db.commit()
+    return document
 
 
 def set_form_status(db: Session, form_id: int, status: str, actor_id: int) -> GovernmentForm:

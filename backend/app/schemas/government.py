@@ -69,6 +69,8 @@ class FormOut(BaseModel):
     lastUpdated: date
     previewUrl: str | None
     status: str
+    template: str | None = None
+    serviceTags: list[str] = Field(default_factory=list)
 
     @staticmethod
     def from_model(form) -> "FormOut":
@@ -85,6 +87,8 @@ class FormOut(BaseModel):
             lastUpdated=form.updated_at.date(),
             previewUrl=form.preview_url,
             status=form.status,
+            template=form.template,
+            serviceTags=form.service_tags or [],
         )
 
 
@@ -98,9 +102,22 @@ class FormIn(BaseModel):
     description: str = Field(min_length=1)
     requiredDocuments: list[str] = Field(default_factory=list)
     previewUrl: str | None = None
+    template: str | None = None
+    serviceTags: list[str] = Field(default_factory=list)
 
     _check_language = field_validator("language")(_enum_validator(FORM_LANGUAGES, "language"))
     _check_category = field_validator("category")(_enum_validator(FORM_CATEGORIES, "category"))
+
+
+class FormFillRequest(BaseModel):
+    """Fills a form's {{token}} template with real project/context data and
+    saves the rendered result as a PDF Project Document (type "Government
+    Agreement") -- see government_service.fill_form."""
+
+    projectId: str
+    context: dict[str, str] = Field(default_factory=dict)
+    # Document title to save under; defaults to the form's own title.
+    title: str | None = None
 
 
 class FormStatusUpdate(BaseModel):

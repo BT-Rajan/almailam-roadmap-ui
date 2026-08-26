@@ -3,20 +3,29 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.file_storage import format_file_size
+from app.models.project import Project
 from app.models.user import User
+from app.schemas.document import DocumentOut
 from app.schemas.government import (
     AuthorityIn,
     AuthorityOut,
+    FormFillRequest,
     FormIn,
     FormOut,
     FormStatusUpdate,
 )
-from app.services import government_service
+from app.services import document_service, government_service
 
 router = APIRouter(prefix="/api/government", tags=["government"])
 
 can_view = require_permission("Government", "view")
 can_edit = require_permission("Government", "edit")
+
+
+def _project_no(db: Session, project_id: int) -> str:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    return project.project_no if project else ""
 
 
 @router.get("/authorities", response_model=list[AuthorityOut])
@@ -93,6 +102,24 @@ def delete_form(
     form_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
 ):
     government_service.delete_form(db, government_service.parse_form_id(form_id), current_user.id)
+
+
+@router.post("/forms/{form_id}/fill", response_model=DocumentOut, status_code=201)
+def fill_form(
+    form_id: str,
+    payload: FormFillRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    document = government_service.fill_form(
+        db, government_service.parse_form_id(form_id), payload, current_user.id
+    )
+    return DocumentOut.from_model(
+        document,
+        _project_no(db, document.project_id),
+        document_service.user_name(db, document.uploaded_by),
+        format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
+    )
 
 
 @router.patch("/forms/{form_id}/status", response_model=FormOut)

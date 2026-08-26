@@ -44,6 +44,22 @@ export function renderGovernmentFormTemplate(template: string, context: Record<s
   })
 }
 
+// Every distinct {{token}} a template references, in first-appearance
+// order -- drives the Fill Form dialog's one-input-per-token form without
+// needing each template's fields hardcoded anywhere on the frontend.
+export function extractTemplateTokens(template: string): string[] {
+  const tokens: string[] = []
+  const seen = new Set<string>()
+  for (const match of template.matchAll(/{{\s*(\w+)\s*}}/g)) {
+    const token = match[1]
+    if (!seen.has(token)) {
+      seen.add(token)
+      tokens.push(token)
+    }
+  }
+  return tokens
+}
+
 // A project's `service` field is a comma-joined summary of the Service
 // Catalog services picked for it (see Project.service). A form is
 // suggested for a project when any of its tagged services appears in

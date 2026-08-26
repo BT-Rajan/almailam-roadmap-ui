@@ -89,6 +89,32 @@ def save_upload(file: UploadFile, subdirectory: str) -> tuple[str, str, int]:
     return storage_key, (file.filename or generated_name), len(contents)
 
 
+def save_bytes(content: bytes, subdirectory: str, extension: str, display_filename: str) -> tuple[str, str, int]:
+    """Same on-disk convention as save_upload (generated uuid name, size
+    cap, magic-byte signature check) for content generated server-side
+    rather than received as an UploadFile -- e.g. a PDF built by
+    app.services.pdf_render. Returns (storage_key, original_filename,
+    size_bytes), same shape as save_upload."""
+    if extension not in ALLOWED_EXTENSIONS:
+        raise ValidationAppError(f"File type '{extension}' is not allowed.")
+
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if len(content) > max_bytes:
+        raise ValidationAppError(f"File exceeds the {settings.MAX_UPLOAD_SIZE_MB} MB upload limit.")
+    if not content:
+        raise ValidationAppError("Generated file is empty.")
+    _verify_signature(extension, content)
+
+    directory = Path(settings.UPLOADS_DIR) / subdirectory
+    directory.mkdir(parents=True, exist_ok=True)
+
+    generated_name = f"{uuid.uuid4().hex}{extension}"
+    (directory / generated_name).write_bytes(content)
+
+    storage_key = str(Path(subdirectory) / generated_name)
+    return storage_key, display_filename, len(content)
+
+
 def resolve_path(storage_key: str) -> Path:
     path = (Path(settings.UPLOADS_DIR) / storage_key).resolve()
     uploads_root = Path(settings.UPLOADS_DIR).resolve()

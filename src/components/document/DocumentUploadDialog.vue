@@ -20,6 +20,7 @@ const DOCUMENT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Quotation', value: 'Quotation' },
   { label: 'Municipality Form', value: 'Municipality Form' },
   { label: 'Calculation Sheet', value: 'Calculation Sheet' },
+  { label: 'Government Agreement', value: 'Government Agreement' },
 ]
 
 // Optional -- only documents relevant to the Process tab's per-stage

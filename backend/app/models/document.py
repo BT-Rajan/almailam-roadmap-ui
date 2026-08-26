@@ -7,7 +7,14 @@ from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-DOCUMENT_TYPES = ("Drawing", "Report", "Contract", "Quotation", "Municipality Form", "Calculation Sheet")
+DOCUMENT_TYPES = (
+    "Drawing", "Report", "Contract", "Quotation", "Municipality Form", "Calculation Sheet",
+    # A filled-in government form/agreement generated from a
+    # GovernmentForm template (see government_service.fill_form) and
+    # saved as a real PDF -- distinct from "Municipality Form" (a
+    # manually uploaded scan/file with no generation involved).
+    "Government Agreement",
+)
 DOCUMENT_STATUSES = ("Draft", "Under Review", "Approved", "Rejected")
 
 # The three project-level categories that are added as a link/path to a file

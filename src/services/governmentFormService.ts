@@ -1,8 +1,15 @@
 import { apiClient } from '@/services/httpClient'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
+import type { ProjectDocument } from '@/types/Document'
 
 export type FormInput = Omit<GovernmentForm, 'id'>
 export type AuthorityInput = Omit<GovernmentAuthority, 'id'>
+
+export interface FormFillInput {
+  projectId: string
+  context: Record<string, string>
+  title?: string
+}
 
 /**
  * Fetch all government forms from backend API
@@ -65,6 +72,21 @@ async function deleteForm(formId: string): Promise<void> {
 }
 
 /**
+ * Fill in a form's {{token}} template with real project data and save
+ * the rendered result as a PDF Project Document (type "Government
+ * Agreement") under the given project. The real, DB-backed counterpart
+ * to FormTemplatePreviewDialog.vue's on-screen-only preview.
+ */
+async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDocument> {
+  try {
+    return await apiClient.post<ProjectDocument>(`/api/government/forms/${formId}/fill`, input)
+  } catch (error) {
+    console.error(`Failed to fill form ${formId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fill and save the form')
+  }
+}
+
+/**
  * Set/update government form status via backend API
  */
 async function setFormStatus(formId: string, status: GovernmentForm['status']): Promise<GovernmentForm> {
@@ -118,6 +140,7 @@ export const governmentFormService = {
   createForm,
   updateForm,
   deleteForm,
+  fillForm,
   setFormStatus,
   createAuthority,
   updateAuthority,

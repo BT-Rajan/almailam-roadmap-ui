@@ -1,4 +1,4 @@
-import { Calculator, FileSignature, FileSpreadsheet, FileText, Landmark, Ruler } from '@lucide/vue'
+import { Calculator, FileSignature, FileSpreadsheet, FileText, Landmark, Ruler, ScrollText } from '@lucide/vue'
 import type { Component } from 'vue'
 
 import type { BadgeVariant } from '@/types/Ui'
@@ -18,6 +18,7 @@ const TYPE_ICONS: Record<DocumentType, Component> = {
   Quotation: FileSpreadsheet,
   'Municipality Form': Landmark,
   'Calculation Sheet': Calculator,
+  'Government Agreement': ScrollText,
 }
 
 export function getDocumentStatusVariant(status: DocumentStatus): BadgeVariant {

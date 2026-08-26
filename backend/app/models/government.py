@@ -15,6 +15,8 @@ FORM_CATEGORIES = (
     "Utility Connection",
     "Environmental Clearance",
     "Business License",
+    "Agreement",
+    "Legal Undertaking",
 )
 FORM_LANGUAGES = ("English", "Arabic", "English / Arabic")
 FORM_STATUSES = ("Active", "Archived")
@@ -63,6 +65,15 @@ class GovernmentForm(Base, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(
         Enum(*FORM_STATUSES, name="form_status"), nullable=False, default="Active"
     )
+    # Fillable body, written with {{token}} merge fields (see
+    # app.services.pdf_render.render_template / src/utils/
+    # governmentFormHelpers.ts's identical client-side renderer). NULL for
+    # a form that's just a reference/PDF sample with nothing to fill in.
+    template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Service Catalog service names this form applies to -- matched
+    # against Project.service to decide which forms to suggest for a
+    # project (see governmentFormHelpers.formMatchesProjectService).
+    service_tags: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
 class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
