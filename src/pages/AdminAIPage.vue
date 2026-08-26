@@ -42,6 +42,25 @@ onMounted(() => {
   if (!aiConfigStore.config) loadData()
 })
 
+// The enable/disable switch saves itself immediately rather than waiting
+// for Save Changes below -- it looks and reads like an instant on/off
+// light switch, and staging it silently like every other field here (no
+// visible difference between "toggled but not saved yet" and "saved")
+// is exactly how flipping it appeared to do nothing.
+async function handleToggleEnabled(value: boolean): Promise<void> {
+  aiConfigStore.updateField('isEnabled', value)
+  const success = await aiConfigStore.saveConfiguration()
+  if (success) {
+    toastStore.show(
+      'success',
+      value ? 'Knowledgebase assistant enabled' : 'Knowledgebase assistant disabled',
+      'This takes effect immediately.',
+    )
+  } else {
+    toastStore.show('error', 'Unable to save', aiConfigStore.error ?? 'Please try again.')
+  }
+}
+
 async function handleSave(): Promise<void> {
   const success = await aiConfigStore.saveConfiguration()
   if (success) {
@@ -107,9 +126,10 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
         <FormSection title="Availability" description="The knowledgebase Q&A tool is the only AI-backed feature besides the client ID check. All other workflows are unaffected if this is disabled.">
           <ToggleSwitch
             :model-value="aiConfigStore.config.isEnabled"
+            :disabled="aiConfigStore.isSaving"
             label="Enable Knowledgebase Assistant"
-            hint="Hides the Knowledge Base page's Ask panel and disables the ask endpoint when off."
-            @update:model-value="aiConfigStore.updateField('isEnabled', $event)"
+            hint="Takes effect immediately -- hides the sparkle icon/chat drawer and the Ask panel, and disables the ask endpoint, when off."
+            @update:model-value="handleToggleEnabled"
           />
         </FormSection>
 
