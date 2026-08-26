@@ -3,9 +3,7 @@ import { Ban, Eye, Landmark, Pencil, Plus, RotateCcw, Trash2, Upload } from '@lu
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -25,8 +23,9 @@ import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentAuthority, GovernmentForm, GovernmentFormStatus } from '@/types/Government'
 import type { SmartTableColumn } from '@/types/Table'
+import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getAuthorityCategoryIcon, getFormCategoryVariant } from '@/utils/governmentFormHelpers'
+import { getFormCategoryVariant } from '@/utils/governmentFormHelpers'
 
 interface FormRow {
   [key: string]: unknown
@@ -73,6 +72,18 @@ const TABLE_COLUMNS: SmartTableColumn<FormRow>[] = [
   { key: 'lastUpdated', label: 'Last Updated', sortable: true, align: 'right' },
 ]
 
+const authorityOptions = computed<SelectOption[]>(() => [
+  { label: `All Authorities (${store.forms.length})`, value: 'All' },
+  ...store.authorities.map((authority) => ({
+    label: `${authority.name} (${store.forms.filter((form) => form.authorityId === authority.id).length})`,
+    value: authority.id,
+  })),
+])
+
+const selectedAuthority = computed<GovernmentAuthority | undefined>(() =>
+  store.authorities.find((authority) => authority.id === selectedAuthorityId.value),
+)
+
 const visibleForms = computed<GovernmentForm[]>(() =>
   store.forms
     .filter((form) => selectedAuthorityId.value === 'All' || form.authorityId === selectedAuthorityId.value)
@@ -100,10 +111,6 @@ onMounted(() => {
   if (store.forms.length === 0) loadData()
   if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
 })
-
-function selectAuthority(authorityId: string | 'All'): void {
-  selectedAuthorityId.value = selectedAuthorityId.value === authorityId ? 'All' : authorityId
-}
 
 function openAddAuthority(): void {
   editingAuthority.value = undefined
@@ -175,6 +182,7 @@ async function confirmDelete(): Promise<void> {
   try {
     if (deleteTarget.value.type === 'authority') {
       await store.deleteAuthority(deleteTarget.value.id)
+      if (selectedAuthorityId.value === deleteTarget.value.id) selectedAuthorityId.value = 'All'
       toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
     } else {
       await store.deleteForm(deleteTarget.value.id)
@@ -248,70 +256,44 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 
-    <div v-else-if="store.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-6">
-        <SkeletonLoader :rows="6" />
-      </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <SkeletonLoader :rows="8" />
-      </div>
+    <div v-else-if="store.isLoading" class="rounded-xl border border-border-light bg-bg-card p-6">
+      <SkeletonLoader :rows="8" />
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="flex flex-col gap-3">
-        <button
-          class="rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors duration-fast"
-          :class="
-            selectedAuthorityId === 'All'
-              ? 'border-primary-500 bg-primary-50 text-primary-700'
-              : 'border-border-light bg-bg-card text-text-secondary hover:bg-bg-hover'
-          "
-          @click="selectAuthority('All')"
-        >
-          All Authorities
-          <span class="ml-1 text-xs text-text-muted">({{ store.forms.length }})</span>
-        </button>
-
-        <Card v-for="authority in store.authorities" :key="authority.id" class="!p-0">
-          <button
-            class="flex w-full items-start gap-3 rounded-t-xl px-4 py-3 text-left transition-colors duration-fast"
-            :class="selectedAuthorityId === authority.id ? 'bg-primary-50' : 'hover:bg-bg-hover'"
-            @click="selectAuthority(authority.id)"
-          >
-            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
-              <component :is="getAuthorityCategoryIcon(authority.category)" :size="18" />
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-text-primary">{{ authority.name }}</p>
-              <p class="mt-0.5 text-xs text-text-muted">{{ authority.category }}</p>
-            </div>
-          </button>
-          <div class="flex items-center justify-end gap-1 border-t border-border-light px-2 py-1.5">
-            <IconButton :icon="Pencil" label="Edit authority" size="sm" variant="ghost" @click="openEditAuthority(authority)" />
-            <IconButton
-              :icon="Trash2"
-              label="Delete authority"
-              size="sm"
-              variant="ghost"
-              @click="requestDeleteAuthority(authority)"
-            />
+    <div v-else class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div class="flex items-end gap-2">
+          <div class="w-64">
+            <SelectBox v-model="selectedAuthorityId" label="Authority" :options="authorityOptions" />
           </div>
-        </Card>
-
-        <EmptyState
-          v-if="store.authorities.length === 0"
-          title="No authorities yet"
-          description="Add a government authority to start attaching forms to it."
-          action-label="Add Authority"
-          @action="openAddAuthority"
-        />
-      </div>
-
-      <div class="laptop:col-span-2 flex flex-col gap-3">
-        <div class="w-48 self-end">
-          <SelectBox v-model="statusFilter" :options="FORM_STATUS_FILTER_OPTIONS" />
+          <IconButton
+            v-if="selectedAuthority"
+            :icon="Pencil"
+            label="Edit authority"
+            size="sm"
+            variant="ghost"
+            @click="openEditAuthority(selectedAuthority)"
+          />
+          <IconButton
+            v-if="selectedAuthority"
+            :icon="Trash2"
+            label="Delete authority"
+            size="sm"
+            variant="ghost"
+            @click="requestDeleteAuthority(selectedAuthority)"
+          />
         </div>
 
+        <div class="w-48">
+          <SelectBox v-model="statusFilter" label="Status" :options="FORM_STATUS_FILTER_OPTIONS" />
+        </div>
+      </div>
+
+      <p v-if="store.authorities.length === 0" class="text-sm text-text-muted">
+        No authorities yet -- add one to start filing forms under it.
+      </p>
+
+      <div>
         <SmartTable
           :columns="TABLE_COLUMNS"
           :rows="tableRows"
