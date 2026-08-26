@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { ProjectUpdate } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { formatRelativeDate } from '@/utils/dateFormatter'
 
 interface Props {
   updates: ProjectUpdate[]
@@ -35,18 +36,6 @@ const getIconColor = (type: string) => {
   if (type === 'status') return 'text-warning-600'
   return 'text-text-secondary'
 }
-
-const formatDate = (date: string) => {
-  const d = new Date(date)
-  const today = new Date()
-  const diff = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Yesterday'
-  if (diff < 7) return `${diff} days ago`
-
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
 </script>
 
 <template>
@@ -69,7 +58,7 @@ const formatDate = (date: string) => {
                 <h3 class="font-medium text-text-primary">{{ update.title }}</h3>
                 <p v-if="update.description" class="text-sm text-text-secondary mt-1">{{ update.description }}</p>
               </div>
-              <span class="text-xs text-text-muted flex-shrink-0 mt-0.5">{{ formatDate(update.date) }}</span>
+              <span class="text-xs text-text-muted flex-shrink-0 mt-0.5">{{ formatRelativeDate(update.date) }}</span>
             </div>
           </div>
         </div>

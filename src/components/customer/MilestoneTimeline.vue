@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { ProjectMilestone } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { isPastDate } from '@/utils/dateFormatter'
 
 interface Props {
   milestones: ProjectMilestone[]
@@ -41,7 +42,10 @@ const isOverdue = (dueDate: string, status: string) => {
   // this separate "Overdue" flag for the case that status doesn't cover:
   // an "in-progress" milestone whose due date has since passed. Showing
   // both for the same milestone would just be the same warning twice.
-  return status !== 'completed' && status !== 'delayed' && new Date(dueDate) < new Date()
+  // isPastDate compares calendar dates, not instants -- a plain
+  // `new Date(dueDate) < new Date()` would flag anything due "today"
+  // as already overdue the moment the clock ticks past UTC midnight.
+  return status !== 'completed' && status !== 'delayed' && isPastDate(dueDate)
 }
 </script>
 

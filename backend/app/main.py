@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
@@ -186,4 +186,17 @@ if _frontend_dist.is_dir():
             and str(candidate).startswith(str(_frontend_dist))
         ):
             return FileResponse(candidate)
+        # This route only matches because it's a catch-all -- FastAPI
+        # falls through to it for any path that didn't hit one of the
+        # real /api/* routes registered above, INCLUDING a genuinely
+        # unmatched/mistyped API path, not just real frontend routes.
+        # Without this check, e.g. a typo'd endpoint URL or a future
+        # frontend/backend route mismatch would silently get back
+        # index.html with 200 OK instead of a 404 -- the comment above
+        # this block ("every /api/* route above still wins") wasn't
+        # actually true for that case. A JSON fetch() client parsing
+        # that 200 response as JSON hits a raw, confusing "Unexpected
+        # token '<'" console error instead of a clean handled 404.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found.")
         return FileResponse(_frontend_dist / "index.html")

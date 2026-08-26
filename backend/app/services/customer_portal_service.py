@@ -81,7 +81,19 @@ def get_document_download_target(db: Session, project: Project, document_id: str
     if document.status == "Draft":
         raise AuthError("This document isn't available yet.")
 
-    return resolve_path(document.storage_key), document.original_filename
+    path = resolve_path(document.storage_key)
+    # The DB row can outlive the actual file (moved, cleaned up, or --
+    # as hit while testing this endpoint -- a record that was never
+    # backed by a real upload in the first place). Checking here turns
+    # that into the same clean 404 a customer would get for a document
+    # that never existed, instead of an unhandled 500 with a raw
+    # traceback: FileResponse's own missing-file handling happens at
+    # response-streaming time, after normal exception-handler
+    # middleware has already run, so it isn't caught cleanly.
+    if not path.is_file():
+        raise NotFoundError("Document")
+
+    return path, document.original_filename
 
 
 _STAGE_TO_CUSTOMER_STATUS = {"Requirement", "Quotation", "Contract"}

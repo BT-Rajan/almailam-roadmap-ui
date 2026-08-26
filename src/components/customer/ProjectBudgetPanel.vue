@@ -6,7 +6,7 @@ import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import type { ProjectBudget } from '@/types/CustomerPortal'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate } from '@/utils/dateFormatter'
+import { formatDate, isPastDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
   budget: ProjectBudget | null
@@ -16,10 +16,6 @@ const paidPercent = computed(() => {
   if (!props.budget || props.budget.contractAmount <= 0) return 0
   return Math.min(100, Math.round((props.budget.totalPaid / props.budget.contractAmount) * 100))
 })
-
-function isOverdue(dueDate: string): boolean {
-  return new Date(dueDate) < new Date(new Date().toDateString())
-}
 </script>
 
 <template>
@@ -67,13 +63,13 @@ function isOverdue(dueDate: string): boolean {
             v-for="payment in budget.upcomingPayments"
             :key="payment.description + payment.dueDate"
             class="flex items-center justify-between rounded-lg border p-3"
-            :class="isOverdue(payment.dueDate) ? 'border-danger-200 bg-danger-50' : 'border-border-light bg-bg-card'"
+            :class="isPastDate(payment.dueDate) ? 'border-danger-200 bg-danger-50' : 'border-border-light bg-bg-card'"
           >
             <div>
               <p class="text-sm font-medium text-text-primary">{{ payment.description }}</p>
-              <p class="text-xs" :class="isOverdue(payment.dueDate) ? 'text-danger-600' : 'text-text-secondary'">
+              <p class="text-xs" :class="isPastDate(payment.dueDate) ? 'text-danger-600' : 'text-text-secondary'">
                 Due {{ formatDate(payment.dueDate) }}
-                <span v-if="isOverdue(payment.dueDate)">· Overdue</span>
+                <span v-if="isPastDate(payment.dueDate)">· Overdue</span>
               </p>
             </div>
             <div class="text-right">
