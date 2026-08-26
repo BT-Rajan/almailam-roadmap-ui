@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, Plug, XCircle } from '@lucide/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -15,9 +15,16 @@ interface Props {
   testResult?: ProviderTestResult
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   testResult: undefined,
 })
+
+// The real, live-usable credential is a server environment variable --
+// never this form (see aiConfigStore.updateApiKey and the backend's
+// AIProviderConfigOut.from_model for why "Connected" reflects that
+// variable, not whether a key was ever typed in below).
+const ENV_VAR_NAMES: Record<string, string> = { claude: 'ANTHROPIC_API_KEY', deepseek: 'DEEPSEEK_API_KEY' }
+const envVarName = computed(() => ENV_VAR_NAMES[props.provider.id] ?? '')
 
 const emit = defineEmits<{
   'update-key': [maskedKey: string]
@@ -57,15 +64,22 @@ function applyNewKey(): void {
 
     <p class="text-xs text-text-muted">Model: <span class="font-medium text-text-secondary">{{ provider.model }}</span></p>
 
+    <p class="text-xs text-text-muted">
+      Live calls use the <code class="rounded bg-bg-secondary px-1 py-0.5 font-mono">{{ envVarName }}</code>
+      environment variable on the server -- not the field below. Set it (and redeploy/restart) to actually
+      enable this provider.
+    </p>
+
     <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
       <TextInput
         v-model="newApiKey"
         type="password"
-        :label="provider.apiKeyMasked ? `Current key: ${provider.apiKeyMasked}` : 'API Key'"
-        placeholder="Enter new API key to update"
+        :label="provider.apiKeyMasked ? `Local note: ${provider.apiKeyMasked}` : 'Local note (not a live key)'"
+        placeholder="Optional -- for your own reference only"
+        hint="Saved here for your own bookkeeping only. Never sent anywhere as a live credential."
         class="flex-1"
       />
-      <BaseButton variant="secondary" size="sm" :disabled="!newApiKey.trim()" @click="applyNewKey">Update Key</BaseButton>
+      <BaseButton variant="secondary" size="sm" :disabled="!newApiKey.trim()" @click="applyNewKey">Save Note</BaseButton>
     </div>
 
     <div class="flex items-center justify-between gap-3 border-t border-border-light pt-3">

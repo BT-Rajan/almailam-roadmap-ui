@@ -42,10 +42,16 @@ export const useAIConfigStore = defineStore('aiConfig', {
 
     updateApiKey(providerId: AIProviderId, maskedKey: string) {
       if (!this.config) return
+      // Deliberately leaves `status` untouched -- it reflects whether the
+      // server's environment actually has a usable key for this provider,
+      // which typing a value into this form does not change (see
+      // AIProviderConfigOut.from_model on the backend). Flipping it to
+      // 'connected' here would be a false "it worked" the instant you
+      // click Update Key, before anything is even saved.
       this.config = {
         ...this.config,
         providers: this.config.providers.map((provider) =>
-          provider.id === providerId ? { ...provider, apiKeyMasked: maskedKey, status: 'connected' } : provider,
+          provider.id === providerId ? { ...provider, apiKeyMasked: maskedKey } : provider,
         ),
       }
     },
