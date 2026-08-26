@@ -49,6 +49,17 @@ export const useKnowledgeStore = defineStore('knowledge', {
       }
     },
 
+    // Called right after the Knowledgebase AI admin page successfully
+    // saves a change to isEnabled, so the sparkle icon/chat drawer/Ask
+    // panel reflect it immediately in this same browser session --
+    // loadStatus() above only ever runs once per session (the top bar's
+    // first mount), so without this an admin who flips the toggle would
+    // see no change anywhere in the app until something else forced a
+    // reload, e.g. signing out and back in.
+    setEnabledLocally(value: boolean) {
+      this.isEnabled = value
+    },
+
     openDrawer() {
       this.isDrawerOpen = true
     },

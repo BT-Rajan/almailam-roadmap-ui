@@ -16,11 +16,13 @@ import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import AIConfigSummaryCard from '@/components/administration/AIConfigSummaryCard.vue'
 import AIProviderCard from '@/components/administration/AIProviderCard.vue'
 import { useAIConfigStore } from '@/stores/aiConfigStore'
+import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { AIProviderId } from '@/types/AiConfig'
 import type { SelectOption } from '@/types/Ui'
 
 const aiConfigStore = useAIConfigStore()
+const knowledgeStore = useKnowledgeStore()
 const toastStore = useToastStore()
 
 const providerOptions = computed<SelectOption[]>(
@@ -51,6 +53,10 @@ async function handleToggleEnabled(value: boolean): Promise<void> {
   aiConfigStore.updateField('isEnabled', value)
   const success = await aiConfigStore.saveConfiguration()
   if (success) {
+    // Updates the sparkle icon/chat drawer/Ask panel in this same
+    // session right away -- see setEnabledLocally's own comment for why
+    // that's not automatic.
+    knowledgeStore.setEnabledLocally(value)
     toastStore.show(
       'success',
       value ? 'Knowledgebase assistant enabled' : 'Knowledgebase assistant disabled',
@@ -64,6 +70,7 @@ async function handleToggleEnabled(value: boolean): Promise<void> {
 async function handleSave(): Promise<void> {
   const success = await aiConfigStore.saveConfiguration()
   if (success) {
+    if (aiConfigStore.config) knowledgeStore.setEnabledLocally(aiConfigStore.config.isEnabled)
     toastStore.show('success', 'AI configuration saved', 'Your changes have been applied.')
   } else {
     // Previously silent on failure -- a failed save (permission error,
