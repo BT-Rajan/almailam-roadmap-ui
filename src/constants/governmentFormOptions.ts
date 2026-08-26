@@ -6,6 +6,7 @@ export const AUTHORITY_CATEGORY_OPTIONS: SelectOption[] = [
   { label: 'Electricity', value: 'Electricity' },
   { label: 'Water', value: 'Water' },
   { label: 'Environment', value: 'Environment' },
+  { label: 'Internal', value: 'Internal' },
 ]
 
 export const FORM_CATEGORY_OPTIONS: SelectOption[] = [
@@ -15,6 +16,14 @@ export const FORM_CATEGORY_OPTIONS: SelectOption[] = [
   { label: 'Utility Connection', value: 'Utility Connection' },
   { label: 'Environmental Clearance', value: 'Environmental Clearance' },
   { label: 'Business License', value: 'Business License' },
+  { label: 'Agreement', value: 'Agreement' },
+  { label: 'Legal Undertaking', value: 'Legal Undertaking' },
+]
+
+export const FORM_STATUS_FILTER_OPTIONS: SelectOption[] = [
+  { label: 'All Statuses', value: 'All' },
+  { label: 'Active', value: 'Active' },
+  { label: 'Archived (disabled)', value: 'Archived' },
 ]
 
 export const FORM_LANGUAGE_OPTIONS: SelectOption[] = [

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, LayoutGrid, Pencil, Plus, TableProperties, Trash2 } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -14,6 +14,7 @@ import FormDetailDrawer from '@/components/government/FormDetailDrawer.vue'
 import GovernmentFormsView from '@/components/government/GovernmentFormsView.vue'
 import type { FormInput } from '@/services/governmentFormService'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentAuthority, GovernmentForm, GovernmentFormCategory } from '@/types/Government'
 import type { SelectOption } from '@/types/Ui'
@@ -30,7 +31,12 @@ const emit = defineEmits<{
 }>()
 
 const store = useGovernmentFormStore()
+const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
+
+onMounted(() => {
+  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+})
 
 const showArchived = ref(false)
 
@@ -246,6 +252,7 @@ function printForm(form: GovernmentForm): void {
     v-model="isFormDialogOpen"
     :form="editingForm"
     :authorities="dialogAuthorities"
+    :services="serviceCatalogStore.services"
     :saving="isSavingForm"
     @save="saveForm"
   />

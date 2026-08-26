@@ -1,4 +1,4 @@
-export type AuthorityCategory = 'Municipality' | 'Fire Department' | 'Electricity' | 'Water' | 'Environment'
+export type AuthorityCategory = 'Municipality' | 'Fire Department' | 'Electricity' | 'Water' | 'Environment' | 'Internal'
 
 export interface GovernmentAuthority {
   id: string
@@ -15,6 +15,8 @@ export type GovernmentFormCategory =
   | 'Utility Connection'
   | 'Environmental Clearance'
   | 'Business License'
+  | 'Agreement'
+  | 'Legal Undertaking'
 
 export type GovernmentFormLanguage = 'English' | 'Arabic' | 'English / Arabic'
 
@@ -35,4 +37,13 @@ export interface GovernmentForm {
   lastUpdated: string
   previewUrl?: string
   status: GovernmentFormStatus
+  // The fillable body of the form/undertaking, written with {{token}}
+  // merge fields (see governmentFormHelpers.renderGovernmentFormTemplate).
+  // Empty for forms that are only a scanned/attached sample (previewUrl).
+  template?: string
+  // Service Catalog service names this form applies to -- matched against
+  // Project.service (a comma-joined summary of the project's picked
+  // services) to decide which forms to surface under a project's
+  // Documents > Government section.
+  serviceTags: string[]
 }

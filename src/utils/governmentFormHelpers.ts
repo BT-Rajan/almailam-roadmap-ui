@@ -1,4 +1,4 @@
-import { Building2, Droplet, Flame, Leaf, Zap } from '@lucide/vue'
+import { Building2, Droplet, Flame, Landmark, Leaf, Zap } from '@lucide/vue'
 import type { Component } from 'vue'
 
 import type { BadgeVariant } from '@/types/Ui'
@@ -10,6 +10,7 @@ const AUTHORITY_CATEGORY_ICONS: Record<AuthorityCategory, Component> = {
   Electricity: Zap,
   Water: Droplet,
   Environment: Leaf,
+  Internal: Landmark,
 }
 
 const FORM_CATEGORY_VARIANTS: Record<GovernmentFormCategory, BadgeVariant> = {
@@ -19,6 +20,8 @@ const FORM_CATEGORY_VARIANTS: Record<GovernmentFormCategory, BadgeVariant> = {
   'Utility Connection': 'warning',
   'Environmental Clearance': 'success',
   'Business License': 'neutral',
+  Agreement: 'primary',
+  'Legal Undertaking': 'ai',
 }
 
 export function getAuthorityCategoryIcon(category: AuthorityCategory): Component {
@@ -27,6 +30,33 @@ export function getAuthorityCategoryIcon(category: AuthorityCategory): Component
 
 export function getFormCategoryVariant(category: GovernmentFormCategory): BadgeVariant {
   return FORM_CATEGORY_VARIANTS[category]
+}
+
+// Fills a form's {{token}} template with whatever merge context is
+// available. This is a client-side stub: real projects don't yet have a
+// backend endpoint that generates a signed, DB-backed document, so any
+// token without a context value renders as a visible blank line rather
+// than silently disappearing or throwing.
+export function renderGovernmentFormTemplate(template: string, context: Record<string, string | undefined>): string {
+  return template.replace(/{{\s*(\w+)\s*}}/g, (_match, token: string) => {
+    const value = context[token]
+    return value && value.trim().length > 0 ? value : '………………'
+  })
+}
+
+// A project's `service` field is a comma-joined summary of the Service
+// Catalog services picked for it (see Project.service). A form is
+// suggested for a project when any of its tagged services appears in
+// that summary -- case-insensitive since the two are typed/edited in
+// different admin screens.
+export function formMatchesProjectService(form: GovernmentForm, projectService: string): boolean {
+  const serviceTags = form.serviceTags ?? []
+  if (serviceTags.length === 0) return false
+  const pickedServices = projectService
+    .split(',')
+    .map((name) => name.trim().toLowerCase())
+    .filter((name) => name.length > 0)
+  return serviceTags.some((tag) => pickedServices.includes(tag.trim().toLowerCase()))
 }
 
 export function printFillableForm(url: string): void {

@@ -1,26 +1,31 @@
 <script setup lang="ts">
-import { Landmark, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Ban, Eye, Landmark, Pencil, Plus, RotateCcw, Trash2, Upload } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import GovernmentAuthorityFormDialog from '@/components/administration/GovernmentAuthorityFormDialog.vue'
 import GovernmentFormFormDialog from '@/components/administration/GovernmentFormFormDialog.vue'
+import LoadStandardFormsDialog from '@/components/administration/LoadStandardFormsDialog.vue'
+import FormTemplatePreviewDialog from '@/components/government/FormTemplatePreviewDialog.vue'
+import { FORM_STATUS_FILTER_OPTIONS } from '@/constants/governmentFormOptions'
+import { STANDARD_GOVERNMENT_FORMS } from '@/constants/standardGovernmentForms'
 import type { AuthorityInput, FormInput } from '@/services/governmentFormService'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
+import type { GovernmentAuthority, GovernmentForm, GovernmentFormStatus } from '@/types/Government'
 import type { SmartTableColumn } from '@/types/Table'
+import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getAuthorityCategoryIcon, getFormCategoryVariant } from '@/utils/governmentFormHelpers'
+import { getFormCategoryVariant } from '@/utils/governmentFormHelpers'
 
 interface FormRow {
   [key: string]: unknown
@@ -30,13 +35,16 @@ interface FormRow {
   category: GovernmentForm['category']
   language: GovernmentForm['language']
   version: string
+  status: GovernmentForm['status']
   lastUpdated: string
 }
 
 const store = useGovernmentFormStore()
+const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
 
 const selectedAuthorityId = ref<string | 'All'>('All')
+const statusFilter = ref<GovernmentFormStatus | 'All'>('Active')
 
 const isAuthorityDialogOpen = ref(false)
 const editingAuthority = ref<GovernmentAuthority | undefined>(undefined)
@@ -45,6 +53,11 @@ const isSavingAuthority = ref(false)
 const isFormDialogOpen = ref(false)
 const editingForm = ref<GovernmentForm | undefined>(undefined)
 const isSavingForm = ref(false)
+
+const isImportDialogOpen = ref(false)
+const isImporting = ref(false)
+
+const previewTarget = ref<GovernmentForm | undefined>(undefined)
 
 const deleteTarget = ref<{ type: 'authority' | 'form'; id: string; label: string } | undefined>(undefined)
 const isDeleting = ref(false)
@@ -55,13 +68,26 @@ const TABLE_COLUMNS: SmartTableColumn<FormRow>[] = [
   { key: 'category', label: 'Category', sortable: true },
   { key: 'language', label: 'Language', sortable: true },
   { key: 'version', label: 'Version', width: '100px' },
+  { key: 'status', label: 'Status', sortable: true, width: '110px' },
   { key: 'lastUpdated', label: 'Last Updated', sortable: true, align: 'right' },
 ]
 
+const authorityOptions = computed<SelectOption[]>(() => [
+  { label: `All Authorities (${store.forms.length})`, value: 'All' },
+  ...store.authorities.map((authority) => ({
+    label: `${authority.name} (${store.forms.filter((form) => form.authorityId === authority.id).length})`,
+    value: authority.id,
+  })),
+])
+
+const selectedAuthority = computed<GovernmentAuthority | undefined>(() =>
+  store.authorities.find((authority) => authority.id === selectedAuthorityId.value),
+)
+
 const visibleForms = computed<GovernmentForm[]>(() =>
-  selectedAuthorityId.value === 'All'
-    ? store.forms
-    : store.forms.filter((form) => form.authorityId === selectedAuthorityId.value),
+  store.forms
+    .filter((form) => selectedAuthorityId.value === 'All' || form.authorityId === selectedAuthorityId.value)
+    .filter((form) => statusFilter.value === 'All' || form.status === statusFilter.value),
 )
 
 const tableRows = computed<FormRow[]>(() =>
@@ -72,6 +98,7 @@ const tableRows = computed<FormRow[]>(() =>
     category: form.category,
     language: form.language,
     version: form.version,
+    status: form.status,
     lastUpdated: form.lastUpdated,
   })),
 )
@@ -82,11 +109,8 @@ function loadData(): void {
 
 onMounted(() => {
   if (store.forms.length === 0) loadData()
+  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
 })
-
-function selectAuthority(authorityId: string | 'All'): void {
-  selectedAuthorityId.value = selectedAuthorityId.value === authorityId ? 'All' : authorityId
-}
 
 function openAddAuthority(): void {
   editingAuthority.value = undefined
@@ -158,6 +182,7 @@ async function confirmDelete(): Promise<void> {
   try {
     if (deleteTarget.value.type === 'authority') {
       await store.deleteAuthority(deleteTarget.value.id)
+      if (selectedAuthorityId.value === deleteTarget.value.id) selectedAuthorityId.value = 'All'
       toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
     } else {
       await store.deleteForm(deleteTarget.value.id)
@@ -174,6 +199,49 @@ async function confirmDelete(): Promise<void> {
 function formById(formId: string): GovernmentForm | undefined {
   return store.forms.find((form) => form.id === formId)
 }
+
+async function toggleFormStatus(form: GovernmentForm): Promise<void> {
+  try {
+    if (form.status === 'Active') {
+      await store.archiveForm(form.id)
+      toastStore.show('info', 'Form disabled', `${form.title} is now archived and hidden from projects.`)
+    } else {
+      await store.restoreForm(form.id)
+      toastStore.show('success', 'Form enabled', `${form.title} is active again.`)
+    }
+  } catch {
+    toastStore.show('error', 'Unable to update status', 'Please try again.')
+  }
+}
+
+async function importStandardForms(payload: { authorityId: string; formCodes: string[] }): Promise<void> {
+  isImporting.value = true
+  try {
+    const seeds = STANDARD_GOVERNMENT_FORMS.filter((seed) => payload.formCodes.includes(seed.formCode))
+    for (const seed of seeds) {
+      await store.createForm({
+        authorityId: payload.authorityId,
+        formCode: seed.formCode,
+        title: seed.title,
+        version: 'v1.0',
+        language: seed.language,
+        category: seed.category,
+        description: seed.description,
+        requiredDocuments: [],
+        lastUpdated: new Date().toISOString().slice(0, 10),
+        status: 'Active',
+        template: seed.template,
+        serviceTags: [],
+      })
+    }
+    toastStore.show('success', 'Standard forms added', `${seeds.length} form${seeds.length === 1 ? '' : 's'} added to the library.`)
+    isImportDialogOpen.value = false
+  } catch {
+    toastStore.show('error', 'Unable to import forms', 'Some forms may not have been added. Please try again.')
+  } finally {
+    isImporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -181,72 +249,51 @@ function formById(formId: string): GovernmentForm | undefined {
     <PageHeader title="Government Forms Administration" subtitle="Maintain authorities, forms and their document requirements.">
       <template #actions>
         <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">Add Authority</BaseButton>
+        <BaseButton variant="secondary" :icon="Upload" @click="isImportDialogOpen = true">Load Standard Forms</BaseButton>
         <BaseButton :icon="Plus" @click="openAddForm">Add Form</BaseButton>
       </template>
     </PageHeader>
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 
-    <div v-else-if="store.isLoading" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="rounded-xl border border-border-light bg-bg-card p-6">
-        <SkeletonLoader :rows="6" />
-      </div>
-      <div class="rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <SkeletonLoader :rows="8" />
-      </div>
+    <div v-else-if="store.isLoading" class="rounded-xl border border-border-light bg-bg-card p-6">
+      <SkeletonLoader :rows="8" />
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
-      <div class="flex flex-col gap-3">
-        <button
-          class="rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors duration-fast"
-          :class="
-            selectedAuthorityId === 'All'
-              ? 'border-primary-500 bg-primary-50 text-primary-700'
-              : 'border-border-light bg-bg-card text-text-secondary hover:bg-bg-hover'
-          "
-          @click="selectAuthority('All')"
-        >
-          All Authorities
-          <span class="ml-1 text-xs text-text-muted">({{ store.forms.length }})</span>
-        </button>
-
-        <Card v-for="authority in store.authorities" :key="authority.id" class="!p-0">
-          <button
-            class="flex w-full items-start gap-3 rounded-t-xl px-4 py-3 text-left transition-colors duration-fast"
-            :class="selectedAuthorityId === authority.id ? 'bg-primary-50' : 'hover:bg-bg-hover'"
-            @click="selectAuthority(authority.id)"
-          >
-            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
-              <component :is="getAuthorityCategoryIcon(authority.category)" :size="18" />
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-text-primary">{{ authority.name }}</p>
-              <p class="mt-0.5 text-xs text-text-muted">{{ authority.category }}</p>
-            </div>
-          </button>
-          <div class="flex items-center justify-end gap-1 border-t border-border-light px-2 py-1.5">
-            <IconButton :icon="Pencil" label="Edit authority" size="sm" variant="ghost" @click="openEditAuthority(authority)" />
-            <IconButton
-              :icon="Trash2"
-              label="Delete authority"
-              size="sm"
-              variant="ghost"
-              @click="requestDeleteAuthority(authority)"
-            />
+    <div v-else class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div class="flex items-end gap-2">
+          <div class="w-64">
+            <SelectBox v-model="selectedAuthorityId" label="Authority" :options="authorityOptions" />
           </div>
-        </Card>
+          <IconButton
+            v-if="selectedAuthority"
+            :icon="Pencil"
+            label="Edit authority"
+            size="sm"
+            variant="ghost"
+            @click="openEditAuthority(selectedAuthority)"
+          />
+          <IconButton
+            v-if="selectedAuthority"
+            :icon="Trash2"
+            label="Delete authority"
+            size="sm"
+            variant="ghost"
+            @click="requestDeleteAuthority(selectedAuthority)"
+          />
+        </div>
 
-        <EmptyState
-          v-if="store.authorities.length === 0"
-          title="No authorities yet"
-          description="Add a government authority to start attaching forms to it."
-          action-label="Add Authority"
-          @action="openAddAuthority"
-        />
+        <div class="w-48">
+          <SelectBox v-model="statusFilter" label="Status" :options="FORM_STATUS_FILTER_OPTIONS" />
+        </div>
       </div>
 
-      <div class="laptop:col-span-2">
+      <p v-if="store.authorities.length === 0" class="text-sm text-text-muted">
+        No authorities yet -- add one to start filing forms under it.
+      </p>
+
+      <div>
         <SmartTable
           :columns="TABLE_COLUMNS"
           :rows="tableRows"
@@ -259,11 +306,37 @@ function formById(formId: string): GovernmentForm | undefined {
           <template #cell-category="{ value }">
             <StatusBadge :label="value as string" :variant="getFormCategoryVariant(value as GovernmentForm['category'])" />
           </template>
+          <template #cell-status="{ value }">
+            <StatusBadge :label="value as string" :variant="value === 'Active' ? 'success' : 'neutral'" show-dot />
+          </template>
           <template #cell-lastUpdated="{ value }">
             {{ formatDate(value as string) }}
           </template>
           <template #row-actions="{ row }">
             <div class="flex items-center justify-end gap-1">
+              <IconButton
+                :icon="Eye"
+                label="Preview form"
+                size="sm"
+                variant="ghost"
+                @click="previewTarget = formById(row.id)"
+              />
+              <IconButton
+                v-if="formById(row.id)?.status === 'Active'"
+                :icon="Ban"
+                label="Disable form"
+                size="sm"
+                variant="ghost"
+                @click="formById(row.id) && toggleFormStatus(formById(row.id)!)"
+              />
+              <IconButton
+                v-else
+                :icon="RotateCcw"
+                label="Enable form"
+                size="sm"
+                variant="ghost"
+                @click="formById(row.id) && toggleFormStatus(formById(row.id)!)"
+              />
               <IconButton
                 :icon="Pencil"
                 label="Edit form"
@@ -295,8 +368,32 @@ function formById(formId: string): GovernmentForm | undefined {
       v-model="isFormDialogOpen"
       :form="editingForm"
       :authorities="store.authorities"
+      :services="serviceCatalogStore.services"
       :saving="isSavingForm"
       @save="saveForm"
+    />
+
+    <LoadStandardFormsDialog
+      v-model="isImportDialogOpen"
+      :authorities="store.authorities"
+      :existing-form-codes="store.forms.map((form) => form.formCode)"
+      :importing="isImporting"
+      @import="importStandardForms"
+    />
+
+    <FormTemplatePreviewDialog
+      :model-value="!!previewTarget"
+      :form="previewTarget"
+      :context="{
+        companyName: 'Al Mailam Engineering Office',
+        clientName: 'Sample Client Name',
+        projectName: 'Sample Project',
+        projectAddress: 'Sample Property Address',
+        engineerName: 'Sample Engineer',
+        date: formatDate(new Date().toISOString()),
+      }"
+      stub-notice="Preview only -- shown with sample data. A live preview filled from a specific project's records will use the same template."
+      @update:model-value="previewTarget = undefined"
     />
 
     <ConfirmationDialog
