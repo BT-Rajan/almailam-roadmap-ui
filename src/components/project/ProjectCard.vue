@@ -8,7 +8,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
-import { getProjectPriorityVariant, getProjectStatusVariant } from '@/utils/projectHelpers'
+import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -62,7 +62,7 @@ function handleKeydown(event: KeyboardEvent): void {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <StatusBadge :label="project.currentStage" variant="info" />
+        <StatusBadge :label="getWorkflowStageLabel(project.currentStage)" variant="info" />
         <StatusBadge :label="`${project.priority} Priority`" :variant="getProjectPriorityVariant(project.priority)" />
       </div>
 

@@ -80,9 +80,12 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // stepper (falling back to the project's real current_stage until the
 // first such navigation), so Overview always matches where staff are
 // actually working. Payments is relabeled "Payment Config" at Contract,
-// the only stage it's currently shown at. Stages beyond Design
-// (Government Submission, Execution & Tracking, Completed) are
-// unchanged for now -- always all four -- pending a later pass.
+// the only stage it's currently shown at. Execution & Tracking and
+// Completed are unchanged for now -- always all four -- pending a
+// later pass; Execution & Tracking is explicitly out of scope this
+// round per request, and Completed's possible removal needs a
+// deliberate decision on the project.status="Completed" gating that
+// depends on it (see project_service.py) before it's touched.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
 const stageContext = ref<WorkflowStage>('Requirement')
@@ -97,6 +100,7 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   quotation: 'Quotation',
   contract: 'Contract',
   design: 'Design',
+  government: 'Government Submission',
 }
 
 watch(
@@ -149,6 +153,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'design', label: 'Documents' },
         { key: 'tasks', label: 'Tasks' },
       ]
+    case 'Government Submission':
+      // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
+      // already has the full submission list/create/detail experience, so
+      // it becomes this stage's Documents tab content unchanged (see
+      // "retain other features" in the request that added this case).
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'government', label: 'Documents' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
     default:
       return [
         { key: 'overview', label: 'Overview' },
@@ -167,7 +181,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'payments', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }

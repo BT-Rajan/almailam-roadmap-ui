@@ -21,6 +21,27 @@ export const EXECUTION_STEP_STAGE_OPTIONS = WORKFLOW_STAGES.filter(
   (stage) => stage !== 'Execution & Tracking' && stage !== 'Completed',
 )
 
+// Display-only relabeling -- "Government Submission" reads as "Approvals &
+// Permits" everywhere shown to users. The stored/compared value stays
+// "Government Submission" (it's a real backend ENUM value -- see
+// backend/app/models/project.py's project_workflow_stage), so every
+// transition table, filter, and stage-key comparison keeps working
+// unchanged. Route every user-facing display of a WorkflowStage through
+// this instead of interpolating the raw string.
+const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
+  Requirement: 'Requirement',
+  Quotation: 'Quotation',
+  Contract: 'Contract',
+  Design: 'Design',
+  'Government Submission': 'Approvals & Permits',
+  'Execution & Tracking': 'Execution & Tracking',
+  Completed: 'Completed',
+}
+
+export function getWorkflowStageLabel(stage: WorkflowStage | string): string {
+  return WORKFLOW_STAGE_LABELS[stage as WorkflowStage] ?? stage
+}
+
 const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {
   Active: 'success',
   'On Hold': 'warning',

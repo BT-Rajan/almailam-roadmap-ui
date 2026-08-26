@@ -11,6 +11,7 @@ import {
   isStageReasonRequired,
   isStatusReasonRequired,
 } from '@/constants/projectOptions'
+import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   modelValue: boolean
@@ -29,7 +30,10 @@ const fieldLabel = computed(() => (props.kind === 'stage' ? 'New Stage' : 'New S
 
 const options = computed(() => {
   const table = props.kind === 'stage' ? PROJECT_STAGE_ALLOWED_TRANSITIONS : PROJECT_STATUS_ALLOWED_TRANSITIONS
-  return (table[props.currentValue] ?? []).map((value) => ({ label: value, value }))
+  return (table[props.currentValue] ?? []).map((value) => ({
+    label: props.kind === 'stage' ? getWorkflowStageLabel(value) : value,
+    value,
+  }))
 })
 
 const form = reactive({ value: '', reason: '' })

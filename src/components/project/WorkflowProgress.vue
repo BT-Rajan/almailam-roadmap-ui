@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import type { ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
-import { WORKFLOW_STAGES } from '@/utils/projectHelpers'
+import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 interface Props {
   currentStage: WorkflowStage
@@ -37,7 +37,7 @@ const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Completed: 'overview',
 }
 
-const steps = WORKFLOW_STAGES.map((stage) => ({ label: stage }))
+const steps = WORKFLOW_STAGES.map((stage) => ({ label: getWorkflowStageLabel(stage) }))
 
 const currentStepIndex = computed(() => {
   const index = WORKFLOW_STAGES.indexOf(props.currentStage)

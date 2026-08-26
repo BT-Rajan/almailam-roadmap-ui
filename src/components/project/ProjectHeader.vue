@@ -5,7 +5,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { getProjectPriorityVariant, getProjectStatusVariant } from '@/utils/projectHelpers'
+import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 
@@ -45,7 +45,7 @@ defineEmits<{
       </div>
 
       <div class="flex shrink-0 flex-wrap items-center gap-2">
-        <StatusBadge :label="project.currentStage" variant="info" />
+        <StatusBadge :label="getWorkflowStageLabel(project.currentStage)" variant="info" />
         <StatusBadge :label="project.status" :variant="getProjectStatusVariant(project.status)" />
         <StatusBadge :label="`${project.priority} Priority`" :variant="getProjectPriorityVariant(project.priority)" />
         <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">Stage</BaseButton>

@@ -11,6 +11,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
@@ -19,6 +20,8 @@ import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
+import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
+import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -43,14 +46,21 @@ const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
+const governmentSubmissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
+
+// Scope, Project Details, and Client Details are only useful while the
+// project is still being set up -- once it's past Quotation, staff are
+// working from that stage's own overview card instead, and repeating this
+// same block on every stage's Overview was reported as noise.
+const showScopeAndDetails = computed(() => props.stageContext === 'Requirement' || props.stageContext === 'Quotation')
 
 const projectDetailItems = computed(() => [
   { label: 'Service', value: props.project.service },
   { label: 'Field Engineer', value: props.project.engineer },
   { label: 'Start Date', value: formatDate(props.project.startDate) },
   { label: 'Target Completion Date', value: formatDate(props.project.targetDate) },
-  { label: 'Current Stage', value: props.project.currentStage },
+  { label: 'Current Stage', value: getWorkflowStageLabel(props.project.currentStage) },
   { label: 'Priority', value: props.project.priority },
 ])
 
@@ -72,16 +82,20 @@ const hasScope = computed(
     (props.project.selectedTypeActivities && props.project.selectedTypeActivities.length > 0),
 )
 
-// Civil ID verification (Quotation) and design document status (Design)
-// both need data that isn't loaded anywhere else in the project
-// workspace by default -- fetched only when their card is actually
-// showing, not on every visit to this tab regardless of stage context.
+// Civil ID verification (Quotation), design document status (Design), and
+// the approvals/permits checklist (Government Submission) all need data
+// that isn't loaded anywhere else in the project workspace by default --
+// fetched only when their card is actually showing, not on every visit to
+// this tab regardless of stage context.
 function loadStageDataIfNeeded(): void {
   if (props.stageContext === 'Quotation' && props.client) {
     clientStore.loadClientDetail(props.client.id)
   }
   if (props.stageContext === 'Design' && documentStore.documents.length === 0) {
     documentStore.loadDocuments()
+  }
+  if (props.stageContext === 'Government Submission' && governmentSubmissionStore.submissions.length === 0) {
+    governmentSubmissionStore.loadSubmissions()
   }
 }
 onMounted(loadStageDataIfNeeded)
@@ -137,11 +151,24 @@ const designChecklist = computed(() => {
     ),
   }))
 })
+
+// Approvals & Permits (Government Submission) checklist -- every
+// submission filed for this project, with a computed "last worked on"
+// date. GovernmentSubmission has no updatedAt field of its own, so this
+// takes the most recent of decisionDate/submittedDate as the closest
+// available proxy.
+const governmentSubmissions = computed(() => governmentSubmissionStore.submissionsByProject(props.project.id))
+
+function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[number]): string | undefined {
+  const dates = [submission.decisionDate, submission.submittedDate].filter((value): value is string => Boolean(value))
+  if (dates.length === 0) return undefined
+  return dates.reduce((latest, current) => (new Date(current) > new Date(latest) ? current : latest))
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <Card v-if="hasScope">
+    <Card v-if="hasScope && showScopeAndDetails">
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">Scope</h3>
       </template>
@@ -285,7 +312,38 @@ const designChecklist = computed(() => {
       </div>
     </Card>
 
-    <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+    <Card v-if="stageContext === 'Government Submission'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Approvals &amp; Permits</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <div v-if="governmentSubmissions.length > 0" class="flex flex-col gap-2">
+          <div
+            v-for="submission in governmentSubmissions"
+            :key="submission.id"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <div class="flex flex-col gap-0.5 truncate">
+              <span class="truncate text-sm text-text-secondary">
+                {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? submission.submissionNo }}
+              </span>
+              <span class="text-xs text-text-muted">
+                {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? '—' }}
+                &middot; Last worked on {{ lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }}
+              </span>
+            </div>
+            <StatusBadge :label="submission.status" :variant="getSubmissionStatusVariant(submission.status)" />
+          </div>
+        </div>
+        <p v-else class="text-sm text-text-muted">No approvals or permits filed yet.</p>
+
+        <div class="flex justify-end no-print">
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
+        </div>
+      </div>
+    </Card>
+
+    <div v-if="showScopeAndDetails" class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
       <DetailPanel title="Project Details" :items="projectDetailItems" />
       <div class="flex flex-col gap-3">
         <DetailPanel title="Client Details" :items="clientDetailItems" />

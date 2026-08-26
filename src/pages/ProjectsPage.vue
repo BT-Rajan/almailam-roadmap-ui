@@ -22,7 +22,7 @@ import type { SmartTableColumn } from '@/types/Table'
 import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getProjectPriorityVariant, getProjectStatusVariant } from '@/utils/projectHelpers'
+import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 interface ProjectTableRow {
   [key: string]: unknown
@@ -55,7 +55,7 @@ const STAGE_OPTIONS: SelectOption[] = [
   { label: 'Quotation', value: 'Quotation' },
   { label: 'Contract', value: 'Contract' },
   { label: 'Design', value: 'Design' },
-  { label: 'Government Submission', value: 'Government Submission' },
+  { label: 'Approvals & Permits', value: 'Government Submission' },
   { label: 'Execution & Tracking', value: 'Execution & Tracking' },
   { label: 'Completed', value: 'Completed' },
 ]
@@ -240,7 +240,7 @@ function createProject(): void {
           <StatusBadge :label="value as string" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
         </template>
         <template #cell-currentStage="{ value }">
-          <StatusBadge :label="value as string" variant="info" />
+          <StatusBadge :label="getWorkflowStageLabel(value as string)" variant="info" />
         </template>
         <template #cell-progress="{ value }">
           <ProgressBar :value="value as number" show-label />

@@ -18,6 +18,7 @@ import type { Project } from '@/types/Project'
 import type { ReportSection as ReportSectionData } from '@/types/Report'
 import type { BadgeVariant } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
+import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -126,7 +127,7 @@ const goBack = () => {
           </div>
           <div>
             <p class="text-xs text-text-secondary uppercase font-medium">Current Stage</p>
-            <p class="text-sm font-medium text-text-primary mt-2">{{ project.currentStage }}</p>
+            <p class="text-sm font-medium text-text-primary mt-2">{{ getWorkflowStageLabel(project.currentStage) }}</p>
           </div>
           <div>
             <p class="text-xs text-text-secondary uppercase font-medium">Field Engineer</p>
