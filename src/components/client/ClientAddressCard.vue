@@ -36,8 +36,8 @@ const addressLine = computed(() =>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">
-        <IconButton :icon="Pencil" label="Edit address" size="sm" @click="$emit('edit')" />
-        <IconButton :icon="Trash2" label="Remove address" size="sm" variant="danger" @click="$emit('delete')" />
+        <IconButton :icon="Pencil" :label="`Edit ${address.addressType} address`" size="sm" @click="$emit('edit')" />
+        <IconButton :icon="Trash2" :label="`Remove ${address.addressType} address`" size="sm" variant="danger" @click="$emit('delete')" />
       </div>
     </div>
   </Card>

@@ -39,15 +39,16 @@ defineEmits<{
           <div class="flex flex-col">
             <span class="inline-flex items-center gap-1.5 text-sm font-medium text-text-primary">
               {{ contact.name }}
-              <ShieldCheck v-if="contact.isAuthorisedRepresentative" class="h-3.5 w-3.5 text-success-500" />
+              <ShieldCheck v-if="contact.isAuthorisedRepresentative" class="h-3.5 w-3.5 text-success-500" aria-hidden="true" />
+              <span v-if="contact.isAuthorisedRepresentative" class="sr-only">(Authorised representative)</span>
             </span>
             <span class="text-xs text-text-muted">{{ contact.mobile }} · {{ contact.email }}</span>
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <StatusBadge :label="contact.contactType" variant="info" size="sm" />
-          <IconButton :icon="Pencil" label="Edit contact" size="sm" @click="$emit('edit', contact)" />
-          <IconButton :icon="Trash2" label="Remove contact" size="sm" variant="danger" @click="$emit('delete', contact)" />
+          <IconButton :icon="Pencil" :label="`Edit contact ${contact.name}`" size="sm" @click="$emit('edit', contact)" />
+          <IconButton :icon="Trash2" :label="`Remove contact ${contact.name}`" size="sm" variant="danger" @click="$emit('delete', contact)" />
         </div>
       </li>
     </ul>

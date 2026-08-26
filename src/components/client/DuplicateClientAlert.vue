@@ -31,7 +31,8 @@ defineEmits<{
         </div>
         <button
           type="button"
-          class="text-xs font-medium text-primary-600 hover:text-primary-700"
+          :aria-label="`View profile for ${getClientDisplayName(match.client)}`"
+          class="rounded text-xs font-medium text-primary-600 hover:text-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           @click="$emit('view', match.client.id)"
         >
           View Profile

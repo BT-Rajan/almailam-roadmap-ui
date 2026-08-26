@@ -653,7 +653,13 @@ function createProjectForClient(): void {
       <ClientWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <template v-if="activeTab === 'overview'">
-        <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+        <div
+          id="client-tabpanel-overview"
+          role="tabpanel"
+          aria-labelledby="client-tab-overview"
+          tabindex="0"
+          class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
+        >
           <DetailPanel title="Profile Information" :items="profileDetailItems" />
           <div class="flex flex-col gap-3">
             <DetailPanel title="Contact Details" :items="contactDetailItems" />
@@ -714,7 +720,14 @@ function createProjectForClient(): void {
         </div>
       </template>
 
-      <template v-else-if="activeTab === 'contacts'">
+      <div
+        v-else-if="activeTab === 'contacts'"
+        id="client-tabpanel-contacts"
+        role="tabpanel"
+        aria-labelledby="client-tab-contacts"
+        tabindex="0"
+        class="flex flex-col gap-6"
+      >
         <div class="flex items-center justify-end">
           <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">Add Contact</BaseButton>
         </div>
@@ -723,9 +736,16 @@ function createProjectForClient(): void {
           @edit="openContactDialog"
           @delete="(contact) => requestDelete('contact', contact.id, contact.name)"
         />
-      </template>
+      </div>
 
-      <template v-else-if="activeTab === 'identification'">
+      <div
+        v-else-if="activeTab === 'identification'"
+        id="client-tabpanel-identification"
+        role="tabpanel"
+        aria-labelledby="client-tab-identification"
+        tabindex="0"
+        class="flex flex-col gap-6"
+      >
         <div class="flex items-center justify-end">
           <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">Add Identification</BaseButton>
         </div>
@@ -736,9 +756,16 @@ function createProjectForClient(): void {
           @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
           @view="handleViewIdentificationDocument"
         />
-      </template>
+      </div>
 
-      <template v-else-if="activeTab === 'documents'">
+      <div
+        v-else-if="activeTab === 'documents'"
+        id="client-tabpanel-documents"
+        role="tabpanel"
+        aria-labelledby="client-tab-documents"
+        tabindex="0"
+        class="flex flex-col gap-6"
+      >
         <div class="flex items-center justify-end">
           <BaseButton size="sm" :icon="FilePlus" @click="isUploadDialogOpen = true">Add Document</BaseButton>
         </div>
@@ -770,9 +797,15 @@ function createProjectForClient(): void {
           :loading="isVersionHistoryLoading"
           @download="handleDownloadVersion"
         />
-      </template>
+      </div>
 
-      <template v-else-if="activeTab === 'projects'">
+      <div
+        v-else-if="activeTab === 'projects'"
+        id="client-tabpanel-projects"
+        role="tabpanel"
+        aria-labelledby="client-tab-projects"
+        tabindex="0"
+      >
         <div class="mb-4 flex flex-col items-end gap-1 no-print">
           <BaseButton
             size="sm"
@@ -802,11 +835,18 @@ function createProjectForClient(): void {
             @open="openProject"
           />
         </div>
-      </template>
+      </div>
 
-      <template v-else-if="activeTab === 'activity'">
+      <div
+        v-else-if="activeTab === 'activity'"
+        id="client-tabpanel-activity"
+        role="tabpanel"
+        aria-labelledby="client-tab-activity"
+        tabindex="0"
+      >
         <ClientAuditTrail :events="clientStore.auditEvents" />
-      </template>
+      </div>
+
 
       <ClientOnboardingStatusDialog
         v-model="isStatusDialogOpen"

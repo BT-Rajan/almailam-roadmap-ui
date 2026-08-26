@@ -39,6 +39,20 @@ watch(
 function closeDialog(): void {
   emit('update:modelValue', false)
 }
+
+// Completes the WAI-ARIA radiogroup pattern: arrow keys move the
+// selection, not just a mouse click -- with exactly two mutually
+// exclusive options, any arrow key simply flips between them.
+function toggleDirection(): void {
+  direction.value = direction.value === 'keep-current' ? 'keep-other' : 'keep-current'
+}
+
+function handleOptionKeydown(event: KeyboardEvent): void {
+  if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+    event.preventDefault()
+    toggleDirection()
+  }
+}
 </script>
 
 <template>
@@ -50,12 +64,15 @@ function closeDialog(): void {
         verifications, and projects all move to the record you keep; nothing is permanently deleted.
       </p>
 
-      <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
+      <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2" role="radiogroup" aria-label="Which record to keep">
         <button
           type="button"
-          class="flex flex-col gap-2 rounded-lg border p-4 text-left transition-colors"
+          role="radio"
+          :aria-checked="direction === 'keep-current'"
+          class="flex flex-col gap-2 rounded-lg border p-4 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           :class="direction === 'keep-current' ? 'border-primary-500 bg-primary-50' : 'border-border-light hover:border-primary-300'"
           @click="direction = 'keep-current'"
+          @keydown="handleOptionKeydown"
         >
           <span class="text-xs font-medium uppercase tracking-wide text-text-muted">Keep this record</span>
           <span class="text-sm font-semibold text-text-primary">{{ getClientDisplayName(currentClient) }}</span>
@@ -65,9 +82,12 @@ function closeDialog(): void {
 
         <button
           type="button"
-          class="flex flex-col gap-2 rounded-lg border p-4 text-left transition-colors"
+          role="radio"
+          :aria-checked="direction === 'keep-other'"
+          class="flex flex-col gap-2 rounded-lg border p-4 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           :class="direction === 'keep-other' ? 'border-primary-500 bg-primary-50' : 'border-border-light hover:border-primary-300'"
           @click="direction = 'keep-other'"
+          @keydown="handleOptionKeydown"
         >
           <span class="text-xs font-medium uppercase tracking-wide text-text-muted">Keep the other record</span>
           <span class="text-sm font-semibold text-text-primary">{{ getClientDisplayName(match.client) }}</span>
