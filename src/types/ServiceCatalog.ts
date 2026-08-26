@@ -20,4 +20,8 @@ export interface SelectedServiceActivity {
   activityId: string
   activityName: string
   fixedCost: number
+  // Whether this scope line has been delivered -- toggled from the
+  // Execution & Tracking stage's Scope Execution checklist, not at
+  // creation. Defaults to false server-side for older projects/rows.
+  isComplete?: boolean
 }

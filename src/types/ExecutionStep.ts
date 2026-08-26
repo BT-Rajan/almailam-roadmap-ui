@@ -18,6 +18,11 @@ export interface ProjectExecutionStep {
   excludedReason: string | null
   completionPercentage: number
   remarks: string | null
+  // Set when this step was checked complete through the "were any
+  // additional services rendered?" flow rather than as part of the
+  // project's original quoted scope -- see ScopeExecutionPanel.vue.
+  isAdditionalScope?: boolean
+  contractCovered?: boolean | null
 }
 
 export interface ExecutionStepBulkItem {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -136,6 +136,49 @@ function handleTypeActivitiesConfirm(selected: SelectedTypeActivity[]): void {
 function removeTypeActivity(activityId: string): void {
   form.selectedTypeActivities = form.selectedTypeActivities.filter((item) => item.activityId !== activityId)
 }
+
+// Scope of Work is auto-populated from whatever was picked in the
+// service picker and the type-activity picker -- "scope = services +
+// activities", per the actual requirement, rather than staff retyping
+// a summary of choices already made elsewhere in this same wizard.
+// Still a normal editable TextArea: lastAutoScope tracks the most
+// recent auto-generated text so a manual edit (form.scope diverging
+// from it) is respected and stops being overwritten -- otherwise
+// picking one more activity after typing a custom scope would silently
+// discard what staff just wrote.
+const lastAutoScope = ref('')
+
+function buildScopeText(): string {
+  const lines: string[] = []
+  const activitiesByService = new Map<string, string[]>()
+  for (const item of form.selectedActivities) {
+    const list = activitiesByService.get(item.serviceName) ?? []
+    list.push(item.activityId === item.serviceId ? item.serviceName : item.activityName)
+    activitiesByService.set(item.serviceName, list)
+  }
+  for (const [serviceName, activityNames] of activitiesByService) {
+    lines.push(`${serviceName}:`)
+    activityNames.forEach((name) => lines.push(`- ${name}`))
+  }
+  if (form.selectedTypeActivities.length > 0) {
+    if (lines.length > 0) lines.push('')
+    lines.push(`${form.selectedTypeActivities[0]!.categoryName} Activities:`)
+    form.selectedTypeActivities.forEach((activity) => lines.push(`- ${activity.activityName}`))
+  }
+  return lines.join('\n')
+}
+
+watch(
+  () => [form.selectedActivities, form.selectedTypeActivities],
+  () => {
+    const generated = buildScopeText()
+    if (form.scope.trim().length === 0 || form.scope === lastAutoScope.value) {
+      form.scope = generated
+      lastAutoScope.value = generated
+    }
+  },
+  { deep: true },
+)
 
 const serviceTotal = computed(() => form.selectedActivities.reduce((sum, item) => sum + item.fixedCost, 0))
 
@@ -464,7 +507,13 @@ function goToCreatedProject(): void {
             required
             :error="errors.projectName"
           />
-          <TextArea v-model="form.scope" label="Scope of Work" placeholder="Describe the scope of this engagement" :rows="4" />
+          <TextArea
+            v-model="form.scope"
+            label="Scope of Work"
+            placeholder="Describe the scope of this engagement"
+            hint="Auto-filled from the services and type activities picked earlier -- edit freely if it needs adjusting."
+            :rows="6"
+          />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <DatePicker v-model="form.startDate" label="Start Date" required :error="errors.startDate" />
             <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />

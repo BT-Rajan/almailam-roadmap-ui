@@ -9,6 +9,7 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ChangeScopeDialog from '@/components/project/ChangeScopeDialog.vue'
 import ExecutionStepChecklist from '@/components/project/ExecutionStepChecklist.vue'
+import ScopeExecutionPanel from '@/components/project/ScopeExecutionPanel.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import ProjectTimeline from '@/components/project/ProjectTimeline.vue'
 import TimelineEntryDialog from '@/components/project/TimelineEntryDialog.vue'
@@ -228,6 +229,12 @@ async function handleConfirmScopeChange(
     </div>
 
     <template v-else>
+      <ScopeExecutionPanel
+        :project="project"
+        :execution-steps="stageStore.orderedExecutionSteps"
+        @refresh="refreshProgress"
+      />
+
       <Card>
         <div class="flex flex-col gap-4 tablet:flex-row tablet:items-center tablet:justify-between">
           <div class="min-w-0">

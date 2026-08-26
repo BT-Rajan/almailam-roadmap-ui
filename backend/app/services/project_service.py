@@ -162,6 +162,93 @@ def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> di
     return result
 
 
+def get_scope_completion_summary(db: Session, project_id: int) -> dict:
+    """Total/completed counts across both scope tables (service
+    activities + type activities) for one project -- used both by the
+    Completed-stage exit criteria above and by the Execution & Tracking
+    stage's own "Scope Execution" checklist UI, so the two always agree
+    on what "all scope items done" means."""
+    service_items = get_selected_activities(db, project_id)
+    type_items = get_selected_type_activities(db, project_id)
+    total = len(service_items) + len(type_items)
+    completed = sum(1 for item in service_items if item.is_complete) + sum(
+        1 for item in type_items if item.is_complete
+    )
+    return {"total": total, "completed": completed, "allComplete": total > 0 and completed == total}
+
+
+def set_scope_item_complete(
+    db: Session, project_no: str, source: str, item_display_id: str, is_complete: bool, user_id: int | None,
+) -> Project:
+    """Toggles delivery status of one scope line (source is 'service' or
+    'type_activity', item_display_id is that row's own service-catalog-
+    style display id, e.g. 'ACT-004' or 'TAI-002' -- not a database
+    primary key, same convention as every other display id in this
+    codebase). Re-checks the Completed-stage auto-advance afterward,
+    same as every other action that can make that transition newly
+    eligible (see try_auto_advance_stage's own docstring for the list)."""
+    project = get_project(db, project_no)
+
+    if source == "service":
+        row = (
+            db.query(ProjectSelectedActivity)
+            .filter(ProjectSelectedActivity.project_id == project.id, ProjectSelectedActivity.activity_id == item_display_id)
+            .first()
+        )
+    elif source == "type_activity":
+        row = (
+            db.query(ProjectSelectedTypeActivity)
+            .filter(
+                ProjectSelectedTypeActivity.project_id == project.id,
+                ProjectSelectedTypeActivity.type_activity_item_id == item_display_id,
+            )
+            .first()
+        )
+    else:
+        raise ValidationAppError("source must be 'service' or 'type_activity'.")
+
+    if row is None:
+        raise NotFoundError("Scope item")
+
+    row.is_complete = is_complete
+    audit_service.log_event(
+        db, ENTITY_TYPE, project.id, "Scope item delivery updated", user_id,
+        new_value=f"{row.activity_name}: {'delivered' if is_complete else 'not delivered'}",
+    )
+    try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def mark_additional_execution_step(
+    db: Session, project_no: str, step_raw_id: str, contract_covered: bool, user_id: int | None,
+) -> Project:
+    """The "were any additional services rendered?" flow's per-item
+    action: checking one of the 23 process-checklist items that wasn't
+    already complete, beyond the project's original quoted scope, and
+    recording whether it's covered under the existing contract. Sets the
+    step to 100% complete (same as any other manual completion) plus the
+    is_additional_scope/contract_covered flags that distinguish it from
+    ordinary checklist progress -- see ProjectExecutionStep's own
+    docstring. Re-checks Completed-stage auto-advance afterward, same as
+    set_scope_item_complete above."""
+    project = get_project(db, project_no)
+    step = execution_step_service.get_project_step(db, project.id, execution_step_service.parse_project_step_id(step_raw_id))
+    step.completion_percentage = 100
+    step.is_additional_scope = True
+    step.contract_covered = contract_covered
+    audit_service.log_event(
+        db, ENTITY_TYPE, project.id, "Additional service rendered", user_id,
+        new_value=f"{step.name} (contract covered: {contract_covered})",
+    )
+    recompute_progress(db, project)
+    try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[str | None, float | None, list[dict]]:
     """Given the wizard's category+checked-activity-ids payload and the
     project's already-selected *service* activities, returns
@@ -472,6 +559,28 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         incomplete = [s for s in steps if s.completion_percentage < 100]
         if incomplete:
             problems.append(f"{len(incomplete)} of {len(steps)} execution activities still incomplete")
+        # Any step checked off through the "were any additional services
+        # rendered?" flow (is_additional_scope) must have its contract-
+        # coverage question actually answered before completion -- an
+        # unanswered None here means staff checked the box but skipped
+        # the follow-up prompt, which shouldn't silently pass.
+        unanswered_coverage = [s for s in steps if s.is_additional_scope and s.contract_covered is None]
+        if unanswered_coverage:
+            problems.append(
+                f"{len(unanswered_coverage)} additional service(s) still need a contract-coverage answer"
+            )
+        # "Only scope should be executed" -- the real completion gate is
+        # whether the services/type-activities this project was actually
+        # quoted for (see ProjectSelectedActivity/ProjectSelectedTypeActivity)
+        # have been delivered, checked per line from the Execution &
+        # Tracking stage's own "Scope Execution" checklist -- distinct
+        # from (and in addition to) the generic process checklist above.
+        scope_summary = get_scope_completion_summary(db, project.id)
+        if scope_summary["total"] > 0 and not scope_summary["allComplete"]:
+            problems.append(
+                f"{scope_summary['total'] - scope_summary['completed']} of {scope_summary['total']} "
+                "scope item(s) still not delivered"
+            )
         agreement = payment_service.get_agreement_by_project(db, project.project_no)
         if agreement is None:
             problems.append("a financial agreement")

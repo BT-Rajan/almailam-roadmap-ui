@@ -18,6 +18,9 @@ from app.schemas.project import (
     ProjectStatusUpdate,
     ProjectUpdate,
     ScopeChangeUpdate,
+    ScopeCompletionSummaryOut,
+    ScopeItemCompletionUpdate,
+    AdditionalExecutionStepUpdate,
     ScopeOfWorkOut,
     ScopeRevisionOut,
 )
@@ -217,6 +220,37 @@ def download_scope_revision_document(
 @router.get("/{project_no}/audit-events")
 def list_audit_events(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return project_service.get_audit_events(db, project_no)
+
+
+@router.get("/{project_no}/scope-completion", response_model=ScopeCompletionSummaryOut)
+def get_scope_completion(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    return project_service.get_scope_completion_summary(db, project.id)
+
+
+@router.patch("/{project_no}/scope-items", response_model=ProjectOut)
+def update_scope_item_completion(
+    project_no: str,
+    payload: ScopeItemCompletionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.set_scope_item_complete(
+        db, project_no, payload.source, payload.itemId, payload.isComplete, current_user.id,
+    )
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.patch("/{project_no}/execution-steps/{step_id}/additional", response_model=ProjectOut)
+def mark_additional_execution_step(
+    project_no: str,
+    step_id: str,
+    payload: AdditionalExecutionStepUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.mark_additional_execution_step(db, project_no, step_id, payload.contractCovered, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.get("/{project_no}/timeline", response_model=list[TimelineEventOut])

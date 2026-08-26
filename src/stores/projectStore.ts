@@ -196,6 +196,25 @@ export const useProjectStore = defineStore('project', {
       return updated
     },
 
+    async setScopeItemComplete(
+      projectId: string,
+      source: 'service' | 'type_activity',
+      itemId: string,
+      isComplete: boolean,
+    ): Promise<Project> {
+      const updated = await projectService.setScopeItemComplete(projectId, source, itemId, isComplete)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
+    async markAdditionalExecutionStep(projectId: string, stepId: string, contractCovered: boolean): Promise<Project> {
+      const updated = await projectService.markAdditionalExecutionStep(projectId, stepId, contractCovered)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
     async changeScope(
       projectId: string,
       description: string,

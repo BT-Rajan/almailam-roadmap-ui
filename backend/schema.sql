@@ -324,6 +324,7 @@ CREATE TABLE IF NOT EXISTS project_selected_activities (
     activity_id     VARCHAR(20) NOT NULL,
     activity_name   VARCHAR(150) NOT NULL,
     fixed_cost      DECIMAL(12,2) NOT NULL,
+    is_complete     TINYINT(1) NOT NULL DEFAULT 0,
     CONSTRAINT fk_project_selected_activities_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     INDEX idx_project_selected_activities_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -903,6 +904,7 @@ CREATE TABLE IF NOT EXISTS project_selected_type_activities (
     activity_name          VARCHAR(150) NOT NULL,
     cost                   DECIMAL(12,2) NOT NULL,
     is_covered_by_service  TINYINT(1) NOT NULL DEFAULT 0,
+    is_complete            TINYINT(1) NOT NULL DEFAULT 0,
     CONSTRAINT fk_project_selected_type_activities_project FOREIGN KEY (project_id)
         REFERENCES projects(id) ON DELETE CASCADE,
     INDEX idx_project_selected_type_activities_project (project_id)
@@ -1002,6 +1004,8 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
     excluded_reason       VARCHAR(200) NULL,
     completion_percentage SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     remarks               TEXT NULL,
+    is_additional_scope   TINYINT(1) NOT NULL DEFAULT 0,
+    contract_covered      TINYINT(1) NULL,
     created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_execution_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,

@@ -192,6 +192,15 @@ class ProjectSelectedActivity(Base):
     activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    # Whether this specific scope item has actually been delivered --
+    # toggled from the Execution & Tracking stage's "Scope Execution"
+    # checklist (see project_service.set_scope_item_complete), not at
+    # creation. This -- not the 23-item generic template -- is what
+    # "only scope should be executed" means: a project's real
+    # completion gate is whether the services/activities the client was
+    # actually quoted for are done, checked here per line rather than
+    # inferred from a fixed, service-agnostic process checklist.
+    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class ProjectSelectedTypeActivity(Base):
@@ -218,3 +227,7 @@ class ProjectSelectedTypeActivity(Base):
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     is_covered_by_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Same meaning and same reasoning as ProjectSelectedActivity.is_complete
+    # above -- a type-activity is just as much a real scope item as a
+    # service activity, and is tracked for delivery the same way.
+    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

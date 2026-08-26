@@ -67,6 +67,8 @@ class ProjectExecutionStepOut(BaseModel):
     excludedReason: str | None
     completionPercentage: int
     remarks: str | None
+    isAdditionalScope: bool = False
+    contractCovered: bool | None = None
 
     @staticmethod
     def from_model(step) -> "ProjectExecutionStepOut":
@@ -81,4 +83,6 @@ class ProjectExecutionStepOut(BaseModel):
             excludedReason=step.excluded_reason,
             completionPercentage=step.completion_percentage,
             remarks=step.remarks,
+            isAdditionalScope=step.is_additional_scope,
+            contractCovered=step.contract_covered,
         )

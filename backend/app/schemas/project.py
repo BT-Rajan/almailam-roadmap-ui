@@ -21,6 +21,7 @@ class SelectedActivityOut(BaseModel):
     activityId: str
     activityName: str
     fixedCost: float
+    isComplete: bool = False
 
     @staticmethod
     def from_model(activity) -> "SelectedActivityOut":
@@ -30,6 +31,7 @@ class SelectedActivityOut(BaseModel):
             activityId=activity.activity_id,
             activityName=activity.activity_name,
             fixedCost=float(activity.fixed_cost),
+            isComplete=activity.is_complete,
         )
 
 
@@ -270,3 +272,29 @@ class ProjectStatusUpdate(BaseModel):
     status: str
     reason: str | None = None
     _check = field_validator("status")(_enum_validator(PROJECT_STATUSES, "status"))
+
+
+class ScopeItemCompletionUpdate(BaseModel):
+    """Toggles one scope line's delivery status -- see
+    project_service.set_scope_item_complete. `source` distinguishes
+    which of the two scope tables the item lives in, since a service
+    activity's display id (e.g. 'ACT-004') and a type-activity's
+    (e.g. 'TAI-002') aren't drawn from the same id space."""
+
+    source: str
+    itemId: str
+    isComplete: bool
+    _check_source = field_validator("source")(_enum_validator(("service", "type_activity"), "source"))
+
+
+class ScopeCompletionSummaryOut(BaseModel):
+    total: int
+    completed: int
+    allComplete: bool
+
+
+class AdditionalExecutionStepUpdate(BaseModel):
+    """The "were any additional services rendered?" flow's per-item
+    action -- see project_service.mark_additional_execution_step."""
+
+    contractCovered: bool

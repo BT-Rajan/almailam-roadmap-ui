@@ -189,6 +189,50 @@ async function setStatus(projectId: string, status: string, reason?: string): Pr
 }
 
 /**
+ * Toggle delivery status of one scope line (a picked service activity
+ * or type activity) -- the Execution & Tracking stage's "Scope
+ * Execution" checklist. May advance the project's stage as a side
+ * effect if this was the last incomplete scope item and every other
+ * Completed-stage criterion is already met (see the backend's
+ * try_auto_advance_stage), which is why this returns the full project.
+ */
+async function setScopeItemComplete(
+  projectId: string,
+  source: 'service' | 'type_activity',
+  itemId: string,
+  isComplete: boolean,
+): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/scope-items`, { source, itemId, isComplete })
+  } catch (error) {
+    console.error(`Failed to update scope item for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update scope item')
+  }
+}
+
+/**
+ * The "were any additional services rendered?" flow's per-item action:
+ * checks one of the 23 process-checklist items beyond the project's
+ * original quoted scope, recording whether it's covered under the
+ * existing contract. Same stage-auto-advance side effect as
+ * setScopeItemComplete above.
+ */
+async function markAdditionalExecutionStep(
+  projectId: string,
+  stepId: string,
+  contractCovered: boolean,
+): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/execution-steps/${stepId}/additional`, {
+      contractCovered,
+    })
+  } catch (error) {
+    console.error(`Failed to mark additional execution step for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to mark additional service')
+  }
+}
+
+/**
  * Delete a project via backend API
  */
 async function deleteProject(projectId: string): Promise<void> {
@@ -360,6 +404,8 @@ export const projectService = {
   setStage,
   changeScope,
   setStatus,
+  setScopeItemComplete,
+  markAdditionalExecutionStep,
   deleteProject,
   getCompletionSummary,
   getCompletionChecklist,

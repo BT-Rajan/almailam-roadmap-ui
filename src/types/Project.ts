@@ -31,6 +31,7 @@ export interface ProjectSelectedTypeActivity {
   activityName: string
   cost: number
   isCoveredByService: boolean
+  isComplete?: boolean
 }
 
 // Internal approval of a project's scope-of-work text -- see

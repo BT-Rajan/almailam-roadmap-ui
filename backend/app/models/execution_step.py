@@ -100,3 +100,13 @@ class ProjectExecutionStep(Base, TimestampMixin):
     excluded_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     completion_percentage: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Set when this step was checked complete via the Execution &
+    # Tracking stage's "Were any additional services rendered?" flow
+    # (project_service.mark_additional_execution_step) rather than being
+    # part of the project's original quoted scope -- distinguishes real
+    # extra work delivered mid-project from the standard process
+    # checklist. contract_covered records the answer to the follow-up
+    # "is this covered under the contract?" question asked at the same
+    # time -- None until that flow actually runs for this step.
+    is_additional_scope: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    contract_covered: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
