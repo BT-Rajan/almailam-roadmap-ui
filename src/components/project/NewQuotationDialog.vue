@@ -83,16 +83,29 @@ function emptyForm() {
 // emptyForm()'s single blank row when the project has no picks yet, so
 // staff building a quotation for an older/manual project see the exact
 // same starting point as before.
+//
+// Also appends one line per uncovered type-activity (the New Project
+// wizard's Design/Supervision/etc checklist) -- covered ones are already
+// priced under a service activity above and are deliberately skipped
+// here, since including them too would double-charge for the same work.
+// See ProjectSelectedTypeActivity's backend model docstring for how
+// coverage was decided at project-creation time.
 function formFromProject(project: Project | undefined) {
-  if (!project?.selectedActivities?.length) return emptyForm()
-  return {
-    ...emptyForm(),
-    lineItems: project.selectedActivities.map((item) => ({
-      description: `${item.serviceName} - ${item.activityName}`,
+  const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
+    description: `${item.serviceName} - ${item.activityName}`,
+    quantity: 1,
+    unitPrice: item.fixedCost,
+  }))
+  const uncoveredTypeActivityLineItems = (project?.selectedTypeActivities ?? [])
+    .filter((activity) => !activity.isCoveredByService)
+    .map((activity) => ({
+      description: `${project?.typeCategoryName ?? 'Additional'} - ${activity.activityName}`,
       quantity: 1,
-      unitPrice: item.fixedCost,
-    })),
-  }
+      unitPrice: activity.cost,
+    }))
+  const lineItems = [...serviceLineItems, ...uncoveredTypeActivityLineItems]
+  if (lineItems.length === 0) return emptyForm()
+  return { ...emptyForm(), lineItems }
 }
 
 const form = reactive(formFromProject(props.project))

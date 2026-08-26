@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -107,6 +107,19 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # become Tasks instead (create_project's caller), since they're work
     # to do, not a document to chase.
     required_permit_documents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # The engagement type picked at the New Project wizard's final step
+    # (Design/Supervision/etc, from type_activity_categories) -- a plain
+    # name snapshot, same "not FK'd" reasoning as `service` above: a later
+    # rename of the category shouldn't retroactively alter what this
+    # project was actually set up as. Nullable because this step is new;
+    # projects created before it exist have no value here.
+    type_category_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    # Sum of the fixed costs of every row in ProjectSelectedTypeActivity
+    # below that was NOT already covered by a selected service activity
+    # of the same name -- see project_service.list_uncovered_type_activities
+    # for the matching logic. Same "captured once, stays stable" reasoning
+    # as service_total.
+    type_activity_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     # Set once by set_status() the moment status becomes "Completed",
     # cleared if the project is later reopened -- the actual end-of-project
     # timestamp, distinct from target_date (the planned one) and from
@@ -179,3 +192,29 @@ class ProjectSelectedActivity(Base):
     activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+
+
+class ProjectSelectedTypeActivity(Base):
+    """The checkbox breakdown picked at the New Project wizard's final
+    step (see ProjectRequirementTypeStep / the type-activity-catalog
+    picker), one row per checked activity -- same snapshot approach as
+    ProjectSelectedActivity above (type_activity_item_id is the catalog's
+    display id, kept as-is rather than FK'd). is_covered_by_service
+    records whether this activity's name matched a selected *service*
+    activity of the same name at the moment the project was created --
+    covered rows don't add to type_activity_total (they're already priced
+    under the service), only uncovered ones do. Recorded per-row (rather
+    than only ever filtering by name at read time) so the covered/
+    uncovered call stays stable even if the project's services are edited
+    later -- what actually happened at creation is what was billed."""
+
+    __tablename__ = "project_selected_type_activities"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    type_activity_item_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    is_covered_by_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

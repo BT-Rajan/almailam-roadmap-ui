@@ -18,11 +18,11 @@ from app.models.client import ClientIdentification
 from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.project import Project, ProjectScopeRevision, ProjectSelectedActivity
+from app.models.project import Project, ProjectScopeRevision, ProjectSelectedActivity, ProjectSelectedTypeActivity
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, payment_service, timeline_service, user_service
+from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, payment_service, timeline_service, type_activity_catalog_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -136,6 +136,74 @@ def get_selected_activities_batch(db: Session, project_ids: set[int]) -> dict[in
     return result
 
 
+def get_selected_type_activities(db: Session, project_id: int) -> list[ProjectSelectedTypeActivity]:
+    return (
+        db.query(ProjectSelectedTypeActivity)
+        .filter(ProjectSelectedTypeActivity.project_id == project_id)
+        .order_by(ProjectSelectedTypeActivity.id.asc())
+        .all()
+    )
+
+
+def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedTypeActivity]]:
+    """Batch version of get_selected_type_activities, same reasoning as
+    get_selected_activities_batch above."""
+    if not project_ids:
+        return {}
+    result: dict[int, list[ProjectSelectedTypeActivity]] = {pid: [] for pid in project_ids}
+    rows = (
+        db.query(ProjectSelectedTypeActivity)
+        .filter(ProjectSelectedTypeActivity.project_id.in_(project_ids))
+        .order_by(ProjectSelectedTypeActivity.id.asc())
+        .all()
+    )
+    for row in rows:
+        result[row.project_id].append(row)
+    return result
+
+
+def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[str | None, float | None, list[dict]]:
+    """Given the wizard's category+checked-activity-ids payload and the
+    project's already-selected *service* activities, returns
+    (category_name, type_activity_total, rows_to_insert).
+
+    Coverage matching is a case-insensitive name comparison against the
+    service activities actually picked for this project -- "Site
+    Inspection" checked under the Design type category is free if a
+    selected service activity is also literally named "Site Inspection";
+    otherwise it's genuinely new work the service picker didn't already
+    price, and its own cost gets added on top. Only uncovered rows count
+    toward type_activity_total; covered rows are still recorded (so the
+    quotation/contract screens can show the full picture) but with
+    is_covered_by_service=True and contribute nothing further.
+    """
+    if selection is None:
+        return None, None, []
+
+    category = type_activity_catalog_service.get_category(db, selection.categoryId)
+    covered_names = {a.activityName.strip().lower() for a in selected_activities}
+
+    rows: list[dict] = []
+    total = 0.0
+    wanted_ids = set(selection.activityIds)
+    for item in category.activities:
+        item_display_id = f"TAI-{item.id:03d}"
+        if item_display_id not in wanted_ids:
+            continue
+        is_covered = item.name.strip().lower() in covered_names
+        if not is_covered:
+            total += float(item.cost)
+        rows.append(
+            {
+                "type_activity_item_id": item_display_id,
+                "activity_name": item.name,
+                "cost": item.cost,
+                "is_covered_by_service": is_covered,
+            }
+        )
+    return category.name, (total if rows else None), rows
+
+
 def create_project(db: Session, payload, user_id: int | None) -> Project:
     client = client_service.get_client(db, client_service.parse_client_id(payload.clientId))
     if client.onboarding_state != "Ready":
@@ -168,6 +236,9 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         if payload.serviceTotal is not None
         else (sum(float(a.fixedCost) for a in selected_activities) if selected_activities else None)
     )
+    type_category_name, type_activity_total, type_activity_rows = _resolve_type_activity_selection(
+        db, payload.typeActivitySelection, selected_activities,
+    )
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
@@ -180,6 +251,8 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         target_date=payload.targetDate,
         service_total=service_total,
         required_permit_documents=payload.requiredPermitDocuments or [],
+        type_category_name=type_category_name,
+        type_activity_total=type_activity_total,
     )
     db.add(project)
     db.flush()
@@ -195,6 +268,9 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
                 fixed_cost=activity.fixedCost,
             )
         )
+
+    for row in type_activity_rows:
+        db.add(ProjectSelectedTypeActivity(project_id=project.id, **row))
 
     # Progress is computed from these, not typed in by hand -- see
     # execution_step_service.py. Every project starts at 0% with the

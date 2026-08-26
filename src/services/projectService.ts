@@ -87,6 +87,10 @@ export interface ProjectCreateInput {
   // without the request failing.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
+  // The New Project wizard's final-step picker: category id + checked
+  // activity ids. Optional -- a project can skip this step entirely, and
+  // an older/unaware backend can just ignore the field.
+  typeActivitySelection?: { categoryId: string; activityIds: string[] }
   // Permits the client already holds -- sent through so the backend can
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.

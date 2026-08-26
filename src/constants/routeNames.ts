@@ -24,6 +24,7 @@ export const ROUTE_NAMES = {
   ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
   ADMIN_SERVICE_CATALOG: 'admin-service-catalog',
+  ADMIN_TYPE_ACTIVITY_CATALOG: 'admin-type-activity-catalog',
   ADMIN_PERMIT_CATALOG: 'admin-permit-catalog',
   ADMIN_EXECUTION_STEPS: 'admin-execution-steps',
   ADMIN_FORMS: 'admin-forms',

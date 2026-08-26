@@ -278,6 +278,8 @@ CREATE TABLE IF NOT EXISTS projects (
     -- hold -- each becomes a mandatory upload requirement on the
     -- Documents tab (see ProjectDocumentsTab.vue's permitChecklist).
     required_permit_documents JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    type_category_name  VARCHAR(150) NULL,
+    type_activity_total DECIMAL(12,2) NULL,
     -- Set once by set_status() when status becomes Completed, cleared on
     -- reopen -- backs the Completion summary's actual-vs-planned
     -- duration. completion_notes is the same summary's free-text
@@ -851,6 +853,60 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
 -- here rather than left for an admin to type in by hand on day one.
 -- Still fully admin-editable afterward from Admin > Permit Catalog.
 INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
+
+-- New Project wizard's final step: pick an engagement type category
+-- (Design/Supervision/etc, admin-managed here) then check off which of
+-- its activities apply. Same shape as service_catalog_items/_activities
+-- above -- see type_activity_catalog.py's model docstrings for why this
+-- is a separate catalog from services rather than reusing that one.
+CREATE TABLE IF NOT EXISTS type_activity_categories (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at  DATETIME NULL,
+    INDEX idx_type_activity_categories_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS type_activity_items (
+    id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_id  BIGINT UNSIGNED NOT NULL,
+    name         VARCHAR(150) NOT NULL,
+    cost         DECIMAL(12,2) NOT NULL DEFAULT 0,
+    CONSTRAINT fk_type_activity_items_category FOREIGN KEY (category_id)
+        REFERENCES type_activity_categories(id),
+    INDEX idx_type_activity_items_category (category_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO type_activity_categories (id, name) VALUES
+    (1, 'Design'),
+    (2, 'Supervision');
+
+INSERT INTO type_activity_items (category_id, name, cost) VALUES
+    (1, 'Site Inspection', 150.00),
+    (1, 'Concept Drawings', 300.00),
+    (1, 'Structural Calculations', 400.00),
+    (1, 'Coordination with Authorities', 200.00),
+    (2, 'Weekly Site Visits', 250.00),
+    (2, 'Progress Reporting', 100.00),
+    (2, 'Materials Testing Coordination', 150.00),
+    (2, 'Snagging & Handover Inspection', 200.00);
+
+-- One row per activity checked in that final wizard step -- snapshot of
+-- name/cost/coverage at creation time, same reasoning as
+-- project_selected_activities above (a later catalog rename or price
+-- change shouldn't retroactively alter what this project was quoted).
+CREATE TABLE IF NOT EXISTS project_selected_type_activities (
+    id                     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id             BIGINT UNSIGNED NOT NULL,
+    type_activity_item_id  VARCHAR(20) NOT NULL,
+    activity_name          VARCHAR(150) NOT NULL,
+    cost                   DECIMAL(12,2) NOT NULL,
+    is_covered_by_service  TINYINT(1) NOT NULL DEFAULT 0,
+    CONSTRAINT fk_project_selected_type_activities_project FOREIGN KEY (project_id)
+        REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_project_selected_type_activities_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS company_settings (
     id                                  INT PRIMARY KEY DEFAULT 1,

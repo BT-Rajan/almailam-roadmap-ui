@@ -24,6 +24,15 @@ export type WorkflowStage =
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
+// One row per activity checked in the New Project wizard's final-step
+// type-activity picker -- see Project.selectedTypeActivities above.
+export interface ProjectSelectedTypeActivity {
+  id: string
+  activityName: string
+  cost: number
+  isCoveredByService: boolean
+}
+
 // Internal approval of a project's scope-of-work text -- see
 // ScopeOfWork below. Not client-facing.
 export type ScopeStatus = 'Draft' | 'Approved'
@@ -51,6 +60,17 @@ export interface Project {
   // backend hasn't been extended to persist this yet, won't have it.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
+  // The engagement type picked at the New Project wizard's final step
+  // (Design/Supervision/etc, admin-managed under Administration > Type
+  // Activity Catalog), and its own checklist breakdown. A checked
+  // activity whose isCoveredByService is true is already priced under a
+  // selectedActivities entry of the same name and doesn't add to
+  // typeActivityTotal or get its own quotation line item a second time
+  // -- see NewQuotationDialog.vue's formFromProject. Optional for the
+  // same reasons as selectedActivities above.
+  typeCategoryName?: string | null
+  selectedTypeActivities?: ProjectSelectedTypeActivity[]
+  typeActivityTotal?: number
   // Permits the client confirmed they already hold, captured during project
   // setup. Each name here is mandatory to upload in the Documents tab --
   // see ProjectDocumentsTab's "Required Permit Documents" checklist. Optional

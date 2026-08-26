@@ -12,6 +12,7 @@ import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
+import TypeActivityPickerDialog from '@/components/project/TypeActivityPickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -24,10 +25,12 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useTypeActivityCatalogStore } from '@/stores/typeActivityCatalogStore'
 import { useUserStore } from '@/stores/userStore'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { Project, ProjectPriority } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
+import type { SelectedTypeActivity } from '@/types/TypeActivityCatalog'
 import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
@@ -42,12 +45,14 @@ const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const permitCatalogStore = usePermitCatalogStore()
+const typeActivityCatalogStore = useTypeActivityCatalogStore()
 const taskStore = useTaskStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
   { label: 'Project Details' },
   { label: 'Permits' },
+  { label: 'Type Activities' },
   { label: 'Review & Confirm' },
 ]
 
@@ -78,6 +83,7 @@ const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
 const isPermitPickerOpen = ref(false)
+const isTypeActivityPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -96,6 +102,12 @@ const form = reactive({
   // '' until answered; drives whether the permit picker below is shown.
   involvesPermits: '' as 'yes' | 'no' | '',
   permits: [] as WizardPermit[],
+  // The final wizard step's picks -- one engagement type category (or
+  // none, if skipped) plus whichever of its activities were checked.
+  // Coverage against selectedActivities above is computed server-side
+  // at creation time, not here (see project_service._resolve_type_
+  // activity_selection) -- the wizard just sends what was checked.
+  selectedTypeActivities: [] as SelectedTypeActivity[],
 })
 
 // Confirming the picker replaces the whole selection, same as
@@ -112,6 +124,17 @@ function handlePermitsConfirm(selected: PermitCatalogItem[]): void {
 
 function removePermit(id: string): void {
   form.permits = form.permits.filter((permit) => permit.id !== id)
+}
+
+// Confirming the picker replaces the whole selection -- same "whole
+// selection, not merge" convention as handleServicesConfirmed/
+// handlePermitsConfirm above.
+function handleTypeActivitiesConfirm(selected: SelectedTypeActivity[]): void {
+  form.selectedTypeActivities = selected
+}
+
+function removeTypeActivity(activityId: string): void {
+  form.selectedTypeActivities = form.selectedTypeActivities.filter((item) => item.activityId !== activityId)
 }
 
 const serviceTotal = computed(() => form.selectedActivities.reduce((sum, item) => sum + item.fixedCost, 0))
@@ -187,6 +210,12 @@ onMounted(async () => {
   // lazily on first dialog open so the list is ready immediately.
   if (permitCatalogStore.permits.length === 0) {
     await permitCatalogStore.loadPermits()
+  }
+
+  // Backs the type activity picker (final wizard step) -- same
+  // "load once here" reasoning as the permit catalog above.
+  if (typeActivityCatalogStore.categories.length === 0) {
+    await typeActivityCatalogStore.loadCategories()
   }
 })
 
@@ -279,6 +308,17 @@ async function submitWizard(): Promise<void> {
     const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
     const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
 
+    // Optional step -- only sent when something was actually checked, so
+    // an unaware/older backend (or simply a project that skipped this
+    // step) doesn't get an empty/meaningless selection object.
+    const typeActivitySelection =
+      form.selectedTypeActivities.length > 0
+        ? {
+            categoryId: form.selectedTypeActivities[0]!.categoryId,
+            activityIds: form.selectedTypeActivities.map((activity) => activity.activityId),
+          }
+        : undefined
+
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: form.scope || undefined,
@@ -293,6 +333,7 @@ async function submitWizard(): Promise<void> {
       // Permits the client already holds become a mandatory upload
       // checklist on the project's Documents tab.
       requiredPermitDocuments: permitsClientHas.length > 0 ? permitsClientHas : undefined,
+      typeActivitySelection,
     })
 
     // Permits the client doesn't have yet aren't a document to chase --
@@ -493,6 +534,55 @@ function goToCreatedProject(): void {
           </template>
         </FormSection>
 
+        <FormSection
+          v-else-if="currentStep === 3"
+          title="Type Activities"
+          description="Pick an engagement type and check off which of its activities apply -- anything not already covered by the services picked earlier adds its own cost to the quotation."
+        >
+          <div class="flex flex-col gap-1.5">
+            <label id="type-activity-picker-label" class="text-sm font-medium text-text-secondary">Type Activities</label>
+            <button
+              id="type-activity-picker-button"
+              type="button"
+              aria-labelledby="type-activity-picker-label type-activity-picker-button"
+              class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
+              @click="isTypeActivityPickerOpen = true"
+            >
+              <span v-if="form.selectedTypeActivities.length === 0" class="text-text-muted">Select type activities (optional)</span>
+              <span v-else class="text-text-primary">
+                {{ form.selectedTypeActivities.length }} activit{{ form.selectedTypeActivities.length === 1 ? 'y' : 'ies' }} selected ·
+                {{ form.selectedTypeActivities[0]?.categoryName }}
+              </span>
+              <span class="text-xs font-medium text-primary-600">{{ form.selectedTypeActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
+            </button>
+            <p class="text-xs text-text-muted">
+              This step is optional -- skip it if the engagement doesn't need a Design/Supervision/etc breakdown on top
+              of the services already picked.
+            </p>
+          </div>
+
+          <div v-if="form.selectedTypeActivities.length > 0" class="flex flex-col gap-2">
+            <div
+              v-for="activity in form.selectedTypeActivities"
+              :key="activity.activityId"
+              class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            >
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-text-primary">{{ activity.activityName }}</p>
+                <p class="truncate text-xs text-text-muted">{{ activity.categoryName }} · {{ formatCurrency(activity.cost) }}</p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 text-xs font-medium text-danger-600 hover:text-danger-700"
+                :aria-label="`Remove ${activity.activityName}`"
+                @click="removeTypeActivity(activity.activityId)"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </FormSection>
+
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
@@ -549,6 +639,23 @@ function goToCreatedProject(): void {
                 </li>
               </ul>
             </div>
+            <div class="tablet:col-span-2">
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Type Activities</p>
+              <p v-if="form.selectedTypeActivities.length === 0" class="text-sm text-text-primary">None</p>
+              <template v-else>
+                <p class="text-sm text-text-primary">{{ form.selectedTypeActivities[0]?.categoryName }}</p>
+                <ul class="mt-1 flex flex-col gap-0.5">
+                  <li v-for="activity in form.selectedTypeActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
+                    <span class="truncate">{{ activity.activityName }}</span>
+                    <span class="shrink-0">{{ formatCurrency(activity.cost) }}</span>
+                  </li>
+                </ul>
+                <p class="mt-1 text-xs text-text-muted">
+                  Activities already covered by the services picked earlier won't be charged again -- the final
+                  additional amount is calculated once the project is created.
+                </p>
+              </template>
+            </div>
           </div>
         </FormSection>
       </div>
@@ -592,6 +699,14 @@ function goToCreatedProject(): void {
       :permits="permitCatalogStore.permits"
       :selected-ids="form.permits.map((permit) => permit.id)"
       @confirm="handlePermitsConfirm"
+    />
+
+    <TypeActivityPickerDialog
+      v-model="isTypeActivityPickerOpen"
+      :categories="typeActivityCatalogStore.categories"
+      :selected="form.selectedTypeActivities"
+      currency="KWD"
+      @confirm="handleTypeActivitiesConfirm"
     />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">

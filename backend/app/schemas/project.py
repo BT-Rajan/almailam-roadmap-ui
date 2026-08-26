@@ -3,6 +3,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, condecimal, field_validator
 
 from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
+from app.schemas.type_activity_catalog import ProjectSelectedTypeActivityOut, ProjectTypeActivitySelectionIn
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -65,6 +66,16 @@ class ProjectOut(BaseModel):
     # prefill line items from the services actually picked for the project.
     selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
     serviceTotal: float | None = None
+    # The engagement type picked at the wizard's final step, and its own
+    # breakdown/total -- same "optional, empty for older projects"
+    # reasoning as selectedActivities/serviceTotal above. Rows here whose
+    # isCoveredByService is true are already priced under a selected
+    # service activity of the same name and do NOT count toward
+    # typeActivityTotal or the project's overall quoted value a second
+    # time -- see ProjectSelectedTypeActivity's model docstring.
+    typeCategoryName: str | None = None
+    selectedTypeActivities: list[ProjectSelectedTypeActivityOut] = Field(default_factory=list)
+    typeActivityTotal: float | None = None
     completedAt: datetime | None = None
     # Permit names the client confirmed, at project setup, they already
     # hold -- each is a mandatory upload requirement on the Documents
@@ -72,7 +83,10 @@ class ProjectOut(BaseModel):
     requiredPermitDocuments: list[str] = Field(default_factory=list)
 
     @staticmethod
-    def from_model(project, engineer_name: str, selected_activities: list | None = None) -> "ProjectOut":
+    def from_model(
+        project, engineer_name: str, selected_activities: list | None = None,
+        selected_type_activities: list | None = None,
+    ) -> "ProjectOut":
         return ProjectOut(
             id=project.project_no,
             projectNo=project.project_no,
@@ -91,6 +105,11 @@ class ProjectOut(BaseModel):
             status=project.status,
             selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
             serviceTotal=float(project.service_total) if project.service_total is not None else None,
+            typeCategoryName=project.type_category_name,
+            selectedTypeActivities=[
+                ProjectSelectedTypeActivityOut.from_model(a) for a in (selected_type_activities or [])
+            ],
+            typeActivityTotal=float(project.type_activity_total) if project.type_activity_total is not None else None,
             completedAt=project.completed_at,
             requiredPermitDocuments=list(project.required_permit_documents or []),
         )
@@ -182,6 +201,12 @@ class ProjectCreate(BaseModel):
     targetDate: date
     selectedActivities: list[SelectedActivityIn] | None = None
     serviceTotal: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
+    # The New Project wizard's final-step picker: which engagement-type
+    # category and which of its activities were checked. None/absent for
+    # callers that skip this step entirely (it's optional -- not every
+    # engagement needs it) -- create_project() computes coverage against
+    # selectedActivities above and writes the snapshot rows itself.
+    typeActivitySelection: ProjectTypeActivitySelectionIn | None = None
     # Permits the client confirmed they already hold -- each becomes a
     # mandatory upload requirement on the Documents tab. Permits the
     # client doesn't have yet aren't sent here at all; the wizard turns
