@@ -68,8 +68,8 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
     description: 'Firm-wide settings and integrations.',
     modules: [
       {
-        label: 'AI Configuration',
-        description: 'Configure AI providers, prompt templates, and cache settings.',
+        label: 'Knowledgebase AI',
+        description: 'Configure the knowledgebase Q&A provider, grounding prompt, and cache settings.',
         icon: 'Bot',
         routeName: ROUTE_NAMES.ADMIN_AI,
       },

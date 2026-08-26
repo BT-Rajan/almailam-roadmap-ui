@@ -71,6 +71,17 @@ const PERMISSIONS: Record<string, Permission> = {
     roles: ['Administrator', 'Project Manager', 'Engineer', 'Document Controller', 'Viewer'],
   },
   'activity.viewAll': { name: 'View All Users Activity', roles: ['Administrator'] },
+
+  // Knowledge Base
+  'knowledgebase.view': {
+    name: 'View Knowledge Base',
+    roles: ['Administrator', 'Project Manager', 'Engineer', 'Document Controller', 'Viewer'],
+  },
+  'knowledgebase.upload': {
+    name: 'Upload Knowledge Base Document',
+    roles: ['Administrator', 'Project Manager', 'Engineer', 'Document Controller'],
+  },
+  'knowledgebase.delete': { name: 'Delete Knowledge Base Document', roles: ['Administrator', 'Document Controller'] },
 }
 
 /**

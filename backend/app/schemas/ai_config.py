@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.models.ai_config import DEFAULT_KB_SYSTEM_PROMPT
+
 AI_PROVIDER_IDS = ("claude", "deepseek")
 
 
@@ -41,6 +43,10 @@ class AIConfigurationOut(BaseModel):
     temperature: float
     cacheDurationMinutes: int
     retryLimit: int
+    kbSystemPrompt: str
+    kbMaxUploadSizeMb: int
+    kbMaxDocumentChars: int
+    kbMaxContextChars: int
     providers: list[AIProviderConfigOut]
 
     @staticmethod
@@ -54,6 +60,10 @@ class AIConfigurationOut(BaseModel):
             temperature=config.temperature,
             cacheDurationMinutes=config.cache_duration_minutes,
             retryLimit=config.retry_limit,
+            kbSystemPrompt=config.kb_system_prompt or DEFAULT_KB_SYSTEM_PROMPT,
+            kbMaxUploadSizeMb=config.kb_max_upload_size_mb,
+            kbMaxDocumentChars=config.kb_max_document_chars,
+            kbMaxContextChars=config.kb_max_context_chars,
             providers=[AIProviderConfigOut.from_model(p) for p in providers],
         )
 
@@ -67,34 +77,13 @@ class AIConfigurationIn(BaseModel):
     temperature: float = Field(ge=0, le=2)
     cacheDurationMinutes: int = Field(ge=0, le=1440)
     retryLimit: int = Field(ge=0, le=10)
+    kbSystemPrompt: str = Field(min_length=1, max_length=8000)
+    kbMaxUploadSizeMb: int = Field(ge=1, le=100)
+    kbMaxDocumentChars: int = Field(ge=1000, le=1_000_000)
+    kbMaxContextChars: int = Field(ge=1000, le=2_000_000)
     providers: list[AIProviderConfigIn]
 
 
 class ProviderTestResult(BaseModel):
     success: bool
     message: str
-
-
-class PromptTemplateOut(BaseModel):
-    id: str
-    name: str
-    description: str
-    module: str
-    template: str
-
-    @staticmethod
-    def from_model(template) -> "PromptTemplateOut":
-        return PromptTemplateOut(
-            id=f"PMT-{template.id:03d}",
-            name=template.name,
-            description=template.description,
-            module=template.module,
-            template=template.template,
-        )
-
-
-class PromptTemplateIn(BaseModel):
-    name: str = Field(min_length=1, max_length=150)
-    description: str = Field(default="", max_length=300)
-    module: str
-    template: str = Field(default="")

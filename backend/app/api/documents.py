@@ -10,8 +10,6 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import PagedResponse
 from app.schemas.document import (
-    DocumentAIReviewCreate,
-    DocumentAIReviewOut,
     DocumentOut,
     DocumentStatusUpdate,
     DocumentUpdate,
@@ -154,24 +152,6 @@ def add_version(
     document = document_service.get_document(db, document_no)
     version = document_service.add_version(db, document_no, file, notes, current_user.id)
     return DocumentVersionOut.from_model(version, document.id, document.document_no, current_user.full_name)
-
-
-@router.get("/{document_no}/ai-review", response_model=DocumentAIReviewOut | None)
-def get_ai_review(document_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
-    document = document_service.get_document(db, document_no)
-    review = document_service.get_ai_review(db, document.id)
-    return DocumentAIReviewOut.from_model(review, document_no) if review else None
-
-
-@router.post("/{document_no}/ai-review", response_model=DocumentAIReviewOut, status_code=201)
-def create_ai_review(
-    document_no: str,
-    payload: DocumentAIReviewCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    review = document_service.create_ai_review(db, document_no, payload, current_user.id)
-    return DocumentAIReviewOut.from_model(review, document_no)
 
 
 @router.get("/{document_no}/audit-events")

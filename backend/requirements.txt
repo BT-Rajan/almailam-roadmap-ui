@@ -12,6 +12,14 @@ email-validator==2.3.0
 python-multipart==0.0.20
 httpx==0.28.1
 APScheduler==3.11.3
+# Text extraction for the knowledgebase Q&A feature (app/services/
+# knowledge_extract.py) -- pulls plain text out of uploaded PDF/DOCX
+# files (including Arabic text layers) so it can be grounded into the
+# LLM prompt. Both PDF extraction here and Anthropic/DeepSeek's Arabic
+# handling only cover text-layer PDFs, not scanned/image-only pages --
+# there is no OCR step in this pipeline.
+pypdf==5.1.0
+python-docx==1.1.2
 # zoneinfo (used for the Kuwait-time report-filing cutoff, see
 # status_report_service.py) needs an IANA tz database on the host --
 # present by default on most Linux distros but not guaranteed in

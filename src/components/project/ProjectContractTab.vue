@@ -2,11 +2,8 @@
 import { ArrowLeftRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
-import AIResponseCard from '@/components/ai/AIResponseCard.vue'
-import AISuggestionCard from '@/components/ai/AISuggestionCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
@@ -245,25 +242,6 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :client="client"
         @patch="handlePatch"
         @save-as-final="handleSaveAsFinal"
-      />
-
-      <div class="no-print">
-        <AIResponseCard
-          v-if="contractStore.aiSummary"
-          title="AI Contract Summary"
-          :summary="contractStore.aiSummary.summary"
-          :details="contractStore.aiSummary.details"
-          :confidence="contractStore.aiSummary.confidence"
-        />
-        <div v-else-if="contractStore.isAiSummaryLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
-          <SkeletonLoader :rows="3" />
-        </div>
-      </div>
-
-      <AISuggestionCard
-        v-if="contractStore.aiSummary?.suggestions.length"
-        class="no-print"
-        :suggestions="contractStore.aiSummary.suggestions"
       />
     </div>
 

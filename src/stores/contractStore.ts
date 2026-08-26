@@ -2,17 +2,14 @@ import { defineStore } from 'pinia'
 
 import { contractService } from '@/services/contractService'
 import type { ContractCreateInput } from '@/services/contractService'
-import type { Contract, ContractAISummary } from '@/types/Contract'
+import type { Contract } from '@/types/Contract'
 
 interface ContractStoreState {
   projectId: string | undefined
   contracts: Contract[]
   selectedContractId: string | undefined
-  aiSummary: ContractAISummary | undefined
   isLoading: boolean
-  isAiSummaryLoading: boolean
   error: string | undefined
-  aiSummaryError: string | undefined
 }
 
 export const useContractStore = defineStore('contract', {
@@ -20,11 +17,8 @@ export const useContractStore = defineStore('contract', {
     projectId: undefined,
     contracts: [],
     selectedContractId: undefined,
-    aiSummary: undefined,
     isLoading: false,
-    isAiSummaryLoading: false,
     error: undefined,
-    aiSummaryError: undefined,
   }),
 
   getters: {
@@ -45,12 +39,7 @@ export const useContractStore = defineStore('contract', {
         this.projectId = projectId
         this.contracts = await contractService.getContractsByProject(projectId)
         const defaultContractId = this.latestContract?.id
-        if (defaultContractId) {
-          await this.selectContract(defaultContractId)
-        } else {
-          this.selectedContractId = undefined
-          this.aiSummary = undefined
-        }
+        this.selectedContractId = defaultContractId ?? undefined
       } catch {
         this.error = 'Unable to load contracts. Please try again.'
       } finally {
@@ -58,27 +47,14 @@ export const useContractStore = defineStore('contract', {
       }
     },
 
-    async selectContract(contractId: string) {
+    selectContract(contractId: string) {
       this.selectedContractId = contractId
-      this.aiSummary = undefined
-      // AI summary is a supplementary enhancement, not core to viewing a
-      // contract, so a failure here must never break contract loading or
-      // selection -- it's caught and surfaced separately.
-      this.aiSummaryError = undefined
-      this.isAiSummaryLoading = true
-      try {
-        this.aiSummary = await contractService.getContractAISummary(contractId)
-      } catch {
-        this.aiSummaryError = 'AI summary is currently unavailable.'
-      } finally {
-        this.isAiSummaryLoading = false
-      }
     },
 
     async createContract(input: ContractCreateInput): Promise<Contract> {
       const contract = await contractService.createContract(input)
       this.contracts = [...this.contracts, contract]
-      await this.selectContract(contract.id)
+      this.selectContract(contract.id)
       return contract
     },
 

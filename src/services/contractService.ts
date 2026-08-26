@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { Contract, ContractAISummary } from '@/types/Contract'
+import type { Contract } from '@/types/Contract'
 
 /**
  * Fetch contracts for a specific project from backend API
@@ -22,18 +22,6 @@ async function getContractById(contractId: string): Promise<Contract | undefined
   } catch (error) {
     console.error(`Failed to fetch contract ${contractId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contract')
-  }
-}
-
-/**
- * Get AI summary for a contract from backend API
- */
-async function getContractAISummary(contractId: string): Promise<ContractAISummary | undefined> {
-  try {
-    return await apiClient.get<ContractAISummary>(`/api/contracts/${contractId}/ai-summary`)
-  } catch (error) {
-    console.error(`Failed to fetch AI summary for contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch AI summary')
   }
 }
 
@@ -156,7 +144,6 @@ async function reopenContract(contractId: string): Promise<Contract> {
 export const contractService = {
   getContractsByProject,
   getContractById,
-  getContractAISummary,
   getContracts,
   createContract,
   updateContract,

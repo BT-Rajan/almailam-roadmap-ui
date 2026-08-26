@@ -23,7 +23,7 @@ const defaultProviderLabel = computed(
           <Sparkles class="h-5 w-5" />
         </span>
         <div class="min-w-0">
-          <p class="text-sm font-semibold text-text-primary truncate">AI Assistant</p>
+          <p class="text-sm font-semibold text-text-primary truncate">Knowledgebase Assistant</p>
           <StatusBadge :label="config.isEnabled ? 'Enabled' : 'Disabled'" :variant="config.isEnabled ? 'success' : 'neutral'" show-dot />
         </div>
       </div>
@@ -44,7 +44,7 @@ const defaultProviderLabel = computed(
       </div>
 
       <p class="border-t border-border-light pt-3 text-xs text-text-muted">
-        AI is a productivity assistant. All business workflows continue functioning normally if AI is disabled.
+        Answers questions strictly from uploaded documents. All other business workflows continue functioning normally if disabled.
       </p>
     </div>
   </Card>

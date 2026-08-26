@@ -14,7 +14,7 @@ export const ROUTE_NAMES = {
   SUBMISSION_WORKSPACE: 'submission-workspace',
   DOCUMENTS: 'documents',
   DOCUMENT_VIEWER: 'document-viewer',
-  DOCUMENT_REVIEW: 'document-review',
+  KNOWLEDGE_BASE: 'knowledge-base',
   TASKS: 'tasks',
   MY_TASKS: 'my-tasks',
   REPORTS: 'reports',

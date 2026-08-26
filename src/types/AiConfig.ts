@@ -19,23 +19,11 @@ export interface AIConfiguration {
   temperature: number
   cacheDurationMinutes: number
   retryLimit: number
+  kbSystemPrompt: string
+  kbMaxUploadSizeMb: number
+  kbMaxDocumentChars: number
+  kbMaxContextChars: number
   providers: AIProviderConfig[]
-}
-
-export type PromptTemplateModule =
-  | 'Projects'
-  | 'Documents'
-  | 'Contracts'
-  | 'Government Forms'
-  | 'Customer Communication'
-  | 'Reports'
-
-export interface PromptTemplate {
-  id: string
-  name: string
-  description: string
-  module: PromptTemplateModule
-  template: string
 }
 
 export interface ProviderTestResult {

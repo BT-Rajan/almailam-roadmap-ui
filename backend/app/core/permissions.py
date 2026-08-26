@@ -7,7 +7,9 @@
 # go through role_service.has_permission(), not these dicts.
 ROLES = ("Administrator", "Project Manager", "Engineer", "Document Controller", "Viewer", "Customer")
 
-PERMISSION_MODULES = ("Projects", "Clients", "Documents", "Government", "Finance", "Reports", "Administration")
+PERMISSION_MODULES = (
+    "Projects", "Clients", "Documents", "Government", "Finance", "Reports", "Administration", "Knowledgebase",
+)
 
 ROLE_DESCRIPTIONS: dict[str, str] = {
     "Administrator": "Full access to every module, including administration and system configuration.",
@@ -32,6 +34,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
         "Finance": {"view": True, "edit": True, "delete": True},
         "Reports": {"view": True, "edit": True, "delete": True},
         "Administration": {"view": True, "edit": True, "delete": True},
+        "Knowledgebase": {"view": True, "edit": True, "delete": True},
     },
     "Project Manager": {
         "Projects": {"view": True, "edit": True, "delete": False},
@@ -41,6 +44,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
         "Finance": {"view": True, "edit": True, "delete": False},
         "Reports": {"view": True, "edit": True, "delete": False},
         "Administration": {"view": False, "edit": False, "delete": False},
+        "Knowledgebase": {"view": True, "edit": True, "delete": False},
     },
     "Engineer": {
         "Projects": {"view": True, "edit": True, "delete": False},
@@ -50,6 +54,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
         "Finance": {"view": True, "edit": False, "delete": False},
         "Reports": {"view": True, "edit": False, "delete": False},
         "Administration": {"view": False, "edit": False, "delete": False},
+        "Knowledgebase": {"view": True, "edit": True, "delete": False},
     },
     "Document Controller": {
         "Projects": {"view": True, "edit": False, "delete": False},
@@ -59,6 +64,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
         "Finance": {"view": False, "edit": False, "delete": False},
         "Reports": {"view": False, "edit": False, "delete": False},
         "Administration": {"view": False, "edit": False, "delete": False},
+        "Knowledgebase": {"view": True, "edit": True, "delete": True},
     },
     "Viewer": {
         "Projects": {"view": True, "edit": False, "delete": False},
@@ -68,6 +74,7 @@ ROLE_PERMISSIONS: dict[str, dict[str, dict[str, bool]]] = {
         "Finance": {"view": True, "edit": False, "delete": False},
         "Reports": {"view": True, "edit": False, "delete": False},
         "Administration": {"view": False, "edit": False, "delete": False},
+        "Knowledgebase": {"view": True, "edit": False, "delete": False},
     },
 }
 

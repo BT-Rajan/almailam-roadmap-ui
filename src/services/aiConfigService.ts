@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { AIConfiguration, AIProviderId, PromptTemplate, ProviderTestResult } from '@/types/AiConfig'
+import type { AIConfiguration, AIProviderId, ProviderTestResult } from '@/types/AiConfig'
 
 /**
  * Fetch AI configuration from backend API
@@ -37,34 +37,8 @@ async function testProviderConnection(providerId: AIProviderId): Promise<Provide
   }
 }
 
-/**
- * Fetch all prompt templates from backend API
- */
-async function getPromptTemplates(): Promise<PromptTemplate[]> {
-  try {
-    return await apiClient.get<PromptTemplate[]>('/api/ai/prompt-templates')
-  } catch (error) {
-    console.error('Failed to fetch prompt templates:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch templates')
-  }
-}
-
-/**
- * Save/update a prompt template via backend API
- */
-async function savePromptTemplate(templateId: string, input: Omit<PromptTemplate, 'id'>): Promise<PromptTemplate> {
-  try {
-    return await apiClient.patch<PromptTemplate>(`/api/ai/prompt-templates/${templateId}`, input)
-  } catch (error) {
-    console.error(`Failed to save prompt template:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save template')
-  }
-}
-
 export const aiConfigService = {
   getConfiguration,
   saveConfiguration,
   testProviderConnection,
-  getPromptTemplates,
-  savePromptTemplate,
 }

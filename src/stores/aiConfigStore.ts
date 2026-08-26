@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia'
 
 import { aiConfigService } from '@/services/aiConfigService'
-import type { AIConfiguration, AIProviderId, PromptTemplate } from '@/types/AiConfig'
+import type { AIConfiguration, AIProviderId } from '@/types/AiConfig'
 
 interface AIConfigStoreState {
   config: AIConfiguration | undefined
-  templates: PromptTemplate[]
   isLoading: boolean
   isSaving: boolean
   error: string | undefined
@@ -16,7 +15,6 @@ interface AIConfigStoreState {
 export const useAIConfigStore = defineStore('aiConfig', {
   state: (): AIConfigStoreState => ({
     config: undefined,
-    templates: [],
     isLoading: false,
     isSaving: false,
     error: undefined,
@@ -29,12 +27,7 @@ export const useAIConfigStore = defineStore('aiConfig', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [config, templates] = await Promise.all([
-          aiConfigService.getConfiguration(),
-          aiConfigService.getPromptTemplates(),
-        ])
-        this.config = config
-        this.templates = templates
+        this.config = await aiConfigService.getConfiguration()
       } catch {
         this.error = 'Unable to load AI configuration. Please try again.'
       } finally {
@@ -90,12 +83,6 @@ export const useAIConfigStore = defineStore('aiConfig', {
       } finally {
         this.testingProviderId = undefined
       }
-    },
-
-    async savePromptTemplate(templateId: string, input: Omit<PromptTemplate, 'id'>): Promise<PromptTemplate> {
-      const template = await aiConfigService.savePromptTemplate(templateId, input)
-      this.templates = this.templates.map((existing) => (existing.id === templateId ? template : existing))
-      return template
     },
   },
 })

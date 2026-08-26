@@ -62,11 +62,3 @@ export interface Contract {
   // undefined while the letter is an editable draft; set once finalized.
   finalizedAt?: string
 }
-
-export interface ContractAISummary {
-  contractId: string
-  summary: string
-  details: string
-  confidence: 'high' | 'medium' | 'low'
-  suggestions: string[]
-}

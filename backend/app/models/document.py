@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Date, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -9,7 +9,6 @@ from app.models.user import BigPK
 
 DOCUMENT_TYPES = ("Drawing", "Report", "Contract", "Quotation", "Municipality Form", "Calculation Sheet")
 DOCUMENT_STATUSES = ("Draft", "Under Review", "Approved", "Rejected")
-AI_CONFIDENCE_LEVELS = ("high", "medium", "low")
 
 # The three project-level categories that are added as a link/path to a file
 # stored elsewhere, rather than uploaded through the app -- "Customer ID"
@@ -98,16 +97,3 @@ class ProjectLinkDocument(Base, TimestampMixin, SoftDeleteMixin):
     added_date: Mapped[date] = mapped_column(Date, nullable=False)
 
 
-class DocumentAIReview(Base):
-    __tablename__ = "document_ai_reviews"
-
-    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
-    document_id: Mapped[int] = mapped_column(
-        BigPK, ForeignKey("project_documents.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    summary: Mapped[str] = mapped_column(Text, nullable=False)
-    details: Mapped[str] = mapped_column(Text, nullable=False)
-    confidence: Mapped[str] = mapped_column(Enum(*AI_CONFIDENCE_LEVELS, name="ai_confidence"), nullable=False)
-    extracted_fields: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    suggestions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

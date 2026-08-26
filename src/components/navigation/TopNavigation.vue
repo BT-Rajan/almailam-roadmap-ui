@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { Bell, Calendar, Menu, MessageSquare, Moon, Search, Sparkles, Sun, User } from '@lucide/vue'
+import { Bell, BookOpen, Calendar, Menu, MessageSquare, Moon, Search, Sun, User } from '@lucide/vue'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useRbac } from '@/composables/useRbac'
 import { useTheme } from '@/composables/useTheme'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { useAIAssistantStore } from '@/stores/aiAssistantStore'
-import { useAIConfigStore } from '@/stores/aiConfigStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useSearchStore } from '@/stores/searchStore'
@@ -16,14 +14,11 @@ const router = useRouter()
 const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
-const aiAssistantStore = useAIAssistantStore()
-const aiConfigStore = useAIConfigStore()
 const { isDark, toggleMode } = useTheme()
 const { can } = useRbac()
 
 onMounted(() => {
   void notificationStore.loadNotifications()
-  if (!aiConfigStore.config) void aiConfigStore.loadConfiguration()
 })
 </script>
 
@@ -56,13 +51,13 @@ onMounted(() => {
 
     <div class="flex items-center gap-2">
       <button
-        v-if="aiConfigStore.config?.isEnabled !== false"
+        v-if="can('knowledgebase.view')"
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="AI Assistant"
-        @click="aiAssistantStore.toggle"
+        aria-label="Knowledge Base"
+        @click="router.push({ name: ROUTE_NAMES.KNOWLEDGE_BASE })"
       >
-        <Sparkles :size="18" />
+        <BookOpen :size="18" />
       </button>
 
       <button
