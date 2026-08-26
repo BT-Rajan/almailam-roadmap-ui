@@ -10,17 +10,28 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
+import { useDocumentStore } from '@/stores/documentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
-import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
+import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 
 const props = defineProps<{
   project: Project
   client: Client | undefined
+  // Which stage's overview to show -- the stage section currently being
+  // navigated to via the Workflow Progress stepper, NOT necessarily
+  // project.currentStage. The stepper deliberately lets staff jump to
+  // any stage's view regardless of where the project really is (e.g.
+  // drafting a quotation early, or reviewing a past stage), so basing
+  // this on currentStage directly meant Overview showed the wrong
+  // stage's content while looking at a different one. See
+  // ProjectWorkspacePage.vue's stageContext for how this is derived.
+  stageContext: WorkflowStage
 }>()
 
 const emit = defineEmits<{
@@ -31,6 +42,7 @@ const router = useRouter()
 const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
+const documentStore = useDocumentStore()
 const toastStore = useToastStore()
 
 const projectDetailItems = computed(() => [
@@ -60,17 +72,20 @@ const hasScope = computed(
     (props.project.selectedTypeActivities && props.project.selectedTypeActivities.length > 0),
 )
 
-// Civil ID verification -- only needed at the Quotation stage's overview
-// (see the Card below), so only fetched then rather than on every visit
-// to this tab regardless of stage. The client's onboarding documents
-// aren't loaded anywhere else in the project workspace.
-function loadClientDetailIfNeeded(): void {
-  if (props.project.currentStage === 'Quotation' && props.client) {
+// Civil ID verification (Quotation) and design document status (Design)
+// both need data that isn't loaded anywhere else in the project
+// workspace by default -- fetched only when their card is actually
+// showing, not on every visit to this tab regardless of stage context.
+function loadStageDataIfNeeded(): void {
+  if (props.stageContext === 'Quotation' && props.client) {
     clientStore.loadClientDetail(props.client.id)
   }
+  if (props.stageContext === 'Design' && documentStore.documents.length === 0) {
+    documentStore.loadDocuments()
+  }
 }
-onMounted(loadClientDetailIfNeeded)
-watch(() => [props.project.currentStage, props.client?.id], loadClientDetailIfNeeded)
+onMounted(loadStageDataIfNeeded)
+watch(() => [props.stageContext, props.client?.id], loadStageDataIfNeeded)
 
 // Civil ID is filed under the 'Identity Document' category regardless of
 // the client's actual document-type label -- see
@@ -97,6 +112,31 @@ const contractQuotation = computed(() =>
     ? quotationStore.quotations.find((quotation) => quotation.quotationNo === latestContract.value?.quotationNo)
     : undefined,
 )
+
+// Design deliverables -- documents of type 'Drawing' added against this
+// project (see ProjectDocumentsTab.vue's mode="design").
+const designDocuments = computed(() => documentStore.documentsByProject(props.project.id).filter((document) => document.type === 'Drawing'))
+
+// When the project's Additional Services picked a Design-category
+// engagement type (see NewProjectWizardPage.vue's final step), those
+// activities are what this stage is actually expected to deliver -- so
+// they're shown as a checklist (delivered/not yet), matched against
+// designDocuments by name, the same loose substring match already used
+// for the required-permits checklist in ProjectDocumentsTab.vue. Falls
+// back to just listing whatever's been delivered so far when no such
+// Additional Services selection exists to check against.
+const designChecklist = computed(() => {
+  if (props.project.typeCategoryName !== 'Design' || !props.project.selectedTypeActivities?.length) return []
+  return props.project.selectedTypeActivities.map((activity) => ({
+    activityId: activity.id,
+    activityName: activity.activityName,
+    document: designDocuments.value.find(
+      (document) =>
+        document.title.toLowerCase().includes(activity.activityName.toLowerCase()) ||
+        activity.activityName.toLowerCase().includes(document.title.toLowerCase()),
+    ),
+  }))
+})
 </script>
 
 <template>
@@ -136,7 +176,7 @@ const contractQuotation = computed(() =>
       </div>
     </Card>
 
-    <Card v-if="project.currentStage === 'Quotation'">
+    <Card v-if="stageContext === 'Quotation'">
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">Quotation</h3>
       </template>
@@ -173,7 +213,7 @@ const contractQuotation = computed(() =>
       </div>
     </Card>
 
-    <Card v-if="project.currentStage === 'Contract'">
+    <Card v-if="stageContext === 'Contract'">
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">Contract</h3>
       </template>
@@ -207,6 +247,40 @@ const contractQuotation = computed(() =>
           <BaseButton v-if="contractQuotation" variant="ghost" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">
             View Approved Quotation
           </BaseButton>
+        </div>
+      </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Design'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Design</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <div v-if="designChecklist.length > 0" class="flex flex-col gap-2">
+          <div
+            v-for="item in designChecklist"
+            :key="item.activityId"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <span class="truncate text-sm text-text-secondary">{{ item.activityName }}</span>
+            <StatusBadge v-if="item.document" :label="item.document.status" :variant="getDocumentStatusVariant(item.document.status)" />
+            <StatusBadge v-else label="Not Delivered" variant="neutral" />
+          </div>
+        </div>
+        <div v-else-if="designDocuments.length > 0" class="flex flex-col gap-2">
+          <div
+            v-for="document in designDocuments"
+            :key="document.id"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <span class="truncate text-sm text-text-secondary">{{ document.title }}</span>
+            <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" />
+          </div>
+        </div>
+        <p v-else class="text-sm text-text-muted">No design documents delivered yet.</p>
+
+        <div class="flex justify-end no-print">
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
         </div>
       </div>
     </Card>

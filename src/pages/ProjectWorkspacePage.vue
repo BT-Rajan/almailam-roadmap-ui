@@ -35,7 +35,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ProjectUpdateInput } from '@/services/projectService'
-import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
@@ -65,18 +65,66 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // existing ?tab=process-style deep link -- can still land on them,
 // with every function of that tab unchanged.
 //
-// Which of Overview/Documents/Payments/Tasks actually show here depends
-// on the project's current workflow stage -- each stage only exposes
-// what's actually relevant to it at that point, rather than always
-// showing all four regardless of stage. Payments is relabeled "Payment
-// Config" at Contract, the only stage it's currently shown at. Stages
-// beyond Contract (Design, Government Submission, Execution & Tracking,
-// Completed) are unchanged for now -- always all four -- pending a
-// later pass.
+// Which of Overview/Documents/Payments/Tasks actually show here, and
+// what the Overview pane itself shows, is driven by `stageContext`
+// below -- NOT directly by the project's actual current_stage. The
+// Workflow Progress stepper deliberately lets staff jump to *any*
+// stage's view regardless of where the project really is right now
+// (isStepNavigable in WorkflowProgress.vue always returns true, e.g. to
+// draft a quotation early or review a past stage) -- keying this off
+// current_stage directly meant that while looking at the Quotation
+// stepper view on a project still formally at Requirement, the top
+// Overview tab showed Requirement's overview instead of Quotation's,
+// which is confusing and was reported as a bug. stageContext instead
+// tracks whichever stage section was last actually navigated to via the
+// stepper (falling back to the project's real current_stage until the
+// first such navigation), so Overview always matches where staff are
+// actually working. Payments is relabeled "Payment Config" at Contract,
+// the only stage it's currently shown at. Stages beyond Design
+// (Government Submission, Execution & Tracking, Completed) are
+// unchanged for now -- always all four -- pending a later pass.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
+const stageContext = ref<WorkflowStage>('Requirement')
+
+// Resets to the project's real stage on first load and whenever
+// switching to a different project's workspace -- but not on every
+// later reactive update to the *same* project (e.g. a refreshProject()
+// call after some unrelated approval), so a stepper-driven context
+// someone is mid-review of isn't silently pulled out from under them.
+const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
+  requirement: 'Requirement',
+  quotation: 'Quotation',
+  contract: 'Contract',
+  design: 'Design',
+}
+
+watch(
+  project,
+  (value, oldValue) => {
+    if (value && (!oldValue || oldValue.id !== value.id)) {
+      // Respects an explicit stepper-driven deep link (?tab=quotation
+      // etc, already reflected in activeTab by the time the project
+      // finishes loading) over the project's real stage -- only
+      // defaults to the real stage when activeTab isn't already
+      // pointing at a specific one.
+      stageContext.value = STAGE_TAB_KEYS[activeTab.value] ?? value.currentStage
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  activeTab,
+  (tab) => {
+    const stage = STAGE_TAB_KEYS[tab]
+    if (stage) stageContext.value = stage
+  },
+  { immediate: true },
+)
+
 const TABS = computed<ProjectWorkspaceTab[]>(() => {
-  switch (project.value?.currentStage) {
+  switch (stageContext.value) {
     case 'Requirement':
       return [{ key: 'overview', label: 'Overview' }]
     case 'Quotation':
@@ -91,6 +139,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'payments', label: 'Payment Config' },
         { key: 'tasks', label: 'Tasks' },
       ]
+    case 'Design':
+      // Reuses the existing 'design' tab key (ProjectDocumentsTab's
+      // mode="design", Drawing-typed documents only) rather than the
+      // generic 'documents' key, which would show every project
+      // document, not just design deliverables.
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'design', label: 'Documents' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
     default:
       return [
         { key: 'overview', label: 'Overview' },
@@ -102,13 +160,14 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 })
 
 // If the stage change above just hid the tab currently being viewed
-// (e.g. sitting on Documents when the stage moves to Requirement, which
-// only shows Overview), fall back to Overview rather than leaving an
-// orphaned, no-longer-reachable pane on screen. Only applies to the top
-// tab bar's own keys -- a stepper-driven view (requirement/quotation/
-// contract/etc, never part of TABS) is never affected by this.
+// (e.g. sitting on Documents when the context moves to Requirement,
+// which only shows Overview), fall back to Overview rather than leaving
+// an orphaned, no-longer-reachable pane on screen. Only applies to the
+// top tab bar's own keys -- a stepper-driven view (requirement/
+// quotation/contract/design/etc, never part of TABS) is never affected
+// by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'payments', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -263,7 +322,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <div v-if="activeTab === 'overview'" id="project-tabpanel-overview" role="tabpanel" aria-labelledby="project-tab-overview" tabindex="0">
-        <ProjectOverviewTab :project="project" :client="client" @navigate-tab="activeTab = $event" />
+        <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />
