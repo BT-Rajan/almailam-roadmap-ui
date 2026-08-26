@@ -2,7 +2,6 @@ import { CLIENT_ONBOARDING_REQUIREMENTS } from '@/constants/clientOptions'
 import type {
   Client,
   ClientAddress,
-  ClientConsent,
   ClientContact,
   ClientDocument,
   ClientIdentification,
@@ -70,8 +69,8 @@ interface OnboardingSummary {
   missingItems: string[]
   /** Categories of the required-but-unsatisfied items in missingItems --
    * lets calculateOnboardingState() below route a client to the right
-   * onboarding state (e.g. a missing Document vs a missing Identification
-   * or Consent) without string-matching on the label text. */
+   * onboarding state (e.g. a missing Document vs a missing Identification)
+   * without string-matching on the label text. */
   missingCategories: ClientOnboardingRequirement['category'][]
   /** Every configured item's satisfied/not state, including optional ones
    * (which don't affect missingItems/completion% but still need a real
@@ -151,13 +150,13 @@ function latestVerificationPerItem(verifications: ClientVerification[]): ClientV
 }
 
 /**
- * Onboarding is only complete (Ready) once Identification and Consent
- * are both on file -- documents (category 'Document') and basic profile
- * info (category 'Information') are earlier gates (Documents Required /
- * Information Required respectively). A document that's been actively
- * rejected on verification still short-circuits straight to Rejected,
- * same as before -- that's a real problem flag, independent of which
- * step the client happens to be on.
+ * Onboarding is only complete (Ready) once Identification is on file --
+ * documents (category 'Document') and basic profile info (category
+ * 'Information') are earlier gates (Documents Required / Information
+ * Required respectively). A document that's been actively rejected on
+ * verification still short-circuits straight to Rejected, same as before
+ * -- that's a real problem flag, independent of which step the client
+ * happens to be on.
  */
 export function calculateOnboardingState(
   client: Client,
@@ -165,20 +164,19 @@ export function calculateOnboardingState(
   contacts: ClientContact[],
   addresses: ClientAddress[],
   identifications: ClientIdentification[],
-  consents: ClientConsent[],
   verifications: ClientVerification[],
 ): ClientOnboardingState {
   if (client.onboardingState === 'Rejected' || client.onboardingState === 'Suspended') {
     return client.onboardingState
   }
 
-  const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses, identifications, consents })
+  const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses, identifications })
   const currentVerifications = latestVerificationPerItem(verifications)
   const hasRejectedVerification = currentVerifications.some((verification) => verification.result === 'Rejected')
 
   if (hasRejectedVerification) return 'Rejected'
   if (summary.missingCategories.includes('Document')) return 'Documents Required'
   if (summary.missingCategories.includes('Information')) return 'Information Required'
-  if (summary.missingCategories.includes('Identification') || summary.missingCategories.includes('Consent')) return 'Under Review'
+  if (summary.missingCategories.includes('Identification')) return 'Under Review'
   return 'Ready'
 }

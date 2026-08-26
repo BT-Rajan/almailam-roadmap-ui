@@ -1,5 +1,4 @@
 import type {
-  ClientConsentType,
   ClientDocumentCategory,
   ClientIdentificationType,
   ClientOnboardingRequirement,
@@ -86,32 +85,6 @@ export const CLIENT_DOCUMENT_CATEGORY_OPTIONS: SelectOption[] = [
   { label: 'Other', value: 'Other' },
 ]
 
-export const CLIENT_CONSENT_TYPE_OPTIONS: { type: ClientConsentType; description: string; mandatory: boolean }[] = [
-  {
-    type: 'Process Personal Information',
-    description: 'Allow Almailam Engineering Consultants to collect and process personal or business information.',
-    mandatory: true,
-  },
-  {
-    type: 'Electronic Communication',
-    description: 'Allow communication by email, WhatsApp and SMS regarding onboarding and service updates.',
-    mandatory: true,
-  },
-  {
-    type: 'Process Documents',
-    description: 'Allow uploaded identity and registration documents to be stored and processed.',
-    mandatory: true,
-  },
-]
-
-// Flat SelectOption shape for the workspace's "Record Consent" dialog --
-// CLIENT_CONSENT_TYPE_OPTIONS above carries the richer wizard-specific
-// {description, mandatory} shape.
-export const CLIENT_CONSENT_TYPE_SELECT_OPTIONS: SelectOption[] = CLIENT_CONSENT_TYPE_OPTIONS.map((c) => ({
-  label: c.type,
-  value: c.type,
-}))
-
 export const CLIENT_VERIFICATION_RESULT_OPTIONS: SelectOption[] = [
   { label: 'Verified', value: 'Verified' },
   { label: 'Rejected', value: 'Rejected' },
@@ -189,12 +162,6 @@ const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
     required: true,
     isSatisfied: (ctx) => ctx.identifications.length > 0,
   },
-  {
-    label: 'Consent recorded',
-    category: 'Consent',
-    required: true,
-    isSatisfied: (ctx) => CLIENT_CONSENT_TYPE_OPTIONS.every((c) => !c.mandatory || ctx.consents.some((consent) => consent.consentType === c.type && consent.granted)),
-  },
 ]
 
 const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
@@ -233,12 +200,6 @@ const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
     category: 'Identification',
     required: true,
     isSatisfied: (ctx) => ctx.identifications.length > 0,
-  },
-  {
-    label: 'Consent recorded',
-    category: 'Consent',
-    required: true,
-    isSatisfied: (ctx) => CLIENT_CONSENT_TYPE_OPTIONS.every((c) => !c.mandatory || ctx.consents.some((consent) => consent.consentType === c.type && consent.granted)),
   },
 ]
 

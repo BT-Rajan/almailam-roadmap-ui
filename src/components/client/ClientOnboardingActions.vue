@@ -6,7 +6,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, CLIENT_ONBOARDING_STATES_REQUIRING_REASON } from '@/constants/clientOptions'
-import type { Client, ClientAddress, ClientConsent, ClientContact, ClientDocument, ClientIdentification, ClientVerification } from '@/types/Client'
+import type { Client, ClientAddress, ClientContact, ClientDocument, ClientIdentification, ClientVerification } from '@/types/Client'
 import { calculateOnboardingState, getClientOnboardingStateVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
@@ -15,7 +15,6 @@ const props = defineProps<{
   contacts: ClientContact[]
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
-  consents: ClientConsent[]
   verifications: ClientVerification[]
   loading?: boolean
 }>()
@@ -26,12 +25,12 @@ const emit = defineEmits<{
 }>()
 
 // Purely informational -- what the actual contacts/addresses/documents/
-// identifications/consents on file say the state should ultimately be,
-// shown as context alongside the buttons below. Doesn't drive which
-// button appears: the backend doesn't gate transitions on data
-// completeness (staff can already manually force any individual step
-// regardless of what's on file via "Change Status"), so this is a
-// helpful signal, not a precondition.
+// identifications on file say the state should ultimately be, shown as
+// context alongside the buttons below. Doesn't drive which button
+// appears: the backend doesn't gate transitions on data completeness
+// (staff can already manually force any individual step regardless of
+// what's on file via "Change Status"), so this is a helpful signal, not
+// a precondition.
 const recommendedState = computed(() =>
   calculateOnboardingState(
     props.client,
@@ -39,7 +38,6 @@ const recommendedState = computed(() =>
     props.contacts,
     props.addresses,
     props.identifications,
-    props.consents,
     props.verifications,
   ),
 )

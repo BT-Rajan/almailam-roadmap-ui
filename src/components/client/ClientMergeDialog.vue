@@ -47,7 +47,7 @@ function closeDialog(): void {
       <p class="text-sm text-text-secondary">
         This client shares the same {{ match.matchedOn.join(', ') }} as another client on file. If these are genuinely
         the same person or organisation, merge them into one record. Contacts, addresses, identifications, documents,
-        verifications, consents, and projects all move to the record you keep; nothing is permanently deleted.
+        verifications, and projects all move to the record you keep; nothing is permanently deleted.
       </p>
 
       <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">

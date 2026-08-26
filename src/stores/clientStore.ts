@@ -4,7 +4,6 @@ import { clientService } from '@/services/clientService'
 import type {
   ClientAddressInput,
   ClientAddressUpdateInput,
-  ClientConsentInput,
   ClientContactInput,
   ClientContactUpdateInput,
   ClientDocumentInput,
@@ -20,7 +19,6 @@ import type {
   Client,
   ClientAddress,
   ClientAuditEvent,
-  ClientConsent,
   ClientContact,
   ClientDocument,
   ClientDocumentVersion,
@@ -54,7 +52,6 @@ interface ClientStoreState {
   documents: ClientDocument[]
   documentVersions: ClientDocumentVersion[]
   verifications: ClientVerification[]
-  consents: ClientConsent[]
   auditEvents: ClientAuditEvent[]
   isDetailLoading: boolean
   detailError: string | undefined
@@ -83,7 +80,6 @@ export const useClientStore = defineStore('client', {
     documents: [],
     documentVersions: [],
     verifications: [],
-    consents: [],
     auditEvents: [],
     isDetailLoading: false,
     detailError: undefined,
@@ -166,13 +162,12 @@ export const useClientStore = defineStore('client', {
       this.isDetailLoading = true
       this.detailError = undefined
       try {
-        const [contacts, addresses, identifications, documents, verifications, consents, auditEvents] = await Promise.all([
+        const [contacts, addresses, identifications, documents, verifications, auditEvents] = await Promise.all([
           clientService.getContactsForClient(clientId),
           clientService.getAddressesForClient(clientId),
           clientService.getIdentificationsForClient(clientId),
           clientService.getDocumentsForClient(clientId),
           clientService.getVerificationsForClient(clientId),
-          clientService.getConsentsForClient(clientId),
           clientService.getAuditEventsForClient(clientId),
         ])
         this.contacts = contacts
@@ -180,7 +175,6 @@ export const useClientStore = defineStore('client', {
         this.identifications = identifications
         this.documents = documents
         this.verifications = verifications
-        this.consents = consents
         this.auditEvents = auditEvents
       } catch {
         this.detailError = 'Unable to load the client profile. Please try again.'
@@ -390,18 +384,6 @@ export const useClientStore = defineStore('client', {
         )
       }
       return verification
-    },
-
-    recordConsent(consent: ClientConsent) {
-      this.consents = [consent, ...this.consents]
-    },
-
-    // Persists a client consent via the backend API. Prefer this over
-    // recordConsent() above, which only mutates local state.
-    async createConsent(clientId: string, input: ClientConsentInput) {
-      const consent = await clientService.createConsent(clientId, input)
-      this.consents = [consent, ...this.consents]
-      return consent
     },
 
     clearFilters() {

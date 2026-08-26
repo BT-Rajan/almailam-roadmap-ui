@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import Card from '@/components/common/Card.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import { CLIENT_ONBOARDING_REQUIREMENTS } from '@/constants/clientOptions'
-import type { Client, ClientAddress, ClientConsent, ClientContact, ClientDocument, ClientIdentification } from '@/types/Client'
+import type { Client, ClientAddress, ClientContact, ClientDocument, ClientIdentification } from '@/types/Client'
 import { evaluateOnboardingRequirements } from '@/utils/clientHelpers'
 
 const props = defineProps<{
@@ -14,7 +14,6 @@ const props = defineProps<{
   contacts: ClientContact[]
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
-  consents: ClientConsent[]
 }>()
 
 const requirements = computed(() => CLIENT_ONBOARDING_REQUIREMENTS[props.client.clientType])
@@ -26,7 +25,6 @@ const summary = computed(() =>
     contacts: props.contacts,
     addresses: props.addresses,
     identifications: props.identifications,
-    consents: props.consents,
   }),
 )
 

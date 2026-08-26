@@ -1,7 +1,6 @@
 import type {
   ClientAddressType,
   ClientCommunicationPreference,
-  ClientConsentType,
   ClientContactType,
   ClientIdentificationType,
   ClientType,
@@ -66,7 +65,6 @@ export interface ClientWizardForm {
   address: ClientWizardAddressDraft
   identification: ClientWizardIdentificationDraft
   identificationFile: File | null
-  consents: Record<ClientConsentType, boolean>
   communicationPreference: ClientCommunicationPreference
   /** "" means unassigned -- optional, can be set later via Edit Client too. */
   accountManagerId: string
@@ -121,17 +119,9 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       issuingCountry: 'Kuwait',
     },
     identificationFile: null,
-    consents: {
-      'Process Personal Information': false,
-      'Electronic Communication': false,
-      'Process Documents': false,
-    },
     communicationPreference: {
       preferredLanguage: 'English',
       preferredChannel: 'Email',
-      emailConsent: false,
-      whatsappConsent: false,
-      smsConsent: false,
     },
     accountManagerId: '',
   }

@@ -5,7 +5,6 @@ import type {
   ClientAddress,
   ClientAuditEvent,
   ClientCommunicationPreference,
-  ClientConsent,
   ClientContact,
   ClientDocument,
   ClientDocumentVersion,
@@ -561,32 +560,6 @@ async function createVerification(clientId: string, input: ClientVerificationInp
 }
 
 /**
- * Fetch consents for a specific client from backend API
- */
-async function getConsentsForClient(clientId: string): Promise<ClientConsent[]> {
-  try {
-    return await apiClient.get<ClientConsent[]>(`/api/clients/${clientId}/consents`)
-  } catch (error) {
-    console.error(`Failed to fetch consents for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch consents')
-  }
-}
-
-export type ClientConsentInput = Pick<ClientConsent, 'consentType' | 'version' | 'granted' | 'method'>
-
-/**
- * Record a new client consent via backend API
- */
-async function createConsent(clientId: string, input: ClientConsentInput): Promise<ClientConsent> {
-  try {
-    return await apiClient.post<ClientConsent>(`/api/clients/${clientId}/consents`, input)
-  } catch (error) {
-    console.error(`Failed to record consent for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record consent')
-  }
-}
-
-/**
  * Fetch audit events for a specific client from backend API
  */
 async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEvent[]> {
@@ -747,8 +720,6 @@ export const clientService = {
   createVerification,
   updateOnboardingState,
   autoAdvanceOnboarding,
-  getConsentsForClient,
-  createConsent,
   getAuditEventsForClient,
   findPossibleDuplicates,
   findIdentificationDuplicates,

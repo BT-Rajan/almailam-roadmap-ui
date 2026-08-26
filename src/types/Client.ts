@@ -32,11 +32,6 @@ export type ClientDocumentCategory =
 
 export type ClientVerificationResult = 'Pending' | 'Verified' | 'Rejected'
 
-export type ClientConsentType =
-  | 'Process Personal Information'
-  | 'Electronic Communication'
-  | 'Process Documents'
-
 export type ClientPreferredChannel = 'Email' | 'WhatsApp' | 'SMS' | 'Phone'
 
 export interface ClientIndividualProfile {
@@ -62,9 +57,6 @@ export interface ClientOrganisationProfile {
 export interface ClientCommunicationPreference {
   preferredLanguage: string
   preferredChannel: ClientPreferredChannel
-  emailConsent: boolean
-  whatsappConsent: boolean
-  smsConsent: boolean
 }
 
 export interface Client {
@@ -151,12 +143,11 @@ export interface OnboardingCheckContext {
   contacts: ClientContact[]
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
-  consents: ClientConsent[]
 }
 
 export interface ClientOnboardingRequirement {
   label: string
-  category: 'Information' | 'Document' | 'Identification' | 'Consent'
+  category: 'Information' | 'Document' | 'Identification'
   required: boolean
   isSatisfied: (ctx: OnboardingCheckContext) => boolean
 }
@@ -172,17 +163,6 @@ export interface ClientVerification {
   documentId?: string
 }
 
-export interface ClientConsent {
-  id: string
-  clientId: string
-  consentType: ClientConsentType
-  version: string
-  granted: boolean
-  dateTime: string
-  method: string
-  recordedBy: string
-}
-
 export interface ClientAuditEvent {
   id: string
   clientId: string
@@ -196,7 +176,7 @@ export interface ClientAuditEvent {
 
 export type ClientViewMode = 'grid' | 'table'
 
-export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'consent' | 'projects' | 'activity'
+export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'projects' | 'activity'
 
 export interface ClientWorkspaceTab {
   key: ClientWorkspaceTabKey

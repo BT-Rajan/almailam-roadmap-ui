@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FilePlus, MessageSquare, Plus, ShieldCheck, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
+import { FilePlus, MessageSquare, Plus, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -33,8 +33,6 @@ const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/componen
 const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
 const ClientDocumentVersionDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentVersionDialog.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
-const ClientConsentList = defineAsyncComponent(() => import('@/components/client/ClientConsentList.vue'))
-const ClientConsentDialog = defineAsyncComponent(() => import('@/components/client/ClientConsentDialog.vue'))
 const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/ClientAuditTrail.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
@@ -42,7 +40,6 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type {
   ClientAddress,
-  ClientConsent,
   ClientContact,
   ClientDocument,
   ClientDocumentCategory,
@@ -77,8 +74,6 @@ const isEditSaving = ref(false)
 const isStatusToggleSaving = ref(false)
 const isDeleteClientDialogOpen = ref(false)
 const isDeleteClientSaving = ref(false)
-const isConsentDialogOpen = ref(false)
-const isConsentSaving = ref(false)
 const identificationDuplicates = ref<ClientDuplicateMatch[]>([])
 const isMergeDialogOpen = ref(false)
 const isMergeSaving = ref(false)
@@ -114,7 +109,6 @@ const TABS: ClientWorkspaceTab[] = [
   { key: 'contacts', label: 'Contacts' },
   { key: 'identification', label: 'Identification' },
   { key: 'documents', label: 'Documents' },
-  { key: 'consent', label: 'Consent' },
   { key: 'projects', label: 'Projects' },
   { key: 'activity', label: 'Activity' },
 ]
@@ -341,17 +335,9 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
       city: payload.city,
       accountManagerId: payload.accountManagerId,
       notes: payload.notes,
-      // Consent flags are deliberately NOT sourced from this form -- they
-      // must only ever change via the audited "Record Consent" flow
-      // (see clientStore.createConsent), never a casual profile edit.
-      // Resending the client's current values here keeps them untouched
-      // rather than accidentally resetting them to a Pydantic default.
       communicationPreference: {
         preferredLanguage: payload.preferredLanguage,
         preferredChannel: payload.preferredChannel,
-        emailConsent: client.value.communicationPreference.emailConsent,
-        whatsappConsent: client.value.communicationPreference.whatsappConsent,
-        smsConsent: client.value.communicationPreference.smsConsent,
       },
       individualProfile: isIndividual
         ? {
@@ -414,26 +400,6 @@ async function handleConfirmDeleteClient(): Promise<void> {
     resultDialogStore.showError('Failed to delete client', detail)
   } finally {
     isDeleteClientSaving.value = false
-  }
-}
-
-async function handleConfirmConsent(payload: {
-  consentType: ClientConsent['consentType']
-  version: string
-  granted: boolean
-  method: string
-}): Promise<void> {
-  if (!client.value) return
-  isConsentSaving.value = true
-  try {
-    await clientStore.createConsent(client.value.id, payload)
-    resultDialogStore.showSuccess('Consent recorded', `${payload.consentType}: ${payload.granted ? 'Granted' : 'Declined'}.`)
-    isConsentDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to record consent', detail)
-  } finally {
-    isConsentSaving.value = false
   }
 }
 
@@ -715,7 +681,6 @@ function createProjectForClient(): void {
             :contacts="clientStore.contacts"
             :addresses="clientStore.addresses"
             :identifications="clientStore.identifications"
-            :consents="clientStore.consents"
           />
           <ClientOnboardingActions
             :client="client"
@@ -723,7 +688,6 @@ function createProjectForClient(): void {
             :contacts="clientStore.contacts"
             :addresses="clientStore.addresses"
             :identifications="clientStore.identifications"
-            :consents="clientStore.consents"
             :verifications="clientStore.verifications"
             :loading="isOnboardingStateSaving"
             @autoAdvance="handleAutoAdvanceOnboarding"
@@ -806,13 +770,6 @@ function createProjectForClient(): void {
           :loading="isVersionHistoryLoading"
           @download="handleDownloadVersion"
         />
-      </template>
-
-      <template v-else-if="activeTab === 'consent'">
-        <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="ShieldCheck" @click="isConsentDialogOpen = true">Record Consent</BaseButton>
-        </div>
-        <ClientConsentList :consents="clientStore.consents" />
       </template>
 
       <template v-else-if="activeTab === 'projects'">
@@ -913,11 +870,6 @@ function createProjectForClient(): void {
         confirm-variant="danger"
         :loading="isDeleteClientSaving"
         @confirm="handleConfirmDeleteClient"
-      />
-      <ClientConsentDialog
-        v-model="isConsentDialogOpen"
-        :loading="isConsentSaving"
-        @confirm="handleConfirmConsent"
       />
       <ClientMergeDialog
         v-model="isMergeDialogOpen"
