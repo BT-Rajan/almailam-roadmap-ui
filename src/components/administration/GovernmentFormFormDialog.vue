@@ -3,19 +3,23 @@ import { computed, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { FORM_CATEGORY_OPTIONS, FORM_LANGUAGE_OPTIONS } from '@/constants/governmentFormOptions'
 import type { FormInput } from '@/services/governmentFormService'
 import type { GovernmentAuthority, GovernmentForm, GovernmentFormCategory, GovernmentFormLanguage } from '@/types/Government'
+import type { ServiceCatalogItem } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 
 interface Props {
   modelValue: boolean
   form?: GovernmentForm
   authorities: GovernmentAuthority[]
+  services: ServiceCatalogItem[]
   saving?: boolean
 }
 
@@ -29,7 +33,9 @@ const emit = defineEmits<{
   save: [input: FormInput]
 }>()
 
-function emptyDraft(): FormInput & { requiredDocumentsText: string } {
+type FormDraft = Omit<FormInput, 'template'> & { requiredDocumentsText: string; template: string }
+
+function emptyDraft(): FormDraft {
   return {
     authorityId: props.authorities[0]?.id ?? '',
     formCode: '',
@@ -42,6 +48,8 @@ function emptyDraft(): FormInput & { requiredDocumentsText: string } {
     requiredDocumentsText: '',
     lastUpdated: new Date().toISOString().slice(0, 10),
     status: 'Active',
+    template: '',
+    serviceTags: [],
   }
 }
 
@@ -52,12 +60,27 @@ const authorityOptions = computed<SelectOption[]>(() =>
   props.authorities.map((authority) => ({ label: authority.name, value: authority.id })),
 )
 
+function isServiceTagged(serviceName: string): boolean {
+  return draft.value.serviceTags.includes(serviceName)
+}
+
+function toggleServiceTag(serviceName: string): void {
+  draft.value.serviceTags = isServiceTagged(serviceName)
+    ? draft.value.serviceTags.filter((tag) => tag !== serviceName)
+    : [...draft.value.serviceTags, serviceName]
+}
+
 watch(
   () => [props.modelValue, props.form] as const,
   ([isOpen, existingForm]) => {
     if (!isOpen) return
     draft.value = existingForm
-      ? { ...existingForm, requiredDocumentsText: existingForm.requiredDocuments.join('\n') }
+      ? {
+          ...existingForm,
+          requiredDocumentsText: existingForm.requiredDocuments.join('\n'),
+          template: existingForm.template ?? '',
+          serviceTags: existingForm.serviceTags ?? [],
+        }
       : emptyDraft()
     errors.value = {}
   },
@@ -91,6 +114,8 @@ function handleSave(): void {
     lastUpdated: draft.value.lastUpdated,
     status: draft.value.status,
     previewUrl: draft.value.previewUrl,
+    template: draft.value.template?.trim() || undefined,
+    serviceTags: draft.value.serviceTags,
   }
 
   emit('save', input)
@@ -126,6 +151,35 @@ function handleSave(): void {
         hint="One document per line."
         :rows="4"
       />
+
+      <TextArea
+        v-model="draft.template"
+        label="Template Content"
+        hint="Written with {{token}} merge fields, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}. Used to preview and print this form filled in."
+        :rows="8"
+      />
+
+      <div>
+        <p class="mb-1.5 text-sm font-medium text-text-secondary">Tagged Services</p>
+        <p class="mb-2 text-xs text-text-muted">
+          This form is suggested under a project's Documents &gt; Government section when the project's service
+          matches one of the tags below.
+        </p>
+        <EmptyState
+          v-if="services.length === 0"
+          title="No services in the catalog yet"
+          description="Add services under Administration > Service Catalog to tag this form."
+        />
+        <div v-else class="grid grid-cols-1 gap-1.5 rounded-lg border border-border-light p-3 tablet:grid-cols-2">
+          <Checkbox
+            v-for="service in services"
+            :key="service.id"
+            :model-value="isServiceTagged(service.name)"
+            :label="service.name"
+            @update:model-value="toggleServiceTag(service.name)"
+          />
+        </div>
+      </div>
     </div>
 
     <template #footer>
