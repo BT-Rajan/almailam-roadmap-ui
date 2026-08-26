@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowUp, Pencil } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { ArrowDown, ArrowUp } from '@lucide/vue'
+import { computed, onMounted } from 'vue'
 
 import ErrorState from '@/components/common/ErrorState.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -11,21 +11,17 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import AIConfigSummaryCard from '@/components/administration/AIConfigSummaryCard.vue'
 import AIProviderCard from '@/components/administration/AIProviderCard.vue'
-import PromptTemplateEditorDialog from '@/components/administration/PromptTemplateEditorDialog.vue'
 import { useAIConfigStore } from '@/stores/aiConfigStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { AIProviderId, PromptTemplate } from '@/types/AiConfig'
+import type { AIProviderId } from '@/types/AiConfig'
 import type { SelectOption } from '@/types/Ui'
 
 const aiConfigStore = useAIConfigStore()
 const toastStore = useToastStore()
-
-const editingTemplate = ref<PromptTemplate | undefined>(undefined)
-const isTemplateDialogOpen = ref(false)
-const isSavingTemplate = ref(false)
 
 const providerOptions = computed<SelectOption[]>(
   () => aiConfigStore.config?.providers.map((provider) => ({ label: provider.label, value: provider.id })) ?? [],
@@ -61,30 +57,14 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
   const result = await aiConfigStore.testConnection(providerId)
   toastStore.show(result.success ? 'success' : 'error', result.success ? 'Connection successful' : 'Connection failed', result.message)
 }
-
-function openEditTemplate(template: PromptTemplate): void {
-  editingTemplate.value = template
-  isTemplateDialogOpen.value = true
-}
-
-async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
-  if (!editingTemplate.value) return
-  isSavingTemplate.value = true
-  try {
-    await aiConfigStore.savePromptTemplate(editingTemplate.value.id, input)
-    toastStore.show('success', 'Prompt template updated', `${input.name} has been saved.`)
-    isTemplateDialogOpen.value = false
-  } catch {
-    toastStore.show('error', 'Unable to save template', 'Please try again.')
-  } finally {
-    isSavingTemplate.value = false
-  }
-}
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="AI Configuration" subtitle="Configure AI providers, models, caching and prompt templates." />
+    <PageHeader
+      title="Knowledgebase AI"
+      subtitle="Configure the provider, grounding prompt, and limits for the knowledgebase Q&A assistant."
+    />
 
     <ErrorState v-if="aiConfigStore.error" :description="aiConfigStore.error" @retry="loadData" />
 
@@ -113,11 +93,11 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
       </div>
 
       <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <FormSection title="AI Availability" description="AI is optional. All business workflows continue functioning normally if disabled.">
+        <FormSection title="Availability" description="The knowledgebase Q&A tool is the only AI-backed feature besides the client ID check. All other workflows are unaffected if this is disabled.">
           <ToggleSwitch
             :model-value="aiConfigStore.config.isEnabled"
-            label="Enable AI Assistant"
-            hint="Hides AI buttons and panels across the application when disabled."
+            label="Enable Knowledgebase Assistant"
+            hint="Hides the Knowledge Base page's Ask panel and disables the ask endpoint when off."
             @update:model-value="aiConfigStore.updateField('isEnabled', $event)"
           />
         </FormSection>
@@ -166,7 +146,7 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Model & Performance" description="Applied to every AI request unless overridden per template.">
+        <FormSection title="Model & Performance" description="Applied to every knowledgebase Q&A request.">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
             <NumberInput
               :model-value="aiConfigStore.config.timeoutSeconds"
@@ -194,11 +174,12 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Caching & Retries" description="Repeated requests reuse cached responses whenever possible.">
+        <FormSection title="Caching & Retries" description="A repeated question against the same document(s) is served from cache instead of calling the provider again.">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <NumberInput
               :model-value="aiConfigStore.config.cacheDurationMinutes"
-              label="Cache Duration (minutes)"
+              label="Answer Cache Duration (minutes)"
+              hint="0 disables caching."
               :min="0"
               :max="1440"
               @update:model-value="aiConfigStore.updateField('cacheDurationMinutes', Number($event))"
@@ -213,29 +194,46 @@ async function saveTemplate(input: Omit<PromptTemplate, 'id'>): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Prompt Templates" description="Administrator-configurable prompts used across the application. Edited without code changes.">
-          <div class="flex flex-col gap-2">
-            <div
-              v-for="template in aiConfigStore.templates"
-              :key="template.id"
-              class="flex items-start justify-between gap-3 rounded-lg border border-border-light bg-bg-secondary px-4 py-3"
-            >
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <p class="text-sm font-medium text-text-primary">{{ template.name }}</p>
-                  <StatusBadge :label="template.module" variant="neutral" />
-                </div>
-                <p class="mt-1 text-xs text-text-muted">{{ template.description }}</p>
-              </div>
-              <IconButton :icon="Pencil" label="Edit template" size="sm" variant="ghost" @click="openEditTemplate(template)" />
-            </div>
+        <FormSection title="Document Limits" description="Bounds on what can be uploaded and how much document text is sent to the provider per question.">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+            <NumberInput
+              :model-value="aiConfigStore.config.kbMaxUploadSizeMb"
+              label="Max Upload Size (MB)"
+              :min="1"
+              :max="100"
+              @update:model-value="aiConfigStore.updateField('kbMaxUploadSizeMb', Number($event))"
+            />
+            <NumberInput
+              :model-value="aiConfigStore.config.kbMaxDocumentChars"
+              label="Max Characters per Document"
+              :min="1000"
+              :max="1000000"
+              :step="1000"
+              @update:model-value="aiConfigStore.updateField('kbMaxDocumentChars', Number($event))"
+            />
+            <NumberInput
+              :model-value="aiConfigStore.config.kbMaxContextChars"
+              label="Max Context Characters (all documents)"
+              hint="Caps total document text sent per question when asking across all active documents."
+              :min="1000"
+              :max="2000000"
+              :step="1000"
+              @update:model-value="aiConfigStore.updateField('kbMaxContextChars', Number($event))"
+            />
           </div>
+        </FormSection>
+
+        <FormSection title="Grounding Prompt" description="Instructs the model to answer strictly from the uploaded document(s) and to reply in the visitor's language (Arabic, English, or a mix). Edit with care.">
+          <TextArea
+            :model-value="aiConfigStore.config.kbSystemPrompt"
+            :rows="10"
+            :max-length="8000"
+            @update:model-value="aiConfigStore.updateField('kbSystemPrompt', $event)"
+          />
         </FormSection>
 
         <FormActionBar submit-label="Save Changes" :loading="aiConfigStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>
-
-    <PromptTemplateEditorDialog v-model="isTemplateDialogOpen" :template="editingTemplate" :saving="isSavingTemplate" @save="saveTemplate" />
   </div>
 </template>

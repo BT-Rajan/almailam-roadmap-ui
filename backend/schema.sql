@@ -723,17 +723,42 @@ CREATE TABLE IF NOT EXISTS project_link_documents (
     INDEX idx_project_link_documents_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS document_ai_reviews (
+CREATE TABLE IF NOT EXISTS knowledge_documents (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    document_id         BIGINT UNSIGNED NOT NULL,
-    summary             TEXT NOT NULL,
-    details             TEXT NOT NULL,
-    confidence          ENUM('high','medium','low') NOT NULL,
-    extracted_fields    JSON NOT NULL,
-    suggestions         JSON NOT NULL,
-    created_at          DATETIME NOT NULL,
-    CONSTRAINT fk_document_ai_reviews_document FOREIGN KEY (document_id) REFERENCES project_documents(id) ON DELETE CASCADE,
-    INDEX idx_document_ai_reviews_document (document_id)
+    document_no         VARCHAR(20) NOT NULL UNIQUE,
+    title               VARCHAR(200) NOT NULL,
+    storage_key         VARCHAR(300) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    -- Extracted-text file kind, not the browser MIME type: pdf|docx|txt.
+    content_type        VARCHAR(20) NOT NULL,
+    extracted_text       LONGTEXT NOT NULL,
+    char_count          INT UNSIGNED NOT NULL DEFAULT 0,
+    truncated           TINYINT(1) NOT NULL DEFAULT 0,
+    extraction_ok        TINYINT(1) NOT NULL DEFAULT 1,
+    extraction_error     VARCHAR(500) NOT NULL DEFAULT '',
+    is_active           TINYINT(1) NOT NULL DEFAULT 1,
+    uploaded_by         BIGINT UNSIGNED NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_knowledge_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_knowledge_documents_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Caches an LLM answer for a (document scope, normalized question) pair so
+-- an identical question against the same document(s) doesn't re-call the
+-- provider -- see AIConfiguration.cache_duration_minutes for the TTL and
+-- app/services/knowledge_service.py for the cache key construction.
+CREATE TABLE IF NOT EXISTS knowledge_qa_cache (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    scope_key           VARCHAR(64) NOT NULL,
+    question_hash       CHAR(64) NOT NULL,
+    question_text       TEXT NOT NULL,
+    answer_text         MEDIUMTEXT NOT NULL,
+    source_document_ids JSON NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_knowledge_qa_cache_scope_question (scope_key, question_hash),
+    INDEX idx_knowledge_qa_cache_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -1138,8 +1163,13 @@ CREATE TABLE IF NOT EXISTS ai_configuration (
     timeout_seconds             INT UNSIGNED NOT NULL DEFAULT 30,
     max_tokens                  INT UNSIGNED NOT NULL DEFAULT 2000,
     temperature                 DECIMAL(3,2) NOT NULL DEFAULT 0.30,
+    -- Also the knowledgebase Q&A answer-cache TTL (see knowledge_qa_cache).
     cache_duration_minutes      INT UNSIGNED NOT NULL DEFAULT 15,
     retry_limit                 INT UNSIGNED NOT NULL DEFAULT 2,
+    kb_system_prompt            TEXT NULL,
+    kb_max_upload_size_mb       INT UNSIGNED NOT NULL DEFAULT 20,
+    kb_max_document_chars       INT UNSIGNED NOT NULL DEFAULT 60000,
+    kb_max_context_chars        INT UNSIGNED NOT NULL DEFAULT 150000,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_ai_configuration_singleton CHECK (id = 1)
@@ -1152,16 +1182,6 @@ CREATE TABLE IF NOT EXISTS ai_provider_configs (
     model           VARCHAR(120) NOT NULL DEFAULT '',
     has_api_key     TINYINT(1) NOT NULL DEFAULT 0,
     api_key_hint    VARCHAR(4) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS ai_prompt_templates (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name            VARCHAR(150) NOT NULL,
-    description     VARCHAR(300) NOT NULL DEFAULT '',
-    module          VARCHAR(50) NOT NULL,
-    template        TEXT NOT NULL,
-    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

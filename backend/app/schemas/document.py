@@ -2,7 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.document import AI_CONFIDENCE_LEVELS, DOCUMENT_STATUSES
+from app.models.document import DOCUMENT_STATUSES
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -92,44 +92,3 @@ class DocumentVersionOut(BaseModel):
         )
 
 
-class ExtractedFieldIn(BaseModel):
-    label: str = Field(min_length=1, max_length=120)
-    value: str = Field(min_length=1, max_length=500)
-    confidence: str
-    _check = field_validator("confidence")(_enum_validator(AI_CONFIDENCE_LEVELS, "confidence"))
-
-
-class ExtractedFieldOut(BaseModel):
-    label: str
-    value: str
-    confidence: str
-
-
-class DocumentAIReviewOut(BaseModel):
-    documentId: str
-    summary: str
-    details: str
-    confidence: str
-    extractedFields: list[ExtractedFieldOut]
-    suggestions: list[str]
-
-    @staticmethod
-    def from_model(review, document_no: str) -> "DocumentAIReviewOut":
-        return DocumentAIReviewOut(
-            documentId=document_no,
-            summary=review.summary,
-            details=review.details,
-            confidence=review.confidence,
-            extractedFields=[ExtractedFieldOut(**f) for f in review.extracted_fields],
-            suggestions=review.suggestions,
-        )
-
-
-class DocumentAIReviewCreate(BaseModel):
-    summary: str = Field(min_length=1)
-    details: str = Field(min_length=1)
-    confidence: str
-    extractedFields: list[ExtractedFieldIn] = Field(default_factory=list)
-    suggestions: list[str] = Field(default_factory=list)
-
-    _check = field_validator("confidence")(_enum_validator(AI_CONFIDENCE_LEVELS, "confidence"))

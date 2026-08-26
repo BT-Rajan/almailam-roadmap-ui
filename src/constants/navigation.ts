@@ -13,6 +13,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   },
   { label: 'Payments', routeName: ROUTE_NAMES.PAYMENTS, icon: 'Wallet', matchPath: '/payments' },
   { label: 'Documents', routeName: ROUTE_NAMES.DOCUMENTS, icon: 'FileText', matchPath: '/documents' },
+  { label: 'Knowledge Base', routeName: ROUTE_NAMES.KNOWLEDGE_BASE, icon: 'BookOpen', matchPath: '/knowledge-base' },
   { label: 'Tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
   { label: 'Reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },
   {

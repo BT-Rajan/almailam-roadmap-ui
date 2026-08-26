@@ -12,7 +12,7 @@ from app.core.status_transitions import (
     DOCUMENT_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
-from app.models.document import DocumentAIReview, DocumentVersion, ProjectDocument
+from app.models.document import DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service, notification_service, project_service, timeline_service
@@ -317,36 +317,6 @@ def get_download_target(db: Session, document_no: str):
     return resolve_path(document.storage_key), document.original_filename
 
 
-def get_ai_review(db: Session, document_id: int) -> DocumentAIReview | None:
-    return (
-        db.query(DocumentAIReview)
-        .filter(DocumentAIReview.document_id == document_id)
-        .order_by(DocumentAIReview.id.desc())
-        .first()
-    )
-
-
-def create_ai_review(db: Session, document_no: str, payload, user_id: int) -> DocumentAIReview:
-    document = get_document(db, document_no)
-    review = DocumentAIReview(
-        document_id=document.id,
-        summary=payload.summary,
-        details=payload.details,
-        confidence=payload.confidence,
-        extracted_fields=[f.model_dump() for f in payload.extractedFields],
-        suggestions=payload.suggestions,
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(review)
-    audit_service.log_event(db, ENTITY_TYPE, document.id, "AI review recorded", user_id)
-    notification_service.create_notification(
-        db, document.uploaded_by, "AI review completed",
-        f"The {document.title} has been reviewed with {payload.confidence} confidence.",
-        "AI", link_route_name="document-viewer", link_params={"documentId": document.document_no},
-    )
-    db.commit()
-    db.refresh(review)
-    return review
 
 
 def _document_exists(db: Session, document_no: str) -> ProjectDocument:

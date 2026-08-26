@@ -22,6 +22,7 @@ from app.api.execution_steps import router as execution_steps_router
 from app.api.approval_process import router as approval_process_router
 from app.api.documents import router as documents_router
 from app.api.government import router as government_router
+from app.api.knowledge import router as knowledge_router
 from app.api.messages import router as messages_router
 from app.api.notifications import router as notifications_router
 from app.api.payments import router as payments_router
@@ -137,6 +138,7 @@ app.include_router(clients_router)
 app.include_router(company_router)
 app.include_router(projects_router)
 app.include_router(government_router)
+app.include_router(knowledge_router)
 app.include_router(submissions_router)
 app.include_router(quotations_router)
 app.include_router(contracts_router)

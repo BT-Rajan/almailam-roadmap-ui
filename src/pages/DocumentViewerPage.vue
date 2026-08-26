@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, MessageSquare, Plus, RefreshCw, Sparkles, Trash2 } from '@lucide/vue'
+import { Download, MessageSquare, Plus, RefreshCw, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -43,10 +43,6 @@ function loadData(): void {
 
 onMounted(loadData)
 watch(documentId, loadData)
-
-function openReview(): void {
-  router.push({ name: ROUTE_NAMES.DOCUMENT_REVIEW, params: { documentId: documentId.value } })
-}
 
 async function handleDownload(): Promise<void> {
   try {
@@ -210,7 +206,6 @@ async function handleDelete(): Promise<void> {
         <BaseButton :icon="Download" variant="secondary" @click="handleDownload">Download</BaseButton>
         <BaseButton :icon="RefreshCw" variant="secondary" @click="isStatusDialogOpen = true">Status</BaseButton>
         <BaseButton :icon="Plus" variant="secondary" @click="isAddVersionOpen = true">Add Version</BaseButton>
-        <BaseButton :icon="Sparkles" variant="secondary" @click="openReview">AI Review</BaseButton>
         <IconButton :icon="Trash2" label="Delete document" @click="isDeleteDialogOpen = true" />
       </template>
     </PageHeader>

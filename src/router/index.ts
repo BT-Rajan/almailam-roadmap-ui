@@ -240,17 +240,13 @@ const router = createRouter({
       },
     },
     {
-      path: '/documents/:documentId/review',
-      name: ROUTE_NAMES.DOCUMENT_REVIEW,
-      component: () => import('@/pages/DocumentReviewPage.vue'),
+      path: '/knowledge-base',
+      name: ROUTE_NAMES.KNOWLEDGE_BASE,
+      component: () => import('@/pages/KnowledgeBasePage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Documents', routeName: ROUTE_NAMES.DOCUMENTS },
-          { label: 'AI Review' },
-        ],
+        breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Knowledge Base' }],
       },
     },
     {

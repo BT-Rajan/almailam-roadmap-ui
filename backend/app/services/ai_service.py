@@ -1,23 +1,19 @@
 """Real LLM integration layer.
 
-Every AI feature in this app (document review, contract summaries, the AI
-assistant) goes through generate_json()/generate_text() below, which call
-a real provider's API using a real API key from environment variables
-(see app.core.config.Settings) -- never a fabricated response. If no key
-is configured, or AI is disabled in AI Configuration, this raises
+Every AI feature in this app -- the knowledgebase Q&A tool and the New
+Client wizard's identification-document plausibility check -- goes through
+generate_text() (or the vision variant) below, which calls a real
+provider's API using a real API key from environment variables (see
+app.core.config.Settings) -- never a fabricated response. If no key is
+configured, or AI is disabled in AI Configuration, this raises
 AIUnavailableError, and every caller in this module turns that into a
 clear "not available" result rather than making something up.
 
 Two providers are supported, matching AI_PROVIDER_IDS in
-app.models.ai_config: Anthropic (Claude) and DeepSeek. Both use a
-JSON-structured-output pattern: the system prompt asks the model to
-return only a JSON object matching a specific schema, which is then
-parsed and validated. If the model doesn't return valid JSON, that's
-surfaced as an error rather than silently inventing the missing fields.
+app.models.ai_config: Anthropic (Claude) and DeepSeek.
 """
 
 import json
-from typing import Any
 
 import httpx
 
@@ -139,7 +135,9 @@ async def generate_text(db, prompt: str, system: str) -> str:
     """Calls the configured default AI provider (falling back through
     provider_priority), respecting the admin's enabled/disabled toggle and
     per-call settings (timeout, max tokens, temperature) from AI
-    Configuration."""
+    Configuration. Each provider is retried up to config.retry_limit times
+    on a transient HTTP failure before moving on to the next one in
+    provider_priority."""
     config, _providers = ai_config_service.get_configuration(db)
     if not config.is_enabled:
         raise AIUnavailableError(
@@ -152,191 +150,25 @@ async def generate_text(db, prompt: str, system: str) -> str:
         caller = _PROVIDER_CALLERS.get(provider_id)
         if not caller:
             continue
-        try:
-            return await caller(prompt, system, config.max_tokens, config.temperature, config.timeout_seconds)
-        except AIUnavailableError as exc:
-            errors.append(str(exc))
-        except httpx.HTTPStatusError as exc:
-            errors.append(f"{provider_id}: provider returned {exc.response.status_code}")
-        except httpx.HTTPError as exc:
-            errors.append(f"{provider_id}: {exc}")
+        attempts = max(1, config.retry_limit + 1)
+        for attempt in range(attempts):
+            try:
+                return await caller(prompt, system, config.max_tokens, config.temperature, config.timeout_seconds)
+            except AIUnavailableError as exc:
+                errors.append(str(exc))
+                break  # not configured -- retrying won't help, try the next provider
+            except httpx.HTTPStatusError as exc:
+                errors.append(f"{provider_id}: provider returned {exc.response.status_code}")
+                if attempt == attempts - 1:
+                    break
+            except httpx.HTTPError as exc:
+                errors.append(f"{provider_id}: {exc}")
+                if attempt == attempts - 1:
+                    break
 
     raise AIUnavailableError(
         "; ".join(errors) if errors else "No AI provider is configured. Add an API key in AI Configuration."
     )
-
-
-async def generate_json(db, prompt: str, system: str) -> dict[str, Any]:
-    """Same as generate_text, but requires (and parses) a JSON object
-    response. Raises AIUnavailableError if the model's response isn't
-    valid JSON -- callers must not paper over that by inventing the
-    missing structure themselves."""
-    text = await generate_text(db, prompt, system)
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned
-        if cleaned.endswith("```"):
-            cleaned = cleaned.rsplit("```", 1)[0]
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise AIUnavailableError("The AI provider's response could not be understood. Please try again.") from exc
-
-
-# ----------------------------------------------------------------------------
-# Feature functions -- each builds a real prompt from real database rows,
-# calls generate_json()/generate_text() above, and honestly reports
-# unavailability (via AIUnavailableError) rather than ever falling back to
-# placeholder content.
-# ----------------------------------------------------------------------------
-
-REVIEW_SYSTEM_PROMPT = (
-    "You are a document review assistant for an engineering consulting firm. "
-    "Always respond with only a single valid JSON object, no other text, no markdown fences."
-)
-
-
-def _document_review_prompt(document, project) -> str:
-    return f"""Review this project document and respond with a JSON object only.
-
-Document: {document.title}
-Type: {document.type}
-Revision: {document.revision}
-Status: {document.status}
-Project: {project.project_name if project else "Unknown"} ({project.service if project else ""})
-
-You do not have access to the document's actual file contents, only the
-metadata above -- be appropriately conservative in your confidence level
-and note this limitation explicitly in "details".
-
-Respond with exactly this JSON shape:
-{{
-  "summary": "one sentence summary of what this document likely covers, given its title, type, and project context",
-  "details": "a short paragraph of review notes and what a human reviewer should check, noting you only had metadata to work from",
-  "confidence": "high" | "medium" | "low",
-  "extractedFields": [{{"label": "string", "value": "string", "confidence": "high" | "medium" | "low"}}],
-  "suggestions": ["short actionable suggestion", "another suggestion"]
-}}"""
-
-
-async def get_document_review(db, document, project, force_refresh: bool = False, actor_id: int | None = None) -> dict:
-    """Calls the LLM for a document review, then persists it through the
-    existing document_service.create_ai_review() -- reusing its real
-    storage, audit logging, and notification-to-uploader behavior rather
-    than duplicating a parallel path."""
-    from datetime import datetime, timezone
-
-    from app.schemas.document import DocumentAIReviewCreate, DocumentAIReviewOut, ExtractedFieldIn
-    from app.services import document_service
-
-    config, _providers = ai_config_service.get_configuration(db)
-
-    if not force_refresh:
-        existing = document_service.get_ai_review(db, document.id)
-        if existing:
-            age_minutes = (
-                datetime.now(timezone.utc) - existing.created_at.replace(tzinfo=timezone.utc)
-            ).total_seconds() / 60
-            if age_minutes < config.cache_duration_minutes:
-                return DocumentAIReviewOut.from_model(existing, document.document_no)
-
-    result = await generate_json(db, _document_review_prompt(document, project), REVIEW_SYSTEM_PROMPT)
-
-    valid_confidence = ("high", "medium", "low")
-    payload = DocumentAIReviewCreate(
-        summary=str(result.get("summary") or "No summary was returned."),
-        details=str(result.get("details") or "No details were returned."),
-        confidence=result.get("confidence") if result.get("confidence") in valid_confidence else "low",
-        extractedFields=[
-            ExtractedFieldIn(
-                label=str(f.get("label", ""))[:120] or "Field",
-                value=str(f.get("value", ""))[:500] or "-",
-                confidence=f.get("confidence") if f.get("confidence") in valid_confidence else "low",
-            )
-            for f in result.get("extractedFields", [])
-            if isinstance(f, dict)
-        ],
-        suggestions=[str(s) for s in result.get("suggestions", []) if isinstance(s, str)],
-    )
-    review = document_service.create_ai_review(db, document.document_no, payload, actor_id)
-    return DocumentAIReviewOut.from_model(review, document.document_no)
-
-
-CONTRACT_SUMMARY_SYSTEM_PROMPT = (
-    "You are a contract review assistant for an engineering consulting firm. "
-    "Always respond with only a single valid JSON object, no other text, no markdown fences."
-)
-
-
-def _contract_summary_prompt(contract, clauses, project) -> str:
-    clause_text = "\n".join(f"- {c.title}: {c.content}" for c in clauses) or "(no clauses recorded)"
-    return f"""Summarise this contract and respond with a JSON object only.
-
-Contract: {contract.contract_no}
-Project: {project.project_name if project else "Unknown"}
-Value: {contract.contract_value} {contract.currency}
-Status: {contract.status}
-Scope: {contract.scope_summary or "(not recorded)"}
-
-Clauses:
-{clause_text}
-
-Respond with exactly this JSON shape:
-{{
-  "summary": "one or two sentence overview of the contract",
-  "details": "a short paragraph highlighting notable terms, obligations, or risk areas from the clauses above",
-  "confidence": "high" | "medium" | "low",
-  "suggestions": ["short actionable suggestion", "another suggestion"]
-}}"""
-
-
-async def get_contract_summary(db, contract, clauses, project) -> dict:
-    result = await generate_json(db, _contract_summary_prompt(contract, clauses, project), CONTRACT_SUMMARY_SYSTEM_PROMPT)
-    return {
-        "contractId": contract.contract_no,
-        "summary": str(result.get("summary", ""))[:2000],
-        "details": str(result.get("details", ""))[:5000],
-        "confidence": result.get("confidence") if result.get("confidence") in ("high", "medium", "low") else "low",
-        "suggestions": result.get("suggestions", []) if isinstance(result.get("suggestions"), list) else [],
-    }
-
-
-ASSISTANT_SYSTEM_PROMPT = (
-    "You are an AI assistant inside an engineering consulting firm's project management "
-    "system. Always respond with only a single valid JSON object, no other text, no markdown fences, "
-    "matching this shape: "
-    '{"summary": "one sentence summary", "details": "a short paragraph", '
-    '"confidence": "high" | "medium" | "low", "suggestedActions": ["short action", "another action"]}'
-)
-
-
-async def assistant_response(db, prompt: str, template_context: str | None = None) -> dict:
-    full_prompt = f"{template_context}\n\n{prompt}" if template_context else prompt
-    result = await generate_json(db, full_prompt, ASSISTANT_SYSTEM_PROMPT)
-    return {
-        "summary": str(result.get("summary", ""))[:2000],
-        "details": str(result.get("details", ""))[:5000],
-        "confidence": result.get("confidence") if result.get("confidence") in ("high", "medium", "low") else "low",
-        "suggestedActions": result.get("suggestedActions", []) if isinstance(result.get("suggestedActions"), list) else [],
-    }
-
-
-async def assistant_analyze_contract(db, contract, clauses, project) -> dict:
-    prompt = (
-        f"Analyse this contract for risk areas and unusual terms.\n\n"
-        f"{_contract_summary_prompt(contract, clauses, project)}"
-    )
-    return await assistant_response(db, prompt)
-
-
-async def assistant_review_document(db, document, project) -> dict:
-    prompt = f"Review this document.\n\n{_document_review_prompt(document, project)}"
-    return await assistant_response(db, prompt)
-
-
-async def assistant_assess_risk(db, description: str) -> dict:
-    prompt = f"Assess the risk of the following, and suggest mitigations:\n\n{description}"
-    return await assistant_response(db, prompt)
 
 
 IDENTIFICATION_CHECK_SYSTEM_PROMPT = (
