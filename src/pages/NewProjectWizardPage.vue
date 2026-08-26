@@ -52,7 +52,7 @@ const WIZARD_STEPS = [
   { label: 'Client & Service' },
   { label: 'Project Details' },
   { label: 'Permits' },
-  { label: 'Type Activities' },
+  { label: 'Additional Services' },
   { label: 'Review & Confirm' },
 ]
 
@@ -585,11 +585,11 @@ function goToCreatedProject(): void {
 
         <FormSection
           v-else-if="currentStep === 3"
-          title="Type Activities"
+          title="Additional Services"
           description="Pick an engagement type and check off which of its activities apply -- anything not already covered by the services picked earlier adds its own cost to the quotation."
         >
           <div class="flex flex-col gap-1.5">
-            <label id="type-activity-picker-label" class="text-sm font-medium text-text-secondary">Type Activities</label>
+            <label id="type-activity-picker-label" class="text-sm font-medium text-text-secondary">Additional Services</label>
             <button
               id="type-activity-picker-button"
               type="button"
@@ -597,7 +597,7 @@ function goToCreatedProject(): void {
               class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
               @click="isTypeActivityPickerOpen = true"
             >
-              <span v-if="form.selectedTypeActivities.length === 0" class="text-text-muted">Select type activities (optional)</span>
+              <span v-if="form.selectedTypeActivities.length === 0" class="text-text-muted">Select additional services (optional)</span>
               <span v-else class="text-text-primary">
                 {{ form.selectedTypeActivities.length }} activit{{ form.selectedTypeActivities.length === 1 ? 'y' : 'ies' }} selected ·
                 {{ form.selectedTypeActivities[0]?.categoryName }}
@@ -689,7 +689,7 @@ function goToCreatedProject(): void {
               </ul>
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Type Activities</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Additional Services</p>
               <p v-if="form.selectedTypeActivities.length === 0" class="text-sm text-text-primary">None</p>
               <template v-else>
                 <p class="text-sm text-text-primary">{{ form.selectedTypeActivities[0]?.categoryName }}</p>

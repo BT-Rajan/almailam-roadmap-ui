@@ -64,14 +64,55 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // below, and the v-if chain further down) so the stepper -- and any
 // existing ?tab=process-style deep link -- can still land on them,
 // with every function of that tab unchanged.
-const TABS: ProjectWorkspaceTab[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'documents', label: 'Documents' },
-  { key: 'payments', label: 'Payments' },
-  { key: 'tasks', label: 'Tasks' },
-]
-
+//
+// Which of Overview/Documents/Payments/Tasks actually show here depends
+// on the project's current workflow stage -- each stage only exposes
+// what's actually relevant to it at that point, rather than always
+// showing all four regardless of stage. Payments is relabeled "Payment
+// Config" at Contract, the only stage it's currently shown at. Stages
+// beyond Contract (Design, Government Submission, Execution & Tracking,
+// Completed) are unchanged for now -- always all four -- pending a
+// later pass.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
+
+const TABS = computed<ProjectWorkspaceTab[]>(() => {
+  switch (project.value?.currentStage) {
+    case 'Requirement':
+      return [{ key: 'overview', label: 'Overview' }]
+    case 'Quotation':
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
+    case 'Contract':
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'documents', label: 'Documents' },
+        { key: 'payments', label: 'Payment Config' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
+    default:
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'documents', label: 'Documents' },
+        { key: 'payments', label: 'Payments' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
+  }
+})
+
+// If the stage change above just hid the tab currently being viewed
+// (e.g. sitting on Documents when the stage moves to Requirement, which
+// only shows Overview), fall back to Overview rather than leaving an
+// orphaned, no-longer-reachable pane on screen. Only applies to the top
+// tab bar's own keys -- a stepper-driven view (requirement/quotation/
+// contract/etc, never part of TABS) is never affected by this.
+watch(TABS, (tabs) => {
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'payments', 'tasks']
+  if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
+    activeTab.value = 'overview'
+  }
+})
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
 const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading || contractStore.isLoading)
@@ -222,7 +263,7 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
       <div v-if="activeTab === 'overview'" id="project-tabpanel-overview" role="tabpanel" aria-labelledby="project-tab-overview" tabindex="0">
-        <ProjectOverviewTab :project="project" :client="client" />
+        <ProjectOverviewTab :project="project" :client="client" @navigate-tab="activeTab = $event" />
       </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />

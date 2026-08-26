@@ -92,7 +92,7 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Select Type Activities" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" title="Select Additional Services" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
       <div>
         <p class="mb-2 text-sm font-medium text-text-secondary">Engagement Type</p>
