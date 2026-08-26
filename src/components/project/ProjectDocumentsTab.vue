@@ -313,8 +313,8 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       </template>
       <template #row-actions="{ row }">
         <div class="flex items-center justify-end gap-1" @click.stop>
-          <IconButton :icon="Pencil" label="Edit document" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
-          <IconButton :icon="Trash2" label="Delete document" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
+          <IconButton :icon="Pencil" :label="`Edit document ${row.raw.title}`" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
+          <IconButton :icon="Trash2" :label="`Delete document ${row.raw.title}`" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
         </div>
       </template>
     </SmartTable>

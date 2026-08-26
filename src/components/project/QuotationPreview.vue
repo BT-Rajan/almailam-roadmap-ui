@@ -260,7 +260,7 @@ function saveAsFinal(): void {
             <div class="flex-1">
               <TextInput v-model="item.description" placeholder="Description" />
             </div>
-            <IconButton :icon="Trash2" label="Remove line item" size="sm" :disabled="draft.lineItems.length === 1" @click="removeLineItem(index)" />
+            <IconButton :icon="Trash2" :label="`Remove line item ${index + 1}`" size="sm" :disabled="draft.lineItems.length === 1" @click="removeLineItem(index)" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <NumberInput :model-value="item.quantity" placeholder="Quantity" :min="0.01" step="0.01" @update:model-value="item.quantity = Number($event)" />

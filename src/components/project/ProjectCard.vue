@@ -15,18 +15,37 @@ const props = defineProps<{
   client?: Client
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   open: [projectId: string]
 }>()
 
 const clientName = computed(() => props.client?.companyName ?? 'Unknown Client')
+
+function open(): void {
+  emit('open', props.project.id)
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+  // See ClientCard.vue's identical fix: the whole card acts as one big
+  // button, so Enter and Space both activate it -- a mouse-only @click
+  // here would otherwise make every project in the grid unreachable to
+  // keyboard and screen-reader users entirely.
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    open()
+  }
+}
 </script>
 
 <template>
   <Card
     hoverable
-    class="cursor-pointer"
-    @click="$emit('open', project.id)"
+    class="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+    role="button"
+    tabindex="0"
+    :aria-label="`Open project ${project.projectName}`"
+    @click="open"
+    @keydown="handleKeydown"
   >
     <div class="flex flex-col gap-4">
       <div class="flex items-start justify-between gap-3">

@@ -61,9 +61,9 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
             <IconButton
               v-if="editable"
               :icon="Pencil"
-              label="Edit this update"
+              :label="`Edit update: ${event.title}`"
               size="sm"
-              class="opacity-0 transition-opacity duration-fast no-print group-hover:opacity-100"
+              class="opacity-0 transition-opacity duration-fast no-print group-hover:opacity-100 group-focus-within:opacity-100"
               @click="$emit('edit', event)"
             />
           </div>

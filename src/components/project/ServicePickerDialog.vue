@@ -201,7 +201,7 @@ function handleConfirm(): void {
               <p v-if="item.activityId !== item.serviceId" class="truncate text-xs text-text-muted">{{ item.serviceName }}</p>
               <p v-else class="truncate text-xs text-text-muted">Whole service</p>
             </div>
-            <IconButton :icon="X" label="Remove" size="sm" @click="removeItem(item)" />
+            <IconButton :icon="X" :label="`Remove ${item.activityName}`" size="sm" @click="removeItem(item)" />
           </div>
         </div>
       </div>

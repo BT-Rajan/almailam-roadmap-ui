@@ -65,19 +65,22 @@ function vEditableText(el: HTMLElement, binding: { value: string }): void {
       class="group flex items-start gap-2"
       :class="isHeading(item) ? 'mt-2 font-semibold' : 'ps-4'"
     >
-      <span v-if="!isHeading(item)" class="select-none">•</span>
+      <span v-if="!isHeading(item)" class="select-none" aria-hidden="true">•</span>
       <span
         v-editable-text="isHeading(item) ? headingText(item) : item"
         class="flex-1 outline-none"
         :contenteditable="editable ? 'true' : 'false'"
         :class="editable ? 'rounded px-0.5 hover:bg-amber-50 focus:bg-amber-50 focus:ring-1 focus:ring-amber-400 print:hover:bg-transparent print:focus:ring-0' : ''"
+        :role="editable ? 'textbox' : undefined"
+        :aria-label="editable ? (isHeading(item) ? `Heading ${index + 1}` : `List item ${index + 1}`) : undefined"
+        :aria-multiline="editable ? 'false' : undefined"
         @blur="(e) => updateItem(index, (e.target as HTMLElement).innerText.trim(), isHeading(item))"
       />
       <button
         v-if="editable"
         type="button"
-        class="no-print opacity-0 transition-opacity group-hover:opacity-100"
-        title="Remove line"
+        class="no-print opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+        :aria-label="`Remove line ${index + 1}`"
         @click="removeItem(index)"
       >
         <X class="h-3.5 w-3.5 text-slate-400 hover:text-red-500" />

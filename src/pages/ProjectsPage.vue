@@ -125,6 +125,7 @@ function createProject(): void {
       <template #filters>
         <div class="w-44">
           <SelectBox
+            label="Status"
             :model-value="projectStore.statusFilter"
             :options="STATUS_OPTIONS"
             @update:model-value="projectStore.setStatusFilter($event as ProjectStatus | 'All')"
@@ -132,6 +133,7 @@ function createProject(): void {
         </div>
         <div class="w-52">
           <SelectBox
+            label="Stage"
             :model-value="projectStore.stageFilter"
             :options="STAGE_OPTIONS"
             @update:model-value="projectStore.setStageFilter($event as WorkflowStage | 'All')"
@@ -139,6 +141,7 @@ function createProject(): void {
         </div>
         <div class="w-44">
           <SelectBox
+            label="Priority"
             :model-value="projectStore.priorityFilter"
             :options="PRIORITY_OPTIONS"
             @update:model-value="projectStore.setPriorityFilter($event as ProjectPriority | 'All')"
@@ -147,18 +150,20 @@ function createProject(): void {
         <BaseButton
           size="sm"
           :variant="projectStore.myProjectsOnly ? 'primary' : 'secondary'"
+          :aria-pressed="projectStore.myProjectsOnly"
           @click="projectStore.setMyProjectsOnly(!projectStore.myProjectsOnly)"
         >
           My Projects
         </BaseButton>
       </template>
       <template #actions>
-        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">
+        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" aria-label="Project list layout">
           <IconButton
             :icon="LayoutGrid"
             label="Grid view"
             size="sm"
             :variant="projectStore.viewMode === 'grid' ? 'primary' : 'ghost'"
+            :aria-pressed="projectStore.viewMode === 'grid'"
             @click="projectStore.setViewMode('grid')"
           />
           <IconButton
@@ -166,6 +171,7 @@ function createProject(): void {
             label="Table view"
             size="sm"
             :variant="projectStore.viewMode === 'table' ? 'primary' : 'ghost'"
+            :aria-pressed="projectStore.viewMode === 'table'"
             @click="projectStore.setViewMode('table')"
           />
         </div>
