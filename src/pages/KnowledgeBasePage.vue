@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, Send, Trash2, Upload } from '@lucide/vue'
+import { AlertTriangle, FileText, Send, Trash2, Upload } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -31,8 +31,11 @@ const scopeOptions = computed<SelectOption[]>(() => [
   ...knowledgeStore.documents.map((document) => ({ label: document.title, value: document.id, disabled: !document.isActive })),
 ])
 
+const isDisabled = computed(() => knowledgeStore.isEnabled === false)
+
 function loadData(): void {
   knowledgeStore.loadDocuments()
+  if (knowledgeStore.isEnabled === undefined) void knowledgeStore.loadStatus()
 }
 
 onMounted(loadData)
@@ -144,11 +147,20 @@ function documentTitle(documentId: string): string {
       <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">
         <h2 class="text-sm font-semibold text-text-secondary">Ask</h2>
 
+        <div
+          v-if="isDisabled"
+          class="flex items-start gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700"
+        >
+          <AlertTriangle class="h-4 w-4 shrink-0" />
+          <span>The knowledgebase assistant is currently disabled. Ask an administrator to enable it in Knowledgebase AI.</span>
+        </div>
+
         <SelectBox
           v-model="scopeDocumentId"
           label="Scope"
           :options="scopeOptions"
           placeholder="All active documents"
+          :disabled="isDisabled"
         />
 
         <TextArea
@@ -156,10 +168,11 @@ function documentTitle(documentId: string): string {
           placeholder="اسأل بالعربية أو English أو مزيج من اللغتين..."
           :rows="3"
           :max-length="2000"
+          :disabled="isDisabled"
         />
 
         <div class="flex justify-end">
-          <BaseButton :icon="Send" :loading="knowledgeStore.isAsking" :disabled="!question.trim()" @click="handleAsk">
+          <BaseButton :icon="Send" :loading="knowledgeStore.isAsking" :disabled="isDisabled || !question.trim()" @click="handleAsk">
             Ask
           </BaseButton>
         </div>

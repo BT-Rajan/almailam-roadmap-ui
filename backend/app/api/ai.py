@@ -42,8 +42,11 @@ async def test_provider_connection(provider_id: str, db: Session = Depends(get_d
     if not caller:
         return ProviderTestResult(success=False, message=f"Unknown provider '{provider_id}'.")
 
+    _config, providers = ai_config_service.get_configuration(db)
+    provider = next((p for p in providers if p.provider_id == provider_id), None)
+
     try:
-        await caller("Reply with exactly: OK", "Reply with exactly the word OK and nothing else.", 10, 0, 15)
+        await caller("Reply with exactly: OK", "Reply with exactly the word OK and nothing else.", 10, 0, 15, provider)
         return ProviderTestResult(success=True, message="Connection successful.")
     except AIUnavailableError as exc:
         return ProviderTestResult(success=False, message=str(exc))

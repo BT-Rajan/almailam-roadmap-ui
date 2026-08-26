@@ -46,7 +46,18 @@ async function handleSave(): Promise<void> {
   const success = await aiConfigStore.saveConfiguration()
   if (success) {
     toastStore.show('success', 'AI configuration saved', 'Your changes have been applied.')
+  } else {
+    // Previously silent on failure -- a failed save (permission error,
+    // network issue, bad value) looked identical to a successful no-op,
+    // which is exactly why "toggling AI on/off doesn't seem to work" was
+    // impossible to tell apart from an actual bug.
+    toastStore.show('error', 'Unable to save', aiConfigStore.error ?? 'Please try again.')
   }
+}
+
+function resetSystemPrompt(): void {
+  if (!aiConfigStore.config) return
+  aiConfigStore.updateField('kbSystemPrompt', aiConfigStore.config.kbDefaultSystemPrompt)
 }
 
 function handleCancel(): void {
@@ -223,13 +234,16 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Grounding Prompt" description="Instructs the model to answer strictly from the uploaded document(s) and to reply in the visitor's language (Arabic, English, or a mix). Edit with care.">
+        <FormSection title="Grounding Prompt" description="Instructs the model to answer strictly from the uploaded document(s), stay concrete rather than generic, keep a firm-but-polite tone, and reply in the visitor's language (Arabic, English, or a mix). Edit with care.">
           <TextArea
             :model-value="aiConfigStore.config.kbSystemPrompt"
             :rows="10"
             :max-length="8000"
             @update:model-value="aiConfigStore.updateField('kbSystemPrompt', $event)"
           />
+          <div class="flex justify-end">
+            <BaseButton variant="ghost" size="sm" @click="resetSystemPrompt">Reset to Default</BaseButton>
+          </div>
         </FormSection>
 
         <FormActionBar submit-label="Save Changes" :loading="aiConfigStore.isSaving" @submit="handleSave" @cancel="handleCancel" />

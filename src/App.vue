@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
 import ResultDialog from '@/components/common/ResultDialog.vue'
+import KnowledgeChatDrawer from '@/components/knowledge/KnowledgeChatDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
 import { useIdleLogout } from '@/composables/useIdleLogout'
@@ -31,4 +32,5 @@ const layout = computed(() => {
   <ResultDialog />
   <NotificationDrawer />
   <CommandPalette />
+  <KnowledgeChatDrawer />
 </template>

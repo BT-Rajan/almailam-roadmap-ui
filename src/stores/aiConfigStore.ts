@@ -40,18 +40,16 @@ export const useAIConfigStore = defineStore('aiConfig', {
       this.config = { ...this.config, [field]: value }
     },
 
-    updateApiKey(providerId: AIProviderId, maskedKey: string) {
+    // Stages a raw key locally (see AIProviderConfig.apiKey) -- it isn't
+    // sent to the server, and `status` isn't touched, until Save Changes
+    // actually persists it (see saveConfiguration below).
+    updateApiKey(providerId: AIProviderId, rawKey: string) {
       if (!this.config) return
-      // Deliberately leaves `status` untouched -- it reflects whether the
-      // server's environment actually has a usable key for this provider,
-      // which typing a value into this form does not change (see
-      // AIProviderConfigOut.from_model on the backend). Flipping it to
-      // 'connected' here would be a false "it worked" the instant you
-      // click Update Key, before anything is even saved.
+      const preview = rawKey.length > 4 ? `••••••••${rawKey.slice(-4)}` : '••••••••'
       this.config = {
         ...this.config,
         providers: this.config.providers.map((provider) =>
-          provider.id === providerId ? { ...provider, apiKeyMasked: maskedKey } : provider,
+          provider.id === providerId ? { ...provider, apiKey: rawKey, apiKeyMasked: preview } : provider,
         ),
       }
     },

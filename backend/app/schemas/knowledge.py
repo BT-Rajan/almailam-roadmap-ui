@@ -48,3 +48,13 @@ class KnowledgeAskOut(BaseModel):
     answer: str
     sourceDocumentIds: list[str]
     cached: bool
+
+
+class KnowledgeStatusOut(BaseModel):
+    # Deliberately just this one flag -- everything else in AI
+    # Configuration (provider, keys, prompt, limits) stays admin-only via
+    # /api/ai/configuration. Any user with Knowledgebase view access needs
+    # to know whether the assistant is on, to show/hide the sparkle icon
+    # and chat drawer, without being able to see or infer anything about
+    # how it's configured.
+    isEnabled: bool

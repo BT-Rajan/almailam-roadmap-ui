@@ -1,6 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.security import encrypt_secret
 from app.models.ai_config import AI_PROVIDER_IDS, AIConfiguration, AIProviderConfig
 from app.services import audit_service
 
@@ -59,12 +60,16 @@ def save_configuration(db: Session, payload, actor_id: int) -> tuple[AIConfigura
             continue
         provider.label = provider_input.label
         provider.model = provider_input.model
-        # apiKeyMasked arrives already masked by the client (see
-        # AIProviderCard.vue) -- the raw key is never sent over the wire.
-        # We only persist whether one has been provided and its hint.
-        if provider_input.apiKeyMasked:
+        # A blank/omitted apiKey means "leave the saved key untouched," not
+        # "clear it" -- the admin form never re-sends the real key on a
+        # save that didn't touch this field (see AIProviderCard.vue), only
+        # an explicitly typed new one, which is the only thing that should
+        # overwrite what's stored.
+        raw_key = (provider_input.apiKey or "").strip()
+        if raw_key:
+            provider.api_key_encrypted = encrypt_secret(raw_key)
             provider.has_api_key = True
-            provider.api_key_hint = provider_input.apiKeyMasked[-4:]
+            provider.api_key_hint = raw_key[-4:]
 
     db.commit()
     db.refresh(config)

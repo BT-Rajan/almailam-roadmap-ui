@@ -1,6 +1,20 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
-import type { KnowledgeAskResult, KnowledgeDocument } from '@/types/Knowledge'
+import type { KnowledgeAskResult, KnowledgeDocument, KnowledgeStatus } from '@/types/Knowledge'
+
+/**
+ * Whether the knowledgebase assistant is enabled -- available to any user
+ * with Knowledgebase view access, not just admins (contrast with the full
+ * /api/ai/configuration, which stays Administration-only).
+ */
+async function getStatus(): Promise<KnowledgeStatus> {
+  try {
+    return await apiClient.get<KnowledgeStatus>('/api/knowledge/status')
+  } catch (error) {
+    console.error('Failed to fetch knowledgebase status:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch status')
+  }
+}
 
 /**
  * List all knowledgebase documents from backend API
@@ -96,6 +110,7 @@ async function ask(question: string, documentId?: string): Promise<KnowledgeAskR
 }
 
 export const knowledgeService = {
+  getStatus,
   getDocuments,
   uploadDocument,
   setActive,

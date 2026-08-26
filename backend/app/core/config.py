@@ -61,11 +61,14 @@ class Settings(BaseSettings):
     UPLOADS_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
 
-    # Real LLM provider credentials -- deliberately environment-only, never
-    # stored in the database (see ai_provider_configs, which only ever
-    # stores a masked hint of a key, not the key itself). Empty by default;
-    # AI features honestly report themselves as unavailable until one of
-    # these is set. See app/services/ai_service.py.
+    # Fallback LLM provider credentials, read only when no key has been
+    # saved for that provider from the Knowledgebase AI admin page (see
+    # AIProviderConfig.api_key_encrypted / app.core.security.encrypt_secret
+    # -- the admin-entered key is encrypted at rest and takes priority over
+    # these). Useful for a deploy that wants credentials fixed at the
+    # infrastructure level instead of editable from the app. Empty by
+    # default; AI features honestly report themselves as unavailable until
+    # a key exists via either path. See app/services/ai_service.py.
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-5"
     DEEPSEEK_API_KEY: str = ""

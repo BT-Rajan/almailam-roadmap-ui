@@ -1,22 +1,27 @@
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
+from app.core.security import decrypt_secret
 from app.models.ai_config import DEFAULT_KB_SYSTEM_PROMPT
 
 AI_PROVIDER_IDS = ("claude", "deepseek")
 
-# The real, live-usable credential for each provider is an environment
-# variable on the server (see app.core.config.Settings, app.services.
-# ai_service) -- never the "API key" typed into the admin form below.
-# AIProviderConfig.has_api_key/api_key_hint only remembers that an admin
-# once typed *something* in for their own bookkeeping (the raw value is
-# masked client-side in AIProviderCard.vue before it's ever sent, so the
-# server never even sees it) -- it is not proof the provider will actually
-# work. `status` here must reflect the environment variable, or an admin
-# who has typed a key sees "Connected" while every real call (and Test
-# Connection) honestly fails with "API key is not configured on the
-# server," which is exactly the bug this was fixed to stop reproducing.
-_PROVIDER_ENV_KEY_ATTR = {"claude": "ANTHROPIC_API_KEY", "deepseek": "DEEPSEEK_API_KEY"}
+# The environment variable fallback for each provider, read only when no
+# key has been saved from the admin form (see AIProviderConfig.
+# api_key_encrypted). Used both to resolve `status` below and by
+# app.services.ai_service at call time -- keep these in sync.
+PROVIDER_ENV_KEY_ATTR = {"claude": "ANTHROPIC_API_KEY", "deepseek": "DEEPSEEK_API_KEY"}
+
+
+def provider_has_usable_key(provider) -> bool:
+    """True if this provider can actually be called right now -- a saved,
+    decryptable admin key, or (failing that) the environment variable
+    fallback. Matches exactly what app.services.ai_service resolves at
+    call time, so `status` here is never out of sync with reality."""
+    if provider.api_key_encrypted and decrypt_secret(provider.api_key_encrypted):
+        return True
+    env_attr = PROVIDER_ENV_KEY_ATTR.get(provider.provider_id)
+    return bool(env_attr and getattr(get_settings(), env_attr, ""))
 
 
 class AIProviderConfigOut(BaseModel):
@@ -24,23 +29,20 @@ class AIProviderConfigOut(BaseModel):
     label: str
     model: str
     apiKeyMasked: str
-    # Reflects whether the server environment actually has a usable key
-    # for this provider (see _PROVIDER_ENV_KEY_ATTR above), not whether an
-    # admin has typed something into this form -- see testProviderConnection
+    # Reflects whether a live call can actually be made for this provider
+    # right now (see provider_has_usable_key above) -- not merely whether
+    # an admin has typed something into this form. See testProviderConnection
     # for the live, definitive check.
     status: str
 
     @staticmethod
     def from_model(provider) -> "AIProviderConfigOut":
-        settings = get_settings()
-        env_attr = _PROVIDER_ENV_KEY_ATTR.get(provider.provider_id)
-        has_env_key = bool(env_attr and getattr(settings, env_attr, ""))
         return AIProviderConfigOut(
             id=provider.provider_id,
             label=provider.label,
             model=provider.model,
             apiKeyMasked=(f"••••••••{provider.api_key_hint}" if provider.has_api_key else ""),
-            status="connected" if has_env_key else "not-configured",
+            status="connected" if provider_has_usable_key(provider) else "not-configured",
         )
 
 
@@ -48,7 +50,12 @@ class AIProviderConfigIn(BaseModel):
     id: str
     label: str = Field(max_length=80)
     model: str = Field(default="", max_length=120)
-    apiKeyMasked: str = Field(default="", max_length=20)
+    # Raw key, sent once over HTTPS when an admin sets/changes it --
+    # encrypted immediately on the way into storage (see
+    # ai_config_service.save_configuration) and never stored or logged in
+    # plaintext. None/empty means "leave the currently saved key (if any)
+    # untouched," not "clear it."
+    apiKey: str | None = Field(default=None, max_length=200)
 
 
 class AIConfigurationOut(BaseModel):
@@ -61,6 +68,10 @@ class AIConfigurationOut(BaseModel):
     cacheDurationMinutes: int
     retryLimit: int
     kbSystemPrompt: str
+    # Lets the admin UI offer a "Reset to Default" action without having
+    # the default prompt text hardcoded twice (once here, once in the
+    # frontend) and drifting out of sync.
+    kbDefaultSystemPrompt: str
     kbMaxUploadSizeMb: int
     kbMaxDocumentChars: int
     kbMaxContextChars: int
@@ -78,6 +89,7 @@ class AIConfigurationOut(BaseModel):
             cacheDurationMinutes=config.cache_duration_minutes,
             retryLimit=config.retry_limit,
             kbSystemPrompt=config.kb_system_prompt or DEFAULT_KB_SYSTEM_PROMPT,
+            kbDefaultSystemPrompt=DEFAULT_KB_SYSTEM_PROMPT,
             kbMaxUploadSizeMb=config.kb_max_upload_size_mb,
             kbMaxDocumentChars=config.kb_max_document_chars,
             kbMaxContextChars=config.kb_max_context_chars,

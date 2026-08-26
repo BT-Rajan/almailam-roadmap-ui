@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { useToastStore } from '@/stores/toastStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -439,6 +440,13 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        // Provider keys, the grounding prompt, and every other setting on
+        // this page are administrator-only -- the backend already
+        // enforces this (Administration permission on every /api/ai/*
+        // route), but a non-admin who navigates here directly previously
+        // still saw the page shell before its API calls failed. Redirect
+        // before that happens instead.
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
@@ -557,6 +565,15 @@ router.beforeEach((to) => {
           ? ROUTE_NAMES.CUSTOMER_PORTAL_PROJECTS
           : ROUTE_NAMES.DASHBOARD
     return { name: homeRoute }
+  }
+
+  // Backend-enforced already (every /api/ai/* route requires the
+  // Administration permission, which only the Administrator role has) --
+  // this stops a non-admin from even seeing the page shell before its API
+  // calls fail, rather than relying solely on that 403.
+  if (to.meta.adminOnly && authStore.user?.role !== 'Administrator') {
+    useToastStore().show('error', 'Access denied', 'This page is only available to administrators.')
+    return { name: ROUTE_NAMES.DASHBOARD }
   }
 
   return true

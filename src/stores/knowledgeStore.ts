@@ -6,6 +6,11 @@ import type { KnowledgeDocument, KnowledgeQAEntry } from '@/types/Knowledge'
 interface KnowledgeStoreState {
   documents: KnowledgeDocument[]
   history: KnowledgeQAEntry[]
+  // undefined until loaded -- distinct from `false`, so the sparkle icon
+  // and ask panels can stay hidden/quiet rather than briefly flashing
+  // "disabled" before the real status is known.
+  isEnabled: boolean | undefined
+  isDrawerOpen: boolean
   isLoading: boolean
   isUploading: boolean
   isAsking: boolean
@@ -17,6 +22,8 @@ export const useKnowledgeStore = defineStore('knowledge', {
   state: (): KnowledgeStoreState => ({
     documents: [],
     history: [],
+    isEnabled: undefined,
+    isDrawerOpen: false,
     isLoading: false,
     isUploading: false,
     isAsking: false,
@@ -31,6 +38,29 @@ export const useKnowledgeStore = defineStore('knowledge', {
   },
 
   actions: {
+    async loadStatus() {
+      try {
+        const status = await knowledgeService.getStatus()
+        this.isEnabled = status.isEnabled
+      } catch {
+        // Leave isEnabled undefined -- the sparkle icon/ask panels stay
+        // hidden rather than guessing, same principle as every other
+        // honest-unavailability path in this feature.
+      }
+    },
+
+    openDrawer() {
+      this.isDrawerOpen = true
+    },
+
+    closeDrawer() {
+      this.isDrawerOpen = false
+    },
+
+    toggleDrawer() {
+      this.isDrawerOpen = !this.isDrawerOpen
+    },
+
     async loadDocuments() {
       this.isLoading = true
       this.error = undefined

@@ -8,6 +8,11 @@ export interface AIProviderConfig {
   model: string
   apiKeyMasked: string
   status: AIConnectionStatus
+  // Write-only, local-only: a raw key just typed into the admin form,
+  // staged until Save Changes is clicked. Never present in a GET response
+  // -- the server never echoes back a real key. Cleared after a
+  // successful save (see aiConfigStore.saveConfiguration).
+  apiKey?: string
 }
 
 export interface AIConfiguration {
@@ -20,6 +25,7 @@ export interface AIConfiguration {
   cacheDurationMinutes: number
   retryLimit: number
   kbSystemPrompt: string
+  kbDefaultSystemPrompt: string
   kbMaxUploadSizeMb: number
   kbMaxDocumentChars: number
   kbMaxContextChars: number

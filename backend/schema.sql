@@ -1176,12 +1176,13 @@ CREATE TABLE IF NOT EXISTS ai_configuration (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ai_provider_configs (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    provider_id     VARCHAR(20) NOT NULL UNIQUE,
-    label           VARCHAR(80) NOT NULL,
-    model           VARCHAR(120) NOT NULL DEFAULT '',
-    has_api_key     TINYINT(1) NOT NULL DEFAULT 0,
-    api_key_hint    VARCHAR(4) NOT NULL DEFAULT ''
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    provider_id         VARCHAR(20) NOT NULL UNIQUE,
+    label               VARCHAR(80) NOT NULL,
+    model               VARCHAR(120) NOT NULL DEFAULT '',
+    api_key_encrypted   TEXT NULL,
+    has_api_key         TINYINT(1) NOT NULL DEFAULT 0,
+    api_key_hint        VARCHAR(4) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

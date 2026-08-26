@@ -5,14 +5,31 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.file_storage import format_file_size
 from app.models.user import User
-from app.schemas.knowledge import KnowledgeAskIn, KnowledgeAskOut, KnowledgeDocumentOut, KnowledgeDocumentUpdate
-from app.services import ai_service, knowledge_service
+from app.schemas.knowledge import (
+    KnowledgeAskIn,
+    KnowledgeAskOut,
+    KnowledgeDocumentOut,
+    KnowledgeDocumentUpdate,
+    KnowledgeStatusOut,
+)
+from app.services import ai_config_service, ai_service, knowledge_service
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
 can_view = require_permission("Knowledgebase", "view")
 can_edit = require_permission("Knowledgebase", "edit")
 can_delete = require_permission("Knowledgebase", "delete")
+
+
+@router.get("/status", response_model=KnowledgeStatusOut)
+def get_status(db: Session = Depends(get_db), _=Depends(can_view)):
+    # Deliberately not the full /api/ai/configuration -- see
+    # KnowledgeStatusOut's docstring. Any user who can see the Knowledge
+    # Base at all needs this to know whether to show the sparkle icon/
+    # chat drawer and the ask panel as enabled, without needing
+    # Administration access.
+    config, _providers = ai_config_service.get_configuration(db)
+    return KnowledgeStatusOut(isEnabled=config.is_enabled)
 
 
 @router.get("/documents", response_model=list[KnowledgeDocumentOut])

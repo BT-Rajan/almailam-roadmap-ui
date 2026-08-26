@@ -13,6 +13,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     layout: LayoutName
     requiresAuth?: boolean
+    // Restricted to the Administrator role -- enforced in router.beforeEach.
+    adminOnly?: boolean
     breadcrumbs?: BreadcrumbItem[]
   }
 }

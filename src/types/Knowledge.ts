@@ -24,3 +24,7 @@ export interface KnowledgeQAEntry extends KnowledgeAskResult {
   question: string
   askedAt: string
 }
+
+export interface KnowledgeStatus {
+  isEnabled: boolean
+}

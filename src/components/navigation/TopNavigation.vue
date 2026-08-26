@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Bell, BookOpen, Calendar, Menu, MessageSquare, Moon, Search, Sun, User } from '@lucide/vue'
+import { Bell, Calendar, Menu, MessageSquare, Moon, Search, Sparkles, Sun, User } from '@lucide/vue'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useRbac } from '@/composables/useRbac'
 import { useTheme } from '@/composables/useTheme'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useSearchStore } from '@/stores/searchStore'
@@ -14,11 +15,13 @@ const router = useRouter()
 const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
+const knowledgeStore = useKnowledgeStore()
 const { isDark, toggleMode } = useTheme()
 const { can } = useRbac()
 
 onMounted(() => {
   void notificationStore.loadNotifications()
+  if (knowledgeStore.isEnabled === undefined) void knowledgeStore.loadStatus()
 })
 </script>
 
@@ -51,13 +54,13 @@ onMounted(() => {
 
     <div class="flex items-center gap-2">
       <button
-        v-if="can('knowledgebase.view')"
+        v-if="can('knowledgebase.view') && knowledgeStore.isEnabled !== false"
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Knowledge Base"
-        @click="router.push({ name: ROUTE_NAMES.KNOWLEDGE_BASE })"
+        aria-label="Knowledge Assistant"
+        @click="knowledgeStore.toggleDrawer"
       >
-        <BookOpen :size="18" />
+        <Sparkles :size="18" />
       </button>
 
       <button
