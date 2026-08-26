@@ -301,11 +301,12 @@ async function handleConfirmScopeChange(
               :aria-expanded="expandedStageKey === stage.key"
               @click="toggleStage(stage.key)"
             >
-              <ChevronDown v-if="expandedStageKey === stage.key" class="h-4 w-4 shrink-0 text-text-muted" />
-              <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
-              <CheckCircle2 v-if="approvalStep?.isComplete" class="h-5 w-5 shrink-0 text-success-600" />
-              <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" />
+              <ChevronDown v-if="expandedStageKey === stage.key" class="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <CheckCircle2 v-if="approvalStep?.isComplete" class="h-5 w-5 shrink-0 text-success-600" aria-hidden="true" />
+              <Circle v-else class="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
               <h2 class="text-sm font-semibold text-text-primary">{{ stage.label }}</h2>
+              <span class="sr-only">{{ approvalStep?.isComplete ? '(Complete)' : '(Incomplete)' }}</span>
             </button>
 
             <span v-if="approvalStep?.hasDocument" class="text-xs text-text-muted">

@@ -252,7 +252,7 @@ function saveAsFinal(): void {
               <div class="flex-1">
                 <TextInput v-model="clause.title" placeholder="Clause title" />
               </div>
-              <IconButton :icon="Trash2" label="Remove clause" size="sm" @click="removeClause(index)" />
+              <IconButton :icon="Trash2" :label="`Remove clause ${index + 1}`" size="sm" @click="removeClause(index)" />
             </div>
             <TextArea v-model="clause.content" placeholder="Clause content" :rows="2" />
           </div>

@@ -42,6 +42,7 @@ const feeAmountDisplay = computed(() =>
             :model-value="contract.clientRepresentative"
             :editable="editable"
             placeholder="اسم العميل"
+            aria-label="Client representative name (Arabic)"
             @update:model-value="(v) => emit('patch', { clientRepresentative: v })"
           />
         </span>
@@ -56,6 +57,7 @@ const feeAmountDisplay = computed(() =>
           :model-value="contract.projectReference ?? ''"
           :editable="editable"
           placeholder="قسيمة رقم ... – قطعة ... - منطقة ..."
+          aria-label="Project reference (Arabic)"
           @update:model-value="(v) => emit('patch', { projectReference: v })"
         />
       </p>
@@ -66,6 +68,7 @@ const feeAmountDisplay = computed(() =>
           :model-value="contract.subjectLineAr ?? ''"
           :editable="editable"
           placeholder="وصف الموضوع"
+          aria-label="Subject line (Arabic)"
           @update:model-value="(v) => emit('patch', { subjectLineAr: v })"
         />.
       </p>
@@ -111,6 +114,7 @@ const feeAmountDisplay = computed(() =>
             :model-value="contract.clientRepresentative"
             :editable="editable"
             placeholder="Client name"
+            aria-label="Client representative name (English)"
             @update:model-value="(v) => emit('patch', { clientRepresentative: v })"
           />
         </span>
@@ -125,6 +129,7 @@ const feeAmountDisplay = computed(() =>
           :model-value="contract.projectReference ?? ''"
           :editable="editable"
           placeholder="Plot No. ... – Parcel ... - Area ..."
+          aria-label="Project reference (English)"
           @update:model-value="(v) => emit('patch', { projectReference: v })"
         />
       </p>
@@ -135,6 +140,7 @@ const feeAmountDisplay = computed(() =>
           :model-value="contract.subjectLineEn ?? ''"
           :editable="editable"
           placeholder="Subject description"
+          aria-label="Subject line (English)"
           @update:model-value="(v) => emit('patch', { subjectLineEn: v })"
         />.
       </p>

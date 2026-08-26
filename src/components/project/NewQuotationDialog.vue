@@ -266,7 +266,7 @@ function handleConfirm(): void {
             </div>
             <IconButton
               :icon="Trash2"
-              label="Remove line item"
+              :label="`Remove line item ${index + 1}`"
               size="sm"
               :disabled="form.lineItems.length === 1"
               @click="removeLineItem(index)"

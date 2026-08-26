@@ -94,17 +94,14 @@ function handleSave(): void {
         :class="drafts[step.id]?.isExcluded ? 'opacity-50' : ''"
       >
         <div class="flex items-start gap-3">
-          <Checkbox
-            v-if="drafts[step.id]"
-            v-model="drafts[step.id].done"
-            :disabled="isSaving || drafts[step.id].isExcluded"
-          />
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-text-primary">
-              {{ step.name }}
-              <span v-if="step.isOptional" class="ml-1 text-xs font-normal text-text-muted">(optional)</span>
-            </p>
-            <p class="text-xs text-text-muted">{{ step.weightPercentage }}% weight</p>
+            <Checkbox
+              v-if="drafts[step.id]"
+              v-model="drafts[step.id].done"
+              :disabled="isSaving || drafts[step.id].isExcluded"
+              :label="step.isOptional ? `${step.name} (optional)` : step.name"
+              :hint="`${step.weightPercentage}% weight`"
+            />
           </div>
           <label v-if="drafts[step.id]" class="flex shrink-0 items-center gap-1.5 text-xs text-text-muted">
             <input

@@ -42,6 +42,7 @@ const emit = defineEmits<{
           type="button"
           class="flex w-full flex-col gap-1.5 px-5 py-4 text-left transition-colors duration-fast"
           :class="quotation.id === selectedQuotationId ? 'bg-bg-selected' : 'hover:bg-bg-hover'"
+          :aria-current="quotation.id === selectedQuotationId ? 'true' : undefined"
           @click="emit('select', quotation.id)"
         >
           <div class="flex items-center justify-between gap-3">

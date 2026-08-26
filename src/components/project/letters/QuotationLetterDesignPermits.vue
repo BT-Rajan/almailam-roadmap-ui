@@ -48,6 +48,7 @@ const feeAmountDisplay = computed(() =>
           :model-value="quotation.clientRepresentative ?? ''"
           :editable="editable"
           placeholder="اسم العميل"
+          aria-label="Client representative name"
           @update:model-value="(v) => emit('patch', { clientRepresentative: v })"
         />
       </span>
@@ -62,6 +63,7 @@ const feeAmountDisplay = computed(() =>
         :model-value="quotation.projectReference ?? ''"
         :editable="editable"
         placeholder="قسيمة رقم ... – قطعة ... - منطقة ..."
+        aria-label="Project reference"
         @update:model-value="(v) => emit('patch', { projectReference: v })"
       />
     </p>
@@ -72,6 +74,7 @@ const feeAmountDisplay = computed(() =>
         :model-value="quotation.subjectLine ?? ''"
         :editable="editable"
         placeholder="وصف الموضوع"
+        aria-label="Subject line"
         @update:model-value="(v) => emit('patch', { subjectLine: v })"
       />.
     </p>

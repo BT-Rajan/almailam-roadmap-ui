@@ -221,19 +221,29 @@ async function handleConfirmDelete(): Promise<void> {
 
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
-      <ProjectOverviewTab v-if="activeTab === 'overview'" :project="project" :client="client" />
+      <div v-if="activeTab === 'overview'" id="project-tabpanel-overview" role="tabpanel" aria-labelledby="project-tab-overview" tabindex="0">
+        <ProjectOverviewTab :project="project" :client="client" />
+      </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectProcessTab v-if="activeTab === 'process'" :project="project" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
-      <ProjectDocumentsTab
+      <div
         v-else-if="activeTab === 'documents' || activeTab === 'design'"
-        :project="project"
-        :mode="activeTab"
-      />
+        :id="activeTab === 'documents' ? 'project-tabpanel-documents' : undefined"
+        role="tabpanel"
+        :aria-labelledby="activeTab === 'documents' ? 'project-tab-documents' : undefined"
+        tabindex="0"
+      >
+        <ProjectDocumentsTab :project="project" :mode="activeTab" />
+      </div>
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
-      <ProjectTasksTab v-else-if="activeTab === 'tasks'" :project="project" />
-      <PaymentWorkspacePanel v-else-if="activeTab === 'payments'" :project-id="projectId" @navigate-tab="activeTab = $event" />
+      <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
+        <ProjectTasksTab :project="project" />
+      </div>
+      <div v-else-if="activeTab === 'payments'" id="project-tabpanel-payments" role="tabpanel" aria-labelledby="project-tab-payments" tabindex="0">
+        <PaymentWorkspacePanel :project-id="projectId" @navigate-tab="activeTab = $event" />
+      </div>
 
       <ProjectEditDialog
         v-model="isEditDialogOpen"

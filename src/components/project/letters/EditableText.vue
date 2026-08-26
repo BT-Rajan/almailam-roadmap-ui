@@ -14,8 +14,12 @@ const props = withDefaults(
     editable: boolean
     placeholder?: string
     multiline?: boolean
+    /** What this field actually is (e.g. "Client representative name") --
+     * without this, a contenteditable region has no accessible name at
+     * all, since it isn't a real form control a <label> can point to. */
+    ariaLabel?: string
   }>(),
-  { placeholder: '—', multiline: false },
+  { placeholder: '—', multiline: false, ariaLabel: undefined },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -66,6 +70,9 @@ function onBlur(event: FocusEvent): void {
     :contenteditable="contentEditableAttr()"
     class="outline-none"
     :class="editable ? 'rounded px-0.5 hover:bg-amber-50 focus:bg-amber-50 focus:ring-1 focus:ring-amber-400 print:hover:bg-transparent print:focus:ring-0' : ''"
+    :role="editable ? 'textbox' : undefined"
+    :aria-label="editable ? ariaLabel : undefined"
+    :aria-multiline="editable && multiline ? 'true' : undefined"
     @blur="onBlur"
   />
 </template>

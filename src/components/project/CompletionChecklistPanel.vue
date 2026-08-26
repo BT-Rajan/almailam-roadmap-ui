@@ -26,8 +26,8 @@ const ITEMS: { key: keyof ProjectCompletionChecklist; label: string }[] = [
         class="flex items-center gap-2.5 rounded-lg border p-2.5"
         :class="checklist[item.key].complete ? 'border-success-200 bg-success-50' : 'border-border-light bg-bg-card'"
       >
-        <CheckCircle2 v-if="checklist[item.key].complete" class="h-4 w-4 shrink-0 text-success-600" />
-        <Circle v-else class="h-4 w-4 shrink-0 text-text-muted" />
+        <CheckCircle2 v-if="checklist[item.key].complete" class="h-4 w-4 shrink-0 text-success-600" aria-hidden="true" />
+        <Circle v-else class="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium text-text-primary">{{ item.label }}</p>
           <p class="text-xs text-text-muted">{{ checklist[item.key].detail }}</p>

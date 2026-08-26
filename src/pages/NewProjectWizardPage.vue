@@ -380,9 +380,11 @@ function goToCreatedProject(): void {
               </RouterLink>
             </div>
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-text-secondary">Service <span class="text-danger-500">*</span></label>
+              <label id="service-picker-label" class="text-sm font-medium text-text-secondary">Service <span class="text-danger-500">*</span></label>
               <button
+                id="service-picker-button"
                 type="button"
+                aria-labelledby="service-picker-label service-picker-button"
                 class="flex min-h-[42px] w-full items-center justify-between rounded-lg border bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
@@ -442,9 +444,11 @@ function goToCreatedProject(): void {
 
           <template v-if="form.involvesPermits === 'yes'">
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-text-secondary">Permits <span class="text-danger-500">*</span></label>
+              <label id="permits-picker-label" class="text-sm font-medium text-text-secondary">Permits <span class="text-danger-500">*</span></label>
               <button
+                id="permits-picker-button"
                 type="button"
+                aria-labelledby="permits-picker-label permits-picker-button"
                 class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
                 @click="isPermitPickerOpen = true"
               >
@@ -474,6 +478,7 @@ function goToCreatedProject(): void {
                   <button
                     type="button"
                     class="text-xs font-medium text-danger-600 hover:text-danger-700"
+                    :aria-label="`Remove ${permit.name}`"
                     @click="removePermit(permit.id)"
                   >
                     Remove
