@@ -107,6 +107,7 @@ function createClient(): void {
       <template #filters>
         <div class="w-44">
           <SelectBox
+            label="Client Type"
             :model-value="clientStore.typeFilter"
             :options="TYPE_OPTIONS"
             @update:model-value="clientStore.setTypeFilter($event as ClientType | 'All')"
@@ -114,6 +115,7 @@ function createClient(): void {
         </div>
         <div class="w-44">
           <SelectBox
+            label="Status"
             :model-value="clientStore.statusFilter"
             :options="CLIENT_STATUS_OPTIONS"
             @update:model-value="clientStore.setStatusFilter($event as ClientStatus | 'All')"
@@ -121,6 +123,7 @@ function createClient(): void {
         </div>
         <div class="w-52">
           <SelectBox
+            label="Onboarding State"
             :model-value="clientStore.onboardingFilter"
             :options="CLIENT_ONBOARDING_STATE_OPTIONS"
             @update:model-value="clientStore.setOnboardingFilter($event as ClientOnboardingState | 'All')"
@@ -129,18 +132,20 @@ function createClient(): void {
         <BaseButton
           size="sm"
           :variant="clientStore.myClientsOnly ? 'primary' : 'secondary'"
+          :aria-pressed="clientStore.myClientsOnly"
           @click="clientStore.setMyClientsOnly(!clientStore.myClientsOnly)"
         >
           My Clients
         </BaseButton>
       </template>
       <template #actions>
-        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">
+        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" aria-label="Client list layout">
           <IconButton
             :icon="LayoutGrid"
             label="Grid view"
             size="sm"
             :variant="clientStore.viewMode === 'grid' ? 'primary' : 'ghost'"
+            :aria-pressed="clientStore.viewMode === 'grid'"
             @click="clientStore.setViewMode('grid')"
           />
           <IconButton
@@ -148,6 +153,7 @@ function createClient(): void {
             label="Table view"
             size="sm"
             :variant="clientStore.viewMode === 'table' ? 'primary' : 'ghost'"
+            :aria-pressed="clientStore.viewMode === 'table'"
             @click="clientStore.setViewMode('table')"
           />
         </div>

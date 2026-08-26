@@ -57,8 +57,8 @@ function handleContactTypeChange(index: number, type: string): void {
             <button
               v-if="form.contacts.length > 1"
               type="button"
-              aria-label="Remove contact"
-              class="text-text-muted hover:text-danger-500"
+              :aria-label="`Remove contact ${index + 1}`"
+              class="rounded text-text-muted hover:text-danger-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
               @click="removeContact(index)"
             >
               <Trash2 class="h-4 w-4" />

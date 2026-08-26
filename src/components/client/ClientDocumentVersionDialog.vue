@@ -48,7 +48,7 @@ function isCurrentVersion(version: ClientDocumentVersion): boolean {
             <span class="text-sm font-semibold text-text-primary">Version {{ version.version }}</span>
             <StatusBadge v-if="isCurrentVersion(version)" label="Current" variant="success" size="sm" />
           </div>
-          <IconButton :icon="Download" label="Download this version" size="sm" @click="$emit('download', version)" />
+          <IconButton :icon="Download" :label="`Download version ${version.version}`" size="sm" @click="$emit('download', version)" />
         </div>
         <p class="text-xs text-text-muted">{{ version.uploadedBy }} · {{ formatDateTime(version.uploadDate) }}</p>
         <p class="text-sm text-text-secondary">{{ version.notes }}</p>
