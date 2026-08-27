@@ -232,6 +232,7 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
         status: 'Active',
         template: seed.template,
         serviceTags: [],
+        fields: [],
       })
     }
     toastStore.show('success', 'Standard forms added', `${seeds.length} form${seeds.length === 1 ? '' : 's'} added to the library.`)

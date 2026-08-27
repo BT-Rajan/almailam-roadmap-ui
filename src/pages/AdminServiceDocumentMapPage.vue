@@ -59,6 +59,7 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
       previewUrl: form.previewUrl,
       template: form.template,
       serviceTags,
+      fields: form.fields,
     })
   } catch (error) {
     toastStore.show('error', 'Failed to update', error instanceof Error ? error.message : 'Please try again.')
