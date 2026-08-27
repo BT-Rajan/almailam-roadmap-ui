@@ -115,6 +115,10 @@ export function getFinancialSummary(agreement: FinancialAgreement, obligations: 
 
   return {
     contractAmount: agreement.contractAmount,
+    // Filled in by the caller when it has quotation data on hand (see
+    // paymentStore.summaryForAgreement) -- this pure function only ever
+    // sees the agreement/obligations, never the quotation itself.
+    estimateAmount: null,
     totalReceived,
     totalPending,
     totalOverdue,

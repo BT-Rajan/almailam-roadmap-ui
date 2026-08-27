@@ -19,8 +19,8 @@ from app.models.payment import (
     Refund,
 )
 from app.models.project import Project
+from app.models.quotation import Quotation
 from app.services import notification_service
-from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service
 
@@ -418,7 +418,18 @@ def get_financial_summary(db: Session, agreement_id: int) -> dict:
     obligations = get_obligations(db, agreement_id)
     payments = get_payments(db, agreement_id)
     refunds = get_refunds(db, agreement_id)
-    return calc.get_financial_summary(agreement, obligations, payments, refunds)
+    summary = calc.get_financial_summary(agreement, obligations, payments, refunds)
+    # The original quotation amount, shown alongside Contract Value on
+    # the Payments tab (e.g. Completed stage's summary) -- not itself
+    # part of the balance math above, which is anchored to the
+    # agreement's own contract_amount, not the quotation it came from.
+    quotation = (
+        db.query(Quotation).filter(Quotation.quotation_no == agreement.quotation_reference).first()
+        if agreement.quotation_reference
+        else None
+    )
+    summary["estimateAmount"] = float(quotation.amount) if quotation else None
+    return summary
 
 
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:

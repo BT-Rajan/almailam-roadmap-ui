@@ -96,6 +96,17 @@ export type ProjectWorkspaceTabKey =
   | 'contract'
   | 'payments'
   | 'tasks'
+  // Stepper-only signal, not a real top-bar tab: navigating here just
+  // means "show this stage's Overview" -- see ProjectWorkspacePage.vue's
+  // STAGE_TAB_KEYS/normalizing watcher, the same reason 'requirement'
+  // above exists as its own key distinct from 'overview'.
+  | 'completed'
+  // The Completed stage's own Documents tab -- 3 sub-tabs (Submitted
+  // Docs / Approvals & Permits / Project Closure Docs), see
+  // ProjectCompletionDocumentsTab.vue. Distinct from the plain
+  // 'documents' key so Contract's simpler single-view Documents tab is
+  // unaffected.
+  | 'completedDocuments'
 
 export interface ProjectWorkspaceTab {
   key: ProjectWorkspaceTabKey

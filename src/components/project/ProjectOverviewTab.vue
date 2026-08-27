@@ -13,6 +13,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useProjectStageStore } from '@/stores/projectStageStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
@@ -50,6 +51,7 @@ const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
+const stageStore = useProjectStageStore()
 const toastStore = useToastStore()
 
 // Scope, Project Details, and Client Details are only useful while the
@@ -100,6 +102,9 @@ function loadStageDataIfNeeded(): void {
   if (props.stageContext === 'Government Submission') {
     if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
     if (documentStore.documents.length === 0) documentStore.loadDocuments()
+  }
+  if (props.stageContext === 'Completed' && stageStore.executionSteps.length === 0) {
+    stageStore.load(props.project.id)
   }
 }
 onMounted(loadStageDataIfNeeded)
@@ -163,6 +168,18 @@ function openFillDialog(form: GovernmentForm): void {
 
 function viewFilledDocument(documentId: string): void {
   router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
+}
+
+// Completed-stage task summary -- the 23-item execution checklist
+// (excluding activities this project marked not applicable, same as
+// the Execution & Tracking stage's own "Overall Execution" figure),
+// clickable straight through to that same checklist rather than
+// repeating it here.
+const plannedTasks = computed(() => stageStore.includedExecutionSteps)
+const completedTasksCount = computed(() => plannedTasks.value.filter((step) => step.completionPercentage === 100).length)
+
+function goToExecutionTasks(): void {
+  emit('navigate-tab', 'process')
 }
 
 // Approvals & Permits (Government Submission) checklist -- every
@@ -374,6 +391,23 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
         </div>
       </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Completed'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Tasks</h3>
+      </template>
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 rounded-lg border border-border-light p-4 text-left transition-colors hover:border-accent-300 hover:bg-accent-50"
+        @click="goToExecutionTasks"
+      >
+        <div>
+          <p class="text-2xl font-semibold text-text-primary">{{ completedTasksCount }} / {{ plannedTasks.length }}</p>
+          <p class="text-xs text-text-muted">Execution tasks completed</p>
+        </div>
+        <span class="text-xs font-medium text-accent-600 no-print">View Execution Tasks &rarr;</span>
+      </button>
     </Card>
 
     <div v-if="showScopeAndDetails" class="grid grid-cols-1 gap-6 laptop:grid-cols-2">

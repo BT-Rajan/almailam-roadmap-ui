@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, Banknote, CalendarClock, CheckCircle2, Wallet } from '@lucide/vue'
+import { AlertTriangle, Banknote, CalendarClock, CheckCircle2, FileSpreadsheet, Wallet } from '@lucide/vue'
 import { computed } from 'vue'
 
 import InfoPanel from '@/components/common/InfoPanel.vue'
@@ -39,7 +39,14 @@ const hasScheduleVariance = computed(() => Math.abs(props.summary.scheduleVarian
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-5">
+  <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3 desktop:grid-cols-6">
+    <InfoPanel
+      v-if="summary.estimateAmount !== null"
+      label="Estimate Amount"
+      :value="formatCurrency(summary.estimateAmount, currency)"
+      :icon="FileSpreadsheet"
+      color="neutral"
+    />
     <InfoPanel label="Contract Value" :value="formatCurrency(summary.contractAmount, currency)" :icon="Wallet" color="primary" />
     <InfoPanel label="Total Received" :value="formatCurrency(summary.totalReceived, currency)" :icon="CheckCircle2" color="success" />
     <InfoPanel label="Total Pending" :value="formatCurrency(summary.totalPending, currency)" :icon="Banknote" color="warning" />

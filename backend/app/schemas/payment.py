@@ -213,6 +213,10 @@ class AdjustmentCreate(BaseModel):
 
 class FinancialSummaryOut(BaseModel):
     contractAmount: float
+    # The originating quotation's amount, if the agreement was created
+    # from one (see payment_service.get_financial_summary) -- None when
+    # there's no linked quotation to look up.
+    estimateAmount: float | None = None
     totalReceived: float
     totalPending: float
     totalOverdue: float

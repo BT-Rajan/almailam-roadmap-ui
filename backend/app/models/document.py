@@ -22,7 +22,7 @@ DOCUMENT_STATUSES = ("Draft", "Under Review", "Approved", "Rejected")
 # documents are a fourth category shown alongside these in the Documents
 # tab, but those are read-only, sourced from the client's own onboarding
 # documents (see ClientDocument / client_documents), not stored here.
-PROJECT_LINK_DOCUMENT_CATEGORIES = ("Property", "Government", "Others")
+PROJECT_LINK_DOCUMENT_CATEGORIES = ("Property", "Government", "Others", "Project Closure")
 
 
 class ProjectDocument(Base, TimestampMixin, SoftDeleteMixin):

@@ -14,6 +14,7 @@ const CATEGORY_OPTIONS: SelectOption[] = [
   { label: 'Property Documents', value: 'Property' },
   { label: 'Government Documents', value: 'Government' },
   { label: 'Others', value: 'Others' },
+  { label: 'Project Closure', value: 'Project Closure' },
 ]
 
 const props = defineProps<{

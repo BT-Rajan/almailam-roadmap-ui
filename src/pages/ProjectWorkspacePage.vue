@@ -23,6 +23,7 @@ const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/proj
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
+const ProjectCompletionDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectCompletionDocumentsTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentWorkspacePanel = defineAsyncComponent(() => import('@/components/payment/PaymentWorkspacePanel.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -51,7 +52,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'completed', 'completedDocuments']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -101,6 +102,7 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   contract: 'Contract',
   design: 'Design',
   government: 'Government Submission',
+  completed: 'Completed',
 }
 
 watch(
@@ -123,6 +125,10 @@ watch(
   (tab) => {
     const stage = STAGE_TAB_KEYS[tab]
     if (stage) stageContext.value = stage
+    // 'completed' is a pure signal (see WorkflowProgress.vue's STAGE_TABS)
+    // -- it exists only to get stageContext set above; the actual tab
+    // shown is always the shared Overview pane.
+    if (tab === 'completed') activeTab.value = 'overview'
   },
   { immediate: true },
 )
@@ -163,6 +169,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'government', label: 'Documents' },
         { key: 'tasks', label: 'Tasks' },
       ]
+    case 'Completed':
+      // Documents here means three sub-tabs (Submitted Docs / Approvals &
+      // Permits / Project Closure Docs), not the plain single-view
+      // 'documents' key -- see ProjectCompletionDocumentsTab.vue.
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'completedDocuments', label: 'Documents' },
+        { key: 'payments', label: 'Payments' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
     default:
       return [
         { key: 'overview', label: 'Overview' },
@@ -181,7 +197,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'completedDocuments', 'payments', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -210,10 +226,10 @@ watch(projectId, loadData)
 watch(
   activeTab,
   (tab) => {
-    if ((tab === 'documents' || tab === 'design') && documentStore.documents.length === 0) {
+    if ((tab === 'documents' || tab === 'design' || tab === 'completedDocuments') && documentStore.documents.length === 0) {
       documentStore.loadDocuments()
     }
-    if (tab === 'government' && governmentSubmissionStore.submissions.length === 0) {
+    if ((tab === 'government' || tab === 'completedDocuments') && governmentSubmissionStore.submissions.length === 0) {
       governmentSubmissionStore.loadSubmissions()
     }
     if (tab === 'tasks' && taskStore.tasks.length === 0) {
@@ -352,6 +368,15 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectDocumentsTab :project="project" :mode="activeTab" />
       </div>
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
+      <div
+        v-else-if="activeTab === 'completedDocuments'"
+        id="project-tabpanel-completedDocuments"
+        role="tabpanel"
+        aria-labelledby="project-tab-completedDocuments"
+        tabindex="0"
+      >
+        <ProjectCompletionDocumentsTab :project="project" />
+      </div>
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
       </div>

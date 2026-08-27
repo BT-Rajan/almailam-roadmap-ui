@@ -106,6 +106,9 @@ export interface Adjustment {
 
 export interface FinancialSummary {
   contractAmount: number
+  // The originating quotation's amount, when the agreement was created
+  // from one -- null when there's no linked quotation.
+  estimateAmount: number | null
   totalReceived: number
   totalPending: number
   totalOverdue: number

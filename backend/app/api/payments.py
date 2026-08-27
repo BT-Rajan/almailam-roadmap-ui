@@ -87,6 +87,7 @@ def get_summary(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_
     next_obligation = summary["nextPaymentObligation"]
     return FinancialSummaryOut(
         contractAmount=float(summary["contractAmount"]),
+        estimateAmount=summary["estimateAmount"],
         totalReceived=float(summary["totalReceived"]),
         totalPending=float(summary["totalPending"]),
         totalOverdue=float(summary["totalOverdue"]),

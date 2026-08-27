@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { clientService } from '@/services/clientService'
 import { paymentService } from '@/services/paymentService'
 import { projectService } from '@/services/projectService'
+import { useQuotationStore } from '@/stores/quotationStore'
 import type { Client } from '@/types/Client'
 import type {
   Adjustment,
@@ -82,7 +83,16 @@ export const usePaymentStore = defineStore('payment', {
       return (agreementId: string): FinancialSummary | undefined => {
         const agreement = this.agreements.find((item: FinancialAgreement) => item.id === agreementId)
         if (!agreement) return undefined
-        return getFinancialSummary(agreement, this.obligationsForAgreement(agreementId))
+        const summary = getFinancialSummary(agreement, this.obligationsForAgreement(agreementId))
+        // Resolved from whichever project's quotations are already loaded
+        // (the project workspace loads its own before this ever renders)
+        // -- null rather than a fetch here, since this is a plain getter.
+        const quotationStore = useQuotationStore()
+        const quotation = agreement.quotationReference
+          ? quotationStore.quotations.find((item) => item.quotationNo === agreement.quotationReference)
+          : undefined
+        summary.estimateAmount = quotation?.amount ?? null
+        return summary
       }
     },
 

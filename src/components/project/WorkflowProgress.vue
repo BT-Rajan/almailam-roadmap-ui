@@ -34,7 +34,11 @@ const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Design: 'design',
   'Government Submission': 'government',
   'Execution & Tracking': 'process',
-  Completed: 'overview',
+  // 'completed', not 'overview' directly -- lets the parent tell this
+  // stepper click apart from every other route to the shared Overview
+  // pane, so it can set stageContext to 'Completed' before landing on
+  // Overview (see ProjectWorkspacePage.vue's STAGE_TAB_KEYS).
+  Completed: 'completed',
 }
 
 const steps = WORKFLOW_STAGES.map((stage) => ({ label: getWorkflowStageLabel(stage) }))

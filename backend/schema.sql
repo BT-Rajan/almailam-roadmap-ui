@@ -727,7 +727,7 @@ CREATE TABLE IF NOT EXISTS project_link_documents (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     link_document_no    VARCHAR(20) NOT NULL UNIQUE,
     project_id          BIGINT UNSIGNED NOT NULL,
-    category            ENUM('Property','Government','Others') NOT NULL,
+    category            ENUM('Property','Government','Others','Project Closure') NOT NULL,
     name                VARCHAR(200) NOT NULL,
     path                VARCHAR(1000) NOT NULL,
     added_by            BIGINT UNSIGNED NOT NULL,

@@ -51,7 +51,7 @@ export type DocumentViewMode = 'grid' | 'table'
 // "Customer ID" is shown alongside these in the Documents tab but is a
 // fourth, read-only category sourced from the client's own onboarding
 // documents (ClientDocument), not this type.
-export type ProjectLinkDocumentCategory = 'Property' | 'Government' | 'Others'
+export type ProjectLinkDocumentCategory = 'Property' | 'Government' | 'Others' | 'Project Closure'
 
 export interface ProjectLinkDocument {
   id: string
