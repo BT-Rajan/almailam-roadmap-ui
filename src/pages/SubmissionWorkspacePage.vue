@@ -36,10 +36,10 @@ const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const submissionNo = computed(() => route.params.submissionNo as string)
-// Present when this page was opened from a Project workspace's
-// Government tab (see ProjectGovernmentTab.vue's openSubmission) --
-// carried in the query rather than assumed from route history, so a
-// hard refresh or a shared link still remembers where "back" goes.
+// Present when this page was opened with a specific project in
+// context -- carried in the query rather than assumed from route
+// history, so a hard refresh or a shared link still remembers where
+// "back" goes.
 // Without this, every route in here (Back button, breadcrumb) always
 // pointed at the global Government Center submissions list, dropping
 // the user out of the project they were working in.

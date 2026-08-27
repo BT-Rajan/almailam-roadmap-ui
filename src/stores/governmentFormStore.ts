@@ -132,6 +132,12 @@ export const useGovernmentFormStore = defineStore('governmentForm', {
       this.forms = this.forms.filter((form) => form.id !== formId)
     },
 
+    async uploadSampleFile(formId: string, file: File): Promise<GovernmentForm> {
+      const form = await governmentFormService.uploadSampleFile(formId, file)
+      this.forms = this.forms.map((existing) => (existing.id === formId ? form : existing))
+      return form
+    },
+
     async archiveForm(formId: string): Promise<GovernmentForm> {
       const form = await governmentFormService.setFormStatus(formId, 'Archived')
       this.forms = this.forms.map((existing) => (existing.id === formId ? form : existing))

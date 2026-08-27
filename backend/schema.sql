@@ -385,6 +385,17 @@ CREATE TABLE IF NOT EXISTS government_forms (
     -- Service Catalog service names this form is suggested for -- see
     -- governmentFormHelpers.formMatchesProjectService.
     service_tags        JSON NULL,
+    -- Which {{token}}s in `template` get a dropdown or radio group
+    -- instead of a plain text box when a project fills this form in --
+    -- [{token, label, type, options}], type one of 'text'/'select'/
+    -- 'radio'. A token with no entry here just falls back to text.
+    fields               JSON NULL,
+    -- An uploaded reference copy of the real government form -- not
+    -- parsed, purely an attachment admin can check the template/fields
+    -- against.
+    sample_file_storage_key            VARCHAR(300) NULL,
+    sample_file_original_filename      VARCHAR(255) NULL,
+    sample_file_size_bytes             BIGINT NULL,
     status              ENUM('Active','Archived') NOT NULL DEFAULT 'Active',
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -731,6 +742,36 @@ CREATE TABLE IF NOT EXISTS project_documents (
     INDEX idx_project_documents_project (project_id),
     INDEX idx_project_documents_status (status),
     INDEX idx_project_documents_source_form (source_form_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One government form, filled in and saved for one project -- the
+-- Approvals & Permits tab's own record, organized by the form's
+-- authority (MEW/KFD/Baladia/...) there. Saving does two things in one
+-- action: persists field_values here AND renders the same data to a PDF
+-- saved as a project_documents row (document_id) -- see
+-- project_form_service.create_project_form_entry. A project can only
+-- have one entry per form (uq_project_form_entries_project_form below)
+-- -- refilling means editing this same entry, not creating a second one.
+CREATE TABLE IF NOT EXISTS project_form_entries (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id          BIGINT UNSIGNED NOT NULL,
+    form_id             BIGINT UNSIGNED NOT NULL,
+    -- Keyed by the template's {{token}} names -- see government_forms.
+    -- fields for which of them are dropdowns/radio groups vs. text.
+    field_values        JSON NOT NULL,
+    status              ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected','Withdrawn') NOT NULL DEFAULT 'Draft',
+    -- The generated PDF -- see project_documents above. Download/Print
+    -- are only ever offered once this row exists at all.
+    document_id         BIGINT UNSIGNED NULL,
+    created_by           BIGINT UNSIGNED NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_form_entries_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_form_entries_form FOREIGN KEY (form_id) REFERENCES government_forms(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_project_form_entries_document FOREIGN KEY (document_id) REFERENCES project_documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_form_entries_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT uq_project_form_entries_project_form UNIQUE (project_id, form_id),
+    INDEX idx_project_form_entries_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS document_versions (

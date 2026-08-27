@@ -1,0 +1,258 @@
+<script setup lang="ts">
+import { Download, Eye, FileEdit, Plus, Printer, Trash2 } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+import BaseButton from '@/components/common/BaseButton.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
+import SmartTable from '@/components/common/SmartTable.vue'
+import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import { documentService } from '@/services/documentService'
+import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useProjectFormStore } from '@/stores/projectFormStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { GovernmentForm, ProjectFormEntry, ProjectFormEntryStatus } from '@/types/Government'
+import type { SmartTableColumn } from '@/types/Table'
+import type { SelectOption } from '@/types/Ui'
+import { formatDate } from '@/utils/dateFormatter'
+import { triggerBlobDownload } from '@/utils/fileDownload'
+
+const props = defineProps<{
+  projectId: string
+  authorityId: string
+}>()
+
+const router = useRouter()
+const governmentSubmissionStore = useGovernmentSubmissionStore()
+const projectFormStore = useProjectFormStore()
+const toastStore = useToastStore()
+
+const STATUS_OPTIONS: SelectOption[] = [
+  'Draft',
+  'Submitted',
+  'Under Review',
+  'Comments Received',
+  'Approved',
+  'Rejected',
+  'Withdrawn',
+].map((status) => ({ label: status, value: status }))
+
+// Every fillable form under this authority -- the picker below only
+// offers ones this project hasn't already filed (see availableForms),
+// same "a form can't be added more than once" rule the backend also
+// enforces.
+const authorityForms = computed(() =>
+  governmentSubmissionStore.forms.filter(
+    (form) => form.authorityId === props.authorityId && form.status === 'Active' && Boolean(form.template),
+  ),
+)
+
+const filedEntries = computed(() => projectFormStore.entriesByAuthority(props.authorityId))
+
+const availableForms = computed(() => {
+  const filedFormIds = new Set(filedEntries.value.map((entry) => entry.formId))
+  return authorityForms.value.filter((form) => !filedFormIds.has(form.id))
+})
+
+const availableFormOptions = computed<SelectOption[]>(() =>
+  availableForms.value.map((form) => ({ label: `${form.formCode} · ${form.title}`, value: form.id })),
+)
+
+const selectedNewFormId = ref('')
+
+function formById(formId: string): GovernmentForm | undefined {
+  return governmentSubmissionStore.getFormById(formId)
+}
+
+interface EntryRow {
+  [key: string]: unknown
+  id: string
+  formTitle: string
+  formCode: string
+  status: ProjectFormEntryStatus
+  createdAt: string
+  createdBy: string
+}
+
+const TABLE_COLUMNS: SmartTableColumn<EntryRow>[] = [
+  { key: 'formCode', label: 'Code', width: '110px' },
+  { key: 'formTitle', label: 'Form', sortable: true },
+  { key: 'status', label: 'Status', width: '190px' },
+  { key: 'createdAt', label: 'Filed', sortable: true },
+  { key: 'createdBy', label: 'Filed By' },
+]
+
+const tableRows = computed<EntryRow[]>(() =>
+  filedEntries.value.map((entry) => ({
+    id: entry.id,
+    formTitle: entry.formTitle,
+    formCode: entry.formCode,
+    status: entry.status,
+    createdAt: entry.createdAt,
+    createdBy: entry.createdBy ?? 'Unknown',
+  })),
+)
+
+function entryById(entryId: string): ProjectFormEntry | undefined {
+  return filedEntries.value.find((entry) => entry.id === entryId)
+}
+
+async function handleStatusChange(entryId: string, status: string): Promise<void> {
+  await projectFormStore.setEntryStatus(props.projectId, entryId, status as ProjectFormEntryStatus)
+  if (projectFormStore.mutationError) {
+    toastStore.show('error', 'Could not change status', projectFormStore.mutationError)
+  }
+}
+
+const isDialogOpen = ref(false)
+const dialogForm = ref<GovernmentForm | undefined>(undefined)
+const dialogEntry = ref<ProjectFormEntry | undefined>(undefined)
+
+function openAddDialog(): void {
+  if (!selectedNewFormId.value) return
+  dialogForm.value = formById(selectedNewFormId.value)
+  dialogEntry.value = undefined
+  isDialogOpen.value = true
+}
+
+function openEditDialog(entry: ProjectFormEntry): void {
+  dialogForm.value = formById(entry.formId)
+  dialogEntry.value = entry
+  isDialogOpen.value = true
+}
+
+function handleDialogClosed(open: boolean): void {
+  isDialogOpen.value = open
+  if (!open) selectedNewFormId.value = ''
+}
+
+function viewDocument(entry: ProjectFormEntry): void {
+  if (!entry.documentId) return
+  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId: entry.documentId } })
+}
+
+async function downloadDocument(entry: ProjectFormEntry): Promise<void> {
+  if (!entry.documentId) return
+  try {
+    const blob = await documentService.downloadDocument(entry.documentId)
+    triggerBlobDownload(blob, `${entry.formTitle}.pdf`)
+  } catch (error) {
+    toastStore.show('error', 'Download failed', error instanceof Error ? error.message : 'Please try again.')
+  }
+}
+
+async function printDocument(entry: ProjectFormEntry): Promise<void> {
+  if (!entry.documentId) return
+  try {
+    const blob = await documentService.downloadDocument(entry.documentId)
+    window.open(URL.createObjectURL(blob), '_blank')
+  } catch (error) {
+    toastStore.show('error', 'Could not open document', error instanceof Error ? error.message : 'Please try again.')
+  }
+}
+
+const deleteTarget = ref<ProjectFormEntry | undefined>(undefined)
+const isDeleting = ref(false)
+
+function requestDelete(entry: ProjectFormEntry): void {
+  deleteTarget.value = entry
+}
+
+async function confirmDelete(): Promise<void> {
+  if (!deleteTarget.value) return
+  isDeleting.value = true
+  try {
+    await projectFormStore.deleteEntry(props.projectId, deleteTarget.value.id)
+    if (projectFormStore.mutationError) {
+      toastStore.show('error', 'Could not remove form', projectFormStore.mutationError)
+    } else {
+      toastStore.show('info', 'Form removed', `${deleteTarget.value.formTitle} was removed. It can be added again.`)
+    }
+    deleteTarget.value = undefined
+  } finally {
+    isDeleting.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <EmptyState
+      v-if="authorityForms.length === 0"
+      title="No fillable forms for this authority yet"
+      description="Add a form with template content under Administration > Government Forms to make it available here."
+    />
+
+    <template v-else>
+      <div class="flex flex-wrap items-end gap-2 no-print">
+        <div class="min-w-[16rem] flex-1">
+          <SelectBox
+            v-model="selectedNewFormId"
+            label="Add a Form"
+            placeholder="Select a form to fill"
+            :options="availableFormOptions"
+          />
+        </div>
+        <BaseButton :icon="Plus" :disabled="!selectedNewFormId" @click="openAddDialog">Add Form</BaseButton>
+      </div>
+      <p v-if="availableForms.length === 0" class="text-xs text-text-muted">
+        Every fillable form for this authority has already been added to this project.
+      </p>
+
+      <SmartTable
+        :columns="TABLE_COLUMNS"
+        :rows="tableRows"
+        row-key="id"
+        :loading="projectFormStore.isLoading"
+        :searchable="false"
+        empty-title="No forms filed yet"
+        :empty-description="`Forms filled in for this project under this authority will appear here.`"
+      >
+        <template #cell-status="{ row }">
+          <SelectBox
+            :model-value="row.status as string"
+            :options="STATUS_OPTIONS"
+            class="no-print"
+            @update:model-value="handleStatusChange(row.id as string, $event)"
+          />
+          <span class="hidden print:inline">{{ row.status }}</span>
+        </template>
+        <template #cell-createdAt="{ value }">
+          {{ formatDate(value as string) }}
+        </template>
+        <template #row-actions="{ row }">
+          <div class="flex items-center justify-end gap-1 no-print">
+            <IconButton :icon="Eye" label="View" size="sm" variant="ghost" @click="entryById(row.id as string) && viewDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="Download" label="Download" size="sm" variant="ghost" @click="entryById(row.id as string) && downloadDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="Printer" label="Print" size="sm" variant="ghost" @click="entryById(row.id as string) && printDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="FileEdit" label="Edit" size="sm" variant="ghost" @click="entryById(row.id as string) && openEditDialog(entryById(row.id as string)!)" />
+            <IconButton :icon="Trash2" label="Remove" size="sm" variant="danger" @click="entryById(row.id as string) && requestDelete(entryById(row.id as string)!)" />
+          </div>
+        </template>
+      </SmartTable>
+    </template>
+
+    <ProjectFormEntryDialog
+      v-model="isDialogOpen"
+      :project-id="projectId"
+      :form="dialogForm"
+      :entry="dialogEntry"
+      @update:model-value="handleDialogClosed"
+    />
+
+    <ConfirmationDialog
+      :model-value="!!deleteTarget"
+      title="Remove filed form"
+      :message="deleteTarget ? `Remove '${deleteTarget.formTitle}' from this project? The generated PDF stays available from the Documents tab. This form can be added again afterward.` : ''"
+      confirm-label="Remove"
+      confirm-variant="danger"
+      :loading="isDeleting"
+      @update:model-value="deleteTarget = undefined"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>

@@ -2,7 +2,9 @@ import { apiClient } from '@/services/httpClient'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { ProjectDocument } from '@/types/Document'
 
-export type FormInput = Omit<GovernmentForm, 'id'>
+// sampleFileName is read-only, set only via uploadSampleFile below --
+// never part of the create/update form payload.
+export type FormInput = Omit<GovernmentForm, 'id' | 'sampleFileName'>
 export type AuthorityInput = Omit<GovernmentAuthority, 'id'>
 
 export interface FormFillInput {
@@ -117,6 +119,33 @@ async function renderPdf(formId: string, input: { context: Record<string, string
 }
 
 /**
+ * Attach an uploaded reference copy of the real government form (not
+ * parsed -- just an attachment admin can check the template/fields
+ * against). Raw fetch since this is a multipart upload, same pattern as
+ * every other file upload in this codebase (see e.g. documentService).
+ */
+async function uploadSampleFile(formId: string, file: File): Promise<GovernmentForm> {
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const response = await fetch(`/api/government/forms/${formId}/sample-file`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
+      },
+      body: formData,
+    })
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+    return (await response.json()) as GovernmentForm
+  } catch (error) {
+    console.error(`Failed to upload sample file for form ${formId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to upload sample file')
+  }
+}
+
+/**
  * Set/update government form status via backend API
  */
 async function setFormStatus(formId: string, status: GovernmentForm['status']): Promise<GovernmentForm> {
@@ -172,6 +201,7 @@ export const governmentFormService = {
   deleteForm,
   fillForm,
   renderPdf,
+  uploadSampleFile,
   setFormStatus,
   createAuthority,
   updateAuthority,

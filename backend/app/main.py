@@ -26,6 +26,7 @@ from app.api.knowledge import router as knowledge_router
 from app.api.messages import router as messages_router
 from app.api.notifications import router as notifications_router
 from app.api.payments import router as payments_router
+from app.api.project_forms import router as project_forms_router
 from app.api.project_link_documents import router as project_link_documents_router
 from app.api.projects import router as projects_router
 from app.api.quotations import router as quotations_router
@@ -148,6 +149,7 @@ app.include_router(approval_process_router)
 app.include_router(payments_router)
 app.include_router(documents_router)
 app.include_router(project_link_documents_router)
+app.include_router(project_forms_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)
 app.include_router(reports_router)

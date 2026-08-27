@@ -1,12 +1,13 @@
 import io
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
-from app.core.file_storage import format_file_size
+from app.core.exceptions import NotFoundError
+from app.core.file_storage import format_file_size, resolve_path
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.document import DocumentOut
@@ -106,6 +107,25 @@ def delete_form(
     form_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
 ):
     government_service.delete_form(db, government_service.parse_form_id(form_id), current_user.id)
+
+
+@router.post("/forms/{form_id}/sample-file", response_model=FormOut)
+def upload_sample_file(
+    form_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    form = government_service.upload_sample_file(db, government_service.parse_form_id(form_id), file, current_user.id)
+    return FormOut.from_model(form)
+
+
+@router.get("/forms/{form_id}/sample-file")
+def download_sample_file(form_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    form = government_service.get_form(db, government_service.parse_form_id(form_id))
+    if not form.sample_file_storage_key:
+        raise NotFoundError("Sample file")
+    return FileResponse(resolve_path(form.sample_file_storage_key), filename=form.sample_file_original_filename)
 
 
 @router.post("/forms/{form_id}/fill", response_model=DocumentOut, status_code=201)

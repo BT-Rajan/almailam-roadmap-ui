@@ -131,6 +131,7 @@ def create_form(db: Session, payload, actor_id: int) -> GovernmentForm:
         preview_url=payload.previewUrl,
         template=payload.template,
         service_tags=payload.serviceTags,
+        fields=[f.model_dump() for f in payload.fields],
     )
     db.add(form)
     db.flush()
@@ -160,6 +161,29 @@ def update_form(db: Session, form_id: int, payload, actor_id: int) -> Government
     form.preview_url = payload.previewUrl
     form.template = payload.template
     form.service_tags = payload.serviceTags
+    form.fields = [f.model_dump() for f in payload.fields]
+    db.commit()
+    db.refresh(form)
+    return form
+
+
+def upload_sample_file(db: Session, form_id: int, file, actor_id: int) -> GovernmentForm:
+    """Attaches an uploaded reference copy of the real government form
+    (e.g. the blank official PDF) to check the template/fields against
+    -- not parsed, purely a reference. Re-uploading replaces which file
+    this form points to; the previous file is left on disk rather than
+    deleted, same as every other single-file "Replace" flow in this app
+    (see e.g. approval_process_service.upload_stage_gate_document)."""
+    from app.core.file_storage import save_upload
+
+    form = get_form(db, form_id)
+    storage_key, original_filename, size_bytes = save_upload(file, "government-form-samples")
+    form.sample_file_storage_key = storage_key
+    form.sample_file_original_filename = original_filename
+    form.sample_file_size_bytes = size_bytes
+    audit_service.log_event(
+        db, FORM_ENTITY_TYPE, form.id, "Sample file uploaded", actor_id, new_value=original_filename
+    )
     db.commit()
     db.refresh(form)
     return form
