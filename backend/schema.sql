@@ -241,6 +241,26 @@ CREATE TABLE IF NOT EXISTS client_verifications (
     INDEX idx_client_verifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- A named, admin-managed bundle of execution_step_templates rows --
+-- e.g. "Standard Process", "Commercial Fit-out". Projects are assigned
+-- one at creation (projects.step_set_id) and snapshot exactly that
+-- set's steps into their own project_execution_steps rows. Defined
+-- ahead of `projects` and `execution_step_templates` below since both
+-- reference it. See execution_step.py's ExecutionStepSetTemplate
+-- docstring.
+CREATE TABLE IF NOT EXISTS execution_step_set_templates (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    description     VARCHAR(500) NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO execution_step_set_templates (name, description) VALUES
+    ('Standard Process', 'The original 23-step process (First Meeting through Lighting drawings), unchanged.');
+SET @standard_set_id := LAST_INSERT_ID();
+
 CREATE TABLE IF NOT EXISTS projects (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_no      VARCHAR(20)  NOT NULL UNIQUE,
@@ -289,12 +309,17 @@ CREATE TABLE IF NOT EXISTS projects (
     completed_at    DATETIME NULL,
     completion_notes TEXT NULL,
     deviation_notes TEXT NULL,
+    -- Which admin-configured execution step set this project's checklist
+    -- was snapshotted from at creation -- see execution_step_templates
+    -- below and execution_step_service.snapshot_steps_for_project.
+    step_set_id     BIGINT UNSIGNED NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_scope_approved_by FOREIGN KEY (scope_approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_projects_step_set FOREIGN KEY (step_set_id) REFERENCES execution_step_set_templates(id) ON DELETE RESTRICT,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
@@ -1024,14 +1049,24 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
 
 CREATE TABLE IF NOT EXISTS execution_step_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    -- Which named set (see execution_step_set_templates above) this
+    -- step belongs to -- sequence_number is ordered within one set, not
+    -- globally.
+    step_set_id         BIGINT UNSIGNED NOT NULL,
     name                VARCHAR(200) NOT NULL,
     sequence_number     INT NOT NULL,
     weight_percentage   DECIMAL(5,2) NOT NULL,
     stage_key           VARCHAR(40) NOT NULL,
     is_optional         TINYINT(1) NOT NULL DEFAULT 0,
+    -- The one real-world event (if any) that auto-completes this step --
+    -- see execution_step_service.try_auto_fill. NULL for a step nothing
+    -- auto-completes.
+    trigger_key         VARCHAR(60) NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
+    CONSTRAINT fk_execution_step_templates_step_set FOREIGN KEY (step_set_id) REFERENCES execution_step_set_templates(id) ON DELETE CASCADE,
+    INDEX idx_execution_step_templates_step_set (step_set_id),
     INDEX idx_execution_step_templates_sequence (sequence_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -1043,6 +1078,14 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
     weight_percentage     DECIMAL(5,2) NOT NULL,
     stage_key             VARCHAR(40) NOT NULL,
     is_optional           TINYINT(1) NOT NULL DEFAULT 0,
+    -- Copied from the template step this was snapshotted from; NULL for
+    -- a custom step (is_custom below), which has no template origin.
+    trigger_key           VARCHAR(60) NULL,
+    -- Added directly on this project (see execution_step_service.
+    -- add_custom_project_step) rather than snapshotted from its
+    -- assigned step set -- can be deleted outright, unlike a
+    -- template-derived step, which can only ever be excluded.
+    is_custom             TINYINT(1) NOT NULL DEFAULT 0,
     is_excluded           TINYINT(1) NOT NULL DEFAULT 0,
     excluded_reason       VARCHAR(200) NULL,
     completion_percentage SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -1069,30 +1112,30 @@ CREATE TABLE IF NOT EXISTS project_execution_steps (
 -- submission plus the full structural/interior/MEP technical package
 -- that follows it). "Permit Approved" has no execution steps of its
 -- own -- it's a pure external gate.
-INSERT INTO execution_step_templates (name, sequence_number, weight_percentage, stage_key, is_optional) VALUES
-    ('Client requests captured', 1, 4.35, 'Requirement', 0),
-    ('Quotation prepared', 2, 4.35, 'Quotation', 0),
-    ('Client Civil ID collected', 3, 4.35, 'Contract', 0),
-    ('Ownership document collected', 4, 4.35, 'Contract', 0),
-    ('Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'Contract', 0),
-    ('MEW approval request submitted', 6, 4.35, 'Government Submission', 0),
-    ('Contract initiated', 7, 4.35, 'Contract', 0),
-    ('Architectural drawings completed', 8, 4.35, 'Design', 0),
-    ('Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'Government Submission', 0),
-    ('3D design completed', 10, 4.35, 'Design', 1),
-    ('Soil investigation report completed', 11, 4.35, 'Government Submission', 0),
-    ('Structural drawings completed', 12, 4.35, 'Government Submission', 0),
-    ('Window and door schedules completed', 13, 4.35, 'Government Submission', 0),
-    ('Furniture plans completed', 14, 4.35, 'Government Submission', 1),
-    ('Dimension plans completed', 15, 4.35, 'Government Submission', 1),
-    ('Flooring plans completed', 16, 4.35, 'Government Submission', 1),
-    ('Bathroom detail drawings completed', 17, 4.35, 'Government Submission', 1),
-    ('Electrical power points completed', 18, 4.35, 'Government Submission', 0),
-    ('Sanitary plans completed', 19, 4.34, 'Government Submission', 0),
-    ('A/C drawings completed', 20, 4.34, 'Government Submission', 1),
-    ('Structural drawings revised for A/C', 21, 4.34, 'Government Submission', 1),
-    ('False ceiling drawings completed', 22, 4.34, 'Government Submission', 1),
-    ('Lighting drawings completed', 23, 4.34, 'Government Submission', 1);
+INSERT INTO execution_step_templates (step_set_id, name, sequence_number, weight_percentage, stage_key, is_optional, trigger_key) VALUES
+    (@standard_set_id, 'Client requests captured', 1, 4.35, 'Requirement', 0, NULL),
+    (@standard_set_id, 'Quotation prepared', 2, 4.35, 'Quotation', 0, 'quotation_created'),
+    (@standard_set_id, 'Client Civil ID collected', 3, 4.35, 'Contract', 0, NULL),
+    (@standard_set_id, 'Ownership document collected', 4, 4.35, 'Contract', 0, NULL),
+    (@standard_set_id, 'Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'Contract', 0, 'gate:documents_signed'),
+    (@standard_set_id, 'MEW approval request submitted', 6, 4.35, 'Government Submission', 0, 'gate:mew_approval'),
+    (@standard_set_id, 'Contract initiated', 7, 4.35, 'Contract', 0, 'contract_created'),
+    (@standard_set_id, 'Architectural drawings completed', 8, 4.35, 'Design', 0, 'gate:architectural_approval'),
+    (@standard_set_id, 'Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'Government Submission', 0, 'gate:submit_baladia_kfd'),
+    (@standard_set_id, '3D design completed', 10, 4.35, 'Design', 1, NULL),
+    (@standard_set_id, 'Soil investigation report completed', 11, 4.35, 'Government Submission', 0, NULL),
+    (@standard_set_id, 'Structural drawings completed', 12, 4.35, 'Government Submission', 0, NULL),
+    (@standard_set_id, 'Window and door schedules completed', 13, 4.35, 'Government Submission', 0, NULL),
+    (@standard_set_id, 'Furniture plans completed', 14, 4.35, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Dimension plans completed', 15, 4.35, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Flooring plans completed', 16, 4.35, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Bathroom detail drawings completed', 17, 4.35, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Electrical power points completed', 18, 4.35, 'Government Submission', 0, NULL),
+    (@standard_set_id, 'Sanitary plans completed', 19, 4.34, 'Government Submission', 0, NULL),
+    (@standard_set_id, 'A/C drawings completed', 20, 4.34, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Structural drawings revised for A/C', 21, 4.34, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'False ceiling drawings completed', 22, 4.34, 'Government Submission', 1, NULL),
+    (@standard_set_id, 'Lighting drawings completed', 23, 4.34, 'Government Submission', 1, NULL);
 
 CREATE TABLE IF NOT EXISTS approval_process_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

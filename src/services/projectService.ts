@@ -95,6 +95,10 @@ export interface ProjectCreateInput {
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.
   requiredPermitDocuments?: string[]
+  // Which admin-configured execution step set (see ExecutionStepSet)
+  // this project's checklist should be snapshotted from. Optional --
+  // omitting it falls back to the oldest surviving set server-side.
+  stepSetId?: string
 }
 
 /**

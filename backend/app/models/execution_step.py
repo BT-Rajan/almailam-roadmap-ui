@@ -6,28 +6,45 @@ from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 
+class ExecutionStepSetTemplate(Base, TimestampMixin, SoftDeleteMixin):
+    """A named, admin-managed bundle of ExecutionStepTemplate rows --
+    e.g. "Standard Process", "Commercial Fit-out". Projects are
+    assigned one at creation (Project.step_set_id) and get their own
+    snapshot of exactly that set's steps (see
+    execution_step_service.snapshot_steps_for_project).
+
+    Replaces the single implicit global template every project used to
+    get regardless of what work it actually involved -- "what steps
+    for which project" is now this table's whole job, not a hardcoded
+    assumption. Every install gets one seeded automatically (migration
+    0049, "Standard Process") holding exactly the 23 steps that used to
+    be the only template that existed, so nothing about an
+    already-running project changes underneath it.
+    """
+
+    __tablename__ = "execution_step_set_templates"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
 class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     """Admin-configurable master list of the linear, tangible-act
-    execution steps every project follows -- e.g. "Architectural
-    drawings completed", in order, each carrying a weight_percentage
-    that (across the whole template) should sum to 100.
+    execution steps a project on a given step set follows -- e.g.
+    "Architectural drawings completed", in order within its own
+    step_set_id, each carrying a weight_percentage that (across that
+    one set) should sum to 100.
 
-    Every project gets its own independent COPY of this list at
-    creation time (see ProjectExecutionStep) rather than a live
-    reference to these rows. That's deliberate: editing a step's name
-    or weight here only affects projects created afterward -- an
+    Every project gets its own independent COPY of its assigned set's
+    steps at creation time (see ProjectExecutionStep) rather than a
+    live reference to these rows. That's deliberate: editing a step's
+    name or weight here only affects projects created afterward -- an
     already-in-progress project's completion percentage stays stable
     rather than silently shifting under it every time admin tunes the
     template. "No rework or doubling entry" -- this is the one place
     the steps and their weights are actually defined; nothing else
     hand-maintains a second copy of this list.
-
-    One global template for now, not one per service -- the source
-    process this digitizes (First Meeting through Lighting drawings)
-    is a single, specific procedure, not one that currently varies by
-    project type. Extending to multiple templates later is a natural
-    fit for this same shape if that's ever needed, without disturbing
-    projects already running against this one.
 
     stage_key groups each step under one of the 7 project workflow
     stages it happens during (see project.py's WORKFLOW_STAGES and
@@ -37,12 +54,15 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     stages; it used to hold one of the 5 ApprovalProcessTemplate gate
     keys instead). Despite ApprovalProcessTemplate also having a
     stage_key column, the two are disjoint concepts on two genuinely
-    independent tracks -- see that model's own docstring. A handful of
-    specific steps that duplicate a specific gate closing (or a
-    Quotation/Contract being created) auto-complete when that gate
-    closes instead of making staff tick the same fact twice -- see
-    execution_step_service.try_auto_fill and its _AUTO_FILL_TRIGGERS
-    table, keyed by sequence_number, not stage_key.
+    independent tracks -- see that model's own docstring.
+    trigger_key names the one real-world event (if any) that
+    auto-completes this step the moment it happens, instead of making
+    staff tick a box for a fact already known elsewhere -- see
+    execution_step_service.try_auto_fill, which looks this up directly
+    on a project's own snapshot row rather than a hardcoded
+    sequence-number table (migration 0049 retired that table: it could
+    only ever describe one fixed step order, which broke the moment a
+    second step set could exist with its own numbering).
     is_optional flags a step that doesn't apply to every project (e.g.
     a client who doesn't want a false ceiling has no real use for
     "False ceiling drawings completed") -- purely informational since
@@ -54,11 +74,15 @@ class ExecutionStepTemplate(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "execution_step_templates"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    step_set_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("execution_step_set_templates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
     is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    trigger_key: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
 
 class ProjectExecutionStep(Base, TimestampMixin):
@@ -89,6 +113,19 @@ class ProjectExecutionStep(Base, TimestampMixin):
     weight_percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     stage_key: Mapped[str] = mapped_column(String(40), nullable=False)
     is_optional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Copied from the template step this was snapshotted from -- see
+    # ExecutionStepTemplate.trigger_key. NULL for a custom, project-only
+    # step (is_custom below), which has no template origin to copy from.
+    trigger_key: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # A step added directly on this one project (see
+    # execution_step_service.add_custom_project_step) rather than
+    # snapshotted from its assigned step set -- staff's own "freedom to
+    # add" beyond whatever the admin-configured set included. Unlike a
+    # template-derived step (which can only ever be excluded, never
+    # deleted, so the project's history stays an honest reflection of
+    # what its assigned set actually specified), a custom step can be
+    # deleted outright since it was never part of that baseline.
+    is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Project-local, unlike is_optional (copied from the template and
     # shared across every project's snapshot): drops this one activity,
     # for this one project only, out of both the Completed-stage gate

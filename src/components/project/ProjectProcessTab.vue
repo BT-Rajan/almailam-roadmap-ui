@@ -140,6 +140,28 @@ async function handleSaveChecklist(items: ExecutionStepBulkItem[]): Promise<void
   }
 }
 
+// Staff's own "freedom to add" beyond whatever the project's assigned
+// step set specified -- the complement of excluding a template-derived
+// step (which ExecutionStepChecklist's "Not applicable" checkbox
+// already covers, via handleSaveChecklist's bulk save).
+async function handleAddCustomStep(name: string, weightPercentage: number, stageKey: string): Promise<void> {
+  await stageStore.addCustomStep(props.project.id, name, weightPercentage, stageKey)
+  if (stageStore.mutationError) {
+    toastStore.show('error', 'Could not add step', stageStore.mutationError)
+    return
+  }
+  await refreshProgress()
+}
+
+async function handleRemoveCustomStep(stepId: string): Promise<void> {
+  await stageStore.deleteCustomStep(props.project.id, stepId)
+  if (stageStore.mutationError) {
+    toastStore.show('error', 'Could not remove step', stageStore.mutationError)
+    return
+  }
+  await refreshProgress()
+}
+
 const replacingStageKey = ref<string | null>(null)
 
 async function handleUploadStageGateDocument(stageKey: string, file: File | undefined): Promise<void> {
@@ -240,7 +262,7 @@ async function handleConfirmScopeChange(
           <div class="min-w-0">
             <h2 class="text-sm font-semibold text-text-primary">Overall Execution</h2>
             <p class="text-xs text-text-muted">
-              Weighted across {{ stageStore.includedExecutionSteps.length }} of 23 execution activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated · both run in parallel
+              Weighted across {{ stageStore.includedExecutionSteps.length }} of {{ stageStore.executionSteps.length }} execution activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated · both run in parallel
             </p>
           </div>
           <div class="flex items-center gap-3">
@@ -381,13 +403,18 @@ async function handleConfirmScopeChange(
       </Card>
 
       <h2 class="mt-2 text-sm font-semibold text-text-primary">Execution Activities</h2>
-      <p class="-mt-2 text-xs text-text-muted">23 activities, tracked independently of the approval stages above.</p>
+      <p class="-mt-2 text-xs text-text-muted">
+        {{ stageStore.executionSteps.length }} activities from this project's assigned checklist, tracked
+        independently of the approval stages above.
+      </p>
 
       <Card>
         <ExecutionStepChecklist
           :steps="stageStore.orderedExecutionSteps"
           :is-saving="isSavingChecklist"
           @save="handleSaveChecklist"
+          @add-step="handleAddCustomStep"
+          @remove-step="handleRemoveCustomStep"
         />
       </Card>
 
