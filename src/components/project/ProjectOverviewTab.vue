@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { AlertTriangle, MessageSquare } from '@lucide/vue'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -15,11 +16,13 @@ import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
+import type { GovernmentForm } from '@/types/Government'
 import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
+import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
@@ -94,8 +97,9 @@ function loadStageDataIfNeeded(): void {
   if (props.stageContext === 'Design' && documentStore.documents.length === 0) {
     documentStore.loadDocuments()
   }
-  if (props.stageContext === 'Government Submission' && governmentSubmissionStore.submissions.length === 0) {
-    governmentSubmissionStore.loadSubmissions()
+  if (props.stageContext === 'Government Submission') {
+    if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
+    if (documentStore.documents.length === 0) documentStore.loadDocuments()
   }
 }
 onMounted(loadStageDataIfNeeded)
@@ -131,26 +135,35 @@ const contractQuotation = computed(() =>
 // project (see ProjectDocumentsTab.vue's mode="design").
 const designDocuments = computed(() => documentStore.documentsByProject(props.project.id).filter((document) => document.type === 'Drawing'))
 
-// When the project's Additional Services picked a Design-category
-// engagement type (see NewProjectWizardPage.vue's final step), those
-// activities are what this stage is actually expected to deliver -- so
-// they're shown as a checklist (delivered/not yet), matched against
-// designDocuments by name, the same loose substring match already used
-// for the required-permits checklist in ProjectDocumentsTab.vue. Falls
-// back to just listing whatever's been delivered so far when no such
-// Additional Services selection exists to check against.
-const designChecklist = computed(() => {
-  if (props.project.typeCategoryName !== 'Design' || !props.project.selectedTypeActivities?.length) return []
-  return props.project.selectedTypeActivities.map((activity) => ({
-    activityId: activity.id,
-    activityName: activity.activityName,
-    document: designDocuments.value.find(
-      (document) =>
-        document.title.toLowerCase().includes(activity.activityName.toLowerCase()) ||
-        activity.activityName.toLowerCase().includes(document.title.toLowerCase()),
-    ),
-  }))
-})
+// Required Documents -- every fillable government form the Service
+// Document Map (Administration) says this project's service needs (see
+// governmentFormHelpers.formMatchesProjectService), each checked against
+// a real generated document via source_form_id rather than guessing from
+// a title -- the single source of truth for "what does this project need
+// to prepare", replacing the separate name-matched Design checklist and
+// the Documents tab's service-tag "suggested forms" preview list that
+// used to duplicate this same question two different, looser ways.
+const requiredForms = computed<GovernmentForm[]>(() =>
+  governmentSubmissionStore.forms.filter(
+    (form) => form.status === 'Active' && Boolean(form.template) && formMatchesProjectService(form, props.project.service),
+  ),
+)
+
+function filledDocumentFor(form: GovernmentForm) {
+  return documentStore.documentsByProject(props.project.id).find((document) => document.sourceFormId === form.id)
+}
+
+const isFillDialogOpen = ref(false)
+const fillDialogForm = ref<GovernmentForm | undefined>(undefined)
+
+function openFillDialog(form: GovernmentForm): void {
+  fillDialogForm.value = form
+  isFillDialogOpen.value = true
+}
+
+function viewFilledDocument(documentId: string): void {
+  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
+}
 
 // Approvals & Permits (Government Submission) checklist -- every
 // submission filed for this project, with a computed "last worked on"
@@ -283,18 +296,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
         <h3 class="text-sm font-semibold text-text-primary">Design</h3>
       </template>
       <div class="flex flex-col gap-4">
-        <div v-if="designChecklist.length > 0" class="flex flex-col gap-2">
-          <div
-            v-for="item in designChecklist"
-            :key="item.activityId"
-            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
-          >
-            <span class="truncate text-sm text-text-secondary">{{ item.activityName }}</span>
-            <StatusBadge v-if="item.document" :label="item.document.status" :variant="getDocumentStatusVariant(item.document.status)" />
-            <StatusBadge v-else label="Not Delivered" variant="neutral" />
-          </div>
-        </div>
-        <div v-else-if="designDocuments.length > 0" class="flex flex-col gap-2">
+        <div v-if="designDocuments.length > 0" class="flex flex-col gap-2">
           <div
             v-for="document in designDocuments"
             :key="document.id"
@@ -309,6 +311,37 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
         <div class="flex justify-end no-print">
           <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
         </div>
+      </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Government Submission'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Required Documents</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <div v-if="requiredForms.length > 0" class="flex flex-col gap-2">
+          <div
+            v-for="form in requiredForms"
+            :key="form.id"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <div class="flex flex-col gap-0.5 truncate">
+              <span class="truncate text-sm text-text-secondary">{{ form.title }}</span>
+              <span class="text-xs text-text-muted">{{ form.formCode }} &middot; {{ form.category }}</span>
+            </div>
+            <template v-if="filledDocumentFor(form)">
+              <BaseButton variant="ghost" size="sm" class="no-print shrink-0" @click="viewFilledDocument(filledDocumentFor(form)!.id)">
+                View
+              </BaseButton>
+            </template>
+            <BaseButton v-else variant="secondary" size="sm" class="no-print shrink-0" @click="openFillDialog(form)">
+              Fill Form
+            </BaseButton>
+          </div>
+        </div>
+        <p v-else class="text-sm text-text-muted">
+          No fillable forms are mapped to this project's service yet -- see Administration &gt; Service Document Map.
+        </p>
       </div>
     </Card>
 
@@ -368,5 +401,11 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
         </div>
       </div>
     </div>
+
+    <FillGovernmentFormDialog
+      v-model="isFillDialogOpen"
+      :project-id="project.id"
+      :forms="fillDialogForm ? [fillDialogForm] : []"
+    />
   </div>
 </template>

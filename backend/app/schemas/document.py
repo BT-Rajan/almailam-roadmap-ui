@@ -27,6 +27,7 @@ class DocumentOut(BaseModel):
     fileSize: str | None
     originalFilename: str | None
     externalLink: str | None
+    sourceFormId: str | None = None
 
     @staticmethod
     def from_model(document, project_no: str, uploaded_by_name: str, file_size_display: str | None) -> "DocumentOut":
@@ -43,6 +44,7 @@ class DocumentOut(BaseModel):
             fileSize=file_size_display,
             originalFilename=document.original_filename,
             externalLink=document.external_link,
+            sourceFormId=f"FORM-{document.source_form_id:03d}" if document.source_form_id else None,
         )
 
 

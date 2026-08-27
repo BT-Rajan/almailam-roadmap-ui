@@ -678,6 +678,10 @@ CREATE TABLE IF NOT EXISTS project_documents (
     -- belongs to (see approval_process_templates) -- NULL for documents
     -- not tied to a specific stage (contracts, quotations, etc.).
     stage_key           VARCHAR(40) NULL,
+    -- Which GovernmentForm this was generated from (see
+    -- government_service.fill_form) -- NULL for anything not generated
+    -- that way (uploads, contracts, quotations, etc.).
+    source_form_id      BIGINT UNSIGNED NULL,
     uploaded_by         BIGINT UNSIGNED NOT NULL,
     upload_date         DATE NOT NULL,
     status              ENUM('Draft','Under Review','Approved','Rejected') NOT NULL DEFAULT 'Draft',
@@ -698,8 +702,10 @@ CREATE TABLE IF NOT EXISTS project_documents (
     deleted_at          DATETIME NULL,
     CONSTRAINT fk_project_documents_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_project_documents_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_project_documents_source_form FOREIGN KEY (source_form_id) REFERENCES government_forms(id) ON DELETE SET NULL,
     INDEX idx_project_documents_project (project_id),
-    INDEX idx_project_documents_status (status)
+    INDEX idx_project_documents_status (status),
+    INDEX idx_project_documents_source_form (source_form_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS document_versions (

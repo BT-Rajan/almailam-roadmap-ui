@@ -201,6 +201,7 @@ def create_document_from_bytes(
     content: bytes,
     filename: str,
     user_id: int,
+    source_form_id: int | None = None,
 ) -> ProjectDocument:
     """Same persistence as create_document, for a file generated server-
     side (e.g. a filled government-form PDF, see
@@ -221,6 +222,7 @@ def create_document_from_bytes(
         storage_key=storage_key,
         original_filename=original_filename,
         file_size_bytes=size_bytes,
+        source_form_id=source_form_id,
     )
     db.add(document)
     db.flush()

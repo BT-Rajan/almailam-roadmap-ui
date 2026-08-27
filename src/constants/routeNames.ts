@@ -28,6 +28,7 @@ export const ROUTE_NAMES = {
   ADMIN_PERMIT_CATALOG: 'admin-permit-catalog',
   ADMIN_EXECUTION_STEPS: 'admin-execution-steps',
   ADMIN_FORMS: 'admin-forms',
+  ADMIN_SERVICE_DOCUMENT_MAP: 'admin-service-document-map',
   ADMIN_AI: 'admin-ai',
   ADMIN_COMPANY: 'admin-company',
   ADMIN_AUDIT_LOG: 'admin-audit-log',

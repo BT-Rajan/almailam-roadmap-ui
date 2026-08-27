@@ -62,6 +62,16 @@ class ProjectDocument(Base, TimestampMixin, SoftDeleteMixin):
     # 5 stage keys are a fixed, small, code-defined set (see
     # src/constants/processStages.ts on the frontend), not a table.
     stage_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Which GovernmentForm this document was generated from (see
+    # government_service.fill_form) -- NULL for every document that
+    # isn't a generated "Government Agreement" (an upload, a contract
+    # PDF, etc). Lets the Required Documents checklist (see
+    # ProjectOverviewTab.vue) check "has this specific form been filled
+    # for this project" by a real join instead of guessing from the
+    # document's title.
+    source_form_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("government_forms.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class DocumentVersion(Base):

@@ -434,6 +434,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/service-document-map',
+      name: ROUTE_NAMES.ADMIN_SERVICE_DOCUMENT_MAP,
+      component: () => import('@/pages/AdminServiceDocumentMapPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'Service Document Map' },
+        ],
+      },
+    },
+    {
       path: '/admin/ai',
       name: ROUTE_NAMES.ADMIN_AI,
       component: () => import('@/pages/AdminAIPage.vue'),

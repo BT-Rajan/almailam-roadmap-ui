@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, Eye, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
+import { AlertTriangle, CheckCircle2, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -15,22 +15,17 @@ import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.v
 import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
 import DesignDocumentDialog from '@/components/document/DesignDocumentDialog.vue'
 import LinkDocumentCard from '@/components/document/LinkDocumentCard.vue'
-import FormTemplatePreviewDialog from '@/components/government/FormTemplatePreviewDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
-import { useCompanyStore } from '@/stores/companyStore'
 import { useDocumentStore } from '@/stores/documentStore'
-import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
 import type { ProjectDocument, ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
-import type { GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
 import type { SmartTableColumn } from '@/types/Table'
 import { formatDate } from '@/utils/dateFormatter'
-import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 
 const props = defineProps<{
   project: Project
@@ -42,8 +37,6 @@ const documentStore = useDocumentStore()
 const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
 const projectStore = useProjectStore()
-const governmentFormStore = useGovernmentFormStore()
-const companyStore = useCompanyStore()
 const toastStore = useToastStore()
 
 const isDesignDialogOpen = ref(false)
@@ -237,30 +230,6 @@ function openPermitDialog(permitName: string): void {
   isAddDialogOpen.value = true
 }
 
-// Government forms the admin has tagged with one of this project's picked
-// services (see governmentFormHelpers.formMatchesProjectService). Filling
-// them from the database is still a stub -- see previewContext below --
-// but which form applies is already resolved for real, from the form
-// library's own service tags.
-const suggestedGovernmentForms = computed<GovernmentForm[]>(() =>
-  governmentFormStore.forms.filter(
-    (form) => form.status === 'Active' && formMatchesProjectService(form, props.project.service),
-  ),
-)
-
-const previewTarget = ref<GovernmentForm | undefined>(undefined)
-
-// Stub merge context: only the fields already on hand client-side (project,
-// client) are filled in for real: everything else in a form's template
-// renders blank until a backend endpoint can assemble the full record.
-const previewContext = computed(() => ({
-  companyName: companyStore.settings?.companyName,
-  clientName: clientStore.getClientById(clientId.value)?.companyName,
-  projectName: props.project.projectName,
-  engineerName: props.project.engineer,
-  date: formatDate(new Date().toISOString()),
-}))
-
 function requestLinkDelete(document: ProjectLinkDocument): void {
   linkDeleteTarget.value = document
   isLinkDeleteDialogOpen.value = true
@@ -287,8 +256,6 @@ function loadDocumentsData(): void {
   if (clientId.value) {
     clientStore.loadClientDetail(clientId.value)
   }
-  if (governmentFormStore.forms.length === 0) governmentFormStore.loadForms()
-  if (!companyStore.settings) companyStore.loadSettings()
 }
 
 onMounted(loadDocumentsData)
@@ -473,28 +440,12 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
         </BaseButton>
       </div>
 
-      <!-- Suggested from the form library, matched by this project's service
-           tag(s) -- see governmentFormHelpers.formMatchesProjectService.
-           Filling one in is still a stub: it previews with whatever project
-           data is on hand client-side, everything else blank, until a
-           backend endpoint can assemble the full DB record. -->
-      <div v-if="suggestedGovernmentForms.length > 0" class="flex flex-col gap-2 rounded-xl border border-border-light bg-bg-card p-4">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Suggested for this project's service</p>
-        <div
-          v-for="form in suggestedGovernmentForms"
-          :key="form.id"
-          class="flex items-center justify-between gap-3 rounded-lg border border-border-light px-3 py-2"
-        >
-          <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-text-primary">{{ form.title }}</p>
-            <p class="truncate text-xs text-text-muted">{{ form.formCode }} · {{ form.category }}</p>
-          </div>
-          <BaseButton variant="secondary" size="sm" :icon="Eye" class="no-print shrink-0" @click="previewTarget = form">
-            Preview
-          </BaseButton>
-        </div>
-      </div>
-
+      <!-- Government forms/agreements required for this project's services
+           are now handled entirely under the project's Approvals & Permits
+           stage (see ProjectOverviewTab.vue's Required Documents checklist
+           and ProjectGovernmentTab.vue's Fill Form action) -- driven by the
+           Service Document Map (Administration), not a suggestion guessed
+           here from service tags. -->
       <EmptyState
         v-if="linkDocumentsFor('Government').length === 0"
         title="No government documents yet"
@@ -548,14 +499,6 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       confirm-variant="danger"
       :loading="isLinkDeleteSaving"
       @confirm="handleConfirmLinkDelete"
-    />
-
-    <FormTemplatePreviewDialog
-      :model-value="!!previewTarget"
-      :form="previewTarget"
-      :context="previewContext"
-      stub-notice="Preview only -- filled with what's already on hand for this project. Full DB-backed generation is coming soon."
-      @update:model-value="previewTarget = undefined"
     />
   </div>
 </template>

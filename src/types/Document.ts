@@ -35,6 +35,12 @@ export interface ProjectDocument {
   // A link to a document that lives outside the app -- optional,
   // independent of whether a file was also uploaded.
   externalLink: string | null
+  // Which GovernmentForm this was generated from (see
+  // governmentFormService.fillForm) -- null for anything not generated
+  // that way (uploads, contracts, quotations, etc). Lets the Required
+  // Documents checklist check "has this form been filled for this
+  // project" via a real link instead of guessing from the title.
+  sourceFormId: string | null
 }
 
 export type DocumentViewMode = 'grid' | 'table'

@@ -191,7 +191,7 @@ def fill_form(db: Session, form_id: int, payload, actor_id: int):
     pdf_bytes = pdf_render.render_agreement_pdf(title, rendered_body)
 
     document = document_service.create_document_from_bytes(
-        db, project, title, "Government Agreement", pdf_bytes, f"{title}.pdf", actor_id
+        db, project, title, "Government Agreement", pdf_bytes, f"{title}.pdf", actor_id, source_form_id=form.id
     )
     audit_service.log_event(
         db, FORM_ENTITY_TYPE, form.id, "Form filled and saved as a document", actor_id, new_value=title

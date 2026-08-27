@@ -61,6 +61,12 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         icon: 'Landmark',
         routeName: ROUTE_NAMES.ADMIN_FORMS,
       },
+      {
+        label: 'Service Document Map',
+        description: 'For each service, which fillable government forms/agreements a project needs -- no document listed twice.',
+        icon: 'Map',
+        routeName: ROUTE_NAMES.ADMIN_SERVICE_DOCUMENT_MAP,
+      },
     ],
   },
   {
