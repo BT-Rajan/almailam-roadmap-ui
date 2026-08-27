@@ -87,6 +87,36 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
 }
 
 /**
+ * Render a form's {{token}} template with the given context straight to
+ * a downloadable PDF -- nothing saved, no project needed. The admin-
+ * facing counterpart to fillForm above (which requires a project and
+ * saves a Document there); this is for trying a template out from
+ * Administration > Government Forms. Raw fetch + blob, same pattern as
+ * documentService.downloadDocument, since apiClient only parses JSON.
+ */
+async function renderPdf(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {
+  try {
+    const response = await fetch(`/api/government/forms/${formId}/render-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!response.ok) {
+      throw new Error(`PDF generation failed with status ${response.status}`)
+    }
+
+    return await response.blob()
+  } catch (error) {
+    console.error(`Failed to render PDF for form ${formId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to generate PDF')
+  }
+}
+
+/**
  * Set/update government form status via backend API
  */
 async function setFormStatus(formId: string, status: GovernmentForm['status']): Promise<GovernmentForm> {
@@ -141,6 +171,7 @@ export const governmentFormService = {
   updateForm,
   deleteForm,
   fillForm,
+  renderPdf,
   setFormStatus,
   createAuthority,
   updateAuthority,

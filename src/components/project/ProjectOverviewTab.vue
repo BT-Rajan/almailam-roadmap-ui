@@ -103,7 +103,10 @@ function loadStageDataIfNeeded(): void {
     if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
     if (documentStore.documents.length === 0) documentStore.loadDocuments()
   }
-  if (props.stageContext === 'Completed' && stageStore.executionSteps.length === 0) {
+  if (
+    (props.stageContext === 'Execution & Tracking' || props.stageContext === 'Completed') &&
+    stageStore.executionSteps.length === 0
+  ) {
     stageStore.load(props.project.id)
   }
 }
@@ -178,6 +181,8 @@ function viewFilledDocument(documentId: string): void {
 const plannedTasks = computed(() => stageStore.includedExecutionSteps)
 const completedTasksCount = computed(() => plannedTasks.value.filter((step) => step.completionPercentage === 100).length)
 
+// Also used by the Execution & Tracking stage's own overview card below
+// -- both just link through to the same Checklist tab ('process').
 function goToExecutionTasks(): void {
   emit('navigate-tab', 'process')
 }
@@ -391,6 +396,33 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
         </div>
       </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Execution & Tracking'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Execution &amp; Tracking</h3>
+      </template>
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 rounded-lg border border-border-light p-4 text-left transition-colors hover:border-accent-300 hover:bg-accent-50"
+        @click="goToExecutionTasks"
+      >
+        <div class="flex min-w-0 flex-1 items-center gap-4">
+          <div class="h-2 w-32 shrink-0 overflow-hidden rounded-full bg-bg-secondary">
+            <div
+              class="h-full rounded-full bg-primary-600 transition-[width] duration-normal"
+              :style="{ width: `${stageStore.weightedProgress}%` }"
+            />
+          </div>
+          <div>
+            <p class="text-2xl font-semibold text-text-primary">{{ stageStore.weightedProgress }}%</p>
+            <p class="text-xs text-text-muted">
+              {{ completedTasksCount }} of {{ plannedTasks.length }} activities · {{ stageStore.stageGateCompleteCount }} of 5 approval stages gated
+            </p>
+          </div>
+        </div>
+        <span class="shrink-0 text-xs font-medium text-accent-600 no-print">View Checklist &rarr;</span>
+      </button>
     </Card>
 
     <Card v-if="stageContext === 'Completed'">

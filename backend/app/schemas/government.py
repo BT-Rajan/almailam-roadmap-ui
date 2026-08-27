@@ -120,6 +120,18 @@ class FormFillRequest(BaseModel):
     title: str | None = None
 
 
+class FormRenderPdfRequest(BaseModel):
+    """Renders a form's {{token}} template with the given context straight
+    to PDF bytes, with nothing persisted -- no project, no Document row.
+    The admin-facing counterpart to FormFillRequest above, which requires
+    a project and saves the result there; this is for trying a template
+    (e.g. from Administration > Government Forms) before it's ever used
+    on a real project. See government_service.render_pdf."""
+
+    context: dict[str, str] = Field(default_factory=dict)
+    title: str | None = None
+
+
 class FormStatusUpdate(BaseModel):
     status: str
     _check = field_validator("status")(_enum_validator(FORM_STATUSES, "status"))

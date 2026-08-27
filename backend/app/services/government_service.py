@@ -200,6 +200,23 @@ def fill_form(db: Session, form_id: int, payload, actor_id: int):
     return document
 
 
+def render_pdf(db: Session, form_id: int, payload) -> tuple[bytes, str]:
+    """Renders a form's {{token}} template with the given context straight
+    to PDF bytes -- nothing persisted, no project needed. The admin-facing
+    counterpart to fill_form above: trying out a template (Administration
+    > Government Forms) before it's ever used on a real project, where
+    the point is a downloadable file, not a saved Document. Returns the
+    bytes plus the title used, so the caller can name the download."""
+    form = get_form(db, form_id)
+    if not form.template:
+        raise ValidationAppError("This form has no template to fill in.")
+
+    rendered_body = pdf_render.render_template(form.template, payload.context)
+    title = (payload.title or form.title).strip() or form.title
+    pdf_bytes = pdf_render.render_agreement_pdf(title, rendered_body)
+    return pdf_bytes, title
+
+
 def set_form_status(db: Session, form_id: int, status: str, actor_id: int) -> GovernmentForm:
     form = get_form(db, form_id)
     audit_service.log_event(

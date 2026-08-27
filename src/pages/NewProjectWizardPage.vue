@@ -526,7 +526,7 @@ function goToCreatedProject(): void {
             v-model="form.scope"
             label="Scope of Work"
             placeholder="Describe the scope of this engagement"
-            hint="Auto-filled from the services and type activities picked earlier -- edit freely if it needs adjusting."
+            hint="Auto-filled from the services and additional activities picked earlier -- edit freely if it needs adjusting."
             :rows="6"
           />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">

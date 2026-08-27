@@ -1,4 +1,7 @@
+import io
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -13,6 +16,7 @@ from app.schemas.government import (
     FormFillRequest,
     FormIn,
     FormOut,
+    FormRenderPdfRequest,
     FormStatusUpdate,
 )
 from app.services import document_service, government_service
@@ -119,6 +123,27 @@ def fill_form(
         _project_no(db, document.project_id),
         document_service.user_name(db, document.uploaded_by),
         format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
+    )
+
+
+@router.post("/forms/{form_id}/render-pdf")
+def render_form_pdf(
+    form_id: str,
+    payload: FormRenderPdfRequest,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    """Renders a filled-in template straight to a downloadable PDF --
+    nothing saved, no project needed. Gated by view (not edit) since
+    trying a template this way changes nothing in the database, unlike
+    /fill above, which persists a Document and so needs edit."""
+    pdf_bytes, _title = government_service.render_pdf(
+        db, government_service.parse_form_id(form_id), payload
+    )
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=form.pdf"},
     )
 
 

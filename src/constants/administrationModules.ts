@@ -44,8 +44,8 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         routeName: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
       },
       {
-        label: 'Type Activity Catalog',
-        description: 'Configure engagement type categories (Design, Supervision, etc) and their priced activity checklists.',
+        label: 'Additional Activity Catalog',
+        description: 'Configure engagement type categories (Design, Supervision, etc) and their priced additional activity checklists.',
         icon: 'ListChecks',
         routeName: ROUTE_NAMES.ADMIN_TYPE_ACTIVITY_CATALOG,
       },

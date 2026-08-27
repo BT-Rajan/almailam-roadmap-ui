@@ -392,7 +392,7 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
         engineerName: 'Sample Engineer',
         date: formatDate(new Date().toISOString()),
       }"
-      stub-notice="Preview only -- shown with sample data. A live preview filled from a specific project's records will use the same template."
+      stub-notice="Fields below start filled with sample data -- edit them and save as PDF to try the template. Nothing here is saved to a project; filling a form for a real project is done from that project's own workspace."
       @update:model-value="previewTarget = undefined"
     />
 

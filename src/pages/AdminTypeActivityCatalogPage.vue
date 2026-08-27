@@ -76,8 +76,8 @@ function handleRemoveActivity(activityId: string): void {
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader
-      title="Type Activity Catalog"
-      subtitle="Configure the engagement type categories (Design, Supervision, etc) offered at project creation, and each category's checklist of priced activities."
+      title="Additional Activity Catalog"
+      subtitle="Configure the engagement type categories (Design, Supervision, etc) offered at project creation, and each category's checklist of priced additional activities."
     />
 
     <ErrorState v-if="typeActivityCatalogStore.error" :description="typeActivityCatalogStore.error" @retry="loadData" />
