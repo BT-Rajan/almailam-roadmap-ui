@@ -26,9 +26,13 @@ SUBMISSION_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received"
 REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
 # Outcome recorded against the "proof of response" upload -- kept as its
 # own field (rather than inferred from submission.status) so the UI can
-# gate the "Mark Complete" action on an explicit Approved/Rejected call,
+# gate the "Mark Complete" action on an explicit Approved call,
 # independent of exactly which status the submission is sitting in.
-RESPONSE_OUTCOMES = ("Approved", "Rejected")
+# "No Response" covers a follow-up made after the authority's own
+# response window closed with nothing back -- still a real outcome
+# worth recording (with its own proof, e.g. a follow-up acknowledgement),
+# just not one that can ever satisfy "Mark Complete".
+RESPONSE_OUTCOMES = ("Approved", "Rejected", "No Response")
 
 
 class GovernmentAuthority(Base, TimestampMixin, SoftDeleteMixin):

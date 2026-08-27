@@ -10,7 +10,7 @@ settings = get_settings()
 
 ALLOWED_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".dwg", ".dxf",
-    ".jpg", ".jpeg", ".png", ".txt", ".csv",
+    ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".txt", ".csv",
 }
 
 # Magic-byte signatures for extensions where forging the content is easy
@@ -24,6 +24,9 @@ _SIGNATURES: dict[str, tuple[bytes, ...]] = {
     ".png": (b"\x89PNG\r\n\x1a\n",),
     ".jpg": (b"\xff\xd8\xff",),
     ".jpeg": (b"\xff\xd8\xff",),
+    # Little-endian ("II*\0") and big-endian ("MM\0*") TIFF byte orders.
+    ".tiff": (b"II*\x00", b"MM\x00*"),
+    ".tif": (b"II*\x00", b"MM\x00*"),
     ".doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),  # legacy OLE2 container
     ".xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
     ".docx": (b"PK\x03\x04",),  # OOXML is a zip archive

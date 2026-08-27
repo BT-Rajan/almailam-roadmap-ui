@@ -394,7 +394,7 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     proof_of_response_size_bytes      BIGINT UNSIGNED NULL,
     proof_of_response_uploaded_by     BIGINT UNSIGNED NULL,
     proof_of_response_upload_date     DATE NULL,
-    response_outcome                  ENUM('Approved','Rejected') NULL,
+    response_outcome                  ENUM('Approved','Rejected','No Response') NULL,
     created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at                   DATETIME NULL,
