@@ -2,7 +2,6 @@ import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { Project, ProjectPriority, ScopeOfWork } from '@/types/Project'
-import type { ProjectCompletionChecklist, ProjectCompletionSummary } from '@/types/ProjectCompletion'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -95,10 +94,6 @@ export interface ProjectCreateInput {
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.
   requiredPermitDocuments?: string[]
-  // Which admin-configured execution step set (see ExecutionStepSet)
-  // this project's checklist should be snapshotted from. Optional --
-  // omitting it falls back to the oldest surviving set server-side.
-  stepSetId?: string
 }
 
 /**
@@ -119,9 +114,9 @@ export interface ProjectUpdateInput {
   service?: string
   engineerId?: string
   priority?: ProjectPriority
-  // progress deliberately not here -- it's computed from the
-  // execution-step checklist (see backend's execution_step_service.py),
-  // not settable directly.
+  // progress deliberately not here -- it's derived from current_stage
+  // server-side (see project_service.recompute_progress), not settable
+  // directly.
   targetDate?: string
 }
 
@@ -142,8 +137,8 @@ async function updateProject(projectId: string, projectData: ProjectUpdateInput)
 /**
  * Advance/change a project's workflow stage. `reason` is required for
  * some transitions (enforced server-side, see PROJECT_STAGE_STATUSES_
- * REQUIRING_REASON and the Completed->Approval reopen case) -- always
- * pass it through when the user provided one.
+ * REQUIRING_REASON and the Government Submission->Design reopen case)
+ * -- always pass it through when the user provided one.
  */
 async function setStage(projectId: string, currentStage: string, reason?: string): Promise<Project> {
   try {
@@ -155,33 +150,9 @@ async function setStage(projectId: string, currentStage: string, reason?: string
 }
 
 /**
- * Change a project's scope-of-work description. When contractUpdateNeeded
- * or paymentUpdateNeeded is true, every Administrator is notified to go
- * make the corresponding update themselves.
- */
-async function changeScope(
-  projectId: string,
-  description: string,
-  contractUpdateNeeded: boolean,
-  paymentUpdateNeeded: boolean,
-): Promise<Project> {
-  try {
-    return await apiClient.patch<Project>(`/api/projects/${projectId}/scope`, {
-      description,
-      contractUpdateNeeded,
-      paymentUpdateNeeded,
-    })
-  } catch (error) {
-    console.error(`Failed to change scope for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to change project scope')
-  }
-}
-
-/**
- * Change a project's operational status (Active/On Hold/Completed/
- * Cancelled). `reason` is required for some transitions (On Hold,
- * Cancelled, and reopening a Completed/Cancelled project) -- enforced
- * server-side.
+ * Change a project's operational status (Active/On Hold/Cancelled).
+ * `reason` is required for some transitions (On Hold, Cancelled, and
+ * reopening a Cancelled project) -- enforced server-side.
  */
 async function setStatus(projectId: string, status: string, reason?: string): Promise<Project> {
   try {
@@ -189,50 +160,6 @@ async function setStatus(projectId: string, status: string, reason?: string): Pr
   } catch (error) {
     console.error(`Failed to change status for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to change project status')
-  }
-}
-
-/**
- * Toggle delivery status of one scope line (a picked service activity
- * or type activity) -- the Execution & Tracking stage's "Scope
- * Execution" checklist. May advance the project's stage as a side
- * effect if this was the last incomplete scope item and every other
- * Completed-stage criterion is already met (see the backend's
- * try_auto_advance_stage), which is why this returns the full project.
- */
-async function setScopeItemComplete(
-  projectId: string,
-  source: 'service' | 'type_activity',
-  itemId: string,
-  isComplete: boolean,
-): Promise<Project> {
-  try {
-    return await apiClient.patch<Project>(`/api/projects/${projectId}/scope-items`, { source, itemId, isComplete })
-  } catch (error) {
-    console.error(`Failed to update scope item for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update scope item')
-  }
-}
-
-/**
- * The "were any additional services rendered?" flow's per-item action:
- * checks one of the 23 process-checklist items beyond the project's
- * original quoted scope, recording whether it's covered under the
- * existing contract. Same stage-auto-advance side effect as
- * setScopeItemComplete above.
- */
-async function markAdditionalExecutionStep(
-  projectId: string,
-  stepId: string,
-  contractCovered: boolean,
-): Promise<Project> {
-  try {
-    return await apiClient.patch<Project>(`/api/projects/${projectId}/execution-steps/${stepId}/additional`, {
-      contractCovered,
-    })
-  } catch (error) {
-    console.error(`Failed to mark additional execution step for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to mark additional service')
   }
 }
 
@@ -245,56 +172,6 @@ async function deleteProject(projectId: string): Promise<void> {
   } catch (error) {
     console.error(`Failed to delete project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete project')
-  }
-}
-
-/**
- * Fetch the Completion summary (planned/actual budget and duration,
- * plus notes) for a project via backend API.
- */
-async function getCompletionSummary(projectId: string): Promise<ProjectCompletionSummary> {
-  try {
-    return await apiClient.get<ProjectCompletionSummary>(`/api/projects/${projectId}/completion-summary`)
-  } catch (error) {
-    console.error(`Failed to fetch completion summary for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch completion summary')
-  }
-}
-
-/**
- * Milestone-status checklist (contract/payments/design/government
- * approval/field work) for a project's Completion stage.
- */
-async function getCompletionChecklist(projectId: string): Promise<ProjectCompletionChecklist> {
-  try {
-    return await apiClient.get<ProjectCompletionChecklist>(`/api/projects/${projectId}/completion-checklist`)
-  } catch (error) {
-    console.error(`Failed to fetch completion checklist for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch completion checklist')
-  }
-}
-
-/**
- * Save the Completion summary's free-text notes via backend API.
- */
-async function updateCompletionNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
-  try {
-    return await apiClient.patch<ProjectCompletionSummary>(`/api/projects/${projectId}/completion-notes`, { notes })
-  } catch (error) {
-    console.error(`Failed to save completion notes for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save completion notes')
-  }
-}
-
-/**
- * Save the PM's annotation on the auto-derived scope-deviation read via backend API.
- */
-async function updateDeviationNotes(projectId: string, notes: string): Promise<ProjectCompletionSummary> {
-  try {
-    return await apiClient.patch<ProjectCompletionSummary>(`/api/projects/${projectId}/deviation-notes`, { notes })
-  } catch (error) {
-    console.error(`Failed to save deviation notes for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save deviation notes')
   }
 }
 
@@ -406,15 +283,8 @@ export const projectService = {
   createProject,
   updateProject,
   setStage,
-  changeScope,
   setStatus,
-  setScopeItemComplete,
-  markAdditionalExecutionStep,
   deleteProject,
-  getCompletionSummary,
-  getCompletionChecklist,
-  updateCompletionNotes,
-  updateDeviationNotes,
   getScopeOfWork,
   saveScopeOfWork,
   approveScopeOfWork,

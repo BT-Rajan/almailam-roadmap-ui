@@ -131,7 +131,7 @@ INSERT INTO projects (project_no, project_name, client_id, service, engineer_id,
 ('2600002', 'Falcon Heights Warehouse Expansion',                  @c_falcon,  'MEP Design',                @u_ahmed,    'Quotation',             18,  'High',   '2026-05-14', '2026-11-30', 'Active'),
 ('2600003', 'Marina Bay Hotel Renovation',                         @c_marina,  'Architectural Design',      @u_layla,    'Design',                42,  'High',   '2026-03-10', '2026-10-05', 'Active'),
 ('2600004', 'Ahmadi Industrial Facility - Fire Safety Approval',   @c_ahmadi, 'Fire & Safety Engineering', @u_mohammed, 'Government Submission', 68,  'High',   '2026-01-20', '2026-08-15', 'Active'),
-('2600005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Completed',             100, 'Low',    '2025-09-01', '2026-03-20', 'Completed');
+('2600005', 'Desert Rose Retail Plaza - Final Handover',           @c_khalid,  'Civil Engineering',         @u_ahmed,    'Government Submission', 100, 'Low',    '2025-09-01', '2026-03-20', 'Active');
 
 SET @p_alreem  = (SELECT id FROM projects WHERE project_no = '2600001');
 SET @p_falcon  = (SELECT id FROM projects WHERE project_no = '2600002');
@@ -345,34 +345,5 @@ INSERT INTO number_series (doc_type, year, prefix, next_number, padding) VALUES
 ('GOVERNMENT_SUBMISSION', 2026, 'SUB', 3, 3),
 ('NOTIFICATION',          2026, 'NTF', 6, 3)
 ON DUPLICATE KEY UPDATE next_number = VALUES(next_number);
-
--- Seeded projects above are inserted as raw rows, not through
--- project_service.create_project() -- so they never went through its
--- execution-step snapshot step. Same backfill migration 0016 applies
--- to an existing database; needed here too so a fresh install (schema.sql
--- then this file, no migration in between) doesn't leave every demo
--- project stuck with an empty checklist. Guarded the same way: only
--- projects with zero existing steps get backfilled.
-INSERT INTO project_execution_steps (project_id, name, sequence_number, weight_percentage, stage_key, is_optional)
-SELECT p.id, t.name, t.sequence_number, t.weight_percentage, t.stage_key, t.is_optional
-FROM projects p
-CROSS JOIN execution_step_templates t
-WHERE t.deleted_at IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM project_execution_steps pes WHERE pes.project_id = p.id
-  );
-
--- Same reasoning, same backfill pattern, for the separate approval
--- process trial -- see approval_process.py's own docstring. No status
--- to seed here either -- a stage counts as complete once a document
--- is uploaded for it (storage_key set), not via a status column.
-INSERT INTO project_approval_steps (project_id, name, sequence_number, stage_key)
-SELECT p.id, t.name, t.sequence_number, t.stage_key
-FROM projects p
-CROSS JOIN approval_process_templates t
-WHERE t.deleted_at IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM project_approval_steps pas WHERE pas.project_id = p.id
-  );
 
 SET FOREIGN_KEY_CHECKS = 1;

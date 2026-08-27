@@ -12,7 +12,7 @@ from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service, execution_step_service, project_service, timeline_service
+from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -166,10 +166,6 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the contract exists.
     _record_revision(db, contract, f"Initial contract created from quotation {quotation.quotation_no}", user_id, bump=False)
-    # Execution-checklist step 7 ("Contract initiated") duplicates the
-    # mere existence of this record -- auto-complete it instead of
-    # making staff separately tick the same fact on the checklist.
-    execution_step_service.try_auto_fill(db, project.id, "contract_created", user_id)
     # A contract existing is one of three things "Contract" -> "Design"/
     # "Government Submission" is waiting on (see project_service.
     # _assert_stage_exit_criteria) -- the other two (the Documents

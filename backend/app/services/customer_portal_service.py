@@ -102,8 +102,6 @@ _STAGE_TO_CUSTOMER_STATUS = {"Requirement", "Quotation", "Contract"}
 def _customer_status(project: Project) -> str:
     if project.status == "On Hold":
         return "on-hold"
-    if project.status == "Completed":
-        return "completed"
     if project.status == "Cancelled":
         return "cancelled"
     if project.current_stage in _STAGE_TO_CUSTOMER_STATUS:
@@ -266,7 +264,10 @@ def get_project_view(db: Session, project: Project) -> dict:
             "clientName": client.company_name if client else "Unknown Client",
             "startDate": project.start_date,
             "expectedEndDate": project.target_date,
-            "actualEndDate": project.target_date if project.status == "Completed" else None,
+            # No project status ever reaches a terminal "done" state --
+            # see models/project.py's PROJECT_STATUSES comment -- so
+            # there is no actual completion date to report here.
+            "actualEndDate": None,
             "status": _customer_status(project),
             "progress": project.progress,
             "summary": summary,

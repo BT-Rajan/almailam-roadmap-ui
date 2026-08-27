@@ -1,26 +1,26 @@
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 
-export type ProjectStatus = 'Active' | 'On Hold' | 'Completed' | 'Cancelled'
+// No "Completed" value -- a project never reaches a terminal "done"
+// status, only Active/On Hold/Cancelled. See backend/app/models/
+// project.py's PROJECT_STATUSES comment.
+export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled'
 
 // "Correction" used to be its own stage (Review <-> Correction, a loop
 // back and forth for what's really one review cycle). Merged into
 // Review -- a correction cycle is logged as a note on the project's
-// History instead of a separate stage. "Review" was itself renamed to
-// "Execution & Tracking" and "Approval" dropped entirely -- the
-// 23-step execution checklist and the 5-stage approval process stage
-// gates are what actually happen during this stage. "Enquiry" was
-// itself renamed to "Requirement" -- it now has its own dedicated tab
+// History instead of a separate stage. "Enquiry" was itself renamed to
+// "Requirement" -- it now has its own dedicated tab
 // (ProjectRequirementTab.vue) for managing the scope-of-work text with
-// revision history and an internal approval step. See
-// backend/app/models/project.py's WORKFLOW_STAGES comment.
+// revision history and an internal approval step. "Execution &
+// Tracking" and "Completed" were removed entirely -- "Government
+// Submission" is now the terminal stage. See backend/app/models/
+// project.py's WORKFLOW_STAGES comment.
 export type WorkflowStage =
   | 'Requirement'
   | 'Quotation'
   | 'Contract'
   | 'Design'
   | 'Government Submission'
-  | 'Execution & Tracking'
-  | 'Completed'
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
@@ -31,7 +31,6 @@ export interface ProjectSelectedTypeActivity {
   activityName: string
   cost: number
   isCoveredByService: boolean
-  isComplete?: boolean
 }
 
 // Internal approval of a project's scope-of-work text -- see
@@ -78,9 +77,6 @@ export interface Project {
   // because most existing projects predate the permits step and because a
   // backend that hasn't been extended to persist this yet can just ignore it.
   requiredPermitDocuments?: string[]
-  // Set once the project's status becomes Completed, cleared on reopen
-  // -- see the Completion summary on the Overview tab.
-  completedAt?: string | null
 }
 
 export type ProjectViewMode = 'grid' | 'table'
@@ -88,7 +84,6 @@ export type ProjectViewMode = 'grid' | 'table'
 export type ProjectWorkspaceTabKey =
   | 'overview'
   | 'requirement'
-  | 'process'
   | 'documents'
   | 'design'
   | 'government'
@@ -96,17 +91,6 @@ export type ProjectWorkspaceTabKey =
   | 'contract'
   | 'payments'
   | 'tasks'
-  // Stepper-only signal, not a real top-bar tab: navigating here just
-  // means "show this stage's Overview" -- see ProjectWorkspacePage.vue's
-  // STAGE_TAB_KEYS/normalizing watcher, the same reason 'requirement'
-  // above exists as its own key distinct from 'overview'.
-  | 'completed'
-  // The Completed stage's own Documents tab -- 3 sub-tabs (Submitted
-  // Docs / Approvals & Permits / Project Closure Docs), see
-  // ProjectCompletionDocumentsTab.vue. Distinct from the plain
-  // 'documents' key so Contract's simpler single-view Documents tab is
-  // unaffected.
-  | 'completedDocuments'
 
 export interface ProjectWorkspaceTab {
   key: ProjectWorkspaceTabKey

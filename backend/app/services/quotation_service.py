@@ -13,7 +13,7 @@ from app.models.client import Client
 from app.models.project import Project
 from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
 from app.models.user import User
-from app.services import audit_service, execution_step_service, project_service, timeline_service
+from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -178,10 +178,6 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # triggered the move yet. No-op otherwise.
     db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
-    # Execution-checklist step 2 ("Quotation prepared") duplicates the
-    # mere existence of this record -- auto-complete it instead of
-    # making staff separately tick the same fact on the checklist.
-    execution_step_service.try_auto_fill(db, project.id, "quotation_created", user_id)
     db.commit()
     db.refresh(quotation)
     return quotation

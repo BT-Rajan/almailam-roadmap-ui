@@ -98,9 +98,9 @@ def summary_metrics(db: Session) -> list[dict]:
         .scalar()
         or 0
     )
-    completed_projects = (
+    on_hold_projects = (
         db.query(func.count(Project.id))
-        .filter(Project.deleted_at.is_(None), Project.status == "Completed")
+        .filter(Project.deleted_at.is_(None), Project.status == "On Hold")
         .scalar()
         or 0
     )
@@ -125,7 +125,7 @@ def summary_metrics(db: Session) -> list[dict]:
     return [
         {"label": "Total Projects", "value": total_projects, "color": "primary"},
         {"label": "Active Projects", "value": active_projects, "color": "success"},
-        {"label": "Completed Projects", "value": completed_projects, "color": "info"},
+        {"label": "On Hold Projects", "value": on_hold_projects, "color": "info"},
         {"label": "Total Clients", "value": total_clients, "color": "primary"},
         {"label": "Open Tasks", "value": open_tasks, "color": "warning"},
         {"label": "Overdue Tasks", "value": overdue_tasks, "color": "danger"},

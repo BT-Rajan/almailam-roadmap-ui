@@ -52,7 +52,6 @@ class ProjectSelectedTypeActivityOut(BaseModel):
     activityName: str
     cost: float
     isCoveredByService: bool
-    isComplete: bool = False
 
     @staticmethod
     def from_model(row) -> "ProjectSelectedTypeActivityOut":
@@ -61,7 +60,6 @@ class ProjectSelectedTypeActivityOut(BaseModel):
             activityName=row.activity_name,
             cost=float(row.cost),
             isCoveredByService=row.is_covered_by_service,
-            isComplete=row.is_complete,
         )
 
 

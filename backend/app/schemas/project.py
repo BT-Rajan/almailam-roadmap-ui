@@ -21,7 +21,6 @@ class SelectedActivityOut(BaseModel):
     activityId: str
     activityName: str
     fixedCost: float
-    isComplete: bool = False
 
     @staticmethod
     def from_model(activity) -> "SelectedActivityOut":
@@ -31,7 +30,6 @@ class SelectedActivityOut(BaseModel):
             activityId=activity.activity_id,
             activityName=activity.activity_name,
             fixedCost=float(activity.fixed_cost),
-            isComplete=activity.is_complete,
         )
 
 
@@ -78,7 +76,6 @@ class ProjectOut(BaseModel):
     typeCategoryName: str | None = None
     selectedTypeActivities: list[ProjectSelectedTypeActivityOut] = Field(default_factory=list)
     typeActivityTotal: float | None = None
-    completedAt: datetime | None = None
     # Permit names the client confirmed, at project setup, they already
     # hold -- each is a mandatory upload requirement on the Documents
     # tab (see ProjectDocumentsTab.vue's permitChecklist).
@@ -112,54 +109,8 @@ class ProjectOut(BaseModel):
                 ProjectSelectedTypeActivityOut.from_model(a) for a in (selected_type_activities or [])
             ],
             typeActivityTotal=float(project.type_activity_total) if project.type_activity_total is not None else None,
-            completedAt=project.completed_at,
             requiredPermitDocuments=list(project.required_permit_documents or []),
         )
-
-
-class ScopeDeviationOut(BaseModel):
-    revision: str
-    date: date
-    changedBy: str
-    summary: str
-
-
-class CompletionSummaryOut(BaseModel):
-    plannedBudget: float | None
-    actualBudget: float | None
-    plannedDurationDays: int
-    actualDurationDays: int | None
-    completedAt: datetime | None
-    notes: str | None
-    scopeDeviations: list[ScopeDeviationOut] = Field(default_factory=list)
-    deviationNotes: str | None
-
-
-class CompletionChecklistItem(BaseModel):
-    complete: bool
-    detail: str
-
-
-class CompletionChecklistOut(BaseModel):
-    contract: CompletionChecklistItem
-    payments: CompletionChecklistItem
-    design: CompletionChecklistItem
-    governmentApproval: CompletionChecklistItem
-    fieldWork: CompletionChecklistItem
-
-
-class CompletionNotesUpdate(BaseModel):
-    notes: str = Field(default="", max_length=4000)
-
-
-class DeviationNotesUpdate(BaseModel):
-    notes: str = Field(default="", max_length=4000)
-
-
-class ScopeChangeUpdate(BaseModel):
-    description: str = Field(min_length=1, max_length=2000)
-    contractUpdateNeeded: bool
-    paymentUpdateNeeded: bool
 
 
 class ScopeRevisionOut(BaseModel):
@@ -214,11 +165,6 @@ class ProjectCreate(BaseModel):
     # client doesn't have yet aren't sent here at all; the wizard turns
     # those into Tasks instead, against the project this call returns.
     requiredPermitDocuments: list[str] = Field(default_factory=list)
-    # Which admin-configured execution step set this project's checklist
-    # should be snapshotted from -- see execution_step_service.py. None
-    # falls back to the oldest surviving set (in practice "Standard
-    # Process", seeded by migration 0049).
-    stepSetId: str | None = None
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
 
@@ -237,8 +183,8 @@ class ProjectUpdate(BaseModel):
     service: str | None = Field(default=None, min_length=1, max_length=100)
     engineerId: str | None = None
     priority: str | None = None
-    # progress is deliberately not here -- it's computed from the
-    # execution-step checklist (execution_step_service.py), not settable
+    # progress is deliberately not here -- it's computed from
+    # current_stage (project_service.recompute_progress), not settable
     # directly. See ProjectOut.progress for the (read-only) computed value.
     targetDate: date | None = None
     status: str | None = None
@@ -279,27 +225,3 @@ class ProjectStatusUpdate(BaseModel):
     _check = field_validator("status")(_enum_validator(PROJECT_STATUSES, "status"))
 
 
-class ScopeItemCompletionUpdate(BaseModel):
-    """Toggles one scope line's delivery status -- see
-    project_service.set_scope_item_complete. `source` distinguishes
-    which of the two scope tables the item lives in, since a service
-    activity's display id (e.g. 'ACT-004') and a type-activity's
-    (e.g. 'TAI-002') aren't drawn from the same id space."""
-
-    source: str
-    itemId: str
-    isComplete: bool
-    _check_source = field_validator("source")(_enum_validator(("service", "type_activity"), "source"))
-
-
-class ScopeCompletionSummaryOut(BaseModel):
-    total: int
-    completed: int
-    allComplete: bool
-
-
-class AdditionalExecutionStepUpdate(BaseModel):
-    """The "were any additional services rendered?" flow's per-item
-    action -- see project_service.mark_additional_execution_step."""
-
-    contractCovered: bool

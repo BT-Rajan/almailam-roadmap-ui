@@ -97,7 +97,6 @@ async function uploadDocument(
   projectId: string,
   title: string,
   type: DocumentType,
-  stageKey?: string,
   externalLink?: string,
 ): Promise<ProjectDocument> {
   const authStore = useAuthStore()
@@ -105,7 +104,6 @@ async function uploadDocument(
   formData.append('projectId', projectId)
   formData.append('title', title)
   formData.append('type', type)
-  if (stageKey) formData.append('stageKey', stageKey)
   if (externalLink) formData.append('externalLink', externalLink)
   if (file) formData.append('file', file)
 
@@ -140,13 +138,12 @@ async function uploadDocument(
 }
 
 /**
- * Update a document's title and/or stage tag via backend API
+ * Update a document's title/link/date via backend API
  * (PATCH /api/documents/{id})
  */
 async function updateDocument(
   documentId: string,
   title: string,
-  stageKey?: string | null,
   externalLink?: string | null,
   uploadDate?: string,
 ): Promise<ProjectDocument> {
@@ -157,7 +154,6 @@ async function updateDocument(
       // it" (omitted) -- undefined here means the key is left out of
       // the request body entirely, matching the backend's own omitted-
       // vs-empty-string convention (see schemas/document.py).
-      ...(stageKey !== undefined ? { stageKey: stageKey ?? '' } : {}),
       ...(externalLink !== undefined ? { externalLink: externalLink ?? '' } : {}),
       ...(uploadDate !== undefined ? { uploadDate } : {}),
     })

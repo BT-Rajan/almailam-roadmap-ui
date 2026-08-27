@@ -198,10 +198,9 @@ export const useDocumentStore = defineStore('document', {
       projectId: string,
       title: string,
       type: DocumentType,
-      stageKey?: string,
       externalLink?: string,
     ): Promise<ProjectDocument> {
-      const document = await documentService.uploadDocument(file, projectId, title, type, stageKey, externalLink)
+      const document = await documentService.uploadDocument(file, projectId, title, type, externalLink)
       this.documents = [document, ...this.documents]
       return document
     },
@@ -209,11 +208,10 @@ export const useDocumentStore = defineStore('document', {
     async updateDocument(
       documentId: string,
       title: string,
-      stageKey?: string | null,
       externalLink?: string | null,
       uploadDate?: string,
     ): Promise<ProjectDocument> {
-      const updated = await documentService.updateDocument(documentId, title, stageKey, externalLink, uploadDate)
+      const updated = await documentService.updateDocument(documentId, title, externalLink, uploadDate)
       this.documents = this.documents.map((document) => (document.id === documentId ? updated : document))
       if (this.currentDocument?.id === documentId) {
         this.currentDocument = updated

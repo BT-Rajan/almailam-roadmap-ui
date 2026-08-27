@@ -20,7 +20,6 @@ class DocumentOut(BaseModel):
     title: str
     type: str
     revision: str
-    stageKey: str | None
     uploadedBy: str
     uploadDate: date
     status: str
@@ -37,7 +36,6 @@ class DocumentOut(BaseModel):
             title=document.title,
             type=document.type,
             revision=document.revision,
-            stageKey=document.stage_key,
             uploadedBy=uploaded_by_name,
             uploadDate=document.upload_date,
             status=document.status,
@@ -50,12 +48,8 @@ class DocumentOut(BaseModel):
 
 class DocumentUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    # Empty string clears the stage tag (goes back to "unassigned");
-    # omitted (None) leaves it untouched -- distinct meanings, see
-    # document_service.update_document.
-    stageKey: str | None = Field(default=None, max_length=40)
-    # Same omitted-vs-empty-string convention as stageKey above --
-    # empty string clears the link, omitted leaves it untouched.
+    # Empty string clears the link, omitted (None) leaves it untouched --
+    # distinct meanings, see document_service.update_document.
     externalLink: str | None = Field(default=None, max_length=1000)
     uploadDate: date | None = None
 

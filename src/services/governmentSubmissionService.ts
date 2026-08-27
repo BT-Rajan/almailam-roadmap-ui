@@ -32,9 +32,6 @@ export interface SubmissionCreateInput {
   formId: string
   expectedDecisionDate?: string
   notes?: string
-  // Which approval-process gate this submission's own approval closes,
-  // if any -- see GOVERNMENT_SUBMISSION_STAGE_OPTIONS.
-  stageKey?: string
 }
 
 /**

@@ -16,7 +16,6 @@ from app.models.document import DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
 from app.services import audit_service, notification_service, project_service, timeline_service
-from app.services.execution_step_service import STAGE_KEYS
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
@@ -115,13 +114,10 @@ def create_document(
     doc_type: str,
     file: UploadFile | None,
     user_id: int,
-    stage_key: str | None = None,
     external_link: str | None = None,
 ) -> ProjectDocument:
     project = _project_by_no(db, project_no)
     project_service.assert_project_open_for_new_work(project)
-    if stage_key and stage_key not in STAGE_KEYS:
-        raise ValidationAppError("Invalid stage key.")
     external_link = (external_link or "").strip() or None
     if file is None and external_link is None:
         raise ValidationAppError("Provide a file, a link, or both.")
@@ -137,7 +133,6 @@ def create_document(
         project_id=project.id,
         title=title,
         type=doc_type,
-        stage_key=stage_key or None,
         uploaded_by=user_id,
         upload_date=date.today(),
         storage_key=storage_key,
@@ -182,8 +177,7 @@ def create_document(
     # A saved design link is one of the things "Design" -> "Government
     # Submission" now waits on (see project_service.
     # _assert_stage_exit_criteria) -- this is the moment that condition
-    # can newly become true, same pattern as approval_process_service's
-    # own stage-gate calls. The session is autoflush=False -- flush
+    # can newly become true. The session is autoflush=False -- flush
     # first so the exit-criteria check's own fresh query for a Drawing
     # document with a link actually sees this new row.
     db.flush()
@@ -259,13 +253,6 @@ def update_document(db: Session, document_no: str, payload, user_id: int) -> Pro
     if payload.title is not None and payload.title != document.title:
         changes["title"] = (document.title, payload.title)
         document.title = payload.title
-    if payload.stageKey is not None:
-        new_stage_key = payload.stageKey or None
-        if new_stage_key is not None and new_stage_key not in STAGE_KEYS:
-            raise ValidationAppError("Invalid stage key.")
-        if new_stage_key != document.stage_key:
-            changes["stage"] = (document.stage_key, new_stage_key)
-            document.stage_key = new_stage_key
     if payload.externalLink is not None:
         new_link = payload.externalLink.strip() or None
         if new_link is None and document.storage_key is None:

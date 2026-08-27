@@ -102,9 +102,8 @@ async function handleCreateAgreement(input: Parameters<typeof store.createAgreem
 async function handleRecordPayment(input: RecordPaymentInput): Promise<void> {
   try {
     await store.recordPayment(input, 'Rajan Kumar')
-    // A payment that fully settles the agreement is one of two things
-    // "Execution & Tracking" -> "Completed" waits on -- same reasoning
-    // as handleCreateAgreement above.
+    // Keeps the shared project store's cached data (e.g. amounts shown
+    // elsewhere in the workspace) in sync with what was just recorded.
     await projectStore.refreshProject(props.projectId)
     resultDialogStore.showSuccess('Payment recorded', 'The payment schedule has been updated.')
     isRecordPaymentOpen.value = false

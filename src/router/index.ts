@@ -107,20 +107,6 @@ const router = createRouter({
       },
     },
     {
-      path: '/projects/:projectId/summary-report',
-      name: ROUTE_NAMES.PROJECT_SUMMARY_REPORT,
-      component: () => import('@/pages/ProjectSummaryReportPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Projects', routeName: ROUTE_NAMES.PROJECTS },
-          { label: 'Summary Report' },
-        ],
-      },
-    },
-    {
       path: '/clients',
       name: ROUTE_NAMES.CLIENTS,
       component: () => import('@/pages/ClientsPage.vue'),
@@ -360,20 +346,6 @@ const router = createRouter({
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'Users' },
-        ],
-      },
-    },
-    {
-      path: '/admin/execution-steps',
-      name: ROUTE_NAMES.ADMIN_EXECUTION_STEPS,
-      component: () => import('@/pages/AdminExecutionStepsPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Process Steps' },
         ],
       },
     },

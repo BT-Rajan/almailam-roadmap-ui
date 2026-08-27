@@ -16,19 +16,14 @@ import DocumentStatusDialog from '@/components/document/DocumentStatusDialog.vue
 import MetadataPanel from '@/components/document/MetadataPanel.vue'
 import PDFViewer from '@/components/document/PDFViewer.vue'
 import VersionHistory from '@/components/document/VersionHistory.vue'
-import { PROCESS_STAGES } from '@/constants/processStages'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { approvalProcessService } from '@/services/approvalProcessService'
-import { documentService } from '@/services/documentService'
 import { useDocumentStore } from '@/stores/documentStore'
-import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { DocumentStatus, DocumentVersion } from '@/types/Document'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
-const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const documentId = computed(() => route.params.documentId as string)
@@ -65,93 +60,12 @@ async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
 const isStatusDialogOpen = ref(false)
 const isStatusSaving = ref(false)
 
-// After a document tagged to one of the 5 Project Approval Process
-// stages (see constants/processStages.ts) is marked Approved, offer
-// to confirm that stage complete -- whether every document tagged to
-// it is now Approved or only some are ("either way" a confirmation is
-// asked; approving one doc doesn't silently complete the stage on its
-// own). Skipped entirely if the stage is already complete via either
-// path (gate document uploaded, or a prior document-approval
-// confirmation), so this doesn't re-prompt every time.
-interface StageCompletionContext {
-  projectId: string
-  stageKey: string
-  stageLabel: string
-  approvedCount: number
-  totalCount: number
-}
-
-const isStageCompleteDialogOpen = ref(false)
-const isCompletingStage = ref(false)
-const stageCompletionContext = ref<StageCompletionContext>()
-
-const stageCompletionMessage = computed(() => {
-  const ctx = stageCompletionContext.value
-  if (!ctx) return ''
-  return ctx.approvedCount === ctx.totalCount
-    ? `All ${ctx.totalCount} document(s) tagged to "${ctx.stageLabel}" are now Approved. Mark this stage as complete?`
-    : `${ctx.approvedCount} of ${ctx.totalCount} document(s) tagged to "${ctx.stageLabel}" are Approved. Mark this stage as complete anyway?`
-})
-
-async function maybePromptStageCompletion(): Promise<void> {
-  const doc = documentStore.currentDocument
-  if (!doc?.stageKey) return
-
-  try {
-    const [steps, stageDocuments] = await Promise.all([
-      approvalProcessService.getProjectSteps(doc.projectId),
-      documentService.getDocumentsByProject(doc.projectId),
-    ])
-    const step = steps.find((s) => s.stageKey === doc.stageKey)
-    if (step?.isComplete) return
-
-    const tagged = stageDocuments.filter((d) => d.stageKey === doc.stageKey)
-    if (tagged.length === 0) return
-
-    stageCompletionContext.value = {
-      projectId: doc.projectId,
-      stageKey: doc.stageKey,
-      stageLabel: PROCESS_STAGES.find((s) => s.key === doc.stageKey)?.label ?? doc.stageKey,
-      approvedCount: tagged.filter((d) => d.status === 'Approved').length,
-      totalCount: tagged.length,
-    }
-    isStageCompleteDialogOpen.value = true
-  } catch {
-    // Non-critical -- the status change the user already confirmed
-    // already succeeded; skip the prompt silently rather than
-    // blocking on this secondary check.
-  }
-}
-
-async function handleConfirmStageCompletion(): Promise<void> {
-  const ctx = stageCompletionContext.value
-  if (!ctx) return
-  isCompletingStage.value = true
-  try {
-    await approvalProcessService.completeStageFromDocuments(ctx.projectId, ctx.stageKey)
-    // Stage gates can move project.currentStage (and its progress) on
-    // the backend -- refresh the cached project so the workflow stepper
-    // and progress bar reflect it immediately instead of on next reload.
-    await projectStore.refreshProject(ctx.projectId)
-    toastStore.show('success', 'Stage marked complete', `"${ctx.stageLabel}" is now marked complete.`)
-    isStageCompleteDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to mark stage complete', detail)
-  } finally {
-    isCompletingStage.value = false
-  }
-}
-
 async function handleStatusConfirm(payload: { status: DocumentStatus; reason?: string }): Promise<void> {
   isStatusSaving.value = true
   try {
     await documentStore.setCurrentDocumentStatus(payload.status, payload.reason)
     toastStore.show('success', 'Status updated', `Document marked as ${payload.status}.`)
     isStatusDialogOpen.value = false
-    if (payload.status === 'Approved') {
-      await maybePromptStageCompletion()
-    }
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
     toastStore.show('error', 'Failed to update status', detail)
@@ -254,14 +168,6 @@ async function handleDelete(): Promise<void> {
       @confirm="handleStatusConfirm"
     />
     <AddVersionDialog v-model="isAddVersionOpen" :loading="isAddingVersion" @confirm="handleAddVersion" />
-    <ConfirmationDialog
-      v-model="isStageCompleteDialogOpen"
-      title="Mark stage complete?"
-      :message="stageCompletionMessage"
-      confirm-label="Mark Complete"
-      :loading="isCompletingStage"
-      @confirm="handleConfirmStageCompletion"
-    />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"
       title="Delete document"

@@ -32,12 +32,6 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
     description: 'The building blocks every project is set up from.',
     modules: [
       {
-        label: 'Process Steps',
-        description: 'Define the 5-stage approval process and its 23-step execution checklist.',
-        icon: 'ListOrdered',
-        routeName: ROUTE_NAMES.ADMIN_EXECUTION_STEPS,
-      },
-      {
         label: 'Service Catalog',
         description: 'Configure services and their activities, each with a fixed cost.',
         icon: 'ListChecks',
