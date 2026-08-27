@@ -19,7 +19,6 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { useExecutionStepSetStore } from '@/stores/executionStepSetStore'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -46,7 +45,6 @@ const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const permitCatalogStore = usePermitCatalogStore()
-const executionStepSetStore = useExecutionStepSetStore()
 const typeActivityCatalogStore = useTypeActivityCatalogStore()
 const taskStore = useTaskStore()
 
@@ -110,10 +108,6 @@ const form = reactive({
   // at creation time, not here (see project_service._resolve_type_
   // activity_selection) -- the wizard just sends what was checked.
   selectedTypeActivities: [] as SelectedTypeActivity[],
-  // Which admin-configured execution step set (Administration > Process
-  // Step Sets) this project's checklist should be snapshotted from --
-  // '' means "let the server pick the default set."
-  stepSetId: '',
 })
 
 // Confirming the picker replaces the whole selection, same as
@@ -207,7 +201,6 @@ function handleServicesConfirmed(items: SelectedServiceActivity[]): void {
 const clientOptions = ref<SelectOption[]>([])
 const hasIneligibleClients = ref(false)
 const engineerOptions = ref<SelectOption[]>([])
-const stepSetOptions = ref<SelectOption[]>([])
 
 onMounted(async () => {
   // Always fetch fresh -- not guarded by `if (projectStore.clients.length
@@ -267,13 +260,6 @@ onMounted(async () => {
   if (typeActivityCatalogStore.categories.length === 0) {
     await typeActivityCatalogStore.loadCategories()
   }
-
-  // Backs the step-set picker below -- which admin-configured checklist
-  // this project's Execution & Tracking stage will follow.
-  if (executionStepSetStore.stepSets.length === 0) {
-    await executionStepSetStore.loadStepSets()
-  }
-  stepSetOptions.value = executionStepSetStore.stepSets.map((stepSet) => ({ label: stepSet.name, value: stepSet.id }))
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
@@ -391,7 +377,6 @@ async function submitWizard(): Promise<void> {
       // checklist on the project's Documents tab.
       requiredPermitDocuments: permitsClientHas.length > 0 ? permitsClientHas : undefined,
       typeActivitySelection,
-      stepSetId: form.stepSetId || undefined,
     })
 
     // Permits the client doesn't have yet aren't a document to chase --
@@ -532,13 +517,6 @@ function goToCreatedProject(): void {
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <DatePicker v-model="form.startDate" label="Start Date" required :error="errors.startDate" />
             <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />
-          </div>
-          <div v-if="stepSetOptions.length > 0" class="flex flex-col gap-1.5">
-            <SelectBox v-model="form.stepSetId" label="Execution Checklist" :options="stepSetOptions" placeholder="Default" />
-            <p class="text-xs text-text-muted">
-              Which admin-configured set of execution steps this project will track in Execution & Tracking. Leave
-              unset to use the default.
-            </p>
           </div>
         </FormSection>
 
@@ -697,12 +675,6 @@ function goToCreatedProject(): void {
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Target Date</p>
               <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
-            </div>
-            <div v-if="stepSetOptions.length > 0">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Execution Checklist</p>
-              <p class="text-sm text-text-primary">
-                {{ stepSetOptions.find((option) => option.value === form.stepSetId)?.label ?? 'Default' }}
-              </p>
             </div>
             <div class="tablet:col-span-2">
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Permits</p>

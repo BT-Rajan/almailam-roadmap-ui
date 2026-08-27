@@ -28,12 +28,12 @@ ENTITY_TYPE = "FINANCIAL_AGREEMENT"
 
 
 def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int | None) -> None:
-    """A payment, refund, or adjustment can be the thing that finally
-    settles an agreement -- exactly one of the two conditions
-    project_service._assert_stage_exit_criteria requires before
-    "Execution & Tracking" can move to "Completed" (the checklist being
-    the other). Advance automatically instead of requiring a separate
-    manual stage click once both are already true. Local import:
+    """A financial agreement being created is one of the three things
+    "Contract" -> "Design" is waiting on (see project_service.
+    _assert_stage_exit_criteria) -- typically the last of the three to
+    be completed in practice, so this is the moment that condition most
+    often newly becomes true. Advance automatically instead of
+    requiring a separate manual stage click once it is. Local import:
     project_service already imports this module at module level, so
     importing it back at module level here would be circular (see
     audit_service.get_history for the same pattern)."""
@@ -316,7 +316,6 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
             db, ENTITY_TYPE, agreement.id, "Payment Allocated", user_id, new_value=allocation_summary
         )
 
-    _try_auto_advance_project_stage(db, agreement.project_id, user_id)
     db.commit()
     db.refresh(payment)
     return payment
@@ -397,10 +396,6 @@ def create_adjustment(db: Session, payload, user_id: int, agreement_id: int) -> 
         previous_value=previous_value, new_value=f"{obligation.description}: {obligation.amount_due}",
         reason=payload.reason,
     )
-    # A Decrease can be exactly what brings an agreement to fully paid --
-    # harmless to check regardless of adjustment type, since
-    # try_auto_advance_stage no-ops if the exit criteria aren't met.
-    _try_auto_advance_project_stage(db, get_agreement(db, agreement_id).project_id, user_id)
     db.commit()
     db.refresh(adjustment)
     return adjustment

@@ -22,7 +22,7 @@ from app.models.project import Project, ProjectScopeRevision, ProjectSelectedAct
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import approval_process_service, audit_service, client_service, company_service, execution_step_service, notification_service, payment_service, timeline_service, type_activity_catalog_service, user_service
+from app.services import audit_service, client_service, company_service, notification_service, payment_service, timeline_service, type_activity_catalog_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -162,93 +162,6 @@ def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> di
     return result
 
 
-def get_scope_completion_summary(db: Session, project_id: int) -> dict:
-    """Total/completed counts across both scope tables (service
-    activities + type activities) for one project -- used both by the
-    Completed-stage exit criteria above and by the Execution & Tracking
-    stage's own "Scope Execution" checklist UI, so the two always agree
-    on what "all scope items done" means."""
-    service_items = get_selected_activities(db, project_id)
-    type_items = get_selected_type_activities(db, project_id)
-    total = len(service_items) + len(type_items)
-    completed = sum(1 for item in service_items if item.is_complete) + sum(
-        1 for item in type_items if item.is_complete
-    )
-    return {"total": total, "completed": completed, "allComplete": total > 0 and completed == total}
-
-
-def set_scope_item_complete(
-    db: Session, project_no: str, source: str, item_display_id: str, is_complete: bool, user_id: int | None,
-) -> Project:
-    """Toggles delivery status of one scope line (source is 'service' or
-    'type_activity', item_display_id is that row's own service-catalog-
-    style display id, e.g. 'ACT-004' or 'TAI-002' -- not a database
-    primary key, same convention as every other display id in this
-    codebase). Re-checks the Completed-stage auto-advance afterward,
-    same as every other action that can make that transition newly
-    eligible (see try_auto_advance_stage's own docstring for the list)."""
-    project = get_project(db, project_no)
-
-    if source == "service":
-        row = (
-            db.query(ProjectSelectedActivity)
-            .filter(ProjectSelectedActivity.project_id == project.id, ProjectSelectedActivity.activity_id == item_display_id)
-            .first()
-        )
-    elif source == "type_activity":
-        row = (
-            db.query(ProjectSelectedTypeActivity)
-            .filter(
-                ProjectSelectedTypeActivity.project_id == project.id,
-                ProjectSelectedTypeActivity.type_activity_item_id == item_display_id,
-            )
-            .first()
-        )
-    else:
-        raise ValidationAppError("source must be 'service' or 'type_activity'.")
-
-    if row is None:
-        raise NotFoundError("Scope item")
-
-    row.is_complete = is_complete
-    audit_service.log_event(
-        db, ENTITY_TYPE, project.id, "Scope item delivery updated", user_id,
-        new_value=f"{row.activity_name}: {'delivered' if is_complete else 'not delivered'}",
-    )
-    try_auto_advance_stage(db, project, user_id)
-    db.commit()
-    db.refresh(project)
-    return project
-
-
-def mark_additional_execution_step(
-    db: Session, project_no: str, step_raw_id: str, contract_covered: bool, user_id: int | None,
-) -> Project:
-    """The "were any additional services rendered?" flow's per-item
-    action: checking one of the 23 process-checklist items that wasn't
-    already complete, beyond the project's original quoted scope, and
-    recording whether it's covered under the existing contract. Sets the
-    step to 100% complete (same as any other manual completion) plus the
-    is_additional_scope/contract_covered flags that distinguish it from
-    ordinary checklist progress -- see ProjectExecutionStep's own
-    docstring. Re-checks Completed-stage auto-advance afterward, same as
-    set_scope_item_complete above."""
-    project = get_project(db, project_no)
-    step = execution_step_service.get_project_step(db, project.id, execution_step_service.parse_project_step_id(step_raw_id))
-    step.completion_percentage = 100
-    step.is_additional_scope = True
-    step.contract_covered = contract_covered
-    audit_service.log_event(
-        db, ENTITY_TYPE, project.id, "Additional service rendered", user_id,
-        new_value=f"{step.name} (contract covered: {contract_covered})",
-    )
-    recompute_progress(db, project)
-    try_auto_advance_stage(db, project, user_id)
-    db.commit()
-    db.refresh(project)
-    return project
-
-
 def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[str | None, float | None, list[dict]]:
     """Given the wizard's category+checked-activity-ids payload and the
     project's already-selected *service* activities, returns
@@ -326,12 +239,6 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     type_category_name, type_activity_total, type_activity_rows = _resolve_type_activity_selection(
         db, payload.typeActivitySelection, selected_activities,
     )
-    step_set_id = (
-        execution_step_service.parse_step_set_id(payload.stepSetId)
-        if getattr(payload, "stepSetId", None)
-        else execution_step_service.default_step_set_id(db)
-    )
-    execution_step_service.get_step_set(db, step_set_id)  # 404s if it doesn't exist / was removed
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
@@ -346,7 +253,6 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         required_permit_documents=payload.requiredPermitDocuments or [],
         type_category_name=type_category_name,
         type_activity_total=type_activity_total,
-        step_set_id=step_set_id,
     )
     db.add(project)
     db.flush()
@@ -365,18 +271,6 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
 
     for row in type_activity_rows:
         db.add(ProjectSelectedTypeActivity(project_id=project.id, **row))
-
-    # Progress is computed from these, not typed in by hand -- see
-    # execution_step_service.py. Every project starts at 0% with the
-    # full checklist ahead of it, snapshotted from the current admin
-    # template so later template edits don't retroactively shift this
-    # project's own numbers.
-    execution_step_service.snapshot_steps_for_project(db, project.id)
-
-    # Separate, new, standalone trial -- see approval_process.py's own
-    # docstring. Deliberately independent of the execution-step
-    # snapshot above; nothing about this needs to be scoped to it.
-    approval_process_service.snapshot_steps_for_project(db, project.id)
 
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
@@ -408,8 +302,8 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
         changes["target_date"] = (project.target_date, payload.targetDate)
         project.target_date = payload.targetDate
     # progress is deliberately not settable here -- it's computed from
-    # the execution-step checklist (execution_step_service.py), not
-    # typed in by hand. See ProjectUpdate's own schema comment.
+    # current_stage (see recompute_progress), not typed in by hand. See
+    # ProjectUpdate's own schema comment.
     if payload.engineerId is not None:
         new_engineer_id = user_service.parse_user_id(payload.engineerId)
         if new_engineer_id != project.engineer_id:
@@ -450,11 +344,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
     approved by the client before Government Submission begins (you
     can't submit unapproved drawings to an authority for permit
     approval), and each stage gates the next in a straight line:
-    Contract -> Design -> Government Submission -> Execution & Tracking.
-    PROJECT_STAGE_ALLOWED_TRANSITIONS keeps exactly one reopening path
-    backward (Government Submission -> Design, for when an authority's
-    feedback requires design changes) -- that's the one exception, and
-    it requires a reason like any other reopening.
+    Contract -> Design -> Government Submission, the last of the 5
+    stages. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps exactly one
+    reopening path backward (Government Submission -> Design, for when
+    an authority's feedback requires design changes) -- that's the one
+    exception, and it requires a reason like any other reopening.
     """
     problems: list[str] = []
 
@@ -512,13 +406,10 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if signed_contract is None:
             problems.append("a signed contract")
         # A financial agreement -- payment dates and amounts -- has to be
-        # prepared right after the contract, not left until the project
-        # is finishing up (that's what the "Completed" check further
-        # down is for; this one is deliberately earlier). Only the
-        # agreement's existence is required here, not that it's fully
-        # paid -- payment is expected to happen across the project's
-        # lifetime, tracked by the reminder job below, and settled by
-        # the time "Completed" is reached.
+        # prepared right after the contract, not left until later. Only
+        # the agreement's existence is required here, not that it's
+        # fully paid -- payment is expected to happen across the
+        # project's lifetime, tracked by the reminder job below.
         if payment_service.get_agreement_by_project(db, project.project_no) is None:
             problems.append("a financial agreement (payment dates and amount)")
 
@@ -542,65 +433,9 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("at least one design document link saved")
         # The separate architectural_approval approval-process gate used
         # to also be required here -- dropped as a blocking exit
-        # criterion (it's still trackable on the Process tab, just no
-        # longer gates this move) so that saving a design link is
-        # genuinely enough on its own to reach Government Submission,
-        # matching how this stage is actually meant to work.
-
-    elif new_stage == "Execution & Tracking" and previous_stage == "Government Submission":
-        for stage_key, label in (
-            ("mew_approval", "'MEW Approval'"),
-            ("submit_baladia_kfd", "'Submit to Baladia or KFD'"),
-            ("permit_approved", "'Permit Approved'"),
-        ):
-            if not approval_process_service.is_stage_gate_complete(db, project.id, stage_key):
-                problems.append(f"the {label} stage gate")
-
-    elif new_stage == "Completed":
-        # Steps this specific project has excluded (is_excluded) don't
-        # count -- they were never applicable to this project, so they
-        # can't be the reason it's stuck (see execution_step_service.
-        # included_steps / _recompute_progress, which excludes them
-        # from %complete the same way).
-        steps = execution_step_service.included_steps(execution_step_service.list_project_steps(db, project.id))
-        incomplete = [s for s in steps if s.completion_percentage < 100]
-        if incomplete:
-            problems.append(f"{len(incomplete)} of {len(steps)} execution activities still incomplete")
-        # Any step checked off through the "were any additional services
-        # rendered?" flow (is_additional_scope) must have its contract-
-        # coverage question actually answered before completion -- an
-        # unanswered None here means staff checked the box but skipped
-        # the follow-up prompt, which shouldn't silently pass.
-        unanswered_coverage = [s for s in steps if s.is_additional_scope and s.contract_covered is None]
-        if unanswered_coverage:
-            problems.append(
-                f"{len(unanswered_coverage)} additional service(s) still need a contract-coverage answer"
-            )
-        # "Only scope should be executed" -- the real completion gate is
-        # whether the services/type-activities this project was actually
-        # quoted for (see ProjectSelectedActivity/ProjectSelectedTypeActivity)
-        # have been delivered, checked per line from the Execution &
-        # Tracking stage's own "Scope Execution" checklist -- distinct
-        # from (and in addition to) the generic process checklist above.
-        scope_summary = get_scope_completion_summary(db, project.id)
-        if scope_summary["total"] > 0 and not scope_summary["allComplete"]:
-            problems.append(
-                f"{scope_summary['total'] - scope_summary['completed']} of {scope_summary['total']} "
-                "scope item(s) still not delivered"
-            )
-        agreement = payment_service.get_agreement_by_project(db, project.project_no)
-        if agreement is None:
-            problems.append("a financial agreement")
-        else:
-            summary = payment_service.get_financial_summary(db, agreement.id)
-            # totalPending is rounded to whole currency units before this
-            # check -- a payment that settles the agreement can leave a
-            # sub-unit (fils-level) residue behind from installment
-            # rounding (see payment_calculations.generate_even_schedule,
-            # which folds any remainder into the last installment); that
-            # residue should read as paid-in-full, not block the move.
-            if round(summary["totalPending"]) > 0:
-                problems.append(f"{summary['totalPending']} {agreement.currency} still outstanding")
+        # criterion so that saving a design link is genuinely enough on
+        # its own to reach Government Submission, matching how this
+        # stage is actually meant to work.
 
     if problems:
         raise ValidationAppError(
@@ -610,47 +445,27 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers (a 7-value stage the UI reads directly everywhere,
-# and a 0-100 progress bar that used to be driven solely by the
-# execution checklist -- see recompute_progress below).
-#
-# Design and Government Submission are sequential now, each its own
-# band -- they used to share one band because a project could move
-# freely between them (parallel branches), which would have made
-# progress visibly jump backward switching branches; now that Design
-# must be approved before Government Submission even begins, there's
-# no backward movement to guard against, and each stage genuinely
-# represents further progress than the one before it.
+# maintained numbers. Government Submission is the last of the 5
+# stages and has no further stage to advance into -- reaching it is
+# the workflow's own terminal state; progress simply stops climbing
+# there rather than jumping to 100 (there's no separate "done" concept
+# left to represent).
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Requirement": 0,
     "Quotation": 1,
     "Contract": 2,
     "Design": 3,
     "Government Submission": 4,
-    "Execution & Tracking": 5,
 }
-_PROGRESS_BAND_COUNT = 7  # the 6 bands above, plus "Completed" as the 7th, terminal slot
+_PROGRESS_BAND_COUNT = 5
 
 
 def recompute_progress(db: Session, project: Project) -> int:
     """Derives project.progress from current_stage -- entering a stage
-    jumps progress to that stage's band floor; within "Execution &
-    Tracking" the weighted execution-checklist percentage
-    (execution_step_service.compute_weighted_completion) fills the rest
-    of that final band, since that's the one stage with its own
-    continuous, natural progress signal. "Completed" is always exactly
-    100. Does not commit -- callers already do.
-    """
-    if project.current_stage == "Completed":
-        progress = 100
-    else:
-        band = _STAGE_PROGRESS_BAND[project.current_stage]
-        floor = band * 100 / _PROGRESS_BAND_COUNT
-        if project.current_stage == "Execution & Tracking":
-            checklist_pct = execution_step_service.compute_weighted_completion(db, project.id)
-            progress = round(floor + (checklist_pct / 100) * (100 / _PROGRESS_BAND_COUNT))
-        else:
-            progress = round(floor)
+    jumps progress to that stage's band floor. Does not commit --
+    callers already do."""
+    band = _STAGE_PROGRESS_BAND[project.current_stage]
+    progress = round(band * 100 / _PROGRESS_BAND_COUNT)
     project.progress = max(0, min(100, progress))
     return project.progress
 
@@ -659,19 +474,16 @@ def recompute_progress(db: Session, project: Project) -> int:
 # criteria (_assert_stage_exit_criteria) are met, so firing it
 # automatically doesn't remove a real choice from anyone -- it just
 # saves the separate manual click after the condition that already
-# gates it becomes true (approving a quotation, closing the last
-# approval gate, finishing the checklist and settling payment).
-# Reopening (Completed -> Execution & Tracking, Government Submission
-# -> Design) stays manual -- both exceptional, reason-required
-# corrections, not something that should ever happen as a side effect
-# of an unrelated action.
+# gates it becomes true (approving a quotation, signing a contract,
+# saving a design link). Reopening (Government Submission -> Design)
+# stays manual -- an exceptional, reason-required correction, not
+# something that should ever happen as a side effect of an unrelated
+# action.
 _AUTO_ADVANCE_TARGET: dict[str, str] = {
     "Requirement": "Quotation",
     "Quotation": "Contract",
     "Contract": "Design",
     "Design": "Government Submission",
-    "Government Submission": "Execution & Tracking",
-    "Execution & Tracking": "Completed",
 }
 
 
@@ -704,14 +516,6 @@ def _apply_stage_change(
         description=reason,
         actor_id=user_id,
     )
-    # Close out any of the 23 execution activities tagged to a stage the
-    # project has now moved past entirely -- see its own docstring for
-    # why this is safe (only raises completion, never lowers it, never
-    # touches excluded/already-complete steps). Must run before
-    # recompute_progress below so the freshly-closed steps are reflected
-    # in the same progress number this stage change produces, rather
-    # than lagging a request behind.
-    execution_step_service.auto_fill_steps_for_passed_stages(db, project.id, new_stage, user_id)
     recompute_progress(db, project)
 
 
@@ -724,18 +528,11 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
-    # Reopening a Completed project is exceptional and source-dependent
-    # (unlike "Execution & Tracking" -> "Completed", the normal reason-
-    # free outcome of finishing the checklist), so this can't live in
-    # the target-state-only REQUIRING_REASON table -- it's checked here
-    # instead.
-    if previous_stage == "Completed" and new_stage == "Execution & Tracking":
-        assert_reason_given(reason, "A reason is required to reopen a completed project.")
-    # Same reasoning, same pattern -- reopening Government Submission
-    # back to Design (an authority's feedback requiring design changes)
-    # is a correction, not the normal forward flow that also targets
-    # "Design" (from Contract) -- can't live in the target-only
-    # REQUIRING_REASON table for the identical reason as above.
+    # Reopening Government Submission back to Design (an authority's
+    # feedback requiring design changes) is a correction, not the normal
+    # forward flow that also targets "Design" (from Contract) -- can't
+    # live in the target-only REQUIRING_REASON table, since that only
+    # keys on the target state, not where the transition came from.
     if previous_stage == "Government Submission" and new_stage == "Design":
         assert_reason_given(reason, "A reason is required to send the project back to Design.")
 
@@ -754,10 +551,10 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     no reason to also wait on a separate click once that becomes true.
 
     Called from whichever service action just made the criteria true
-    (quotation/contract/payment/approval-process/execution-step
-    services), before that action's own db.commit() -- sharing one
-    transaction so a mid-way failure can't leave stage/progress out of
-    sync with the action that triggered it. Does not commit itself.
+    (quotation/contract/payment services), before that action's own
+    db.commit() -- sharing one transaction so a mid-way failure can't
+    leave stage/progress out of sync with the action that triggered it.
+    Does not commit itself.
 
     Silently does nothing if the target stage's exit criteria aren't met
     yet -- "not yet eligible" is the expected, common case here, not a
@@ -782,235 +579,18 @@ def set_status(db: Session, project_no: str, new_status: str, reason: str | None
     )
     if new_status in PROJECT_STATUS_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_status}'.")
-    # Reopening a Completed or Cancelled project is exceptional and
-    # source-dependent (unlike "On Hold" -> "Active", the routine,
-    # frequent, reason-free resume), so it's checked here rather than
-    # in the target-state-only REQUIRING_REASON table.
-    if previous_status in ("Completed", "Cancelled") and new_status == "Active":
-        assert_reason_given(reason, f"A reason is required to reopen a {previous_status.lower()} project.")
-    # The two parallel fields (status and current_stage) could otherwise
-    # silently disagree -- nothing previously stopped a project still
-    # sitting at "Requirement" stage from being marked "Completed" status.
-    if new_status == "Completed" and project.current_stage != "Completed":
-        raise ValidationAppError(
-            "A project's status can only become 'Completed' once its workflow stage has also "
-            f"reached 'Completed' (currently at '{project.current_stage}')."
-        )
+    # Reopening a Cancelled project is exceptional and source-dependent
+    # (unlike "On Hold" -> "Active", the routine, frequent, reason-free
+    # resume), so it's checked here rather than in the target-state-only
+    # REQUIRING_REASON table.
+    if previous_status == "Cancelled" and new_status == "Active":
+        assert_reason_given(reason, "A reason is required to reopen a cancelled project.")
 
     audit_service.log_event(
         db, ENTITY_TYPE, project.id, "Status changed", user_id,
         previous_value=previous_status, new_value=new_status, reason=reason,
     )
     project.status = new_status
-    # The Completion summary's actual-vs-planned duration needs a real
-    # "when did this project actually finish" timestamp -- target_date is
-    # only ever the plan, and updated_at changes on every unrelated edit.
-    # Cleared on reopen so a project completed twice reports its most
-    # recent completion, not a stale one from the first time around.
-    project.completed_at = datetime.now(timezone.utc) if new_status == "Completed" else None
-    # progress is no longer force-set to 100 here. It used to be, so a
-    # project marked "Completed" would never show an inconsistent-looking
-    # progress bar next to it -- but progress is now computed from the
-    # execution-step checklist (execution_step_service.py), not a number
-    # staff can freely edit. Overriding it here would mean the number
-    # could lie about how much of the actual checklist is done; leaving
-    # it alone means the progress bar stays honest even for a project
-    # marked Completed with steps still outstanding, which is real,
-    # useful information rather than a cosmetic inconsistency to paper
-    # over.
-    db.commit()
-    db.refresh(project)
-    return project
-
-
-def get_completion_summary(db: Session, project_no: str) -> dict:
-    """Planned vs. actual budget and duration for the Completion summary
-    (Overview tab). Budget is derived entirely from the existing payment
-    module -- planned = the project's one FinancialAgreement.contract_
-    amount (see migration 0015's one-agreement-per-project constraint),
-    actual = total received across it -- rather than a second, hand-typed
-    number that could drift from what payments actually show. Duration is
-    planned = target_date - start_date, actual = completed_at - start_date
-    (None until the project is actually marked Completed)."""
-    project = get_project(db, project_no)
-
-    planned_budget: float | None = None
-    actual_budget: float | None = None
-    agreement = payment_service.get_agreement_by_project(db, project_no)
-    if agreement:
-        summary = payment_service.get_financial_summary(db, agreement.id)
-        planned_budget = float(summary["contractAmount"])
-        actual_budget = float(summary["totalReceived"])
-
-    planned_duration_days = (project.target_date - project.start_date).days
-    actual_duration_days = (
-        (project.completed_at.date() - project.start_date).days if project.completed_at else None
-    )
-
-    # Scope deviations -- every ContractRevision beyond a contract's
-    # initial R0 across every contract this project has had. A contract
-    # only gets a ContractRevision row when its revision actually bumps
-    # (see contract_service.add_revision), so an empty list here is a
-    # real "nothing changed", not just "we didn't check".
-    revisions = (
-        db.query(ContractRevision, User)
-        .join(Contract, Contract.id == ContractRevision.contract_id)
-        .join(User, User.id == ContractRevision.changed_by)
-        .filter(Contract.project_id == project.id)
-        .order_by(ContractRevision.revised_at.asc(), ContractRevision.id.asc())
-        .all()
-    )
-    scope_deviations = [
-        {
-            "revision": revision.revision,
-            "date": revision.revised_at,
-            "changedBy": user.full_name,
-            "summary": revision.summary,
-        }
-        for revision, user in revisions
-    ]
-
-    return {
-        "plannedBudget": planned_budget,
-        "actualBudget": actual_budget,
-        "plannedDurationDays": planned_duration_days,
-        "actualDurationDays": actual_duration_days,
-        "completedAt": project.completed_at,
-        "notes": project.completion_notes,
-        "scopeDeviations": scope_deviations,
-        "deviationNotes": project.deviation_notes,
-    }
-
-
-def get_completion_checklist(db: Session, project_no: str) -> dict:
-    """The milestone-status checklist for the Completion stage -- did
-    each major phase of the project actually finish, not the budget/
-    duration comparison get_completion_summary above covers (a
-    genuinely different question; this is additive to that, not a
-    replacement for it). Mirrors _assert_stage_exit_criteria's own
-    requirements exactly, so this checklist and the actual gate that
-    allows a project to reach "Completed" never disagree with each
-    other -- it's meant to be a readable, structured view of the same
-    underlying facts _assert_stage_exit_criteria already checks, not a
-    second, independently-maintained notion of "done".
-    """
-    project = get_project(db, project_no)
-
-    contract_exists = (
-        db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).first()
-    )
-    agreement = payment_service.get_agreement_by_project(db, project_no)
-    payments_settled = False
-    payments_detail = "No financial agreement on file."
-    if agreement:
-        summary = payment_service.get_financial_summary(db, agreement.id)
-        payments_settled = round(summary["totalPending"]) <= 0
-        payments_detail = (
-            "Fully settled." if payments_settled else f"{summary['totalPending']} {agreement.currency} still outstanding."
-        )
-
-    design_approved = approval_process_service.is_stage_gate_complete(db, project.id, "architectural_approval")
-    government_gates = ("mew_approval", "submit_baladia_kfd", "permit_approved")
-    government_complete = all(approval_process_service.is_stage_gate_complete(db, project.id, k) for k in government_gates)
-
-    execution_steps = execution_step_service.included_steps(execution_step_service.list_project_steps(db, project.id))
-    incomplete_steps = [s for s in execution_steps if s.completion_percentage < 100]
-    field_work_complete = len(incomplete_steps) == 0
-
-    return {
-        "contract": {
-            "complete": contract_exists is not None,
-            "detail": f"{contract_exists.contract_no} on file." if contract_exists else "No contract on file.",
-        },
-        "payments": {"complete": payments_settled, "detail": payments_detail},
-        "design": {
-            "complete": design_approved,
-            "detail": "Approved by client." if design_approved else "Awaiting client approval.",
-        },
-        "governmentApproval": {
-            "complete": government_complete,
-            "detail": (
-                "All submission stages closed."
-                if government_complete
-                else f"{sum(1 for k in government_gates if not approval_process_service.is_stage_gate_complete(db, project.id, k))} of {len(government_gates)} stages still open."
-            ),
-        },
-        "fieldWork": {
-            "complete": field_work_complete,
-            "detail": (
-                "All execution activities complete."
-                if field_work_complete
-                else f"{len(incomplete_steps)} of {len(execution_steps)} execution activities still incomplete."
-            ),
-        },
-    }
-
-
-def update_completion_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
-    project = get_project(db, project_no)
-    project.completion_notes = notes.strip() or None
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Completion notes updated", user_id)
-    db.commit()
-    db.refresh(project)
-    return project
-
-
-def update_deviation_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
-    project = get_project(db, project_no)
-    project.deviation_notes = notes.strip() or None
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Deviation notes updated", user_id)
-    db.commit()
-    db.refresh(project)
-    return project
-
-
-def change_scope(
-    db: Session,
-    project_no: str,
-    new_description: str,
-    contract_update_needed: bool,
-    payment_update_needed: bool,
-    user_id: int | None,
-) -> Project:
-    """The Execution & Tracking tab's "Change Scope" action. Always
-    updates the scope-of-work description (project.description, the
-    same field Overview's "What the Customer Asked For" reads); if
-    either flag is set, every Administrator is notified to go make the
-    corresponding update themselves -- this only records that a scope
-    change happened and whether contract/payment need to catch up with
-    it, it doesn't touch either of those modules directly."""
-    project = get_project(db, project_no)
-    new_description = new_description.strip() or None
-    previous_description = project.description
-    if new_description == previous_description:
-        return project
-
-    project.description = new_description
-    audit_service.log_field_changes(
-        db, ENTITY_TYPE, project.id, {"description": (previous_description, new_description)}, user_id
-    )
-
-    flags: list[str] = []
-    if contract_update_needed:
-        flags.append("contract")
-    if payment_update_needed:
-        flags.append("payment")
-    note = "Scope changed." if not flags else f"Scope changed -- {' and '.join(flags)} update needed."
-    timeline_service.create_system_event(db, project.id, "note", title=note, description=new_description, actor_id=user_id)
-
-    if flags:
-        admins = db.query(User).filter(User.role == "Administrator", User.deleted_at.is_(None)).all()
-        for admin in admins:
-            notification_service.create_notification(
-                db, admin.id,
-                "Project scope changed",
-                f"{project.project_name} ({project.project_no})'s scope changed and needs a "
-                f"{' and '.join(flags)} update.",
-                "Project",
-                link_route_name="project-workspace",
-                link_params={"projectId": project.project_no},
-            )
-
     db.commit()
     db.refresh(project)
     return project
@@ -1050,9 +630,7 @@ def save_scope_of_work(
     user_id: int,
     file: UploadFile | None = None,
 ) -> Project:
-    """The Requirement stage's own scope-of-work editor -- distinct from
-    change_scope() above (the Execution & Tracking tab's later
-    amendment, which doesn't write revision rows). Every save here
+    """The Requirement stage's own scope-of-work editor. Every save here
     writes a project_scope_revisions row (R0, R1, ...) and, if the
     scope had already been approved, reopens it back to "Draft" -- an
     approval is a sign-off on specific text, not a status that should
@@ -1160,14 +738,14 @@ def _project_exists(db: Session, project_no: str) -> Project:
 def assert_project_open_for_new_work(project: Project) -> None:
     """Blocks creating new child records (quotations, contracts, tasks,
     documents, government submissions) against a project that's no
-    longer an active concern -- a Cancelled or Completed project
-    shouldn't keep silently accumulating new work against it. Deliberately
-    does NOT gate on current_stage (e.g. requiring stage=="Quotation"
-    before a quotation can be created) -- staff legitimately draft a
-    quotation before formally advancing the stage, and that's a much
-    stricter, more debatable rule than "don't add new work to a project
-    that's over."""
-    if project.status in ("Cancelled", "Completed"):
+    longer an active concern -- a Cancelled project shouldn't keep
+    silently accumulating new work against it. Deliberately does NOT
+    gate on current_stage (e.g. requiring stage=="Quotation" before a
+    quotation can be created) -- staff legitimately draft a quotation
+    before formally advancing the stage, and that's a much stricter,
+    more debatable rule than "don't add new work to a project that's
+    over."""
+    if project.status == "Cancelled":
         raise ValidationAppError(
             f"This project is marked '{project.status}' and can no longer have new records added to it."
         )

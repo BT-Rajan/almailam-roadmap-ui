@@ -33,7 +33,7 @@ async function extractErrorMessage(response: Response): Promise<string> {
     // or "message" (that's FastAPI's default HTTPException shape, which
     // this app doesn't actually use for its own raised errors). This
     // meant every specific, helpful backend error message -- "This
-    // project is marked 'Completed' and can no longer have new records
+    // project is marked 'Cancelled' and can no longer have new records
     // added to it.", "A reason is required to reject a document.", every
     // single one of them, everywhere in the app -- was silently discarded
     // in favor of a generic "Request failed (422)", the whole time.

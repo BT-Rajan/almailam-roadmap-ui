@@ -18,12 +18,10 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
 // shipping with the page on first load.
 const ProjectRequirementTab = defineAsyncComponent(() => import('@/components/project/ProjectRequirementTab.vue'))
-const ProjectProcessTab = defineAsyncComponent(() => import('@/components/project/ProjectProcessTab.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
-const ProjectCompletionDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectCompletionDocumentsTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentWorkspacePanel = defineAsyncComponent(() => import('@/components/payment/PaymentWorkspacePanel.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -52,19 +50,18 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'process', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks', 'completed', 'completedDocuments']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 
-// Quotation, Contract, Design, Government, and Execution & Tracking
-// aren't buttons here -- they're reachable from the Workflow Progress
-// stepper above (see WorkflowProgress.vue), which already says those
-// exact same words. Keeping both would just be the same duplication
-// moved one component over. Their tab keys stay valid (VALID_TAB_KEYS
-// below, and the v-if chain further down) so the stepper -- and any
-// existing ?tab=process-style deep link -- can still land on them,
-// with every function of that tab unchanged.
+// Quotation, Contract, Design, and Government aren't buttons here --
+// they're reachable from the Workflow Progress stepper above (see
+// WorkflowProgress.vue), which already says those exact same words.
+// Keeping both would just be the same duplication moved one component
+// over. Their tab keys stay valid (VALID_TAB_KEYS below, and the v-if
+// chain further down) so the stepper can still land on them, with
+// every function of that tab unchanged.
 //
 // Which of Overview/Documents/Payments/Tasks actually show here, and
 // what the Overview pane itself shows, is driven by `stageContext`
@@ -80,8 +77,7 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // tracks whichever stage section was last actually navigated to via the
 // stepper (falling back to the project's real current_stage until the
 // first such navigation), so Overview always matches where staff are
-// actually working. Payments is relabeled "Payment Config" at Contract,
-// the only stage it's currently shown at.
+// actually working. Payments is relabeled "Payment Config" at Contract.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
 const stageContext = ref<WorkflowStage>('Requirement')
@@ -97,8 +93,6 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   contract: 'Contract',
   design: 'Design',
   government: 'Government Submission',
-  process: 'Execution & Tracking',
-  completed: 'Completed',
 }
 
 watch(
@@ -121,10 +115,6 @@ watch(
   (tab) => {
     const stage = STAGE_TAB_KEYS[tab]
     if (stage) stageContext.value = stage
-    // 'completed' is a pure signal (see WorkflowProgress.vue's STAGE_TABS)
-    // -- it exists only to get stageContext set above; the actual tab
-    // shown is always the shared Overview pane.
-    if (tab === 'completed') activeTab.value = 'overview'
   },
   { immediate: true },
 )
@@ -149,43 +139,24 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // Reuses the existing 'design' tab key (ProjectDocumentsTab's
       // mode="design", Drawing-typed documents only) rather than the
       // generic 'documents' key, which would show every project
-      // document, not just design deliverables.
+      // document, not just design deliverables. Payments stays visible
+      // here (and at Government Submission below) since a financial
+      // agreement made at Contract keeps needing tracking for the rest
+      // of the project's life -- Government Submission is the terminal
+      // stage now, there's no later stage for it to move to instead.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'design', label: 'Documents' },
+        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
       // already has the full submission list/create/detail experience, so
-      // it becomes this stage's Documents tab content unchanged (see
-      // "retain other features" in the request that added this case).
+      // it becomes this stage's Documents tab content unchanged.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'government', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
-      ]
-    case 'Execution & Tracking':
-      // 'process' reuses the existing tab key -- ProjectProcessTab.vue's
-      // own internal sub-tabs (Scope & Progress / Approval Stages /
-      // Checklist / History) become this stage's "Checklist" tab,
-      // alongside real Documents/Payments/Tasks tabs like every other
-      // stage gets, instead of the old single giant page that crammed
-      // all of that plus its own copies of Documents/Tasks together.
-      return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'process', label: 'Checklist' },
-        { key: 'documents', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
-        { key: 'tasks', label: 'Tasks' },
-      ]
-    case 'Completed':
-      // Documents here means three sub-tabs (Submitted Docs / Approvals &
-      // Permits / Project Closure Docs), not the plain single-view
-      // 'documents' key -- see ProjectCompletionDocumentsTab.vue.
-      return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'completedDocuments', label: 'Documents' },
         { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
@@ -207,7 +178,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'process', 'completedDocuments', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'payments', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -236,10 +207,10 @@ watch(projectId, loadData)
 watch(
   activeTab,
   (tab) => {
-    if ((tab === 'documents' || tab === 'design' || tab === 'completedDocuments') && documentStore.documents.length === 0) {
+    if ((tab === 'documents' || tab === 'design') && documentStore.documents.length === 0) {
       documentStore.loadDocuments()
     }
-    if ((tab === 'government' || tab === 'completedDocuments') && governmentSubmissionStore.submissions.length === 0) {
+    if (tab === 'government' && governmentSubmissionStore.submissions.length === 0) {
       governmentSubmissionStore.loadSubmissions()
     }
     if (tab === 'tasks' && taskStore.tasks.length === 0) {
@@ -365,7 +336,6 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
-      <ProjectProcessTab v-if="activeTab === 'process'" :project="project" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <div
@@ -378,15 +348,6 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectDocumentsTab :project="project" :mode="activeTab" />
       </div>
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
-      <div
-        v-else-if="activeTab === 'completedDocuments'"
-        id="project-tabpanel-completedDocuments"
-        role="tabpanel"
-        aria-labelledby="project-tab-completedDocuments"
-        tabindex="0"
-      >
-        <ProjectCompletionDocumentsTab :project="project" />
-      </div>
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
       </div>

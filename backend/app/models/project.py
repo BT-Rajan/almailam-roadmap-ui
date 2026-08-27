@@ -8,7 +8,7 @@ from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
+PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
 # "Correction" used to be its own stage (Review <-> Correction, looping
 # back and forth for what's really one review cycle). Merged into
 # Review -- see migration 0019 -- since a stage transition wasn't
@@ -17,27 +17,23 @@ PROJECT_STATUSES = ("Active", "On Hold", "Completed", "Cancelled")
 # exactly the kind of thing worth collapsing rather than routing
 # elsewhere.
 #
-# "Review" was itself renamed to "Execution & Tracking" and "Approval"
-# dropped entirely (migration 0022) -- the 23-step execution checklist
-# and the 5-stage approval-process stage gates (see execution_step.py /
-# approval_process.py) are what actually happen during this stage, so
-# "Review" undersold it and a separate "Approval" stage was redundant
-# with the stage gates themselves.
-#
 # "Enquiry" was itself renamed to "Requirement" (migration 0038) -- it
 # now has its own dedicated tab (ProjectRequirementTab.vue) for managing
 # the scope-of-work text with revision history and an internal approval
-# step, rather than sharing the general Overview tab with "Completed".
-# See scope_status/PROJECT_SCOPE_STATUSES below and
+# step. See scope_status/PROJECT_SCOPE_STATUSES below and
 # project_service.approve_scope_of_work.
+#
+# "Execution & Tracking" and "Completed" were removed entirely
+# (migration 0051) -- the 23-step execution checklist, the 5-stage
+# approval-process gates, and the whole notion of a project reaching a
+# terminal "Completed" workflow stage/status went with them. Government
+# Submission is now the last of the 5 stages.
 WORKFLOW_STAGES = (
     "Requirement",
     "Quotation",
     "Contract",
     "Design",
     "Government Submission",
-    "Execution & Tracking",
-    "Completed",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # Internal approval of the project's scope-of-work text (the
@@ -71,16 +67,6 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     service: Mapped[str] = mapped_column(String(100), nullable=False)
     engineer_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
-    # Which admin-configured execution step set (see
-    # ExecutionStepSetTemplate) this project's own checklist was
-    # snapshotted from at creation -- see execution_step_service.
-    # snapshot_steps_for_project. Nullable/RESTRICT rather than
-    # required: an existing project's already-snapshotted
-    # ProjectExecutionStep rows are unaffected either way, this is only
-    # about which set a *new* snapshot would come from.
-    step_set_id: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("execution_step_set_templates.id", ondelete="RESTRICT"), nullable=True
     )
     current_stage: Mapped[str] = mapped_column(
         Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Requirement"
@@ -130,33 +116,13 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # for the matching logic. Same "captured once, stays stable" reasoning
     # as service_total.
     type_activity_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    # Set once by set_status() the moment status becomes "Completed",
-    # cleared if the project is later reopened -- the actual end-of-project
-    # timestamp, distinct from target_date (the planned one) and from
-    # updated_at (which changes on every unrelated edit). Used to compute
-    # the Completion summary's actual-vs-planned duration.
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Free-text handover/lessons-learned notes for the Completion summary
-    # -- distinct from `description` above (the project's own scope-of-
-    # work description, set at creation and shown on Overview).
-    completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # A PM's own annotation on the auto-derived delivery-deviation read
-    # (contract revisions beyond R0, plus budget/duration variance) --
-    # distinct from completion_notes, which is general handover/lessons-
-    # learned text. Never the source of truth for whether something
-    # deviated -- that's always computed live in
-    # project_service.get_completion_summary -- this is just the PM's
-    # explanation layered on top of it.
-    deviation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ProjectScopeRevision(Base):
     """Mirrors QuotationRevision/ContractRevision -- one row per saved
     change to the Requirement stage's scope-of-work text
     (project.description), written automatically by
-    project_service.save_scope_of_work. Distinct from that same table's
-    change_scope() action (the Execution & Tracking tab's "Change Scope"),
-    which doesn't write these rows -- this history is specifically the
+    project_service.save_scope_of_work. This history is specifically the
     pre-Quotation Requirement stage's own revision trail, up to and
     including the revision that got approved."""
 
@@ -202,15 +168,6 @@ class ProjectSelectedActivity(Base):
     activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
-    # Whether this specific scope item has actually been delivered --
-    # toggled from the Execution & Tracking stage's "Scope Execution"
-    # checklist (see project_service.set_scope_item_complete), not at
-    # creation. This -- not the 23-item generic template -- is what
-    # "only scope should be executed" means: a project's real
-    # completion gate is whether the services/activities the client was
-    # actually quoted for are done, checked here per line rather than
-    # inferred from a fixed, service-agnostic process checklist.
-    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class ProjectSelectedTypeActivity(Base):
@@ -237,7 +194,3 @@ class ProjectSelectedTypeActivity(Base):
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     is_covered_by_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    # Same meaning and same reasoning as ProjectSelectedActivity.is_complete
-    # above -- a type-activity is just as much a real scope item as a
-    # service activity, and is tracked for delivery the same way.
-    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

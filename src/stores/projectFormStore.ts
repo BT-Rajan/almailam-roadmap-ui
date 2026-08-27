@@ -11,8 +11,7 @@ interface ProjectFormState {
 }
 
 // Approvals & Permits' own filed-form records for one project at a
-// time -- loaded fresh whenever ProjectGovernmentTab.vue mounts, same
-// "one project in view at once" convention as projectStageStore.
+// time -- loaded fresh whenever ProjectGovernmentTab.vue mounts.
 export const useProjectFormStore = defineStore('projectForm', {
   state: (): ProjectFormState => ({
     entries: [],

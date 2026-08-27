@@ -53,15 +53,6 @@ class ProjectDocument(Base, TimestampMixin, SoftDeleteMixin):
     # this model so the Design tab's list can mix uploaded files and
     # external links in one CRUD table.
     external_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    # Which of the 5 Project Approval Process stages (see
-    # approval_process.py) this document belongs to -- e.g. an
-    # architectural drawing tagged 'architectural_approval'. Nullable:
-    # most documents (contracts, quotations, calculation sheets) aren't
-    # tied to a specific approval stage at all, only ones relevant to the
-    # Process tab's per-stage document list are. Not a foreign key -- the
-    # 5 stage keys are a fixed, small, code-defined set (see
-    # src/constants/processStages.ts on the frontend), not a table.
-    stage_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
     # Which GovernmentForm this document was generated from (see
     # government_service.fill_form) -- NULL for every document that
     # isn't a generated "Government Agreement" (an upload, a contract

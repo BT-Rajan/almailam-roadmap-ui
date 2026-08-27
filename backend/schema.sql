@@ -241,26 +241,6 @@ CREATE TABLE IF NOT EXISTS client_verifications (
     INDEX idx_client_verifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- A named, admin-managed bundle of execution_step_templates rows --
--- e.g. "Standard Process", "Commercial Fit-out". Projects are assigned
--- one at creation (projects.step_set_id) and snapshot exactly that
--- set's steps into their own project_execution_steps rows. Defined
--- ahead of `projects` and `execution_step_templates` below since both
--- reference it. See execution_step.py's ExecutionStepSetTemplate
--- docstring.
-CREATE TABLE IF NOT EXISTS execution_step_set_templates (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name            VARCHAR(150) NOT NULL,
-    description     VARCHAR(500) NULL,
-    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at      DATETIME NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO execution_step_set_templates (name, description) VALUES
-    ('Standard Process', 'The original 23-step process (First Meeting through Lighting drawings), unchanged.');
-SET @standard_set_id := LAST_INSERT_ID();
-
 CREATE TABLE IF NOT EXISTS projects (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_no      VARCHAR(20)  NOT NULL UNIQUE,
@@ -278,20 +258,23 @@ CREATE TABLE IF NOT EXISTS projects (
     engineer_id     BIGINT UNSIGNED NOT NULL,
     -- "Correction" was merged into "Review" (migration 0019) -- a
     -- correction cycle during review is logged as a reason-carrying
-    -- project timeline note now, not a separate stage. "Review" was
-    -- itself renamed to "Execution & Tracking" and "Approval" dropped
-    -- entirely (migration 0022) -- see execution_step_templates/
-    -- project_approval_steps below for what replaced it. "Enquiry" was
+    -- project timeline note now, not a separate stage. "Enquiry" was
     -- itself renamed to "Requirement" (migration 0038) -- see
     -- project_scope_revisions below for the scope-of-work revision
-    -- history that stage now manages.
-    current_stage   ENUM('Requirement','Quotation','Contract','Design','Government Submission','Execution & Tracking','Completed')
+    -- history that stage now manages. "Execution & Tracking" and
+    -- "Completed" were removed entirely (migration 0051), along with
+    -- the 5-gate Approval Process that used to gate entry into them --
+    -- "Government Submission" is now the terminal stage.
+    current_stage   ENUM('Requirement','Quotation','Contract','Design','Government Submission')
                         NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
     start_date      DATE NOT NULL,
     target_date     DATE NOT NULL,
-    status          ENUM('Active','On Hold','Completed','Cancelled') NOT NULL DEFAULT 'Active',
+    -- No "Completed" value (removed in migration 0051) -- a project
+    -- never reaches a terminal "done" status, only Active/On
+    -- Hold/Cancelled.
+    status          ENUM('Active','On Hold','Cancelled') NOT NULL DEFAULT 'Active',
     stale_notified_at DATETIME NULL,
     service_total   DECIMAL(12,2) NULL,
     -- Permit names the client confirmed, at project setup, they already
@@ -300,26 +283,12 @@ CREATE TABLE IF NOT EXISTS projects (
     required_permit_documents JSON NOT NULL DEFAULT (JSON_ARRAY()),
     type_category_name  VARCHAR(150) NULL,
     type_activity_total DECIMAL(12,2) NULL,
-    -- Set once by set_status() when status becomes Completed, cleared on
-    -- reopen -- backs the Completion summary's actual-vs-planned
-    -- duration. completion_notes is the same summary's free-text
-    -- handover/lessons-learned box. deviation_notes is a separate PM
-    -- annotation on the auto-derived "what changed vs. what was asked
-    -- for" read (contract revisions + budget/duration variance).
-    completed_at    DATETIME NULL,
-    completion_notes TEXT NULL,
-    deviation_notes TEXT NULL,
-    -- Which admin-configured execution step set this project's checklist
-    -- was snapshotted from at creation -- see execution_step_templates
-    -- below and execution_step_service.snapshot_steps_for_project.
-    step_set_id     BIGINT UNSIGNED NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_scope_approved_by FOREIGN KEY (scope_approved_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_projects_step_set FOREIGN KEY (step_set_id) REFERENCES execution_step_set_templates(id) ON DELETE RESTRICT,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
@@ -349,7 +318,6 @@ CREATE TABLE IF NOT EXISTS project_selected_activities (
     activity_id     VARCHAR(20) NOT NULL,
     activity_name   VARCHAR(150) NOT NULL,
     fixed_cost      DECIMAL(12,2) NOT NULL,
-    is_complete     TINYINT(1) NOT NULL DEFAULT 0,
     CONSTRAINT fk_project_selected_activities_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     INDEX idx_project_selected_activities_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -416,11 +384,6 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,
     notes                        TEXT NULL,
-    -- Which of the 5 Project Approval Process gates this submission's
-    -- own approval satisfies -- 'mew_approval', 'submit_baladia_kfd', or
-    -- 'permit_approved' -- optional. See GOVERNMENT_SUBMISSION_STAGE_KEYS
-    -- in models/government.py.
-    stage_key                    VARCHAR(40) NULL,
     proof_of_submission_storage_key   VARCHAR(300) NULL,
     proof_of_submission_filename      VARCHAR(255) NULL,
     proof_of_submission_size_bytes    BIGINT UNSIGNED NULL,
@@ -710,10 +673,6 @@ CREATE TABLE IF NOT EXISTS project_documents (
     -- Form', a manually uploaded scan with no generation involved.
     type                ENUM('Drawing','Report','Contract','Quotation','Municipality Form','Calculation Sheet','Government Agreement') NOT NULL,
     revision            VARCHAR(10) NOT NULL DEFAULT 'Rev A',
-    -- Which of the 5 Project Approval Process stages this document
-    -- belongs to (see approval_process_templates) -- NULL for documents
-    -- not tied to a specific stage (contracts, quotations, etc.).
-    stage_key           VARCHAR(40) NULL,
     -- Which GovernmentForm this was generated from (see
     -- government_service.fill_form) -- NULL for anything not generated
     -- that way (uploads, contracts, quotations, etc.).
@@ -908,13 +867,11 @@ CREATE TABLE IF NOT EXISTS message_log (
 -- system exists here. One used to, but it was never wired to anything
 -- real (projects.current_stage, defined above, is a fixed ENUM, not
 -- driven by rows in a table) -- it only duplicated and drifted from
--- the real 9-stage stage list. Removed rather than kept as unused
--- surface area (migration 0018). The project process is exactly two
--- things: projects.current_stage (the sales/lifecycle stage) and the
--- Project Approval Process + execution-step checklist (further down,
--- execution_step_templates / approval_process_templates and their
--- per-project counterparts) -- nothing else should define a third
--- notion of "the stages a project goes through".
+-- the real stage list. Removed rather than kept as unused surface area
+-- (migration 0018). projects.current_stage (defined above) is the only
+-- notion of "the stages a project goes through" -- the execution-step
+-- checklist and Project Approval Process that used to run alongside it
+-- were removed entirely in migration 0051.
 
 CREATE TABLE IF NOT EXISTS service_catalog_items (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -1013,7 +970,6 @@ CREATE TABLE IF NOT EXISTS project_selected_type_activities (
     activity_name          VARCHAR(150) NOT NULL,
     cost                   DECIMAL(12,2) NOT NULL,
     is_covered_by_service  TINYINT(1) NOT NULL DEFAULT 0,
-    is_complete            TINYINT(1) NOT NULL DEFAULT 0,
     CONSTRAINT fk_project_selected_type_activities_project FOREIGN KEY (project_id)
         REFERENCES projects(id) ON DELETE CASCADE,
     INDEX idx_project_selected_type_activities_project (project_id)
@@ -1063,170 +1019,11 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     INDEX idx_project_timeline_events_project (project_id, event_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- The Project Approval Process (5 external sign-off gates: Documents
--- Signed -> MEW Approval -> Architectural Design Approved by Client ->
--- Submit to Baladia or KFD -> Permit Approved) and the execution-step
--- checklist (23 tangible-act steps, First Meeting through Lighting
--- drawings) are two independent tracks that both run against the
--- project at the same time -- neither gates the other (see
--- project_service._assert_stage_exit_criteria for where their
--- completion actually matters: entering "Execution & Tracking"
--- requires every one of the 5 gates, regardless of activity progress).
---
--- Since migration 0022 (the Execution & Tracking redesign):
--- project_execution_steps tracks a free 0-100 completion_percentage
--- per step (plus optional remarks) instead of a linear Pending/
--- Completed/Waived status -- project.progress is the weighted sum of
--- these percentages. project_approval_steps' 5 rows are stage gates:
--- a stage counts as complete the moment a document is uploaded for it
--- (storage_key set), not via a separate manual "complete" action.
---
--- Each execution step's stage_key (below) says which of the 7 project
--- WORKFLOW_STAGES (see project.py) the activity is expected to happen
--- during -- e.g. "Client Civil ID collected" during Contract,
--- "Architectural drawings completed" during Design. This is unrelated
--- to the 5 approval gates above; nothing currently enforces an activity
--- being done during its tagged stage, it's informational.
-
-CREATE TABLE IF NOT EXISTS execution_step_templates (
-    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    -- Which named set (see execution_step_set_templates above) this
-    -- step belongs to -- sequence_number is ordered within one set, not
-    -- globally.
-    step_set_id         BIGINT UNSIGNED NOT NULL,
-    name                VARCHAR(200) NOT NULL,
-    sequence_number     INT NOT NULL,
-    weight_percentage   DECIMAL(5,2) NOT NULL,
-    stage_key           VARCHAR(40) NOT NULL,
-    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
-    -- The one real-world event (if any) that auto-completes this step --
-    -- see execution_step_service.try_auto_fill. NULL for a step nothing
-    -- auto-completes.
-    trigger_key         VARCHAR(60) NULL,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at          DATETIME NULL,
-    CONSTRAINT fk_execution_step_templates_step_set FOREIGN KEY (step_set_id) REFERENCES execution_step_set_templates(id) ON DELETE CASCADE,
-    INDEX idx_execution_step_templates_step_set (step_set_id),
-    INDEX idx_execution_step_templates_sequence (sequence_number)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS project_execution_steps (
-    id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    project_id            BIGINT UNSIGNED NOT NULL,
-    name                  VARCHAR(200) NOT NULL,
-    sequence_number       INT NOT NULL,
-    weight_percentage     DECIMAL(5,2) NOT NULL,
-    stage_key             VARCHAR(40) NOT NULL,
-    is_optional           TINYINT(1) NOT NULL DEFAULT 0,
-    -- Copied from the template step this was snapshotted from; NULL for
-    -- a custom step (is_custom below), which has no template origin.
-    trigger_key           VARCHAR(60) NULL,
-    -- Added directly on this project (see execution_step_service.
-    -- add_custom_project_step) rather than snapshotted from its
-    -- assigned step set -- can be deleted outright, unlike a
-    -- template-derived step, which can only ever be excluded.
-    is_custom             TINYINT(1) NOT NULL DEFAULT 0,
-    is_excluded           TINYINT(1) NOT NULL DEFAULT 0,
-    excluded_reason       VARCHAR(200) NULL,
-    completion_percentage SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-    remarks               TEXT NULL,
-    is_additional_scope   TINYINT(1) NOT NULL DEFAULT 0,
-    contract_covered      TINYINT(1) NULL,
-    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_project_execution_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    -- One row per step per project -- a project can't accidentally end
-    -- up with the same step snapshotted twice.
-    CONSTRAINT uq_project_execution_steps_project_sequence UNIQUE (project_id, sequence_number),
-    INDEX idx_project_execution_steps_project (project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Seed: the linear execution process (First Meeting through Lighting
--- drawings), weighted evenly across 100.00 as a sensible starting
--- point -- admin is expected to tune both the steps and their weights
--- from here, this is not meant to be the final word on either.
--- stage_key groups each step under the approval stage its outcome
--- belongs to: documents_signed (client request through contract),
--- mew_approval (the MEW request itself), architectural_approval
--- (architectural + 3D design), submit_baladia_kfd (the drawing
--- submission plus the full structural/interior/MEP technical package
--- that follows it). "Permit Approved" has no execution steps of its
--- own -- it's a pure external gate.
-INSERT INTO execution_step_templates (step_set_id, name, sequence_number, weight_percentage, stage_key, is_optional, trigger_key) VALUES
-    (@standard_set_id, 'Client requests captured', 1, 4.35, 'Requirement', 0, NULL),
-    (@standard_set_id, 'Quotation prepared', 2, 4.35, 'Quotation', 0, 'quotation_created'),
-    (@standard_set_id, 'Client Civil ID collected', 3, 4.35, 'Contract', 0, NULL),
-    (@standard_set_id, 'Ownership document collected', 4, 4.35, 'Contract', 0, NULL),
-    (@standard_set_id, 'Documents prepared for client signature (Baladia/KFD/MEW)', 5, 4.35, 'Contract', 0, 'gate:documents_signed'),
-    (@standard_set_id, 'MEW approval request submitted', 6, 4.35, 'Government Submission', 0, 'gate:mew_approval'),
-    (@standard_set_id, 'Contract initiated', 7, 4.35, 'Contract', 0, 'contract_created'),
-    (@standard_set_id, 'Architectural drawings completed', 8, 4.35, 'Design', 0, 'gate:architectural_approval'),
-    (@standard_set_id, 'Drawings submitted to Baladia/KFD (post client approval)', 9, 4.35, 'Government Submission', 0, 'gate:submit_baladia_kfd'),
-    (@standard_set_id, '3D design completed', 10, 4.35, 'Design', 1, NULL),
-    (@standard_set_id, 'Soil investigation report completed', 11, 4.35, 'Government Submission', 0, NULL),
-    (@standard_set_id, 'Structural drawings completed', 12, 4.35, 'Government Submission', 0, NULL),
-    (@standard_set_id, 'Window and door schedules completed', 13, 4.35, 'Government Submission', 0, NULL),
-    (@standard_set_id, 'Furniture plans completed', 14, 4.35, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Dimension plans completed', 15, 4.35, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Flooring plans completed', 16, 4.35, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Bathroom detail drawings completed', 17, 4.35, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Electrical power points completed', 18, 4.35, 'Government Submission', 0, NULL),
-    (@standard_set_id, 'Sanitary plans completed', 19, 4.34, 'Government Submission', 0, NULL),
-    (@standard_set_id, 'A/C drawings completed', 20, 4.34, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Structural drawings revised for A/C', 21, 4.34, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'False ceiling drawings completed', 22, 4.34, 'Government Submission', 1, NULL),
-    (@standard_set_id, 'Lighting drawings completed', 23, 4.34, 'Government Submission', 1, NULL);
-
-CREATE TABLE IF NOT EXISTS approval_process_templates (
-    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name                VARCHAR(200) NOT NULL,
-    stage_key           VARCHAR(40) NOT NULL,
-    sequence_number     INT NOT NULL,
-    is_optional         TINYINT(1) NOT NULL DEFAULT 0,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at          DATETIME NULL,
-    INDEX idx_approval_process_templates_sequence (sequence_number)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS project_approval_steps (
-    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    project_id          BIGINT UNSIGNED NOT NULL,
-    name                VARCHAR(200) NOT NULL,
-    stage_key           VARCHAR(40) NOT NULL,
-    sequence_number     INT NOT NULL,
-    -- A stage gate is "complete" the moment storage_key is set --
-    -- uploading the stage's review document IS what marks it done,
-    -- there is no separate manual complete/waive action.
-    storage_key         VARCHAR(255) NULL,
-    original_filename   VARCHAR(255) NULL,
-    file_size_bytes     BIGINT UNSIGNED NULL,
-    uploaded_at         DATETIME NULL,
-    uploaded_by         BIGINT UNSIGNED NULL,
-    -- Second, independent completion path (migration 0033): a stage
-    -- also counts as complete once every project_documents row tagged
-    -- to it is Approved and a user confirms (see approval_process_
-    -- service.complete_stage_from_documents). Doesn't interact with
-    -- storage_key either direction -- either path can fire on its own.
-    completed_at        DATETIME NULL,
-    completed_by        BIGINT UNSIGNED NULL,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_project_approval_steps_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    CONSTRAINT fk_project_approval_steps_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_project_approval_steps_completed_by FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT uq_project_approval_steps_project_sequence UNIQUE (project_id, sequence_number),
-    INDEX idx_project_approval_steps_project (project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Seed: the 5-stage Project Approval Process.
-INSERT INTO approval_process_templates (name, stage_key, sequence_number) VALUES
-    ('Documents Signed', 'documents_signed', 1),
-    ('MEW Approval', 'mew_approval', 2),
-    ('Architectural Design Approved by Client', 'architectural_approval', 3),
-    ('Submit to Baladia or KFD', 'submit_baladia_kfd', 4),
-    ('Permit Approved', 'permit_approved', 5);
+-- The execution-step checklist, the Project Approval Process (5
+-- external sign-off gates), and the admin-configurable step-set system
+-- that backed them were removed entirely in migration 0051, along with
+-- the "Execution & Tracking" and "Completed" project stages they
+-- existed to serve.
 
 CREATE TABLE IF NOT EXISTS status_reports (
     id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -172,8 +172,7 @@ def upload_sample_file(db: Session, form_id: int, file, actor_id: int) -> Govern
     (e.g. the blank official PDF) to check the template/fields against
     -- not parsed, purely a reference. Re-uploading replaces which file
     this form points to; the previous file is left on disk rather than
-    deleted, same as every other single-file "Replace" flow in this app
-    (see e.g. approval_process_service.upload_stage_gate_document)."""
+    deleted, same as every other single-file "Replace" flow in this app."""
     from app.core.file_storage import save_upload
 
     form = get_form(db, form_id)

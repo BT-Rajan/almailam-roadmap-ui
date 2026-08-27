@@ -45,7 +45,6 @@ const STATUS_OPTIONS: SelectOption[] = [
   { label: 'All Statuses', value: 'All' },
   { label: 'Active', value: 'Active' },
   { label: 'On Hold', value: 'On Hold' },
-  { label: 'Completed', value: 'Completed' },
   { label: 'Cancelled', value: 'Cancelled' },
 ]
 
@@ -56,8 +55,6 @@ const STAGE_OPTIONS: SelectOption[] = [
   { label: 'Contract', value: 'Contract' },
   { label: 'Design', value: 'Design' },
   { label: 'Approvals & Permits', value: 'Government Submission' },
-  { label: 'Execution & Tracking', value: 'Execution & Tracking' },
-  { label: 'Completed', value: 'Completed' },
 ]
 
 const PRIORITY_OPTIONS: SelectOption[] = [

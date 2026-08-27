@@ -85,14 +85,13 @@ def create_document(
     projectId: str = Form(...),
     title: str = Form(...),
     type: str = Form(...),
-    stageKey: str | None = Form(default=None),
     externalLink: str | None = Form(default=None),
     file: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
     document = document_service.create_document(
-        db, projectId, title, type, file, current_user.id, stageKey, externalLink
+        db, projectId, title, type, file, current_user.id, externalLink
     )
     return _document_out(db, document)
 

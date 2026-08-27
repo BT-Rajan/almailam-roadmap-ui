@@ -57,7 +57,7 @@ const kpis = computed<KPI[]>(() => [
 ])
 
 const statistics = computed<StatisticItem[]>(() => [
-  { id: '1', label: 'Completed Projects', value: metricValue('Completed Projects'), icon: '✓', color: 'success' },
+  { id: '1', label: 'On Hold Projects', value: metricValue('On Hold Projects'), icon: '✓', color: 'success' },
   { id: '2', label: 'Overdue Tasks', value: metricValue('Overdue Tasks'), icon: '⏱', color: 'danger' },
   {
     id: '3',
@@ -76,7 +76,6 @@ const statistics = computed<StatisticItem[]>(() => [
 const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
   Active: 'active',
   'On Hold': 'on-hold',
-  Completed: 'completed',
   Cancelled: 'completed',
 }
 
@@ -201,7 +200,7 @@ const KPI_ROUTES: Record<string, string> = {
 }
 
 const STATISTIC_ROUTES: Record<string, string> = {
-  'Completed Projects': ROUTE_NAMES.PROJECTS,
+  'On Hold Projects': ROUTE_NAMES.PROJECTS,
   'Overdue Tasks': ROUTE_NAMES.TASKS,
   'Total Received': ROUTE_NAMES.REPORT_EXECUTIVE,
 }

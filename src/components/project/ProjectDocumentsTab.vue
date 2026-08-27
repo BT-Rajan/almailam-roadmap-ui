@@ -87,7 +87,7 @@ async function handleSaveDesignDocument(payload: {
   try {
     if (designDialogTarget.value) {
       const target = designDialogTarget.value
-      await documentStore.updateDocument(target.id, payload.title, undefined, payload.link || null, payload.date)
+      await documentStore.updateDocument(target.id, payload.title, payload.link || null, payload.date)
       if (payload.file) {
         await documentStore.attachFile(target.id, payload.file)
       }
@@ -98,11 +98,10 @@ async function handleSaveDesignDocument(payload: {
         props.project.id,
         payload.title,
         'Drawing',
-        undefined,
         payload.link || undefined,
       )
       if (payload.date !== created.uploadDate) {
-        await documentStore.updateDocument(created.id, payload.title, undefined, payload.link || null, payload.date)
+        await documentStore.updateDocument(created.id, payload.title, payload.link || null, payload.date)
       }
       addedDocumentTitle.value = payload.title
       addedDocumentLink.value = payload.link

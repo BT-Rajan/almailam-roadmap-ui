@@ -23,49 +23,43 @@ export const PROJECT_SERVICES: string[] = [
 // "Correction" used to be its own stage here (Review <-> Correction).
 // Merged into a single "Review" stage -- a correction cycle during
 // review is logged as a note on the project instead of a separate
-// stage hop. "Review" was itself renamed to "Execution & Tracking" and
-// "Approval" dropped entirely. See backend/app/core/status_transitions
-// .py's own comment.
+// stage hop. "Execution & Tracking" and "Completed" were removed
+// entirely -- "Government Submission" is now the terminal stage. See
+// backend/app/core/status_transitions.py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Requirement: ['Quotation'],
   Quotation: ['Contract'],
   Contract: ['Design'],
   Design: ['Government Submission'],
-  // "Design" here is the one reopening path backward -- an authority's
-  // feedback during Government Submission can require design changes.
-  // Requires a reason (see isStageReasonRequired below), unlike the
-  // normal forward flow to "Execution & Tracking".
-  'Government Submission': ['Design', 'Execution & Tracking'],
-  'Execution & Tracking': ['Completed'],
-  Completed: ['Execution & Tracking'],
+  // The one reopening path backward -- an authority's feedback during
+  // Government Submission can require design changes. Requires a
+  // reason (see isStageReasonRequired below), unlike the normal
+  // forward flow.
+  'Government Submission': ['Design'],
 }
 
-// "Completed" -> "Execution & Tracking" only needs a reason when
-// reopening a completed project specifically -- not the normal
-// "Execution & Tracking" -> "Completed" outcome, which shares the same
-// target state, so this has to be a (from, to) check rather than a
-// flat set of target states. Same reasoning for "Government
-// Submission" -> "Design": that's a correction (an authority's
+// "Government Submission" -> "Design" is a correction (an authority's
 // feedback requiring design changes), not the normal forward flow that
-// also targets "Design" (from "Contract").
+// also targets "Design" (from "Contract"), so this has to be a (from,
+// to) check rather than a flat set of target states.
 export function isStageReasonRequired(from: string, to: string): boolean {
-  if (from === 'Completed' && to === 'Execution & Tracking') return true
   if (from === 'Government Submission' && to === 'Design') return true
   return false
 }
 
+// No "Completed" value -- a project never reaches a terminal "done"
+// status, only Active/On Hold/Cancelled.
 export const PROJECT_STATUS_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Active: ['On Hold', 'Completed', 'Cancelled'],
+  Active: ['On Hold', 'Cancelled'],
   'On Hold': ['Active', 'Cancelled'],
-  Completed: ['Active'],
   Cancelled: ['Active'],
 }
 
-// "On Hold"/"Cancelled" always need one. "Completed"/"Cancelled" ->
-// "Active" only needs one when reopening -- not the routine "On Hold"
-// -> "Active" resume, which shares the same target state.
+// "On Hold"/"Cancelled" always need one. "Cancelled" -> "Active" only
+// needs one when reopening -- not the routine "On Hold" -> "Active"
+// resume, which shares the same target state.
 export function isStatusReasonRequired(from: string, to: string): boolean {
   if (to === 'On Hold' || to === 'Cancelled') return true
-  if ((from === 'Completed' || from === 'Cancelled') && to === 'Active') return true
+  if (from === 'Cancelled' && to === 'Active') return true
   return false
 }

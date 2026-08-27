@@ -37,10 +37,10 @@ ENTITY_TYPE = "STATUS_REPORT"
 # would move the real cutoff by an hour.
 REPORT_FILING_TIMEZONE = "Asia/Kuwait"
 
-# Projects in either of these states are finished -- no more field
-# activity is expected on them, so no new/edited reports either,
-# independent of what start_date/target_date happen to say.
-_CLOSED_PROJECT_STATUSES = ("Completed", "Cancelled")
+# A cancelled project is finished -- no more field activity is expected
+# on it, so no new/edited reports either, independent of what
+# start_date/target_date happen to say.
+_CLOSED_PROJECT_STATUSES = ("Cancelled",)
 
 
 def _today(db: Session) -> date:

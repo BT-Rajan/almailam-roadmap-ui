@@ -179,8 +179,7 @@
      actually being previewed -- so this has no effect on printing
      from any other page or a plain browser Ctrl+P elsewhere. */
   body:has(#quotation-print-area) *,
-  body:has(#contract-print-area) *,
-  body:has(#summary-report-print-area) * {
+  body:has(#contract-print-area) * {
     visibility: hidden;
   }
   /* !important is required here, not just declaration order: the
@@ -191,14 +190,11 @@
   #quotation-print-area,
   #quotation-print-area *,
   #contract-print-area,
-  #contract-print-area *,
-  #summary-report-print-area,
-  #summary-report-print-area * {
+  #contract-print-area * {
     visibility: visible !important;
   }
   #quotation-print-area,
-  #contract-print-area,
-  #summary-report-print-area {
+  #contract-print-area {
     position: absolute;
     inset: 0;
     width: 100%;

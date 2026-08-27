@@ -8,7 +8,6 @@ from app.models.government import (
     FORM_FIELD_TYPES,
     FORM_LANGUAGES,
     FORM_STATUSES,
-    GOVERNMENT_SUBMISSION_STAGE_KEYS,
     REQUIRED_DOCUMENT_STATUSES,
     RESPONSE_OUTCOMES,
     SUBMISSION_STATUSES,
@@ -291,7 +290,6 @@ class SubmissionOut(BaseModel):
     proofOfSubmission: ProofOfFileOut | None = None
     proofOfResponse: ProofOfFileOut | None = None
     responseOutcome: str | None = None
-    stageKey: str | None = None
 
     @staticmethod
     def from_model(
@@ -345,7 +343,6 @@ class SubmissionOut(BaseModel):
             proofOfSubmission=proof_of_submission,
             proofOfResponse=proof_of_response,
             responseOutcome=submission.response_outcome,
-            stageKey=submission.stage_key,
         )
 
 
@@ -355,17 +352,6 @@ class SubmissionCreate(BaseModel):
     formId: str
     expectedDecisionDate: date | None = None
     notes: str | None = None
-    # Which of the 3 authority-facing approval-process gates this
-    # submission's own approval will satisfy, if any -- see
-    # GOVERNMENT_SUBMISSION_STAGE_KEYS.
-    stageKey: str | None = None
-
-    @field_validator("stageKey")
-    @classmethod
-    def check_stage_key(cls, value: str | None) -> str | None:
-        if value is not None and value not in GOVERNMENT_SUBMISSION_STAGE_KEYS:
-            raise ValueError(f"stageKey must be one of {GOVERNMENT_SUBMISSION_STAGE_KEYS}")
-        return value
 
 
 class SubmissionUpdate(BaseModel):

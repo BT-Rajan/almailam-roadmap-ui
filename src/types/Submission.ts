@@ -54,8 +54,4 @@ export interface GovernmentSubmission {
   proofOfSubmission?: ProofOfFile | null
   proofOfResponse?: ProofOfFile | null
   responseOutcome?: ResponseOutcome | null
-  // Which approval-process gate this submission's own approval closes,
-  // if any -- see constants/processStages.ts's GOVERNMENT_SUBMISSION_
-  // STAGE_OPTIONS.
-  stageKey?: string | null
 }
