@@ -108,6 +108,29 @@ export const useProjectStageStore = defineStore('projectStage', {
       }
     },
 
+    // Staff's own "freedom to add" beyond whatever the project's
+    // assigned step set specified -- the complement of excluding a
+    // template-derived step (the "reduce" half of the same freedom).
+    async addCustomStep(projectId: string, name: string, weightPercentage: number, stageKey: string) {
+      this.mutationError = undefined
+      try {
+        const step = await executionStepService.addCustomProjectStep(projectId, name, weightPercentage, stageKey)
+        this.executionSteps = [...this.executionSteps, step]
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Failed to add step.'
+      }
+    },
+
+    async deleteCustomStep(projectId: string, stepId: string) {
+      this.mutationError = undefined
+      try {
+        await executionStepService.deleteCustomProjectStep(projectId, stepId)
+        this.executionSteps = this.executionSteps.filter((s) => s.id !== stepId)
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Failed to remove step.'
+      }
+    },
+
     async uploadStageGateDocument(projectId: string, stageKey: string, file: File) {
       this.mutationError = undefined
       this.isUploading = true

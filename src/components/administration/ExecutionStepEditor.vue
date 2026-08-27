@@ -16,10 +16,13 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  update: [stepId: string, fields: { name?: string; weightPercentage?: number; stageKey?: string; isOptional?: boolean }]
+  update: [
+    stepId: string,
+    fields: { name?: string; weightPercentage?: number; stageKey?: string; isOptional?: boolean; triggerKey?: string },
+  ]
   remove: [stepId: string]
   move: [stepId: string, direction: 'up' | 'down']
-  add: [name: string, weightPercentage: number, stageKey: string, isOptional: boolean]
+  add: [name: string, weightPercentage: number, stageKey: string, isOptional: boolean, triggerKey: string]
 }>()
 
 // Which of the 7 project workflow stages this activity is expected to
@@ -33,17 +36,34 @@ const STAGE_OPTIONS: SelectOption[] = EXECUTION_STEP_STAGE_OPTIONS.map((stage) =
   label: stage,
 }))
 
+// The fixed set of real-world events a step can be wired to -- '' means
+// none, which is the overwhelming majority (actual design/drawing
+// production work with nothing else in the app tracking it). Mirrors
+// execution_step_service.TRIGGER_KEYS exactly; a typo'd value would
+// silently never fire, so this is a picklist, not free text.
+const TRIGGER_KEY_OPTIONS: SelectOption[] = [
+  { value: '', label: 'None -- manual only' },
+  { value: 'quotation_created', label: 'Quotation created' },
+  { value: 'contract_created', label: 'Contract created' },
+  { value: 'gate:documents_signed', label: 'Gate: Documents signed' },
+  { value: 'gate:mew_approval', label: 'Gate: MEW approval' },
+  { value: 'gate:architectural_approval', label: 'Gate: Architectural approval' },
+  { value: 'gate:submit_baladia_kfd', label: 'Gate: Baladia/KFD submission' },
+]
+
 const newStepName = ref('')
 const newStepWeight = ref(5)
 const newStepStageKey = ref(STAGE_OPTIONS[0]?.value ?? '')
 const newStepIsOptional = ref(false)
+const newStepTriggerKey = ref('')
 
 function submitNewStep(): void {
   if (newStepName.value.trim().length === 0 || newStepWeight.value <= 0 || !newStepStageKey.value) return
-  emit('add', newStepName.value.trim(), newStepWeight.value, newStepStageKey.value, newStepIsOptional.value)
+  emit('add', newStepName.value.trim(), newStepWeight.value, newStepStageKey.value, newStepIsOptional.value, newStepTriggerKey.value)
   newStepName.value = ''
   newStepWeight.value = 5
   newStepIsOptional.value = false
+  newStepTriggerKey.value = ''
 }
 
 // Local drafts of in-progress edits, keyed by step id, so typing doesn't
@@ -68,6 +88,10 @@ function commitStage(step: ExecutionStepTemplateItem, value: string): void {
 
 function commitOptional(step: ExecutionStepTemplateItem, value: boolean): void {
   if (value !== step.isOptional) emit('update', step.id, { isOptional: value })
+}
+
+function commitTrigger(step: ExecutionStepTemplateItem, value: string): void {
+  if (value !== (step.triggerKey ?? '')) emit('update', step.id, { triggerKey: value })
 }
 </script>
 
@@ -126,6 +150,12 @@ function commitOptional(step: ExecutionStepTemplateItem, value: boolean): void {
             class="max-w-xs flex-1"
             @update:model-value="commitStage(step, $event)"
           />
+          <SelectBox
+            :model-value="step.triggerKey ?? ''"
+            :options="TRIGGER_KEY_OPTIONS"
+            class="max-w-xs flex-1"
+            @update:model-value="commitTrigger(step, $event)"
+          />
           <Checkbox
             :model-value="step.isOptional"
             label="Waivable"
@@ -157,6 +187,7 @@ function commitOptional(step: ExecutionStepTemplateItem, value: boolean): void {
       </div>
       <div class="flex flex-wrap items-center gap-4">
         <SelectBox v-model="newStepStageKey" :options="STAGE_OPTIONS" class="max-w-xs flex-1" />
+        <SelectBox v-model="newStepTriggerKey" :options="TRIGGER_KEY_OPTIONS" class="max-w-xs flex-1" />
         <Checkbox v-model="newStepIsOptional" label="Waivable" />
       </div>
     </div>

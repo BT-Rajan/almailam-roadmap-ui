@@ -214,6 +214,11 @@ class ProjectCreate(BaseModel):
     # client doesn't have yet aren't sent here at all; the wizard turns
     # those into Tasks instead, against the project this call returns.
     requiredPermitDocuments: list[str] = Field(default_factory=list)
+    # Which admin-configured execution step set this project's checklist
+    # should be snapshotted from -- see execution_step_service.py. None
+    # falls back to the oldest surviving set (in practice "Standard
+    # Process", seeded by migration 0049).
+    stepSetId: str | None = None
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
 

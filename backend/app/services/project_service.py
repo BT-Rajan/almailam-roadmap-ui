@@ -326,6 +326,12 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     type_category_name, type_activity_total, type_activity_rows = _resolve_type_activity_selection(
         db, payload.typeActivitySelection, selected_activities,
     )
+    step_set_id = (
+        execution_step_service.parse_step_set_id(payload.stepSetId)
+        if getattr(payload, "stepSetId", None)
+        else execution_step_service.default_step_set_id(db)
+    )
+    execution_step_service.get_step_set(db, step_set_id)  # 404s if it doesn't exist / was removed
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
@@ -340,6 +346,7 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         required_permit_documents=payload.requiredPermitDocuments or [],
         type_category_name=type_category_name,
         type_activity_total=type_activity_total,
+        step_set_id=step_set_id,
     )
     db.add(project)
     db.flush()

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Plus, Trash2, Upload } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -6,12 +7,21 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { FORM_CATEGORY_OPTIONS, FORM_LANGUAGE_OPTIONS } from '@/constants/governmentFormOptions'
 import type { FormInput } from '@/services/governmentFormService'
-import type { GovernmentAuthority, GovernmentForm, GovernmentFormCategory, GovernmentFormLanguage } from '@/types/Government'
+import { useGovernmentFormStore } from '@/stores/governmentFormStore'
+import { useToastStore } from '@/stores/toastStore'
+import type {
+  GovernmentAuthority,
+  GovernmentForm,
+  GovernmentFormCategory,
+  GovernmentFormField,
+  GovernmentFormLanguage,
+} from '@/types/Government'
 import type { ServiceCatalogItem } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 
@@ -33,6 +43,9 @@ const emit = defineEmits<{
   save: [input: FormInput]
 }>()
 
+const governmentFormStore = useGovernmentFormStore()
+const toastStore = useToastStore()
+
 type FormDraft = Omit<FormInput, 'template'> & { requiredDocumentsText: string; template: string }
 
 function emptyDraft(): FormDraft {
@@ -50,6 +63,54 @@ function emptyDraft(): FormDraft {
     status: 'Active',
     template: '',
     serviceTags: [],
+    fields: [],
+  }
+}
+
+const FIELD_TYPE_OPTIONS: SelectOption[] = [
+  { label: 'Text', value: 'text' },
+  { label: 'Dropdown', value: 'select' },
+  { label: 'Radio buttons', value: 'radio' },
+]
+
+function addField(): void {
+  draft.value.fields = [...draft.value.fields, { token: '', label: '', type: 'text', options: [] }]
+}
+
+function removeField(index: number): void {
+  draft.value.fields = draft.value.fields.filter((_, i) => i !== index)
+}
+
+function optionsText(field: GovernmentFormField): string {
+  return field.options.join('\n')
+}
+
+function setOptionsText(index: number, text: string): void {
+  draft.value.fields[index]!.options = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+}
+
+const isUploadingSample = ref(false)
+// Local display value so the "currently attached" filename updates
+// immediately after a successful upload -- props.form itself won't
+// reflect it until AdminFormsPage.vue's own list refreshes.
+const uploadedSampleFileName = ref<string | null>(null)
+
+async function handleSampleFileSelected(event: Event): Promise<void> {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !props.form) return
+  isUploadingSample.value = true
+  try {
+    await governmentFormStore.uploadSampleFile(props.form.id, file)
+    uploadedSampleFileName.value = file.name
+    toastStore.show('success', 'Sample file uploaded', `${file.name} was attached to this form.`)
+  } catch (error) {
+    toastStore.show('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isUploadingSample.value = false
+    ;(event.target as HTMLInputElement).value = ''
   }
 }
 
@@ -83,6 +144,7 @@ watch(
         }
       : emptyDraft()
     errors.value = {}
+    uploadedSampleFileName.value = null
   },
   { immediate: true },
 )
@@ -116,6 +178,9 @@ function handleSave(): void {
     previewUrl: draft.value.previewUrl,
     template: draft.value.template?.trim() || undefined,
     serviceTags: draft.value.serviceTags,
+    fields: draft.value.fields
+      .filter((field) => field.token.trim().length > 0)
+      .map((field) => ({ ...field, token: field.token.trim(), label: field.label.trim() || field.token.trim() })),
   }
 
   emit('save', input)
@@ -158,6 +223,52 @@ function handleSave(): void {
         hint="Written with {{token}} merge fields, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}. Used to preview and print this form filled in."
         :rows="8"
       />
+
+      <div class="flex flex-col gap-3 rounded-lg border border-border-light p-4">
+        <div>
+          <p class="text-sm font-medium text-text-secondary">Fields</p>
+          <p class="text-xs text-text-muted">
+            Give a merge-field token from the template above a dropdown or radio group instead of a plain text box
+            when a project fills this form in -- match the "token" here to the name used in the template (e.g.
+            <code v-pre>{{plotArea}}</code> in the template needs "plotArea" as its token). A token not listed here
+            just gets a plain text box.
+          </p>
+        </div>
+
+        <div v-for="(field, index) in draft.fields" :key="index" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
+          <div class="flex items-start gap-2">
+            <TextInput v-model="field.token" placeholder="token (matches {{token}})" class="flex-1" />
+            <TextInput v-model="field.label" placeholder="Field label" class="flex-1" />
+            <SelectBox v-model="field.type" :options="FIELD_TYPE_OPTIONS" class="w-40" />
+            <IconButton :icon="Trash2" label="Remove field" size="sm" variant="danger" @click="removeField(index)" />
+          </div>
+          <TextArea
+            v-if="field.type === 'select' || field.type === 'radio'"
+            :model-value="optionsText(field)"
+            placeholder="One option per line"
+            :rows="3"
+            @update:model-value="setOptionsText(index, $event)"
+          />
+        </div>
+
+        <BaseButton variant="secondary" size="sm" :icon="Plus" @click="addField">Add Field</BaseButton>
+      </div>
+
+      <div v-if="form" class="flex flex-col gap-2 rounded-lg border border-border-light p-4">
+        <p class="text-sm font-medium text-text-secondary">Sample Form</p>
+        <p class="text-xs text-text-muted">
+          Upload a reference copy of the real government form (e.g. the blank official PDF) to check the template
+          and fields above against. Not parsed -- just an attachment.
+        </p>
+        <p v-if="uploadedSampleFileName ?? form.sampleFileName" class="text-xs text-text-secondary">
+          Currently attached: {{ uploadedSampleFileName ?? form.sampleFileName }}
+        </p>
+        <label class="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-hover">
+          <Upload class="h-4 w-4" />
+          {{ isUploadingSample ? 'Uploading…' : 'Upload Sample' }}
+          <input type="file" class="hidden" :disabled="isUploadingSample" @change="handleSampleFileSelected" />
+        </label>
+      </div>
 
       <div>
         <p class="mb-1.5 text-sm font-medium text-text-secondary">Tagged Services</p>

@@ -443,9 +443,9 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       <!-- Government forms/agreements required for this project's services
            are now handled entirely under the project's Approvals & Permits
            stage (see ProjectOverviewTab.vue's Required Documents checklist
-           and ProjectGovernmentTab.vue's Fill Form action) -- driven by the
-           Service Document Map (Administration), not a suggestion guessed
-           here from service tags. -->
+           and ProjectGovernmentTab.vue's per-authority form filing) --
+           driven by the Service Document Map (Administration), not a
+           suggestion guessed here from service tags. -->
       <EmptyState
         v-if="linkDocumentsFor('Government').length === 0"
         title="No government documents yet"

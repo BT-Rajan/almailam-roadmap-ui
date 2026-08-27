@@ -72,6 +72,16 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     engineer_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    # Which admin-configured execution step set (see
+    # ExecutionStepSetTemplate) this project's own checklist was
+    # snapshotted from at creation -- see execution_step_service.
+    # snapshot_steps_for_project. Nullable/RESTRICT rather than
+    # required: an existing project's already-snapshotted
+    # ProjectExecutionStep rows are unaffected either way, this is only
+    # about which set a *new* snapshot would come from.
+    step_set_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("execution_step_set_templates.id", ondelete="RESTRICT"), nullable=True
+    )
     current_stage: Mapped[str] = mapped_column(
         Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Requirement"
     )

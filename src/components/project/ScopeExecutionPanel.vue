@@ -52,7 +52,7 @@ const scopeLines = computed<ScopeLine[]>(() => [
     source: 'type_activity' as const,
     itemId: item.id,
     name: item.activityName,
-    detail: props.project.typeCategoryName ?? 'Type Activity',
+    detail: props.project.typeCategoryName ?? 'Additional Activity',
     isComplete: item.isComplete ?? false,
   })),
 ])
@@ -124,7 +124,7 @@ async function confirmCoverage(contractCovered: boolean): Promise<void> {
       <div>
         <h2 class="text-sm font-semibold text-text-primary">Scope Execution</h2>
         <p class="text-xs text-text-muted">
-          The services and type activities this project was actually quoted for -- {{ completedCount }} of
+          The services and additional activities this project was actually quoted for -- {{ completedCount }} of
           {{ scopeLines.length }} delivered.
         </p>
       </div>
@@ -132,7 +132,7 @@ async function confirmCoverage(contractCovered: boolean): Promise<void> {
 
     <div class="flex flex-col gap-4">
       <p v-if="scopeLines.length === 0" class="text-sm text-text-muted">
-        This project has no recorded scope items (services or type activities) to track.
+        This project has no recorded scope items (services or additional activities) to track.
       </p>
 
       <ol v-else class="flex flex-col divide-y divide-border-light">

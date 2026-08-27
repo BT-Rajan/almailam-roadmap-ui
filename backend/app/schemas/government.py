@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.models.government import (
     AUTHORITY_CATEGORIES,
     FORM_CATEGORIES,
+    FORM_FIELD_TYPES,
     FORM_LANGUAGES,
     FORM_STATUSES,
     GOVERNMENT_SUBMISSION_STAGE_KEYS,
@@ -56,6 +57,28 @@ class AuthorityIn(BaseModel):
 # --- forms ---------------------------------------------------------------
 
 
+class FormFieldIn(BaseModel):
+    """Describes one {{token}} in a form's template as a dropdown or
+    radio group instead of the plain text box it'd default to -- see
+    GovernmentForm.fields. `options` is required (and must be
+    non-empty) for 'select'/'radio', ignored for 'text'."""
+
+    token: str = Field(min_length=1, max_length=100)
+    label: str = Field(min_length=1, max_length=150)
+    type: str
+    options: list[str] = Field(default_factory=list)
+
+    _check_type = field_validator("type")(_enum_validator(FORM_FIELD_TYPES, "field type"))
+
+    @field_validator("options")
+    @classmethod
+    def check_options(cls, value: list[str], info) -> list[str]:
+        field_type = info.data.get("type")
+        if field_type in ("select", "radio") and len(value) == 0:
+            raise ValueError("A dropdown or radio field needs at least one option.")
+        return value
+
+
 class FormOut(BaseModel):
     id: str
     authorityId: str
@@ -71,6 +94,8 @@ class FormOut(BaseModel):
     status: str
     template: str | None = None
     serviceTags: list[str] = Field(default_factory=list)
+    fields: list[FormFieldIn] = Field(default_factory=list)
+    sampleFileName: str | None = None
 
     @staticmethod
     def from_model(form) -> "FormOut":
@@ -89,6 +114,8 @@ class FormOut(BaseModel):
             status=form.status,
             template=form.template,
             serviceTags=form.service_tags or [],
+            fields=form.fields or [],
+            sampleFileName=form.sample_file_original_filename,
         )
 
 
@@ -104,6 +131,7 @@ class FormIn(BaseModel):
     previewUrl: str | None = None
     template: str | None = None
     serviceTags: list[str] = Field(default_factory=list)
+    fields: list[FormFieldIn] = Field(default_factory=list)
 
     _check_language = field_validator("language")(_enum_validator(FORM_LANGUAGES, "language"))
     _check_category = field_validator("category")(_enum_validator(FORM_CATEGORIES, "category"))
@@ -120,9 +148,68 @@ class FormFillRequest(BaseModel):
     title: str | None = None
 
 
+class FormRenderPdfRequest(BaseModel):
+    """Renders a form's {{token}} template with the given context straight
+    to PDF bytes, with nothing persisted -- no project, no Document row.
+    The admin-facing counterpart to FormFillRequest above, which requires
+    a project and saves the result there; this is for trying a template
+    (e.g. from Administration > Government Forms) before it's ever used
+    on a real project. See government_service.render_pdf."""
+
+    context: dict[str, str] = Field(default_factory=dict)
+    title: str | None = None
+
+
 class FormStatusUpdate(BaseModel):
     status: str
     _check = field_validator("status")(_enum_validator(FORM_STATUSES, "status"))
+
+
+# --- project form entries (Approvals & Permits) -------------------------
+
+
+class ProjectFormEntryOut(BaseModel):
+    id: str
+    formId: str
+    formCode: str
+    formTitle: str
+    authorityId: str
+    authorityName: str
+    fieldValues: dict[str, str]
+    status: str
+    documentId: str | None
+    createdAt: datetime
+    createdBy: str | None
+
+    @staticmethod
+    def from_model(entry, form, authority, document_no: str | None, created_by_name: str | None) -> "ProjectFormEntryOut":
+        return ProjectFormEntryOut(
+            id=f"PFE-{entry.id:04d}",
+            formId=f"FORM-{form.id:03d}",
+            formCode=form.form_code,
+            formTitle=form.title,
+            authorityId=f"AUTH-{authority.id:03d}",
+            authorityName=authority.name,
+            fieldValues=entry.field_values or {},
+            status=entry.status,
+            documentId=document_no,
+            createdAt=entry.created_at,
+            createdBy=created_by_name,
+        )
+
+
+class ProjectFormEntryCreate(BaseModel):
+    formId: str
+    fieldValues: dict[str, str] = Field(default_factory=dict)
+
+
+class ProjectFormEntryUpdate(BaseModel):
+    fieldValues: dict[str, str] = Field(default_factory=dict)
+
+
+class ProjectFormEntryStatusUpdate(BaseModel):
+    status: str
+    _check = field_validator("status")(_enum_validator(SUBMISSION_STATUSES, "status"))
 
 
 # --- submissions -----------------------------------------------------

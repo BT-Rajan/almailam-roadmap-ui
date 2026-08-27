@@ -1,11 +1,13 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
+
+FORM_FIELD_TYPES = ("text", "select", "radio")
 
 AUTHORITY_CATEGORIES = ("Municipality", "Fire Department", "Electricity", "Water", "Environment")
 FORM_CATEGORIES = (
@@ -74,6 +76,19 @@ class GovernmentForm(Base, TimestampMixin, SoftDeleteMixin):
     # against Project.service to decide which forms to suggest for a
     # project (see governmentFormHelpers.formMatchesProjectService).
     service_tags: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Which {{token}}s in `template` get a dropdown or radio group instead
+    # of a plain text box when a project fills this form in -- a list of
+    # {token, label, type, options}, type one of FORM_FIELD_TYPES. A
+    # token used in the template but not listed here just falls back to
+    # a plain text field (see ProjectFormEntryDialog.vue) -- this is
+    # additive, not a replacement for the template.
+    fields: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # An uploaded reference copy of the real government form (e.g. the
+    # blank official PDF) admin can check the template/fields against
+    # while building them -- not parsed, purely a reference attachment.
+    sample_file_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    sample_file_original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sample_file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
@@ -168,3 +183,52 @@ class SubmissionFollowup(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ProjectFormEntry(Base, TimestampMixin):
+    """One government form, filled in and saved for one project -- the
+    Approvals & Permits tab's own record, organized by the form's
+    authority (MEW/KFD/Baladia/...) there. Distinct from
+    GovernmentSubmission above: a submission tracks the back-and-forth
+    of filing something WITH an authority and waiting on a decision;
+    this is just "this project has this one form filled in," with its
+    own status lifecycle (reusing SUBMISSION_STATUSES' vocabulary since
+    the two are conceptually close enough not to need a second set of
+    words for the same idea).
+
+    Saving (see project_form_service.create_project_form_entry) does
+    two things in one action, per how staff actually work: persists
+    field_values here AND renders the same data to a PDF saved as a
+    Project Document (document_id) -- there's no separate "save the
+    data" vs "generate the PDF" step. A project can only have one entry
+    per form (see the unique constraint below) -- refilling means
+    editing this same entry, not creating a second one.
+    """
+
+    __tablename__ = "project_form_entries"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    form_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("government_forms.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    # Keyed by the template's {{token}} names -- see GovernmentForm.fields
+    # for which of them are dropdowns/radio groups vs. plain text.
+    field_values: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(
+        Enum(*SUBMISSION_STATUSES, name="project_form_entry_status"), nullable=False, default="Draft"
+    )
+    # The generated PDF -- always set once this row exists (see the
+    # class docstring); nullable only because the FK itself can't be
+    # NOT NULL until the row and the document are both flushed in the
+    # same transaction. Download/Print are only ever offered once this
+    # is set, which in practice is from the moment the row is visible
+    # at all.
+    document_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("project_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+
+    __table_args__ = (UniqueConstraint("project_id", "form_id", name="uq_project_form_entries_project_form"),)

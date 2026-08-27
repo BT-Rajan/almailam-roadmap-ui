@@ -19,7 +19,7 @@ const props = defineProps<{
   modelValue: boolean
   projectId: string
   // Forms this dialog can offer -- already filtered to Active forms with
-  // a template by the caller (see ProjectGovernmentTab.vue), so this
+  // a template by the caller (see ProjectOverviewTab.vue), so this
   // stays a dumb picker rather than re-deriving that filter itself.
   forms: GovernmentForm[]
 }>()

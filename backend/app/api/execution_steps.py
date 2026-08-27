@@ -8,9 +8,13 @@ from app.schemas.execution_step import (
     ExecutionStepBulkUpdate,
     ExecutionStepMoveRequest,
     ExecutionStepProgressUpdate,
+    ExecutionStepSetCreate,
+    ExecutionStepSetOut,
+    ExecutionStepSetUpdate,
     ExecutionStepTemplateCreate,
     ExecutionStepTemplateOut,
     ExecutionStepTemplateUpdate,
+    ProjectCustomStepCreate,
     ProjectExecutionStepOut,
 )
 from app.services import execution_step_service, project_service
@@ -29,19 +33,69 @@ can_edit_project = require_permission("Projects", "edit")
 can_view_project = require_permission("Projects", "view")
 
 
-@router.get("/api/execution-step-template", response_model=list[ExecutionStepTemplateOut])
-def list_template(db: Session = Depends(get_db), _=Depends(can_view_admin)):
-    return [ExecutionStepTemplateOut.from_model(s) for s in execution_step_service.list_template(db)]
+# ---------------------------------------------------------------------------
+# Admin: step sets
+# ---------------------------------------------------------------------------
 
 
-@router.post("/api/execution-step-template", response_model=ExecutionStepTemplateOut, status_code=201)
+@router.get("/api/execution-step-sets", response_model=list[ExecutionStepSetOut])
+def list_step_sets(db: Session = Depends(get_db), _=Depends(can_view_admin)):
+    return [ExecutionStepSetOut.from_model(s) for s in execution_step_service.list_step_sets(db)]
+
+
+@router.post("/api/execution-step-sets", response_model=ExecutionStepSetOut, status_code=201)
+def create_step_set(
+    payload: ExecutionStepSetCreate, db: Session = Depends(get_db), current_user: User = Depends(can_edit_admin)
+):
+    step_set = execution_step_service.create_step_set(db, payload.name, payload.description, current_user.id)
+    return ExecutionStepSetOut.from_model(step_set)
+
+
+@router.patch("/api/execution-step-sets/{step_set_id}", response_model=ExecutionStepSetOut)
+def update_step_set(
+    step_set_id: str,
+    payload: ExecutionStepSetUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_admin),
+):
+    step_set = execution_step_service.update_step_set(
+        db, execution_step_service.parse_step_set_id(step_set_id), payload.name, payload.description, current_user.id
+    )
+    return ExecutionStepSetOut.from_model(step_set)
+
+
+@router.delete("/api/execution-step-sets/{step_set_id}", status_code=204)
+def delete_step_set(step_set_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit_admin)):
+    execution_step_service.delete_step_set(db, execution_step_service.parse_step_set_id(step_set_id), current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Admin: template steps within one step set
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/execution-step-sets/{step_set_id}/steps", response_model=list[ExecutionStepTemplateOut])
+def list_template(step_set_id: str, db: Session = Depends(get_db), _=Depends(can_view_admin)):
+    steps = execution_step_service.list_template(db, execution_step_service.parse_step_set_id(step_set_id))
+    return [ExecutionStepTemplateOut.from_model(s) for s in steps]
+
+
+@router.post("/api/execution-step-sets/{step_set_id}/steps", response_model=ExecutionStepTemplateOut, status_code=201)
 def create_template_step(
+    step_set_id: str,
     payload: ExecutionStepTemplateCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit_admin),
 ):
     step = execution_step_service.create_template_step(
-        db, payload.name, payload.weightPercentage, payload.stageKey, payload.isOptional, current_user.id
+        db,
+        execution_step_service.parse_step_set_id(step_set_id),
+        payload.name,
+        payload.weightPercentage,
+        payload.stageKey,
+        payload.isOptional,
+        payload.triggerKey,
+        current_user.id,
     )
     return ExecutionStepTemplateOut.from_model(step)
 
@@ -60,6 +114,7 @@ def update_template_step(
         payload.weightPercentage,
         payload.stageKey,
         payload.isOptional,
+        payload.triggerKey,
         current_user.id,
     )
     return ExecutionStepTemplateOut.from_model(step)
@@ -83,10 +138,39 @@ def move_template_step(
     return [ExecutionStepTemplateOut.from_model(s) for s in steps]
 
 
+# ---------------------------------------------------------------------------
+# Per-project checklist
+# ---------------------------------------------------------------------------
+
+
 @router.get("/api/projects/{project_no}/execution-steps", response_model=list[ProjectExecutionStepOut])
 def list_project_steps(project_no: str, db: Session = Depends(get_db), _=Depends(can_view_project)):
     project = project_service.get_project(db, project_no)
     return [ProjectExecutionStepOut.from_model(s) for s in execution_step_service.list_project_steps(db, project.id)]
+
+
+@router.post("/api/projects/{project_no}/execution-steps", response_model=ProjectExecutionStepOut, status_code=201)
+def add_custom_project_step(
+    project_no: str,
+    payload: ProjectCustomStepCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit_project),
+):
+    project = project_service.get_project(db, project_no)
+    step = execution_step_service.add_custom_project_step(
+        db, project.id, payload.name, payload.weightPercentage, payload.stageKey, current_user.id
+    )
+    return ProjectExecutionStepOut.from_model(step)
+
+
+@router.delete("/api/projects/{project_no}/execution-steps/{step_id}", status_code=204)
+def delete_custom_project_step(
+    project_no: str, step_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit_project)
+):
+    project = project_service.get_project(db, project_no)
+    execution_step_service.delete_custom_project_step(
+        db, project.id, execution_step_service.parse_project_step_id(step_id), current_user.id
+    )
 
 
 @router.patch("/api/projects/{project_no}/execution-steps/{step_id}/progress", response_model=ProjectExecutionStepOut)

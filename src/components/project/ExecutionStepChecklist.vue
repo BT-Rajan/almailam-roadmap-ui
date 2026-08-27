@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { Plus, Trash2 } from '@lucide/vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { EXECUTION_STEP_STAGE_OPTIONS } from '@/utils/projectHelpers'
 import type { ExecutionStepBulkItem, ProjectExecutionStep } from '@/types/ExecutionStep'
+import type { SelectOption } from '@/types/Ui'
 
 const props = defineProps<{
   steps: ProjectExecutionStep[]
@@ -13,7 +18,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   save: [items: ExecutionStepBulkItem[]]
+  'add-step': [name: string, weightPercentage: number, stageKey: string]
+  'remove-step': [stepId: string]
 }>()
+
+const STAGE_OPTIONS: SelectOption[] = EXECUTION_STEP_STAGE_OPTIONS.map((stage) => ({ value: stage, label: stage }))
+
+const newStepName = ref('')
+const newStepWeight = ref(5)
+const newStepStageKey = ref(STAGE_OPTIONS[0]?.value ?? '')
+
+function submitNewStep(): void {
+  if (newStepName.value.trim().length === 0 || newStepWeight.value <= 0 || !newStepStageKey.value) return
+  emit('add-step', newStepName.value.trim(), newStepWeight.value, newStepStageKey.value)
+  newStepName.value = ''
+  newStepWeight.value = 5
+}
 
 interface Draft {
   done: boolean
@@ -113,6 +133,15 @@ function handleSave(): void {
             />
             Not applicable to this project
           </label>
+          <IconButton
+            v-if="step.isCustom"
+            :icon="Trash2"
+            label="Remove step"
+            size="sm"
+            variant="danger"
+            :disabled="isSaving"
+            @click="emit('remove-step', step.id)"
+          />
         </div>
 
         <TextInput
@@ -129,5 +158,31 @@ function handleSave(): void {
         />
       </li>
     </ol>
+
+    <div class="flex flex-col gap-3 rounded-lg border border-dashed border-border-default p-4">
+      <p class="text-sm font-medium text-text-secondary">Add Activity</p>
+      <p class="text-xs text-text-muted">
+        Beyond this project's assigned checklist -- e.g. extra work this specific project turned out to need.
+      </p>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <TextInput v-model="newStepName" placeholder="Activity name" class="sm:flex-1" :disabled="isSaving" />
+        <div class="flex items-center gap-1">
+          <input
+            v-model.number="newStepWeight"
+            type="number"
+            min="0.01"
+            max="100"
+            step="0.01"
+            :disabled="isSaving"
+            class="w-20 rounded-lg border border-border-default bg-bg-card px-2 py-1.5 text-right text-sm text-text-primary"
+          />
+          <span class="text-xs text-text-muted">%</span>
+        </div>
+        <SelectBox v-model="newStepStageKey" :options="STAGE_OPTIONS" class="max-w-xs sm:flex-1" :disabled="isSaving" />
+        <BaseButton :icon="Plus" variant="secondary" :disabled="isSaving || newStepName.trim().length === 0" @click="submitNewStep">
+          Add
+        </BaseButton>
+      </div>
+    </div>
   </div>
 </template>
