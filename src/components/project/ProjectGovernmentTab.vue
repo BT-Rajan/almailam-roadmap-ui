@@ -180,15 +180,6 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
     </template>
   </SmartTable>
 
-  <BaseButton
-    variant="ghost"
-    size="sm"
-    class="no-print self-start"
-    @click="router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })"
-  >
-    View All Submissions
-  </BaseButton>
-
   <NewSubmissionDialog
     v-model="isCreateDialogOpen"
     :projects="governmentSubmissionStore.projects"
