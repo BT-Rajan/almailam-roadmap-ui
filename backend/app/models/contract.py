@@ -26,7 +26,6 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin):
     quotation_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("quotations.id", ondelete="RESTRICT"), nullable=True, index=True
     )
-    template_name: Mapped[str] = mapped_column(String(150), nullable=False)
     revision: Mapped[str] = mapped_column(String(10), nullable=False, default="R0")
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="KWD")
     contract_value: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)

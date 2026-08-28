@@ -56,7 +56,6 @@ class ContractOut(BaseModel):
     projectId: str
     quotationNo: str | None
     contractNo: str
-    templateName: str
     revision: str
     currency: str
     contractValue: float
@@ -81,7 +80,6 @@ class ContractOut(BaseModel):
             projectId=project_no,
             quotationNo=quotation_no,
             contractNo=contract.contract_no,
-            templateName=contract.template_name,
             revision=contract.revision,
             currency=contract.currency,
             contractValue=float(contract.contract_value),
@@ -101,7 +99,6 @@ class ContractOut(BaseModel):
 class ContractCreate(BaseModel):
     projectId: str
     quotationId: str = Field(min_length=1)
-    templateName: str = Field(min_length=1, max_length=150)
     currency: str = Field(default="KWD", min_length=1, max_length=10)
     contractValue: float = Field(gt=0)
     expiryDate: date
@@ -111,7 +108,6 @@ class ContractCreate(BaseModel):
 
 
 class ContractUpdate(BaseModel):
-    templateName: str | None = Field(default=None, min_length=1, max_length=150)
     contractValue: float | None = Field(default=None, gt=0)
     expiryDate: date | None = None
     clientRepresentative: str | None = Field(default=None, min_length=1, max_length=150)

@@ -53,7 +53,6 @@ interface DraftClause {
 
 function draftFromContract(contract: Contract) {
   return {
-    templateName: contract.templateName,
     currency: contract.currency,
     contractValue: contract.contractValue,
     expiryDate: contract.expiryDate,
@@ -94,7 +93,6 @@ function removeClause(index: number): void {
 
 function buildPatch(): Partial<Contract> {
   return {
-    templateName: draft.templateName.trim(),
     currency: draft.currency,
     contractValue: draft.contractValue,
     expiryDate: draft.expiryDate,
@@ -157,8 +155,7 @@ function saveAsFinal(): void {
         </div>
 
         <div class="flex flex-col gap-1 tablet:items-end">
-          <p v-if="!isEditing" class="text-xs text-text-muted">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
-          <TextInput v-else v-model="draft.templateName" label="Template Name" class="w-64" />
+          <p class="text-xs text-text-muted">Revision {{ contract.revision }}</p>
         </div>
       </div>
 

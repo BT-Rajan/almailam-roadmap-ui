@@ -23,7 +23,6 @@ export interface Contract {
   // undefined only for contracts that predate that rule.
   quotationNo?: string
   contractNo: string
-  templateName: string
   revision: string
   currency: string
   contractValue: number

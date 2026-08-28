@@ -494,7 +494,6 @@ CREATE TABLE IF NOT EXISTS contracts (
     -- Nullable only for contracts that predate the rule that a contract
     -- must come from an Approved, finalized quotation.
     quotation_id            BIGINT UNSIGNED NULL,
-    template_name           VARCHAR(150) NOT NULL,
     revision                VARCHAR(10) NOT NULL DEFAULT 'R0',
     currency                VARCHAR(10) NOT NULL DEFAULT 'KWD',
     contract_value          DECIMAL(12,2) NOT NULL,

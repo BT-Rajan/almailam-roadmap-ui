@@ -47,7 +47,6 @@ export interface ContractCreateInput {
   // The Approved, finalized quotation this contract is generated from --
   // required by the backend (see contract_service.create_contract).
   quotationId: string
-  templateName: string
   currency: string
   contractValue: number
   expiryDate: string
