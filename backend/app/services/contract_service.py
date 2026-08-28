@@ -136,16 +136,6 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
         prepared_by=user_id,
         client_representative=payload.clientRepresentative,
         scope_summary=payload.scopeSummary,
-        template_key=payload.templateKey,
-        is_bilingual=payload.isBilingual,
-        subject_line_ar=payload.subjectLineAr,
-        subject_line_en=payload.subjectLineEn,
-        project_reference=payload.projectReference,
-        fee_frequency=payload.feeFrequency,
-        scope_items_ar=payload.scopeItemsAr,
-        scope_items_en=payload.scopeItemsEn,
-        payment_terms_ar=payload.paymentTermsAr,
-        payment_terms_en=payload.paymentTermsEn,
     )
     db.add(contract)
     db.flush()
@@ -186,8 +176,6 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
 
 _CONTRACT_CONTENT_FIELDS = (
     "templateName", "contractValue", "expiryDate", "clientRepresentative", "scopeSummary", "clauses",
-    "subjectLineAr", "subjectLineEn", "projectReference", "feeFrequency",
-    "scopeItemsAr", "scopeItemsEn", "paymentTermsAr", "paymentTermsEn",
 )
 
 
@@ -199,7 +187,7 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
     touches_content = any(getattr(payload, field, None) is not None for field in _CONTRACT_CONTENT_FIELDS)
     if contract.finalized_at is not None and touches_content:
         raise ValidationAppError(
-            "This contract letter has been finalized and its content is locked. Reopen it first to make changes."
+            "This contract has been finalized and its content is locked. Reopen it first to make changes."
         )
     changes: dict[str, tuple] = {}
 
@@ -209,10 +197,6 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
         ("expiryDate", "expiry_date"),
         ("clientRepresentative", "client_representative"),
         ("scopeSummary", "scope_summary"),
-        ("subjectLineAr", "subject_line_ar"),
-        ("subjectLineEn", "subject_line_en"),
-        ("projectReference", "project_reference"),
-        ("feeFrequency", "fee_frequency"),
     ):
         value = getattr(payload, api_field)
         if value is not None:
@@ -220,15 +204,6 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
             if old != value:
                 changes[attr] = (old, value)
             setattr(contract, attr, value)
-
-    if payload.scopeItemsAr is not None:
-        contract.scope_items_ar = payload.scopeItemsAr
-    if payload.scopeItemsEn is not None:
-        contract.scope_items_en = payload.scopeItemsEn
-    if payload.paymentTermsAr is not None:
-        contract.payment_terms_ar = payload.paymentTermsAr
-    if payload.paymentTermsEn is not None:
-        contract.payment_terms_en = payload.paymentTermsEn
 
     if payload.clauses is not None:
         db.query(ContractClause).filter(ContractClause.contract_id == contract.id).delete()
@@ -328,7 +303,7 @@ def add_revision(db: Session, contract_no: str, summary: str, user_id: int) -> C
 
 
 def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
-    """Move a lettered contract from Draft (editable) to Final (locked,
+    """Move a contract from Draft (editable) to Final (locked,
     print-ready) -- required before it can be signed (see set_status).
     No-op guard against double-finalizing; reopen_contract is the only
     way back to editable, and only while still in Draft status."""
@@ -343,7 +318,7 @@ def finalize_contract(db: Session, contract_no: str, user_id: int) -> Contract:
 
 
 def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
-    """Unlock a finalized contract letter for further editing. Only
+    """Unlock a finalized contract for further editing. Only
     allowed while status is still 'Draft' -- mirrors
     quotation_service.reopen_quotation."""
     contract = get_contract(db, contract_no)

@@ -47,18 +47,10 @@ export interface QuotationCreateInput {
   projectId: string
   validity: string
   currency: string
-  taxRatePercent: number
   discountAmount: number
   notes?: string
   termsAndConditions: string[]
   lineItems: QuotationLineItemInput[]
-  templateKey?: string
-  clientRepresentative?: string
-  subjectLine?: string
-  projectReference?: string
-  feeFrequency?: string
-  scopeItems?: string[]
-  paymentTerms?: string[]
 }
 
 /**
@@ -112,7 +104,7 @@ async function deleteQuotation(quotationId: string): Promise<void> {
 }
 
 /**
- * Lock a lettered quotation's content and mark it ready to print.
+ * Lock a quotation's content and mark it ready to print.
  */
 async function finalizeQuotation(quotationId: string): Promise<Quotation> {
   try {

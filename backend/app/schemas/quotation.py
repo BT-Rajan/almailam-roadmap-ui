@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.quotation import FEE_FREQUENCIES, QUOTATION_STATUSES, QUOTATION_TEMPLATE_KEYS
+from app.models.quotation import QUOTATION_STATUSES
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -64,19 +64,11 @@ class QuotationOut(BaseModel):
     status: str
     currency: str
     preparedBy: str
-    taxRatePercent: float
     discountAmount: float
     notes: str | None
     termsAndConditions: list[str]
     lineItems: list[QuotationLineItemOut]
     amount: float
-    templateKey: str | None
-    clientRepresentative: str | None
-    subjectLine: str | None
-    projectReference: str | None
-    feeFrequency: str
-    scopeItems: list[str]
-    paymentTerms: list[str]
     finalizedAt: datetime | None
     revisions: list[QuotationRevisionOut]
 
@@ -92,19 +84,11 @@ class QuotationOut(BaseModel):
             status=quotation.status,
             currency=quotation.currency,
             preparedBy=prepared_by_name,
-            taxRatePercent=float(quotation.tax_rate_percent),
             discountAmount=float(quotation.discount_amount),
             notes=quotation.notes,
             termsAndConditions=quotation.terms_and_conditions,
             lineItems=[QuotationLineItemOut.from_model(i) for i in line_items],
             amount=float(quotation.amount),
-            templateKey=quotation.template_key,
-            clientRepresentative=quotation.client_representative,
-            subjectLine=quotation.subject_line,
-            projectReference=quotation.project_reference,
-            feeFrequency=quotation.fee_frequency,
-            scopeItems=quotation.scope_items,
-            paymentTerms=quotation.payment_terms,
             finalizedAt=quotation.finalized_at,
             revisions=[QuotationRevisionOut.from_model(r, name) for r, name in revisions],
         )
@@ -114,64 +98,26 @@ class QuotationCreate(BaseModel):
     projectId: str
     validity: date
     currency: str = Field(default="KWD", min_length=1, max_length=10)
-    taxRatePercent: float = Field(default=0, ge=0, le=100)
     discountAmount: float = Field(default=0, ge=0)
     notes: str | None = None
     termsAndConditions: list[str] = Field(default_factory=list)
     lineItems: list[QuotationLineItemIn] = Field(min_length=1)
-    # Lettered-template fields -- all optional; a quotation created
-    # without templateKey renders in the original generic layout.
-    templateKey: str | None = None
-    clientRepresentative: str | None = Field(default=None, max_length=150)
-    subjectLine: str | None = Field(default=None, max_length=300)
-    projectReference: str | None = Field(default=None, max_length=300)
-    feeFrequency: str = Field(default="Lump Sum")
-    scopeItems: list[str] = Field(default_factory=list)
-    paymentTerms: list[str] = Field(default_factory=list)
-
-    @field_validator("templateKey")
-    @classmethod
-    def check_template_key(cls, value: str | None) -> str | None:
-        if value is not None and value not in QUOTATION_TEMPLATE_KEYS:
-            raise ValueError(f"templateKey must be one of {QUOTATION_TEMPLATE_KEYS}")
-        return value
-
-    @field_validator("feeFrequency")
-    @classmethod
-    def check_fee_frequency(cls, value: str) -> str:
-        if value not in FEE_FREQUENCIES:
-            raise ValueError(f"feeFrequency must be one of {FEE_FREQUENCIES}")
-        return value
 
 
 class QuotationUpdate(BaseModel):
     validity: date | None = None
-    taxRatePercent: float | None = Field(default=None, ge=0, le=100)
     discountAmount: float | None = Field(default=None, ge=0)
     notes: str | None = None
     termsAndConditions: list[str] | None = None
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
     status: str | None = None
     reason: str | None = None
-    clientRepresentative: str | None = Field(default=None, max_length=150)
-    subjectLine: str | None = Field(default=None, max_length=300)
-    projectReference: str | None = Field(default=None, max_length=300)
-    feeFrequency: str | None = None
-    scopeItems: list[str] | None = None
-    paymentTerms: list[str] | None = None
 
     @field_validator("status")
     @classmethod
     def check_status(cls, value: str | None) -> str | None:
         if value is not None and value not in QUOTATION_STATUSES:
             raise ValueError(f"status must be one of {QUOTATION_STATUSES}")
-        return value
-
-    @field_validator("feeFrequency")
-    @classmethod
-    def check_fee_frequency(cls, value: str | None) -> str | None:
-        if value is not None and value not in FEE_FREQUENCIES:
-            raise ValueError(f"feeFrequency must be one of {FEE_FREQUENCIES}")
         return value
 
 

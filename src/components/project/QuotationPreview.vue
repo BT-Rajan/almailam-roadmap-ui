@@ -13,8 +13,6 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import PricingSummary from '@/components/project/PricingSummary.vue'
-import QuotationLetterDesignPermits from '@/components/project/letters/QuotationLetterDesignPermits.vue'
-import QuotationLetterSupervision from '@/components/project/letters/QuotationLetterSupervision.vue'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
@@ -38,11 +36,6 @@ const emit = defineEmits<{
   saveAsFinal: [value: Partial<Quotation>]
 }>()
 
-const LETTER_COMPONENTS = {
-  'design-and-permits': QuotationLetterDesignPermits,
-  supervision: QuotationLetterSupervision,
-} as const
-
 const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'KWD', value: 'KWD' },
   { label: 'USD', value: 'USD' },
@@ -50,11 +43,7 @@ const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'EUR', value: 'EUR' },
 ]
 
-// Same edit-mode flow for both quotation flavours: click Edit to unlock
-// changes, click Save/Save as Final to lock them back down. Lettered
-// letters were previously always-editable while in Draft status with no
-// explicit toggle -- this brings them in line with the generic layout
-// instead of leaving two different editing conventions in the same tab.
+// Click Edit to unlock changes, Save/Save as Final to lock them back down.
 const isEditing = ref(false)
 
 interface DraftLineItem {
@@ -68,7 +57,6 @@ function draftFromQuotation(quotation: Quotation) {
   return {
     validity: quotation.validity,
     currency: quotation.currency,
-    taxRatePercent: quotation.taxRatePercent,
     discountAmount: quotation.discountAmount,
     notes: quotation.notes,
     termsText: quotation.termsAndConditions.join('\n'),
@@ -110,7 +98,6 @@ function buildPatch(): Partial<Quotation> {
   return {
     validity: draft.validity,
     currency: draft.currency,
-    taxRatePercent: draft.taxRatePercent,
     discountAmount: draft.discountAmount,
     notes: draft.notes,
     termsAndConditions: draft.termsText
@@ -163,16 +150,6 @@ function saveAsFinal(): void {
         </div>
       </div>
 
-      <template v-if="quotation.templateKey">
-        <component
-          :is="LETTER_COMPONENTS[quotation.templateKey]"
-          :quotation="quotation"
-          :editable="isEditing"
-          @patch="(v) => emit('patch', v)"
-        />
-      </template>
-
-      <template v-else>
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
@@ -271,14 +248,6 @@ function saveAsFinal(): void {
 
       <div v-if="isEditing" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <NumberInput
-          :model-value="draft.taxRatePercent"
-          label="Tax Rate (%)"
-          :min="0"
-          :max="100"
-          step="0.1"
-          @update:model-value="draft.taxRatePercent = Number($event)"
-        />
-        <NumberInput
           :model-value="draft.discountAmount"
           label="Discount Amount"
           :min="0"
@@ -323,7 +292,6 @@ function saveAsFinal(): void {
           </li>
         </ul>
       </div>
-      </template>
     </div>
   </Card>
 </template>
