@@ -54,16 +54,6 @@ export interface ContractCreateInput {
   clientRepresentative: string
   scopeSummary: string
   clauses: ContractClauseInput[]
-  templateKey?: string
-  isBilingual?: boolean
-  subjectLineAr?: string
-  subjectLineEn?: string
-  projectReference?: string
-  feeFrequency?: string
-  scopeItemsAr?: string[]
-  scopeItemsEn?: string[]
-  paymentTermsAr?: string[]
-  paymentTermsEn?: string[]
 }
 
 /**
@@ -118,7 +108,7 @@ async function deleteContract(contractId: string): Promise<void> {
 }
 
 /**
- * Lock a lettered contract's content and mark it ready to print.
+ * Lock a contract's content and mark it ready to print.
  */
 async function finalizeContract(contractId: string): Promise<Contract> {
   try {

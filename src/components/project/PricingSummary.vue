@@ -33,11 +33,6 @@ const pricing = computed(() => calculateQuotationPricing(props.quotation))
         <span class="font-medium text-danger-700">-{{ formatCurrency(pricing.discount, quotation.currency) }}</span>
       </div>
 
-      <div class="flex items-center justify-between text-text-secondary">
-        <span>VAT ({{ pricing.taxRatePercent }}%)</span>
-        <span class="font-medium text-text-primary">{{ formatCurrency(pricing.taxAmount, quotation.currency) }}</span>
-      </div>
-
       <Divider />
 
       <div class="flex items-center justify-between">

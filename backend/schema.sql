@@ -446,20 +446,14 @@ CREATE TABLE IF NOT EXISTS quotations (
     status              ENUM('Draft','Approved','Rejected','Expired') NOT NULL DEFAULT 'Draft',
     currency            VARCHAR(10) NOT NULL DEFAULT 'KWD',
     prepared_by         BIGINT UNSIGNED NOT NULL,
-    tax_rate_percent    DECIMAL(5,2) NOT NULL DEFAULT 0,
     discount_amount     DECIMAL(12,2) NOT NULL DEFAULT 0,
     notes               TEXT NULL,
     terms_and_conditions JSON NOT NULL,
     amount              DECIMAL(12,2) NOT NULL DEFAULT 0,
-    -- Lettered-template fields (migration 0024) -- see the Quotation
-    -- model docstring for why these are free text rather than FKs.
-    template_key        VARCHAR(40) NULL,
-    client_representative VARCHAR(150) NULL,
-    subject_line        VARCHAR(300) NULL,
-    project_reference   VARCHAR(300) NULL,
-    fee_frequency       ENUM('Lump Sum','Monthly') NOT NULL DEFAULT 'Lump Sum',
-    scope_items         JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    payment_terms       JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    -- NULL while still an editable draft; set once saved as Final,
+    -- after which content is locked (migration 0053 removed the
+    -- lettered-template fields this used to also gate -- the lock
+    -- itself applies to every quotation, not just those).
     finalized_at        DATETIME NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -511,18 +505,10 @@ CREATE TABLE IF NOT EXISTS contracts (
     prepared_by             BIGINT UNSIGNED NOT NULL,
     client_representative   VARCHAR(150) NOT NULL,
     scope_summary           TEXT NOT NULL,
-    -- Lettered-template fields (migration 0024) -- see the Contract
-    -- model docstring for why these are free text rather than FKs.
-    template_key            VARCHAR(40) NULL,
-    is_bilingual            TINYINT(1) NOT NULL DEFAULT 0,
-    subject_line_ar         VARCHAR(300) NULL,
-    subject_line_en         VARCHAR(300) NULL,
-    project_reference       VARCHAR(300) NULL,
-    fee_frequency           ENUM('Lump Sum','Monthly') NOT NULL DEFAULT 'Lump Sum',
-    scope_items_ar          JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    scope_items_en          JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    payment_terms_ar        JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    payment_terms_en        JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    -- NULL while still an editable draft; set once saved as Final,
+    -- after which content is locked (migration 0053 removed the
+    -- lettered-template fields this used to also gate -- the lock
+    -- itself applies to every contract, not just those).
     finalized_at            DATETIME NULL,
     created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

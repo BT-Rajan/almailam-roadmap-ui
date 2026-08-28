@@ -12,8 +12,6 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import ContractLetterDesignPermits from '@/components/project/letters/ContractLetterDesignPermits.vue'
-import ContractLetterSupervision from '@/components/project/letters/ContractLetterSupervision.vue'
 import type { Client } from '@/types/Client'
 import type { Contract, ContractClause } from '@/types/Contract'
 import type { Project } from '@/types/Project'
@@ -37,11 +35,6 @@ const emit = defineEmits<{
   saveAsFinal: [value: Partial<Contract>]
 }>()
 
-const LETTER_COMPONENTS = {
-  'design-and-permits': ContractLetterDesignPermits,
-  supervision: ContractLetterSupervision,
-} as const
-
 const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'KWD', value: 'KWD' },
   { label: 'USD', value: 'USD' },
@@ -49,7 +42,7 @@ const CURRENCY_OPTIONS: SelectOption[] = [
 ]
 
 // Same edit-mode flow as QuotationPreview -- click Edit to unlock changes,
-// Save/Save as Final to lock them back down, for both contract flavours.
+// Save/Save as Final to lock them back down.
 const isEditing = ref(false)
 
 interface DraftClause {
@@ -152,16 +145,6 @@ function saveAsFinal(): void {
         </div>
       </div>
 
-      <template v-if="contract.templateKey">
-        <component
-          :is="LETTER_COMPONENTS[contract.templateKey]"
-          :contract="contract"
-          :editable="isEditing"
-          @patch="(v) => emit('patch', v)"
-        />
-      </template>
-
-      <template v-else>
       <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
         <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
@@ -262,7 +245,6 @@ function saveAsFinal(): void {
       <p class="no-print text-center text-xs text-text-muted">
         This is a prototype preview. Final legal documents are prepared and issued outside this system.
       </p>
-      </template>
     </div>
   </Card>
 </template>

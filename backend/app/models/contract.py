@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -8,13 +8,6 @@ from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 CONTRACT_STATUSES = ("Draft", "Signed", "Active", "Expired", "Terminated")
-
-# Selectable pre-written, bilingual contract letters (see the lettered
-# quotation templates this shares its source documents with). None keeps
-# the original free-form clause-list contract for anything not using a
-# lettered format.
-CONTRACT_TEMPLATE_KEYS = ("design-and-permits", "supervision")
-CONTRACT_FEE_FREQUENCIES = ("Lump Sum", "Monthly")
 
 
 class Contract(Base, TimestampMixin, SoftDeleteMixin):
@@ -48,28 +41,10 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin):
     # users table, so this stays free text rather than an FK.
     client_representative: Mapped[str] = mapped_column(String(150), nullable=False)
     scope_summary: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # --- Lettered-template fields --------------------------------------
-    # Which pre-written bilingual letter this contract is rendered into,
-    # if any (see QUOTATION for the parallel fields and why they're free
-    # text rather than derived from Client/Project).
-    template_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    # Rendered Arabic block first, then English block, in the same
-    # document -- both stored since the two aren't a mechanical
-    # translation of each other once a user edits either side.
-    is_bilingual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    subject_line_ar: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    subject_line_en: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    project_reference: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    fee_frequency: Mapped[str] = mapped_column(
-        Enum(*CONTRACT_FEE_FREQUENCIES, name="contract_fee_frequency"), nullable=False, default="Lump Sum"
-    )
-    scope_items_ar: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    scope_items_en: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    payment_terms_ar: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    payment_terms_en: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # NULL while still an editable draft; set once the user Saves, after
-    # which the free-text fields above lock and the document prints.
+    # NULL while still an editable draft; set once the user clicks Save
+    # as Final, after which content is locked and the document prints.
+    # A contract can't leave Draft status until this is set (see
+    # contract_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 

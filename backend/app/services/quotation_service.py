@@ -19,16 +19,13 @@ from app.services.number_series_service import next_number
 ENTITY_TYPE = "QUOTATION"
 
 
-def compute_amount(line_items: list[tuple], tax_rate_percent, discount_amount) -> Decimal:
+def compute_amount(line_items: list[tuple], discount_amount) -> Decimal:
     """line_items: iterable of (quantity, unit_price) pairs."""
     subtotal = sum(
         (Decimal(str(quantity)) * Decimal(str(unit_price)) for quantity, unit_price in line_items),
         Decimal("0"),
     )
-    after_discount = subtotal - Decimal(str(discount_amount))
-    return (after_discount * (Decimal("1") + Decimal(str(tax_rate_percent)) / Decimal("100"))).quantize(
-        Decimal("0.01")
-    )
+    return (subtotal - Decimal(str(discount_amount))).quantize(Decimal("0.01"))
 
 
 def _project_by_no(db: Session, project_no: str) -> Project:
@@ -124,9 +121,7 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     project = _project_by_no(db, payload.projectId)
     _assert_valid_client(db, project)
     project_service.assert_project_open_for_new_work(project)
-    amount = compute_amount(
-        [(item.quantity, item.unitPrice) for item in payload.lineItems], payload.taxRatePercent, payload.discountAmount
-    )
+    amount = compute_amount([(item.quantity, item.unitPrice) for item in payload.lineItems], payload.discountAmount)
 
     quotation = Quotation(
         quotation_no=next_number(db, "QUOTATION"),
@@ -135,18 +130,10 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         validity=payload.validity,
         currency=payload.currency,
         prepared_by=user_id,
-        tax_rate_percent=payload.taxRatePercent,
         discount_amount=payload.discountAmount,
         notes=payload.notes,
         terms_and_conditions=payload.termsAndConditions,
         amount=amount,
-        template_key=payload.templateKey,
-        client_representative=payload.clientRepresentative,
-        subject_line=payload.subjectLine,
-        project_reference=payload.projectReference,
-        fee_frequency=payload.feeFrequency,
-        scope_items=payload.scopeItems,
-        payment_terms=payload.paymentTerms,
     )
     db.add(quotation)
     db.flush()
@@ -183,41 +170,20 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     return quotation
 
 
-_QUOTATION_CONTENT_FIELDS = (
-    "validity", "taxRatePercent", "discountAmount", "notes", "termsAndConditions", "lineItems",
-    "clientRepresentative", "subjectLine", "projectReference", "feeFrequency", "scopeItems", "paymentTerms",
-)
+_QUOTATION_CONTENT_FIELDS = ("validity", "discountAmount", "notes", "termsAndConditions", "lineItems")
 
 
 def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Quotation:
     quotation = get_quotation(db, quotation_no)
     # The finalize lock only protects document *content* -- status moves
-    # (Send/Approve/Reject) stay allowed on a finalized letter, since
+    # (Send/Approve/Reject) stay allowed on a finalized quotation, since
     # finalizing is what makes it ready to send in the first place.
     touches_content = any(getattr(payload, field, None) is not None for field in _QUOTATION_CONTENT_FIELDS)
     if quotation.finalized_at is not None and touches_content:
         raise ValidationAppError(
-            "This quotation letter has been finalized and its content is locked. Reopen it first to make changes."
+            "This quotation has been finalized and its content is locked. Reopen it first to make changes."
         )
     changes: dict[str, tuple] = {}
-
-    for api_field, attr in (
-        ("clientRepresentative", "client_representative"),
-        ("subjectLine", "subject_line"),
-        ("projectReference", "project_reference"),
-        ("feeFrequency", "fee_frequency"),
-    ):
-        value = getattr(payload, api_field)
-        if value is not None:
-            old = getattr(quotation, attr)
-            if old != value:
-                changes[attr] = (old, value)
-            setattr(quotation, attr, value)
-
-    if payload.scopeItems is not None:
-        quotation.scope_items = payload.scopeItems
-    if payload.paymentTerms is not None:
-        quotation.payment_terms = payload.paymentTerms
 
     if payload.validity is not None and payload.validity != quotation.validity:
         changes["validity"] = (quotation.validity, payload.validity)
@@ -228,11 +194,7 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
     if payload.termsAndConditions is not None:
         quotation.terms_and_conditions = payload.termsAndConditions
 
-    tax_rate = payload.taxRatePercent if payload.taxRatePercent is not None else quotation.tax_rate_percent
     discount = payload.discountAmount if payload.discountAmount is not None else quotation.discount_amount
-    if payload.taxRatePercent is not None:
-        changes["tax_rate_percent"] = (quotation.tax_rate_percent, payload.taxRatePercent)
-        quotation.tax_rate_percent = payload.taxRatePercent
     if payload.discountAmount is not None:
         changes["discount_amount"] = (quotation.discount_amount, payload.discountAmount)
         quotation.discount_amount = payload.discountAmount
@@ -254,7 +216,7 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
             (float(i.quantity), float(i.unit_price)) for i in get_line_items(db, quotation.id)
         ]
 
-    new_amount = compute_amount(line_items_for_calc, tax_rate, discount)
+    new_amount = compute_amount(line_items_for_calc, discount)
     if new_amount != quotation.amount:
         changes["amount"] = (quotation.amount, new_amount)
         quotation.amount = new_amount
@@ -342,7 +304,7 @@ def finalize_quotation(db: Session, quotation_no: str, user_id: int) -> Quotatio
 
 
 def reopen_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
-    """Unlock a finalized quotation letter for further editing. Only
+    """Unlock a finalized quotation for further editing. Only
     allowed while status is still 'Draft' -- once a decision has been
     recorded on it, its locked content can't be silently pulled back
     into an editable state (move it back to Draft via Rejected/Expired
