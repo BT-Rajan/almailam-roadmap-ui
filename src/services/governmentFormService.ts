@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { ProjectDocument } from '@/types/Document'
@@ -96,16 +97,35 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
  * Administration > Government Forms. Raw fetch + blob, same pattern as
  * documentService.downloadDocument, since apiClient only parses JSON.
  */
+/**
+ * Render a form's {{token}} template with the given context straight to
+ * a downloadable PDF -- nothing saved, no project needed. The admin-
+ * facing counterpart to fillForm above (which requires a project and
+ * saves a Document there); this is for trying a template out from
+ * Administration > Government Forms. Raw fetch + blob, same pattern as
+ * documentService.downloadDocument, since apiClient only parses JSON.
+ */
 async function renderPdf(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {
-  try {
-    const response = await fetch(`/api/government/forms/${formId}/render-pdf`, {
+  const authStore = useAuthStore()
+
+  const doRequest = () =>
+    fetch(`/api/government/forms/${formId}/render-pdf`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
+        ...(authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : {}),
       },
+      credentials: 'include',
       body: JSON.stringify(input),
     })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
 
     if (!response.ok) {
       throw new Error(`PDF generation failed with status ${response.status}`)
@@ -125,16 +145,26 @@ async function renderPdf(formId: string, input: { context: Record<string, string
  * every other file upload in this codebase (see e.g. documentService).
  */
 async function uploadSampleFile(formId: string, file: File): Promise<GovernmentForm> {
+  const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('file', file)
-  try {
-    const response = await fetch(`/api/government/forms/${formId}/sample-file`, {
+
+  const doRequest = () =>
+    fetch(`/api/government/forms/${formId}/sample-file`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
-      },
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
       body: formData,
     })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+
     if (!response.ok) {
       throw new Error(`Upload failed with status ${response.status}`)
     }
