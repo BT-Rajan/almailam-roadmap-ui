@@ -153,11 +153,12 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
       // already has the full submission list/create/detail experience, so
-      // it becomes this stage's Documents tab content unchanged.
+      // it becomes this stage's Documents tab content unchanged. No
+      // Payments tab here (removed) -- financial tracking stays reachable
+      // from Contract/Design, Approvals & Permits doesn't surface it.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'government', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     default:
@@ -328,7 +329,12 @@ async function handleConfirmDelete(): Promise<void> {
         />
       </div>
 
-      <WorkflowProgress class="no-print" :current-stage="project.currentStage" @navigate-tab="activeTab = $event" />
+      <WorkflowProgress
+        class="no-print"
+        :current-stage="project.currentStage"
+        :type-category-name="project.typeCategoryName"
+        @navigate-tab="activeTab = $event"
+      />
 
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 

@@ -8,9 +8,21 @@ import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 interface Props {
   currentStage: WorkflowStage
+  // The project's Additional Services engagement type (Project.typeCategoryName,
+  // a plain name snapshot from the New Project wizard's type-activity picker --
+  // see backend/app/models/project.py). When it's the "Supervision" category
+  // (case-insensitive -- an admin could rename it), a 6th step is appended to
+  // the stepper below. This is purely a display addition: Supervision was
+  // never made a real WorkflowStage/current_stage value, so it has no
+  // complete/current status of its own and no stage tab -- it always renders
+  // "upcoming" and, when clicked, jumps to Overview, where the Additional
+  // Services section lists the selected Supervision activities.
+  typeCategoryName?: string | null
 }
 
 const props = defineProps<Props>()
+
+const hasSupervisionStage = computed(() => props.typeCategoryName?.trim().toLowerCase() === 'supervision')
 
 const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
@@ -32,7 +44,10 @@ const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   'Government Submission': 'government',
 }
 
-const steps = WORKFLOW_STAGES.map((stage) => ({ label: getWorkflowStageLabel(stage) }))
+const steps = computed(() => {
+  const base = WORKFLOW_STAGES.map((stage) => ({ label: getWorkflowStageLabel(stage) }))
+  return hasSupervisionStage.value ? [...base, { label: 'Supervision' }] : base
+})
 
 const currentStepIndex = computed(() => {
   const index = WORKFLOW_STAGES.indexOf(props.currentStage)
@@ -44,7 +59,10 @@ const currentStepIndex = computed(() => {
 const isStepNavigable = (): boolean => true
 
 function handleSelect(index: number): void {
-  emit('navigate-tab', STAGE_TABS[WORKFLOW_STAGES[index]])
+  const stage = WORKFLOW_STAGES[index]
+  // The extra Supervision step (index === WORKFLOW_STAGES.length) has no
+  // WorkflowStage/STAGE_TABS entry of its own -- see typeCategoryName above.
+  emit('navigate-tab', stage ? STAGE_TABS[stage] : 'overview')
 }
 </script>
 
@@ -54,7 +72,7 @@ function handleSelect(index: number): void {
       <h3 class="text-sm font-semibold text-text-primary">Workflow Progress</h3>
     </template>
     <div class="overflow-x-auto pb-1">
-      <div class="min-w-[720px]">
+      <div :class="hasSupervisionStage ? 'min-w-[840px]' : 'min-w-[720px]'">
         <Stepper
           :steps="steps"
           :current-step="currentStepIndex"
