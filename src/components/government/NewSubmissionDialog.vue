@@ -11,6 +11,7 @@ import type { SubmissionCreateInput } from '@/services/governmentSubmissionServi
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
+import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { validators } from '@/utils/validators'
 
 const props = defineProps<{
@@ -54,24 +55,46 @@ const authorityOptions = computed<SelectOption[]>(() =>
   props.authorities.map((authority) => ({ label: authority.name, value: authority.id })),
 )
 
+const selectedProject = computed(() => props.projects.find((project) => project.id === form.projectId))
+
 // A form always belongs to exactly one authority -- narrowing the list
 // this way means the person can never end up picking a mismatched pair
 // (the backend would reject it anyway, but there's no reason to let
 // them get that far).
+const formsForAuthority = computed(() => props.forms.filter((formItem) => formItem.authorityId === form.authorityId))
+
+// Further narrowed to forms actually relevant to this project's service
+// (Administration > Service Document Map), same rule the Overview tab's
+// Required Documents card already uses -- keeps "which form applies
+// here" answered one consistent way everywhere it's asked.
+const scopedForms = computed(() =>
+  selectedProject.value
+    ? formsForAuthority.value.filter((formItem) => formMatchesProjectService(formItem, selectedProject.value!.service))
+    : formsForAuthority.value,
+)
+
 const formOptions = computed<SelectOption[]>(() =>
-  props.forms
-    .filter((formItem) => formItem.authorityId === form.authorityId)
-    .map((formItem) => ({ label: `${formItem.formCode} — ${formItem.title}`, value: formItem.id })),
+  scopedForms.value.map((formItem) => ({ label: `${formItem.formCode} — ${formItem.title}`, value: formItem.id })),
+)
+
+// Distinguishes "this authority has no forms at all" from "none of this
+// authority's forms are mapped to this project's service" -- the second
+// is fixable from Administration > Service Document Map, worth saying
+// so explicitly rather than just showing an empty dropdown either way.
+const scopeMismatchHint = computed(() =>
+  form.authorityId && formsForAuthority.value.length > 0 && scopedForms.value.length === 0
+    ? "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map."
+    : undefined,
 )
 
 const selectedForm = computed(() => props.forms.find((formItem) => formItem.id === form.formId))
 
 watch(
-  () => form.authorityId,
+  () => [form.authorityId, form.projectId],
   () => {
-    // Changing the authority invalidates whatever form was selected
-    // under the old one -- clear it rather than silently keep an
-    // orphaned selection that no longer matches any visible option.
+    // Changing the authority or project can invalidate whatever form was
+    // selected under the old pair -- clear it rather than silently keep
+    // an orphaned selection that no longer matches any visible option.
     form.formId = ''
   },
 )
@@ -115,7 +138,7 @@ function handleConfirm(): void {
           :disabled="!form.authorityId"
           :options="formOptions"
           :error="errors.formId"
-          :hint="!form.authorityId ? 'Select an authority first' : undefined"
+          :hint="!form.authorityId ? 'Select an authority first' : scopeMismatchHint"
         />
       </div>
 

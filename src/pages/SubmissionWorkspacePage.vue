@@ -213,6 +213,7 @@ const proofOfResponseOutcome = ref<ResponseOutcome>('Approved')
 const OUTCOME_OPTIONS: SelectOption[] = [
   { label: 'Approved', value: 'Approved' },
   { label: 'Rejected', value: 'Rejected' },
+  { label: 'No Response', value: 'No Response' },
 ]
 
 function openProofOfResponseDialog(): void {
@@ -417,7 +418,7 @@ async function handleMoveToDraft(): Promise<void> {
             ref="proofOfSubmissionInput"
             type="file"
             class="hidden"
-            accept=".pdf,.doc,.docx,.png,.jpg"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
             @change="handleProofOfSubmissionUpload"
           />
         </div>
@@ -476,7 +477,7 @@ async function handleMoveToDraft(): Promise<void> {
           </div>
           <StatusBadge
             :label="`Response: ${submission.responseOutcome}`"
-            :variant="submission.responseOutcome === 'Approved' ? 'success' : 'danger'"
+            :variant="submission.responseOutcome === 'Approved' ? 'success' : submission.responseOutcome === 'Rejected' ? 'danger' : 'warning'"
           />
         </div>
         <div v-else class="flex flex-col gap-2">
@@ -536,7 +537,7 @@ async function handleMoveToDraft(): Promise<void> {
           <label class="mb-1.5 block text-sm font-medium text-text-secondary">Proof of response document</label>
           <input
             type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
             class="block w-full text-sm text-text-secondary"
             @change="handleProofOfResponseSelect(($event.target as HTMLInputElement).files?.[0])"
           />

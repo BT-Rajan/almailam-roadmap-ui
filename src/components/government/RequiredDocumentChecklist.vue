@@ -78,7 +78,7 @@ function handleFileChange(documentId: number, event: Event): void {
             <input
               type="file"
               class="hidden"
-              accept=".pdf,.doc,.docx,.dwg,.xlsx,.png,.jpg"
+              accept=".pdf,.doc,.docx,.dwg,.xlsx,.png,.jpg,.jpeg,.tiff,.tif"
               @change="handleFileChange(document.id, $event)"
             />
           </label>

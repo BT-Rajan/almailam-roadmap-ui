@@ -9,7 +9,7 @@ export type SubmissionStatus =
 
 export type RequiredDocumentStatus = 'Pending' | 'Uploaded' | 'Verified'
 
-export type ResponseOutcome = 'Approved' | 'Rejected'
+export type ResponseOutcome = 'Approved' | 'Rejected' | 'No Response'
 
 export interface SubmissionDocument {
   id: number

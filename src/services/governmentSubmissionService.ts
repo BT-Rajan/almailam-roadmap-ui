@@ -178,7 +178,7 @@ async function downloadProofOfSubmission(submissionId: string): Promise<Blob> {
 
 /**
  * Upload proof of the authority's response, along with the outcome it
- * conveys (Approved/Rejected). Doesn't change status by itself.
+ * conveys (Approved/Rejected/No Response). Doesn't change status by itself.
  */
 async function uploadProofOfResponse(
   submissionId: string,

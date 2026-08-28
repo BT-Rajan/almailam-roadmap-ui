@@ -14,12 +14,14 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { documentService } from '@/services/documentService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useProjectFormStore } from '@/stores/projectFormStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentForm, ProjectFormEntry, ProjectFormEntryStatus } from '@/types/Government'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 
 const props = defineProps<{
   projectId: string
@@ -29,7 +31,10 @@ const props = defineProps<{
 const router = useRouter()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectFormStore = useProjectFormStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
+
+const project = computed(() => projectStore.projects.find((item) => item.id === props.projectId))
 
 const STATUS_OPTIONS: SelectOption[] = [
   'Draft',
@@ -51,11 +56,32 @@ const authorityForms = computed(() =>
   ),
 )
 
+// Narrowed further to forms actually relevant to this project's service
+// (Administration > Service Document Map), same rule the Overview tab's
+// Required Documents card and the New Submission dialog's Form picker
+// both already use -- keeps "which form applies here" answered one
+// consistent way everywhere it's asked.
+const scopedAuthorityForms = computed(() =>
+  project.value
+    ? authorityForms.value.filter((form) => formMatchesProjectService(form, project.value!.service))
+    : authorityForms.value,
+)
+
+// Distinguishes "no fillable forms at all for this authority" (the
+// EmptyState below) from "this authority's forms just aren't mapped to
+// this project's service" -- the second is fixable from Administration
+// > Service Document Map, worth saying so explicitly.
+const scopeMismatchHint = computed(() =>
+  authorityForms.value.length > 0 && scopedAuthorityForms.value.length === 0
+    ? "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map."
+    : undefined,
+)
+
 const filedEntries = computed(() => projectFormStore.entriesByAuthority(props.authorityId))
 
 const availableForms = computed(() => {
   const filedFormIds = new Set(filedEntries.value.map((entry) => entry.formId))
-  return authorityForms.value.filter((form) => !filedFormIds.has(form.id))
+  return scopedAuthorityForms.value.filter((form) => !filedFormIds.has(form.id))
 })
 
 const availableFormOptions = computed<SelectOption[]>(() =>
@@ -199,7 +225,8 @@ async function confirmDelete(): Promise<void> {
         </div>
         <BaseButton :icon="Plus" :disabled="!selectedNewFormId" @click="openAddDialog">Add Form</BaseButton>
       </div>
-      <p v-if="availableForms.length === 0" class="text-xs text-text-muted">
+      <p v-if="scopeMismatchHint" class="text-xs text-text-muted">{{ scopeMismatchHint }}</p>
+      <p v-else-if="availableForms.length === 0" class="text-xs text-text-muted">
         Every fillable form for this authority has already been added to this project.
       </p>
 
