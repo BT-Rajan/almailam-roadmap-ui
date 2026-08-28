@@ -14,4 +14,10 @@ app.use(router)
 
 useThemeStore().initializeTheme()
 
-app.mount('#app')
+// Wait for the router's initial navigation (including the beforeEach guard's
+// auth redirect, e.g. '/' -> '/login') to resolve before mounting. Mounting
+// immediately would render App.vue against the unmatched "start location"
+// for one tick, whose route.meta is empty -- see App.vue's layout fallback.
+router.isReady().then(() => {
+  app.mount('#app')
+})
