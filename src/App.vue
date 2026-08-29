@@ -18,10 +18,14 @@ const route = useRoute()
 useIdleLogout()
 
 const layout = computed(() => {
-  if (route.meta.layout === 'auth') return AuthLayout
   if (route.meta.layout === 'customer-portal') return CustomerPortalLayout
   if (route.meta.layout === 'site-portal') return SitePortalLayout
-  return DashboardLayout
+  if (route.meta.layout === 'dashboard') return DashboardLayout
+  // Anything else -- including the unmatched start location before the
+  // router's initial navigation resolves -- falls back to the unauthenticated
+  // shell rather than the dashboard shell, so an unmatched route never
+  // flashes authenticated-looking UI.
+  return AuthLayout
 })
 </script>
 

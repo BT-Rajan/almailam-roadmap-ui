@@ -164,11 +164,12 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
       // already has the full submission list/create/detail experience, so
-      // it becomes this stage's Documents tab content unchanged.
+      // it becomes this stage's Documents tab content unchanged. No
+      // Payments tab here (removed) -- financial tracking stays reachable
+      // from Contract/Design, Approvals & Permits doesn't surface it.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'government', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     default:

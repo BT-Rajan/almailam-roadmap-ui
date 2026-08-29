@@ -229,13 +229,22 @@ async function addVersion(documentId: string, file: File, notes?: string): Promi
  * Download a document from backend API
  */
 async function downloadDocument(documentId: string): Promise<Blob> {
-  try {
-    const response = await fetch(`/api/documents/${documentId}/download`, {
+  const authStore = useAuthStore()
+
+  const doRequest = () =>
+    fetch(`/api/documents/${documentId}/download`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
-      },
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
     })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
 
     if (!response.ok) {
       throw new Error(`Download failed with status ${response.status}`)
@@ -254,13 +263,22 @@ async function downloadDocument(documentId: string): Promise<Blob> {
  * the frontend ever called it.
  */
 async function downloadVersion(documentId: string, versionId: string): Promise<Blob> {
-  try {
-    const response = await fetch(`/api/documents/${documentId}/versions/${versionId}/download`, {
+  const authStore = useAuthStore()
+
+  const doRequest = () =>
+    fetch(`/api/documents/${documentId}/versions/${versionId}/download`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('almailam-access-token') || ''}`,
-      },
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
     })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
 
     if (!response.ok) {
       throw new Error(`Download failed with status ${response.status}`)
