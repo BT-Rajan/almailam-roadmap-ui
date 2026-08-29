@@ -26,35 +26,33 @@ const emit = defineEmits<{
 // "Add Activities" is clicked, so closing the dialog (Escape, backdrop
 // click, Cancel) without confirming leaves the wizard's actual selection
 // alone. Same pattern as ServicePickerDialog.
-const selectedCategoryId = ref<string | undefined>(undefined)
+//
+// A project can now include activities from more than one category at
+// once (e.g. both Design and Supervision) -- viewedCategoryId is just
+// which category's checklist is currently on screen, not a constraint on
+// what's selected. selectedActivityIds accumulates across every category
+// the user has visited, and activity ids are unique across the whole
+// catalog, so looking up which category a selected id belongs to (see
+// selectedItems below) never needs viewedCategoryId's help.
+const viewedCategoryId = ref<string | undefined>(undefined)
 const selectedActivityIds = ref<string[]>([])
 
-// Re-seed the draft from whatever the caller already has selected every
-// time the dialog opens -- unlike the service picker, only one category
-// can be active at a time here, so re-opening restores that one category
-// and its checked activities rather than a whole tree of expanded state.
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    selectedCategoryId.value = props.selected[0]?.categoryId ?? props.categories[0]?.id
+    viewedCategoryId.value = props.selected[0]?.categoryId ?? props.categories[0]?.id
     selectedActivityIds.value = props.selected.map((item) => item.activityId)
   },
   { immediate: true },
 )
 
-function selectedCategory(): TypeActivityCategory | undefined {
-  return props.categories.find((category) => category.id === selectedCategoryId.value)
+function viewedCategory(): TypeActivityCategory | undefined {
+  return props.categories.find((category) => category.id === viewedCategoryId.value)
 }
 
-// Switching category clears any activities checked under the previous
-// one -- an activity id only means something within its own category's
-// list, and a project has exactly one engagement type, not one per
-// category ever considered along the way.
-function selectCategory(categoryId: string): void {
-  if (categoryId === selectedCategoryId.value) return
-  selectedCategoryId.value = categoryId
-  selectedActivityIds.value = []
+function viewCategory(categoryId: string): void {
+  viewedCategoryId.value = categoryId
 }
 
 function isActivitySelected(activityId: string): boolean {
@@ -67,18 +65,25 @@ function toggleActivity(activityId: string): void {
     : [...selectedActivityIds.value, activityId]
 }
 
+function categorySelectedCount(category: TypeActivityCategory): number {
+  return category.activities.filter((activity) => isActivitySelected(activity.id)).length
+}
+
 function selectedItems(): SelectedTypeActivity[] {
-  const category = selectedCategory()
-  if (!category) return []
-  return category.activities
-    .filter((activity) => isActivitySelected(activity.id))
-    .map((activity) => ({
-      categoryId: category.id,
-      categoryName: category.name,
-      activityId: activity.id,
-      activityName: activity.name,
-      cost: activity.cost,
-    }))
+  const items: SelectedTypeActivity[] = []
+  for (const category of props.categories) {
+    for (const activity of category.activities) {
+      if (!isActivitySelected(activity.id)) continue
+      items.push({
+        categoryId: category.id,
+        categoryName: category.name,
+        activityId: activity.id,
+        activityName: activity.name,
+        cost: activity.cost,
+      })
+    }
+  }
+  return items
 }
 
 function closeDialog(): void {
@@ -97,36 +102,42 @@ function handleConfirm(): void {
       <div>
         <p class="mb-2 text-sm font-medium text-text-secondary">Engagement Type</p>
         <p v-if="categories.length === 0" class="text-sm text-text-muted">No type categories in the catalog yet.</p>
-        <div v-else class="flex flex-wrap gap-2" role="radiogroup" aria-label="Engagement type category">
+        <div v-else class="flex flex-wrap gap-2">
           <button
             v-for="category in categories"
             :key="category.id"
             type="button"
-            role="radio"
-            :aria-checked="category.id === selectedCategoryId"
+            role="tab"
+            :aria-selected="category.id === viewedCategoryId"
             class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
             :class="
-              category.id === selectedCategoryId
+              category.id === viewedCategoryId
                 ? 'border-primary-500 bg-primary-50 text-primary-700'
                 : 'border-border-light text-text-secondary hover:border-primary-300'
             "
-            @click="selectCategory(category.id)"
+            @click="viewCategory(category.id)"
           >
             {{ category.name }}
+            <span v-if="categorySelectedCount(category) > 0" class="ml-1 text-xs text-primary-600">
+              ({{ categorySelectedCount(category) }})
+            </span>
           </button>
         </div>
+        <p class="mt-1.5 text-xs text-text-muted">
+          Activities can be checked across more than one engagement type -- e.g. both Design and Supervision.
+        </p>
       </div>
 
-      <div v-if="selectedCategory()" class="flex flex-col rounded-lg border border-border-light">
+      <div v-if="viewedCategory()" class="flex flex-col rounded-lg border border-border-light">
         <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-          {{ selectedCategory()!.name }} Activities
+          {{ viewedCategory()!.name }} Activities
         </div>
         <div class="max-h-72 overflow-y-auto p-2">
-          <p v-if="selectedCategory()!.activities.length === 0" class="p-2 text-sm text-text-muted">
+          <p v-if="viewedCategory()!.activities.length === 0" class="p-2 text-sm text-text-muted">
             No activities under this category yet.
           </p>
           <div
-            v-for="activity in selectedCategory()!.activities"
+            v-for="activity in viewedCategory()!.activities"
             :key="activity.id"
             class="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-bg-hover"
           >

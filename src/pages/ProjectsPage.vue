@@ -54,6 +54,7 @@ const STAGE_OPTIONS: SelectOption[] = [
   { label: 'Quotation', value: 'Quotation' },
   { label: 'Contract', value: 'Contract' },
   { label: 'Design', value: 'Design' },
+  { label: 'Supervision', value: 'Supervision' },
   { label: 'Approvals & Permits', value: 'Government Submission' },
 ]
 

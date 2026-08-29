@@ -24,26 +24,34 @@ export const PROJECT_SERVICES: string[] = [
 // Merged into a single "Review" stage -- a correction cycle during
 // review is logged as a note on the project instead of a separate
 // stage hop. "Execution & Tracking" and "Completed" were removed
-// entirely -- "Government Submission" is now the terminal stage. See
+// entirely -- "Government Submission" is now the terminal stage.
+// "Supervision" sits alongside "Design" -- a project can include
+// either, both, or neither (Project.includesDesign/includesSupervision),
+// so this is deliberately the permissive superset of every structurally
+// possible edge, same as the backend's own table; whether "Design"/
+// "Supervision" specifically applies to a given project is enforced
+// server-side, not by which options this offers. See
 // backend/app/core/status_transitions.py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Requirement: ['Quotation'],
   Quotation: ['Contract'],
-  Contract: ['Design'],
-  Design: ['Government Submission'],
-  // The one reopening path backward -- an authority's feedback during
-  // Government Submission can require design changes. Requires a
-  // reason (see isStageReasonRequired below), unlike the normal
-  // forward flow.
-  'Government Submission': ['Design'],
+  Contract: ['Design', 'Supervision', 'Government Submission'],
+  Design: ['Supervision', 'Government Submission'],
+  Supervision: ['Government Submission'],
+  // The reopening paths backward -- an authority's feedback during
+  // Government Submission can require design or supervision changes.
+  // Requires a reason (see isStageReasonRequired below), unlike the
+  // normal forward flow.
+  'Government Submission': ['Design', 'Supervision'],
 }
 
-// "Government Submission" -> "Design" is a correction (an authority's
-// feedback requiring design changes), not the normal forward flow that
-// also targets "Design" (from "Contract"), so this has to be a (from,
-// to) check rather than a flat set of target states.
+// "Government Submission" -> "Design"/"Supervision" is a correction (an
+// authority's feedback requiring changes), not the normal forward flow
+// that also targets those same stages (from "Contract"/"Design"), so
+// this has to be a (from, to) check rather than a flat set of target
+// states.
 export function isStageReasonRequired(from: string, to: string): boolean {
-  if (from === 'Government Submission' && to === 'Design') return true
+  if (from === 'Government Submission' && (to === 'Design' || to === 'Supervision')) return true
   return false
 }
 

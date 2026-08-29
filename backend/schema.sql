@@ -264,8 +264,10 @@ CREATE TABLE IF NOT EXISTS projects (
     -- history that stage now manages. "Execution & Tracking" and
     -- "Completed" were removed entirely (migration 0051), along with
     -- the 5-gate Approval Process that used to gate entry into them --
-    -- "Government Submission" is now the terminal stage.
-    current_stage   ENUM('Requirement','Quotation','Contract','Design','Government Submission')
+    -- "Government Submission" is now the terminal stage. "Supervision"
+    -- (migration 0056) sits alongside "Design" -- a project can include
+    -- either, both, or neither (see project_service.compute_stage_flags).
+    current_stage   ENUM('Requirement','Quotation','Contract','Design','Supervision','Government Submission')
                         NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
@@ -281,7 +283,6 @@ CREATE TABLE IF NOT EXISTS projects (
     -- hold -- each becomes a mandatory upload requirement on the
     -- Documents tab (see ProjectDocumentsTab.vue's permitChecklist).
     required_permit_documents JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    type_category_name  VARCHAR(150) NULL,
     type_activity_total DECIMAL(12,2) NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -957,6 +958,11 @@ CREATE TABLE IF NOT EXISTS project_selected_type_activities (
     id                     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id             BIGINT UNSIGNED NOT NULL,
     type_activity_item_id  VARCHAR(20) NOT NULL,
+    -- Which category (Design/Supervision/etc) this row's activity came
+    -- from -- migration 0056, once a project could span more than one
+    -- category, replacing the single type_category_name that used to
+    -- live on the project itself.
+    category_name          VARCHAR(150) NOT NULL DEFAULT '',
     activity_name          VARCHAR(150) NOT NULL,
     cost                   DECIMAL(12,2) NOT NULL,
     is_covered_by_service  TINYINT(1) NOT NULL DEFAULT 0,

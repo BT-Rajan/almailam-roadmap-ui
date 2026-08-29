@@ -66,16 +66,21 @@ class ProjectOut(BaseModel):
     # prefill line items from the services actually picked for the project.
     selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
     serviceTotal: float | None = None
-    # The engagement type picked at the wizard's final step, and its own
-    # breakdown/total -- same "optional, empty for older projects"
+    # The engagement type(s) picked at the wizard's final step, and their
+    # own breakdown/total -- same "optional, empty for older projects"
     # reasoning as selectedActivities/serviceTotal above. Rows here whose
     # isCoveredByService is true are already priced under a selected
     # service activity of the same name and do NOT count toward
     # typeActivityTotal or the project's overall quoted value a second
     # time -- see ProjectSelectedTypeActivity's model docstring.
-    typeCategoryName: str | None = None
     selectedTypeActivities: list[ProjectSelectedTypeActivityOut] = Field(default_factory=list)
     typeActivityTotal: float | None = None
+    # Whether this project's workflow includes a Design and/or
+    # Supervision stage -- see project_service.compute_stage_flags for
+    # how these are derived. Drives which of the Design/Supervision
+    # stepper nodes and workspace tabs are shown on the frontend.
+    includesDesign: bool = False
+    includesSupervision: bool = False
     # Permit names the client confirmed, at project setup, they already
     # hold -- each is a mandatory upload requirement on the Documents
     # tab (see ProjectDocumentsTab.vue's permitChecklist).
@@ -85,6 +90,7 @@ class ProjectOut(BaseModel):
     def from_model(
         project, engineer_name: str, selected_activities: list | None = None,
         selected_type_activities: list | None = None,
+        includes_design: bool = False, includes_supervision: bool = False,
     ) -> "ProjectOut":
         return ProjectOut(
             id=project.project_no,
@@ -104,11 +110,12 @@ class ProjectOut(BaseModel):
             status=project.status,
             selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
             serviceTotal=float(project.service_total) if project.service_total is not None else None,
-            typeCategoryName=project.type_category_name,
             selectedTypeActivities=[
                 ProjectSelectedTypeActivityOut.from_model(a) for a in (selected_type_activities or [])
             ],
             typeActivityTotal=float(project.type_activity_total) if project.type_activity_total is not None else None,
+            includesDesign=includes_design,
+            includesSupervision=includes_supervision,
             requiredPermitDocuments=list(project.required_permit_documents or []),
         )
 

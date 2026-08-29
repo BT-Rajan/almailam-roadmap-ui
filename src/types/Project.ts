@@ -13,13 +13,16 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled'
 // (ProjectRequirementTab.vue) for managing the scope-of-work text with
 // revision history and an internal approval step. "Execution &
 // Tracking" and "Completed" were removed entirely -- "Government
-// Submission" is now the terminal stage. See backend/app/models/
-// project.py's WORKFLOW_STAGES comment.
+// Submission" is now the terminal stage. "Supervision" sits alongside
+// "Design" -- a project can include either, both, or neither, depending
+// on Project.includesDesign/includesSupervision below. See
+// backend/app/models/project.py's WORKFLOW_STAGES comment.
 export type WorkflowStage =
   | 'Requirement'
   | 'Quotation'
   | 'Contract'
   | 'Design'
+  | 'Supervision'
   | 'Government Submission'
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
@@ -28,6 +31,7 @@ export type ProjectPriority = 'High' | 'Medium' | 'Low'
 // type-activity picker -- see Project.selectedTypeActivities above.
 export interface ProjectSelectedTypeActivity {
   id: string
+  categoryName: string
   activityName: string
   cost: number
   isCoveredByService: boolean
@@ -60,17 +64,25 @@ export interface Project {
   // backend hasn't been extended to persist this yet, won't have it.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
-  // The engagement type picked at the New Project wizard's final step
+  // The engagement type(s) picked at the New Project wizard's final step
   // (Design/Supervision/etc, admin-managed under Administration > Type
-  // Activity Catalog), and its own checklist breakdown. A checked
-  // activity whose isCoveredByService is true is already priced under a
+  // Activity Catalog), and their own checklist breakdown -- a project can
+  // span more than one category now (see includesDesign/
+  // includesSupervision below). A checked activity whose
+  // isCoveredByService is true is already priced under a
   // selectedActivities entry of the same name and doesn't add to
   // typeActivityTotal or get its own quotation line item a second time
   // -- see NewQuotationDialog.vue's formFromProject. Optional for the
   // same reasons as selectedActivities above.
-  typeCategoryName?: string | null
   selectedTypeActivities?: ProjectSelectedTypeActivity[]
   typeActivityTotal?: number
+  // Whether this project's workflow includes a Design and/or
+  // Supervision stage -- derived server-side from selectedTypeActivities
+  // (falling back to selectedActivities/service when none were picked),
+  // see backend project_service.compute_stage_flags. Drives which of the
+  // Design/Supervision stepper nodes and workspace tabs are shown.
+  includesDesign: boolean
+  includesSupervision: boolean
   // Permits the client confirmed they already hold, captured during project
   // setup. Each name here is mandatory to upload in the Documents tab --
   // see ProjectDocumentsTab's "Required Permit Documents" checklist. Optional
@@ -86,6 +98,7 @@ export type ProjectWorkspaceTabKey =
   | 'requirement'
   | 'documents'
   | 'design'
+  | 'supervision'
   | 'government'
   | 'quotation'
   | 'contract'
