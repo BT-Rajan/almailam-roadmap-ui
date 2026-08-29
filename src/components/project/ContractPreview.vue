@@ -8,9 +8,9 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
+import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import type { Client } from '@/types/Client'
 import type { Contract, ContractClause } from '@/types/Contract'
@@ -19,6 +19,7 @@ import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getContractStatusVariant } from '@/utils/contractHelpers'
+import { sanitizeHtml } from '@/utils/sanitizeHtml'
 
 interface Props {
   contract: Contract
@@ -53,7 +54,6 @@ interface DraftClause {
 
 function draftFromContract(contract: Contract) {
   return {
-    templateName: contract.templateName,
     currency: contract.currency,
     contractValue: contract.contractValue,
     expiryDate: contract.expiryDate,
@@ -94,7 +94,6 @@ function removeClause(index: number): void {
 
 function buildPatch(): Partial<Contract> {
   return {
-    templateName: draft.templateName.trim(),
     currency: draft.currency,
     contractValue: draft.contractValue,
     expiryDate: draft.expiryDate,
@@ -157,8 +156,7 @@ function saveAsFinal(): void {
         </div>
 
         <div class="flex flex-col gap-1 tablet:items-end">
-          <p v-if="!isEditing" class="text-xs text-text-muted">Revision {{ contract.revision }} · {{ contract.templateName }}</p>
-          <TextInput v-else v-model="draft.templateName" label="Template Name" class="w-64" />
+          <p class="text-xs text-text-muted">Revision {{ contract.revision }}</p>
         </div>
       </div>
 
@@ -194,8 +192,8 @@ function saveAsFinal(): void {
 
       <div class="flex flex-col gap-2">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Scope Summary</p>
-        <TextArea v-if="isEditing" v-model="draft.scopeSummary" :rows="3" />
-        <p v-else class="text-sm leading-relaxed text-text-secondary">{{ contract.scopeSummary }}</p>
+        <RichTextEditor v-if="isEditing" v-model="draft.scopeSummary" />
+        <div v-else class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(contract.scopeSummary)" />
       </div>
 
       <div class="flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
@@ -226,7 +224,7 @@ function saveAsFinal(): void {
             class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
           >
             <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
-            <p class="text-sm leading-relaxed text-text-secondary">{{ clause.content }}</p>
+            <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(clause.content)" />
           </div>
         </template>
         <template v-else>
@@ -237,7 +235,7 @@ function saveAsFinal(): void {
               </div>
               <IconButton :icon="Trash2" :label="`Remove clause ${index + 1}`" size="sm" @click="removeClause(index)" />
             </div>
-            <TextArea v-model="clause.content" placeholder="Clause content" :rows="2" />
+            <RichTextEditor v-model="clause.content" placeholder="Clause content" />
           </div>
         </template>
       </div>

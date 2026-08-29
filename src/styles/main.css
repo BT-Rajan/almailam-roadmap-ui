@@ -163,6 +163,33 @@
   }
 }
 
+/* Shared by RichTextEditor.vue (while editing) and the read-only v-html
+   rendering in QuotationPreview.vue/ContractPreview.vue, so a clause or
+   notes field looks identical editing, viewing, and printed. */
+.rich-text-content {
+  line-height: 1.6;
+}
+
+.rich-text-content p {
+  margin: 0 0 0.5em;
+}
+
+.rich-text-content p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content ul,
+.rich-text-content ol {
+  margin: 0 0 0.5em 1.25em;
+}
+
+.rich-text-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.5em 0;
+}
+
 @media print {
   .no-print {
     display: none !important;

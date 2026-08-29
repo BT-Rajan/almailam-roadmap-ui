@@ -53,7 +53,6 @@ function emptyClause(): ContractClauseInput {
 
 function emptyForm() {
   return {
-    templateName: '',
     currency: 'KWD',
     contractValue: 0,
     expiryDate: '',
@@ -84,7 +83,6 @@ const clauseErrors = reactive<string[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
-  templateName: [validators.required('Template name is required')],
   contractValue: [validators.required('Contract value is required')],
   expiryDate: [validators.required('Expiry date is required')],
   clientRepresentative: [validators.required("Client representative's name is required")],
@@ -145,7 +143,6 @@ function handleConfirm(): void {
   emit('confirm', {
     projectId: '', // filled in by the caller, which already has the project in scope
     quotationId, // filled in from the eligible quotation the caller resolved for this dialog
-    templateName: form.templateName.trim(),
     currency: form.currency,
     contractValue: form.contractValue,
     expiryDate: form.expiryDate,
@@ -163,8 +160,6 @@ function handleConfirm(): void {
         Prefilled from quotation {{ quotation.quotationNo }} -- currency, value, and scope below all carry over
         from it and can still be changed.
       </p>
-
-      <TextInput v-model="form.templateName" label="Template Name" placeholder="e.g. Standard Consultancy Agreement" required :error="errors.templateName" />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
         <SelectBox v-model="form.currency" label="Currency" :options="CURRENCY_OPTIONS" />

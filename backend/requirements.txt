@@ -38,3 +38,10 @@ tzdata==2025.2
 # requirements.txt` succeeds but importing weasyprint fails, that's the
 # missing piece, not a Python problem.
 weasyprint==69.0
+# Server-side sanitizer for the rich-text content saved from Quotation/
+# Contract preview editors (scope summary, clauses, notes, terms) --
+# strips anything outside the small formatting allowlist (bold/italic/
+# underline, font-size spans, images) before it's stored, since the
+# client-side DOMPurify pass can't be trusted as the only line of
+# defense against a script tag reaching the database.
+nh3==0.3.7

@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.html_sanitizer import sanitize_html
 from app.models.contract import CONTRACT_STATUSES
 
 
@@ -17,6 +18,11 @@ def _enum_validator(allowed: tuple[str, ...], label: str):
 class ContractClauseIn(BaseModel):
     title: str = Field(min_length=1, max_length=150)
     content: str = Field(min_length=1)
+
+    @field_validator("content")
+    @classmethod
+    def sanitize_content(cls, value: str) -> str:
+        return sanitize_html(value) or ""
 
 
 class ContractClauseOut(BaseModel):
@@ -56,7 +62,6 @@ class ContractOut(BaseModel):
     projectId: str
     quotationNo: str | None
     contractNo: str
-    templateName: str
     revision: str
     currency: str
     contractValue: float
@@ -81,7 +86,6 @@ class ContractOut(BaseModel):
             projectId=project_no,
             quotationNo=quotation_no,
             contractNo=contract.contract_no,
-            templateName=contract.template_name,
             revision=contract.revision,
             currency=contract.currency,
             contractValue=float(contract.contract_value),
@@ -101,7 +105,6 @@ class ContractOut(BaseModel):
 class ContractCreate(BaseModel):
     projectId: str
     quotationId: str = Field(min_length=1)
-    templateName: str = Field(min_length=1, max_length=150)
     currency: str = Field(default="KWD", min_length=1, max_length=10)
     contractValue: float = Field(gt=0)
     expiryDate: date
@@ -109,9 +112,13 @@ class ContractCreate(BaseModel):
     scopeSummary: str = Field(min_length=1)
     clauses: list[ContractClauseIn] = Field(default_factory=list)
 
+    @field_validator("scopeSummary")
+    @classmethod
+    def sanitize_scope_summary(cls, value: str) -> str:
+        return sanitize_html(value) or ""
+
 
 class ContractUpdate(BaseModel):
-    templateName: str | None = Field(default=None, min_length=1, max_length=150)
     contractValue: float | None = Field(default=None, gt=0)
     expiryDate: date | None = None
     clientRepresentative: str | None = Field(default=None, min_length=1, max_length=150)
@@ -119,6 +126,11 @@ class ContractUpdate(BaseModel):
     clauses: list[ContractClauseIn] | None = None
     status: str | None = None
     reason: str | None = None
+
+    @field_validator("scopeSummary")
+    @classmethod
+    def sanitize_scope_summary(cls, value: str | None) -> str | None:
+        return sanitize_html(value)
 
     @field_validator("status")
     @classmethod

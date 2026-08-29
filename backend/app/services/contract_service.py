@@ -128,7 +128,6 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
         contract_no=next_number(db, "CONTRACT"),
         project_id=project.id,
         quotation_id=quotation.id,
-        template_name=payload.templateName,
         currency=payload.currency,
         contract_value=payload.contractValue,
         issue_date=date.today(),
@@ -175,7 +174,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
 
 
 _CONTRACT_CONTENT_FIELDS = (
-    "templateName", "contractValue", "expiryDate", "clientRepresentative", "scopeSummary", "clauses",
+    "contractValue", "expiryDate", "clientRepresentative", "scopeSummary", "clauses",
 )
 
 
@@ -192,7 +191,6 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
     changes: dict[str, tuple] = {}
 
     for api_field, attr in (
-        ("templateName", "template_name"),
         ("contractValue", "contract_value"),
         ("expiryDate", "expiry_date"),
         ("clientRepresentative", "client_representative"),

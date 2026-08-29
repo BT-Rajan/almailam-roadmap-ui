@@ -194,7 +194,6 @@ def _search_contracts(db: Session, term: str) -> list[SearchResult]:
             Contract.deleted_at.is_(None),
             or_(
                 Contract.contract_no.ilike(like, escape="\\"),
-                Contract.template_name.ilike(like, escape="\\"),
                 Contract.client_representative.ilike(like, escape="\\"),
             ),
         )
@@ -211,7 +210,7 @@ def _search_contracts(db: Session, term: str) -> list[SearchResult]:
             id=contract.contract_no,
             category="Contract",
             title=contract.contract_no,
-            subtitle=f"{contract.template_name} · {contract.status}",
+            subtitle=f"Rev {contract.revision} · {contract.status}",
             routeName="project-workspace",
             params={"projectId": project_nos.get(contract.project_id, "")},
             query={"tab": "contract"},

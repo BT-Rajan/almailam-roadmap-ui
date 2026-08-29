@@ -56,7 +56,6 @@ const emit = defineEmits<{
           <p class="text-xs text-text-muted">
             Revision {{ contract.revision }} · Issued {{ formatDate(contract.issueDate) }}
           </p>
-          <p class="truncate text-xs text-text-muted">{{ contract.templateName }}</p>
           <p class="text-sm font-medium text-text-secondary">
             {{ formatCurrency(contract.contractValue, contract.currency) }}
           </p>

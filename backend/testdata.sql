@@ -199,9 +199,9 @@ INSERT INTO quotation_line_items (quotation_id, description, quantity, unit_pric
 -- ----------------------------------------------------------------------------
 -- Contracts
 -- ----------------------------------------------------------------------------
-INSERT INTO contracts (contract_no, project_id, template_name, revision, currency, contract_value, issue_date, signed_date, expiry_date, status, prepared_by, client_representative, scope_summary) VALUES
-('CON-2026-001', @p_falcon, 'Standard MEP Design Agreement',   'R0', 'AED', 246000.00, '2026-05-25', '2026-05-28', '2026-11-30', 'Signed', @u_pm, 'Yousef Al Amiri', 'MEP design services for the Falcon Heights warehouse expansion, covering concept through construction-issue drawings.'),
-('CON-2026-002', @p_marina, 'Standard Architectural Design Agreement', 'R0', 'AED', 412000.00, '2026-03-20', '2026-03-25', '2026-10-05', 'Active', @u_pm, 'Noura Al Sabah', 'Full architectural renovation design and site supervision for Marina Bay Hotel, including interior scope.');
+INSERT INTO contracts (contract_no, project_id, revision, currency, contract_value, issue_date, signed_date, expiry_date, status, prepared_by, client_representative, scope_summary) VALUES
+('CON-2026-001', @p_falcon, 'R0', 'AED', 246000.00, '2026-05-25', '2026-05-28', '2026-11-30', 'Signed', @u_pm, 'Yousef Al Amiri', 'MEP design services for the Falcon Heights warehouse expansion, covering concept through construction-issue drawings.'),
+('CON-2026-002', @p_marina, 'R0', 'AED', 412000.00, '2026-03-20', '2026-03-25', '2026-10-05', 'Active', @u_pm, 'Noura Al Sabah', 'Full architectural renovation design and site supervision for Marina Bay Hotel, including interior scope.');
 
 SET @con_falcon = (SELECT id FROM contracts WHERE contract_no = 'CON-2026-001');
 SET @con_marina = (SELECT id FROM contracts WHERE contract_no = 'CON-2026-002');
