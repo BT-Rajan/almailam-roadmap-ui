@@ -8,9 +8,9 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
+import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import PricingSummary from '@/components/project/PricingSummary.vue'
 import type { Client } from '@/types/Client'
@@ -20,6 +20,7 @@ import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getQuotationStatusVariant } from '@/utils/quotationHelpers'
+import { sanitizeHtml } from '@/utils/sanitizeHtml'
 
 interface Props {
   quotation: Quotation
@@ -59,9 +60,15 @@ function draftFromQuotation(quotation: Quotation) {
     currency: quotation.currency,
     discountAmount: quotation.discountAmount,
     notes: quotation.notes,
-    termsText: quotation.termsAndConditions.join('\n'),
+    terms: [...quotation.termsAndConditions],
     lineItems: quotation.lineItems.map((item) => ({ ...item })) as DraftLineItem[],
   }
+}
+
+// A term editor can be left visually empty (just "<p><br></p>" etc) --
+// strip tags before checking so those don't get saved as empty terms.
+function isBlankHtml(html: string): boolean {
+  return html.replace(/<[^>]*>/g, '').trim().length === 0
 }
 
 const draft = reactive(draftFromQuotation(props.quotation))
@@ -94,16 +101,21 @@ function removeLineItem(index: number): void {
   draft.lineItems.splice(index, 1)
 }
 
+function addTerm(): void {
+  draft.terms.push('')
+}
+
+function removeTerm(index: number): void {
+  draft.terms.splice(index, 1)
+}
+
 function buildPatch(): Partial<Quotation> {
   return {
     validity: draft.validity,
     currency: draft.currency,
     discountAmount: draft.discountAmount,
     notes: draft.notes,
-    termsAndConditions: draft.termsText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0),
+    termsAndConditions: draft.terms.filter((term) => !isBlankHtml(term)),
     lineItems: draft.lineItems.map((item) => ({
       id: item.id,
       description: item.description.trim(),
@@ -263,23 +275,26 @@ function saveAsFinal(): void {
       </div>
 
       <div v-if="isEditing" class="flex flex-col gap-1.5">
-        <TextArea v-model="draft.notes" label="Notes" placeholder="Optional notes for this quotation" :rows="2" />
+        <RichTextEditor v-model="draft.notes" label="Notes" placeholder="Optional notes for this quotation" />
       </div>
       <div v-else-if="quotation.notes" class="flex flex-col gap-1">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Notes</p>
-        <p class="text-sm text-text-secondary">{{ quotation.notes }}</p>
+        <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(quotation.notes)" />
       </div>
 
-      <div v-if="isEditing" class="flex flex-col gap-1.5">
-        <TextArea
-          v-model="draft.termsText"
-          label="Terms &amp; Conditions"
-          placeholder="One term per line"
-          hint="Each line becomes a separate term."
-          :rows="3"
-        />
+      <div v-if="isEditing" class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-text-secondary">Terms &amp; Conditions</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addTerm">Add Term</BaseButton>
+        </div>
+        <div v-for="(term, index) in draft.terms" :key="index" class="flex items-start gap-2">
+          <div class="flex-1">
+            <RichTextEditor :model-value="term" @update:model-value="draft.terms[index] = $event" />
+          </div>
+          <IconButton :icon="Trash2" :label="`Remove term ${index + 1}`" size="sm" @click="removeTerm(index)" />
+        </div>
       </div>
-      <div v-else class="flex flex-col gap-2">
+      <div v-else-if="quotation.termsAndConditions.length" class="flex flex-col gap-2">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Terms & Conditions</p>
         <ul class="flex flex-col gap-1">
           <li
@@ -288,7 +303,7 @@ function saveAsFinal(): void {
             class="flex gap-2 text-sm text-text-muted"
           >
             <span class="text-text-muted">•</span>
-            <span>{{ term }}</span>
+            <div class="rich-text-content flex-1" v-html="sanitizeHtml(term)" />
           </li>
         </ul>
       </div>

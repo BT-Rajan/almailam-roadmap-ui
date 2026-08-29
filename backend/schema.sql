@@ -447,7 +447,10 @@ CREATE TABLE IF NOT EXISTS quotations (
     currency            VARCHAR(10) NOT NULL DEFAULT 'KWD',
     prepared_by         BIGINT UNSIGNED NOT NULL,
     discount_amount     DECIMAL(12,2) NOT NULL DEFAULT 0,
-    notes               TEXT NULL,
+    -- MEDIUMTEXT, not TEXT (migration 0055) -- this holds rich-text HTML
+    -- from the quotation preview editor, which can include an inline
+    -- base64-encoded image well past TEXT's 64KB cap.
+    notes               MEDIUMTEXT NULL,
     terms_and_conditions JSON NOT NULL,
     amount              DECIMAL(12,2) NOT NULL DEFAULT 0,
     -- NULL while still an editable draft; set once saved as Final,
@@ -503,7 +506,8 @@ CREATE TABLE IF NOT EXISTS contracts (
     status                  ENUM('Draft','Signed','Active','Expired','Terminated') NOT NULL DEFAULT 'Draft',
     prepared_by             BIGINT UNSIGNED NOT NULL,
     client_representative   VARCHAR(150) NOT NULL,
-    scope_summary           TEXT NOT NULL,
+    -- MEDIUMTEXT, not TEXT (migration 0055) -- see quotations.notes above.
+    scope_summary           MEDIUMTEXT NOT NULL,
     -- NULL while still an editable draft; set once saved as Final,
     -- after which content is locked (migration 0053 removed the
     -- lettered-template fields this used to also gate -- the lock
@@ -524,7 +528,8 @@ CREATE TABLE IF NOT EXISTS contract_clauses (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     contract_id     BIGINT UNSIGNED NOT NULL,
     title           VARCHAR(150) NOT NULL,
-    content         TEXT NOT NULL,
+    -- MEDIUMTEXT, not TEXT (migration 0055) -- see quotations.notes above.
+    content         MEDIUMTEXT NOT NULL,
     sort_order      INT NOT NULL DEFAULT 0,
     CONSTRAINT fk_contract_clauses_contract FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE,
     INDEX idx_contract_clauses_contract (contract_id)

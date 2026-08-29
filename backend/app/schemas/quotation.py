@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.html_sanitizer import sanitize_html
 from app.models.quotation import QUOTATION_STATUSES
 
 
@@ -103,6 +104,16 @@ class QuotationCreate(BaseModel):
     termsAndConditions: list[str] = Field(default_factory=list)
     lineItems: list[QuotationLineItemIn] = Field(min_length=1)
 
+    @field_validator("notes")
+    @classmethod
+    def sanitize_notes(cls, value: str | None) -> str | None:
+        return sanitize_html(value)
+
+    @field_validator("termsAndConditions")
+    @classmethod
+    def sanitize_terms(cls, value: list[str]) -> list[str]:
+        return [sanitize_html(term) or "" for term in value]
+
 
 class QuotationUpdate(BaseModel):
     validity: date | None = None
@@ -112,6 +123,18 @@ class QuotationUpdate(BaseModel):
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
     status: str | None = None
     reason: str | None = None
+
+    @field_validator("notes")
+    @classmethod
+    def sanitize_notes(cls, value: str | None) -> str | None:
+        return sanitize_html(value)
+
+    @field_validator("termsAndConditions")
+    @classmethod
+    def sanitize_terms(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return [sanitize_html(term) or "" for term in value]
 
     @field_validator("status")
     @classmethod
