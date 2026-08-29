@@ -97,14 +97,6 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
  * Administration > Government Forms. Raw fetch + blob, same pattern as
  * documentService.downloadDocument, since apiClient only parses JSON.
  */
-/**
- * Render a form's {{token}} template with the given context straight to
- * a downloadable PDF -- nothing saved, no project needed. The admin-
- * facing counterpart to fillForm above (which requires a project and
- * saves a Document there); this is for trying a template out from
- * Administration > Government Forms. Raw fetch + blob, same pattern as
- * documentService.downloadDocument, since apiClient only parses JSON.
- */
 async function renderPdf(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {
   const authStore = useAuthStore()
 

@@ -1,11 +1,16 @@
 import type { BadgeVariant } from '@/types/Ui'
 import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
 
+// "Supervision" sits alongside "Design" -- a project can include either,
+// both, or neither, and the stepper (WorkflowProgress.vue) filters this
+// full list down to whichever stages actually apply to the project being
+// viewed (see Project.includesDesign/includesSupervision).
 export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Requirement',
   'Quotation',
   'Contract',
   'Design',
+  'Supervision',
   'Government Submission',
 ]
 
@@ -21,6 +26,7 @@ const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
   Quotation: 'Quotation',
   Contract: 'Contract',
   Design: 'Design',
+  Supervision: 'Supervision',
   'Government Submission': 'Approvals & Permits',
 }
 

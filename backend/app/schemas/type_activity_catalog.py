@@ -49,6 +49,7 @@ class TypeActivityItemUpdate(BaseModel):
 
 class ProjectSelectedTypeActivityOut(BaseModel):
     id: str
+    categoryName: str
     activityName: str
     cost: float
     isCoveredByService: bool
@@ -57,6 +58,7 @@ class ProjectSelectedTypeActivityOut(BaseModel):
     def from_model(row) -> "ProjectSelectedTypeActivityOut":
         return ProjectSelectedTypeActivityOut(
             id=row.type_activity_item_id,
+            categoryName=row.category_name,
             activityName=row.activity_name,
             cost=float(row.cost),
             isCoveredByService=row.is_covered_by_service,
@@ -64,8 +66,10 @@ class ProjectSelectedTypeActivityOut(BaseModel):
 
 
 class ProjectTypeActivitySelectionIn(BaseModel):
-    """What the New Project wizard's final-step modal submits: the
-    category picked, and which of its activities were checked."""
+    """What the New Project wizard's final-step modal submits: which
+    activities were checked, across however many categories -- each
+    activity already knows its own category via the catalog (see
+    TypeActivityItem), so this doesn't need to be grouped by category
+    the way it used to when only one could be picked per project."""
 
-    categoryId: str
     activityIds: list[str] = Field(default_factory=list)

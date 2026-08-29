@@ -29,7 +29,8 @@ can_delete = require_permission("Projects", "delete")
 def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
     activities = project_service.get_selected_activities(db, project.id)
     type_activities = project_service.get_selected_type_activities(db, project.id)
-    return ProjectOut.from_model(project, engineer_name, activities, type_activities)
+    includes_design, includes_supervision = project_service.compute_stage_flags(project, activities, type_activities)
+    return ProjectOut.from_model(project, engineer_name, activities, type_activities, includes_design, includes_supervision)
 
 
 def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
@@ -65,14 +66,16 @@ def list_projects(
     names = project_service.engineer_names(db, engineer_ids)
     activities_by_project = project_service.get_selected_activities_batch(db, {p.id for p in result["items"]})
     type_activities_by_project = project_service.get_selected_type_activities_batch(db, {p.id for p in result["items"]})
-    result["items"] = [
-        ProjectOut.from_model(
-            p, names.get(p.engineer_id, "Unknown"),
-            activities_by_project.get(p.id, []),
-            type_activities_by_project.get(p.id, []),
+
+    def _out(p) -> ProjectOut:
+        activities = activities_by_project.get(p.id, [])
+        type_activities = type_activities_by_project.get(p.id, [])
+        includes_design, includes_supervision = project_service.compute_stage_flags(p, activities, type_activities)
+        return ProjectOut.from_model(
+            p, names.get(p.engineer_id, "Unknown"), activities, type_activities, includes_design, includes_supervision,
         )
-        for p in result["items"]
-    ]
+
+    result["items"] = [_out(p) for p in result["items"]]
     return result
 
 

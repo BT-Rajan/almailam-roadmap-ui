@@ -13,12 +13,20 @@ import {
 } from '@/constants/projectOptions'
 import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
-const props = defineProps<{
-  modelValue: boolean
-  kind: 'stage' | 'status'
-  currentValue: string
-  loading?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    kind: 'stage' | 'status'
+    currentValue: string
+    loading?: boolean
+    // Only meaningful for kind="stage" -- whether this project's
+    // workflow includes a Design/Supervision stage at all, so a project
+    // that skips one isn't offered it as a stage to move into.
+    includesDesign?: boolean
+    includesSupervision?: boolean
+  }>(),
+  { includesDesign: true, includesSupervision: true },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -30,7 +38,13 @@ const fieldLabel = computed(() => (props.kind === 'stage' ? 'New Stage' : 'New S
 
 const options = computed(() => {
   const table = props.kind === 'stage' ? PROJECT_STAGE_ALLOWED_TRANSITIONS : PROJECT_STATUS_ALLOWED_TRANSITIONS
-  return (table[props.currentValue] ?? []).map((value) => ({
+  const targets = (table[props.currentValue] ?? []).filter((value) => {
+    if (props.kind !== 'stage') return true
+    if (value === 'Design') return props.includesDesign
+    if (value === 'Supervision') return props.includesSupervision
+    return true
+  })
+  return targets.map((value) => ({
     label: props.kind === 'stage' ? getWorkflowStageLabel(value) : value,
     value,
   }))

@@ -162,10 +162,11 @@ def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> di
     return result
 
 
-def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[str | None, float | None, list[dict]]:
-    """Given the wizard's category+checked-activity-ids payload and the
+def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[float | None, list[dict]]:
+    """Given the wizard's checked-activity-ids payload (which can now span
+    multiple categories -- e.g. both Design and Supervision) and the
     project's already-selected *service* activities, returns
-    (category_name, type_activity_total, rows_to_insert).
+    (type_activity_total, rows_to_insert).
 
     Coverage matching is a case-insensitive name comparison against the
     service activities actually picked for this project -- "Site
@@ -178,30 +179,54 @@ def _resolve_type_activity_selection(db: Session, selection, selected_activities
     is_covered_by_service=True and contribute nothing further.
     """
     if selection is None:
-        return None, None, []
+        return None, []
 
-    category = type_activity_catalog_service.get_category(db, selection.categoryId)
     covered_names = {a.activityName.strip().lower() for a in selected_activities}
 
     rows: list[dict] = []
     total = 0.0
-    wanted_ids = set(selection.activityIds)
-    for item in category.activities:
-        item_display_id = f"TAI-{item.id:03d}"
-        if item_display_id not in wanted_ids:
-            continue
+    for activity_id in selection.activityIds:
+        item = type_activity_catalog_service.get_item(db, activity_id)
         is_covered = item.name.strip().lower() in covered_names
         if not is_covered:
             total += float(item.cost)
         rows.append(
             {
-                "type_activity_item_id": item_display_id,
+                "type_activity_item_id": f"TAI-{item.id:03d}",
+                "category_name": item.category.name,
                 "activity_name": item.name,
                 "cost": item.cost,
                 "is_covered_by_service": is_covered,
             }
         )
-    return category.name, (total if rows else None), rows
+    return (total if rows else None), rows
+
+
+def compute_stage_flags(project: Project, selected_activities: list, selected_type_activities: list) -> tuple[bool, bool]:
+    """(includes_design, includes_supervision) -- whether this project's
+    workflow should offer a Design stage/tab and/or a Supervision one
+    (see WORKFLOW_STAGES). The Additional Activities picker's category
+    choice wins when any type activities were selected at all -- that's
+    the deliberate Design vs Supervision distinction. With none selected
+    (the step is optional), falls back to the primary service picks --
+    real service names in this catalog are things like 'Architectural
+    Design'/'MEP Design'/'Structural Supervision', so this keeps existing
+    projects (which never touched the type-activity step) working the
+    same as before. `project.service` is a last-resort fallback for the
+    rare project with no selectedActivities rows recorded at all."""
+    if selected_type_activities:
+        names = {a.category_name.strip().lower() for a in selected_type_activities if a.category_name}
+        return (
+            any("design" in name for name in names),
+            any("supervision" in name for name in names),
+        )
+    service_names = {a.service_name.strip().lower() for a in selected_activities}
+    if not service_names and project.service:
+        service_names = {project.service.strip().lower()}
+    return (
+        any("design" in name for name in service_names),
+        any("supervision" in name for name in service_names),
+    )
 
 
 def create_project(db: Session, payload, user_id: int | None) -> Project:
@@ -236,7 +261,7 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         if payload.serviceTotal is not None
         else (sum(float(a.fixedCost) for a in selected_activities) if selected_activities else None)
     )
-    type_category_name, type_activity_total, type_activity_rows = _resolve_type_activity_selection(
+    type_activity_total, type_activity_rows = _resolve_type_activity_selection(
         db, payload.typeActivitySelection, selected_activities,
     )
     project = Project(
@@ -251,7 +276,6 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         target_date=payload.targetDate,
         service_total=service_total,
         required_permit_documents=payload.requiredPermitDocuments or [],
-        type_category_name=type_category_name,
         type_activity_total=type_activity_total,
     )
     db.add(project)
@@ -339,17 +363,37 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # only one stage can be "previous_stage" for any given new_stage, so the
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
-    """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Design and
-    Government Submission are sequential, not parallel -- Design must be
-    approved by the client before Government Submission begins (you
-    can't submit unapproved drawings to an authority for permit
-    approval), and each stage gates the next in a straight line:
-    Contract -> Design -> Government Submission, the last of the 5
-    stages. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps exactly one
-    reopening path backward (Government Submission -> Design, for when
-    an authority's feedback requires design changes) -- that's the one
-    exception, and it requires a reason like any other reopening.
+    """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Requirement
+    -> Quotation -> Contract is a straight line for every project; what
+    comes after Contract depends on which of Design/Supervision this
+    project actually includes (see compute_stage_flags) -- Contract ->
+    [Design] -> [Supervision] -> Government Submission, skipping
+    whichever of Design/Supervision don't apply. Design, when it
+    applies, must be approved by the client before Government Submission
+    begins (you can't submit unapproved drawings to an authority for
+    permit approval) -- that's the "at least one design link" check
+    below, gated on *leaving* Design rather than on entering Government
+    Submission specifically, since Design might be followed by
+    Supervision instead. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
+    reopening paths backward (Government Submission -> Design/
+    Supervision, for when an authority's feedback requires changes) --
+    those require a reason like any other reopening.
     """
+    if new_stage in ("Design", "Supervision"):
+        includes_design, includes_supervision = compute_stage_flags(
+            project, get_selected_activities(db, project.id), get_selected_type_activities(db, project.id),
+        )
+        if new_stage == "Design" and not includes_design:
+            raise ValidationAppError(
+                "This project's selected services/activities don't include Design work -- "
+                "there's no Design stage for it to move into."
+            )
+        if new_stage == "Supervision" and not includes_supervision:
+            raise ValidationAppError(
+                "This project's selected services/activities don't include Supervision work -- "
+                "there's no Supervision stage for it to move into."
+            )
+
     problems: list[str] = []
 
     if new_stage == "Quotation":
@@ -386,14 +430,17 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if approved_quotation is None:
             problems.append("an Approved quotation")
 
-    elif new_stage == "Design" and previous_stage == "Contract":
-        # A contract has to actually be signed, not merely exist as a
-        # Draft -- this is what "Documents Signed" means in practice
-        # (the separate documents_signed approval-process gate used to
-        # be checked here instead, but that's a second, easy-to-forget
-        # manual upload nothing else in the flow prompts anyone to do;
-        # the contract's own status is the real, already-visible signal
-        # for this).
+    elif previous_stage == "Contract":
+        # Gates leaving Contract into whichever of Design/Supervision/
+        # Government Submission is actually next for this project -- not
+        # just "entering Design" specifically, since a supervision-only
+        # (or neither) project skips straight past it. A contract has to
+        # actually be signed, not merely exist as a Draft -- this is what
+        # "Documents Signed" means in practice (the separate
+        # documents_signed approval-process gate used to be checked here
+        # instead, but that's a second, easy-to-forget manual upload
+        # nothing else in the flow prompts anyone to do; the contract's
+        # own status is the real, already-visible signal for this).
         signed_contract = (
             db.query(Contract)
             .filter(
@@ -413,11 +460,14 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if payment_service.get_agreement_by_project(db, project.project_no) is None:
             problems.append("a financial agreement (payment dates and amount)")
 
-    elif new_stage == "Government Submission" and previous_stage == "Design":
-        # The Design tab itself has to have something in it -- at least
-        # one drawing link saved (see DesignDocumentDialog.vue, which
-        # requires a link on every 'Drawing'-type document it creates) --
-        # before there's anything to have approved in the first place.
+    elif previous_stage == "Design":
+        # Gates leaving Design into whichever of Supervision/Government
+        # Submission is next -- Design itself has to have something in
+        # it -- at least one drawing link saved (see
+        # DesignDocumentDialog.vue, which requires a link on every
+        # 'Drawing'-type document it creates) -- before there's anything
+        # to have approved in the first place, regardless of what comes
+        # after it.
         has_design_link = (
             db.query(ProjectDocument)
             .filter(
@@ -434,8 +484,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # The separate architectural_approval approval-process gate used
         # to also be required here -- dropped as a blocking exit
         # criterion so that saving a design link is genuinely enough on
-        # its own to reach Government Submission, matching how this
-        # stage is actually meant to work.
+        # its own to move past Design, matching how this stage is
+        # actually meant to work.
+
+    # previous_stage == "Supervision" has no exit criteria yet -- it's a
+    # placeholder stage/tab for now (see WORKFLOW_STAGES).
 
     if problems:
         raise ValidationAppError(
@@ -445,19 +498,24 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers. Government Submission is the last of the 5
-# stages and has no further stage to advance into -- reaching it is
-# the workflow's own terminal state; progress simply stops climbing
-# there rather than jumping to 100 (there's no separate "done" concept
-# left to represent).
+# maintained numbers. Government Submission is the last stage and has no
+# further stage to advance into -- reaching it is the workflow's own
+# terminal state; progress simply stops climbing there rather than
+# jumping to 100 (there's no separate "done" concept left to represent).
+# A project that skips Design and/or Supervision (see compute_stage_flags)
+# still just jumps straight to whichever band it actually lands on --
+# the bands themselves don't shift around per project, so progress is
+# always "how far through the full 6-band scale", not "how far through
+# this project's own shorter path".
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Requirement": 0,
     "Quotation": 1,
     "Contract": 2,
     "Design": 3,
-    "Government Submission": 4,
+    "Supervision": 4,
+    "Government Submission": 5,
 }
-_PROGRESS_BAND_COUNT = 5
+_PROGRESS_BAND_COUNT = 6
 
 
 def recompute_progress(db: Session, project: Project) -> int:
@@ -470,21 +528,33 @@ def recompute_progress(db: Session, project: Project) -> int:
     return project.progress
 
 
-# Every transition below has exactly one valid next stage once its exit
-# criteria (_assert_stage_exit_criteria) are met, so firing it
-# automatically doesn't remove a real choice from anyone -- it just
-# saves the separate manual click after the condition that already
-# gates it becomes true (approving a quotation, signing a contract,
-# saving a design link). Reopening (Government Submission -> Design)
-# stays manual -- an exceptional, reason-required correction, not
-# something that should ever happen as a side effect of an unrelated
-# action.
-_AUTO_ADVANCE_TARGET: dict[str, str] = {
-    "Requirement": "Quotation",
-    "Quotation": "Contract",
-    "Contract": "Design",
-    "Design": "Government Submission",
-}
+def _auto_advance_target(current_stage: str, includes_design: bool, includes_supervision: bool) -> str | None:
+    """The one valid next stage for this project once its exit criteria
+    (_assert_stage_exit_criteria) are met, so firing it automatically
+    doesn't remove a real choice from anyone -- it just saves the
+    separate manual click after the condition that already gates it
+    becomes true (approving a quotation, signing a contract, saving a
+    design link). Which stage that actually is depends on the project --
+    Design and/or Supervision are skipped when this project doesn't
+    include that kind of work (see compute_stage_flags). Reopening
+    (Government Submission -> Design/Supervision) stays manual -- an
+    exceptional, reason-required correction, not something that should
+    ever happen as a side effect of an unrelated action."""
+    if current_stage == "Requirement":
+        return "Quotation"
+    if current_stage == "Quotation":
+        return "Contract"
+    if current_stage == "Contract":
+        if includes_design:
+            return "Design"
+        if includes_supervision:
+            return "Supervision"
+        return "Government Submission"
+    if current_stage == "Design":
+        return "Supervision" if includes_supervision else "Government Submission"
+    if current_stage == "Supervision":
+        return "Government Submission"
+    return None
 
 
 def _apply_stage_change(
@@ -528,13 +598,14 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
-    # Reopening Government Submission back to Design (an authority's
-    # feedback requiring design changes) is a correction, not the normal
-    # forward flow that also targets "Design" (from Contract) -- can't
-    # live in the target-only REQUIRING_REASON table, since that only
-    # keys on the target state, not where the transition came from.
-    if previous_stage == "Government Submission" and new_stage == "Design":
-        assert_reason_given(reason, "A reason is required to send the project back to Design.")
+    # Reopening Government Submission back to Design or Supervision (an
+    # authority's feedback requiring changes) is a correction, not the
+    # normal forward flow that also targets those same stages (from
+    # Contract/Design) -- can't live in the target-only REQUIRING_REASON
+    # table, since that only keys on the target state, not where the
+    # transition came from.
+    if previous_stage == "Government Submission" and new_stage in ("Design", "Supervision"):
+        assert_reason_given(reason, f"A reason is required to send the project back to {new_stage}.")
 
     _apply_stage_change(db, project, new_stage, reason, user_id)
 
@@ -544,9 +615,10 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
 
 
 def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -> None:
-    """Automates the manual "move stage" action for the transitions in
-    _AUTO_ADVANCE_TARGET, once their exit criteria are already met --
-    e.g. approving a quotation is exactly what _assert_stage_exit_criteria
+    """Automates the manual "move stage" action for the transition
+    _auto_advance_target says is next for this project, once its exit
+    criteria are already met -- e.g. approving a quotation is exactly
+    what _assert_stage_exit_criteria
     already requires before a project can enter "Contract", so there's
     no reason to also wait on a separate click once that becomes true.
 
@@ -560,7 +632,10 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     yet -- "not yet eligible" is the expected, common case here, not a
     failure the caller's own action should be blocked by.
     """
-    target_stage = _AUTO_ADVANCE_TARGET.get(project.current_stage)
+    includes_design, includes_supervision = compute_stage_flags(
+        project, get_selected_activities(db, project.id), get_selected_type_activities(db, project.id),
+    )
+    target_stage = _auto_advance_target(project.current_stage, includes_design, includes_supervision)
     if target_stage is None:
         return
     try:

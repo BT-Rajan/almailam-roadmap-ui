@@ -83,7 +83,7 @@ function formFromProject(project: Project | undefined) {
   const uncoveredTypeActivityLineItems = (project?.selectedTypeActivities ?? [])
     .filter((activity) => !activity.isCoveredByService)
     .map((activity) => ({
-      description: `${project?.typeCategoryName ?? 'Additional'} - ${activity.activityName}`,
+      description: `${activity.categoryName || 'Additional'} - ${activity.activityName}`,
       quantity: 1,
       unitPrice: activity.cost,
     }))

@@ -137,6 +137,12 @@ function removeTypeActivity(activityId: string): void {
   form.selectedTypeActivities = form.selectedTypeActivities.filter((item) => item.activityId !== activityId)
 }
 
+// Distinct category names among what's checked, in selection order --
+// e.g. "Design, Supervision" once picking spans more than one category.
+const selectedTypeActivityCategoryNames = computed(() =>
+  [...new Set(form.selectedTypeActivities.map((item) => item.categoryName))].join(', '),
+)
+
 // Scope of Work is auto-populated from whatever was picked in the
 // service picker and the type-activity picker -- "scope = services +
 // activities", per the actual requirement, rather than staff retyping
@@ -160,10 +166,16 @@ function buildScopeText(): string {
     lines.push(`${serviceName}:`)
     activityNames.forEach((name) => lines.push(`- ${name}`))
   }
-  if (form.selectedTypeActivities.length > 0) {
+  const typeActivitiesByCategory = new Map<string, string[]>()
+  for (const item of form.selectedTypeActivities) {
+    const list = typeActivitiesByCategory.get(item.categoryName) ?? []
+    list.push(item.activityName)
+    typeActivitiesByCategory.set(item.categoryName, list)
+  }
+  for (const [categoryName, activityNames] of typeActivitiesByCategory) {
     if (lines.length > 0) lines.push('')
-    lines.push(`${form.selectedTypeActivities[0]!.categoryName} Activities:`)
-    form.selectedTypeActivities.forEach((activity) => lines.push(`- ${activity.activityName}`))
+    lines.push(`${categoryName} Activities:`)
+    activityNames.forEach((name) => lines.push(`- ${name}`))
   }
   return lines.join('\n')
 }
@@ -356,10 +368,7 @@ async function submitWizard(): Promise<void> {
     // step) doesn't get an empty/meaningless selection object.
     const typeActivitySelection =
       form.selectedTypeActivities.length > 0
-        ? {
-            categoryId: form.selectedTypeActivities[0]!.categoryId,
-            activityIds: form.selectedTypeActivities.map((activity) => activity.activityId),
-          }
+        ? { activityIds: form.selectedTypeActivities.map((activity) => activity.activityId) }
         : undefined
 
     const project = await projectStore.createProject({
@@ -600,7 +609,7 @@ function goToCreatedProject(): void {
               <span v-if="form.selectedTypeActivities.length === 0" class="text-text-muted">Select additional services (optional)</span>
               <span v-else class="text-text-primary">
                 {{ form.selectedTypeActivities.length }} activit{{ form.selectedTypeActivities.length === 1 ? 'y' : 'ies' }} selected ·
-                {{ form.selectedTypeActivities[0]?.categoryName }}
+                {{ selectedTypeActivityCategoryNames }}
               </span>
               <span class="text-xs font-medium text-primary-600">{{ form.selectedTypeActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
             </button>
@@ -692,7 +701,7 @@ function goToCreatedProject(): void {
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Additional Services</p>
               <p v-if="form.selectedTypeActivities.length === 0" class="text-sm text-text-primary">None</p>
               <template v-else>
-                <p class="text-sm text-text-primary">{{ form.selectedTypeActivities[0]?.categoryName }}</p>
+                <p class="text-sm text-text-primary">{{ selectedTypeActivityCategoryNames }}</p>
                 <ul class="mt-1 flex flex-col gap-0.5">
                   <li v-for="activity in form.selectedTypeActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
                     <span class="truncate">{{ activity.activityName }}</span>

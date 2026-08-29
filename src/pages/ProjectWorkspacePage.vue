@@ -50,7 +50,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'contract', 'payments', 'design', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'contract', 'payments', 'design', 'supervision', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -92,6 +92,7 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   quotation: 'Quotation',
   contract: 'Contract',
   design: 'Design',
+  supervision: 'Supervision',
   government: 'Government Submission',
 }
 
@@ -150,6 +151,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
+    case 'Supervision':
+      // Plain placeholder for now -- reuses the generic 'documents' mode
+      // (no supervision-specific document type/filtering yet), same as
+      // the Contract/Government Submission stages' own Documents tab.
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'supervision', label: 'Documents' },
+        { key: 'payments', label: 'Payments' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
       // already has the full submission list/create/detail experience, so
@@ -179,7 +190,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'government', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payments', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -208,7 +219,7 @@ watch(projectId, loadData)
 watch(
   activeTab,
   (tab) => {
-    if ((tab === 'documents' || tab === 'design') && documentStore.documents.length === 0) {
+    if ((tab === 'documents' || tab === 'design' || tab === 'supervision') && documentStore.documents.length === 0) {
       documentStore.loadDocuments()
     }
     if (tab === 'government' && governmentSubmissionStore.submissions.length === 0) {
@@ -332,7 +343,8 @@ async function handleConfirmDelete(): Promise<void> {
       <WorkflowProgress
         class="no-print"
         :current-stage="project.currentStage"
-        :type-category-name="project.typeCategoryName"
+        :includes-design="project.includesDesign"
+        :includes-supervision="project.includesSupervision"
         @navigate-tab="activeTab = $event"
       />
 
@@ -353,6 +365,9 @@ async function handleConfirmDelete(): Promise<void> {
       >
         <ProjectDocumentsTab :project="project" :mode="activeTab" />
       </div>
+      <div v-else-if="activeTab === 'supervision'" id="project-tabpanel-supervision" role="tabpanel" aria-labelledby="project-tab-supervision" tabindex="0">
+        <ProjectDocumentsTab :project="project" mode="documents" />
+      </div>
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
@@ -371,6 +386,8 @@ async function handleConfirmDelete(): Promise<void> {
         v-model="isStageDialogOpen"
         kind="stage"
         :current-value="project.currentStage"
+        :includes-design="project.includesDesign"
+        :includes-supervision="project.includesSupervision"
         :loading="isStageSaving"
         @confirm="handleConfirmStage"
       />

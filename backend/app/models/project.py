@@ -27,12 +27,22 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
 # (migration 0051) -- the 23-step execution checklist, the 5-stage
 # approval-process gates, and the whole notion of a project reaching a
 # terminal "Completed" workflow stage/status went with them. Government
-# Submission is now the last of the 5 stages.
+# Submission is now the last stage.
+#
+# "Supervision" (migration 0056) sits alongside "Design" rather than
+# replacing it -- a project can include either, both, or neither,
+# depending on which Design/Supervision activities were picked (see
+# project_service.compute_stage_flags). Both are skippable: the actual
+# path through Contract -> [Design] -> [Supervision] -> Government
+# Submission depends on the project, not a fixed straight line anymore
+# (see project_service._assert_stage_exit_criteria and
+# _auto_advance_target for how each project's own path is derived).
 WORKFLOW_STAGES = (
     "Requirement",
     "Quotation",
     "Contract",
     "Design",
+    "Supervision",
     "Government Submission",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
@@ -103,13 +113,6 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # become Tasks instead (create_project's caller), since they're work
     # to do, not a document to chase.
     required_permit_documents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # The engagement type picked at the New Project wizard's final step
-    # (Design/Supervision/etc, from type_activity_categories) -- a plain
-    # name snapshot, same "not FK'd" reasoning as `service` above: a later
-    # rename of the category shouldn't retroactively alter what this
-    # project was actually set up as. Nullable because this step is new;
-    # projects created before it exist have no value here.
-    type_category_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     # Sum of the fixed costs of every row in ProjectSelectedTypeActivity
     # below that was NOT already covered by a selected service activity
     # of the same name -- see project_service.list_uncovered_type_activities
@@ -182,7 +185,16 @@ class ProjectSelectedTypeActivity(Base):
     under the service), only uncovered ones do. Recorded per-row (rather
     than only ever filtering by name at read time) so the covered/
     uncovered call stays stable even if the project's services are edited
-    later -- what actually happened at creation is what was billed."""
+    later -- what actually happened at creation is what was billed.
+
+    category_name (migration 0056) is this row's own category snapshot
+    (e.g. 'Design', 'Supervision') -- used to be tracked once on the
+    project itself (type_category_name), back when a project could only
+    ever have activities from a single category. Now that the picker
+    allows checking activities across multiple categories at once, each
+    row needs to say which one it came from; see
+    project_service.compute_stage_flags for how this drives whether a
+    project's workflow includes a Design and/or Supervision stage."""
 
     __tablename__ = "project_selected_type_activities"
 
@@ -191,6 +203,7 @@ class ProjectSelectedTypeActivity(Base):
         BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     type_activity_item_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    category_name: Mapped[str] = mapped_column(String(150), nullable=False, default="")
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     is_covered_by_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
