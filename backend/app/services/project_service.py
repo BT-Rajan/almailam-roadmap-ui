@@ -364,20 +364,18 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
     """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Requirement
-    -> Quotation -> Contract is a straight line for every project; what
-    comes after Contract depends on which of Design/Supervision this
-    project actually includes (see compute_stage_flags) -- Contract ->
-    [Design] -> [Supervision] -> Government Submission, skipping
-    whichever of Design/Supervision don't apply. Design, when it
-    applies, must be approved by the client before Government Submission
-    begins (you can't submit unapproved drawings to an authority for
-    permit approval) -- that's the "at least one design link" check
-    below, gated on *leaving* Design rather than on entering Government
-    Submission specifically, since Design might be followed by
-    Supervision instead. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
-    reopening paths backward (Government Submission -> Design/
-    Supervision, for when an authority's feedback requires changes) --
-    those require a reason like any other reopening.
+    -> Quotation -> Contract -> [Design] -> Government Submission is a
+    straight line for every project, skipping Design when the project
+    doesn't include it (see compute_stage_flags); Supervision, when the
+    project includes it, comes after Government Submission, not before
+    it. Design, when it applies, must be approved by the client before
+    Government Submission begins (you can't submit unapproved drawings
+    to an authority for permit approval) -- that's the "at least one
+    design link" check below. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
+    reopening paths backward (Government Submission -> Design, Supervision
+    -> Government Submission, for when an authority's feedback or
+    supervision findings require changes) -- those require a reason like
+    any other reopening.
     """
     if new_stage in ("Design", "Supervision"):
         includes_design, includes_supervision = compute_stage_flags(
@@ -431,10 +429,10 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("an Approved quotation")
 
     elif previous_stage == "Contract":
-        # Gates leaving Contract into whichever of Design/Supervision/
-        # Government Submission is actually next for this project -- not
-        # just "entering Design" specifically, since a supervision-only
-        # (or neither) project skips straight past it. A contract has to
+        # Gates leaving Contract into whichever of Design/Government
+        # Submission is actually next for this project -- not just
+        # "entering Design" specifically, since a project that doesn't
+        # include Design skips straight past it. A contract has to
         # actually be signed, not merely exist as a Draft -- this is what
         # "Documents Signed" means in practice (the separate
         # documents_signed approval-process gate used to be checked here
@@ -461,13 +459,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("a financial agreement (payment dates and amount)")
 
     elif previous_stage == "Design":
-        # Gates leaving Design into whichever of Supervision/Government
-        # Submission is next -- Design itself has to have something in
-        # it -- at least one drawing link saved (see
-        # DesignDocumentDialog.vue, which requires a link on every
-        # 'Drawing'-type document it creates) -- before there's anything
-        # to have approved in the first place, regardless of what comes
-        # after it.
+        # Gates leaving Design into Government Submission -- Design
+        # itself has to have something in it -- at least one drawing
+        # link saved (see DesignDocumentDialog.vue, which requires a
+        # link on every 'Drawing'-type document it creates) -- before
+        # there's anything to have approved in the first place.
         has_design_link = (
             db.query(ProjectDocument)
             .filter(
@@ -487,8 +483,10 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # its own to move past Design, matching how this stage is
         # actually meant to work.
 
-    # previous_stage == "Supervision" has no exit criteria yet -- it's a
-    # placeholder stage/tab for now (see WORKFLOW_STAGES).
+    # Leaving Government Submission for Supervision, and leaving
+    # Supervision back for Government Submission, have no exit criteria
+    # yet -- Supervision is a placeholder stage/tab for now (see
+    # WORKFLOW_STAGES).
 
     if problems:
         raise ValidationAppError(
@@ -498,22 +496,24 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers. Government Submission is the last stage and has no
-# further stage to advance into -- reaching it is the workflow's own
-# terminal state; progress simply stops climbing there rather than
-# jumping to 100 (there's no separate "done" concept left to represent).
-# A project that skips Design and/or Supervision (see compute_stage_flags)
-# still just jumps straight to whichever band it actually lands on --
-# the bands themselves don't shift around per project, so progress is
-# always "how far through the full 6-band scale", not "how far through
-# this project's own shorter path".
+# maintained numbers. Supervision, when a project includes it, is the
+# last stage and has no further stage to advance into; for a project
+# that doesn't include it, Government Submission is the terminal band
+# instead -- either way progress simply stops climbing at whichever
+# band it actually lands on, rather than jumping to 100 (there's no
+# separate "done" concept left to represent). A project that skips
+# Design and/or Supervision (see compute_stage_flags) still just jumps
+# straight to whichever band it actually lands on -- the bands
+# themselves don't shift around per project, so progress is always "how
+# far through the full 6-band scale", not "how far through this
+# project's own shorter path".
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Requirement": 0,
     "Quotation": 1,
     "Contract": 2,
     "Design": 3,
-    "Supervision": 4,
-    "Government Submission": 5,
+    "Government Submission": 4,
+    "Supervision": 5,
 }
 _PROGRESS_BAND_COUNT = 6
 
@@ -535,9 +535,11 @@ def _auto_advance_target(current_stage: str, includes_design: bool, includes_sup
     separate manual click after the condition that already gates it
     becomes true (approving a quotation, signing a contract, saving a
     design link). Which stage that actually is depends on the project --
-    Design and/or Supervision are skipped when this project doesn't
-    include that kind of work (see compute_stage_flags). Reopening
-    (Government Submission -> Design/Supervision) stays manual -- an
+    Design is skipped when this project doesn't include it, and
+    Supervision (after Government Submission) is skipped -- staying the
+    terminal state -- when it doesn't include that either (see
+    compute_stage_flags). Reopening (Government Submission -> Design,
+    Supervision -> Government Submission) stays manual -- an
     exceptional, reason-required correction, not something that should
     ever happen as a side effect of an unrelated action."""
     if current_stage == "Requirement":
@@ -545,15 +547,11 @@ def _auto_advance_target(current_stage: str, includes_design: bool, includes_sup
     if current_stage == "Quotation":
         return "Contract"
     if current_stage == "Contract":
-        if includes_design:
-            return "Design"
-        if includes_supervision:
-            return "Supervision"
-        return "Government Submission"
+        return "Design" if includes_design else "Government Submission"
     if current_stage == "Design":
-        return "Supervision" if includes_supervision else "Government Submission"
-    if current_stage == "Supervision":
         return "Government Submission"
+    if current_stage == "Government Submission":
+        return "Supervision" if includes_supervision else None
     return None
 
 
@@ -598,14 +596,18 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
-    # Reopening Government Submission back to Design or Supervision (an
-    # authority's feedback requiring changes) is a correction, not the
-    # normal forward flow that also targets those same stages (from
-    # Contract/Design) -- can't live in the target-only REQUIRING_REASON
-    # table, since that only keys on the target state, not where the
-    # transition came from.
-    if previous_stage == "Government Submission" and new_stage in ("Design", "Supervision"):
-        assert_reason_given(reason, f"A reason is required to send the project back to {new_stage}.")
+    # Reopening Government Submission back to Design (an authority's
+    # feedback requiring changes), and reopening Supervision back to
+    # Government Submission (supervision findings requiring
+    # re-submission), are corrections -- not the normal forward flow
+    # that also targets Design (from Contract) or Supervision (from
+    # Government Submission) -- can't live in the target-only
+    # REQUIRING_REASON table, since that only keys on the target state,
+    # not where the transition came from.
+    if previous_stage == "Government Submission" and new_stage == "Design":
+        assert_reason_given(reason, "A reason is required to send the project back to Design.")
+    if previous_stage == "Supervision" and new_stage == "Government Submission":
+        assert_reason_given(reason, "A reason is required to send the project back to Approvals & Permits.")
 
     _apply_stage_change(db, project, new_stage, reason, user_id)
 

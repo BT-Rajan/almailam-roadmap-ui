@@ -102,28 +102,34 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 # Submission is now the last stage, with no further stage to advance
 # into.
 #
-# "Supervision" (migration 0056) sits alongside "Design" -- a project
-# can include either, both, or neither (see
-# project_service.compute_stage_flags), so Contract can be followed
-# directly by Design, Supervision, or Government Submission, and Design
-# can be followed by either Supervision or Government Submission. This
-# table is deliberately the permissive superset of every structurally
-# possible edge; whether a given project is actually allowed into
-# "Design"/"Supervision" specifically (i.e. whether it includes that
-# kind of work at all) is enforced separately, in
-# project_service._assert_stage_exit_criteria.
+# "Supervision" (migration 0056) is an independent add-on stage that
+# comes after Government Submission, not before it -- a project can
+# include Design, Supervision, both, or neither (see
+# project_service.compute_stage_flags). Contract can be followed
+# directly by Design or Government Submission (skipping Design when the
+# project doesn't include it); Government Submission is followed by
+# Supervision when the project includes it, or is simply the terminal
+# stage when it doesn't. This table is deliberately the permissive
+# superset of every structurally possible edge; whether a given project
+# is actually allowed into "Design"/"Supervision" specifically (i.e.
+# whether it includes that kind of work at all) is enforced separately,
+# in project_service._assert_stage_exit_criteria.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Requirement": {"Quotation"},
     "Quotation": {"Contract"},
-    "Contract": {"Design", "Supervision", "Government Submission"},
-    "Design": {"Supervision", "Government Submission"},
-    "Supervision": {"Government Submission"},
-    # The reopening paths backward -- an authority's feedback during
-    # Government Submission can require design or supervision changes,
-    # so this needs somewhere to go back to. Requires a reason (see
-    # PROJECT_STAGE_STATUSES_REQUIRING_REASON below), unlike the normal
-    # forward flow, since it's a correction, not the default path.
+    "Contract": {"Design", "Government Submission"},
+    "Design": {"Government Submission"},
+    # Supervision (forward, when included) and Design (the one reopening
+    # path backward -- an authority's feedback can require design
+    # changes) both lead out of Government Submission. Only the Design
+    # direction needs a reason (see PROJECT_STAGE_STATUSES_REQUIRING_
+    # REASON below and project_service.set_stage) -- Supervision is the
+    # normal forward path, not a correction.
     "Government Submission": {"Design", "Supervision"},
+    # The one reopening path out of Supervision -- mirrors Government
+    # Submission's own reopening path back to Design, in case supervision
+    # work turns up something that needs re-submission.
+    "Supervision": {"Government Submission"},
 }
 PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 
