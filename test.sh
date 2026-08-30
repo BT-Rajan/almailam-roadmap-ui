@@ -12,7 +12,8 @@ set -Eeuo pipefail
 #   - loads schema.sql only (no test/demo data)
 #   - creates the admin login (admin / Admin#99) and nothing else
 #   - opens firewall ports 8888 (backend) and 9007 (frontend) via ufw
-#   - runs backend (8888) and frontend dev server (9007) as separate processes
+#   - runs backend (8888) and frontend dev server (9007) under PM2 as
+#     "alhadi-test-backend" / "alhadi-test-frontend"
 #
 # Run any time you want a clean slate:
 #   ./test.sh
@@ -24,11 +25,10 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 ENV_FILE="$BACKEND_DIR/.env"
+ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.alhadi-test.config.cjs"
 
-BACKEND_PID_FILE="$SCRIPT_DIR/test-backend.pid"
-BACKEND_LOG_FILE="$SCRIPT_DIR/test-backend.log"
-FRONTEND_PID_FILE="$SCRIPT_DIR/test-frontend.pid"
-FRONTEND_LOG_FILE="$SCRIPT_DIR/test-frontend.log"
+PM2_BACKEND_NAME="alhadi-test-backend"
+PM2_FRONTEND_NAME="alhadi-test-frontend"
 
 DB_HOST="localhost"
 DB_PORT="3306"
@@ -57,6 +57,11 @@ DB_CLIENT=""
 command -v mariadb >/dev/null 2>&1 && DB_CLIENT=mariadb
 [[ -z "$DB_CLIENT" ]] && command -v mysql >/dev/null 2>&1 && DB_CLIENT=mysql
 [[ -z "$DB_CLIENT" ]] && die "Neither 'mariadb' nor 'mysql' client found. Install MariaDB/MySQL first."
+
+if ! command -v pm2 >/dev/null 2>&1; then
+    log "Installing PM2"
+    npm install -g pm2
+fi
 
 APP_CLIENT=(--protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
 
@@ -176,26 +181,63 @@ else
 fi
 
 # ----------------------------------------------------------------------------
-# 9. Start backend
+# 9. PM2 ecosystem (backend + frontend as separate, named apps)
 # ----------------------------------------------------------------------------
 
-log "Starting backend on port ${BACKEND_PORT}"
+log "Writing PM2 ecosystem file"
 
-if [[ -f "$BACKEND_PID_FILE" ]]; then
-    kill "$(cat "$BACKEND_PID_FILE")" >/dev/null 2>&1 || true
-    sleep 1
-fi
+cat > "$ECOSYSTEM_FILE" <<EOF
+module.exports = {
+    apps: [
+        {
+            name: "${PM2_BACKEND_NAME}",
+            cwd: "${BACKEND_DIR}",
+            script: "${BACKEND_DIR}/venv/bin/uvicorn",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            interpreter: "none",
+            autorestart: true,
+            max_restarts: 10,
+            restart_delay: 3000
+        },
+        {
+            name: "${PM2_FRONTEND_NAME}",
+            cwd: "${SCRIPT_DIR}",
+            script: "npm",
+            args: "run dev -- --host 0.0.0.0 --port ${FRONTEND_PORT}",
+            interpreter: "none",
+            env: {
+                VITE_DEV_PORT: "${FRONTEND_PORT}",
+                VITE_API_PROXY_TARGET: "http://localhost:${BACKEND_PORT}"
+            },
+            autorestart: true,
+            max_restarts: 10,
+            restart_delay: 3000
+        }
+    ]
+};
+EOF
 
-cd "$BACKEND_DIR"
-nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
-    > "$BACKEND_LOG_FILE" 2>&1 &
-echo $! > "$BACKEND_PID_FILE"
-cd "$SCRIPT_DIR"
+# ----------------------------------------------------------------------------
+# 10. Start under PM2
+# ----------------------------------------------------------------------------
 
-# Retry instead of a single fixed sleep -- first-boot uvicorn (DB pool
-# warmup, APScheduler jobs, etc.) can take longer than 2s on a slower box,
-# and a one-shot check was failing even when the server came up fine a
-# moment later.
+log "Starting under PM2"
+
+for name in "$PM2_BACKEND_NAME" "$PM2_FRONTEND_NAME"; do
+    if pm2 describe "$name" >/dev/null 2>&1; then
+        pm2 delete "$name" >/dev/null 2>&1 || true
+    fi
+done
+
+pm2 start "$ECOSYSTEM_FILE"
+pm2 save
+
+# ----------------------------------------------------------------------------
+# 11. Health checks (retry -- first boot can be slower than a fixed sleep)
+# ----------------------------------------------------------------------------
+
+log "Checking backend"
+
 BACKEND_UP=false
 for _ in $(seq 1 20); do
     if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1; then
@@ -206,25 +248,21 @@ for _ in $(seq 1 20); do
 done
 
 [[ "$BACKEND_UP" == true ]] ||
-    die "Backend health check failed after 20s. Check $BACKEND_LOG_FILE"
+    die "Backend health check failed after 20s. Check: pm2 logs ${PM2_BACKEND_NAME}"
 
-# ----------------------------------------------------------------------------
-# 10. Start frontend (separate port, proxies /api to the backend)
-# ----------------------------------------------------------------------------
+log "Checking frontend"
 
-log "Starting frontend on port ${FRONTEND_PORT}"
-
-if [[ -f "$FRONTEND_PID_FILE" ]]; then
-    kill "$(cat "$FRONTEND_PID_FILE")" >/dev/null 2>&1 || true
+FRONTEND_UP=false
+for _ in $(seq 1 20); do
+    if curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" >/dev/null 2>&1; then
+        FRONTEND_UP=true
+        break
+    fi
     sleep 1
-fi
+done
 
-VITE_DEV_PORT="$FRONTEND_PORT" VITE_API_PROXY_TARGET="http://localhost:${BACKEND_PORT}" \
-    nohup npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT" \
-    > "$FRONTEND_LOG_FILE" 2>&1 &
-echo $! > "$FRONTEND_PID_FILE"
-
-sleep 3
+[[ "$FRONTEND_UP" == true ]] ||
+    warn "Frontend not responding yet after 20s. Check: pm2 logs ${PM2_FRONTEND_NAME}"
 
 log "Test instance is running"
 
@@ -240,9 +278,12 @@ cat <<EOF
  Database: ${DB_NAME}
  DB user:  ${DB_USER}
 
- Logs:     $BACKEND_LOG_FILE
-           $FRONTEND_LOG_FILE
- Stop:     kill \$(cat $BACKEND_PID_FILE) \$(cat $FRONTEND_PID_FILE)
+ PM2:
+   pm2 status
+   pm2 logs ${PM2_BACKEND_NAME}
+   pm2 logs ${PM2_FRONTEND_NAME}
+   pm2 restart ${PM2_BACKEND_NAME} ${PM2_FRONTEND_NAME}
+   pm2 delete ${PM2_BACKEND_NAME} ${PM2_FRONTEND_NAME}
 --------------------------------------------------------------
 
 EOF

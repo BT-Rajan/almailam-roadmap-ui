@@ -15,3 +15,9 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Backend runtime config/venv and generated PM2 ecosystem files
+# (produced by install.sh / test.sh on the target machine).
+/backend/.env
+/backend/venv/
+/ecosystem*.config.cjs
