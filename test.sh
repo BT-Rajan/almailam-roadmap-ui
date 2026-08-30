@@ -5,32 +5,41 @@ set -Eeuo pipefail
 # ServiceOS - Test Instance Setup
 #
 # Self-running, non-interactive setup for a fresh test instance:
-#   - creates database "alhadi-test" + user app_user
+#   - connects only as app_user (no root DB access on this server)
+#   - creates database "alhadi-test" if it doesn't exist yet
 #   - loads schema.sql only (no test/demo data)
 #   - creates the admin login (admin / Admin#99) and nothing else
-#   - builds the frontend and starts the app on one port
+#   - opens firewall ports 8888 (backend) and 9007 (frontend) via ufw
+#   - runs backend (8888) and frontend dev server (9007) as separate processes
 #
 # Run once on a fresh box:
 #   ./test.sh
 #
-# Re-running is safe: DB/user creation is idempotent, the admin script
-# skips if the user already exists, and the server process is restarted.
+# Re-running is safe: schema load is idempotent (CREATE TABLE IF NOT
+# EXISTS), the admin script skips if the user already exists, and both
+# server processes are restarted.
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 ENV_FILE="$BACKEND_DIR/.env"
-PID_FILE="$SCRIPT_DIR/test.pid"
-LOG_FILE="$SCRIPT_DIR/test.log"
+
+BACKEND_PID_FILE="$SCRIPT_DIR/test-backend.pid"
+BACKEND_LOG_FILE="$SCRIPT_DIR/test-backend.log"
+FRONTEND_PID_FILE="$SCRIPT_DIR/test-frontend.pid"
+FRONTEND_LOG_FILE="$SCRIPT_DIR/test-frontend.log"
 
 DB_HOST="localhost"
 DB_PORT="3306"
 DB_NAME="alhadi-test"
 DB_USER="app_user"
 DB_PASSWORD="Chennai#44"
-PORT="8000"
+
+BACKEND_PORT="8888"
+FRONTEND_PORT="9007"
 
 log()  { printf '\n\033[1;32m==> %s\033[0m\n' "$1"; }
+warn() { printf '\033[1;33m!! %s\033[0m\n' "$1"; }
 die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$1" >&2; exit 1; }
 
 # ----------------------------------------------------------------------------
@@ -48,35 +57,28 @@ command -v mariadb >/dev/null 2>&1 && DB_CLIENT=mariadb
 [[ -z "$DB_CLIENT" ]] && command -v mysql >/dev/null 2>&1 && DB_CLIENT=mysql
 [[ -z "$DB_CLIENT" ]] && die "Neither 'mariadb' nor 'mysql' client found. Install MariaDB/MySQL first."
 
+APP_CLIENT=(--protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
+
 # ----------------------------------------------------------------------------
-# 2. Database + user
+# 2. Database (connect as app_user only -- no root access on this server)
 # ----------------------------------------------------------------------------
 
-log "Creating test database '$DB_NAME'"
+log "Connecting as ${DB_USER}"
 
-ROOT_CLIENT=(--protocol=socket -u root)
-if ! "$DB_CLIENT" "${ROOT_CLIENT[@]}" -e "SELECT 1;" >/dev/null 2>&1; then
-    ROOT_CLIENT=(--protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u root)
+MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "SELECT 1;" >/dev/null 2>&1 ||
+    die "Cannot connect as ${DB_USER}/${DB_PASSWORD}. Confirm this user exists and can log in from localhost."
+
+log "Creating database '$DB_NAME' if needed"
+
+if ! MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "USE \`${DB_NAME}\`;" >/dev/null 2>&1; then
+    MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "
+        CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
+            CHARACTER SET utf8mb4
+            COLLATE utf8mb4_unicode_ci;
+    " || die "Could not create database '${DB_NAME}' as ${DB_USER} -- ask an admin to create it and GRANT ALL on it to ${DB_USER}, or create it manually and re-run."
 fi
 
-"$DB_CLIENT" "${ROOT_CLIENT[@]}" -e "SELECT 1;" >/dev/null 2>&1 ||
-    die "Cannot connect to MariaDB/MySQL as root (socket or tcp). Make sure the DB server is running."
-
-"$DB_CLIENT" "${ROOT_CLIENT[@]}" <<SQL
-CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost'
-    IDENTIFIED BY '${DB_PASSWORD}';
-
-ALTER USER '${DB_USER}'@'localhost'
-    IDENTIFIED BY '${DB_PASSWORD}';
-
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
-
-FLUSH PRIVILEGES;
-SQL
+unset MYSQL_PWD
 
 # ----------------------------------------------------------------------------
 # 3. Schema (fresh instance -> load schema.sql only, no test data)
@@ -84,9 +86,7 @@ SQL
 
 log "Loading schema into '$DB_NAME'"
 
-MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" \
-    --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" \
-    "$DB_NAME" < "$BACKEND_DIR/schema.sql"
+MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" "$DB_NAME" < "$BACKEND_DIR/schema.sql"
 unset MYSQL_PWD
 
 # ----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ ENV=development
 DEBUG=true
 
 HOST=0.0.0.0
-PORT=${PORT}
+PORT=${BACKEND_PORT}
 
 DB_HOST=${DB_HOST}
 DB_PORT=${DB_PORT}
@@ -113,7 +113,7 @@ DB_NAME=${DB_NAME}
 DB_POOL_SIZE=10
 DB_MAX_OVERFLOW=20
 
-CORS_ORIGINS=http://localhost:${PORT}
+CORS_ORIGINS=http://localhost:${FRONTEND_PORT},http://localhost:${BACKEND_PORT}
 
 JWT_SECRET_KEY=${JWT_SECRET}
 JWT_ALGORITHM=HS256
@@ -151,53 +151,82 @@ deactivate
 cd "$SCRIPT_DIR"
 
 # ----------------------------------------------------------------------------
-# 7. Frontend build
+# 7. Frontend deps
 # ----------------------------------------------------------------------------
 
-log "Building frontend"
+log "Installing frontend dependencies"
 
 npm install
-npm run build
 
 # ----------------------------------------------------------------------------
-# 8. Start (self running, single process serving API + built frontend)
+# 8. Firewall (open backend + frontend ports)
 # ----------------------------------------------------------------------------
 
-log "Starting test server"
+if command -v ufw >/dev/null 2>&1; then
+    log "Opening firewall ports ${BACKEND_PORT} and ${FRONTEND_PORT}"
+    ufw allow "${BACKEND_PORT}/tcp" >/dev/null 2>&1 || warn "Could not run 'ufw allow ${BACKEND_PORT}/tcp' (try with sudo)."
+    ufw allow "${FRONTEND_PORT}/tcp" >/dev/null 2>&1 || warn "Could not run 'ufw allow ${FRONTEND_PORT}/tcp' (try with sudo)."
+else
+    warn "ufw not found -- skipping firewall rules. Open ${BACKEND_PORT}/tcp and ${FRONTEND_PORT}/tcp manually if needed."
+fi
 
-if [[ -f "$PID_FILE" ]]; then
-    OLD_PID="$(cat "$PID_FILE")"
-    kill "$OLD_PID" >/dev/null 2>&1 || true
+# ----------------------------------------------------------------------------
+# 9. Start backend
+# ----------------------------------------------------------------------------
+
+log "Starting backend on port ${BACKEND_PORT}"
+
+if [[ -f "$BACKEND_PID_FILE" ]]; then
+    kill "$(cat "$BACKEND_PID_FILE")" >/dev/null 2>&1 || true
     sleep 1
 fi
 
 cd "$BACKEND_DIR"
-nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT" \
-    > "$LOG_FILE" 2>&1 &
-echo $! > "$PID_FILE"
+nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
+    > "$BACKEND_LOG_FILE" 2>&1 &
+echo $! > "$BACKEND_PID_FILE"
 cd "$SCRIPT_DIR"
 
 sleep 2
 
-if curl -fsS "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
-    log "Test instance is running"
-else
-    die "Health check failed. Check $LOG_FILE"
+curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1 ||
+    die "Backend health check failed. Check $BACKEND_LOG_FILE"
+
+# ----------------------------------------------------------------------------
+# 10. Start frontend (separate port, proxies /api to the backend)
+# ----------------------------------------------------------------------------
+
+log "Starting frontend on port ${FRONTEND_PORT}"
+
+if [[ -f "$FRONTEND_PID_FILE" ]]; then
+    kill "$(cat "$FRONTEND_PID_FILE")" >/dev/null 2>&1 || true
+    sleep 1
 fi
+
+VITE_DEV_PORT="$FRONTEND_PORT" VITE_API_PROXY_TARGET="http://localhost:${BACKEND_PORT}" \
+    nohup npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT" \
+    > "$FRONTEND_LOG_FILE" 2>&1 &
+echo $! > "$FRONTEND_PID_FILE"
+
+sleep 3
+
+log "Test instance is running"
 
 cat <<EOF
 
 --------------------------------------------------------------
  ServiceOS test instance
 --------------------------------------------------------------
- URL:      http://localhost:${PORT}
+ Frontend: http://localhost:${FRONTEND_PORT}
+ Backend:  http://localhost:${BACKEND_PORT}
  Login:    admin / Admin#99
 
  Database: ${DB_NAME}
  DB user:  ${DB_USER}
 
- Logs:     $LOG_FILE
- Stop:     kill \$(cat $PID_FILE)
+ Logs:     $BACKEND_LOG_FILE
+           $FRONTEND_LOG_FILE
+ Stop:     kill \$(cat $BACKEND_PID_FILE) \$(cat $FRONTEND_PID_FILE)
 --------------------------------------------------------------
 
 EOF
