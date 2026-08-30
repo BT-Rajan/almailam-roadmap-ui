@@ -67,7 +67,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
       class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
       :class="
         activeTab === tab.key
-          ? 'border-primary-600 text-primary-700'
+          ? 'border-accent-500 text-accent-700 dark:text-accent-400'
           : 'border-transparent text-text-muted hover:text-text-primary'
       "
       :aria-selected="activeTab === tab.key"

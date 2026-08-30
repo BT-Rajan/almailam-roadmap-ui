@@ -59,8 +59,8 @@ watch(() => props.projectId, loadData)
 
     <template v-else-if="orderedAuthorities.length === 0">
       <p class="text-sm text-text-muted">
-        No authorities configured yet -- add one under Administration &gt; Government Forms to start filing forms
-        here.
+        No authorities configured yet -- add one under Administration &gt; Documents &gt; Government Forms to start
+        filing forms here.
       </p>
     </template>
 
@@ -74,7 +74,7 @@ watch(() => props.projectId, loadData)
           class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           :class="
             activeAuthorityId === authority.id
-              ? 'border-primary-600 text-primary-700'
+              ? 'border-accent-500 text-accent-700 dark:text-accent-400'
               : 'border-transparent text-text-muted hover:text-text-primary'
           "
           :aria-selected="activeAuthorityId === authority.id"

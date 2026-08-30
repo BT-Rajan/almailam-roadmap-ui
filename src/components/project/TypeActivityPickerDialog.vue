@@ -112,7 +112,7 @@ function handleConfirm(): void {
             class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
             :class="
               category.id === viewedCategoryId
-                ? 'border-primary-500 bg-primary-50 text-primary-700'
+                ? 'border-accent-500 bg-primary-50 text-accent-700 dark:text-accent-400'
                 : 'border-border-light text-text-secondary hover:border-primary-300'
             "
             @click="viewCategory(category.id)"
