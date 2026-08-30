@@ -36,4 +36,11 @@ function me(): Promise<CurrentUser> {
   return apiClient.get<CurrentUser>('/api/auth/me')
 }
 
-export const authService = { login, refresh, logout, me }
+function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiClient.post<void>('/api/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+}
+
+export const authService = { login, refresh, logout, me, changePassword }

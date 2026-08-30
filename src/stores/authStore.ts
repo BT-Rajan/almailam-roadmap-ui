@@ -44,6 +44,14 @@ export const useAuthStore = defineStore('auth', {
       this._clearToken()
     },
 
+    // Backend revokes every refresh token on a successful password change,
+    // so the current session can't silently keep going -- clear local
+    // state the same way logout() does and send the user back to sign in.
+    async changePassword(currentPassword: string, newPassword: string) {
+      await authService.changePassword(currentPassword, newPassword)
+      this._clearToken()
+    },
+
     /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success.
      * Safe to call concurrently -- overlapping calls share a single in-flight request.
      * Used mid-session by the httpClient 401-retry (see services/httpClient.ts) to renew an

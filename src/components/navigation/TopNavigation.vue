@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Bell, Calendar, Menu, MessageSquare, Moon, Search, Sparkles, Sun, User } from '@lucide/vue'
+import { Bell, Calendar, Menu, MessageSquare, Search, Sparkles } from '@lucide/vue'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+import UserMenu from '@/components/navigation/UserMenu.vue'
 import { useRbac } from '@/composables/useRbac'
-import { useTheme } from '@/composables/useTheme'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { useNavigationStore } from '@/stores/navigationStore'
@@ -16,7 +16,6 @@ const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
 const knowledgeStore = useKnowledgeStore()
-const { isDark, toggleMode } = useTheme()
 const { can } = useRbac()
 
 onMounted(() => {
@@ -75,16 +74,6 @@ onMounted(() => {
 
       <button
         type="button"
-        class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Toggle color theme"
-        @click="toggleMode"
-      >
-        <Sun v-if="isDark" :size="18" />
-        <Moon v-else :size="18" />
-      </button>
-
-      <button
-        type="button"
         class="relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
         aria-label="Notifications"
         @click="notificationStore.toggleDrawer"
@@ -108,17 +97,7 @@ onMounted(() => {
         <MessageSquare :size="18" />
       </button>
 
-      <button
-        type="button"
-        class="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-      >
-        <span
-          class="gradient-luxe-accent flex h-7 w-7 items-center justify-center rounded-full text-white"
-        >
-          <User :size="16" />
-        </span>
-        <span class="hidden sm:inline">Rajan Kumar</span>
-      </button>
+      <UserMenu />
     </div>
   </header>
 </template>
