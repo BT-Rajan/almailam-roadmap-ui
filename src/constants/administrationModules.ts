@@ -28,38 +28,26 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
     ],
   },
   {
-    label: 'Project Configuration',
-    description: 'The building blocks every project is set up from.',
+    label: 'Catalogs',
+    description: 'The priced building blocks every project is set up from.',
     modules: [
       {
-        label: 'Service Catalog',
-        description: 'Configure services and their activities, each with a fixed cost.',
+        label: 'Catalogs',
+        description: 'Configure the service, additional activity, and permit catalogs -- each in its own tab.',
         icon: 'ListChecks',
-        routeName: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
+        routeName: ROUTE_NAMES.ADMIN_CATALOGS,
       },
+    ],
+  },
+  {
+    label: 'Documents',
+    description: 'Government forms, authorities, and how they map to services.',
+    modules: [
       {
-        label: 'Additional Activity Catalog',
-        description: 'Configure engagement type categories (Design, Supervision, etc) and their priced additional activity checklists.',
-        icon: 'ListChecks',
-        routeName: ROUTE_NAMES.ADMIN_TYPE_ACTIVITY_CATALOG,
-      },
-      {
-        label: 'Permit Catalog',
-        description: 'Configure the permits that can be attached to a project during setup.',
-        icon: 'FileCheck2',
-        routeName: ROUTE_NAMES.ADMIN_PERMIT_CATALOG,
-      },
-      {
-        label: 'Government Forms Management',
-        description: 'Maintain government forms, authorities, and document requirements.',
+        label: 'Documents',
+        description: 'Manage government forms and authorities, and the service document map -- each in its own tab.',
         icon: 'Landmark',
-        routeName: ROUTE_NAMES.ADMIN_FORMS,
-      },
-      {
-        label: 'Service Document Map',
-        description: 'For each service, which fillable government forms/agreements a project needs -- no document listed twice.',
-        icon: 'Map',
-        routeName: ROUTE_NAMES.ADMIN_SERVICE_DOCUMENT_MAP,
+        routeName: ROUTE_NAMES.ADMIN_DOCUMENTS,
       },
     ],
   },

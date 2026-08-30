@@ -6,7 +6,6 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -246,14 +245,12 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="Government Forms Administration" subtitle="Maintain authorities, forms and their document requirements.">
-      <template #actions>
-        <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">Add Authority</BaseButton>
-        <BaseButton variant="secondary" :icon="Upload" @click="isImportDialogOpen = true">Load Standard Forms</BaseButton>
-        <BaseButton :icon="Plus" @click="openAddForm">Add Form</BaseButton>
-      </template>
-    </PageHeader>
+  <div class="flex flex-col gap-3">
+    <div class="flex justify-end gap-2">
+      <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">Add Authority</BaseButton>
+      <BaseButton variant="secondary" :icon="Upload" @click="isImportDialogOpen = true">Load Standard Forms</BaseButton>
+      <BaseButton :icon="Plus" @click="openAddForm">Add Form</BaseButton>
+    </div>
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
 

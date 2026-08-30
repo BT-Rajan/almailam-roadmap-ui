@@ -3,7 +3,6 @@ import { onMounted } from 'vue'
 
 import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import PermitCatalogListEditor from '@/components/administration/PermitCatalogListEditor.vue'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
@@ -45,25 +44,18 @@ function handleRemovePermit(permitId: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader
-      title="Permit Catalog"
-      subtitle="Configure the permits that can be attached to a project during setup."
-    />
+  <ErrorState v-if="permitCatalogStore.error" :description="permitCatalogStore.error" @retry="loadData" />
 
-    <ErrorState v-if="permitCatalogStore.error" :description="permitCatalogStore.error" @retry="loadData" />
-
-    <div v-else-if="permitCatalogStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-6">
-      <SkeletonLoader :rows="5" />
-    </div>
-
-    <Card v-else class="max-w-2xl">
-      <PermitCatalogListEditor
-        :permits="permitCatalogStore.permits"
-        @add="handleAddPermit"
-        @update="handleUpdatePermit"
-        @remove="handleRemovePermit"
-      />
-    </Card>
+  <div v-else-if="permitCatalogStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-6">
+    <SkeletonLoader :rows="5" />
   </div>
+
+  <Card v-else class="max-w-2xl">
+    <PermitCatalogListEditor
+      :permits="permitCatalogStore.permits"
+      @add="handleAddPermit"
+      @update="handleUpdatePermit"
+      @remove="handleRemovePermit"
+    />
+  </Card>
 </template>

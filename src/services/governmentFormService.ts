@@ -94,7 +94,7 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
  * a downloadable PDF -- nothing saved, no project needed. The admin-
  * facing counterpart to fillForm above (which requires a project and
  * saves a Document there); this is for trying a template out from
- * Administration > Government Forms. Raw fetch + blob, same pattern as
+ * Administration > Documents > Government Forms. Raw fetch + blob, same pattern as
  * documentService.downloadDocument, since apiClient only parses JSON.
  */
 async function renderPdf(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {

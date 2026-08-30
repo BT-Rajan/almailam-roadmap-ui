@@ -210,7 +210,7 @@ async function confirmDelete(): Promise<void> {
     <EmptyState
       v-if="authorityForms.length === 0"
       title="No fillable forms for this authority yet"
-      description="Add a form with template content under Administration > Government Forms to make it available here."
+      description="Add a form with template content under Administration > Documents > Government Forms to make it available here."
     />
 
     <template v-else>

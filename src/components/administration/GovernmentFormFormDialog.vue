@@ -95,7 +95,7 @@ function setOptionsText(index: number, text: string): void {
 const isUploadingSample = ref(false)
 // Local display value so the "currently attached" filename updates
 // immediately after a successful upload -- props.form itself won't
-// reflect it until AdminFormsPage.vue's own list refreshes.
+// reflect it until GovernmentFormsPanel.vue's own list refreshes.
 const uploadedSampleFileName = ref<string | null>(null)
 
 async function handleSampleFileSelected(event: Event): Promise<void> {
@@ -279,7 +279,7 @@ function handleSave(): void {
         <EmptyState
           v-if="services.length === 0"
           title="No services in the catalog yet"
-          description="Add services under Administration > Service Catalog to tag this form."
+          description="Add services under Administration > Catalogs > Service Catalog to tag this form."
         />
         <div v-else class="grid grid-cols-1 gap-1.5 rounded-lg border border-border-light p-3 tablet:grid-cols-2">
           <Checkbox

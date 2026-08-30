@@ -351,72 +351,30 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin/service-catalog',
-      name: ROUTE_NAMES.ADMIN_SERVICE_CATALOG,
-      component: () => import('@/pages/AdminServiceCatalogPage.vue'),
+      path: '/admin/catalogs',
+      name: ROUTE_NAMES.ADMIN_CATALOGS,
+      component: () => import('@/pages/AdminCatalogsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Service Catalog' },
+          { label: 'Catalogs' },
         ],
       },
     },
     {
-      path: '/admin/type-activity-catalog',
-      name: ROUTE_NAMES.ADMIN_TYPE_ACTIVITY_CATALOG,
-      component: () => import('@/pages/AdminTypeActivityCatalogPage.vue'),
+      path: '/admin/documents',
+      name: ROUTE_NAMES.ADMIN_DOCUMENTS,
+      component: () => import('@/pages/AdminDocumentsPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Type Activity Catalog' },
-        ],
-      },
-    },
-    {
-      path: '/admin/permit-catalog',
-      name: ROUTE_NAMES.ADMIN_PERMIT_CATALOG,
-      component: () => import('@/pages/AdminPermitCatalogPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Permit Catalog' },
-        ],
-      },
-    },
-    {
-      path: '/admin/forms',
-      name: ROUTE_NAMES.ADMIN_FORMS,
-      component: () => import('@/pages/AdminFormsPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Forms' },
-        ],
-      },
-    },
-    {
-      path: '/admin/service-document-map',
-      name: ROUTE_NAMES.ADMIN_SERVICE_DOCUMENT_MAP,
-      component: () => import('@/pages/AdminServiceDocumentMapPage.vue'),
-      meta: {
-        layout: 'dashboard',
-        requiresAuth: true,
-        breadcrumbs: [
-          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
-          { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
-          { label: 'Service Document Map' },
+          { label: 'Documents' },
         ],
       },
     },

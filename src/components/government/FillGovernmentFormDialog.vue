@@ -133,7 +133,7 @@ async function handleGenerate(): Promise<void> {
       <EmptyState
         v-if="forms.length === 0"
         title="No fillable forms yet"
-        description="Add template content to a government form under Administration > Government Forms to make it fillable here."
+        description="Add template content to a government form under Administration > Documents > Government Forms to make it fillable here."
       />
 
       <template v-else>

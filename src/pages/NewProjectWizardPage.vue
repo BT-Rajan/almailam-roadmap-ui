@@ -228,7 +228,7 @@ onMounted(async () => {
   await projectStore.loadProjects()
 
   // Services (and their activities/prices) come from the admin-configurable
-  // catalog (Administration > Service Catalog) and feed the service picker
+  // catalog (Administration > Catalogs > Service Catalog) and feed the service picker
   // dialog directly, so anything added there shows up here without a code
   // change. Fetched fresh for the same reason as the client list above.
   await serviceCatalogStore.loadServices()

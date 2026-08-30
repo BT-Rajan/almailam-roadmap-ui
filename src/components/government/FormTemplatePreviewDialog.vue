@@ -20,7 +20,7 @@ interface Props {
   // line -- see renderGovernmentFormTemplate.
   context?: Record<string, string | undefined>
   // Shown above the fields when the caller wants to make clear this
-  // isn't tied to a real project -- see AdminFormsPage.vue.
+  // isn't tied to a real project -- see GovernmentFormsPanel.vue.
   stubNotice?: string
 }
 

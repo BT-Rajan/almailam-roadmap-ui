@@ -5,7 +5,6 @@ import Card from '@/components/common/Card.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
@@ -14,12 +13,12 @@ import type { GovernmentForm } from '@/types/Government'
 
 // The single source of truth for "which service needs which document" --
 // a GovernmentForm's own serviceTags (see GovernmentFormFormDialog.vue's
-// Tagged Services grid). This page is the same relationship viewed and
+// Tagged Services grid). This panel is the same relationship viewed and
 // edited from the other side: by service, instead of by form. There is
 // deliberately no separate table or duplicate list behind this screen --
 // toggling a checkbox here calls the exact same updateForm action the
-// Government Forms admin screen uses, so the two screens can never drift
-// out of sync with each other.
+// Government Forms panel uses, so the two panels can never drift out of
+// sync with each other.
 const governmentFormStore = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -68,12 +67,7 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader
-      title="Service Document Map"
-      subtitle="For each service, which fillable government forms/agreements a project needs. Staff fill these in from the project itself (Approvals & Permits) -- this only controls which ones are offered there."
-    />
-
+  <div class="flex flex-col gap-3">
     <ErrorState v-if="governmentFormStore.error" :description="governmentFormStore.error" @retry="governmentFormStore.loadForms" />
 
     <template v-else-if="isLoading()">
@@ -85,13 +79,13 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
     <EmptyState
       v-else-if="serviceCatalogStore.services.length === 0"
       title="No services in the catalog yet"
-      description="Add services under Administration > Service Catalog first."
+      description="Add services under Administration > Catalogs > Service Catalog first."
     />
 
     <EmptyState
       v-else-if="fillableForms().length === 0"
       title="No fillable forms yet"
-      description="Add Template Content to a form under Administration > Government Forms Management to make it assignable here."
+      description="Add Template Content to a form under Administration > Documents > Government Forms to make it assignable here."
     />
 
     <div v-else class="flex flex-col gap-4">
