@@ -47,7 +47,7 @@ const containerClasses = computed(() => [
         class="flex items-center gap-2"
         :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
       >
-        <div class="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-border-default bg-bg-card transition-colors duration-fast">
+        <div class="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-border-default bg-bg-card transition-colors duration-fast has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-500/30 has-[:focus-visible]:ring-offset-2">
           <input
             :id="`${groupId}-${option.value}`"
             type="radio"

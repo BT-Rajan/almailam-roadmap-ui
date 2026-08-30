@@ -56,9 +56,11 @@ const authError = ref<string>()
 const infoMessage = ref<string>()
 const isForgotPasswordOpen = ref(false)
 const isSubmitting = ref(false)
+const idInputRef = ref<InstanceType<typeof TextInput>>()
 
 onMounted(() => {
   if (props.initialMessage) infoMessage.value = props.initialMessage
+  idInputRef.value?.focus()
 })
 
 const { errors, setRules, validateAll } = useFormValidation()
@@ -99,6 +101,7 @@ function clearLogin(): void {
 <template>
   <form class="flex flex-col gap-4" @submit.prevent="signIn">
     <TextInput
+      ref="idInputRef"
       v-model="id"
       :label="idLabel"
       :placeholder="idPlaceholder"

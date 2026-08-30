@@ -57,7 +57,7 @@ const handleChange = (event: Event) => {
 
 <template>
   <label :for="checkboxId" class="flex items-start gap-2.5" :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'">
-    <div class="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border-default bg-bg-card transition-colors duration-fast">
+    <div class="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border-default bg-bg-card transition-colors duration-fast has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-500/30 has-[:focus-visible]:ring-offset-2">
       <input
         :id="checkboxId"
         type="checkbox"

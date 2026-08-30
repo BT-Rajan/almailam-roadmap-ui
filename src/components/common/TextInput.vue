@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
 import type { Component } from 'vue'
 
 interface Props {
@@ -35,6 +35,11 @@ defineEmits<{
 }>()
 
 const inputId = useId()
+const inputRef = ref<HTMLInputElement>()
+
+defineExpose({
+  focus: (options?: FocusOptions) => inputRef.value?.focus(options),
+})
 
 const inputClasses = computed(() => [
   'h-10 w-full rounded-lg border bg-bg-card text-sm text-text-primary',
@@ -61,6 +66,7 @@ const inputClasses = computed(() => [
       />
       <input
         :id="inputId"
+        ref="inputRef"
         :type="type"
         :inputmode="inputmode"
         :autocomplete="autocomplete"

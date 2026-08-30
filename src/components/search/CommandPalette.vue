@@ -11,17 +11,19 @@ import {
   User,
   Wallet,
 } from '@lucide/vue'
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import Loader from '@/components/common/Loader.vue'
 import SearchBox from '@/components/common/SearchBox.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+import { isAnyOverlayOpen, useOverlayStack } from '@/composables/useOverlayStack'
 import { useSearchStore } from '@/stores/searchStore'
 import type { SearchResult, SearchResultCategory } from '@/types/Search'
 
 const searchStore = useSearchStore()
 const router = useRouter()
-const paletteRef = ref<HTMLDivElement>()
+const paletteRef = ref<HTMLElement>()
 
 const CATEGORY_LABELS: Record<SearchResultCategory, string> = {
   Client: 'Clients',
@@ -60,10 +62,17 @@ const handleSearch = (value: string): void => {
   void searchStore.setQuery(value)
 }
 
+const { isTopmost } = useOverlayStack(() => searchStore.isOpen)
+useFocusTrap(paletteRef, () => searchStore.isOpen, {
+  initialFocus: () => paletteRef.value?.querySelector<HTMLElement>('input') ?? undefined,
+})
+
 const handleKeydown = (event: KeyboardEvent): void => {
   const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k'
   if (isShortcut) {
     event.preventDefault()
+    // Don't pop search open on top of an already-open modal dialog/drawer.
+    if (!searchStore.isOpen && isAnyOverlayOpen()) return
     searchStore.toggle()
     return
   }
@@ -71,6 +80,7 @@ const handleKeydown = (event: KeyboardEvent): void => {
   if (!searchStore.isOpen) return
 
   if (event.key === 'Escape') {
+    if (!isTopmost()) return
     searchStore.close()
   } else if (event.key === 'ArrowDown') {
     event.preventDefault()
@@ -93,11 +103,6 @@ watch(
   () => searchStore.isOpen,
   (isOpen) => {
     document.body.classList.toggle('overflow-hidden', isOpen)
-    if (isOpen) {
-      void nextTick(() => {
-        paletteRef.value?.querySelector('input')?.focus()
-      })
-    }
   },
 )
 </script>
@@ -107,7 +112,11 @@ watch(
     <div v-if="searchStore.isOpen" class="fixed inset-0 z-modal flex items-start justify-center p-4 pt-24">
       <div class="absolute inset-0 bg-neutral-900/50" @click="searchStore.close" />
 
-      <div ref="paletteRef" class="relative flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-bg-card shadow-elevated">
+      <div
+        ref="paletteRef"
+        class="relative flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-bg-card shadow-elevated focus:outline-none"
+        tabindex="-1"
+      >
         <div class="border-b border-border-light p-3">
           <SearchBox
             :model-value="searchStore.query"
