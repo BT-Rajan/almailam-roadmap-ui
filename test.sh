@@ -6,18 +6,19 @@ set -Eeuo pipefail
 #
 # Self-running, non-interactive setup for a fresh test instance:
 #   - connects only as app_user (no root DB access on this server)
-#   - creates database "alhadi-test" if it doesn't exist yet
+#   - drops + recreates database "alhadi-test" on every run (disposable
+#     test DB -- schema.sql's seed inserts aren't idempotent, so this is
+#     simpler and more reliable than trying to reuse an existing one)
 #   - loads schema.sql only (no test/demo data)
 #   - creates the admin login (admin / Admin#99) and nothing else
 #   - opens firewall ports 8888 (backend) and 9007 (frontend) via ufw
 #   - runs backend (8888) and frontend dev server (9007) as separate processes
 #
-# Run once on a fresh box:
+# Run any time you want a clean slate:
 #   ./test.sh
 #
-# Re-running is safe: schema load is idempotent (CREATE TABLE IF NOT
-# EXISTS), the admin script skips if the user already exists, and both
-# server processes are restarted.
+# Every run wipes and rebuilds the database from schema.sql -- don't run
+# this against anything you want to keep.
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,15 +69,19 @@ log "Connecting as ${DB_USER}"
 MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "SELECT 1;" >/dev/null 2>&1 ||
     die "Cannot connect as ${DB_USER}/${DB_PASSWORD}. Confirm this user exists and can log in from localhost."
 
-log "Creating database '$DB_NAME' if needed"
+# This is a disposable test instance -- schema.sql has a handful of
+# non-idempotent seed INSERTs (permit catalog, activity categories), so
+# re-running against a database that already has data in it fails with
+# duplicate-key errors. Drop and recreate on every run instead of trying
+# to reuse whatever's there.
+log "Resetting database '$DB_NAME'"
 
-if ! MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "USE \`${DB_NAME}\`;" >/dev/null 2>&1; then
-    MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "
-        CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
-            CHARACTER SET utf8mb4
-            COLLATE utf8mb4_unicode_ci;
-    " || die "Could not create database '${DB_NAME}' as ${DB_USER} -- ask an admin to create it and GRANT ALL on it to ${DB_USER}, or create it manually and re-run."
-fi
+MYSQL_PWD="$DB_PASSWORD" "$DB_CLIENT" "${APP_CLIENT[@]}" -e "
+    DROP DATABASE IF EXISTS \`${DB_NAME}\`;
+    CREATE DATABASE \`${DB_NAME}\`
+        CHARACTER SET utf8mb4
+        COLLATE utf8mb4_unicode_ci;
+" || die "Could not reset database '${DB_NAME}' as ${DB_USER} -- confirm this user has DROP/CREATE privileges on it."
 
 unset MYSQL_PWD
 
@@ -187,10 +192,21 @@ nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
 echo $! > "$BACKEND_PID_FILE"
 cd "$SCRIPT_DIR"
 
-sleep 2
+# Retry instead of a single fixed sleep -- first-boot uvicorn (DB pool
+# warmup, APScheduler jobs, etc.) can take longer than 2s on a slower box,
+# and a one-shot check was failing even when the server came up fine a
+# moment later.
+BACKEND_UP=false
+for _ in $(seq 1 20); do
+    if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1; then
+        BACKEND_UP=true
+        break
+    fi
+    sleep 1
+done
 
-curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1 ||
-    die "Backend health check failed. Check $BACKEND_LOG_FILE"
+[[ "$BACKEND_UP" == true ]] ||
+    die "Backend health check failed after 20s. Check $BACKEND_LOG_FILE"
 
 # ----------------------------------------------------------------------------
 # 10. Start frontend (separate port, proxies /api to the backend)
