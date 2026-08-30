@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
-import { onBeforeUnmount, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import IconButton from '@/components/common/IconButton.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 
 interface Props {
   modelValue: boolean
@@ -28,13 +30,18 @@ const widthClasses: Record<string, string> = {
   lg: 'max-w-xl',
 }
 
+const panelRef = ref<HTMLElement>()
+
 const closeDrawer = (): void => {
   emit('update:modelValue', false)
   emit('close')
 }
 
+const { isTopmost } = useOverlayStack(() => props.modelValue)
+useFocusTrap(panelRef, () => props.modelValue)
+
 const handleKeydown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape' && props.modelValue) {
+  if (event.key === 'Escape' && props.modelValue && isTopmost()) {
     closeDrawer()
   }
 }
@@ -61,8 +68,10 @@ onBeforeUnmount(() => {
       </Transition>
       <Transition appear :name="side === 'left' ? 'drawer-slide-left' : 'drawer-slide-right'">
         <div
-          class="glass-panel relative flex h-full w-full flex-col shadow-elevated"
+          ref="panelRef"
+          class="glass-panel relative flex h-full w-full flex-col shadow-elevated focus:outline-none"
           :class="widthClasses[width]"
+          tabindex="-1"
         >
           <div v-if="title" class="flex items-center justify-between border-b border-border-light px-5 py-4">
             <h2 class="text-lg font-semibold text-text-primary">{{ title }}</h2>

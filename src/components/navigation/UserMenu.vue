@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import ChangePasswordDialog from '@/components/navigation/ChangePasswordDialog.vue'
 import ProfileDialog from '@/components/navigation/ProfileDialog.vue'
 import { useAuth } from '@/composables/useAuthComposable'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useTheme } from '@/composables/useTheme'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
@@ -17,6 +18,13 @@ const isOpen = ref(false)
 const isProfileOpen = ref(false)
 const isChangePasswordOpen = ref(false)
 const menuRef = ref<HTMLElement>()
+const triggerRef = ref<HTMLButtonElement>()
+
+// Opens on hover, so it can be "open" purely because the pointer is resting
+// near the avatar -- registered as non-blocking so it never silently stops
+// Ctrl+K (see useOverlayStack) from working. It still takes part in the
+// shared stack for Escape/topmost purposes.
+const { isTopmost } = useOverlayStack(() => isOpen.value, { blocking: false })
 
 // Hover-intent close: leaving the trigger for the panel (or vice versa) is
 // a brief gap, so closing immediately on mouseleave would make the menu
@@ -47,13 +55,22 @@ function close(): void {
 }
 
 function handleClickOutside(event: MouseEvent): void {
-  if (isOpen.value && menuRef.value && !menuRef.value.contains(event.target as Node)) {
+  if (isOpen.value && isTopmost() && menuRef.value && !menuRef.value.contains(event.target as Node)) {
     close()
   }
 }
 
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && isOpen.value) close()
+  if (event.key === 'Escape' && isOpen.value && isTopmost()) {
+    close()
+    // Keyboard-driven close should hand focus back to the trigger so a
+    // keyboard user doesn't lose their place. Pointer-driven closes
+    // (hover-out, click-outside, menu-item clicks) deliberately don't do
+    // this -- it would fight focus the user didn't ask for (a click on
+    // "My Profile" should land focus in the dialog that opens, not back on
+    // this button).
+    triggerRef.value?.focus()
+  }
 }
 
 window.addEventListener('mousedown', handleClickOutside)
@@ -84,6 +101,7 @@ async function handleLogout(): Promise<void> {
 <template>
   <div ref="menuRef" class="relative" @mouseenter="openOnHover" @mouseleave="closeOnHover">
     <button
+      ref="triggerRef"
       type="button"
       class="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
       aria-haspopup="menu"

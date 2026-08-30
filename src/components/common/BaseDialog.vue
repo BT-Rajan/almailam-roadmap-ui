@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
-import { onBeforeUnmount, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import IconButton from '@/components/common/IconButton.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 import type { ComponentSize } from '@/types/Ui'
 
 interface Props {
@@ -36,14 +38,19 @@ const sizeClasses: Record<ComponentSize, string> = {
   lg: 'max-w-4xl',
 }
 
+const panelRef = ref<HTMLElement>()
+
 const closeDialog = (): void => {
   if (!props.closable) return
   emit('update:modelValue', false)
   emit('close')
 }
 
+const { isTopmost } = useOverlayStack(() => props.modelValue)
+useFocusTrap(panelRef, () => props.modelValue)
+
 const handleKeydown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape' && props.modelValue) {
+  if (event.key === 'Escape' && props.modelValue && isTopmost()) {
     closeDialog()
   }
 }
@@ -67,10 +74,12 @@ onBeforeUnmount(() => {
     <div v-if="modelValue" class="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" @click="closeDialog" />
       <div
-        class="glass-panel relative flex max-h-[90vh] w-full flex-col rounded-xl shadow-elevated"
+        ref="panelRef"
+        class="glass-panel relative flex max-h-[90vh] w-full flex-col rounded-xl shadow-elevated focus:outline-none"
         :class="sizeClasses[size]"
         role="dialog"
         aria-modal="true"
+        tabindex="-1"
       >
         <div v-if="title || closable" class="flex shrink-0 items-center justify-between border-b border-border-light px-6 py-4">
           <h2 v-if="title" class="text-lg font-semibold text-text-primary">{{ title }}</h2>

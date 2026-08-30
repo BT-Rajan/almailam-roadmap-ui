@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -563,6 +564,30 @@ router.beforeEach((to) => {
   }
 
   return true
+})
+
+router.afterEach((to, from, failure) => {
+  // A beforeEach redirect (see above) fires afterEach twice -- once for the
+  // aborted intermediate navigation (with a failure), once for the actual
+  // destination -- so this only runs once, for wherever navigation really
+  // landed.
+  if (failure) return
+
+  // Ignore navigations that only change query/hash on the same route (e.g.
+  // filter state) -- nothing new was actually shown, so don't move focus.
+  if (to.path === from.path) return
+
+  void nextTick(() => {
+    // Only take the focus landmark if nothing more specific already has
+    // it (e.g. a page's own autofocus, like StaffLoginForm's ID field).
+    // Since this runs after nextTick, it's safe regardless of whether it
+    // resolves before or after the new page's own onMounted -- either way
+    // the more specific element ends up focused.
+    const active = document.activeElement
+    if (active === document.body || active === document.documentElement || active === null) {
+      document.getElementById('main-content')?.focus({ preventScroll: true })
+    }
+  })
 })
 
 export default router
