@@ -17,6 +17,7 @@ import UserCard from '@/components/administration/UserCard.vue'
 import UserDialog from '@/components/administration/UserDialog.vue'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { AppUser, UserRole, UserStatus } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
@@ -34,6 +35,7 @@ interface UserTableRow {
 
 const userStore = useUserStore()
 const toastStore = useToastStore()
+const authStore = useAuthStore()
 
 const activeTab = ref<'users' | 'roles'>('users')
 const selectedUserId = ref<string | undefined>(undefined)
@@ -47,6 +49,8 @@ const resetPasswordResult = ref('')
 const passwordDialogUserName = ref('')
 const passwordDialogHeading = ref<string | undefined>(undefined)
 const isSavingUser = ref(false)
+const isDeleteConfirmOpen = ref(false)
+const isDeletingUser = ref(false)
 
 const ROLE_OPTIONS: SelectOption[] = [
   { label: 'All Roles', value: 'All' },
@@ -157,6 +161,22 @@ async function handleResetPassword(): Promise<void> {
     isResettingPassword.value = false
   }
 }
+
+async function handleDeleteUser(): Promise<void> {
+  if (!selectedUser.value) return
+  isDeletingUser.value = true
+  try {
+    const name = selectedUser.value.name
+    await userStore.deleteUser(selectedUser.value.id)
+    toastStore.show('success', 'User deleted', `${name} was removed from the firm.`)
+    isDeleteConfirmOpen.value = false
+    isDrawerOpen.value = false
+  } catch (error) {
+    toastStore.show('error', 'Failed to delete user', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isDeletingUser.value = false
+  }
+}
 </script>
 
 <template>
@@ -257,6 +277,13 @@ async function handleResetPassword(): Promise<void> {
           <BaseButton variant="secondary" @click="handleToggleStatus(selectedUser)">
             {{ selectedUser.status === 'Active' ? 'Deactivate' : 'Activate' }}
           </BaseButton>
+          <BaseButton
+            v-if="selectedUser.id !== authStore.user?.id"
+            variant="danger"
+            @click="isDeleteConfirmOpen = true"
+          >
+            Delete User
+          </BaseButton>
           <BaseButton @click="openEditDialog(selectedUser)">Edit User</BaseButton>
         </div>
       </div>
@@ -278,6 +305,16 @@ async function handleResetPassword(): Promise<void> {
       :user-name="passwordDialogUserName"
       :password="resetPasswordResult"
       :heading="passwordDialogHeading"
+    />
+
+    <ConfirmationDialog
+      v-model="isDeleteConfirmOpen"
+      title="Delete User"
+      :message="`Permanently remove ${selectedUser?.name} from the firm? They will immediately lose access and this cannot be undone.`"
+      confirm-label="Delete User"
+      confirm-variant="danger"
+      :loading="isDeletingUser"
+      @confirm="handleDeleteUser"
     />
   </div>
 </template>

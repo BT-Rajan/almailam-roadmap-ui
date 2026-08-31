@@ -133,6 +133,11 @@ export const useUserStore = defineStore('user', {
       return userService.resetPassword(userId)
     },
 
+    async deleteUser(userId: string) {
+      await userService.deleteUser(userId)
+      this.users = this.users.filter((existing) => existing.id !== userId)
+    },
+
     setSearchTerm(term: string) {
       this.searchTerm = term
     },
