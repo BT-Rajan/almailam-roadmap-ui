@@ -10,9 +10,18 @@ interface Props {
   modelValue: boolean
   userName: string
   password: string
+  // Lets this same dialog double as the "here's the temporary password"
+  // confirmation shown right after creating a new user, not just after
+  // an explicit password reset -- the copy-once password box is
+  // identical either way, only the heading differs.
+  title?: string
+  heading?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  title: 'Password Reset',
+  heading: undefined,
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -36,14 +45,14 @@ async function copyPassword(): Promise<void> {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    title="Password Reset"
+    :title="title"
     size="sm"
     :closable="false"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col items-center gap-3 py-2 text-center">
       <KeyRound class="h-12 w-12 shrink-0 text-success-500" />
-      <h2 class="text-lg font-semibold text-text-primary">Password reset for {{ userName }}</h2>
+      <h2 class="text-lg font-semibold text-text-primary">{{ heading ?? `Password reset for ${userName}` }}</h2>
       <p class="text-sm text-text-secondary">
         Share this new password with the user securely. It will not be shown again.
       </p>

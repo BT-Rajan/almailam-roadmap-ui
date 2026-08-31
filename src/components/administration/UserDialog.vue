@@ -21,6 +21,7 @@ const ROLE_OPTIONS: SelectOption[] = [
 const props = defineProps<{
   modelValue: boolean
   user?: AppUser
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,6 +61,7 @@ watch(
 )
 
 function closeDialog(): void {
+  if (props.saving) return
   emit('update:modelValue', false)
 }
 
@@ -85,13 +87,18 @@ function submitForm(): void {
     status: isActive.value ? 'Active' : 'Inactive',
   }
 
+  // Not closeDialog() here -- the parent owns whether the save actually
+  // succeeded (see UserManagementPage.vue's handleSave) and closes this
+  // dialog itself on success. Closing unconditionally on submit is what
+  // made a failed save look identical to a successful one: the dialog
+  // would close either way and nothing told the admin their data never
+  // reached the backend.
   emit('save', user)
-  closeDialog()
 }
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" :title="dialogTitle" size="md" @update:model-value="closeDialog">
+  <BaseDialog :model-value="modelValue" :title="dialogTitle" size="md" :closable="!saving" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
       <TextInput v-model="name" label="Full Name" placeholder="e.g. Sara Abdullah" required :error="nameError" />
       <TextInput v-model="designation" label="Designation" placeholder="e.g. Document Controller" />
@@ -109,7 +116,12 @@ function submitForm(): void {
     </div>
 
     <template #footer>
-      <FormActionBar :submit-label="isEditMode ? 'Save Changes' : 'Add User'" @submit="submitForm" @cancel="closeDialog" />
+      <FormActionBar
+        :submit-label="isEditMode ? 'Save Changes' : 'Add User'"
+        :loading="saving"
+        @submit="submitForm"
+        @cancel="closeDialog"
+      />
     </template>
   </BaseDialog>
 </template>

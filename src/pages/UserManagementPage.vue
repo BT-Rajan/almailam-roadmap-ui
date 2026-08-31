@@ -44,6 +44,9 @@ const isResetConfirmOpen = ref(false)
 const isResettingPassword = ref(false)
 const isPasswordResultOpen = ref(false)
 const resetPasswordResult = ref('')
+const passwordDialogUserName = ref('')
+const passwordDialogHeading = ref<string | undefined>(undefined)
+const isSavingUser = ref(false)
 
 const ROLE_OPTIONS: SelectOption[] = [
   { label: 'All Roles', value: 'All' },
@@ -108,12 +111,28 @@ function openEditDialog(user: AppUser): void {
 }
 
 async function handleSave(user: AppUser): Promise<void> {
-  if (editingUser.value) {
-    await userStore.saveUser(user)
-    toastStore.show('success', 'User updated', `${user.name} was updated successfully.`)
-  } else {
-    await userStore.addUser(user)
-    toastStore.show('success', 'User added', `${user.name} was added to the firm.`)
+  isSavingUser.value = true
+  try {
+    if (editingUser.value) {
+      await userStore.saveUser(user)
+      toastStore.show('success', 'User updated', `${user.name} was updated successfully.`)
+    } else {
+      const created = await userStore.addUser(user)
+      toastStore.show('success', 'User added', `${created.name} was added to the firm.`)
+      passwordDialogUserName.value = created.name
+      passwordDialogHeading.value = `Login created for ${created.name}`
+      resetPasswordResult.value = created.temporaryPassword
+      isPasswordResultOpen.value = true
+    }
+    isDialogOpen.value = false
+  } catch (error) {
+    toastStore.show(
+      'error',
+      editingUser.value ? 'Failed to update user' : 'Failed to add user',
+      error instanceof Error ? error.message : 'Please try again.',
+    )
+  } finally {
+    isSavingUser.value = false
   }
 }
 
@@ -128,6 +147,8 @@ async function handleResetPassword(): Promise<void> {
   isResettingPassword.value = true
   try {
     resetPasswordResult.value = await userStore.resetUserPassword(selectedUser.value.id)
+    passwordDialogUserName.value = selectedUser.value.name
+    passwordDialogHeading.value = undefined
     isResetConfirmOpen.value = false
     isPasswordResultOpen.value = true
   } catch (error) {
@@ -241,7 +262,7 @@ async function handleResetPassword(): Promise<void> {
       </div>
     </BaseDrawer>
 
-    <UserDialog v-model="isDialogOpen" :user="editingUser" @save="handleSave" />
+    <UserDialog v-model="isDialogOpen" :user="editingUser" :saving="isSavingUser" @save="handleSave" />
 
     <ConfirmationDialog
       v-model="isResetConfirmOpen"
@@ -254,8 +275,9 @@ async function handleResetPassword(): Promise<void> {
 
     <PasswordResetDialog
       v-model="isPasswordResultOpen"
-      :user-name="selectedUser?.name ?? ''"
+      :user-name="passwordDialogUserName"
       :password="resetPasswordResult"
+      :heading="passwordDialogHeading"
     />
   </div>
 </template>
