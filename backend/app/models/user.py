@@ -17,7 +17,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
-    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # 120, matching email below (migration 0058) -- username mirrors the
+    # login email for every user except the 'admin' bootstrap account
+    # (see user_service.create_user), so it needs the same width.
+    username: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     # Alternate login identifiers -- auth_service.login() resolves by
     # username OR employee_id OR customer_id, one shared mechanism for
     # all three frontends (staff app, Site Engineer Portal, Customer

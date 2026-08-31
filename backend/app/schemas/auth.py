@@ -2,7 +2,11 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=50)
+    # Resolved against username OR employee_id OR customer_id (see
+    # auth_service.login) -- 120 matches users.username, the widest of
+    # the three since it's now the login email for most accounts
+    # (migration 0058), not a short slug.
+    username: str = Field(min_length=1, max_length=120)
     password: str = Field(min_length=1, max_length=72)
 
 

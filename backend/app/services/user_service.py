@@ -14,17 +14,6 @@ ENTITY_TYPE = "USER"
 TEMP_PASSWORD_LENGTH = 14
 
 
-def _derive_username(db: Session, email: str) -> str:
-    base = "".join(ch for ch in email.split("@")[0].lower() if ch.isalnum() or ch in ".-_")
-    base = base or "user"
-    candidate = base
-    suffix = 1
-    while db.query(User).filter(User.username == candidate).first() is not None:
-        suffix += 1
-        candidate = f"{base}{suffix}"
-    return candidate
-
-
 def _generate_temporary_password() -> str:
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(TEMP_PASSWORD_LENGTH))
@@ -52,11 +41,15 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
     if db.query(User).filter(User.email == payload.email).first() is not None:
         raise ConflictError("A user with this email already exists.")
 
-    username = _derive_username(db, payload.email)
     temporary_password = _generate_temporary_password()
 
     user = User(
-        username=username,
+        # Username mirrors the login email for every user created this
+        # way -- only the 'admin' bootstrap account (scripts/
+        # create_admin.py, which doesn't go through this function) keeps
+        # a separate, non-email username. Safe as the sole source of
+        # uniqueness here since email itself is already UNIQUE.
+        username=payload.email,
         email=payload.email,
         password_hash=hash_password(temporary_password),
         full_name=payload.name,
