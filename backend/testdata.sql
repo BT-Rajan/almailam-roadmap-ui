@@ -38,28 +38,32 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------------------------------------------------------
 -- Password hash below is bcrypt('Demo#2026'), generated with this repo's
 -- own app.core.security.hash_password -- not a placeholder.
+--
+-- Username mirrors the login email for every user except 'admin' (see
+-- migration 0058 / user_service.create_user) -- 'admin' is the sole
+-- exemption and keeps its own short username.
 INSERT INTO users (username, email, password_hash, full_name, designation, mobile, role, is_active) VALUES
-('admin',     'admin@almailam.example',    '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'System Administrator', 'System Administrator',     '+971501000001', 'Administrator',       1),
-('s.alfarsi', 's.alfarsi@almailam.example','$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Sarah Al-Farsi',       'Project Manager',           '+971501000002', 'Project Manager',      1),
-('l.haddad',  'l.haddad@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Layla Haddad',         'Structural Engineer',      '+971501000003', 'Engineer',             1),
-('a.rashid',  'a.rashid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Ahmed Rashid',         'MEP Engineer',              '+971501000004', 'Engineer',             1),
-('m.iqbal',   'm.iqbal@almailam.example',  '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Mohammed Iqbal',       'Fire & Safety Engineer',   '+971501000005', 'Engineer',             1),
-('f.noor',    'f.noor@almailam.example',   '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Fatima Noor',          'Document Controller',      '+971501000006', 'Document Controller',  1),
-('o.khalid',  'o.khalid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Omar Khalid',          'Stakeholder',               '+971501000007', 'Viewer',               1);
+('admin',                       'admin@almailam.example',    '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'System Administrator', 'System Administrator',     '+971501000001', 'Administrator',       1),
+('s.alfarsi@almailam.example',  's.alfarsi@almailam.example','$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Sarah Al-Farsi',       'Project Manager',           '+971501000002', 'Project Manager',      1),
+('l.haddad@almailam.example',   'l.haddad@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Layla Haddad',         'Structural Engineer',      '+971501000003', 'Engineer',             1),
+('a.rashid@almailam.example',   'a.rashid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Ahmed Rashid',         'MEP Engineer',              '+971501000004', 'Engineer',             1),
+('m.iqbal@almailam.example',    'm.iqbal@almailam.example',  '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Mohammed Iqbal',       'Fire & Safety Engineer',   '+971501000005', 'Engineer',             1),
+('f.noor@almailam.example',     'f.noor@almailam.example',   '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Fatima Noor',          'Document Controller',      '+971501000006', 'Document Controller',  1),
+('o.khalid@almailam.example',   'o.khalid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Omar Khalid',          'Stakeholder',               '+971501000007', 'Viewer',               1);
 
 -- Site Engineer Portal demo logins -- same accounts/password as above,
 -- just also resolvable by employee_id (see auth_service.login).
-UPDATE users SET employee_id = 'EMP-1003' WHERE username = 'l.haddad';
-UPDATE users SET employee_id = 'EMP-1004' WHERE username = 'a.rashid';
-UPDATE users SET employee_id = 'EMP-1005' WHERE username = 'm.iqbal';
+UPDATE users SET employee_id = 'EMP-1003' WHERE email = 'l.haddad@almailam.example';
+UPDATE users SET employee_id = 'EMP-1004' WHERE email = 'a.rashid@almailam.example';
+UPDATE users SET employee_id = 'EMP-1005' WHERE email = 'm.iqbal@almailam.example';
 
 SET @u_admin    = (SELECT id FROM users WHERE username = 'admin');
-SET @u_pm       = (SELECT id FROM users WHERE username = 's.alfarsi');
-SET @u_layla    = (SELECT id FROM users WHERE username = 'l.haddad');
-SET @u_ahmed    = (SELECT id FROM users WHERE username = 'a.rashid');
-SET @u_mohammed = (SELECT id FROM users WHERE username = 'm.iqbal');
-SET @u_fatima   = (SELECT id FROM users WHERE username = 'f.noor');
-SET @u_omar     = (SELECT id FROM users WHERE username = 'o.khalid');
+SET @u_pm       = (SELECT id FROM users WHERE email = 's.alfarsi@almailam.example');
+SET @u_layla    = (SELECT id FROM users WHERE email = 'l.haddad@almailam.example');
+SET @u_ahmed    = (SELECT id FROM users WHERE email = 'a.rashid@almailam.example');
+SET @u_mohammed = (SELECT id FROM users WHERE email = 'm.iqbal@almailam.example');
+SET @u_fatima   = (SELECT id FROM users WHERE email = 'f.noor@almailam.example');
+SET @u_omar     = (SELECT id FROM users WHERE email = 'o.khalid@almailam.example');
 
 -- ----------------------------------------------------------------------------
 -- Clients

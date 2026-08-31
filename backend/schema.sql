@@ -3,7 +3,11 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS users (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    username                VARCHAR(50)  NOT NULL UNIQUE,
+    -- 120, matching email below (migration 0058) -- username mirrors
+    -- the login email for every user except the 'admin' bootstrap
+    -- account (see user_service.create_user), so it needs the same
+    -- width.
+    username                VARCHAR(120) NOT NULL UNIQUE,
     employee_id             VARCHAR(30)  NULL UNIQUE,
     -- Customer Portal login identifier -- same idea as employee_id above,
     -- an alternate way to resolve the same users table to one login
