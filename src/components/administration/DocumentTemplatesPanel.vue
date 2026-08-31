@@ -1,0 +1,229 @@
+<script setup lang="ts">
+import { CalendarClock, CheckCircle2, Download, Trash2, Upload, UserRound } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
+
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import Card from '@/components/common/Card.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import FileUploader from '@/components/document/FileUploader.vue'
+import { useDocumentTemplateStore } from '@/stores/documentTemplateStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
+import { formatDate } from '@/utils/dateFormatter'
+
+// Split out of the template below -- a literal '{{' sequence inside a
+// Vue mustache interpolation (even nested inside a string literal like
+// `{{ '{{ field }}' }}`) trips the SFC template compiler's brace
+// matching, so these are plain script constants instead.
+const PLACEHOLDER_SYNTAX_EXAMPLE = '{{ field }}'
+const ROW_LOOP_SYNTAX_EXAMPLE = '{%tr for ... %}'
+
+const SECTIONS: { type: DocumentTemplateType; title: string; description: string }[] = [
+  {
+    type: 'Quotation',
+    title: 'Quotation Templates',
+    description: 'The default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',
+  },
+  {
+    type: 'Contract',
+    title: 'Contract Templates',
+    description: 'The default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
+  },
+]
+
+const store = useDocumentTemplateStore()
+const toastStore = useToastStore()
+
+const uploadTarget = ref<DocumentTemplateType | undefined>(undefined)
+const uploadFile = ref<File>()
+const isUploading = ref(false)
+
+const deleteTarget = ref<DocumentTemplate | undefined>(undefined)
+const isDeleting = ref(false)
+const isSettingDefaultId = ref<string | undefined>(undefined)
+const isDownloadingId = ref<string | undefined>(undefined)
+
+onMounted(() => {
+  if (store.templates.length === 0) store.loadTemplates()
+})
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB']
+  let size = bytes / 1024
+  let index = 0
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024
+    index += 1
+  }
+  return `${size.toFixed(1)} ${units[index]}`
+}
+
+function openUpload(type: DocumentTemplateType): void {
+  uploadTarget.value = type
+  uploadFile.value = undefined
+}
+
+function closeUpload(): void {
+  if (isUploading.value) return
+  uploadTarget.value = undefined
+  uploadFile.value = undefined
+}
+
+async function submitUpload(): Promise<void> {
+  if (!uploadTarget.value || !uploadFile.value) return
+  isUploading.value = true
+  try {
+    const filename = uploadFile.value.name
+    await store.uploadTemplate(uploadTarget.value, uploadFile.value)
+    toastStore.show('success', 'Template uploaded', `${filename} was uploaded.`)
+    // Not closeUpload() -- it deliberately no-ops while isUploading is
+    // true (so a backdrop click or Cancel can't dismiss mid-upload), and
+    // isUploading is still true here; the finally below hasn't run yet.
+    uploadTarget.value = undefined
+    uploadFile.value = undefined
+  } catch (error) {
+    toastStore.show('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isUploading.value = false
+  }
+}
+
+async function handleSetDefault(template: DocumentTemplate): Promise<void> {
+  isSettingDefaultId.value = template.id
+  try {
+    await store.setDefaultTemplate(template.id)
+    toastStore.show('success', 'Default template updated', `${template.originalFilename} is now the default ${template.documentType} template.`)
+  } catch (error) {
+    toastStore.show('error', 'Could not set default', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isSettingDefaultId.value = undefined
+  }
+}
+
+async function handleDownload(template: DocumentTemplate): Promise<void> {
+  isDownloadingId.value = template.id
+  try {
+    await store.downloadTemplate(template)
+  } catch (error) {
+    toastStore.show('error', 'Download failed', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isDownloadingId.value = undefined
+  }
+}
+
+async function confirmDelete(): Promise<void> {
+  if (!deleteTarget.value) return
+  isDeleting.value = true
+  try {
+    await store.deleteTemplate(deleteTarget.value.id)
+    toastStore.show('info', 'Template deleted', `${deleteTarget.value.originalFilename} was deleted.`)
+    deleteTarget.value = undefined
+  } catch (error) {
+    toastStore.show('error', 'Delete failed', error instanceof Error ? error.message : 'Please try again.')
+  } finally {
+    isDeleting.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-6">
+    <SkeletonLoader v-if="store.isLoading && store.templates.length === 0" :rows="4" />
+
+    <template v-else>
+      <Card v-for="section in SECTIONS" :key="section.type">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-text-primary">{{ section.title }}</h3>
+              <p class="text-xs text-text-muted">{{ section.description }}</p>
+            </div>
+            <BaseButton size="sm" :icon="Upload" @click="openUpload(section.type)">Upload .docx</BaseButton>
+          </div>
+        </template>
+
+        <div v-if="store.byType(section.type).length === 0" class="py-4 text-center text-sm text-text-muted">
+          No {{ section.type.toLowerCase() }} templates uploaded yet.
+        </div>
+
+        <ul v-else class="flex flex-col divide-y divide-border-light">
+          <li
+            v-for="template in store.byType(section.type)"
+            :key="template.id"
+            class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+          >
+            <div class="flex min-w-0 flex-col gap-1">
+              <div class="flex items-center gap-2">
+                <span class="truncate text-sm font-medium text-text-primary">{{ template.originalFilename }}</span>
+                <StatusBadge v-if="template.isDefault" label="Default" variant="success" show-dot />
+              </div>
+              <div class="flex items-center gap-3 text-xs text-text-muted">
+                <span class="flex items-center gap-1"><UserRound class="h-3.5 w-3.5" />{{ template.uploadedBy }}</span>
+                <span class="flex items-center gap-1"><CalendarClock class="h-3.5 w-3.5" />{{ formatDate(template.uploadedAt) }}</span>
+                <span>{{ formatFileSize(template.fileSizeBytes) }}</span>
+              </div>
+            </div>
+            <div class="flex shrink-0 items-center gap-1">
+              <BaseButton
+                v-if="!template.isDefault"
+                variant="secondary"
+                size="sm"
+                :icon="CheckCircle2"
+                :loading="isSettingDefaultId === template.id"
+                @click="handleSetDefault(template)"
+              >
+                Set Default
+              </BaseButton>
+              <IconButton
+                :icon="Download"
+                label="Download template"
+                size="sm"
+                :disabled="isDownloadingId === template.id"
+                @click="handleDownload(template)"
+              />
+              <IconButton
+                :icon="Trash2"
+                label="Delete template"
+                variant="danger"
+                size="sm"
+                :disabled="template.isDefault"
+                @click="deleteTarget = template"
+              />
+            </div>
+          </li>
+        </ul>
+      </Card>
+    </template>
+
+    <BaseDialog :model-value="Boolean(uploadTarget)" :title="`Upload ${uploadTarget} Template`" size="sm" :closable="!isUploading" @update:model-value="closeUpload">
+      <div class="flex flex-col gap-3">
+        <p class="text-xs text-text-muted">
+          Word (.docx) only. Use <code class="rounded bg-bg-secondary px-1 py-0.5">{{ PLACEHOLDER_SYNTAX_EXAMPLE }}</code> placeholders
+          and, inside a table row, docxtpl's <code class="rounded bg-bg-secondary px-1 py-0.5">{{ ROW_LOOP_SYNTAX_EXAMPLE }}</code>
+          row-loop syntax for line items/clauses.
+        </p>
+        <FileUploader accept=".docx" hint="Word (.docx) template" @select="uploadFile = $event" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="isUploading" @click="closeUpload">Cancel</BaseButton>
+        <BaseButton :disabled="!uploadFile" :loading="isUploading" @click="submitUpload">Upload</BaseButton>
+      </template>
+    </BaseDialog>
+
+    <ConfirmationDialog
+      :model-value="Boolean(deleteTarget)"
+      title="Delete Template"
+      :message="`Delete '${deleteTarget?.originalFilename}'? This can't be undone.`"
+      confirm-label="Delete"
+      confirm-variant="danger"
+      :loading="isDeleting"
+      @update:model-value="deleteTarget = undefined"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>

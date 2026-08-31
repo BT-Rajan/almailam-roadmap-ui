@@ -20,6 +20,13 @@ APScheduler==3.11.3
 # there is no OCR step in this pipeline.
 pypdf==5.1.0
 python-docx==1.1.2
+# Merges live project data into an admin-uploaded .docx template to
+# produce the actual downloadable Quotation/Contract document (see
+# app/services/document_template_service.py) -- Jinja2-style {{ field }}
+# placeholders and {%tr for ... %} row loops inside the .docx XML,
+# rendered back out as a real .docx. Pure-Python, built on python-docx
+# above (already a dependency) -- no extra system libraries needed.
+docxtpl==0.19.0
 # zoneinfo (used for the Kuwait-time report-filing cutoff, see
 # status_report_service.py) needs an IANA tz database on the host --
 # present by default on most Linux distros but not guaranteed in

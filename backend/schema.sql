@@ -548,6 +548,25 @@ CREATE TABLE IF NOT EXISTS contract_revisions (
     INDEX idx_contract_revisions_contract (contract_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Uploaded .docx templates for the Quotation/Contract "Download Document"
+-- merge (migration 0057). is_default is exclusive-per-document_type,
+-- enforced in document_template_service.set_default rather than by a DB
+-- constraint (no partial/filtered unique index in MySQL).
+CREATE TABLE IF NOT EXISTS document_templates (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_type       ENUM('Quotation','Contract') NOT NULL,
+    storage_key         VARCHAR(300) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    is_default          TINYINT(1) NOT NULL DEFAULT 0,
+    uploaded_by         BIGINT UNSIGNED NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME NULL,
+    CONSTRAINT fk_document_templates_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_document_templates_type (document_type, is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS financial_agreements (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id              BIGINT UNSIGNED NOT NULL,
