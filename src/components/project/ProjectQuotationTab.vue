@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftRight, ArrowRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
 import { computed, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,6 +10,7 @@ import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
 import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
+import { documentTemplateService } from '@/services/documentTemplateService'
 import type { QuotationCreateInput } from '@/services/quotationService'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -17,6 +18,7 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
   project: Project
@@ -45,6 +47,23 @@ const hasStatusOptions = computed(
 
 function handlePrint(): void {
   window.print()
+}
+
+const isDownloadingDocument = ref(false)
+
+async function handleDownloadDocument(): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  isDownloadingDocument.value = true
+  try {
+    const blob = await documentTemplateService.downloadQuotationDocument(quotation.id)
+    triggerBlobDownload(blob, `${quotation.id}.docx`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to generate document', detail)
+  } finally {
+    isDownloadingDocument.value = false
+  }
 }
 
 async function handleCreateQuotation(payload: QuotationCreateInput): Promise<void> {
@@ -185,6 +204,16 @@ function handleAdvanceToContract(): void {
         @click="handlePrint"
       >
         Print Quotation
+      </BaseButton>
+      <BaseButton
+        v-if="quotationStore.selectedQuotation"
+        variant="secondary"
+        size="sm"
+        :icon="Download"
+        :loading="isDownloadingDocument"
+        @click="handleDownloadDocument"
+      >
+        Download Document
       </BaseButton>
     </div>
   </div>

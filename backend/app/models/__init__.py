@@ -21,6 +21,7 @@ from app.models import (  # noqa: F401
     company,
     contract,
     document,
+    document_template,
     government,
     knowledge,
     message,

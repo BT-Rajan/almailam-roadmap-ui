@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -11,7 +12,7 @@ from app.schemas.quotation import (
     QuotationStatusUpdate,
     QuotationUpdate,
 )
-from app.services import quotation_service
+from app.services import document_template_service, quotation_service
 
 router = APIRouter(prefix="/api/quotations", tags=["quotations"])
 
@@ -92,6 +93,17 @@ def set_status(
         db, quotation_no, payload.status, payload.reason, current_user.id
     )
     return _to_out(db, quotation)
+
+
+@router.get("/{quotation_no}/document")
+def download_document(quotation_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    quotation = quotation_service.get_quotation(db, quotation_no)
+    content, filename = document_template_service.render_quotation_document(db, quotation)
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{quotation_no}/audit-events")

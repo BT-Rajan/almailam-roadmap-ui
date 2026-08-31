@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 
-export type DocumentTabKey = 'forms' | 'serviceMap'
+export type DocumentTabKey = 'forms' | 'serviceMap' | 'templates'
 
 export interface DocumentTab {
   key: DocumentTabKey

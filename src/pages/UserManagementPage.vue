@@ -4,12 +4,14 @@ import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import PasswordResetDialog from '@/components/administration/PasswordResetDialog.vue'
 import RoleCard from '@/components/administration/RoleCard.vue'
 import UserCard from '@/components/administration/UserCard.vue'
 import UserDialog from '@/components/administration/UserDialog.vue'
@@ -38,6 +40,13 @@ const selectedUserId = ref<string | undefined>(undefined)
 const isDrawerOpen = ref(false)
 const isDialogOpen = ref(false)
 const editingUser = ref<AppUser | undefined>(undefined)
+const isResetConfirmOpen = ref(false)
+const isResettingPassword = ref(false)
+const isPasswordResultOpen = ref(false)
+const resetPasswordResult = ref('')
+const passwordDialogUserName = ref('')
+const passwordDialogHeading = ref<string | undefined>(undefined)
+const isSavingUser = ref(false)
 
 const ROLE_OPTIONS: SelectOption[] = [
   { label: 'All Roles', value: 'All' },
@@ -102,12 +111,28 @@ function openEditDialog(user: AppUser): void {
 }
 
 async function handleSave(user: AppUser): Promise<void> {
-  if (editingUser.value) {
-    await userStore.saveUser(user)
-    toastStore.show('success', 'User updated', `${user.name} was updated successfully.`)
-  } else {
-    await userStore.addUser(user)
-    toastStore.show('success', 'User added', `${user.name} was added to the firm.`)
+  isSavingUser.value = true
+  try {
+    if (editingUser.value) {
+      await userStore.saveUser(user)
+      toastStore.show('success', 'User updated', `${user.name} was updated successfully.`)
+    } else {
+      const created = await userStore.addUser(user)
+      toastStore.show('success', 'User added', `${created.name} was added to the firm.`)
+      passwordDialogUserName.value = created.name
+      passwordDialogHeading.value = `Login created for ${created.name}`
+      resetPasswordResult.value = created.temporaryPassword
+      isPasswordResultOpen.value = true
+    }
+    isDialogOpen.value = false
+  } catch (error) {
+    toastStore.show(
+      'error',
+      editingUser.value ? 'Failed to update user' : 'Failed to add user',
+      error instanceof Error ? error.message : 'Please try again.',
+    )
+  } finally {
+    isSavingUser.value = false
   }
 }
 
@@ -115,6 +140,22 @@ async function handleToggleStatus(user: AppUser): Promise<void> {
   await userStore.toggleUserStatus(user.id)
   const nextStatus = user.status === 'Active' ? 'Inactive' : 'Active'
   toastStore.show('info', `User ${nextStatus.toLowerCase()}`, `${user.name} is now ${nextStatus.toLowerCase()}.`)
+}
+
+async function handleResetPassword(): Promise<void> {
+  if (!selectedUser.value) return
+  isResettingPassword.value = true
+  try {
+    resetPasswordResult.value = await userStore.resetUserPassword(selectedUser.value.id)
+    passwordDialogUserName.value = selectedUser.value.name
+    passwordDialogHeading.value = undefined
+    isResetConfirmOpen.value = false
+    isPasswordResultOpen.value = true
+  } catch (error) {
+    toastStore.show('error', 'Password reset failed', error instanceof Error ? error.message : undefined)
+  } finally {
+    isResettingPassword.value = false
+  }
 }
 </script>
 
@@ -206,6 +247,13 @@ async function handleToggleStatus(user: AppUser): Promise<void> {
       <div v-if="selectedUser" class="flex flex-col gap-4">
         <UserCard :user="selectedUser" />
         <div class="flex justify-end gap-3">
+          <BaseButton
+            v-if="selectedUser.role !== 'Administrator'"
+            variant="secondary"
+            @click="isResetConfirmOpen = true"
+          >
+            Reset Password
+          </BaseButton>
           <BaseButton variant="secondary" @click="handleToggleStatus(selectedUser)">
             {{ selectedUser.status === 'Active' ? 'Deactivate' : 'Activate' }}
           </BaseButton>
@@ -214,6 +262,22 @@ async function handleToggleStatus(user: AppUser): Promise<void> {
       </div>
     </BaseDrawer>
 
-    <UserDialog v-model="isDialogOpen" :user="editingUser" @save="handleSave" />
+    <UserDialog v-model="isDialogOpen" :user="editingUser" :saving="isSavingUser" @save="handleSave" />
+
+    <ConfirmationDialog
+      v-model="isResetConfirmOpen"
+      title="Reset Password"
+      :message="`Generate a new random password for ${selectedUser?.name}? Their current password will stop working immediately.`"
+      confirm-label="Reset Password"
+      :loading="isResettingPassword"
+      @confirm="handleResetPassword"
+    />
+
+    <PasswordResetDialog
+      v-model="isPasswordResultOpen"
+      :user-name="passwordDialogUserName"
+      :password="resetPasswordResult"
+      :heading="passwordDialogHeading"
+    />
   </div>
 </template>

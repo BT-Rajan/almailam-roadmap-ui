@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, Download, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,6 +10,7 @@ import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
 import { CONTRACT_ALLOWED_TRANSITIONS, isContractReasonRequired } from '@/constants/quotationContractOptions'
+import { documentTemplateService } from '@/services/documentTemplateService'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -18,6 +19,7 @@ import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Contract } from '@/types/Contract'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
   project: Project
@@ -112,6 +114,23 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
 
 function handlePrint(): void {
   window.print()
+}
+
+const isDownloadingDocument = ref(false)
+
+async function handleDownloadDocument(): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  isDownloadingDocument.value = true
+  try {
+    const blob = await documentTemplateService.downloadContractDocument(contract.id)
+    triggerBlobDownload(blob, `${contract.id}.docx`)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to generate document', detail)
+  } finally {
+    isDownloadingDocument.value = false
+  }
 }
 
 async function handlePatch(patch: Partial<Contract>): Promise<void> {
@@ -222,6 +241,16 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         @click="handlePrint"
       >
         Print Contract
+      </BaseButton>
+      <BaseButton
+        v-if="contractStore.selectedContract"
+        variant="secondary"
+        size="sm"
+        :icon="Download"
+        :loading="isDownloadingDocument"
+        @click="handleDownloadDocument"
+      >
+        Download Document
       </BaseButton>
     </div>
   </div>

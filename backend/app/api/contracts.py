@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -12,7 +13,7 @@ from app.schemas.contract import (
     ContractStatusUpdate,
     ContractUpdate,
 )
-from app.services import contract_service
+from app.services import contract_service, document_template_service
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
@@ -110,6 +111,17 @@ def add_revision(
 ):
     contract = contract_service.add_revision(db, contract_no, payload.summary, current_user.id)
     return _to_out(db, contract)
+
+
+@router.get("/{contract_no}/document")
+def download_document(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    contract = contract_service.get_contract(db, contract_no)
+    content, filename = document_template_service.render_contract_document(db, contract)
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{contract_no}/audit-events")

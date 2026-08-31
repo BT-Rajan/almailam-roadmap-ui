@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { userService } from '@/services/userService'
+import type { CreatedUser } from '@/services/userService'
 import type { RoleDefinition, RolePermission } from '@/types/Role'
 import type { AppUser, UserRole, UserStatus } from '@/types/User'
 
@@ -93,16 +94,31 @@ export const useUserStore = defineStore('user', {
     // placeholder id (see UserDialog.vue) and discarded what the backend
     // actually created, so the id shown in the UI right after creating a
     // user didn't match the one it would have after a refresh.
-    async addUser(user: AppUser) {
+    async addUser(user: AppUser): Promise<CreatedUser> {
       const created = await userService.createUser(user)
+      // UserCreate has no is_active field server-side -- new users are
+      // always created Active, so an unchecked "Active" toggle in the
+      // dialog needs a follow-up status call to actually take effect.
+      if (user.status === 'Inactive') {
+        await userService.setUserStatus(created.id, 'Inactive')
+        created.status = 'Inactive'
+      }
       this.users = [created, ...this.users]
       return created
     },
 
+    // Persist first, then reconcile local state from what the backend
+    // actually saved -- previously this wrote the caller's optimistic
+    // AppUser into local state *before* the update call, so a failed or
+    // partially-accepted save still looked successful in the UI.
     async saveUser(user: AppUser) {
+      const updated = await userService.updateUser(user)
+      if (updated.status !== user.status) {
+        await userService.setUserStatus(user.id, user.status)
+        updated.status = user.status
+      }
       const index = this.users.findIndex((existing) => existing.id === user.id)
-      if (index !== -1) this.users[index] = user
-      await userService.updateUser(user)
+      if (index !== -1) this.users[index] = updated
     },
 
     async toggleUserStatus(userId: string) {
@@ -111,6 +127,10 @@ export const useUserStore = defineStore('user', {
       const nextStatus: UserStatus = user.status === 'Active' ? 'Inactive' : 'Active'
       user.status = nextStatus
       await userService.setUserStatus(userId, nextStatus)
+    },
+
+    async resetUserPassword(userId: string): Promise<string> {
+      return userService.resetPassword(userId)
     },
 
     setSearchTerm(term: string) {
