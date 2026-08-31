@@ -43,27 +43,27 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- migration 0058 / user_service.create_user) -- 'admin' is the sole
 -- exemption and keeps its own short username.
 INSERT INTO users (username, email, password_hash, full_name, designation, mobile, role, is_active) VALUES
-('admin',                       'admin@almailam.example',    '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'System Administrator', 'System Administrator',     '+971501000001', 'Administrator',       1),
-('s.alfarsi@almailam.example',  's.alfarsi@almailam.example','$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Sarah Al-Farsi',       'Project Manager',           '+971501000002', 'Project Manager',      1),
-('l.haddad@almailam.example',   'l.haddad@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Layla Haddad',         'Structural Engineer',      '+971501000003', 'Engineer',             1),
-('a.rashid@almailam.example',   'a.rashid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Ahmed Rashid',         'MEP Engineer',              '+971501000004', 'Engineer',             1),
-('m.iqbal@almailam.example',    'm.iqbal@almailam.example',  '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Mohammed Iqbal',       'Fire & Safety Engineer',   '+971501000005', 'Engineer',             1),
-('f.noor@almailam.example',     'f.noor@almailam.example',   '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Fatima Noor',          'Document Controller',      '+971501000006', 'Document Controller',  1),
-('o.khalid@almailam.example',   'o.khalid@almailam.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Omar Khalid',          'Stakeholder',               '+971501000007', 'Viewer',               1);
+('admin',                            'admin@almailam.example',           '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'System Administrator', 'System Administrator',     '+971501000001', 'Administrator',       1),
+('projectmanager@almailam.ai',       'projectmanager@almailam.ai',       '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Sarah Al-Farsi',       'Project Manager',           '+971501000002', 'Project Manager',      1),
+('engineer1@almailam.ai',            'engineer1@almailam.ai',            '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Layla Haddad',         'Structural Engineer',      '+971501000003', 'Engineer',             1),
+('engineer2@almailam.ai',            'engineer2@almailam.ai',            '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Ahmed Rashid',         'MEP Engineer',              '+971501000004', 'Engineer',             1),
+('engineer3@almailam.ai',            'engineer3@almailam.ai',            '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Mohammed Iqbal',       'Fire & Safety Engineer',   '+971501000005', 'Engineer',             1),
+('documentcontroller@almailam.ai',   'documentcontroller@almailam.ai',   '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Fatima Noor',          'Document Controller',      '+971501000006', 'Document Controller',  1),
+('viewer@almailam.ai',               'viewer@almailam.ai',               '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Omar Khalid',          'Stakeholder',               '+971501000007', 'Viewer',               1);
 
 -- Site Engineer Portal demo logins -- same accounts/password as above,
 -- just also resolvable by employee_id (see auth_service.login).
-UPDATE users SET employee_id = 'EMP-1003' WHERE email = 'l.haddad@almailam.example';
-UPDATE users SET employee_id = 'EMP-1004' WHERE email = 'a.rashid@almailam.example';
-UPDATE users SET employee_id = 'EMP-1005' WHERE email = 'm.iqbal@almailam.example';
+UPDATE users SET employee_id = 'EMP-1003' WHERE email = 'engineer1@almailam.ai';
+UPDATE users SET employee_id = 'EMP-1004' WHERE email = 'engineer2@almailam.ai';
+UPDATE users SET employee_id = 'EMP-1005' WHERE email = 'engineer3@almailam.ai';
 
 SET @u_admin    = (SELECT id FROM users WHERE username = 'admin');
-SET @u_pm       = (SELECT id FROM users WHERE email = 's.alfarsi@almailam.example');
-SET @u_layla    = (SELECT id FROM users WHERE email = 'l.haddad@almailam.example');
-SET @u_ahmed    = (SELECT id FROM users WHERE email = 'a.rashid@almailam.example');
-SET @u_mohammed = (SELECT id FROM users WHERE email = 'm.iqbal@almailam.example');
-SET @u_fatima   = (SELECT id FROM users WHERE email = 'f.noor@almailam.example');
-SET @u_omar     = (SELECT id FROM users WHERE email = 'o.khalid@almailam.example');
+SET @u_pm       = (SELECT id FROM users WHERE email = 'projectmanager@almailam.ai');
+SET @u_layla    = (SELECT id FROM users WHERE email = 'engineer1@almailam.ai');
+SET @u_ahmed    = (SELECT id FROM users WHERE email = 'engineer2@almailam.ai');
+SET @u_mohammed = (SELECT id FROM users WHERE email = 'engineer3@almailam.ai');
+SET @u_fatima   = (SELECT id FROM users WHERE email = 'documentcontroller@almailam.ai');
+SET @u_omar     = (SELECT id FROM users WHERE email = 'viewer@almailam.ai');
 
 -- ----------------------------------------------------------------------------
 -- Clients
@@ -88,8 +88,8 @@ SET @c_khalid  = (SELECT id FROM clients WHERE company_name = 'Khalid Al Mansoor
 -- account, resolved via customer_id (see auth_service.login) and scoped
 -- to their own client's projects via client_id.
 INSERT INTO users (username, customer_id, client_id, email, password_hash, full_name, mobile, role, is_active) VALUES
-('cust.alreem', 'CUST-1001', @c_alreem, 'khalid@alreemdev.example',     '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Khalid Al Reem',  '+96550200001', 'Customer', 1),
-('cust.falcon', 'CUST-1002', @c_falcon, 'yousef@falconheights.example', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Yousef Al Amiri', '+96550200002', 'Customer', 1);
+('customer1@almailam.ai', 'CUST-1001', @c_alreem, 'customer1@almailam.ai', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Khalid Al Reem',  '+96550200001', 'Customer', 1),
+('customer2@almailam.ai', 'CUST-1002', @c_falcon, 'customer2@almailam.ai', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Yousef Al Amiri', '+96550200002', 'Customer', 1);
 
 INSERT INTO client_contacts (client_id, name, contact_type, mobile, email, is_authorised_representative) VALUES
 (@c_alreem,  'Khalid Al Reem',  'Primary Contact', '+96550200001', 'khalid@alreemdev.example', 1),
