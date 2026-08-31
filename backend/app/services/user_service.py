@@ -113,6 +113,25 @@ def set_user_status(db: Session, user_id: int, status: str, actor_id: int) -> Us
     return user
 
 
+def reset_user_password(db: Session, user_id: int, actor_id: int) -> tuple[User, str]:
+    user = get_user(db, user_id)
+    if user.role == "Administrator":
+        raise ValidationAppError("Cannot reset the password of an Administrator account.")
+
+    temporary_password = _generate_temporary_password()
+    user.password_hash = hash_password(temporary_password)
+    # A reset is also how a locked-out user gets back in -- clear the
+    # lockout along with the password rather than leaving them still
+    # locked out with a new password they still can't use.
+    user.failed_login_attempts = 0
+    user.locked_until = None
+
+    audit_service.log_event(db, ENTITY_TYPE, user.id, "Password reset", actor_id)
+    db.commit()
+    db.refresh(user)
+    return user, temporary_password
+
+
 def delete_user(db: Session, user_id: int, actor_id: int) -> None:
     if user_id == actor_id:
         raise ValidationAppError("You cannot delete your own account.")

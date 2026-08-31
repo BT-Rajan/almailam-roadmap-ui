@@ -81,6 +81,23 @@ async function setUserStatus(userId: string, status: AppUser['status']): Promise
 }
 
 /**
+ * Reset a user's password to a new, randomly-generated one via backend API.
+ * Returns the generated password so it can be shown to the admin once --
+ * it isn't retrievable afterwards.
+ */
+async function resetPassword(userId: string): Promise<string> {
+  try {
+    const response = await apiClient.post<{ temporary_password: string }>(
+      `/api/users/${userId}/reset-password`,
+    )
+    return response.temporary_password
+  } catch (error) {
+    console.error('Failed to reset password:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to reset password')
+  }
+}
+
+/**
  * Delete a user via backend API
  */
 async function deleteUser(userId: string): Promise<void> {
@@ -115,6 +132,7 @@ export const userService = {
   createUser,
   updateUser,
   setUserStatus,
+  resetPassword,
   deleteUser,
   updateRoleDefinition,
 }

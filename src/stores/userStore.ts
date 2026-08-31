@@ -113,6 +113,10 @@ export const useUserStore = defineStore('user', {
       await userService.setUserStatus(userId, nextStatus)
     },
 
+    async resetUserPassword(userId: string): Promise<string> {
+      return userService.resetPassword(userId)
+    },
+
     setSearchTerm(term: string) {
       this.searchTerm = term
     },

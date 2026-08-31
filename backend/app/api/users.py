@@ -8,6 +8,7 @@ from app.schemas.user import (
     UserCreate,
     UserCreatedOut,
     UserOut,
+    UserPasswordResetOut,
     UserStatusUpdate,
     UserUpdate,
 )
@@ -59,6 +60,18 @@ def set_user_status(
         db, user_service.parse_user_id(user_id), payload.status, current_user.id
     )
     return UserOut.from_model(user)
+
+
+@router.post("/{user_id}/reset-password", response_model=UserPasswordResetOut)
+def reset_user_password(
+    user_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    user, temporary_password = user_service.reset_user_password(
+        db, user_service.parse_user_id(user_id), current_user.id
+    )
+    return UserPasswordResetOut(
+        **UserOut.from_model(user).model_dump(), temporary_password=temporary_password
+    )
 
 
 @router.delete("/{user_id}", status_code=204)
