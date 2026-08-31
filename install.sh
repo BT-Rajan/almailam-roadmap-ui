@@ -292,6 +292,21 @@ if [[ ! -d "$INSTANCE_DIR/.git" ]]; then
     git clone --branch "$BRANCH" --single-branch "$REPO_URL" "$INSTANCE_DIR"
 else
     log "Updating $INSTANCE_DIR to latest $BRANCH"
+
+    if ! git -C "$INSTANCE_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        die "$INSTANCE_DIR/.git exists but is not a valid git repository. Investigate/remove it manually, then re-run."
+    fi
+
+    # A directory may already exist here (pre-dating this script, or a
+    # manual git init) without an 'origin' remote -- add/fix it rather
+    # than failing, since REPO_URL is the one source of truth.
+    if git -C "$INSTANCE_DIR" remote get-url origin >/dev/null 2>&1; then
+        git -C "$INSTANCE_DIR" remote set-url origin "$REPO_URL"
+    else
+        log "No 'origin' remote in $INSTANCE_DIR -- adding it"
+        git -C "$INSTANCE_DIR" remote add origin "$REPO_URL"
+    fi
+
     git -C "$INSTANCE_DIR" fetch origin "$BRANCH"
     git -C "$INSTANCE_DIR" checkout "$BRANCH"
     git -C "$INSTANCE_DIR" reset --hard "origin/$BRANCH"
