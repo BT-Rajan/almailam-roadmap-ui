@@ -2,37 +2,49 @@
 set -Eeuo pipefail
 
 # ============================================================================
-# ServiceOS Installer / Reinstaller
+# ServiceOS Installer -- deploys/updates one of two fixed instances under
+# /apps:
 #
-# Normal:
-#   ./install.sh
+#   /apps/serviceos     "dev"  -- production build, single pm2 process
+#                                 (backend serves the built frontend)
+#   /apps/alhadi-test   "test" -- vite dev server, separate pm2 processes
+#                                 for backend + frontend
 #
-# Rebuild + apply migrations:
-#   ./install.sh --migrate
+# This script does not depend on where it's run from -- it always targets
+# /apps/serviceos or /apps/alhadi-test, cloning them from git if they don't
+# exist yet. Keep the canonical copy at /apps/install.sh; running the copy
+# inside either instance checkout works identically.
 #
-# Non-interactive:
-#   ./install.sh --yes
+# Each run:
+#   - asks whether to deploy "dev" or "test" (or read --instance=dev|test)
+#   - clones the instance dir if missing, otherwise fetches + resets it to
+#     the latest origin/main -- code only (backend/.env, venv/, node_modules,
+#     dist/ and the pm2 ecosystem file are all gitignored and untouched)
+#   - never creates a database, never writes backend/.env -- both instances
+#     already have their DB and .env configured; this script assumes that
+#     and fails loudly if backend/.env is missing rather than guessing
+#   - applies any backend/migrations/*.sql files not yet recorded in
+#     schema_migrations -- additive only, never drops/recreates the
+#     database or touches existing rows
+#   - reinstalls dependencies and (re)starts the instance under pm2
 #
-# Rebuild + migrations without prompts:
-#   ./install.sh --yes --migrate
+# Usage:
+#   ./install.sh                   interactive: asks "dev" or "test"
+#   ./install.sh --instance=dev
+#   ./install.sh --instance=test
+#   ./install.sh --instance=dev --yes
 # ============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$SCRIPT_DIR/backend"
-ENV_FILE="$BACKEND_DIR/.env"
+APPS_DIR="/apps"
+REPO_URL="https://github.com/BT-Rajan/almailam-roadmap-ui.git"
+BRANCH="main"
 
-NODE_VERSION=20
-DEFAULT_PORT=8000
-
-# Database defaults
 DEFAULT_DB_HOST="localhost"
 DEFAULT_DB_PORT="3306"
-DEFAULT_DB_NAME="almailan"
 DEFAULT_DB_USER="app_user"
 DEFAULT_DB_PASSWORD="Chennai#44"
 
-PORT=""
-APPLY_MIGRATIONS=false
+INSTANCE=""
 ASSUME_YES=false
 
 # ----------------------------------------------------------------------------
@@ -41,12 +53,12 @@ ASSUME_YES=false
 
 for arg in "$@"; do
     case "$arg" in
-        --port=*)
-            PORT="${arg#*=}"
+        --instance=dev)
+            INSTANCE="dev"
             ;;
 
-        --migrate|--apply-migrations)
-            APPLY_MIGRATIONS=true
+        --instance=test)
+            INSTANCE="test"
             ;;
 
         --yes|-y)
@@ -60,29 +72,23 @@ ServiceOS installer
 
 Usage:
   ./install.sh
-  ./install.sh --migrate
-  ./install.sh --yes
-  ./install.sh --yes --migrate
-  ./install.sh --port=8000 --migrate
+  ./install.sh --instance=dev
+  ./install.sh --instance=test
+  ./install.sh --instance=dev --yes
 
 Options:
-  --port=PORT       Set application port
-  --migrate         Apply backend/migrations/*.sql
-  --yes             Non-interactive mode
-  -y                Same as --yes
-  -h, --help        Show this help
+  --instance=dev|test   Select the instance without prompting
+  --yes                 Non-interactive mode (requires --instance)
+  -y                    Same as --yes
+  -h, --help            Show this help
 
-Database:
-  Database settings are read from:
-    backend/.env
+Instances:
+  dev   -> /apps/serviceos    production build, single pm2 process
+  test  -> /apps/alhadi-test  vite dev server, backend+frontend pm2 processes
 
-  If missing, defaults are:
-
-    DB_HOST=localhost
-    DB_PORT=3306
-    DB_NAME=almailan
-    DB_USER=app_user
-    DB_PASSWORD=Chennai#44
+This script never creates a database and never writes backend/.env -- both
+instances must already have those configured. Database changes go through
+backend/migrations/*.sql, applied additively on every run.
 
 EOF
             exit 0
@@ -129,10 +135,6 @@ ask() {
     echo "${answer:-$default}"
 }
 
-# ----------------------------------------------------------------------------
-# .env helpers
-# ----------------------------------------------------------------------------
-
 get_env() {
     local key="$1"
     local default="${2:-}"
@@ -159,25 +161,53 @@ get_env() {
     echo "${value:-$default}"
 }
 
-set_env() {
-    local key="$1"
-    local value="$2"
+# ----------------------------------------------------------------------------
+# 1. Which instance?
+# ----------------------------------------------------------------------------
 
-    touch "$ENV_FILE"
-
-    # Escape sed replacement characters
-    local escaped
-    escaped="$(printf '%s' "$value" | sed 's/[&/\]/\\&/g')"
-
-    if grep -qE "^${key}=" "$ENV_FILE"; then
-        sed -i "s|^${key}=.*|${key}=${escaped}|" "$ENV_FILE"
-    else
-        printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+if [[ -z "$INSTANCE" ]]; then
+    if [[ "$ASSUME_YES" == true ]]; then
+        die "Non-interactive mode requires --instance=dev or --instance=test"
     fi
-}
+
+    echo
+    echo "Which instance do you want to install/update?"
+    echo "  dev   -> /apps/serviceos    (production build)"
+    echo "  test  -> /apps/alhadi-test  (vite dev server)"
+    answer="$(ask "Select [dev/test]: " "")"
+
+    case "$answer" in
+        dev|Dev|DEV)   INSTANCE="dev" ;;
+        test|Test|TEST) INSTANCE="test" ;;
+        *) die "Invalid selection: '$answer' (expected 'dev' or 'test')" ;;
+    esac
+fi
+
+case "$INSTANCE" in
+    dev)
+        INSTANCE_NAME="serviceos"
+        PM2_MODE="single"
+        DEFAULT_BACKEND_PORT="8000"
+        ;;
+    test)
+        INSTANCE_NAME="alhadi-test"
+        PM2_MODE="split"
+        DEFAULT_BACKEND_PORT="8888"
+        FRONTEND_PORT="9007"
+        ;;
+    *)
+        die "Invalid instance: $INSTANCE (expected 'dev' or 'test')"
+        ;;
+esac
+
+INSTANCE_DIR="$APPS_DIR/$INSTANCE_NAME"
+BACKEND_DIR="$INSTANCE_DIR/backend"
+ENV_FILE="$BACKEND_DIR/.env"
+
+log "Instance: $INSTANCE -> $INSTANCE_DIR"
 
 # ----------------------------------------------------------------------------
-# 1. Basic packages
+# 2. Basic packages
 # ----------------------------------------------------------------------------
 #
 # IMPORTANT:
@@ -208,9 +238,7 @@ fi
 
 log "Found: git, python3, curl, openssl"
 
-# ----------------------------------------------------------------------------
-# 2. Node.js
-# ----------------------------------------------------------------------------
+NODE_VERSION=20
 
 if ! require_cmd node || \
    [[ "$(node -v | sed 's/^v//' | cut -d. -f1)" -lt "$NODE_VERSION" ]]; then
@@ -242,10 +270,6 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
     source "$NVM_DIR/nvm.sh"
 fi
 
-# ----------------------------------------------------------------------------
-# 3. PM2
-# ----------------------------------------------------------------------------
-
 if ! require_cmd pm2; then
     log "Installing PM2"
     npm install -g pm2
@@ -254,66 +278,53 @@ else
 fi
 
 # ----------------------------------------------------------------------------
-# 4. Create/read .env
+# 3. Pull code (code only -- never touches backend/.env or the database)
 # ----------------------------------------------------------------------------
 
-log "Loading database configuration"
+mkdir -p "$APPS_DIR"
 
-mkdir -p "$BACKEND_DIR"
+if [[ -d "$INSTANCE_DIR" && ! -d "$INSTANCE_DIR/.git" ]]; then
+    die "$INSTANCE_DIR exists but is not a git checkout. Investigate/remove it manually, then re-run."
+fi
+
+if [[ ! -d "$INSTANCE_DIR/.git" ]]; then
+    log "Cloning $REPO_URL ($BRANCH) into $INSTANCE_DIR"
+    git clone --branch "$BRANCH" --single-branch "$REPO_URL" "$INSTANCE_DIR"
+else
+    log "Updating $INSTANCE_DIR to latest $BRANCH"
+    git -C "$INSTANCE_DIR" fetch origin "$BRANCH"
+    git -C "$INSTANCE_DIR" checkout "$BRANCH"
+    git -C "$INSTANCE_DIR" reset --hard "origin/$BRANCH"
+    # -fd only, no -x: respects .gitignore, so backend/.env, venv/,
+    # node_modules, dist/ and ecosystem*.config.cjs are left alone.
+    git -C "$INSTANCE_DIR" clean -fd
+fi
+
+# ----------------------------------------------------------------------------
+# 4. Database configuration -- read only, never written by this script
+# ----------------------------------------------------------------------------
+
+log "Reading database configuration"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    log "Creating backend/.env"
-
-    if [[ -f "$BACKEND_DIR/.env.example" ]]; then
-        cp "$BACKEND_DIR/.env.example" "$ENV_FILE"
-    else
-        touch "$ENV_FILE"
-    fi
-
-    if ! grep -q '^JWT_SECRET_KEY=' "$ENV_FILE"; then
-        set_env JWT_SECRET_KEY "$(openssl rand -hex 32)"
-    fi
+    die "$ENV_FILE not found. This installer does not create it -- set up backend/.env for this instance first (DB credentials, JWT secret, PORT), then re-run."
 fi
 
-# Read existing values.
 DB_HOST="$(get_env DB_HOST "$DEFAULT_DB_HOST")"
 DB_PORT="$(get_env DB_PORT "$DEFAULT_DB_PORT")"
-DB_NAME="$(get_env DB_NAME "$DEFAULT_DB_NAME")"
+DB_NAME="$(get_env DB_NAME "")"
 DB_USER="$(get_env DB_USER "$DEFAULT_DB_USER")"
 DB_PASSWORD="$(get_env DB_PASSWORD "$DEFAULT_DB_PASSWORD")"
+BACKEND_PORT="$(get_env PORT "$DEFAULT_BACKEND_PORT")"
 
-# Preserve/update these values.
-set_env DB_HOST "$DB_HOST"
-set_env DB_PORT "$DB_PORT"
-set_env DB_NAME "$DB_NAME"
-set_env DB_USER "$DB_USER"
-set_env DB_PASSWORD "$DB_PASSWORD"
-
-# ----------------------------------------------------------------------------
-# 5. Port
-# ----------------------------------------------------------------------------
-
-CURRENT_PORT="$(get_env PORT "$DEFAULT_PORT")"
-
-if [[ -n "$PORT" ]]; then
-    :
-elif [[ "$ASSUME_YES" == true ]]; then
-    PORT="$CURRENT_PORT"
-else
-    PORT="$(ask "Application port [${CURRENT_PORT}]: " "$CURRENT_PORT")"
+if [[ -z "$DB_NAME" ]]; then
+    die "DB_NAME is not set in $ENV_FILE."
 fi
 
-if ! [[ "$PORT" =~ ^[0-9]+$ ]] ||
-   (( PORT < 1 || PORT > 65535 )); then
-    die "Invalid port: $PORT"
-fi
-
-set_env PORT "$PORT"
-
-log "Application port: $PORT"
+log "Backend port: $BACKEND_PORT (from $ENV_FILE)"
 
 # ----------------------------------------------------------------------------
-# 6. MariaDB / MySQL
+# 5. MariaDB / MySQL
 # ----------------------------------------------------------------------------
 #
 # IMPORTANT:
@@ -340,94 +351,28 @@ fi
 
 log "Database client: $($DB_CLIENT --version)"
 
-# ----------------------------------------------------------------------------
-# 7. Database connection
-# ----------------------------------------------------------------------------
-
 log "Testing database connection"
 
 # MYSQL_PWD avoids exposing the password in the command line.
 export MYSQL_PWD="$DB_PASSWORD"
 
-if "$DB_CLIENT" \
+if ! "$DB_CLIENT" \
         --protocol=tcp \
         -h "$DB_HOST" \
         -P "$DB_PORT" \
         -u "$DB_USER" \
+        "$DB_NAME" \
         -e "SELECT 1;" >/dev/null 2>&1; then
 
-    log "Database connection successful"
-
-else
-
-    warn "Application database credentials could not connect."
-
-    echo
-    echo "Database:"
-    echo "  Host:     $DB_HOST"
-    echo "  Port:     $DB_PORT"
-    echo "  Database: $DB_NAME"
-    echo "  User:     $DB_USER"
-    echo
-
-    # Try root/admin connection only to create the application database/user.
-    ROOT_CLIENT=()
-
-    if [[ -n "${MYSQL_ROOT_PASSWORD:-}" ]]; then
-        export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
-        ROOT_CLIENT=(
-            --protocol=tcp
-            -h "$DB_HOST"
-            -P "$DB_PORT"
-            -u root
-        )
-    else
-        unset MYSQL_PWD
-        ROOT_CLIENT=(
-            --protocol=socket
-            -u root
-        )
-    fi
-
-    if "$DB_CLIENT" "${ROOT_CLIENT[@]}" -e "SELECT 1;" >/dev/null 2>&1; then
-
-        log "Administrative database access available"
-
-        # Escape values for SQL.
-        SQL_DB="$(printf '%s' "$DB_NAME" | sed "s/'/''/g")"
-        SQL_USER="$(printf '%s' "$DB_USER" | sed "s/'/''/g")"
-        SQL_PASS="$(printf '%s' "$DB_PASSWORD" | sed "s/'/''/g")"
-
-        "$DB_CLIENT" "${ROOT_CLIENT[@]}" <<SQL
-CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-CREATE USER IF NOT EXISTS '${SQL_USER}'@'localhost'
-    IDENTIFIED BY '${SQL_PASS}';
-
-ALTER USER '${SQL_USER}'@'localhost'
-    IDENTIFIED BY '${SQL_PASS}';
-
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${SQL_USER}'@'localhost';
-
-FLUSH PRIVILEGES;
-SQL
-
-        log "Database and application user verified"
-
-    else
-
-        unset MYSQL_PWD
-
-        die "Cannot connect to MariaDB/MySQL as ${DB_USER}, and root administrative access is unavailable."
-    fi
+    unset MYSQL_PWD
+    die "Cannot connect to database '$DB_NAME' as ${DB_USER}@${DB_HOST}:${DB_PORT}. This installer does not create databases or users -- confirm $ENV_FILE and the database itself are already set up correctly."
 fi
 
-unset MYSQL_PWD
+log "Database connection successful"
 
 # ----------------------------------------------------------------------------
-# 8. Apply migrations
+# 6. Apply pending migrations (additive only -- never drops/recreates the
+#    database, never touches existing rows)
 # ----------------------------------------------------------------------------
 
 if [[ -d "$BACKEND_DIR/migrations" ]]; then
@@ -443,91 +388,69 @@ if [[ -d "$BACKEND_DIR/migrations" ]]; then
 
     if (( ${#MIGRATIONS[@]} > 0 )); then
 
-        RUN_MIGRATIONS="$APPLY_MIGRATIONS"
+        log "Applying database migrations"
 
-        if [[ "$RUN_MIGRATIONS" == false && "$ASSUME_YES" == false ]]; then
+        # Tracks which migration files have already been run against this
+        # database, so re-running install.sh skips them instead of
+        # replaying every .sql file from scratch every time. Each
+        # migration is still written to be idempotent on its own
+        # (information_schema-guarded ADD COLUMN, etc.) -- this table is a
+        # second, cheaper line of defense: skip the whole file rather than
+        # rely on every statement inside it tolerating a second run.
+        "$DB_CLIENT" \
+            --protocol=tcp \
+            -h "$DB_HOST" \
+            -P "$DB_PORT" \
+            -u "$DB_USER" \
+            "$DB_NAME" <<< "
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    filename VARCHAR(255) NOT NULL PRIMARY KEY,
+                    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            "
 
-            echo
-            echo "Found ${#MIGRATIONS[@]} database migration(s)."
+        for migration in "${MIGRATIONS[@]}"; do
 
-            if [[ "$(ask "Apply migrations now? [y/N]: " "n")" =~ ^[Yy]$ ]]; then
-                RUN_MIGRATIONS=true
+            migration_name="$(basename "$migration")"
+
+            already_applied="$(
+                "$DB_CLIENT" \
+                    --protocol=tcp \
+                    -h "$DB_HOST" \
+                    -P "$DB_PORT" \
+                    -u "$DB_USER" \
+                    -N -s \
+                    "$DB_NAME" <<< "
+                        SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';
+                    "
+            )"
+
+            if [[ "$already_applied" != "0" ]]; then
+                log "Migration: $migration_name (already applied, skipping)"
+                continue
             fi
-        fi
 
-        if [[ "$RUN_MIGRATIONS" == true ]]; then
+            log "Migration: $migration_name"
 
-            log "Applying database migrations"
+            "$DB_CLIENT" \
+                --protocol=tcp \
+                -h "$DB_HOST" \
+                -P "$DB_PORT" \
+                -u "$DB_USER" \
+                "$DB_NAME" < "$migration"
 
-            export MYSQL_PWD="$DB_PASSWORD"
-
-            # Tracks which migration files have already been run against
-            # this database, so re-running install.sh (or --migrate on
-            # its own) skips them instead of replaying every .sql file
-            # from scratch every time. Each migration is still written
-            # to be idempotent on its own (information_schema-guarded
-            # ADD COLUMN, etc.) -- this table is a second, cheaper line
-            # of defense: skip the whole file rather than rely on every
-            # statement inside it tolerating a second run.
             "$DB_CLIENT" \
                 --protocol=tcp \
                 -h "$DB_HOST" \
                 -P "$DB_PORT" \
                 -u "$DB_USER" \
                 "$DB_NAME" <<< "
-                    CREATE TABLE IF NOT EXISTS schema_migrations (
-                        filename VARCHAR(255) NOT NULL PRIMARY KEY,
-                        applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    );
+                    INSERT INTO schema_migrations (filename) VALUES ('$migration_name');
                 "
+        done
 
-            for migration in "${MIGRATIONS[@]}"; do
+        log "All migrations completed"
 
-                migration_name="$(basename "$migration")"
-
-                already_applied="$(
-                    "$DB_CLIENT" \
-                        --protocol=tcp \
-                        -h "$DB_HOST" \
-                        -P "$DB_PORT" \
-                        -u "$DB_USER" \
-                        -N -s \
-                        "$DB_NAME" <<< "
-                            SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';
-                        "
-                )"
-
-                if [[ "$already_applied" != "0" ]]; then
-                    log "Migration: $migration_name (already applied, skipping)"
-                    continue
-                fi
-
-                log "Migration: $migration_name"
-
-                "$DB_CLIENT" \
-                    --protocol=tcp \
-                    -h "$DB_HOST" \
-                    -P "$DB_PORT" \
-                    -u "$DB_USER" \
-                    "$DB_NAME" < "$migration"
-
-                "$DB_CLIENT" \
-                    --protocol=tcp \
-                    -h "$DB_HOST" \
-                    -P "$DB_PORT" \
-                    -u "$DB_USER" \
-                    "$DB_NAME" <<< "
-                        INSERT INTO schema_migrations (filename) VALUES ('$migration_name');
-                    "
-            done
-
-            unset MYSQL_PWD
-
-            log "All migrations completed"
-
-        else
-            log "Migrations skipped"
-        fi
     else
         log "No migrations found"
     fi
@@ -536,8 +459,10 @@ else
     log "No backend/migrations directory"
 fi
 
+unset MYSQL_PWD
+
 # ----------------------------------------------------------------------------
-# 9. Python backend
+# 7. Python backend
 # ----------------------------------------------------------------------------
 
 log "Setting up Python backend"
@@ -555,7 +480,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 # ----------------------------------------------------------------------------
-# 10. Admin user
+# 8. Admin user (idempotent -- skips if it already exists)
 # ----------------------------------------------------------------------------
 
 if [[ -f "$BACKEND_DIR/scripts/create_admin.py" ]]; then
@@ -569,38 +494,58 @@ fi
 
 deactivate || true
 
-cd "$SCRIPT_DIR"
+cd "$INSTANCE_DIR"
 
 # ----------------------------------------------------------------------------
-# 11. Frontend
+# 9. Frontend
 # ----------------------------------------------------------------------------
 
 log "Installing frontend dependencies"
 
 npm install
 
-log "Building frontend"
-
-npm run build
+if [[ "$PM2_MODE" == "single" ]]; then
+    log "Building frontend"
+    npm run build
+fi
 
 # ----------------------------------------------------------------------------
-# 12. PM2
+# 10. Firewall (test instance only -- opens backend + frontend ports)
+# ----------------------------------------------------------------------------
+
+if [[ "$PM2_MODE" == "split" ]]; then
+    if require_cmd ufw; then
+        log "Opening firewall ports ${BACKEND_PORT} and ${FRONTEND_PORT}"
+        ufw allow "${BACKEND_PORT}/tcp" >/dev/null 2>&1 || warn "Could not run 'ufw allow ${BACKEND_PORT}/tcp' (try with sudo)."
+        ufw allow "${FRONTEND_PORT}/tcp" >/dev/null 2>&1 || warn "Could not run 'ufw allow ${FRONTEND_PORT}/tcp' (try with sudo)."
+    else
+        warn "ufw not found -- skipping firewall rules. Open ${BACKEND_PORT}/tcp and ${FRONTEND_PORT}/tcp manually if needed."
+    fi
+fi
+
+# ----------------------------------------------------------------------------
+# 11. PM2
 # ----------------------------------------------------------------------------
 
 log "Configuring PM2"
 
-cat > "$SCRIPT_DIR/ecosystem.config.cjs" <<EOF
+if [[ "$PM2_MODE" == "single" ]]; then
+
+    PM2_APP_NAME="serviceos"
+    ECOSYSTEM_FILE="$INSTANCE_DIR/ecosystem.config.cjs"
+
+    cat > "$ECOSYSTEM_FILE" <<EOF
 module.exports = {
     apps: [
         {
             name: "serviceos",
             cwd: "${BACKEND_DIR}",
             script: "${BACKEND_DIR}/venv/bin/uvicorn",
-            args: "app.main:app --host 0.0.0.0 --port ${PORT}",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
             interpreter: "none",
 
             env: {
-                PORT: "${PORT}"
+                PORT: "${BACKEND_PORT}"
             },
 
             autorestart: true,
@@ -611,62 +556,135 @@ module.exports = {
 };
 EOF
 
-if pm2 describe serviceos >/dev/null 2>&1; then
-
-    log "Restarting existing ServiceOS process"
-
-    pm2 restart ecosystem.config.cjs --update-env
+    if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
+        log "Restarting existing ServiceOS process"
+        pm2 restart "$ECOSYSTEM_FILE" --update-env
+    else
+        log "Starting ServiceOS"
+        pm2 start "$ECOSYSTEM_FILE"
+    fi
 
 else
 
-    log "Starting ServiceOS"
+    PM2_BACKEND_NAME="alhadi-test-backend"
+    PM2_FRONTEND_NAME="alhadi-test-frontend"
+    ECOSYSTEM_FILE="$INSTANCE_DIR/ecosystem.config.cjs"
 
-    pm2 start ecosystem.config.cjs
+    cat > "$ECOSYSTEM_FILE" <<EOF
+module.exports = {
+    apps: [
+        {
+            name: "${PM2_BACKEND_NAME}",
+            cwd: "${BACKEND_DIR}",
+            script: "${BACKEND_DIR}/venv/bin/uvicorn",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            interpreter: "none",
+            autorestart: true,
+            max_restarts: 10,
+            restart_delay: 3000
+        },
+        {
+            name: "${PM2_FRONTEND_NAME}",
+            cwd: "${INSTANCE_DIR}",
+            script: "npm",
+            args: "run dev -- --host 0.0.0.0 --port ${FRONTEND_PORT}",
+            interpreter: "none",
+            env: {
+                VITE_DEV_PORT: "${FRONTEND_PORT}",
+                VITE_API_PROXY_TARGET: "http://localhost:${BACKEND_PORT}"
+            },
+            autorestart: true,
+            max_restarts: 10,
+            restart_delay: 3000
+        }
+    ]
+};
+EOF
+
+    for name in "$PM2_BACKEND_NAME" "$PM2_FRONTEND_NAME"; do
+        if pm2 describe "$name" >/dev/null 2>&1; then
+            pm2 delete "$name" >/dev/null 2>&1 || true
+        fi
+    done
+
+    log "Starting alhadi-test under PM2"
+    pm2 start "$ECOSYSTEM_FILE"
 
 fi
 
 pm2 save
 
 # ----------------------------------------------------------------------------
-# 13. Final health check
+# 12. Health check(s)
 # ----------------------------------------------------------------------------
 
-log "Checking ServiceOS"
+log "Checking backend"
 
-sleep 2
+BACKEND_UP=false
+for _ in $(seq 1 20); do
+    if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1; then
+        BACKEND_UP=true
+        break
+    fi
+    sleep 1
+done
 
-if curl -fsS \
-    "http://127.0.0.1:${PORT}/api/health" \
-    >/dev/null 2>&1; then
-
-    log "ServiceOS health check passed"
-
+if [[ "$BACKEND_UP" == true ]]; then
+    log "Backend health check passed"
 else
-
-    warn "Health endpoint did not respond yet."
-
+    warn "Backend health endpoint did not respond after 20s."
     echo
     echo "Check:"
     echo "  pm2 status"
-    echo "  pm2 logs serviceos"
+    if [[ "$PM2_MODE" == "single" ]]; then
+        echo "  pm2 logs serviceos"
+    else
+        echo "  pm2 logs alhadi-test-backend"
+    fi
+fi
+
+if [[ "$PM2_MODE" == "split" ]]; then
+
+    log "Checking frontend"
+
+    FRONTEND_UP=false
+    for _ in $(seq 1 20); do
+        if curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" >/dev/null 2>&1; then
+            FRONTEND_UP=true
+            break
+        fi
+        sleep 1
+    done
+
+    if [[ "$FRONTEND_UP" == true ]]; then
+        log "Frontend health check passed"
+    else
+        warn "Frontend not responding yet after 20s. Check: pm2 logs alhadi-test-frontend"
+    fi
+
 fi
 
 # ----------------------------------------------------------------------------
 # Done
 # ----------------------------------------------------------------------------
 
-log "ServiceOS setup complete"
+log "$INSTANCE_NAME setup complete"
 
-cat <<EOF
+if [[ "$PM2_MODE" == "single" ]]; then
 
-ServiceOS
----------
+    cat <<EOF
+
+ServiceOS (dev)
+---------------
+
+Directory:
+  ${INSTANCE_DIR}
 
 URL:
-  http://localhost:${PORT}
+  http://localhost:${BACKEND_PORT}
 
 Health:
-  http://localhost:${PORT}/api/health
+  http://localhost:${BACKEND_PORT}/api/health
 
 Database:
   Host:     ${DB_HOST}
@@ -679,16 +697,39 @@ PM2:
   pm2 logs serviceos
   pm2 restart serviceos
 
-After pulling code:
-  ./install.sh
-
-Pull + rebuild + migrations:
-  ./install.sh --migrate
-
-Non-interactive:
-  ./install.sh --yes
-
-Non-interactive + migrations:
-  ./install.sh --yes --migrate
+Re-run any time to pull the latest main + apply new migrations:
+  ./install.sh --instance=dev
 
 EOF
+
+else
+
+    cat <<EOF
+
+ServiceOS (test / alhadi-test)
+-------------------------------
+
+Directory:
+  ${INSTANCE_DIR}
+
+Frontend: http://localhost:${FRONTEND_PORT}
+Backend:  http://localhost:${BACKEND_PORT}
+
+Database:
+  Host:     ${DB_HOST}
+  Port:     ${DB_PORT}
+  Database: ${DB_NAME}
+  User:     ${DB_USER}
+
+PM2:
+  pm2 status
+  pm2 logs alhadi-test-backend
+  pm2 logs alhadi-test-frontend
+  pm2 restart alhadi-test-backend alhadi-test-frontend
+
+Re-run any time to pull the latest main + apply new migrations:
+  ./install.sh --instance=test
+
+EOF
+
+fi
