@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { KeyRound, LogOut, Moon, Sun, User, UserCircle } from '@lucide/vue'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ChangePasswordDialog from '@/components/navigation/ChangePasswordDialog.vue'
@@ -19,6 +19,10 @@ const isProfileOpen = ref(false)
 const isChangePasswordOpen = ref(false)
 const menuRef = ref<HTMLElement>()
 const triggerRef = ref<HTMLButtonElement>()
+// The dropdown panel itself, once teleported to <body> -- no longer a DOM
+// descendant of menuRef, so handleClickOutside and the hover-intent
+// handlers below need their own direct reference to it.
+const panelRef = ref<HTMLElement>()
 
 // Opens on hover, so it can be "open" purely because the pointer is resting
 // near the avatar -- registered as non-blocking so it never silently stops
@@ -32,8 +36,28 @@ const { isTopmost } = useOverlayStack(() => isOpen.value, { blocking: false })
 // cancelled by the next mouseenter within the same container.
 let closeTimeout: ReturnType<typeof setTimeout> | undefined
 
+// Teleported to <body> (see the template) and positioned in fixed
+// viewport coordinates computed from the trigger's own rect, rather than
+// left as position:absolute inside this component's own DOM position --
+// an ordinary absolutely-positioned dropdown is at the mercy of every
+// ancestor between it and <body>: any one of them creating a stacking
+// context or containing block (backdrop-filter/transform/filter/
+// will-change/contain, or just overflow:hidden clipping it) is enough to
+// bury it behind page content or clip it outright, and that ancestor set
+// changes on every page. Teleporting escapes all of that in one move
+// instead of chasing down which page/element does it.
+const menuPosition = reactive({ top: 0, right: 0 })
+
+function updateMenuPosition(): void {
+  const rect = triggerRef.value?.getBoundingClientRect()
+  if (!rect) return
+  menuPosition.top = rect.bottom + 4
+  menuPosition.right = window.innerWidth - rect.right
+}
+
 function openOnHover(): void {
   clearTimeout(closeTimeout)
+  updateMenuPosition()
   isOpen.value = true
 }
 
@@ -46,6 +70,7 @@ function closeOnHover(): void {
 
 function toggleOpen(): void {
   clearTimeout(closeTimeout)
+  if (!isOpen.value) updateMenuPosition()
   isOpen.value = !isOpen.value
 }
 
@@ -55,7 +80,10 @@ function close(): void {
 }
 
 function handleClickOutside(event: MouseEvent): void {
-  if (isOpen.value && isTopmost() && menuRef.value && !menuRef.value.contains(event.target as Node)) {
+  const target = event.target as Node
+  const insideTrigger = menuRef.value?.contains(target) ?? false
+  const insidePanel = panelRef.value?.contains(target) ?? false
+  if (isOpen.value && isTopmost() && !insideTrigger && !insidePanel) {
     close()
   }
 }
@@ -114,55 +142,61 @@ async function handleLogout(): Promise<void> {
       <span class="hidden sm:inline">{{ username }}</span>
     </button>
 
-    <Transition name="menu-fade">
-      <div
-        v-if="isOpen"
-        role="menu"
-        class="glass-panel absolute right-0 top-full z-dropdown mt-1 w-56 rounded-xl border border-border-light py-1.5 shadow-elevated"
-      >
-        <button
-          type="button"
-          role="menuitem"
-          class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-          @click="openProfile"
+    <Teleport to="body">
+      <Transition name="menu-fade">
+        <div
+          v-if="isOpen"
+          ref="panelRef"
+          role="menu"
+          class="glass-panel fixed z-dropdown w-56 rounded-xl border border-border-light py-1.5 shadow-elevated"
+          :style="{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }"
+          @mouseenter="openOnHover"
+          @mouseleave="closeOnHover"
         >
-          <UserCircle :size="16" class="text-text-muted" />
-          <span>My Profile</span>
-        </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="openProfile"
+          >
+            <UserCircle :size="16" class="text-text-muted" />
+            <span>My Profile</span>
+          </button>
 
-        <button
-          type="button"
-          role="menuitem"
-          class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-          @click="toggleMode"
-        >
-          <component :is="isDark ? Sun : Moon" :size="16" class="text-text-muted" />
-          <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
-        </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="toggleMode"
+          >
+            <component :is="isDark ? Sun : Moon" :size="16" class="text-text-muted" />
+            <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
+          </button>
 
-        <button
-          type="button"
-          role="menuitem"
-          class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-          @click="openChangePassword"
-        >
-          <KeyRound :size="16" class="text-text-muted" />
-          <span>Change Password</span>
-        </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="openChangePassword"
+          >
+            <KeyRound :size="16" class="text-text-muted" />
+            <span>Change Password</span>
+          </button>
 
-        <hr class="my-1.5 border-border-light" />
+          <hr class="my-1.5 border-border-light" />
 
-        <button
-          type="button"
-          role="menuitem"
-          class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-danger-500 transition-colors duration-fast hover:bg-danger-50"
-          @click="handleLogout"
-        >
-          <LogOut :size="16" />
-          <span>Logout</span>
-        </button>
-      </div>
-    </Transition>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-danger-500 transition-colors duration-fast hover:bg-danger-50"
+            @click="handleLogout"
+          >
+            <LogOut :size="16" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 
   <ProfileDialog v-model="isProfileOpen" />
