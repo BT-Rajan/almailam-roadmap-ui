@@ -29,21 +29,22 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
 # terminal "Completed" workflow stage/status went with them. Government
 # Submission is now the last stage.
 #
-# "Supervision" (migration 0056) sits alongside "Design" rather than
-# replacing it -- a project can include either, both, or neither,
-# depending on which Design/Supervision activities were picked (see
-# project_service.compute_stage_flags). Both are skippable: the actual
-# path through Contract -> [Design] -> [Supervision] -> Government
-# Submission depends on the project, not a fixed straight line anymore
-# (see project_service._assert_stage_exit_criteria and
-# _auto_advance_target for how each project's own path is derived).
+# "Supervision" (migration 0056) is an independent add-on stage -- a
+# project can include Design, Supervision, both, or neither, depending
+# on which Design/Supervision activities were picked (see
+# project_service.compute_stage_flags). It comes after Government
+# Submission, not before it (construction supervision follows permit
+# approval, not design) -- the actual path through Contract -> [Design]
+# -> Government Submission -> [Supervision] depends on the project, not
+# a fixed straight line (see project_service._assert_stage_exit_criteria
+# and _auto_advance_target for how each project's own path is derived).
 WORKFLOW_STAGES = (
     "Requirement",
     "Quotation",
     "Contract",
     "Design",
-    "Supervision",
     "Government Submission",
+    "Supervision",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # Internal approval of the project's scope-of-work text (the
