@@ -22,7 +22,7 @@ const displayName = computed(() =>
         { label: 'Name', value: displayName || '—' },
         { label: 'Mobile', value: form.mobile || '—' },
         { label: 'Email', value: form.email || '—' },
-        { label: 'City', value: form.city || '—' },
+        { label: 'City', value: form.address.city || '—' },
       ]"
     />
 
