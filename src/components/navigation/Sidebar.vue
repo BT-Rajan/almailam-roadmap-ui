@@ -10,7 +10,7 @@ const navigationStore = useNavigationStore()
 
 <template>
   <aside
-    class="hidden shrink-0 flex-col border-r border-[var(--color-border-default)] bg-bg-sidebar shadow-glass-sm transition-all duration-normal lg:flex"
+    class="group relative hidden shrink-0 flex-col border-r border-[var(--color-border-default)] bg-bg-sidebar shadow-glass-sm transition-all duration-normal lg:flex"
     :class="navigationStore.isSidebarCollapsed ? 'w-18' : 'w-70'"
   >
     <div class="flex h-16 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
@@ -36,16 +36,18 @@ const navigationStore = useNavigationStore()
       />
     </nav>
 
-    <div class="border-t border-[var(--color-border-default)] p-3">
-      <button
-        type="button"
-        class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
-        @click="navigationStore.toggleSidebarCollapsed"
-      >
-        <ChevronLeft v-if="!navigationStore.isSidebarCollapsed" :size="18" />
-        <ChevronRight v-else :size="18" />
-        <span v-if="!navigationStore.isSidebarCollapsed">Collapse</span>
-      </button>
-    </div>
+    <!-- Edge toggle: sits on the sidebar's border instead of taking a
+    permanent footer row. Stays clickable at all times but only visible
+    while the pointer is over the sidebar (group-hover), so it doesn't
+    compete for attention with the nav items above it. -->
+    <button
+      type="button"
+      class="absolute -right-3 top-16 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-bg-sidebar text-[var(--color-text-secondary)] opacity-0 shadow-glass-sm transition-opacity duration-fast hover:text-[var(--color-text-primary)] group-hover:opacity-100"
+      :aria-label="navigationStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      @click="navigationStore.toggleSidebarCollapsed"
+    >
+      <ChevronLeft v-if="!navigationStore.isSidebarCollapsed" :size="14" />
+      <ChevronRight v-else :size="14" />
+    </button>
   </aside>
 </template>
