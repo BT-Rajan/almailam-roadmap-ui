@@ -13,13 +13,27 @@ ENTITY_TYPE = "SERVICE_CATALOG_ITEM"
 # The services this app used to ship as a hardcoded, uneditable list
 # (PROJECT_SERVICES in the frontend). Seeded once so the admin catalog
 # page -- and the project-creation Service dropdown that now reads from
-# it -- isn't stuck on an empty state on a fresh install.
+# it -- isn't stuck on an empty state on a fresh install. All Design
+# branch (the default) -- these are one-time fees.
 DEFAULT_SERVICE_NAMES = [
     "Structural Engineering",
     "MEP Design",
     "Architectural Design",
     "Fire & Safety Engineering",
     "Civil Engineering",
+]
+
+# The single Supervision-branch service (migration 0059, replacing the
+# old, separate "Additional Activity Catalog"). Its activities are
+# monthly recurring fees rather than one-time -- same cost values the old
+# type-activity "Supervision" category used to seed, now interpreted as
+# a monthly rate instead of a flat one-time charge.
+SUPERVISION_SERVICE_NAME = "Supervision"
+SUPERVISION_DEFAULT_ACTIVITIES = [
+    ("Weekly Site Visits", 250.00),
+    ("Progress Reporting", 100.00),
+    ("Materials Testing Coordination", 150.00),
+    ("Snagging & Handover Inspection", 200.00),
 ]
 
 
@@ -35,7 +49,12 @@ def _ensure_seeded(db: Session) -> None:
     # catch instead of silently inserting duplicate default services.
     try:
         for name in DEFAULT_SERVICE_NAMES:
-            db.add(ServiceCatalogItem(name=name))
+            db.add(ServiceCatalogItem(name=name, branch="Design"))
+        supervision = ServiceCatalogItem(name=SUPERVISION_SERVICE_NAME, branch="Supervision")
+        db.add(supervision)
+        db.flush()
+        for activity_name, cost in SUPERVISION_DEFAULT_ACTIVITIES:
+            db.add(ServiceCatalogActivity(service_id=supervision.id, name=activity_name, fixed_cost=cost))
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -102,12 +121,12 @@ def _assert_name_available(db: Session, name: str, exclude_id: int | None = None
         raise ConflictError(f'A service named "{name.strip()}" already exists.')
 
 
-def create_service(db: Session, name: str, user_id: int) -> ServiceCatalogItem:
+def create_service(db: Session, name: str, branch: str, user_id: int) -> ServiceCatalogItem:
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Service name is required.")
     _assert_name_available(db, clean_name)
-    service = ServiceCatalogItem(name=clean_name)
+    service = ServiceCatalogItem(name=clean_name, branch=branch)
     db.add(service)
     db.flush()
     audit_service.log_event(db, ENTITY_TYPE, service.id, "Service added", user_id, new_value=clean_name)

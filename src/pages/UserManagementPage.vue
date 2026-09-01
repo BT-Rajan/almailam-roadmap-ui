@@ -141,9 +141,10 @@ async function handleSave(user: AppUser): Promise<void> {
 }
 
 async function handleToggleStatus(user: AppUser): Promise<void> {
-  await userStore.toggleUserStatus(user.id)
-  const nextStatus = user.status === 'Active' ? 'Inactive' : 'Active'
-  toastStore.show('info', `User ${nextStatus.toLowerCase()}`, `${user.name} is now ${nextStatus.toLowerCase()}.`)
+  const name = user.name
+  const nextStatus = await userStore.toggleUserStatus(user.id)
+  if (!nextStatus) return
+  toastStore.show('info', `User ${nextStatus.toLowerCase()}`, `${name} is now ${nextStatus.toLowerCase()}.`)
 }
 
 async function handleResetPassword(): Promise<void> {

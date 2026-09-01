@@ -99,50 +99,95 @@ def get_agreement(db: Session, agreement_id: int) -> FinancialAgreement:
     return agreement
 
 
-def get_agreement_by_project(db: Session, project_no: str) -> FinancialAgreement | None:
+def get_agreement_by_project(db: Session, project_no: str, stream: str | None = None) -> FinancialAgreement | None:
+    """stream=None returns the most recently created agreement regardless
+    of stream (back-compat for callers written before a project could
+    have more than one agreement); pass a stream to look up that
+    specific one."""
     project = db.query(Project).filter(Project.project_no == project_no).first()
     if project is None:
         return None
-    return (
-        db.query(FinancialAgreement)
-        .filter(FinancialAgreement.project_id == project.id)
-        .order_by(FinancialAgreement.id.desc())
-        .first()
-    )
+    query = db.query(FinancialAgreement).filter(FinancialAgreement.project_id == project.id)
+    if stream is not None:
+        query = query.filter(FinancialAgreement.stream == stream)
+    return query.order_by(FinancialAgreement.id.desc()).first()
 
 
 def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
+    # Local import: project_service already imports this module at
+    # module level, so importing it back at module level here would be
+    # circular (same reasoning as _try_auto_advance_project_stage above).
+    from app.services import project_service
+
     project = _project_by_no(db, payload.projectId)
     # The staff UI only ever offers "Create Agreement" when none exists
-    # yet (hides the button once one does) -- that's a UI convention,
-    # not a rule the backend itself enforced, so a race between two
-    # requests or a direct API call could previously create a second
-    # agreement for the same project with nothing stopping it. The
-    # database now also enforces this as a real constraint (see
-    # migration 0015), but checking here first means a clear, specific
-    # error instead of a raw constraint-violation message.
-    existing = get_agreement_by_project(db, payload.projectId)
+    # yet for the chosen stream (hides the button once one does) --
+    # that's a UI convention, not a rule the backend itself enforced, so
+    # a race between two requests or a direct API call could previously
+    # create a second agreement for the same project/stream with nothing
+    # stopping it. The database now also enforces this as a real
+    # constraint (uq_financial_agreements_project_stream, migration
+    # 0059), but checking here first means a clear, specific error
+    # instead of a raw constraint-violation message.
+    existing = get_agreement_by_project(db, payload.projectId, payload.stream)
     if existing:
-        raise ValidationAppError(f"{project.project_no} already has a financial agreement -- only one is allowed per project.")
+        raise ValidationAppError(
+            f"{project.project_no} already has a {payload.stream} financial agreement -- "
+            "only one is allowed per project per stream."
+        )
+
+    if payload.stream == "Supervision":
+        activities = project_service.get_selected_supervision_activities(db, project.id)
+        if not activities:
+            raise ValidationAppError(
+                f"{project.project_no} has no selected Supervision activities to bill."
+            )
+        open_ended = [a.activity_name for a in activities if a.end_date is None]
+        if open_ended:
+            raise ValidationAppError(
+                "Every Supervision activity needs an end date before a financial agreement can be "
+                f"created -- still open-ended: {', '.join(open_ended)}."
+            )
+        periods = [
+            calc.SupervisionActivityPeriod(
+                monthly_rate=Decimal(str(a.monthly_rate)), start_date=a.start_date, end_date=a.end_date,
+            )
+            for a in activities
+        ]
+        schedule = calc.generate_prorated_monthly_schedule(periods)
+        if not schedule:
+            raise ValidationAppError("The selected Supervision activities don't produce any billable months.")
+        contract_amount = sum((Decimal(str(item["amountDue"])) for item in schedule), Decimal("0"))
+        contract_start_date = min(a.start_date for a in activities)
+        contract_end_date = max(a.end_date for a in activities)
+        payment_frequency = "Monthly"
+    else:
+        if payload.contractAmount is None or payload.contractStartDate is None or payload.paymentFrequency is None:
+            raise ValidationAppError(
+                "contractAmount, contractStartDate and paymentFrequency are required for a Design agreement."
+            )
+        contract_amount = Decimal(str(payload.contractAmount))
+        contract_start_date = payload.contractStartDate
+        contract_end_date = payload.contractEndDate
+        payment_frequency = payload.paymentFrequency
+        schedule = calc.generate_even_schedule(contract_amount, contract_start_date, contract_end_date, payment_frequency)
+
     agreement = FinancialAgreement(
         project_id=project.id,
-        contract_amount=payload.contractAmount,
+        stream=payload.stream,
+        contract_amount=contract_amount,
         currency=payload.currency,
-        contract_start_date=payload.contractStartDate,
-        contract_end_date=payload.contractEndDate,
+        contract_start_date=contract_start_date,
+        contract_end_date=contract_end_date,
         agreement_date=payload.agreementDate,
         quotation_reference=payload.quotationReference,
         contract_reference=payload.contractReference,
         payment_mode=payload.paymentMode,
-        payment_frequency=payload.paymentFrequency,
+        payment_frequency=payment_frequency,
     )
     db.add(agreement)
     db.flush()
 
-    schedule = calc.generate_even_schedule(
-        Decimal(str(payload.contractAmount)), payload.contractStartDate, payload.contractEndDate,
-        payload.paymentFrequency,
-    )
     for item in schedule:
         db.add(
             PaymentObligation(

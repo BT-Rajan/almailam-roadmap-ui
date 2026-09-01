@@ -33,7 +33,7 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
     modules: [
       {
         label: 'Catalogs',
-        description: 'Configure the service, additional activity, and permit catalogs -- each in its own tab.',
+        description: 'Configure the Services catalog (Design and Supervision branches) and the permit catalog -- each in its own tab.',
         icon: 'ListChecks',
         routeName: ROUTE_NAMES.ADMIN_CATALOGS,
       },

@@ -10,6 +10,7 @@ PAYMENT_MODES = ("Cash", "Bank Transfer", "Credit Card", "Debit Card", "Online P
 PAYMENT_FREQUENCIES = ("One-time", "Daily", "Weekly", "Monthly", "Quarterly", "Half-yearly", "Yearly", "Custom")
 OBLIGATION_MANUAL_STATUSES = ("Cancelled", "Waived")
 ADJUSTMENT_TYPES = ("Increase", "Decrease", "Correction")
+AGREEMENT_STREAMS = ("Design", "Supervision")
 
 
 class FinancialAgreement(Base):
@@ -19,6 +20,12 @@ class FinancialAgreement(Base):
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    # Which billing stream this agreement covers (migration 0059) -- a
+    # project can have one Design (one-time) agreement and one
+    # Supervision (monthly, day-prorated) agreement side by side, hence
+    # the (project_id, stream) unique constraint rather than the old
+    # one-per-project rule.
+    stream: Mapped[str] = mapped_column(Enum(*AGREEMENT_STREAMS, name="agreement_stream"), nullable=False, default="Design")
     contract_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="KWD")
     contract_start_date: Mapped[date] = mapped_column(Date, nullable=False)

@@ -3,8 +3,10 @@ no DB access (like core/workflow.py) so the same rules the frontend
 already implements can be tested and trusted in isolation.
 """
 
+import calendar
+from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import ROUND_DOWN, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
 FREQUENCY_INTERVAL_MONTHS = {
     "Monthly": 1,
@@ -194,6 +196,76 @@ def generate_even_schedule(
         installment["amountDue"] = base_amount + remainder if index == count - 1 else base_amount
 
     return installments
+
+
+@dataclass(frozen=True)
+class SupervisionActivityPeriod:
+    """One selected Supervision activity's billable window (migration
+    0059) -- monthly_rate is charged in full for any calendar month
+    entirely inside [start_date, end_date], and day-prorated for a
+    partial month at either end."""
+
+    monthly_rate: Decimal
+    start_date: date
+    end_date: date
+
+
+def _next_month(year: int, month: int) -> tuple[int, int]:
+    return (year + 1, 1) if month == 12 else (year, month + 1)
+
+
+def generate_prorated_monthly_schedule(activities: list[SupervisionActivityPeriod]) -> list[dict]:
+    """Day-prorated monthly Supervision billing schedule -- one
+    obligation draft per calendar month spanned by any activity, its
+    amount summed across every activity active that month. For each
+    activity/month pair, the chargeable amount is
+    `monthly_rate * overlap_days_in_month / days_in_month`, where
+    overlap_days is the actual days of the activity's own
+    [start_date, end_date] that fall in that month -- a full month
+    inside the window bills the full rate, and e.g. starting on the
+    11th of a 30-day month bills for 20 of its 30 days (the first 10
+    are free), exactly the rule confirmed with the user. Each month is
+    computed independently and correctly here, unlike
+    generate_even_schedule's lump-sum split, so there's no remainder-
+    folding step needed."""
+    if not activities:
+        return []
+
+    year, month = min((a.start_date.year, a.start_date.month) for a in activities)
+    end_year, end_month = max((a.end_date.year, a.end_date.month) for a in activities)
+
+    schedule: list[dict] = []
+    sequence_number = 1
+    while (year, month) <= (end_year, end_month):
+        days_in_month = calendar.monthrange(year, month)[1]
+        month_start = date(year, month, 1)
+        month_end = date(year, month, days_in_month)
+
+        total = Decimal("0")
+        for activity in activities:
+            overlap_start = max(activity.start_date, month_start)
+            overlap_end = min(activity.end_date, month_end)
+            if overlap_start > overlap_end:
+                continue
+            overlap_days = (overlap_end - overlap_start).days + 1
+            total += (Decimal(str(activity.monthly_rate)) * overlap_days / days_in_month).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+        if total > 0:
+            schedule.append(
+                {
+                    "sequenceNumber": sequence_number,
+                    "description": f"Supervision - {month_start.strftime('%B %Y')}",
+                    "amountDue": total,
+                    "dueDate": month_start,
+                }
+            )
+            sequence_number += 1
+
+        year, month = _next_month(year, month)
+
+    return schedule
 
 
 def _add_months(source_date: date, months: int) -> date:

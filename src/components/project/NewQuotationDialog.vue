@@ -68,26 +68,23 @@ function emptyForm() {
 // staff building a quotation for an older/manual project see the exact
 // same starting point as before.
 //
-// Also appends one line per uncovered type-activity (the New Project
-// wizard's Design/Supervision/etc checklist) -- covered ones are already
-// priced under a service activity above and are deliberately skipped
-// here, since including them too would double-charge for the same work.
-// See ProjectSelectedTypeActivity's backend model docstring for how
-// coverage was decided at project-creation time.
+// Also appends one line per selected Supervision activity, showing its
+// monthly rate and window -- informational only, since Supervision is
+// actually billed through the Financial Agreement's prorated monthly
+// schedule once the project reaches Contract, not through this
+// quotation total.
 function formFromProject(project: Project | undefined) {
   const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
     description: `${item.serviceName} - ${item.activityName}`,
     quantity: 1,
     unitPrice: item.fixedCost,
   }))
-  const uncoveredTypeActivityLineItems = (project?.selectedTypeActivities ?? [])
-    .filter((activity) => !activity.isCoveredByService)
-    .map((activity) => ({
-      description: `${activity.categoryName || 'Additional'} - ${activity.activityName}`,
-      quantity: 1,
-      unitPrice: activity.cost,
-    }))
-  const lineItems = [...serviceLineItems, ...uncoveredTypeActivityLineItems]
+  const supervisionLineItems = (project?.selectedSupervisionActivities ?? []).map((activity) => ({
+    description: `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate ?? 'ongoing'})`,
+    quantity: 1,
+    unitPrice: activity.monthlyRate,
+  }))
+  const lineItems = [...serviceLineItems, ...supervisionLineItems]
   if (lineItems.length === 0) return emptyForm()
   return { ...emptyForm(), lineItems }
 }

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -113,12 +113,20 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # become Tasks instead (create_project's caller), since they're work
     # to do, not a document to chase.
     required_permit_documents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # Sum of the fixed costs of every row in ProjectSelectedTypeActivity
-    # below that was NOT already covered by a selected service activity
-    # of the same name -- see project_service.list_uncovered_type_activities
-    # for the matching logic. Same "captured once, stays stable" reasoning
-    # as service_total.
-    type_activity_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # Nominal combined monthly rate across this project's selected
+    # Supervision activities (migration 0059, renamed from
+    # type_activity_total) -- informational only, not prorated; the real
+    # billed schedule lives in payment_obligations once a Supervision
+    # financial agreement exists (see
+    # payment_calculations.generate_prorated_monthly_schedule).
+    supervision_monthly_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # The overall Supervision engagement window for this project, entered
+    # separately from each selected Supervision activity's own
+    # start_date/end_date (ProjectSelectedSupervisionActivity below) --
+    # both are captured independently at project setup, per the user's
+    # confirmation that the two shouldn't be conflated.
+    supervision_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    supervision_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class ProjectScopeRevision(Base):
@@ -173,37 +181,33 @@ class ProjectSelectedActivity(Base):
     fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
 
 
-class ProjectSelectedTypeActivity(Base):
-    """The checkbox breakdown picked at the New Project wizard's final
-    step (see ProjectRequirementTypeStep / the type-activity-catalog
-    picker), one row per checked activity -- same snapshot approach as
-    ProjectSelectedActivity above (type_activity_item_id is the catalog's
-    display id, kept as-is rather than FK'd). is_covered_by_service
-    records whether this activity's name matched a selected *service*
-    activity of the same name at the moment the project was created --
-    covered rows don't add to type_activity_total (they're already priced
-    under the service), only uncovered ones do. Recorded per-row (rather
-    than only ever filtering by name at read time) so the covered/
-    uncovered call stays stable even if the project's services are edited
-    later -- what actually happened at creation is what was billed.
+class ProjectSelectedSupervisionActivity(Base):
+    """The Supervision activities picked in ServicePickerDialog at project
+    creation (migration 0059, replacing ProjectSelectedTypeActivity and
+    the old, separate "Additional Activity Catalog") -- one row per
+    checked activity, same snapshot approach as ProjectSelectedActivity
+    above (activity_id is the catalog's display id, kept as-is rather
+    than FK'd, so a later rename or price change doesn't retroactively
+    alter what this project was actually quoted). Always Supervision --
+    there's no category_name/is_covered_by_service anymore, since Design
+    and Supervision are different deliverables on different billing
+    cycles with no realistic overlap to reconcile.
 
-    category_name (migration 0056) is this row's own category snapshot
-    (e.g. 'Design', 'Supervision') -- used to be tracked once on the
-    project itself (type_category_name), back when a project could only
-    ever have activities from a single category. Now that the picker
-    allows checking activities across multiple categories at once, each
-    row needs to say which one it came from; see
-    project_service.compute_stage_flags for how this drives whether a
-    project's workflow includes a Design and/or Supervision stage."""
+    start_date/end_date are this activity's own window, independent of
+    the project's overall supervision_start_date/supervision_end_date
+    (Project above) -- both are captured separately, per the user's
+    confirmation. Once a Supervision financial agreement is created,
+    these dates drive the real, day-prorated monthly billing schedule
+    (see payment_calculations.generate_prorated_monthly_schedule)."""
 
-    __tablename__ = "project_selected_type_activities"
+    __tablename__ = "project_selected_supervision_activities"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    type_activity_item_id: Mapped[str] = mapped_column(String(20), nullable=False)
-    category_name: Mapped[str] = mapped_column(String(150), nullable=False, default="")
+    activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
-    is_covered_by_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    monthly_rate: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -121,12 +121,20 @@ export const useUserStore = defineStore('user', {
       if (index !== -1) this.users[index] = updated
     },
 
-    async toggleUserStatus(userId: string) {
+    // Returns the new status rather than leaving the caller to recompute
+    // it from the (by-reference, already-reactive) user object -- doing
+    // that after this action's own mutation below made the caller always
+    // see the *post*-toggle status and derive the opposite of what just
+    // happened, so the toast in UserManagementPage.vue announced the
+    // reverse of the real change (e.g. "User active" right after
+    // deactivating someone).
+    async toggleUserStatus(userId: string): Promise<UserStatus | undefined> {
       const user = this.users.find((existing) => existing.id === userId)
-      if (!user) return
+      if (!user) return undefined
       const nextStatus: UserStatus = user.status === 'Active' ? 'Inactive' : 'Active'
       user.status = nextStatus
       await userService.setUserStatus(userId, nextStatus)
+      return nextStatus
     },
 
     async resetUserPassword(userId: string): Promise<string> {

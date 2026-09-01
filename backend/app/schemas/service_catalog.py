@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, condecimal
 
 
@@ -18,6 +20,7 @@ class ServiceCatalogActivityOut(BaseModel):
 class ServiceCatalogItemOut(BaseModel):
     id: str
     name: str
+    branch: Literal["Design", "Supervision"]
     activities: list[ServiceCatalogActivityOut]
 
     @staticmethod
@@ -25,12 +28,14 @@ class ServiceCatalogItemOut(BaseModel):
         return ServiceCatalogItemOut(
             id=f"SVC-{service.id:03d}",
             name=service.name,
+            branch=service.branch,
             activities=[ServiceCatalogActivityOut.from_model(a) for a in service.activities],
         )
 
 
 class ServiceCatalogItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
+    branch: Literal["Design", "Supervision"] = "Design"
 
 
 class ServiceCatalogItemUpdate(BaseModel):

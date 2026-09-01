@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Project, ProjectPriority, ScopeOfWork } from '@/types/Project'
+import type { Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -86,12 +86,15 @@ export interface ProjectCreateInput {
   // without the request failing.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
-  // The New Project wizard's final-step picker: checked activity ids,
-  // which can now span more than one category (e.g. both Design and
-  // Supervision) -- each activity already knows its own category via
-  // the catalog. Optional -- a project can skip this step entirely, and
-  // an older/unaware backend can just ignore the field.
-  typeActivitySelection?: { activityIds: string[] }
+  // Supervision activities picked in the same unified service picker,
+  // each carrying its own start/end window. Optional -- a project can
+  // pick no Supervision work at all, and an older/unaware backend can
+  // just ignore the field. supervisionStartDate/supervisionEndDate are
+  // the overall engagement window (required once any activity is
+  // selected -- enforced server-side).
+  selectedSupervisionActivities?: SelectedSupervisionActivity[]
+  supervisionStartDate?: string
+  supervisionEndDate?: string
   // Permits the client already holds -- sent through so the backend can
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.

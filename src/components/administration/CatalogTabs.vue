@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 
-export type CatalogTabKey = 'services' | 'activities' | 'permits'
+export type CatalogTabKey = 'services' | 'permits'
 
 export interface CatalogTab {
   key: CatalogTabKey

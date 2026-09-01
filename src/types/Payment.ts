@@ -17,9 +17,15 @@ export type FinancialEventType =
   | 'Obligation Waived'
   | 'Adjustment Applied'
 
+// Which billing stream this agreement covers (migration 0059) -- a project
+// can have one Design (one-time) agreement and one Supervision (monthly,
+// day-prorated) agreement side by side.
+export type AgreementStream = 'Design' | 'Supervision'
+
 export interface FinancialAgreement {
   id: string
   projectId: string
+  stream: AgreementStream
   contractAmount: number
   currency: string
   contractStartDate: string
@@ -139,13 +145,17 @@ export interface RecordPaymentInput {
 
 export interface CreateAgreementInput {
   projectId: string
-  contractAmount: number
+  stream: AgreementStream
+  // Required for a Design agreement (unchanged from before); ignored for
+  // Supervision -- the backend derives all of these from the project's
+  // selected Supervision activities via generate_prorated_monthly_schedule.
+  contractAmount?: number
   currency: string
-  contractStartDate: string
+  contractStartDate?: string
   contractEndDate?: string
   agreementDate: string
   quotationReference?: string
   contractReference?: string
   paymentMode: PaymentMode
-  paymentFrequency: PaymentFrequency
+  paymentFrequency?: PaymentFrequency
 }

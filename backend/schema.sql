@@ -287,7 +287,19 @@ CREATE TABLE IF NOT EXISTS projects (
     -- hold -- each becomes a mandatory upload requirement on the
     -- Documents tab (see ProjectDocumentsTab.vue's permitChecklist).
     required_permit_documents JSON NOT NULL DEFAULT (JSON_ARRAY()),
-    type_activity_total DECIMAL(12,2) NULL,
+    -- Nominal combined monthly rate across this project's selected
+    -- Supervision activities (migration 0059, renamed from
+    -- type_activity_total) -- informational only, not prorated; the real
+    -- billed schedule lives in payment_obligations once a Supervision
+    -- financial agreement exists (see payment_calculations.
+    -- generate_prorated_monthly_schedule).
+    supervision_monthly_total DECIMAL(12,2) NULL,
+    -- The overall Supervision engagement window for this project,
+    -- entered separately from each selected activity's own start_date/
+    -- end_date (project_selected_supervision_activities below) -- both
+    -- are captured independently at project setup.
+    supervision_start_date DATE NULL,
+    supervision_end_date   DATE NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -574,6 +586,15 @@ CREATE TABLE IF NOT EXISTS document_templates (
 CREATE TABLE IF NOT EXISTS financial_agreements (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id              BIGINT UNSIGNED NOT NULL,
+    -- Which billing stream this agreement covers (migration 0059) -- a
+    -- project can have one Design agreement (one-time, even-split
+    -- installments) AND one Supervision agreement (monthly, prorated on
+    -- partial start/end months) at the same time; see
+    -- uq_financial_agreements_project_stream below.
+    stream                  ENUM('Design','Supervision') NOT NULL DEFAULT 'Design',
+    -- For stream='Supervision' this is derived (sum of the generated
+    -- prorated obligations), not entered -- see
+    -- payment_service.create_agreement.
     contract_amount         DECIMAL(12,2) NOT NULL,
     currency                VARCHAR(10) NOT NULL DEFAULT 'KWD',
     contract_start_date     DATE NOT NULL,
@@ -582,15 +603,17 @@ CREATE TABLE IF NOT EXISTS financial_agreements (
     quotation_reference     VARCHAR(30) NULL,
     contract_reference      VARCHAR(30) NULL,
     payment_mode            ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NOT NULL,
+    -- Always 'Monthly' for stream='Supervision' (forced server-side --
+    -- see payment_service.create_agreement).
     payment_frequency       ENUM('One-time','Daily','Weekly','Monthly','Quarterly','Half-yearly','Yearly','Custom') NOT NULL,
     CONSTRAINT fk_financial_agreements_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
-    -- Only one agreement per project -- the staff UI already only ever
-    -- offers "Create Agreement" when none exists yet, this makes that a
-    -- real, enforced rule rather than just a UI convention (see
-    -- migration 0015 and payment_service.create_agreement's own
-    -- proactive check for a clearer error message than a raw
-    -- constraint violation).
-    CONSTRAINT uq_financial_agreements_project UNIQUE (project_id)
+    -- One agreement per project *per stream* (migration 0059, relaxed
+    -- from one per project) -- the staff UI only ever offers "Create
+    -- Agreement" for a stream that doesn't have one yet, this makes that
+    -- a real, enforced rule rather than just a UI convention (see
+    -- payment_service.create_agreement's own proactive check for a
+    -- clearer error message than a raw constraint violation).
+    CONSTRAINT uq_financial_agreements_project_stream UNIQUE (project_id, stream)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payment_obligations (
@@ -890,6 +913,13 @@ CREATE TABLE IF NOT EXISTS message_log (
 CREATE TABLE IF NOT EXISTS service_catalog_items (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name            VARCHAR(150) NOT NULL,
+    -- Which branch this service belongs to (migration 0059, collapsing
+    -- the old separate "Additional Activity Catalog" into this one).
+    -- Design = one-time fee, unchanged from before. Supervision = a
+    -- single standalone branch whose activities are monthly recurring
+    -- fees, prorated by calendar day (see payment_calculations.
+    -- generate_prorated_monthly_schedule).
+    branch          ENUM('Design','Supervision') NOT NULL DEFAULT 'Design',
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
@@ -935,63 +965,28 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
 -- Still fully admin-editable afterward from Admin > Permit Catalog.
 INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
 
--- New Project wizard's final step: pick an engagement type category
--- (Design/Supervision/etc, admin-managed here) then check off which of
--- its activities apply. Same shape as service_catalog_items/_activities
--- above -- see type_activity_catalog.py's model docstrings for why this
--- is a separate catalog from services rather than reusing that one.
-CREATE TABLE IF NOT EXISTS type_activity_categories (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name        VARCHAR(150) NOT NULL,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at  DATETIME NULL,
-    INDEX idx_type_activity_categories_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS type_activity_items (
-    id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    category_id  BIGINT UNSIGNED NOT NULL,
-    name         VARCHAR(150) NOT NULL,
-    cost         DECIMAL(12,2) NOT NULL DEFAULT 0,
-    CONSTRAINT fk_type_activity_items_category FOREIGN KEY (category_id)
-        REFERENCES type_activity_categories(id),
-    INDEX idx_type_activity_items_category (category_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO type_activity_categories (id, name) VALUES
-    (1, 'Design'),
-    (2, 'Supervision');
-
-INSERT INTO type_activity_items (category_id, name, cost) VALUES
-    (1, 'Site Inspection', 150.00),
-    (1, 'Concept Drawings', 300.00),
-    (1, 'Structural Calculations', 400.00),
-    (1, 'Coordination with Authorities', 200.00),
-    (2, 'Weekly Site Visits', 250.00),
-    (2, 'Progress Reporting', 100.00),
-    (2, 'Materials Testing Coordination', 150.00),
-    (2, 'Snagging & Handover Inspection', 200.00);
-
--- One row per activity checked in that final wizard step -- snapshot of
--- name/cost/coverage at creation time, same reasoning as
+-- One row per Supervision activity checked in the New Project wizard --
+-- snapshot of name/rate/dates at creation time, same reasoning as
 -- project_selected_activities above (a later catalog rename or price
 -- change shouldn't retroactively alter what this project was quoted).
-CREATE TABLE IF NOT EXISTS project_selected_type_activities (
-    id                     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    project_id             BIGINT UNSIGNED NOT NULL,
-    type_activity_item_id  VARCHAR(20) NOT NULL,
-    -- Which category (Design/Supervision/etc) this row's activity came
-    -- from -- migration 0056, once a project could span more than one
-    -- category, replacing the single type_category_name that used to
-    -- live on the project itself.
-    category_name          VARCHAR(150) NOT NULL DEFAULT '',
-    activity_name          VARCHAR(150) NOT NULL,
-    cost                   DECIMAL(12,2) NOT NULL,
-    is_covered_by_service  TINYINT(1) NOT NULL DEFAULT 0,
-    CONSTRAINT fk_project_selected_type_activities_project FOREIGN KEY (project_id)
+-- Supervision only (migration 0059 removed the old, separate "Additional
+-- Activity Catalog" -- Design picks live in project_selected_activities
+-- above; there is no coverage reconciliation between the two since
+-- Design and Supervision are different deliverables on different
+-- billing cycles). Each activity carries its own start/end window,
+-- independent of the project's overall supervision_start_date/
+-- supervision_end_date (see projects table above).
+CREATE TABLE IF NOT EXISTS project_selected_supervision_activities (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id      BIGINT UNSIGNED NOT NULL,
+    activity_id     VARCHAR(20) NOT NULL,
+    activity_name   VARCHAR(150) NOT NULL,
+    monthly_rate    DECIMAL(12,2) NOT NULL,
+    start_date      DATE NOT NULL,
+    end_date        DATE NULL,
+    CONSTRAINT fk_project_selected_supervision_activities_project FOREIGN KEY (project_id)
         REFERENCES projects(id) ON DELETE CASCADE,
-    INDEX idx_project_selected_type_activities_project (project_id)
+    INDEX idx_project_selected_supervision_activities_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS company_settings (
