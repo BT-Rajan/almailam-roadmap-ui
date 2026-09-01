@@ -23,6 +23,18 @@ DEFAULT_SERVICE_NAMES = [
     "Civil Engineering",
 ]
 
+# A Design-branch service, same family as DEFAULT_SERVICE_NAMES above --
+# permits are billable Design work like any other named service. Its
+# child activity is what a project's service picker actually checks off
+# ("select Permit" checks off "Approval Service" automatically, and
+# vice versa, via the picker's existing select-parent-selects-all-
+# activities/indeterminate-state mechanics -- there being exactly one
+# activity here is what makes those two checkboxes stay in lockstep).
+PERMIT_SERVICE_NAME = "Permit"
+PERMIT_DEFAULT_ACTIVITIES = [
+    ("Approval Service", 0.00),
+]
+
 # The single Supervision-branch service (migration 0059, replacing the
 # old, separate "Additional Activity Catalog"). Its activities are
 # monthly recurring fees rather than one-time -- same cost values the old
@@ -38,7 +50,28 @@ SUPERVISION_DEFAULT_ACTIVITIES = [
 
 
 def _ensure_seeded(db: Session) -> None:
-    if db.query(ServiceCatalogItem).filter(ServiceCatalogItem.deleted_at.is_(None)).first() is not None:
+    """Seeds the Design defaults, the Permit service, and the
+    Supervision service independently of each other -- each has its own
+    existence check, rather than one "any active service exists" guard
+    for all three. A single shared guard meant that once e.g. migration
+    0059 inserted the lone Supervision row on an install whose catalog
+    was otherwise still empty, this function saw a non-empty table and
+    never seeded the Design defaults (or Permit) at all -- "No Design
+    services in the catalog yet." forever, even though the catalog was
+    reachable and editable."""
+    _ensure_design_defaults_seeded(db)
+    _ensure_named_service_seeded(db, PERMIT_SERVICE_NAME, "Design", PERMIT_DEFAULT_ACTIVITIES)
+    _ensure_named_service_seeded(db, SUPERVISION_SERVICE_NAME, "Supervision", SUPERVISION_DEFAULT_ACTIVITIES)
+
+
+def _ensure_design_defaults_seeded(db: Session) -> None:
+    has_design = (
+        db.query(ServiceCatalogItem)
+        .filter(ServiceCatalogItem.deleted_at.is_(None), ServiceCatalogItem.branch == "Design")
+        .first()
+        is not None
+    )
+    if has_design:
         return
     # Same check-then-insert race as role_service._ensure_seeded /
     # ai_config_service._ensure_seeded (see those for the fuller
@@ -50,11 +83,28 @@ def _ensure_seeded(db: Session) -> None:
     try:
         for name in DEFAULT_SERVICE_NAMES:
             db.add(ServiceCatalogItem(name=name, branch="Design"))
-        supervision = ServiceCatalogItem(name=SUPERVISION_SERVICE_NAME, branch="Supervision")
-        db.add(supervision)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+
+
+def _ensure_named_service_seeded(
+    db: Session, name: str, branch: str, activities: list[tuple[str, float]],
+) -> None:
+    exists = (
+        db.query(ServiceCatalogItem)
+        .filter(ServiceCatalogItem.deleted_at.is_(None), ServiceCatalogItem.name == name)
+        .first()
+        is not None
+    )
+    if exists:
+        return
+    try:
+        service = ServiceCatalogItem(name=name, branch=branch)
+        db.add(service)
         db.flush()
-        for activity_name, cost in SUPERVISION_DEFAULT_ACTIVITIES:
-            db.add(ServiceCatalogActivity(service_id=supervision.id, name=activity_name, fixed_cost=cost))
+        for activity_name, cost in activities:
+            db.add(ServiceCatalogActivity(service_id=service.id, name=activity_name, fixed_cost=cost))
         db.commit()
     except IntegrityError:
         db.rollback()

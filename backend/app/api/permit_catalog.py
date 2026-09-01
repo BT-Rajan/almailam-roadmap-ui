@@ -9,8 +9,11 @@ from app.services import permit_catalog_service
 
 router = APIRouter(prefix="/api/permit-catalog", tags=["permit-catalog"])
 
-# Same gating as the service catalog -- Administration-level settings.
-can_view = require_permission("Administration", "view")
+# Same reasoning as service_catalog.py's can_view -- every role that can
+# view/create projects needs to read the permit catalog (New Project
+# wizard's Permits step), so this is gated on Projects:view rather than
+# Administration:view. Only mutating the catalog is Administrator-only.
+can_view = require_permission("Projects", "view")
 can_edit = require_permission("Administration", "edit")
 
 
