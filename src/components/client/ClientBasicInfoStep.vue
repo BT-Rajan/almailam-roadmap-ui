@@ -54,7 +54,6 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
         <TextInput v-model="form.individualProfile.preferredName" label="Preferred Name" />
         <TextInput v-model="form.individualProfile.nationality" label="Nationality" required :error="errors.nationality" />
         <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required :max="maxDate" :error="errors.dateOfBirth" />
-        <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
 
@@ -68,7 +67,6 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
         <TextInput v-model="form.organisationProfile.countryOfRegistration" label="Country of Registration" required :error="errors.countryOfRegistration" />
         <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" required :max="maxDate" :error="errors.dateOfIncorporation" />
         <TextInput v-model="form.organisationProfile.website" label="Website" placeholder="example.com" :error="errors.website" />
-        <TextInput v-model="form.city" label="City" required :error="errors.city" />
       </div>
     </FormSection>
 

@@ -57,8 +57,6 @@ export function validateBasicInfo(form: ClientWizardForm): FieldErrors {
   if (!form.email.trim()) errors.email = 'Email address is required'
   else if (validators.email()(form.email) !== true) errors.email = 'Enter a valid email address'
 
-  if (!form.city.trim()) errors.city = 'City is required'
-
   if (!form.accountManagerId.trim()) errors.accountManagerId = 'Account manager is required'
 
   if (form.clientType === 'Individual') {
