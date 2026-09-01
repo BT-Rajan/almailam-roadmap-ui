@@ -315,6 +315,14 @@ else
     git -C "$INSTANCE_DIR" clean -fd
 fi
 
+# Printed both here and in the final summary -- when "I redeployed but
+# don't see my change" gets reported, this is the one line that tells
+# you whether the checkout genuinely moved (compare against `git log`
+# on your own clone) before looking anywhere else, e.g. at a stale pm2
+# process or a browser cache still holding the old bundle.
+DEPLOYED_COMMIT="$(git -C "$INSTANCE_DIR" rev-parse --short HEAD)"
+log "Deployed commit: $DEPLOYED_COMMIT ($(git -C "$INSTANCE_DIR" log -1 --format=%s))"
+
 # ----------------------------------------------------------------------------
 # 4. Database configuration -- read only, never written by this script
 # ----------------------------------------------------------------------------
@@ -601,8 +609,20 @@ module.exports = {
         {
             name: "${PM2_FRONTEND_NAME}",
             cwd: "${INSTANCE_DIR}",
-            script: "npm",
-            args: "run dev -- --host 0.0.0.0 --port ${FRONTEND_PORT}",
+            // Runs the local vite binary directly rather than through
+            // "npm run dev" -- npm run scripts spawn vite as a *child*
+            // process, and npm doesn't reliably forward the SIGTERM pm2
+            // sends on 'pm2 delete'/'pm2 restart' down to that child
+            // (a long-standing Node ecosystem gotcha). That can leave
+            // the actual vite dev server still bound to this port and
+            // still serving the *old* code after a redeploy, even
+            // though pm2 believes it started a fresh process -- the
+            // exact "reran install.sh but the fix isn't showing up"
+            // symptom this is fixing. Running vite itself as pm2's
+            // managed process means pm2's kill signal goes straight to
+            // the process actually holding the port.
+            script: "${INSTANCE_DIR}/node_modules/.bin/vite",
+            args: "--host 0.0.0.0 --port ${FRONTEND_PORT}",
             interpreter: "none",
             env: {
                 VITE_DEV_PORT: "${FRONTEND_PORT}",
@@ -621,6 +641,25 @@ EOF
             pm2 delete "$name" >/dev/null 2>&1 || true
         fi
     done
+
+    # Belt-and-suspenders on top of the pm2 delete above: a process that
+    # ended up bound to these ports *outside* pm2's tracking (a manual
+    # "npm run dev" from before this instance was ever pm2-managed, or a
+    # previous run's orphaned vite child -- see the comment on
+    # PM2_FRONTEND_NAME's script above) would otherwise keep silently
+    # serving stale content on this port forever, with every future
+    # 'pm2 start' none the wiser since it's not pm2's process to know
+    # about. Best-effort only -- skipped with a warning if neither tool
+    # is available, same as the ufw check below.
+    if require_cmd fuser; then
+        fuser -k "${BACKEND_PORT}/tcp" >/dev/null 2>&1 || true
+        fuser -k "${FRONTEND_PORT}/tcp" >/dev/null 2>&1 || true
+    elif require_cmd lsof; then
+        lsof -ti "tcp:${BACKEND_PORT}" 2>/dev/null | xargs -r kill -9 || true
+        lsof -ti "tcp:${FRONTEND_PORT}" 2>/dev/null | xargs -r kill -9 || true
+    else
+        warn "Neither fuser nor lsof found -- skipping the stale-process port check. If the redeployed app still shows old content, manually confirm nothing outside pm2 is still bound to ${BACKEND_PORT} or ${FRONTEND_PORT}."
+    fi
 
     log "Starting alhadi-test under PM2"
     pm2 start "$ECOSYSTEM_FILE"
@@ -695,6 +734,9 @@ ServiceOS (dev)
 Directory:
   ${INSTANCE_DIR}
 
+Deployed commit:
+  ${DEPLOYED_COMMIT}
+
 URL:
   http://localhost:${BACKEND_PORT}
 
@@ -726,6 +768,9 @@ ServiceOS (test / alhadi-test)
 
 Directory:
   ${INSTANCE_DIR}
+
+Deployed commit:
+  ${DEPLOYED_COMMIT}
 
 Frontend: http://localhost:${FRONTEND_PORT}
 Backend:  http://localhost:${BACKEND_PORT}
