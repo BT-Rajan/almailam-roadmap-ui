@@ -10,7 +10,6 @@ import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
-import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -19,14 +18,11 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
-import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
-import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { Project, ProjectPriority, SelectedSupervisionActivity } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
@@ -42,13 +38,10 @@ const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
-const permitCatalogStore = usePermitCatalogStore()
-const taskStore = useTaskStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
   { label: 'Project Details' },
-  { label: 'Permits' },
   { label: 'Review & Confirm' },
 ]
 
@@ -58,27 +51,11 @@ const PRIORITY_OPTIONS: SelectOption[] = [
   { label: 'Low', value: 'Low' },
 ]
 
-const YES_NO_OPTIONS: SelectOption[] = [
-  { label: 'Yes', value: 'yes' },
-  { label: 'No', value: 'no' },
-]
-
-interface WizardPermit {
-  // The permit catalog item's id -- picked via PermitPickerDialog, same
-  // as SelectedServiceActivity keys off catalog ids rather than a
-  // locally generated one.
-  id: string
-  name: string
-  // '' means not yet answered -- required before the step can advance.
-  clientHas: 'yes' | 'no' | ''
-}
-
 const currentStep = ref(0)
 const isSubmitting = ref(false)
 const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
-const isPermitPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -94,9 +71,6 @@ const form = reactive({
   scope: '',
   startDate: '',
   targetDate: '',
-  // '' until answered; drives whether the permit picker below is shown.
-  involvesPermits: '' as 'yes' | 'no' | '',
-  permits: [] as WizardPermit[],
   // Supervision picks from the same unified ServicePickerDialog -- each
   // activity carries its own start/end window, and supervisionStartDate/
   // supervisionEndDate is the overall engagement window (required once
@@ -105,22 +79,6 @@ const form = reactive({
   supervisionStartDate: '' as string | null,
   supervisionEndDate: '' as string | null,
 })
-
-// Confirming the picker replaces the whole selection, same as
-// ServicePickerDialog -- existing picks keep whatever clientHas answer
-// was already given, newly added ones start unanswered.
-function handlePermitsConfirm(selected: PermitCatalogItem[]): void {
-  const existingById = new Map(form.permits.map((permit) => [permit.id, permit]))
-  form.permits = selected.map((permit) => ({
-    id: permit.id,
-    name: permit.name,
-    clientHas: existingById.get(permit.id)?.clientHas ?? '',
-  }))
-}
-
-function removePermit(id: string): void {
-  form.permits = form.permits.filter((permit) => permit.id !== id)
-}
 
 const supervisionMonthlyTotal = computed(() =>
   form.selectedSupervisionActivities.reduce((sum, item) => sum + item.monthlyRate, 0),
@@ -247,24 +205,15 @@ onMounted(async () => {
     .filter((user) => user.role === 'Engineer' && user.status === 'Active')
     .map((user) => ({ label: user.name, value: user.id }))
 
-  // Backs the permit picker below -- loaded once here rather than
-  // lazily on first dialog open so the list is ready immediately.
-  if (permitCatalogStore.permits.length === 0) {
-    await permitCatalogStore.loadPermits()
-  }
-
-  // Both stores swallow a failed load into their own `.error` field
-  // rather than throwing (see serviceCatalogStore/permitCatalogStore),
-  // which otherwise looks identical to "the catalog is genuinely empty"
-  // -- the service picker has no error state of its own and would just
-  // print "No Design services in the catalog yet." either way. Surface
-  // it here instead so a real load failure (permissions, network) is
-  // never silently indistinguishable from an empty catalog.
+  // This store swallows a failed load into its own `.error` field rather
+  // than throwing (see serviceCatalogStore), which otherwise looks
+  // identical to "the catalog is genuinely empty" -- the service picker
+  // has no error state of its own and would just print "No Design
+  // services in the catalog yet." either way. Surface it here instead so
+  // a real load failure (permissions, network) is never silently
+  // indistinguishable from an empty catalog.
   if (serviceCatalogStore.error) {
     toastStore.show('error', 'Could not load the service catalog', serviceCatalogStore.error)
-  }
-  if (permitCatalogStore.error) {
-    toastStore.show('error', 'Could not load the permit catalog', permitCatalogStore.error)
   }
 })
 
@@ -274,12 +223,6 @@ const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
 }
 
 function validateStep(step: number): boolean {
-  // Step 2 (Permits) is informational only -- it's never allowed to
-  // block moving on or creating the project, regardless of whether
-  // "involves permits" was answered or every listed permit has a
-  // client-has answer.
-  if (step === 2) return true
-
   const fields = STEP_FIELDS[step]
   if (!fields) return true
 
@@ -330,9 +273,9 @@ async function submitWizard(): Promise<void> {
   // second click while the network request is in flight) can fire this
   // handler a second time before the button visually disables. Without
   // this, that second call ran the same create request again --
-  // duplicate projects, duplicate permit tasks, and a confirmation
-  // dialog that ended up reflecting whichever call finished last rather
-  // than clearly confirming the one thing that was asked for.
+  // duplicate projects and a confirmation dialog that ended up
+  // reflecting whichever call finished last rather than clearly
+  // confirming the one thing that was asked for.
   if (isSubmitting.value) return
 
   // Previously silent: this could send someone from the Review step
@@ -354,9 +297,6 @@ async function submitWizard(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
-    const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
-
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: form.scope || undefined,
@@ -368,9 +308,6 @@ async function submitWizard(): Promise<void> {
       priority: form.priority,
       startDate: form.startDate,
       targetDate: form.targetDate,
-      // Permits the client already holds become a mandatory upload
-      // checklist on the project's Documents tab.
-      requiredPermitDocuments: permitsClientHas.length > 0 ? permitsClientHas : undefined,
       // Optional -- only sent when something was actually checked, so an
       // unaware/older backend (or simply a project that skipped
       // Supervision entirely) doesn't get an empty/meaningless selection.
@@ -379,33 +316,6 @@ async function submitWizard(): Promise<void> {
       supervisionStartDate: form.supervisionStartDate || undefined,
       supervisionEndDate: form.supervisionEndDate || undefined,
     })
-
-    // Permits the client doesn't have yet aren't a document to chase --
-    // they're work to do, so each becomes a task on the project instead.
-    if (permitsClientLacks.length > 0) {
-      const results = await Promise.allSettled(
-        permitsClientLacks.map((permitName) =>
-          taskStore.createTask({
-            projectId: project.id,
-            title: `Obtain permit: ${permitName}`,
-            assignedTo: form.engineer,
-            priority: form.priority,
-            severity: 'Major',
-            dueDate: form.targetDate,
-            dueTime: '17:00',
-            status: 'Pending',
-          }),
-        ),
-      )
-      const failedCount = results.filter((result) => result.status === 'rejected').length
-      if (failedCount > 0) {
-        toastStore.show(
-          'error',
-          'Some permit tasks were not created',
-          `${failedCount} of ${permitsClientLacks.length} permit task(s) failed -- add them manually from the Tasks tab.`,
-        )
-      }
-    }
 
     toastStore.show('success', 'Project created', `${project.projectName} was added to the pipeline.`)
     createdProject.value = project
@@ -530,69 +440,6 @@ function goToCreatedProject(): void {
           </div>
         </FormSection>
 
-        <FormSection
-          v-else-if="currentStep === 2"
-          title="Permits"
-          description="Capture any permits this project needs and whether the client already holds them."
-        >
-          <RadioGroup
-            v-model="form.involvesPermits"
-            label="Does this project involve any permits?"
-            :options="YES_NO_OPTIONS"
-            :vertical="false"
-          />
-
-          <template v-if="form.involvesPermits === 'yes'">
-            <div class="flex flex-col gap-1.5">
-              <label id="permits-picker-label" class="text-sm font-medium text-text-secondary">Permits <span class="text-danger-500">*</span></label>
-              <button
-                id="permits-picker-button"
-                type="button"
-                aria-labelledby="permits-picker-label permits-picker-button"
-                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
-                @click="isPermitPickerOpen = true"
-              >
-                <span v-if="form.permits.length === 0" class="text-text-muted">Select permits</span>
-                <span v-else class="text-text-primary">
-                  {{ form.permits.length }} permit{{ form.permits.length === 1 ? '' : 's' }} selected
-                </span>
-                <span class="text-xs font-medium text-primary-600">{{ form.permits.length === 0 ? 'Choose' : 'Edit' }}</span>
-              </button>
-            </div>
-
-            <div v-if="form.permits.length > 0" class="flex flex-col gap-2">
-              <div
-                v-for="permit in form.permits"
-                :key="permit.id"
-                class="flex flex-col gap-2 rounded-lg border border-border-light p-3 tablet:flex-row tablet:items-center tablet:justify-between"
-              >
-                <span class="text-sm font-medium text-text-primary">{{ permit.name }}</span>
-
-                <div class="flex items-center gap-3">
-                  <RadioGroup
-                    :model-value="permit.clientHas"
-                    :options="YES_NO_OPTIONS"
-                    :vertical="false"
-                    @update:model-value="permit.clientHas = $event as 'yes' | 'no'"
-                  />
-                  <button
-                    type="button"
-                    class="text-xs font-medium text-danger-600 hover:text-danger-700"
-                    :aria-label="`Remove ${permit.name}`"
-                    @click="removePermit(permit.id)"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-              <p class="text-xs text-text-muted">
-                Permits the client already has will be required uploads in the Documents tab. Permits the client
-                doesn't have yet will be added as tasks.
-              </p>
-            </div>
-          </template>
-        </FormSection>
-
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
@@ -636,18 +483,6 @@ function goToCreatedProject(): void {
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Target Date</p>
               <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
-            </div>
-            <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Permits</p>
-              <p v-if="form.involvesPermits !== 'yes' || form.permits.length === 0" class="text-sm text-text-primary">
-                None
-              </p>
-              <ul v-else class="mt-1 flex flex-col gap-0.5">
-                <li v-for="permit in form.permits" :key="permit.id" class="flex items-center justify-between gap-3 text-xs text-text-secondary">
-                  <span class="truncate">{{ permit.name }}</span>
-                  <span class="shrink-0">{{ permit.clientHas === 'yes' ? 'Client has it -- mandatory upload' : 'Client needs it -- task will be created' }}</span>
-                </li>
-              </ul>
             </div>
             <div class="tablet:col-span-2">
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Supervision</p>
@@ -714,13 +549,6 @@ function goToCreatedProject(): void {
       :supervision-end-date="form.supervisionEndDate"
       currency="KWD"
       @confirm="handleServicesConfirmed"
-    />
-
-    <PermitPickerDialog
-      v-model="isPermitPickerOpen"
-      :permits="permitCatalogStore.permits"
-      :selected-ids="form.permits.map((permit) => permit.id)"
-      @confirm="handlePermitsConfirm"
     />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
