@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { ServiceCatalogActivity, ServiceCatalogItem } from '@/types/ServiceCatalog'
+import type { ServiceCatalogActivity, ServiceCatalogBranch, ServiceCatalogItem } from '@/types/ServiceCatalog'
 
 /**
  * Fetch all services (with their activities) from the backend API
@@ -17,9 +17,9 @@ async function getServices(): Promise<ServiceCatalogItem[]> {
  * Create a new service via backend API. The backend rejects duplicate
  * names (case-insensitive) with a 409, surfaced as a thrown Error.
  */
-async function createService(name: string): Promise<ServiceCatalogItem> {
+async function createService(name: string, branch: ServiceCatalogBranch): Promise<ServiceCatalogItem> {
   try {
-    return await apiClient.post<ServiceCatalogItem>('/api/service-catalog/services', { name })
+    return await apiClient.post<ServiceCatalogItem>('/api/service-catalog/services', { name, branch })
   } catch (error) {
     console.error('Failed to add service:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to add service')

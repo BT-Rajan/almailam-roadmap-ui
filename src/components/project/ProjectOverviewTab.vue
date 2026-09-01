@@ -82,7 +82,7 @@ const hasScope = computed(
   () =>
     Boolean(props.project.description) ||
     (props.project.selectedActivities && props.project.selectedActivities.length > 0) ||
-    (props.project.selectedTypeActivities && props.project.selectedTypeActivities.length > 0),
+    (props.project.selectedSupervisionActivities && props.project.selectedSupervisionActivities.length > 0),
 )
 
 // Civil ID verification (Quotation), design document status (Design), and
@@ -201,16 +201,20 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
         </ul>
       </div>
 
-      <div v-if="project.selectedTypeActivities && project.selectedTypeActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Additional Services</p>
+      <div v-if="project.selectedSupervisionActivities && project.selectedSupervisionActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Supervision (Monthly)</p>
+        <p class="mb-1.5 text-xs text-text-muted">
+          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : 'Not set' }} –
+          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : 'Ongoing' }}
+        </p>
         <ul class="flex flex-col gap-1">
           <li
-            v-for="item in project.selectedTypeActivities"
-            :key="item.id"
+            v-for="item in project.selectedSupervisionActivities"
+            :key="item.activityId"
             class="flex items-center justify-between gap-3 text-sm text-text-secondary"
           >
-            <span>{{ item.activityName }}</span>
-            <span class="shrink-0 text-text-muted">{{ item.isCoveredByService ? 'Covered by service' : formatCurrency(item.cost) }}</span>
+            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ item.endDate ? formatDate(item.endDate) : 'Ongoing' }})</span>
+            <span class="shrink-0 text-text-muted">{{ formatCurrency(item.monthlyRate) }}/mo</span>
           </li>
         </ul>
       </div>
@@ -310,6 +314,44 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
         <div class="flex justify-end no-print">
           <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
+        </div>
+      </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Supervision'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Supervision</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-text-secondary">
+          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : 'Not set' }} –
+          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : 'Ongoing' }}
+        </p>
+
+        <div v-if="project.selectedSupervisionActivities && project.selectedSupervisionActivities.length > 0" class="flex flex-col gap-2">
+          <div
+            v-for="activity in project.selectedSupervisionActivities"
+            :key="activity.activityId"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <div class="flex flex-col gap-0.5 truncate">
+              <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+              <span class="text-xs text-text-muted">
+                {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : 'Ongoing' }}
+              </span>
+            </div>
+            <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
+          </div>
+        </div>
+        <p v-else class="text-sm text-text-muted">No Supervision activities selected.</p>
+
+        <p class="text-xs text-text-muted">
+          Billed monthly and prorated by day for partial months -- see the Supervision Financial Agreement on the
+          Payments tab for the actual billed schedule.
+        </p>
+
+        <div class="flex justify-end no-print">
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payments')">Go to Payments</BaseButton>
         </div>
       </div>
     </Card>

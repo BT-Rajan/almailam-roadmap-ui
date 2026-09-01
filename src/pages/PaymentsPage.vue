@@ -12,7 +12,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getObligationStatusVariant } from '@/utils/paymentHelpers'
-import type { ObligationStatus } from '@/types/Payment'
+import type { AgreementStream, ObligationStatus } from '@/types/Payment'
 import type { SmartTableColumn } from '@/types/Table'
 
 const router = useRouter()
@@ -23,6 +23,7 @@ interface AgreementTableRow {
   id: string
   projectId: string
   projectName: string
+  stream: AgreementStream
   clientName: string
   contractAmount: number
   totalReceived: number
@@ -35,6 +36,7 @@ interface AgreementTableRow {
 
 const COLUMNS: SmartTableColumn<AgreementTableRow>[] = [
   { key: 'projectName', label: 'Project', sortable: true },
+  { key: 'stream', label: 'Stream', sortable: true },
   { key: 'clientName', label: 'Client', sortable: true },
   { key: 'contractAmount', label: 'Contract Value', align: 'right', sortable: true },
   { key: 'totalReceived', label: 'Received', align: 'right', sortable: true },
@@ -52,6 +54,7 @@ const rows = computed<AgreementTableRow[]>(() =>
       id: agreement.id,
       projectId: agreement.projectId,
       projectName: project?.projectName ?? 'Unknown Project',
+      stream: agreement.stream,
       clientName: client?.companyName ?? 'Unknown Client',
       contractAmount: summary.contractAmount,
       totalReceived: summary.totalReceived,
@@ -101,18 +104,21 @@ onMounted(loadData)
       empty-description="Financial agreements created from a project's Payments tab will appear here."
       @row-click="goToProjectPayments"
     >
+      <template #cell-stream="{ value }">
+        <StatusBadge :label="value as string" :variant="(value as string) === 'Supervision' ? 'info' : 'neutral'" />
+      </template>
       <template #cell-contractAmount="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
       </template>
       <template #cell-totalReceived="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
       </template>
       <template #cell-totalPending="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
       </template>
       <template #cell-totalOverdue="{ row, value }">
         <span :class="(value as number) > 0 ? 'font-semibold text-danger-600' : ''">
-          {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId)?.currency ?? 'KWD') }}
+          {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
         </span>
       </template>
       <template #cell-nextPaymentAmount="{ row }">

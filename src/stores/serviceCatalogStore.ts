@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { serviceCatalogService } from '@/services/serviceCatalogService'
-import type { ServiceCatalogItem } from '@/types/ServiceCatalog'
+import type { ServiceCatalogBranch, ServiceCatalogItem } from '@/types/ServiceCatalog'
 
 interface ServiceCatalogStoreState {
   services: ServiceCatalogItem[]
@@ -53,11 +53,11 @@ export const useServiceCatalogStore = defineStore('serviceCatalog', {
     // surfaces whatever message comes back rather than re-checking
     // client-side, so there's exactly one source of truth for what
     // counts as a duplicate.
-    async addService(name: string) {
+    async addService(name: string, branch: ServiceCatalogBranch) {
       this.isMutating = true
       this.mutationError = undefined
       try {
-        const service = await serviceCatalogService.createService(name)
+        const service = await serviceCatalogService.createService(name, branch)
         this.services = [...this.services, service].sort((a, b) => a.name.localeCompare(b.name))
         this.selectedServiceId = service.id
       } catch (error) {

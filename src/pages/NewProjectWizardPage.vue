@@ -12,7 +12,7 @@ import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
-import TypeActivityPickerDialog from '@/components/project/TypeActivityPickerDialog.vue'
+import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -25,12 +25,10 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
-import { useTypeActivityCatalogStore } from '@/stores/typeActivityCatalogStore'
 import { useUserStore } from '@/stores/userStore'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
-import type { Project, ProjectPriority } from '@/types/Project'
+import type { Project, ProjectPriority, SelectedSupervisionActivity } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
-import type { SelectedTypeActivity } from '@/types/TypeActivityCatalog'
 import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
@@ -45,14 +43,12 @@ const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const permitCatalogStore = usePermitCatalogStore()
-const typeActivityCatalogStore = useTypeActivityCatalogStore()
 const taskStore = useTaskStore()
 
 const WIZARD_STEPS = [
   { label: 'Client & Service' },
   { label: 'Project Details' },
   { label: 'Permits' },
-  { label: 'Additional Services' },
   { label: 'Review & Confirm' },
 ]
 
@@ -83,7 +79,6 @@ const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
 const isPermitPickerOpen = ref(false)
-const isTypeActivityPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -102,12 +97,13 @@ const form = reactive({
   // '' until answered; drives whether the permit picker below is shown.
   involvesPermits: '' as 'yes' | 'no' | '',
   permits: [] as WizardPermit[],
-  // The final wizard step's picks -- one engagement type category (or
-  // none, if skipped) plus whichever of its activities were checked.
-  // Coverage against selectedActivities above is computed server-side
-  // at creation time, not here (see project_service._resolve_type_
-  // activity_selection) -- the wizard just sends what was checked.
-  selectedTypeActivities: [] as SelectedTypeActivity[],
+  // Supervision picks from the same unified ServicePickerDialog -- each
+  // activity carries its own start/end window, and supervisionStartDate/
+  // supervisionEndDate is the overall engagement window (required once
+  // any activity is selected, enforced both in the picker and server-side).
+  selectedSupervisionActivities: [] as SelectedSupervisionActivity[],
+  supervisionStartDate: '' as string | null,
+  supervisionEndDate: '' as string | null,
 })
 
 // Confirming the picker replaces the whole selection, same as
@@ -126,32 +122,18 @@ function removePermit(id: string): void {
   form.permits = form.permits.filter((permit) => permit.id !== id)
 }
 
-// Confirming the picker replaces the whole selection -- same "whole
-// selection, not merge" convention as handleServicesConfirmed/
-// handlePermitsConfirm above.
-function handleTypeActivitiesConfirm(selected: SelectedTypeActivity[]): void {
-  form.selectedTypeActivities = selected
-}
-
-function removeTypeActivity(activityId: string): void {
-  form.selectedTypeActivities = form.selectedTypeActivities.filter((item) => item.activityId !== activityId)
-}
-
-// Distinct category names among what's checked, in selection order --
-// e.g. "Design, Supervision" once picking spans more than one category.
-const selectedTypeActivityCategoryNames = computed(() =>
-  [...new Set(form.selectedTypeActivities.map((item) => item.categoryName))].join(', '),
+const supervisionMonthlyTotal = computed(() =>
+  form.selectedSupervisionActivities.reduce((sum, item) => sum + item.monthlyRate, 0),
 )
 
-// Scope of Work is auto-populated from whatever was picked in the
-// service picker and the type-activity picker -- "scope = services +
-// activities", per the actual requirement, rather than staff retyping
-// a summary of choices already made elsewhere in this same wizard.
-// Still a normal editable TextArea: lastAutoScope tracks the most
-// recent auto-generated text so a manual edit (form.scope diverging
-// from it) is respected and stops being overwritten -- otherwise
-// picking one more activity after typing a custom scope would silently
-// discard what staff just wrote.
+// Scope of Work is auto-populated from whatever was picked in the unified
+// service picker -- "scope = services + supervision", per the actual
+// requirement, rather than staff retyping a summary of choices already
+// made elsewhere in this same wizard. Still a normal editable TextArea:
+// lastAutoScope tracks the most recent auto-generated text so a manual
+// edit (form.scope diverging from it) is respected and stops being
+// overwritten -- otherwise picking one more activity after typing a
+// custom scope would silently discard what staff just wrote.
 const lastAutoScope = ref('')
 
 function buildScopeText(): string {
@@ -166,22 +148,16 @@ function buildScopeText(): string {
     lines.push(`${serviceName}:`)
     activityNames.forEach((name) => lines.push(`- ${name}`))
   }
-  const typeActivitiesByCategory = new Map<string, string[]>()
-  for (const item of form.selectedTypeActivities) {
-    const list = typeActivitiesByCategory.get(item.categoryName) ?? []
-    list.push(item.activityName)
-    typeActivitiesByCategory.set(item.categoryName, list)
-  }
-  for (const [categoryName, activityNames] of typeActivitiesByCategory) {
+  if (form.selectedSupervisionActivities.length > 0) {
     if (lines.length > 0) lines.push('')
-    lines.push(`${categoryName} Activities:`)
-    activityNames.forEach((name) => lines.push(`- ${name}`))
+    lines.push('Supervision Activities:')
+    form.selectedSupervisionActivities.forEach((item) => lines.push(`- ${item.activityName} (${formatCurrency(item.monthlyRate)}/mo)`))
   }
   return lines.join('\n')
 }
 
 watch(
-  () => [form.selectedActivities, form.selectedTypeActivities],
+  () => [form.selectedActivities, form.selectedSupervisionActivities],
   () => {
     const generated = buildScopeText()
     if (form.scope.trim().length === 0 || form.scope === lastAutoScope.value) {
@@ -198,16 +174,26 @@ const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
   clientId: [validators.required('Please select a client')],
-  selectedActivities: [validators.required('Please select at least one service')],
+  selectedActivities: [
+    () =>
+      form.selectedActivities.length > 0 || form.selectedSupervisionActivities.length > 0
+        ? true
+        : 'Please select at least one service or Supervision activity',
+  ],
   engineer: [validators.required('Please assign an engineer')],
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
   startDate: [validators.required('Start date is required')],
   targetDate: [validators.required('Target date is required')],
 })
 
-function handleServicesConfirmed(items: SelectedServiceActivity[]): void {
-  form.selectedActivities = items
-  form.service = [...new Set(items.map((item) => item.serviceName))].join(', ')
+function handleServicesConfirmed(payload: ServicePickerConfirmPayload): void {
+  form.selectedActivities = payload.design
+  form.selectedSupervisionActivities = payload.supervision
+  form.supervisionStartDate = payload.supervisionStartDate
+  form.supervisionEndDate = payload.supervisionEndDate
+  const names = new Set(payload.design.map((item) => item.serviceName))
+  if (payload.supervision.length > 0) names.add('Supervision')
+  form.service = [...names].join(', ')
 }
 
 const clientOptions = ref<SelectOption[]>([])
@@ -265,12 +251,6 @@ onMounted(async () => {
   // lazily on first dialog open so the list is ready immediately.
   if (permitCatalogStore.permits.length === 0) {
     await permitCatalogStore.loadPermits()
-  }
-
-  // Backs the type activity picker (final wizard step) -- same
-  // "load once here" reasoning as the permit catalog above.
-  if (typeActivityCatalogStore.categories.length === 0) {
-    await typeActivityCatalogStore.loadCategories()
   }
 })
 
@@ -363,14 +343,6 @@ async function submitWizard(): Promise<void> {
     const permitsClientHas = form.permits.filter((permit) => permit.clientHas === 'yes').map((permit) => permit.name)
     const permitsClientLacks = form.permits.filter((permit) => permit.clientHas === 'no').map((permit) => permit.name)
 
-    // Optional step -- only sent when something was actually checked, so
-    // an unaware/older backend (or simply a project that skipped this
-    // step) doesn't get an empty/meaningless selection object.
-    const typeActivitySelection =
-      form.selectedTypeActivities.length > 0
-        ? { activityIds: form.selectedTypeActivities.map((activity) => activity.activityId) }
-        : undefined
-
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: form.scope || undefined,
@@ -385,7 +357,13 @@ async function submitWizard(): Promise<void> {
       // Permits the client already holds become a mandatory upload
       // checklist on the project's Documents tab.
       requiredPermitDocuments: permitsClientHas.length > 0 ? permitsClientHas : undefined,
-      typeActivitySelection,
+      // Optional -- only sent when something was actually checked, so an
+      // unaware/older backend (or simply a project that skipped
+      // Supervision entirely) doesn't get an empty/meaningless selection.
+      selectedSupervisionActivities:
+        form.selectedSupervisionActivities.length > 0 ? form.selectedSupervisionActivities : undefined,
+      supervisionStartDate: form.supervisionStartDate || undefined,
+      supervisionEndDate: form.supervisionEndDate || undefined,
     })
 
     // Permits the client doesn't have yet aren't a document to chase --
@@ -482,15 +460,24 @@ function goToCreatedProject(): void {
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
               >
-                <span v-if="form.selectedActivities.length === 0" class="text-text-muted">Select a service</span>
+                <span v-if="form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0" class="text-text-muted">Select a service</span>
                 <span v-else class="text-text-primary">
-                  {{ form.selectedActivities.length }} activit{{ form.selectedActivities.length === 1 ? 'y' : 'ies' }} ·
-                  {{ formatCurrency(serviceTotal, 'KWD') }}
+                  <template v-if="form.selectedActivities.length > 0">
+                    {{ form.selectedActivities.length }} activit{{ form.selectedActivities.length === 1 ? 'y' : 'ies' }} ·
+                    {{ formatCurrency(serviceTotal, 'KWD') }}
+                  </template>
+                  <template v-if="form.selectedActivities.length > 0 && form.selectedSupervisionActivities.length > 0"> + </template>
+                  <template v-if="form.selectedSupervisionActivities.length > 0">
+                    {{ form.selectedSupervisionActivities.length }} supervision ·
+                    {{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo
+                  </template>
                 </span>
-                <span class="text-xs font-medium text-primary-600">{{ form.selectedActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
+                <span class="text-xs font-medium text-primary-600">
+                  {{ form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 ? 'Choose' : 'Edit' }}
+                </span>
               </button>
               <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
-              <p v-else-if="form.selectedActivities.length > 0" class="truncate text-xs text-text-muted">{{ form.service }}</p>
+              <p v-else-if="form.service" class="truncate text-xs text-text-muted">{{ form.service }}</p>
             </div>
             <SelectBox
               v-model="form.engineer"
@@ -592,55 +579,6 @@ function goToCreatedProject(): void {
           </template>
         </FormSection>
 
-        <FormSection
-          v-else-if="currentStep === 3"
-          title="Additional Services"
-          description="Pick an engagement type and check off which of its activities apply -- anything not already covered by the services picked earlier adds its own cost to the quotation."
-        >
-          <div class="flex flex-col gap-1.5">
-            <label id="type-activity-picker-label" class="text-sm font-medium text-text-secondary">Additional Services</label>
-            <button
-              id="type-activity-picker-button"
-              type="button"
-              aria-labelledby="type-activity-picker-label type-activity-picker-button"
-              class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
-              @click="isTypeActivityPickerOpen = true"
-            >
-              <span v-if="form.selectedTypeActivities.length === 0" class="text-text-muted">Select additional services (optional)</span>
-              <span v-else class="text-text-primary">
-                {{ form.selectedTypeActivities.length }} activit{{ form.selectedTypeActivities.length === 1 ? 'y' : 'ies' }} selected ·
-                {{ selectedTypeActivityCategoryNames }}
-              </span>
-              <span class="text-xs font-medium text-primary-600">{{ form.selectedTypeActivities.length === 0 ? 'Choose' : 'Edit' }}</span>
-            </button>
-            <p class="text-xs text-text-muted">
-              This step is optional -- skip it if the engagement doesn't need a Design/Supervision/etc breakdown on top
-              of the services already picked.
-            </p>
-          </div>
-
-          <div v-if="form.selectedTypeActivities.length > 0" class="flex flex-col gap-2">
-            <div
-              v-for="activity in form.selectedTypeActivities"
-              :key="activity.activityId"
-              class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
-            >
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-text-primary">{{ activity.activityName }}</p>
-                <p class="truncate text-xs text-text-muted">{{ activity.categoryName }} · {{ formatCurrency(activity.cost) }}</p>
-              </div>
-              <button
-                type="button"
-                class="shrink-0 text-xs font-medium text-danger-600 hover:text-danger-700"
-                :aria-label="`Remove ${activity.activityName}`"
-                @click="removeTypeActivity(activity.activityId)"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </FormSection>
-
         <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
@@ -698,19 +636,28 @@ function goToCreatedProject(): void {
               </ul>
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Additional Services</p>
-              <p v-if="form.selectedTypeActivities.length === 0" class="text-sm text-text-primary">None</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Supervision</p>
+              <p v-if="form.selectedSupervisionActivities.length === 0" class="text-sm text-text-primary">None</p>
               <template v-else>
-                <p class="text-sm text-text-primary">{{ selectedTypeActivityCategoryNames }}</p>
+                <p class="text-sm text-text-primary">
+                  {{ form.supervisionStartDate ? formatDate(form.supervisionStartDate) : 'Not set' }} –
+                  {{ form.supervisionEndDate ? formatDate(form.supervisionEndDate) : 'Ongoing' }}
+                </p>
                 <ul class="mt-1 flex flex-col gap-0.5">
-                  <li v-for="activity in form.selectedTypeActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
-                    <span class="truncate">{{ activity.activityName }}</span>
-                    <span class="shrink-0">{{ formatCurrency(activity.cost) }}</span>
+                  <li v-for="activity in form.selectedSupervisionActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
+                    <span class="truncate">
+                      {{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : 'Ongoing' }})
+                    </span>
+                    <span class="shrink-0">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
+                  </li>
+                  <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
+                    <span>Combined monthly total</span>
+                    <span>{{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo</span>
                   </li>
                 </ul>
                 <p class="mt-1 text-xs text-text-muted">
-                  Activities already covered by the services picked earlier won't be charged again -- the final
-                  additional amount is calculated once the project is created.
+                  Billed monthly and prorated by day for partial months -- see the Financial Agreement created once
+                  this project reaches Contract.
                 </p>
               </template>
             </div>
@@ -747,7 +694,10 @@ function goToCreatedProject(): void {
     <ServicePickerDialog
       v-model="isServicePickerOpen"
       :services="serviceCatalogStore.services"
-      :selected="form.selectedActivities"
+      :selected-design="form.selectedActivities"
+      :selected-supervision="form.selectedSupervisionActivities"
+      :supervision-start-date="form.supervisionStartDate"
+      :supervision-end-date="form.supervisionEndDate"
       currency="KWD"
       @confirm="handleServicesConfirmed"
     />
@@ -757,14 +707,6 @@ function goToCreatedProject(): void {
       :permits="permitCatalogStore.permits"
       :selected-ids="form.permits.map((permit) => permit.id)"
       @confirm="handlePermitsConfirm"
-    />
-
-    <TypeActivityPickerDialog
-      v-model="isTypeActivityPickerOpen"
-      :categories="typeActivityCatalogStore.categories"
-      :selected="form.selectedTypeActivities"
-      currency="KWD"
-      @confirm="handleTypeActivitiesConfirm"
     />
 
     <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">

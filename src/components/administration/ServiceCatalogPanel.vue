@@ -7,12 +7,21 @@ import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import RadioGroup from '@/components/common/RadioGroup.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import ServiceCatalogActivityEditor from '@/components/administration/ServiceCatalogActivityEditor.vue'
 import ServiceCatalogCard from '@/components/administration/ServiceCatalogCard.vue'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { ServiceCatalogBranch } from '@/types/ServiceCatalog'
+import type { SelectOption } from '@/types/Ui'
+
+const BRANCH_OPTIONS: SelectOption[] = [
+  { label: 'Design (one-time)', value: 'Design' },
+  { label: 'Supervision (monthly)', value: 'Supervision' },
+]
 
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -37,12 +46,14 @@ function reportIfFailed(action: Promise<void>): void {
 }
 
 const newServiceName = ref('')
+const newServiceBranch = ref<ServiceCatalogBranch>('Design')
 
 function submitNewService(): void {
   if (newServiceName.value.trim().length === 0) return
   const name = newServiceName.value.trim()
-  reportIfFailed(serviceCatalogStore.addService(name))
+  reportIfFailed(serviceCatalogStore.addService(name, newServiceBranch.value))
   newServiceName.value = ''
+  newServiceBranch.value = 'Design'
 }
 
 function handleRemoveService(serviceId: string): void {
@@ -98,6 +109,7 @@ function handleRemoveActivity(activityId: string): void {
 
       <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
         <p class="text-sm font-medium text-text-secondary">Add Service</p>
+        <RadioGroup v-model="newServiceBranch" :options="BRANCH_OPTIONS" :vertical="false" />
         <div class="flex flex-col gap-2 sm:flex-row">
           <TextInput v-model="newServiceName" placeholder="Service name" class="sm:flex-1" @keyup.enter="submitNewService" />
           <BaseButton :icon="Plus" variant="secondary" :disabled="newServiceName.trim().length === 0" @click="submitNewService">
@@ -118,12 +130,18 @@ function handleRemoveActivity(activityId: string): void {
         <Card>
           <template #header>
             <div class="flex items-center justify-between gap-3">
-              <TextInput
-                :model-value="nameDraft ?? serviceCatalogStore.selectedService.name"
-                class="max-w-sm"
-                @update:model-value="nameDraft = $event"
-                @blur="commitRename(serviceCatalogStore.selectedService!.id, $event, serviceCatalogStore.selectedService!.name)"
-              />
+              <div class="flex items-center gap-2">
+                <TextInput
+                  :model-value="nameDraft ?? serviceCatalogStore.selectedService.name"
+                  class="max-w-sm"
+                  @update:model-value="nameDraft = $event"
+                  @blur="commitRename(serviceCatalogStore.selectedService!.id, $event, serviceCatalogStore.selectedService!.name)"
+                />
+                <StatusBadge
+                  :label="serviceCatalogStore.selectedService.branch"
+                  :variant="serviceCatalogStore.selectedService.branch === 'Supervision' ? 'info' : 'neutral'"
+                />
+              </div>
               <IconButton
                 :icon="Trash2"
                 label="Remove service"

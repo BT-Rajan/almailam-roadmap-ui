@@ -27,14 +27,18 @@ export type WorkflowStage =
 
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
-// One row per activity checked in the New Project wizard's final-step
-// type-activity picker -- see Project.selectedTypeActivities above.
-export interface ProjectSelectedTypeActivity {
-  id: string
-  categoryName: string
+// One Supervision activity picked in the unified ServicePickerDialog at
+// project setup -- see Project.selectedSupervisionActivities below.
+// startDate/endDate are this activity's own window, independent of the
+// project's overall supervisionStartDate/supervisionEndDate (both are
+// captured separately, per the day-prorated monthly billing rules --
+// see payment_calculations.generate_prorated_monthly_schedule).
+export interface SelectedSupervisionActivity {
+  activityId: string
   activityName: string
-  cost: number
-  isCoveredByService: boolean
+  monthlyRate: number
+  startDate: string
+  endDate?: string | null
 }
 
 // Internal approval of a project's scope-of-work text -- see
@@ -64,22 +68,21 @@ export interface Project {
   // backend hasn't been extended to persist this yet, won't have it.
   selectedActivities?: SelectedServiceActivity[]
   serviceTotal?: number
-  // The engagement type(s) picked at the New Project wizard's final step
-  // (Design/Supervision/etc, admin-managed under Administration > Type
-  // Activity Catalog), and their own checklist breakdown -- a project can
-  // span more than one category now (see includesDesign/
-  // includesSupervision below). A checked activity whose
-  // isCoveredByService is true is already priced under a
-  // selectedActivities entry of the same name and doesn't add to
-  // typeActivityTotal or get its own quotation line item a second time
-  // -- see NewQuotationDialog.vue's formFromProject. Optional for the
-  // same reasons as selectedActivities above.
-  selectedTypeActivities?: ProjectSelectedTypeActivity[]
-  typeActivityTotal?: number
+  // The Supervision activities picked in the same unified service picker,
+  // and their combined nominal monthly total (informational only, not
+  // prorated -- the real billed schedule lives on the Supervision
+  // financial agreement once one is created). supervisionStartDate/
+  // supervisionEndDate are the overall Supervision engagement window,
+  // captured separately from each activity's own startDate/endDate.
+  // Optional for the same reasons as selectedActivities above.
+  selectedSupervisionActivities?: SelectedSupervisionActivity[]
+  supervisionMonthlyTotal?: number
+  supervisionStartDate?: string | null
+  supervisionEndDate?: string | null
   // Whether this project's workflow includes a Design and/or
-  // Supervision stage -- derived server-side from selectedTypeActivities
-  // (falling back to selectedActivities/service when none were picked),
-  // see backend project_service.compute_stage_flags. Drives which of the
+  // Supervision stage -- derived server-side from which of
+  // selectedActivities/selectedSupervisionActivities have rows, see
+  // backend project_service.compute_stage_flags. Drives which of the
   // Design/Supervision stepper nodes and workspace tabs are shown.
   includesDesign: boolean
   includesSupervision: boolean

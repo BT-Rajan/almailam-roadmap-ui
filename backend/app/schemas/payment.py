@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,12 +16,22 @@ def _enum_validator(allowed: tuple[str, ...], label: str):
     return _check
 
 
+def _optional_enum_validator(allowed: tuple[str, ...], label: str):
+    def _check(value: str | None) -> str | None:
+        if value is not None and value not in allowed:
+            raise ValueError(f"{label} must be one of {allowed}")
+        return value
+
+    return _check
+
+
 # --- financial agreement -------------------------------------------------
 
 
 class FinancialAgreementOut(BaseModel):
     id: str
     projectId: str
+    stream: Literal["Design", "Supervision"]
     contractAmount: float
     currency: str
     contractStartDate: date
@@ -36,6 +47,7 @@ class FinancialAgreementOut(BaseModel):
         return FinancialAgreementOut(
             id=f"FA-{agreement.id:03d}",
             projectId=project_no,
+            stream=agreement.stream,
             contractAmount=float(agreement.contract_amount),
             currency=agreement.currency,
             contractStartDate=agreement.contract_start_date,
@@ -50,18 +62,26 @@ class FinancialAgreementOut(BaseModel):
 
 class FinancialAgreementCreate(BaseModel):
     projectId: str
-    contractAmount: float = Field(gt=0)
+    # Design (the default, matching every agreement created before this
+    # field existed) keeps today's exact behavior: contractAmount/
+    # contractStartDate/paymentFrequency are required and drive
+    # generate_even_schedule. Supervision instead derives all of these
+    # server-side from the project's selected Supervision activities via
+    # generate_prorated_monthly_schedule -- see payment_service.
+    # create_agreement -- so they're optional here rather than required.
+    stream: Literal["Design", "Supervision"] = "Design"
+    contractAmount: float | None = Field(default=None, gt=0)
     currency: str = Field(default="KWD", min_length=1, max_length=10)
-    contractStartDate: date
+    contractStartDate: date | None = None
     contractEndDate: date | None = None
     agreementDate: date
     quotationReference: str | None = Field(default=None, max_length=30)
     contractReference: str | None = Field(default=None, max_length=30)
     paymentMode: str
-    paymentFrequency: str
+    paymentFrequency: str | None = None
 
     _check_mode = field_validator("paymentMode")(_enum_validator(PAYMENT_MODES, "paymentMode"))
-    _check_freq = field_validator("paymentFrequency")(_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))
+    _check_freq = field_validator("paymentFrequency")(_optional_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))
 
 
 # --- obligation ------------------------------------------------------------

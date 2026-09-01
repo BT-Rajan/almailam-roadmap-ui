@@ -36,6 +36,5 @@ from app.models import (  # noqa: F401
     status_report,
     task,
     timeline,
-    type_activity_catalog,
     user,
 )

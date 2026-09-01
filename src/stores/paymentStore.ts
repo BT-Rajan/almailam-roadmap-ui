@@ -8,6 +8,7 @@ import type { Client } from '@/types/Client'
 import type {
   Adjustment,
   AdjustmentType,
+  AgreementStream,
   CreateAgreementInput,
   FinancialAgreement,
   FinancialAuditEvent,
@@ -70,8 +71,12 @@ export const usePaymentStore = defineStore('payment', {
       return (clientId: string): Client | undefined => state.clients.find((client) => client.id === clientId)
     },
 
+    // stream is optional only for legacy callers that pre-date Supervision
+    // agreements -- a project can have one agreement per stream now, so
+    // any caller that cares which one should always pass it.
     getAgreementByProject(state) {
-      return (projectId: string): FinancialAgreement | undefined => state.agreements.find((agreement) => agreement.projectId === projectId)
+      return (projectId: string, stream?: AgreementStream): FinancialAgreement | undefined =>
+        state.agreements.find((agreement) => agreement.projectId === projectId && (!stream || agreement.stream === stream))
     },
 
     obligationsForAgreement(state) {

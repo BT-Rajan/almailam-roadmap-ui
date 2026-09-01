@@ -34,7 +34,7 @@ def create_service(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    service = service_catalog_service.create_service(db, payload.name, current_user.id)
+    service = service_catalog_service.create_service(db, payload.name, payload.branch, current_user.id)
     return ServiceCatalogItemOut.from_model(service)
 
 

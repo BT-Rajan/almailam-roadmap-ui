@@ -2,6 +2,7 @@ import { apiClient } from '@/services/httpClient'
 import type {
   Adjustment,
   AdjustmentType,
+  AgreementStream,
   CreateAgreementInput,
   FinancialAgreement,
   FinancialAuditEvent,
@@ -25,12 +26,16 @@ async function getFinancialAgreements(): Promise<FinancialAgreement[]> {
 }
 
 /**
- * Get the financial agreement for a specific project via the backend API
+ * Get the financial agreement for a specific project (optionally scoped to
+ * one billing stream) via the backend API. A project can have one Design
+ * and one Supervision agreement side by side, so callers that care about a
+ * specific one should always pass `stream`.
  */
-async function getAgreementByProject(projectId: string): Promise<FinancialAgreement | undefined> {
+async function getAgreementByProject(projectId: string, stream?: AgreementStream): Promise<FinancialAgreement | undefined> {
   try {
+    const query = stream ? `?stream=${stream}` : ''
     const agreement = await apiClient.get<FinancialAgreement | null>(
-      `/api/financial-agreements/by-project/${projectId}`,
+      `/api/financial-agreements/by-project/${projectId}${query}`,
     )
     return agreement ?? undefined
   } catch (error) {

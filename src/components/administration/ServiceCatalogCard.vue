@@ -2,6 +2,7 @@
 import { ListChecks } from '@lucide/vue'
 
 import Card from '@/components/common/Card.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { ServiceCatalogItem } from '@/types/ServiceCatalog'
 
 defineProps<{
@@ -26,8 +27,14 @@ defineEmits<{
         <ListChecks class="h-4 w-4 text-primary-600" />
       </span>
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-semibold text-text-primary truncate">{{ service.name }}</p>
-        <p class="mt-1 text-sm text-text-muted">{{ service.activities.length }} activities</p>
+        <div class="flex items-center gap-2">
+          <p class="text-sm font-semibold text-text-primary truncate">{{ service.name }}</p>
+          <StatusBadge :label="service.branch" :variant="service.branch === 'Supervision' ? 'info' : 'neutral'" />
+        </div>
+        <p class="mt-1 text-sm text-text-muted">
+          {{ service.activities.length }} activit{{ service.activities.length === 1 ? 'y' : 'ies' }}
+          <span v-if="service.branch === 'Supervision'">(monthly)</span>
+        </p>
       </div>
     </div>
   </Card>

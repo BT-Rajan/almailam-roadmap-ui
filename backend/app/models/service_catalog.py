@@ -1,9 +1,11 @@
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
+
+SERVICE_BRANCHES = ("Design", "Supervision")
 
 
 class ServiceCatalogItem(Base, TimestampMixin, SoftDeleteMixin):
@@ -12,12 +14,20 @@ class ServiceCatalogItem(Base, TimestampMixin, SoftDeleteMixin):
     (PROJECT_SERVICES) so admins can add/remove services without a code
     change. Name uniqueness is enforced case-insensitively in
     service_catalog_service, since 'MEP Design' and 'mep design' being
-    treated as distinct would defeat the point of a duplicate check."""
+    treated as distinct would defeat the point of a duplicate check.
+
+    branch (migration 0059) determines billing behavior: Design services
+    are one-time fees; the single Supervision service's activities are
+    monthly recurring fees, day-prorated for partial calendar months (see
+    payment_calculations.generate_prorated_monthly_schedule)."""
 
     __tablename__ = "service_catalog_items"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+    branch: Mapped[str] = mapped_column(
+        Enum(*SERVICE_BRANCHES, name="service_catalog_branch"), nullable=False, default="Design",
+    )
 
     activities: Mapped[list["ServiceCatalogActivity"]] = relationship(
         back_populates="service",

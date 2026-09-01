@@ -3,7 +3,6 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, condecimal, field_validator
 
 from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
-from app.schemas.type_activity_catalog import ProjectSelectedTypeActivityOut, ProjectTypeActivitySelectionIn
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -41,6 +40,40 @@ class SelectedActivityIn(BaseModel):
     fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2)  # type: ignore[valid-type]
 
 
+class SelectedSupervisionActivityOut(BaseModel):
+    activityId: str
+    activityName: str
+    monthlyRate: float
+    startDate: date
+    endDate: date | None = None
+
+    @staticmethod
+    def from_model(activity) -> "SelectedSupervisionActivityOut":
+        return SelectedSupervisionActivityOut(
+            activityId=activity.activity_id,
+            activityName=activity.activity_name,
+            monthlyRate=float(activity.monthly_rate),
+            startDate=activity.start_date,
+            endDate=activity.end_date,
+        )
+
+
+class SelectedSupervisionActivityIn(BaseModel):
+    activityId: str = Field(min_length=1, max_length=20)
+    activityName: str = Field(min_length=1, max_length=150)
+    monthlyRate: condecimal(ge=0, max_digits=12, decimal_places=2)  # type: ignore[valid-type]
+    startDate: date
+    endDate: date | None = None
+
+    @field_validator("endDate")
+    @classmethod
+    def end_after_start(cls, value: date | None, info) -> date | None:
+        start_date = info.data.get("startDate")
+        if value is not None and start_date is not None and value < start_date:
+            raise ValueError("endDate must not be before startDate")
+        return value
+
+
 class ProjectOut(BaseModel):
     id: str
     projectNo: str
@@ -66,15 +99,18 @@ class ProjectOut(BaseModel):
     # prefill line items from the services actually picked for the project.
     selectedActivities: list[SelectedActivityOut] = Field(default_factory=list)
     serviceTotal: float | None = None
-    # The engagement type(s) picked at the wizard's final step, and their
-    # own breakdown/total -- same "optional, empty for older projects"
-    # reasoning as selectedActivities/serviceTotal above. Rows here whose
-    # isCoveredByService is true are already priced under a selected
-    # service activity of the same name and do NOT count toward
-    # typeActivityTotal or the project's overall quoted value a second
-    # time -- see ProjectSelectedTypeActivity's model docstring.
-    selectedTypeActivities: list[ProjectSelectedTypeActivityOut] = Field(default_factory=list)
-    typeActivityTotal: float | None = None
+    # The Supervision activities picked at project setup, and their
+    # combined nominal monthly total -- same "optional, empty for older
+    # projects" reasoning as selectedActivities/serviceTotal above.
+    # supervisionStartDate/supervisionEndDate are the overall Supervision
+    # engagement window, captured separately from each activity's own
+    # startDate/endDate (see ProjectSelectedSupervisionActivity's model
+    # docstring). The real, day-prorated billing schedule lives on the
+    # Supervision financial agreement once one is created, not here.
+    selectedSupervisionActivities: list[SelectedSupervisionActivityOut] = Field(default_factory=list)
+    supervisionMonthlyTotal: float | None = None
+    supervisionStartDate: date | None = None
+    supervisionEndDate: date | None = None
     # Whether this project's workflow includes a Design and/or
     # Supervision stage -- see project_service.compute_stage_flags for
     # how these are derived. Drives which of the Design/Supervision
@@ -89,7 +125,7 @@ class ProjectOut(BaseModel):
     @staticmethod
     def from_model(
         project, engineer_name: str, selected_activities: list | None = None,
-        selected_type_activities: list | None = None,
+        selected_supervision_activities: list | None = None,
         includes_design: bool = False, includes_supervision: bool = False,
     ) -> "ProjectOut":
         return ProjectOut(
@@ -110,10 +146,14 @@ class ProjectOut(BaseModel):
             status=project.status,
             selectedActivities=[SelectedActivityOut.from_model(a) for a in (selected_activities or [])],
             serviceTotal=float(project.service_total) if project.service_total is not None else None,
-            selectedTypeActivities=[
-                ProjectSelectedTypeActivityOut.from_model(a) for a in (selected_type_activities or [])
+            selectedSupervisionActivities=[
+                SelectedSupervisionActivityOut.from_model(a) for a in (selected_supervision_activities or [])
             ],
-            typeActivityTotal=float(project.type_activity_total) if project.type_activity_total is not None else None,
+            supervisionMonthlyTotal=(
+                float(project.supervision_monthly_total) if project.supervision_monthly_total is not None else None
+            ),
+            supervisionStartDate=project.supervision_start_date,
+            supervisionEndDate=project.supervision_end_date,
             includesDesign=includes_design,
             includesSupervision=includes_supervision,
             requiredPermitDocuments=list(project.required_permit_documents or []),
@@ -161,12 +201,16 @@ class ProjectCreate(BaseModel):
     targetDate: date
     selectedActivities: list[SelectedActivityIn] | None = None
     serviceTotal: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
-    # The New Project wizard's final-step picker: which engagement-type
-    # category and which of its activities were checked. None/absent for
-    # callers that skip this step entirely (it's optional -- not every
-    # engagement needs it) -- create_project() computes coverage against
-    # selectedActivities above and writes the snapshot rows itself.
-    typeActivitySelection: ProjectTypeActivitySelectionIn | None = None
+    # The Supervision activities picked in the New Project wizard's
+    # unified service picker. None/absent for callers that pick no
+    # Supervision work at all (it's optional -- not every engagement
+    # needs it). supervisionStartDate/supervisionEndDate are the overall
+    # engagement window, separate from each activity's own dates --
+    # create_project() requires supervisionStartDate whenever any
+    # activities are selected.
+    selectedSupervisionActivities: list[SelectedSupervisionActivityIn] | None = None
+    supervisionStartDate: date | None = None
+    supervisionEndDate: date | None = None
     # Permits the client confirmed they already hold -- each becomes a
     # mandatory upload requirement on the Documents tab. Permits the
     # client doesn't have yet aren't sent here at all; the wizard turns
@@ -181,6 +225,14 @@ class ProjectCreate(BaseModel):
         start_date = info.data.get("startDate")
         if start_date is not None and value <= start_date:
             raise ValueError("targetDate must be after startDate")
+        return value
+
+    @field_validator("supervisionEndDate")
+    @classmethod
+    def supervision_end_after_start(cls, value: date | None, info) -> date | None:
+        start_date = info.data.get("supervisionStartDate")
+        if value is not None and start_date is not None and value < start_date:
+            raise ValueError("supervisionEndDate must not be before supervisionStartDate")
         return value
 
 

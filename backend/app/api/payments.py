@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -56,8 +56,10 @@ def list_agreements(db: Session = Depends(get_db), _=Depends(can_view)):
 
 
 @router.get("/financial-agreements/by-project/{project_no}", response_model=FinancialAgreementOut | None)
-def get_agreement_by_project(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
-    agreement = payment_service.get_agreement_by_project(db, project_no)
+def get_agreement_by_project(
+    project_no: str, stream: str | None = Query(default=None), db: Session = Depends(get_db), _=Depends(can_view)
+):
+    agreement = payment_service.get_agreement_by_project(db, project_no, stream)
     return _agreement_out(db, agreement) if agreement else None
 
 

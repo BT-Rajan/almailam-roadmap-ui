@@ -143,6 +143,18 @@ SET @p_marina  = (SELECT id FROM projects WHERE project_no = '2600003');
 SET @p_ahmadi  = (SELECT id FROM projects WHERE project_no = '2600004');
 SET @p_desert  = (SELECT id FROM projects WHERE project_no = '2600005');
 
+-- Marina Bay Hotel Renovation also runs ongoing Supervision alongside its
+-- Design work (migration 0059) -- Weekly Site Visits starts on the 11th of
+-- April, chosen deliberately so its first month demonstrates day-prorated
+-- billing (first 10 days free, remaining 20/30 days charged; see the
+-- Supervision financial agreement below).
+UPDATE projects SET supervision_start_date = '2026-04-11', supervision_end_date = '2026-10-05', supervision_monthly_total = 350.00
+WHERE id = @p_marina;
+
+INSERT INTO project_selected_supervision_activities (project_id, activity_id, activity_name, monthly_rate, start_date, end_date) VALUES
+(@p_marina, 'ACT-101', 'Weekly Site Visits', 250.00, '2026-04-11', '2026-10-05'),
+(@p_marina, 'ACT-102', 'Progress Reporting', 100.00, '2026-04-01', '2026-10-05');
+
 -- ----------------------------------------------------------------------------
 -- Government authorities, forms, submissions
 -- ----------------------------------------------------------------------------
@@ -225,14 +237,23 @@ INSERT INTO contract_revisions (contract_id, revision, revised_at, changed_by, s
 -- ----------------------------------------------------------------------------
 -- Financial agreements, obligations, payments
 -- ----------------------------------------------------------------------------
-INSERT INTO financial_agreements (project_id, contract_amount, currency, contract_start_date, contract_end_date, agreement_date, quotation_reference, contract_reference, payment_mode, payment_frequency) VALUES
-(@p_falcon, 246000.00, 'AED', '2026-05-28', '2026-11-30', '2026-05-28', 'QUO-2026-002', 'CON-2026-001', 'Bank Transfer', 'Monthly'),
-(@p_marina, 412000.00, 'AED', '2026-03-25', '2026-10-05', '2026-03-25', 'QUO-2026-003', 'CON-2026-002', 'Bank Transfer', 'Monthly'),
-(@p_desert,  98000.00, 'AED', '2025-09-05', '2026-03-20', '2025-09-05', NULL,           NULL,           'Bank Transfer', 'One-time');
+INSERT INTO financial_agreements (project_id, stream, contract_amount, currency, contract_start_date, contract_end_date, agreement_date, quotation_reference, contract_reference, payment_mode, payment_frequency) VALUES
+(@p_falcon, 'Design', 246000.00, 'AED', '2026-05-28', '2026-11-30', '2026-05-28', 'QUO-2026-002', 'CON-2026-001', 'Bank Transfer', 'Monthly'),
+(@p_marina, 'Design', 412000.00, 'AED', '2026-03-25', '2026-10-05', '2026-03-25', 'QUO-2026-003', 'CON-2026-002', 'Bank Transfer', 'Monthly'),
+(@p_desert, 'Design',  98000.00, 'AED', '2025-09-05', '2026-03-20', '2025-09-05', NULL,           NULL,           'Bank Transfer', 'One-time'),
+-- Supervision stream for the same project (migration 0059 relaxed
+-- financial_agreements to one-per-project-per-stream so this can coexist
+-- with the Design agreement above). contract_amount here is the sum of
+-- the prorated monthly schedule below, matching what
+-- payment_calculations.generate_prorated_monthly_schedule computes for
+-- Weekly Site Visits (250.00/mo from 2026-04-11) + Progress Reporting
+-- (100.00/mo from 2026-04-01), both ending 2026-10-05.
+(@p_marina, 'Supervision', 2073.12, 'AED', '2026-04-11', '2026-10-05', '2026-04-05', 'QUO-2026-003', 'CON-2026-002', 'Bank Transfer', 'Monthly');
 
-SET @fa_falcon = (SELECT id FROM financial_agreements WHERE project_id = @p_falcon);
-SET @fa_marina = (SELECT id FROM financial_agreements WHERE project_id = @p_marina);
-SET @fa_desert = (SELECT id FROM financial_agreements WHERE project_id = @p_desert);
+SET @fa_falcon     = (SELECT id FROM financial_agreements WHERE project_id = @p_falcon AND stream = 'Design');
+SET @fa_marina      = (SELECT id FROM financial_agreements WHERE project_id = @p_marina AND stream = 'Design');
+SET @fa_marina_sup  = (SELECT id FROM financial_agreements WHERE project_id = @p_marina AND stream = 'Supervision');
+SET @fa_desert      = (SELECT id FROM financial_agreements WHERE project_id = @p_desert AND stream = 'Design');
 
 INSERT INTO payment_obligations (agreement_id, sequence_number, description, amount_due, due_date, amount_received, date_paid, payment_method, reference_number) VALUES
 (@fa_falcon, 1, 'Instalment 1 - Design Kickoff',    82000.00,  '2026-06-01', 82000.00,  '2026-06-01', 'Bank Transfer', 'TRF-20260601-1'),
@@ -242,6 +263,22 @@ INSERT INTO payment_obligations (agreement_id, sequence_number, description, amo
 (@fa_marina, 2, 'Instalment 2 - Detailed Design',   137333.33, '2026-07-01', 137333.33, '2026-07-03', 'Bank Transfer', 'TRF-20260703-1'),
 (@fa_marina, 3, 'Instalment 3 - Site Supervision',  137333.34, '2026-10-01', 0,         NULL,         NULL,             NULL),
 (@fa_desert, 1, 'Final Handover Payment',            98000.00,  '2026-03-15', 98000.00,  '2026-03-10', 'Bank Transfer', 'TRF-20260310-1');
+
+-- One row per calendar month covered by the Supervision agreement above,
+-- day-prorated exactly as generate_prorated_monthly_schedule computes it:
+-- April = Weekly Site Visits (250 x 20/30 = 166.67, starts the 11th) +
+-- Progress Reporting (100.00, full month) = 266.67; May-Sep are full
+-- months for both (250 + 100 = 350.00); October is prorated again for the
+-- 2026-10-05 end date (5 of 31 days: 250 x 5/31 = 40.32, 100 x 5/31 =
+-- 16.13, total 56.45).
+INSERT INTO payment_obligations (agreement_id, sequence_number, description, amount_due, due_date, amount_received, date_paid, payment_method, reference_number) VALUES
+(@fa_marina_sup, 1, 'Supervision - April 2026',     266.67, '2026-04-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 2, 'Supervision - May 2026',       350.00, '2026-05-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 3, 'Supervision - June 2026',      350.00, '2026-06-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 4, 'Supervision - July 2026',      350.00, '2026-07-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 5, 'Supervision - August 2026',    350.00, '2026-08-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 6, 'Supervision - September 2026', 350.00, '2026-09-01', 0, NULL, NULL, NULL),
+(@fa_marina_sup, 7, 'Supervision - October 2026',    56.45, '2026-10-01', 0, NULL, NULL, NULL);
 
 INSERT INTO payments (agreement_id, project_id, amount_received, payment_date, payment_mode, reference_number, payer, receiving_account, created_by, created_at) VALUES
 (@fa_falcon, @p_falcon,  82000.00,  '2026-06-01', 'Bank Transfer', 'TRF-20260601-1', 'Falcon Heights Logistics',     'Al Mailam Operating Account', @u_pm, '2026-06-01 10:00:00'),

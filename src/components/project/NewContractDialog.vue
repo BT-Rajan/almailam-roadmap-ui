@@ -63,11 +63,17 @@ function emptyForm() {
 }
 
 // Prefills contract value from the project's serviceTotal and writes a
-// one-line-per-activity scope summary -- fallback only, used when the
+// one-line-per-activity scope summary (Design plus, when picked,
+// Supervision -- informational only, since Supervision is actually
+// billed through the Financial Agreement's prorated monthly schedule,
+// not through this contract value) -- fallback only, used when the
 // project has no quotation yet. Still fully editable either way.
 function scopeSummaryFromProject(project: Project | undefined): string {
-  if (!project?.selectedActivities?.length) return ''
-  return project.selectedActivities.map((item) => `${item.serviceName} - ${item.activityName}`).join('\n')
+  const lines = (project?.selectedActivities ?? []).map((item) => `${item.serviceName} - ${item.activityName}`)
+  const supervisionLines = (project?.selectedSupervisionActivities ?? []).map(
+    (activity) => `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate ?? 'ongoing'})`,
+  )
+  return [...lines, ...supervisionLines].join('\n')
 }
 
 // Same idea, but from the quotation's own line items -- what was

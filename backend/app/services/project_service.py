@@ -18,11 +18,16 @@ from app.models.client import ClientIdentification
 from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.project import Project, ProjectScopeRevision, ProjectSelectedActivity, ProjectSelectedTypeActivity
+from app.models.project import (
+    Project,
+    ProjectScopeRevision,
+    ProjectSelectedActivity,
+    ProjectSelectedSupervisionActivity,
+)
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, notification_service, payment_service, timeline_service, type_activity_catalog_service, user_service
+from app.services import audit_service, client_service, company_service, notification_service, payment_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -136,25 +141,27 @@ def get_selected_activities_batch(db: Session, project_ids: set[int]) -> dict[in
     return result
 
 
-def get_selected_type_activities(db: Session, project_id: int) -> list[ProjectSelectedTypeActivity]:
+def get_selected_supervision_activities(db: Session, project_id: int) -> list[ProjectSelectedSupervisionActivity]:
     return (
-        db.query(ProjectSelectedTypeActivity)
-        .filter(ProjectSelectedTypeActivity.project_id == project_id)
-        .order_by(ProjectSelectedTypeActivity.id.asc())
+        db.query(ProjectSelectedSupervisionActivity)
+        .filter(ProjectSelectedSupervisionActivity.project_id == project_id)
+        .order_by(ProjectSelectedSupervisionActivity.id.asc())
         .all()
     )
 
 
-def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedTypeActivity]]:
-    """Batch version of get_selected_type_activities, same reasoning as
-    get_selected_activities_batch above."""
+def get_selected_supervision_activities_batch(
+    db: Session, project_ids: set[int]
+) -> dict[int, list[ProjectSelectedSupervisionActivity]]:
+    """Batch version of get_selected_supervision_activities, same
+    reasoning as get_selected_activities_batch above."""
     if not project_ids:
         return {}
-    result: dict[int, list[ProjectSelectedTypeActivity]] = {pid: [] for pid in project_ids}
+    result: dict[int, list[ProjectSelectedSupervisionActivity]] = {pid: [] for pid in project_ids}
     rows = (
-        db.query(ProjectSelectedTypeActivity)
-        .filter(ProjectSelectedTypeActivity.project_id.in_(project_ids))
-        .order_by(ProjectSelectedTypeActivity.id.asc())
+        db.query(ProjectSelectedSupervisionActivity)
+        .filter(ProjectSelectedSupervisionActivity.project_id.in_(project_ids))
+        .order_by(ProjectSelectedSupervisionActivity.id.asc())
         .all()
     )
     for row in rows:
@@ -162,71 +169,57 @@ def get_selected_type_activities_batch(db: Session, project_ids: set[int]) -> di
     return result
 
 
-def _resolve_type_activity_selection(db: Session, selection, selected_activities: list) -> tuple[float | None, list[dict]]:
-    """Given the wizard's checked-activity-ids payload (which can now span
-    multiple categories -- e.g. both Design and Supervision) and the
-    project's already-selected *service* activities, returns
-    (type_activity_total, rows_to_insert).
+def _persist_supervision_selection(
+    db: Session,
+    project_id: int,
+    selection: list,
+    supervision_start_date,
+    supervision_end_date,
+) -> float | None:
+    """Validates each selected Supervision activity's own dates against
+    the project's overall supervision window (when the window's bounds
+    are set) and inserts one ProjectSelectedSupervisionActivity row per
+    activity. Returns the nominal combined monthly total (informational
+    only -- see Project.supervision_monthly_total), or None if nothing
+    was selected."""
+    if not selection:
+        return None
 
-    Coverage matching is a case-insensitive name comparison against the
-    service activities actually picked for this project -- "Site
-    Inspection" checked under the Design type category is free if a
-    selected service activity is also literally named "Site Inspection";
-    otherwise it's genuinely new work the service picker didn't already
-    price, and its own cost gets added on top. Only uncovered rows count
-    toward type_activity_total; covered rows are still recorded (so the
-    quotation/contract screens can show the full picture) but with
-    is_covered_by_service=True and contribute nothing further.
-    """
-    if selection is None:
-        return None, []
+    for activity in selection:
+        if supervision_start_date is not None and activity.startDate < supervision_start_date:
+            raise ValidationAppError(
+                f"'{activity.activityName}' starts before the overall Supervision start date."
+            )
+        if supervision_end_date is not None:
+            activity_end = activity.endDate or activity.startDate
+            if activity_end > supervision_end_date:
+                raise ValidationAppError(
+                    f"'{activity.activityName}' extends past the overall Supervision end date."
+                )
 
-    covered_names = {a.activityName.strip().lower() for a in selected_activities}
-
-    rows: list[dict] = []
-    total = 0.0
-    for activity_id in selection.activityIds:
-        item = type_activity_catalog_service.get_item(db, activity_id)
-        is_covered = item.name.strip().lower() in covered_names
-        if not is_covered:
-            total += float(item.cost)
-        rows.append(
-            {
-                "type_activity_item_id": f"TAI-{item.id:03d}",
-                "category_name": item.category.name,
-                "activity_name": item.name,
-                "cost": item.cost,
-                "is_covered_by_service": is_covered,
-            }
+    for activity in selection:
+        db.add(
+            ProjectSelectedSupervisionActivity(
+                project_id=project_id,
+                activity_id=activity.activityId,
+                activity_name=activity.activityName,
+                monthly_rate=activity.monthlyRate,
+                start_date=activity.startDate,
+                end_date=activity.endDate,
+            )
         )
-    return (total if rows else None), rows
+
+    return sum(float(a.monthlyRate) for a in selection)
 
 
-def compute_stage_flags(project: Project, selected_activities: list, selected_type_activities: list) -> tuple[bool, bool]:
+def compute_stage_flags(selected_activities: list, selected_supervision_activities: list) -> tuple[bool, bool]:
     """(includes_design, includes_supervision) -- whether this project's
     workflow should offer a Design stage/tab and/or a Supervision one
-    (see WORKFLOW_STAGES). The Additional Activities picker's category
-    choice wins when any type activities were selected at all -- that's
-    the deliberate Design vs Supervision distinction. With none selected
-    (the step is optional), falls back to the primary service picks --
-    real service names in this catalog are things like 'Architectural
-    Design'/'MEP Design'/'Structural Supervision', so this keeps existing
-    projects (which never touched the type-activity step) working the
-    same as before. `project.service` is a last-resort fallback for the
-    rare project with no selectedActivities rows recorded at all."""
-    if selected_type_activities:
-        names = {a.category_name.strip().lower() for a in selected_type_activities if a.category_name}
-        return (
-            any("design" in name for name in names),
-            any("supervision" in name for name in names),
-        )
-    service_names = {a.service_name.strip().lower() for a in selected_activities}
-    if not service_names and project.service:
-        service_names = {project.service.strip().lower()}
-    return (
-        any("design" in name for name in service_names),
-        any("supervision" in name for name in service_names),
-    )
+    (see WORKFLOW_STAGES). Deterministic since migration 0059: Design
+    services and the single Supervision service are different branches
+    of the same catalog now, so which rows exist says everything --
+    no more name-matching against category/service names."""
+    return (len(selected_activities) > 0, len(selected_supervision_activities) > 0)
 
 
 def create_project(db: Session, payload, user_id: int | None) -> Project:
@@ -261,9 +254,10 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         if payload.serviceTotal is not None
         else (sum(float(a.fixedCost) for a in selected_activities) if selected_activities else None)
     )
-    type_activity_total, type_activity_rows = _resolve_type_activity_selection(
-        db, payload.typeActivitySelection, selected_activities,
-    )
+    selected_supervision_activities = payload.selectedSupervisionActivities or []
+    if selected_supervision_activities and payload.supervisionStartDate is None:
+        raise ValidationAppError("supervisionStartDate is required when Supervision activities are selected.")
+
     project = Project(
         project_no=project_no,
         project_name=payload.projectName,
@@ -276,7 +270,8 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         target_date=payload.targetDate,
         service_total=service_total,
         required_permit_documents=payload.requiredPermitDocuments or [],
-        type_activity_total=type_activity_total,
+        supervision_start_date=payload.supervisionStartDate,
+        supervision_end_date=payload.supervisionEndDate,
     )
     db.add(project)
     db.flush()
@@ -293,8 +288,9 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
             )
         )
 
-    for row in type_activity_rows:
-        db.add(ProjectSelectedTypeActivity(project_id=project.id, **row))
+    project.supervision_monthly_total = _persist_supervision_selection(
+        db, project.id, selected_supervision_activities, payload.supervisionStartDate, payload.supervisionEndDate,
+    )
 
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
@@ -381,7 +377,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
     """
     if new_stage in ("Design", "Supervision"):
         includes_design, includes_supervision = compute_stage_flags(
-            project, get_selected_activities(db, project.id), get_selected_type_activities(db, project.id),
+            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
         )
         if new_stage == "Design" and not includes_design:
             raise ValidationAppError(
@@ -456,9 +452,16 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # prepared right after the contract, not left until later. Only
         # the agreement's existence is required here, not that it's
         # fully paid -- payment is expected to happen across the
-        # project's lifetime, tracked by the reminder job below.
-        if payment_service.get_agreement_by_project(db, project.project_no) is None:
-            problems.append("a financial agreement (payment dates and amount)")
+        # project's lifetime, tracked by the reminder job below. Checked
+        # per stream (migration 0059) -- a project that includes both
+        # Design and Supervision needs both agreements, not just one.
+        includes_design, includes_supervision = compute_stage_flags(
+            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+        )
+        if includes_design and payment_service.get_agreement_by_project(db, project.project_no, "Design") is None:
+            problems.append("a Design financial agreement (payment dates and amount)")
+        if includes_supervision and payment_service.get_agreement_by_project(db, project.project_no, "Supervision") is None:
+            problems.append("a Supervision financial agreement (payment dates and amount)")
 
     elif previous_stage == "Design":
         # Gates leaving Design into whichever of Supervision/Government
@@ -633,7 +636,7 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     failure the caller's own action should be blocked by.
     """
     includes_design, includes_supervision = compute_stage_flags(
-        project, get_selected_activities(db, project.id), get_selected_type_activities(db, project.id),
+        get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
     )
     target_stage = _auto_advance_target(project.current_stage, includes_design, includes_supervision)
     if target_stage is None:
