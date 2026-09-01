@@ -175,22 +175,31 @@ SET @sql := IF(@col_exists = 0,
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @old_unique_exists := (
-    SELECT COUNT(*) FROM information_schema.table_constraints
-    WHERE table_schema = @db AND table_name = 'financial_agreements' AND constraint_name = 'uq_financial_agreements_project'
-);
-SET @sql := IF(@old_unique_exists > 0,
-    'ALTER TABLE financial_agreements DROP INDEX uq_financial_agreements_project',
-    'SELECT 1'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
+-- Added before the old one is dropped, deliberately -- fk_financial_
+-- agreements_project (FOREIGN KEY (project_id) REFERENCES projects(id))
+-- needs *some* index on project_id to back it at all times; on a real
+-- database (unlike a fresh schema.sql load, which never has the old
+-- constraint to begin with) uq_financial_agreements_project is that
+-- index, and MariaDB refuses to drop it out from under the FK
+-- ("Cannot drop index ... needed in a foreign key constraint", error
+-- 1553) unless a replacement is already in place. This new index also
+-- starts with project_id, so it takes over that role immediately.
 SET @new_unique_exists := (
     SELECT COUNT(*) FROM information_schema.table_constraints
     WHERE table_schema = @db AND table_name = 'financial_agreements' AND constraint_name = 'uq_financial_agreements_project_stream'
 );
 SET @sql := IF(@new_unique_exists = 0,
     'ALTER TABLE financial_agreements ADD CONSTRAINT uq_financial_agreements_project_stream UNIQUE (project_id, stream)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @old_unique_exists := (
+    SELECT COUNT(*) FROM information_schema.table_constraints
+    WHERE table_schema = @db AND table_name = 'financial_agreements' AND constraint_name = 'uq_financial_agreements_project'
+);
+SET @sql := IF(@old_unique_exists > 0,
+    'ALTER TABLE financial_agreements DROP INDEX uq_financial_agreements_project',
     'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
