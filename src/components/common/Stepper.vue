@@ -24,17 +24,35 @@ interface Props {
   // upcoming (a "go to" link, not a wizard "go back"). When omitted,
   // navigability falls back to the clickable+complete rule above.
   isStepNavigable?: (index: number) => boolean
+  // Rank each step actually belongs to, parallel to `steps`, when the
+  // rendered list can be a subset of a larger canonical sequence (e.g.
+  // WorkflowProgress.vue drops Design/Supervision steps that don't
+  // apply to a given project). Status must be judged by a step's real
+  // position in the full sequence, not by where it happens to land in
+  // the shortened render array -- otherwise dropping an earlier step
+  // shifts every later one's local index down, and currentStep (also a
+  // rank, not a render position) stops lining up with any of them,
+  // silently turning every already-completed step grey. Omit for the
+  // common case where `steps` already covers a fixed, gap-free
+  // sequence (every wizard) -- render position and rank are the same
+  // thing there.
+  stepRanks?: number[]
 }
 
-const props = withDefaults(defineProps<Props>(), { clickable: false, isStepNavigable: undefined })
+const props = withDefaults(defineProps<Props>(), { clickable: false, isStepNavigable: undefined, stepRanks: undefined })
 
 const emit = defineEmits<{
   select: [index: number]
 }>()
 
+function rankOf(index: number): number {
+  return props.stepRanks?.[index] ?? index
+}
+
 function stepStatus(index: number): 'complete' | 'current' | 'upcoming' {
-  if (index < props.currentStep) return 'complete'
-  if (index === props.currentStep) return 'current'
+  const rank = rankOf(index)
+  if (rank < props.currentStep) return 'complete'
+  if (rank === props.currentStep) return 'current'
   return 'upcoming'
 }
 
@@ -66,7 +84,7 @@ const circleClasses = computed(() => (index: number) => {
 function connectorClasses(index: number): string[] {
   return [
     'h-0.5 flex-1 transition-colors duration-fast',
-    index < props.currentStep ? 'bg-success-500' : 'bg-border-default',
+    rankOf(index) < props.currentStep ? 'bg-success-500' : 'bg-border-default',
   ]
 }
 </script>

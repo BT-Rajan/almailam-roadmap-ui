@@ -51,10 +51,16 @@ const visibleStages = computed<WorkflowStage[]>(() =>
 
 const steps = computed(() => visibleStages.value.map((stage) => ({ label: getWorkflowStageLabel(stage) })))
 
-const currentStepIndex = computed(() => {
-  const index = visibleStages.value.indexOf(props.currentStage)
-  return index === -1 ? 0 : index
-})
+// Rank = position in the full, unfiltered WORKFLOW_STAGES sequence, not
+// in visibleStages -- Design/Supervision can drop in or out of
+// visibleStages as a project's selected activities change (see
+// compute_stage_flags), which would otherwise shift every later
+// step's render-array position and desync it from currentStepRank,
+// making already-completed steps render as if nothing were done (see
+// Stepper.vue's stepRanks prop).
+const stepRanks = computed(() => visibleStages.value.map((stage) => WORKFLOW_STAGES.indexOf(stage)))
+
+const currentStepRank = computed(() => WORKFLOW_STAGES.indexOf(props.currentStage))
 
 // Every visible stage has a destination now (see STAGE_TABS above), so
 // every step is navigable regardless of its complete/current/upcoming
@@ -76,7 +82,8 @@ function handleSelect(index: number): void {
       <div class="min-w-[720px]">
         <Stepper
           :steps="steps"
-          :current-step="currentStepIndex"
+          :current-step="currentStepRank"
+          :step-ranks="stepRanks"
           clickable
           :is-step-navigable="isStepNavigable"
           @select="handleSelect"
