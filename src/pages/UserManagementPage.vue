@@ -3,7 +3,7 @@ import { ListChecks, Plus, Users as UsersIcon } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
@@ -39,7 +39,7 @@ const authStore = useAuthStore()
 
 const activeTab = ref<'users' | 'roles'>('users')
 const selectedUserId = ref<string | undefined>(undefined)
-const isDrawerOpen = ref(false)
+const isProfileDialogOpen = ref(false)
 const isDialogOpen = ref(false)
 const editingUser = ref<AppUser | undefined>(undefined)
 const isResetConfirmOpen = ref(false)
@@ -100,7 +100,7 @@ onMounted(() => {
 
 function openUser(row: UserTableRow): void {
   selectedUserId.value = row.id
-  isDrawerOpen.value = true
+  isProfileDialogOpen.value = true
 }
 
 function openCreateDialog(): void {
@@ -111,7 +111,7 @@ function openCreateDialog(): void {
 function openEditDialog(user: AppUser): void {
   editingUser.value = user
   isDialogOpen.value = true
-  isDrawerOpen.value = false
+  isProfileDialogOpen.value = false
 }
 
 async function handleSave(user: AppUser): Promise<void> {
@@ -170,7 +170,7 @@ async function handleDeleteUser(): Promise<void> {
     await userStore.deleteUser(selectedUser.value.id)
     toastStore.show('success', 'User deleted', `${name} was removed from the firm.`)
     isDeleteConfirmOpen.value = false
-    isDrawerOpen.value = false
+    isProfileDialogOpen.value = false
   } catch (error) {
     toastStore.show('error', 'Failed to delete user', error instanceof Error ? error.message : 'Please try again.')
   } finally {
@@ -263,7 +263,7 @@ async function handleDeleteUser(): Promise<void> {
       />
     </div>
 
-    <BaseDrawer v-model="isDrawerOpen" title="User Profile" width="md">
+    <BaseDialog v-model="isProfileDialogOpen" title="User Profile" size="md">
       <div v-if="selectedUser" class="flex flex-col gap-4">
         <UserCard :user="selectedUser" />
         <div class="flex justify-end gap-3">
@@ -287,7 +287,7 @@ async function handleDeleteUser(): Promise<void> {
           <BaseButton @click="openEditDialog(selectedUser)">Edit User</BaseButton>
         </div>
       </div>
-    </BaseDrawer>
+    </BaseDialog>
 
     <UserDialog v-model="isDialogOpen" :user="editingUser" :saving="isSavingUser" @save="handleSave" />
 
