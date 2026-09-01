@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
+import type { ProfileUpdatePayload } from '@/services/authService'
 
 /**
  * Composable for accessing authentication state and actions
@@ -38,5 +39,6 @@ export function useAuth() {
     tryRefresh: () => authStore.tryRefresh(),
     changePassword: (currentPassword: string, newPassword: string) =>
       authStore.changePassword(currentPassword, newPassword),
+    updateProfile: (payload: ProfileUpdatePayload) => authStore.updateProfile(payload),
   }
 }

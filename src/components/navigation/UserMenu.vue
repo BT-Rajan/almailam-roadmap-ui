@@ -4,7 +4,6 @@ import { onBeforeUnmount, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ChangePasswordDialog from '@/components/navigation/ChangePasswordDialog.vue'
-import ProfileDialog from '@/components/navigation/ProfileDialog.vue'
 import { useAuth } from '@/composables/useAuthComposable'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useTheme } from '@/composables/useTheme'
@@ -15,7 +14,6 @@ const { username, logout } = useAuth()
 const { isDark, toggleMode } = useTheme()
 
 const isOpen = ref(false)
-const isProfileOpen = ref(false)
 const isChangePasswordOpen = ref(false)
 const menuRef = ref<HTMLElement>()
 const triggerRef = ref<HTMLButtonElement>()
@@ -95,8 +93,8 @@ function handleKeydown(event: KeyboardEvent): void {
     // keyboard user doesn't lose their place. Pointer-driven closes
     // (hover-out, click-outside, menu-item clicks) deliberately don't do
     // this -- it would fight focus the user didn't ask for (a click on
-    // "My Profile" should land focus in the dialog that opens, not back on
-    // this button).
+    // "Change Password" should land focus in the dialog that opens, not
+    // back on this button).
     triggerRef.value?.focus()
   }
 }
@@ -111,7 +109,7 @@ onBeforeUnmount(() => {
 
 function openProfile(): void {
   close()
-  isProfileOpen.value = true
+  router.push({ name: ROUTE_NAMES.MY_PROFILE })
 }
 
 function openChangePassword(): void {
@@ -199,7 +197,6 @@ async function handleLogout(): Promise<void> {
     </Teleport>
   </div>
 
-  <ProfileDialog v-model="isProfileOpen" />
   <ChangePasswordDialog v-model="isChangePasswordOpen" />
 </template>
 

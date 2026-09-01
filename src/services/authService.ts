@@ -43,4 +43,14 @@ function changePassword(currentPassword: string, newPassword: string): Promise<v
   })
 }
 
-export const authService = { login, refresh, logout, me, changePassword }
+export interface ProfileUpdatePayload {
+  name?: string
+  designation?: string | null
+  mobile?: string | null
+}
+
+function updateProfile(payload: ProfileUpdatePayload): Promise<CurrentUser> {
+  return apiClient.patch<CurrentUser>('/api/auth/me', payload)
+}
+
+export const authService = { login, refresh, logout, me, changePassword, updateProfile }

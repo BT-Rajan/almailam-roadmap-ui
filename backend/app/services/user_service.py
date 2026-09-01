@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.security import hash_password
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import ProfileUpdate, UserCreate, UserUpdate
 from app.services import audit_service
 
 ENTITY_TYPE = "USER"
@@ -88,6 +88,28 @@ def update_user(db: Session, user_id: int, payload: UserUpdate, actor_id: int) -
     db.commit()
     db.refresh(user)
     return user
+
+
+def update_own_profile(db: Session, current_user: User, payload: ProfileUpdate) -> User:
+    """Self-service edit of the caller's own profile (PATCH /api/auth/me).
+
+    Unlike update_user, there's no actor/target split and no role field
+    to guard -- current_user IS the target, and ProfileUpdate simply
+    doesn't carry a role, so there's nothing here for a user to
+    escalate with. Not audit-logged like admin-driven user changes:
+    those log because one person is changing another's account; a user
+    editing their own display name/designation/mobile isn't the kind of
+    event the audit trail (see audit_service) is meant to capture.
+    """
+    if payload.name is not None:
+        current_user.full_name = payload.name
+    if payload.designation is not None:
+        current_user.designation = payload.designation
+    if payload.mobile is not None:
+        current_user.mobile = payload.mobile
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 def set_user_status(db: Session, user_id: int, status: str, actor_id: int) -> User:

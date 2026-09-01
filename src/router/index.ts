@@ -444,6 +444,22 @@ const router = createRouter({
       },
     },
     {
+      // Reached from the header user menu ("My Profile"), not from the
+      // sidebar -- every authenticated user gets one, editing only their
+      // own account. See ProfilePage.vue.
+      path: '/profile',
+      name: ROUTE_NAMES.MY_PROFILE,
+      component: () => import('@/pages/ProfilePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'My Profile' },
+        ],
+      },
+    },
+    {
       path: '/messages',
       name: ROUTE_NAMES.MESSAGE_CENTRE,
       component: () => import('@/pages/MessageCentrePage.vue'),

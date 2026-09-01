@@ -11,8 +11,8 @@ from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
 )
-from app.schemas.user import UserOut
-from app.services import auth_service
+from app.schemas.user import ProfileUpdate, UserOut
+from app.services import auth_service, user_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
@@ -91,3 +91,13 @@ def change_password(
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     return UserOut.from_model(current_user)
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    payload: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user = user_service.update_own_profile(db, current_user, payload)
+    return UserOut.from_model(user)

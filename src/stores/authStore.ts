@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-import { authService, type CurrentUser } from '@/services/authService'
+import { authService, type CurrentUser, type ProfileUpdatePayload } from '@/services/authService'
 
 interface AuthState {
   accessToken: string | null
@@ -42,6 +42,14 @@ export const useAuthStore = defineStore('auth', {
         // Best-effort server-side revoke; clear local state regardless.
       }
       this._clearToken()
+    },
+
+    // Updates the caller's own profile (name/designation/mobile) and
+    // refreshes local user state from the response, so the header avatar,
+    // initials and "My Profile" details stay in sync immediately without
+    // a separate /me refetch.
+    async updateProfile(payload: ProfileUpdatePayload) {
+      this.user = await authService.updateProfile(payload)
     },
 
     // Backend revokes every refresh token on a successful password change,

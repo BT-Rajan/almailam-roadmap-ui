@@ -74,6 +74,25 @@ class UserUpdate(BaseModel):
         return value
 
 
+class ProfileUpdate(BaseModel):
+    """Body for PATCH /api/auth/me -- a user editing their own profile.
+
+    Deliberately a narrower field set than UserUpdate: no `role`, since
+    a self-service edit must never let someone grant themselves a
+    different role (the admin-only UserUpdate path already blocks a
+    user from changing their *own* role -- see user_service.update_user
+    -- but that guard only matters if it's reachable; this schema makes
+    it unreachable here in the first place). Email is likewise left out
+    of self-service editing for now: it doubles as the login username
+    for most accounts (see User.username), so changing it needs its own
+    uniqueness/verification handling rather than being folded in here.
+    """
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    designation: str | None = Field(default=None, max_length=120)
+    mobile: str | None = Field(default=None, max_length=30)
+
+
 class UserStatusUpdate(BaseModel):
     status: str
 
