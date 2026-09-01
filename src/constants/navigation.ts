@@ -22,5 +22,6 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
     routeName: ROUTE_NAMES.ADMIN,
     icon: 'Settings',
     matchPath: '/admin',
+    adminOnly: true,
   },
 ]

@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
+import { computed } from 'vue'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
+import { useAuth } from '@/composables/useAuthComposable'
 import { PRIMARY_NAV_ITEMS } from '@/constants/navigation'
 import { useNavigationStore } from '@/stores/navigationStore'
 
 const navigationStore = useNavigationStore()
+const { isAdmin } = useAuth()
+
+// adminOnly items (currently just Administration) are hidden from the nav
+// entirely for every other role -- the route itself also redirects a
+// non-admin who navigates there directly (see router/index.ts's adminOnly
+// guard), but a visible menu link to a page you'll immediately get bounced
+// out of is confusing on its own, so it's filtered out here too.
+const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin.value))
 </script>
 
 <template>
@@ -29,7 +39,7 @@ const navigationStore = useNavigationStore()
 
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       <SidebarItem
-        v-for="item in PRIMARY_NAV_ITEMS"
+        v-for="item in visibleNavItems"
         :key="item.routeName"
         :item="item"
         :collapsed="navigationStore.isSidebarCollapsed"

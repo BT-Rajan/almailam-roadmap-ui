@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
+import { computed } from 'vue'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
+import { useAuth } from '@/composables/useAuthComposable'
 import { PRIMARY_NAV_ITEMS } from '@/constants/navigation'
 import { useNavigationStore } from '@/stores/navigationStore'
 
 const navigationStore = useNavigationStore()
+const { isAdmin } = useAuth()
+
+// Same adminOnly filter as Sidebar.vue -- kept in sync so the mobile drawer
+// never shows a link the desktop nav wouldn't.
+const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin.value))
 </script>
 
 <template>
@@ -42,7 +49,7 @@ const navigationStore = useNavigationStore()
       </div>
 
       <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4" @click="navigationStore.closeMobileSidebar">
-        <SidebarItem v-for="item in PRIMARY_NAV_ITEMS" :key="item.routeName" :item="item" />
+        <SidebarItem v-for="item in visibleNavItems" :key="item.routeName" :item="item" />
       </nav>
     </aside>
   </Transition>

@@ -333,6 +333,14 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        // Administration is Administrator-only, full stop -- the backend
+        // already enforces this (every /api/users, /api/roles, etc. route
+        // requires the Administration permission, which only the
+        // Administrator role has by default), but the frontend previously
+        // let any authenticated user navigate here and see the module
+        // grid before its API calls 403'd. Same fix as adminOnly below
+        // applied to the whole /admin/* subtree, not just AI.
+        adminOnly: true,
         breadcrumbs: [{ label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD }, { label: 'Administration' }],
       },
     },
@@ -343,6 +351,7 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
@@ -357,6 +366,7 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
@@ -371,6 +381,7 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
@@ -385,12 +396,6 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
-        // Provider keys, the grounding prompt, and every other setting on
-        // this page are administrator-only -- the backend already
-        // enforces this (Administration permission on every /api/ai/*
-        // route), but a non-admin who navigates here directly previously
-        // still saw the page shell before its API calls failed. Redirect
-        // before that happens instead.
         adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
@@ -406,6 +411,7 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
@@ -420,6 +426,7 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
+        adminOnly: true,
         breadcrumbs: [
           { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'Administration', routeName: ROUTE_NAMES.ADMIN },
