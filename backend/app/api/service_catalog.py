@@ -16,10 +16,17 @@ from app.services import service_catalog_service
 
 router = APIRouter(prefix="/api/service-catalog", tags=["service-catalog"])
 
-# Service catalog configuration is Administration-level settings, same
-# module the workflow templates and government forms admin pages are
-# gated behind.
-can_view = require_permission("Administration", "view")
+# Reading the catalog is not Administration-level -- every role that can
+# view/create projects (Project Manager, Engineer, Document Controller,
+# Viewer -- all have Projects:view) needs it to pick services in the New
+# Project wizard and to render selected services/activities elsewhere
+# (quotations, contracts, project overview). Only mutating the catalog
+# (create/rename/remove a service or activity) is Administrator-only.
+# Gating the read on Administration:view meant every non-Administrator
+# role got a silent 403 the moment the wizard's service picker opened --
+# swallowed by the frontend into "No Design services in the catalog yet."
+# with no visible error, even though the catalog was populated.
+can_view = require_permission("Projects", "view")
 can_edit = require_permission("Administration", "edit")
 
 

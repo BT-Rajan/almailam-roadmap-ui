@@ -33,7 +33,6 @@ const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/componen
 const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
 const ClientDocumentVersionDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentVersionDialog.vue'))
 const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
-const ClientAuditTrail = defineAsyncComponent(() => import('@/components/client/ClientAuditTrail.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -110,7 +109,6 @@ const TABS: ClientWorkspaceTab[] = [
   { key: 'identification', label: 'Identification' },
   { key: 'documents', label: 'Documents' },
   { key: 'projects', label: 'Projects' },
-  { key: 'activity', label: 'Activity' },
 ]
 
 const client = computed(() => clientStore.getClientById(clientId.value))
@@ -168,9 +166,12 @@ async function loadData(): Promise<void> {
     await clientStore.loadClients()
   }
   await clientStore.loadClientDetail(clientId.value)
-  if (projectStore.projects.length === 0) {
-    await projectStore.loadProjects()
-  }
+  // Always fetch fresh -- not guarded by a `.length === 0` cache check.
+  // A project's stage/status can change elsewhere in the app (or from
+  // another session) between visits, and the Projects tab here should
+  // show the current state, not whatever was cached from an earlier,
+  // unrelated page's fetch.
+  await projectStore.loadProjects()
   // Cheap, targeted check (only scans this client's own identification
   // numbers against others), unlike the free-text onboarding-wizard
   // duplicate check -- safe to run automatically on every workspace visit.
@@ -835,16 +836,6 @@ function createProjectForClient(): void {
             @open="openProject"
           />
         </div>
-      </div>
-
-      <div
-        v-else-if="activeTab === 'activity'"
-        id="client-tabpanel-activity"
-        role="tabpanel"
-        aria-labelledby="client-tab-activity"
-        tabindex="0"
-      >
-        <ClientAuditTrail :events="clientStore.auditEvents" />
       </div>
 
 

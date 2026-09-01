@@ -252,6 +252,20 @@ onMounted(async () => {
   if (permitCatalogStore.permits.length === 0) {
     await permitCatalogStore.loadPermits()
   }
+
+  // Both stores swallow a failed load into their own `.error` field
+  // rather than throwing (see serviceCatalogStore/permitCatalogStore),
+  // which otherwise looks identical to "the catalog is genuinely empty"
+  // -- the service picker has no error state of its own and would just
+  // print "No Design services in the catalog yet." either way. Surface
+  // it here instead so a real load failure (permissions, network) is
+  // never silently indistinguishable from an empty catalog.
+  if (serviceCatalogStore.error) {
+    toastStore.show('error', 'Could not load the service catalog', serviceCatalogStore.error)
+  }
+  if (permitCatalogStore.error) {
+    toastStore.show('error', 'Could not load the permit catalog', permitCatalogStore.error)
+  }
 })
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
