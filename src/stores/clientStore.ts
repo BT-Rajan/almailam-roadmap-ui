@@ -18,7 +18,6 @@ import { triggerBlobDownload } from '@/utils/fileDownload'
 import type {
   Client,
   ClientAddress,
-  ClientAuditEvent,
   ClientContact,
   ClientDocument,
   ClientDocumentVersion,
@@ -52,7 +51,6 @@ interface ClientStoreState {
   documents: ClientDocument[]
   documentVersions: ClientDocumentVersion[]
   verifications: ClientVerification[]
-  auditEvents: ClientAuditEvent[]
   isDetailLoading: boolean
   detailError: string | undefined
   // Server-paginated browse state for ClientsPage -- separate from
@@ -80,7 +78,6 @@ export const useClientStore = defineStore('client', {
     documents: [],
     documentVersions: [],
     verifications: [],
-    auditEvents: [],
     isDetailLoading: false,
     detailError: undefined,
     pageItems: [],
@@ -162,20 +159,18 @@ export const useClientStore = defineStore('client', {
       this.isDetailLoading = true
       this.detailError = undefined
       try {
-        const [contacts, addresses, identifications, documents, verifications, auditEvents] = await Promise.all([
+        const [contacts, addresses, identifications, documents, verifications] = await Promise.all([
           clientService.getContactsForClient(clientId),
           clientService.getAddressesForClient(clientId),
           clientService.getIdentificationsForClient(clientId),
           clientService.getDocumentsForClient(clientId),
           clientService.getVerificationsForClient(clientId),
-          clientService.getAuditEventsForClient(clientId),
         ])
         this.contacts = contacts
         this.addresses = addresses
         this.identifications = identifications
         this.documents = documents
         this.verifications = verifications
-        this.auditEvents = auditEvents
       } catch {
         this.detailError = 'Unable to load the client profile. Please try again.'
       } finally {

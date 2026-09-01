@@ -163,20 +163,9 @@ export interface ClientVerification {
   documentId?: string
 }
 
-export interface ClientAuditEvent {
-  id: string
-  clientId: string
-  action: string
-  user: string
-  timestamp: string
-  previousValue?: string
-  newValue?: string
-  reason?: string
-}
-
 export type ClientViewMode = 'grid' | 'table'
 
-export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'projects' | 'activity'
+export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'projects'
 
 export interface ClientWorkspaceTab {
   key: ClientWorkspaceTabKey

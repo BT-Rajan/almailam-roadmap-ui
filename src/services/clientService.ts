@@ -3,7 +3,6 @@ import { useAuthStore } from '@/stores/authStore'
 import type {
   Client,
   ClientAddress,
-  ClientAuditEvent,
   ClientCommunicationPreference,
   ClientContact,
   ClientDocument,
@@ -560,18 +559,6 @@ async function createVerification(clientId: string, input: ClientVerificationInp
 }
 
 /**
- * Fetch audit events for a specific client from backend API
- */
-async function getAuditEventsForClient(clientId: string): Promise<ClientAuditEvent[]> {
-  try {
-    return await apiClient.get<ClientAuditEvent[]>(`/api/clients/${clientId}/audit-events`)
-  } catch (error) {
-    console.error(`Failed to fetch audit events for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
-  }
-}
-
-/**
  * Find possible duplicate clients based on name, mobile, and email
  * Calls backend API to check for duplicates before creating new client
  */
@@ -720,7 +707,6 @@ export const clientService = {
   createVerification,
   updateOnboardingState,
   autoAdvanceOnboarding,
-  getAuditEventsForClient,
   findPossibleDuplicates,
   findIdentificationDuplicates,
   mergeClients,
