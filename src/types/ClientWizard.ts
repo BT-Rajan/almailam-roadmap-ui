@@ -101,7 +101,12 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       dateOfIncorporation: '',
       website: '',
     },
-    contacts: [{ name: '', contactType: 'Primary Contact', mobile: '', email: '', isAuthorisedRepresentative: true }],
+    // Starts empty rather than with one pre-seeded blank row -- goNext()
+    // (NewClientWizardPage.vue) adds a Contact 1 automatically when
+    // leaving Client Type only if the user actually entered a mobile or
+    // email there; otherwise Contacts & Address correctly shows no
+    // contact until the user adds one themselves.
+    contacts: [],
     address: {
       addressType: 'Registered',
       country: 'Kuwait',
