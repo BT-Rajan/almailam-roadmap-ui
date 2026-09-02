@@ -407,6 +407,7 @@ async function handleConfirmDelete(): Promise<void> {
         :current-value="project.currentStage"
         :includes-design="project.includesDesign"
         :includes-supervision="project.includesSupervision"
+        :project-id="project.id"
         :loading="isStageSaving"
         @confirm="handleConfirmStage"
       />

@@ -15,6 +15,7 @@ from app.schemas.project import (
     ProjectUpdate,
     ScopeOfWorkOut,
     ScopeRevisionOut,
+    StageEligibilityOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
 from app.services import project_service, timeline_service
@@ -122,6 +123,11 @@ def set_stage(
         db, project_no, payload.currentStage, payload.reason, current_user.id
     )
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.get("/{project_no}/stage-eligibility", response_model=list[StageEligibilityOut])
+def get_stage_eligibility(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return project_service.get_stage_eligibility(db, project_no)
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)

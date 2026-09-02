@@ -30,6 +30,18 @@ export type WorkflowStage =
   | 'Supervision'
   | 'Government Submission'
 
+// One entry per structurally-reachable next stage for this project
+// right now -- see projectService.getStageEligibility and backend
+// project_service.get_stage_eligibility, the single source of truth
+// this mirrors. A stage the project can't reach at all (e.g. Design
+// when it has no Design work) is left out entirely, not reported
+// ineligible.
+export interface StageEligibility {
+  stage: WorkflowStage
+  eligible: boolean
+  reason?: string
+}
+
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
 // One Supervision activity picked in the unified ServicePickerDialog at

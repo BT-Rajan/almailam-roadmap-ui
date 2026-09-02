@@ -284,3 +284,14 @@ class ProjectStatusUpdate(BaseModel):
     _check = field_validator("status")(_enum_validator(PROJECT_STATUSES, "status"))
 
 
+class StageEligibilityOut(BaseModel):
+    """One entry per structurally-reachable next stage for this project
+    right now -- see project_service.get_stage_eligibility. A stage the
+    project can't reach at all (e.g. Design when it has no Design work)
+    is left out entirely rather than reported ineligible."""
+
+    stage: str
+    eligible: bool
+    reason: str | None = None
+
+

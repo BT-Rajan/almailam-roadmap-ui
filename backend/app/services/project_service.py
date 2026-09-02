@@ -646,6 +646,38 @@ def _apply_stage_change(
     recompute_progress(db, project)
 
 
+def get_stage_eligibility(db: Session, project_no: str) -> list[dict]:
+    """One source of truth for "can this project move to stage X right
+    now, and if not, why" -- reuses _assert_stage_exit_criteria itself
+    (a pure check, no writes) rather than a second copy of the same
+    rules, so the Stage dialog can show real-time eligibility instead of
+    only failing after the fact on submit. Structurally-impossible
+    targets (Design/Supervision when the project doesn't include that
+    kind of work) are left out entirely rather than reported as
+    ineligible -- same "don't even offer it" behavior the dialog already
+    had via includesDesign/includesSupervision, just computed once here
+    instead of duplicated on the frontend.
+    """
+    project = get_project(db, project_no)
+    includes_design, includes_supervision = compute_stage_flags(
+        get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+    )
+
+    results: list[dict] = []
+    for candidate in sorted(PROJECT_STAGE_ALLOWED_TRANSITIONS.get(project.current_stage, set())):
+        if candidate == "Design" and not includes_design:
+            continue
+        if candidate == "Supervision" and not includes_supervision:
+            continue
+        try:
+            _assert_stage_exit_criteria(db, project, project.current_stage, candidate)
+        except ValidationAppError as error:
+            results.append({"stage": candidate, "eligible": False, "reason": str(error)})
+        else:
+            results.append({"stage": candidate, "eligible": True, "reason": None})
+    return results
+
+
 def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, user_id: int | None) -> Project:
     project = get_project(db, project_no)
     previous_stage = project.current_stage
@@ -758,6 +790,27 @@ def get_scope_revisions_with_names(db: Session, project_id: int) -> list[tuple[P
     return [(r, engineer_name(db, r.changed_by)) for r in revisions]
 
 
+def _assert_requirement_editable(db: Session, project: Project) -> None:
+    """Once a quotation has been finalized (locked content, see
+    quotation_service's finalize rule), the Requirement stage's own
+    scope-of-work text is frozen too -- the quotation was built against
+    that exact scope, so editing it afterward would silently invalidate
+    a document staff already treat as final. Checked here rather than
+    only on the frontend so a direct API call can't bypass it either,
+    same convention as every other lock in this app (Quotation/Contract
+    content, Draft-only Payment Plan edits)."""
+    has_finalized_quotation = (
+        db.query(Quotation)
+        .filter(Quotation.project_id == project.id, Quotation.finalized_at.isnot(None), Quotation.deleted_at.is_(None))
+        .first()
+        is not None
+    )
+    if has_finalized_quotation:
+        raise ValidationAppError(
+            "The scope of work is locked -- this project's quotation has already been finalized against it."
+        )
+
+
 def save_scope_of_work(
     db: Session,
     project_no: str,
@@ -773,6 +826,7 @@ def save_scope_of_work(
     silently keep covering whatever the text becomes after further
     edits."""
     project = get_project(db, project_no)
+    _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
     if not scope_text:
         raise ValidationAppError("Scope of work cannot be empty.")

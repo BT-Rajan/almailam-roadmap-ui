@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity } from '@/types/Project'
+import type { Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -155,6 +155,22 @@ async function setStage(projectId: string, currentStage: string, reason?: string
 }
 
 /**
+ * One entry per structurally-reachable next stage for this project
+ * right now, each with whether it's actually eligible and, if not, why
+ * -- backs the Stage dialog's proactive validation (see
+ * project_service.get_stage_eligibility, the single source of truth
+ * this mirrors rather than duplicating the exit-criteria rules here).
+ */
+async function getStageEligibility(projectId: string): Promise<StageEligibility[]> {
+  try {
+    return await apiClient.get<StageEligibility[]>(`/api/projects/${projectId}/stage-eligibility`)
+  } catch (error) {
+    console.error(`Failed to fetch stage eligibility for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch stage eligibility')
+  }
+}
+
+/**
  * Change a project's operational status (Active/On Hold/Cancelled).
  * `reason` is required for some transitions (On Hold, Cancelled, and
  * reopening a Cancelled project) -- enforced server-side.
@@ -288,6 +304,7 @@ export const projectService = {
   createProject,
   updateProject,
   setStage,
+  getStageEligibility,
   setStatus,
   deleteProject,
   getScopeOfWork,

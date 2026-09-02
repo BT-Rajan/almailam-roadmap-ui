@@ -20,6 +20,7 @@ from app.models.payment import (
     PaymentObligation,
     Refund,
 )
+from app.models.contract import Contract
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.services import notification_service
@@ -265,7 +266,13 @@ def _assert_agreement_editable(db: Session, agreement: FinancialAgreement, actio
     from under it, and a delete would orphan entirely -- Payment's own
     FK to financial_agreements is ON DELETE RESTRICT, so the database
     would refuse the delete anyway, but this gives a clear reason
-    instead of a raw constraint-violation error)."""
+    instead of a raw constraint-violation error). Also refuses once the
+    project has a Contract on file at all -- project_service._assert_
+    stage_exit_criteria already requires every included stream's
+    agreement to be Approved before Contract is reachable, so a Draft
+    agreement shouldn't normally coexist with an existing contract in
+    practice; this is the explicit, defensive version of that same
+    rule rather than relying on it only holding true implicitly."""
     if agreement.status != "Draft":
         raise ValidationAppError(
             f"Only a Draft payment plan can be {action} -- once Approved it's terminal; "
@@ -275,6 +282,16 @@ def _assert_agreement_editable(db: Session, agreement: FinancialAgreement, actio
         raise ValidationAppError(
             f"This payment plan already has payments recorded against it and can no longer be {action} -- "
             "use an Adjustment or Refund instead."
+        )
+    has_contract = (
+        db.query(Contract)
+        .filter(Contract.project_id == agreement.project_id, Contract.deleted_at.is_(None))
+        .first()
+        is not None
+    )
+    if has_contract:
+        raise ValidationAppError(
+            f"This project already has a contract on file, so its payment plan can no longer be {action}."
         )
 
 

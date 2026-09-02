@@ -14,7 +14,9 @@ import FileUploader from '@/components/document/FileUploader.vue'
 import ScopeRevisionHistory from '@/components/project/ScopeRevisionHistory.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
+import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey, ScopeOfWork, ScopeRevision } from '@/types/Project'
@@ -32,7 +34,17 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const projectStore = useProjectStore()
+const clientStore = useClientStore()
+const quotationStore = useQuotationStore()
 const toastStore = useToastStore()
+
+// Once any of this project's quotations has been finalized, the scope
+// it was built against is frozen too -- see backend project_service.
+// _assert_requirement_editable. Reads straight from quotationStore.
+// quotations without loading it here -- ProjectWorkspacePage.vue's own
+// loadData() already fetches this project's quotations before any tab
+// (this one included) ever mounts.
+const isRequirementLocked = computed(() => quotationStore.quotations.some((quotation) => quotation.finalizedAt))
 
 const isLoading = ref(false)
 const error = ref<string>()
@@ -57,13 +69,39 @@ async function load(): Promise<void> {
   }
 }
 
-onMounted(load)
-watch(() => props.project.id, load)
+// Mirrors the real exit criterion for Requirement -> Quotation exactly
+// (project_service._assert_stage_exit_criteria) -- an identification
+// record on file, not just any uploaded document. Approving without
+// this used to "succeed" but silently leave the project stuck at
+// Requirement with no explanation (try_auto_advance_stage no-ops
+// quietly when the criteria aren't met yet) -- surfaced here instead so
+// staff know what's actually still missing before they click Approve.
+function loadClientIdentification(): void {
+  if (props.client) clientStore.loadClientDetail(props.client.id)
+}
 
+onMounted(load)
+onMounted(loadClientIdentification)
+watch(() => props.project.id, load)
+watch(() => props.client?.id, loadClientIdentification)
+
+const hasClientIdentification = computed(() => clientStore.identifications.length > 0)
 const hasTextChanged = computed(() => scopeDraft.value.trim() !== (scopeOfWork.value?.description ?? '').trim())
-const canSave = computed(() => scopeDraft.value.trim().length > 0 && (hasTextChanged.value || Boolean(selectedFile.value)))
+const canSave = computed(
+  () => !isRequirementLocked.value && scopeDraft.value.trim().length > 0 && (hasTextChanged.value || Boolean(selectedFile.value)),
+)
+// Scope approval itself is an internal sign-off independent of client
+// identification (see project_service.approve_scope_of_work) -- only
+// the *stage* move to Quotation needs identification on file too (see
+// _assert_stage_exit_criteria). So this button stays enabled without
+// it (approving scope while waiting on the client's ID is a legitimate
+// sequence), but the warning below sets the right expectation first.
 const canApprove = computed(
-  () => scopeOfWork.value?.scopeStatus === 'Draft' && (scopeOfWork.value?.description ?? '').trim().length > 0 && !hasTextChanged.value,
+  () =>
+    !isRequirementLocked.value &&
+    scopeOfWork.value?.scopeStatus === 'Draft' &&
+    (scopeOfWork.value?.description ?? '').trim().length > 0 &&
+    !hasTextChanged.value,
 )
 
 async function handleSave(): Promise<void> {
@@ -100,6 +138,12 @@ async function handleApprove(): Promise<void> {
     if (updated.currentStage === 'Quotation') {
       toastStore.show('success', 'Scope of work approved', 'The project moved on to Quotation.')
       emit('navigate-tab', 'quotation')
+    } else if (!hasClientIdentification.value) {
+      toastStore.show(
+        'success',
+        'Scope of work approved',
+        "Internal approval recorded, but the project stays at Requirement until the client's identification document is on file too.",
+      )
     } else {
       toastStore.show('success', 'Scope of work approved', 'Internal approval recorded.')
     }
@@ -176,6 +220,12 @@ const clientDetailItems = computed(() => {
             :label="scopeOfWork.scopeStatus"
             :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
           />
+          <span
+            v-if="isRequirementLocked"
+            class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+          >
+            Content Locked
+          </span>
         </div>
       </template>
 
@@ -183,7 +233,11 @@ const clientDetailItems = computed(() => {
       <SkeletonLoader v-else-if="isLoading" :rows="5" />
 
       <div v-else class="flex flex-col gap-4">
-        <p v-if="scopeOfWork?.scopeStatus === 'Approved'" class="text-sm text-text-secondary">
+        <p v-if="isRequirementLocked" class="text-sm text-text-secondary">
+          This project's quotation has already been finalized against this scope, so it's locked -- a change here
+          would no longer match what was quoted.
+        </p>
+        <p v-else-if="scopeOfWork?.scopeStatus === 'Approved'" class="text-sm text-text-secondary">
           Approved{{ scopeOfWork.scopeApprovedBy ? ` by ${scopeOfWork.scopeApprovedBy}` : '' }}{{
             scopeOfWork.scopeApprovedAt ? ` on ${formatDateTime(scopeOfWork.scopeApprovedAt)}` : ''
           }}. Editing the text below will reopen it for approval.
@@ -194,18 +248,26 @@ const clientDetailItems = computed(() => {
           label="Scope of Work"
           placeholder="What has the client asked for..."
           :rows="6"
+          :disabled="isRequirementLocked"
         />
 
-        <TextArea
-          v-model="summaryDraft"
-          label="Change Summary (optional)"
-          placeholder="What changed in this revision..."
-          :rows="2"
-        />
+        <template v-if="!isRequirementLocked">
+          <TextArea
+            v-model="summaryDraft"
+            label="Change Summary (optional)"
+            placeholder="What changed in this revision..."
+            :rows="2"
+          />
 
-        <FileUploader hint="Optional supporting document (PDF, Word, Excel or image)" @select="selectedFile = $event" />
+          <FileUploader hint="Optional supporting document (PDF, Word, Excel or image)" @select="selectedFile = $event" />
+        </template>
 
-        <div class="flex flex-wrap items-center justify-end gap-2 no-print">
+        <p v-if="canApprove && !hasClientIdentification" class="text-xs text-danger-500">
+          The client has no identification document on file yet (e.g. Civil ID) -- Approve will still record this
+          internal sign-off, but the project will stay at Requirement until identification is added too.
+        </p>
+
+        <div v-if="!isRequirementLocked" class="flex flex-wrap items-center justify-end gap-2 no-print">
           <BaseButton variant="secondary" :disabled="!canSave" :loading="isSaving" @click="handleSave">
             Save Scope of Work
           </BaseButton>
