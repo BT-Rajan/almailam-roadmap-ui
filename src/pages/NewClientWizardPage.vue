@@ -294,14 +294,35 @@ async function submitWizard(): Promise<void> {
 
     const subRecordRequests: Promise<unknown>[] = []
 
-    for (const contact of form.value.contacts.filter(isContactTouched)) {
+    const touchedContacts = form.value.contacts.filter(isContactTouched)
+
+    if (touchedContacts.length > 0) {
+      for (const contact of touchedContacts) {
+        subRecordRequests.push(
+          clientStore.createContact(client.id, {
+            name: contact.name,
+            contactType: contact.contactType,
+            mobile: contact.mobile,
+            email: contact.email,
+            isAuthorisedRepresentative: contact.isAuthorisedRepresentative,
+          }),
+        )
+      }
+    } else if (form.value.mobile.trim() && form.value.email.trim()) {
+      // No row was added on the Contacts & Address step (that step no
+      // longer pre-fills or requires one -- see git history), but Client
+      // Type already collected a mobile/email/name and saved them onto
+      // the client record itself as contactPerson/mobile/email. Without
+      // this, that same information silently never becomes an actual
+      // Contact row, so the client's Contacts tab shows "No contacts on
+      // file" despite the user having entered a contact's details.
       subRecordRequests.push(
         clientStore.createContact(client.id, {
-          name: contact.name,
-          contactType: contact.contactType,
-          mobile: contact.mobile,
-          email: contact.email,
-          isAuthorisedRepresentative: contact.isAuthorisedRepresentative,
+          name: isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
+          contactType: 'Primary Contact',
+          mobile: form.value.mobile,
+          email: form.value.email,
+          isAuthorisedRepresentative: true,
         }),
       )
     }
