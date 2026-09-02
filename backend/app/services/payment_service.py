@@ -170,7 +170,14 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
         contract_start_date = payload.contractStartDate
         contract_end_date = payload.contractEndDate
         payment_frequency = payload.paymentFrequency
-        schedule = calc.generate_even_schedule(contract_amount, contract_start_date, contract_end_date, payment_frequency)
+        if payload.milestones:
+            milestones = [
+                {"description": m.description, "percentage": m.percentage, "dueDate": m.dueDate}
+                for m in payload.milestones
+            ]
+            schedule = calc.generate_milestone_schedule(contract_amount, milestones)
+        else:
+            schedule = calc.generate_even_schedule(contract_amount, contract_start_date, contract_end_date, payment_frequency)
 
     agreement = FinancialAgreement(
         project_id=project.id,

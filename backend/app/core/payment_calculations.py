@@ -198,6 +198,46 @@ def generate_even_schedule(
     return installments
 
 
+def generate_milestone_schedule(contract_amount: Decimal, milestones: list[dict]) -> list[dict]:
+    """Percentage-of-contract milestone schedule -- the "how many
+    payments, what % and when" plan (e.g. 25% at signup / 25% on design
+    approval / 25% on approval filed / final on handover) offered as an
+    alternative to generate_even_schedule's date-interval split. Each
+    milestone dict is {"description": str, "percentage": Decimal,
+    "dueDate": date}, already validated by the caller to number 1-5 and
+    sum to 100 -- this function trusts that and just converts percentages
+    to money, folding any rounding remainder into the final milestone so
+    the schedule always sums exactly to contract_amount (same rounding
+    approach as generate_even_schedule).
+    """
+    if not milestones:
+        return [
+            {"sequenceNumber": 1, "description": "Full payment", "amountDue": contract_amount, "dueDate": None}
+        ]
+
+    count = len(milestones)
+    running_total = Decimal("0")
+    schedule: list[dict] = []
+    for index, milestone in enumerate(milestones):
+        is_last = index == count - 1
+        if is_last:
+            amount = (contract_amount - running_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        else:
+            percentage = Decimal(str(milestone["percentage"]))
+            amount = (contract_amount * percentage / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+        running_total += amount
+        schedule.append(
+            {
+                "sequenceNumber": index + 1,
+                "description": milestone["description"],
+                "amountDue": amount,
+                "dueDate": milestone["dueDate"],
+            }
+        )
+
+    return schedule
+
+
 @dataclass(frozen=True)
 class SupervisionActivityPeriod:
     """One selected Supervision activity's billable window (migration

@@ -143,6 +143,14 @@ export interface RecordPaymentInput {
   allocations: RecordPaymentAllocationInput[]
 }
 
+// One row of a milestone payment plan, e.g. "25% at signup". percentage
+// is of the agreement's contractAmount -- see CreateAgreementInput.
+export interface PaymentMilestoneInput {
+  description: string
+  percentage: number
+  dueDate: string
+}
+
 export interface CreateAgreementInput {
   projectId: string
   stream: AgreementStream
@@ -158,4 +166,9 @@ export interface CreateAgreementInput {
   contractReference?: string
   paymentMode: PaymentMode
   paymentFrequency?: PaymentFrequency
+  // A milestone plan (1-5 installments, e.g. 25% at signup / 25% on
+  // design approval / 25% on approval filed / final on handover) --
+  // sent instead of relying on paymentFrequency's even date-interval
+  // split when paymentFrequency is 'Custom'. Ignored for Supervision.
+  milestones?: PaymentMilestoneInput[]
 }

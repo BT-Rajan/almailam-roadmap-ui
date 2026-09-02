@@ -1,10 +1,13 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core import payment_calculations as calc
 from app.models.payment import ADJUSTMENT_TYPES, PAYMENT_FREQUENCIES, PAYMENT_MODES
+
+MAX_MILESTONES = 5
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -60,6 +63,16 @@ class FinancialAgreementOut(BaseModel):
         )
 
 
+class MilestoneInput(BaseModel):
+    """One row of a milestone payment plan (e.g. '25% at signup') --
+    percentage is of the agreement's contractAmount, not a fixed sum, so
+    the plan still makes sense if contractAmount is edited before submit."""
+
+    description: str = Field(min_length=1, max_length=100)
+    percentage: float = Field(gt=0, le=100)
+    dueDate: date
+
+
 class FinancialAgreementCreate(BaseModel):
     projectId: str
     # Design (the default, matching every agreement created before this
@@ -79,9 +92,28 @@ class FinancialAgreementCreate(BaseModel):
     contractReference: str | None = Field(default=None, max_length=30)
     paymentMode: str
     paymentFrequency: str | None = None
+    # A milestone plan (e.g. 25% at signup / 25% on design approval /
+    # 25% on approval filed / final on handover) -- an alternative to
+    # paymentFrequency's date-interval split, used when paymentFrequency
+    # is "Custom". Ignored for Supervision, which always derives its own
+    # (monthly, prorated) schedule server-side.
+    milestones: list[MilestoneInput] | None = None
 
     _check_mode = field_validator("paymentMode")(_enum_validator(PAYMENT_MODES, "paymentMode"))
     _check_freq = field_validator("paymentFrequency")(_optional_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))
+
+    @model_validator(mode="after")
+    def _check_milestones(self) -> "FinancialAgreementCreate":
+        if self.milestones is None:
+            return self
+        if len(self.milestones) > MAX_MILESTONES:
+            raise ValueError(f"A payment plan can have at most {MAX_MILESTONES} installments.")
+        total = sum((Decimal(str(m.percentage)) for m in self.milestones), Decimal("0"))
+        # Allow a hair of rounding slack (e.g. three 33.33% rows) but
+        # not a plan that's actually short of or over 100%.
+        if abs(total - Decimal("100")) > Decimal("0.5"):
+            raise ValueError(f"Milestone percentages must add up to 100% (currently {total}%).")
+        return self
 
 
 # --- obligation ------------------------------------------------------------

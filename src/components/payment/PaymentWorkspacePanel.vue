@@ -11,6 +11,7 @@ import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import PaymentSummaryCards from '@/components/payment/PaymentSummaryCards.vue'
 import PaymentTimeline from '@/components/payment/PaymentTimeline.vue'
 import RecordPaymentDialog from '@/components/payment/RecordPaymentDialog.vue'
+import { useContractStore } from '@/stores/contractStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 
 const store = usePaymentStore()
 const projectStore = useProjectStore()
+const contractStore = useContractStore()
 // Matches every other create/edit/delete-style action in the app
 // (Clients, Projects, Quotations, Contracts, Government Submissions) --
 // an explicit acknowledgment dialog for actions that change money on
@@ -97,7 +99,18 @@ async function loadDetailIfNeeded(): Promise<void> {
 }
 
 onMounted(loadDetailIfNeeded)
+onMounted(() => contractStore.loadContractsForProject(props.projectId))
 watch(agreementIds, loadDetailIfNeeded)
+
+// The most recent Signed/Active contract for this project, if any --
+// used to pre-fill Total Contract Amount and Currency on the "Create
+// Financial Agreement" form instead of leaving them blank for staff to
+// re-type from the contract that was just approved. A Draft contract
+// isn't "approved" yet, so it's deliberately excluded here.
+const approvedContract = computed(() => {
+  const candidates = contractStore.contracts.filter((c) => c.status === 'Signed' || c.status === 'Active')
+  return [...candidates].sort((a, b) => b.issueDate.localeCompare(a.issueDate))[0]
+})
 
 function openCreateAgreement(stream: AgreementStream): void {
   agreementFormStream.value = stream
@@ -276,6 +289,7 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       v-model="isAgreementFormOpen"
       :project-id="projectId"
       :stream="agreementFormStream"
+      :approved-contract="approvedContract ? { contractValue: approvedContract.contractValue, currency: approvedContract.currency } : undefined"
       :is-submitting="store.isSubmitting"
       @submit="handleCreateAgreement"
     />

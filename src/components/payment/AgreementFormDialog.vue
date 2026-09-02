@@ -8,8 +8,13 @@ import FormSection from '@/components/common/FormSection.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import type { AgreementStream, CreateAgreementInput, PaymentFrequency, PaymentMode } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, PaymentFrequency, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
+
+interface ApprovedContract {
+  contractValue: number
+  currency: string
+}
 
 interface Props {
   modelValue: boolean
@@ -20,9 +25,15 @@ interface Props {
   // choice made inside this dialog.
   stream: AgreementStream
   isSubmitting?: boolean
+  // The project's Signed/Active contract, if it has one -- used to
+  // pre-fill Total Contract Amount and Currency instead of leaving them
+  // at 0/KWD for the user to re-type from the contract they just
+  // approved. undefined for Supervision (which doesn't use these
+  // fields) or a project with no approved contract yet.
+  approvedContract?: ApprovedContract
 }
 
-const props = withDefaults(defineProps<Props>(), { isSubmitting: false })
+const props = withDefaults(defineProps<Props>(), { isSubmitting: false, approvedContract: undefined })
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -45,8 +56,18 @@ const PAYMENT_FREQUENCY_OPTIONS: SelectOption[] = [
   { label: 'Quarterly', value: 'Quarterly' },
   { label: 'Half-yearly', value: 'Half-yearly' },
   { label: 'Yearly', value: 'Yearly' },
-  { label: 'Custom', value: 'Custom' },
+  { label: 'Milestone plan', value: 'Custom' },
 ]
+
+const INSTALLMENT_COUNT_OPTIONS: SelectOption[] = [1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: String(n) }))
+
+// The default 4-installment plan requested for this project: 25% at
+// signup, 25% when the design is approved, 25% when the approval is
+// filed, and the balance (folded into the last row so rounding never
+// leaves a gap) at handover. Used to seed the milestone rows the
+// moment "Milestone plan" is picked or the count is changed to 4 --
+// still fully editable afterward.
+const DEFAULT_FOUR_MILESTONE_LABELS = ['At signup', 'On design approval', 'On approval filed', 'At handover to client']
 
 const contractAmount = ref(0)
 const currency = ref('KWD')
@@ -57,13 +78,41 @@ const quotationReference = ref('')
 const contractReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
 const paymentFrequency = ref<PaymentFrequency>('Monthly')
+const milestoneCount = ref(4)
+const milestones = ref<PaymentMilestoneInput[]>([])
 
 const isSupervision = computed(() => props.stream === 'Supervision')
-const needsEndDate = computed(() => !isSupervision.value && paymentFrequency.value !== 'One-time')
+const isMilestonePlan = computed(() => !isSupervision.value && paymentFrequency.value === 'Custom')
+// 'One-time' has no interval and 'Custom' uses per-milestone due dates
+// instead of a contract end date -- only the even-interval frequencies
+// (Monthly/Quarterly/Half-yearly/Yearly) actually need one.
+const needsEndDate = computed(
+  () => !isSupervision.value && paymentFrequency.value !== 'One-time' && paymentFrequency.value !== 'Custom',
+)
+
+function evenSplitPercentages(count: number): number[] {
+  const base = Math.floor((100 / count) * 100) / 100
+  const percentages = Array<number>(count).fill(base)
+  percentages[count - 1] = Math.round((100 - base * (count - 1)) * 100) / 100
+  return percentages
+}
+
+function buildDefaultMilestones(count: number): PaymentMilestoneInput[] {
+  const percentages = count === 4 ? [25, 25, 25, 25] : evenSplitPercentages(count)
+  return percentages.map((percentage, index) => ({
+    description: count === 4 ? DEFAULT_FOUR_MILESTONE_LABELS[index] : `Installment ${index + 1}`,
+    percentage,
+    dueDate: '',
+  }))
+}
+
+watch(milestoneCount, (count) => {
+  milestones.value = buildDefaultMilestones(count)
+})
 
 function resetForm(): void {
-  contractAmount.value = 0
-  currency.value = 'KWD'
+  contractAmount.value = props.approvedContract?.contractValue ?? 0
+  currency.value = props.approvedContract?.currency ?? 'KWD'
   contractStartDate.value = new Date().toISOString().slice(0, 10)
   contractEndDate.value = ''
   agreementDate.value = new Date().toISOString().slice(0, 10)
@@ -71,6 +120,8 @@ function resetForm(): void {
   contractReference.value = ''
   paymentMode.value = 'Bank Transfer'
   paymentFrequency.value = 'Monthly'
+  milestoneCount.value = 4
+  milestones.value = buildDefaultMilestones(4)
 }
 
 watch(
@@ -80,16 +131,25 @@ watch(
   },
 )
 
+const milestoneTotal = computed(() => Math.round(milestones.value.reduce((sum, m) => sum + (m.percentage || 0), 0) * 100) / 100)
+const milestonesValid = computed(
+  () =>
+    milestones.value.length > 0 &&
+    milestones.value.length <= 5 &&
+    Math.abs(milestoneTotal.value - 100) <= 0.5 &&
+    milestones.value.every((m) => m.description.trim().length > 0 && m.dueDate.length > 0 && m.percentage > 0),
+)
+
 // Supervision's contractAmount/contractStartDate/contractEndDate/
 // paymentFrequency are all derived server-side from the project's
 // selected Supervision activities (see payment_service.create_agreement)
 // -- only agreementDate and paymentMode are ever required from this form
 // for that stream.
-const canSubmit = computed(() =>
-  isSupervision.value
-    ? agreementDate.value.length > 0
-    : contractAmount.value > 0 && contractStartDate.value.length > 0 && (!needsEndDate.value || contractEndDate.value.length > 0),
-)
+const canSubmit = computed(() => {
+  if (isSupervision.value) return agreementDate.value.length > 0
+  const baseValid = contractAmount.value > 0 && contractStartDate.value.length > 0 && (!needsEndDate.value || contractEndDate.value.length > 0)
+  return baseValid && (!isMilestonePlan.value || milestonesValid.value)
+})
 
 function handleSubmit(): void {
   if (!canSubmit.value) return
@@ -115,6 +175,9 @@ function handleSubmit(): void {
         contractReference: contractReference.value.trim() || undefined,
         paymentMode: paymentMode.value,
         paymentFrequency: paymentFrequency.value,
+        milestones: isMilestonePlan.value
+          ? milestones.value.map((m) => ({ description: m.description.trim(), percentage: m.percentage, dueDate: m.dueDate }))
+          : undefined,
       }
   emit('submit', input)
 }
@@ -167,8 +230,30 @@ function handleClose(): void {
           @update:model-value="paymentFrequency = $event as PaymentFrequency"
         />
       </div>
-      <p v-if="!isSupervision && paymentFrequency === 'Custom'" class="text-xs text-text-muted">
-        A single obligation for the full amount will be created — add or split individual installments afterward from the payment timeline.
+    </FormSection>
+
+    <FormSection
+      v-if="isMilestonePlan"
+      title="Milestone Payment Plan"
+      description="Choose how many payments the client will make (up to 5), then set each installment's share of the contract amount and its due date. Percentages must add up to 100%."
+    >
+      <SelectBox
+        :model-value="String(milestoneCount)"
+        label="Number of Installments"
+        :options="INSTALLMENT_COUNT_OPTIONS"
+        @update:model-value="milestoneCount = Number($event)"
+      />
+
+      <div class="mt-3 flex flex-col gap-2">
+        <div v-for="(milestone, index) in milestones" :key="index" class="grid grid-cols-1 gap-2 rounded-lg border border-border-light p-3 tablet:grid-cols-[2fr_1fr_1fr]">
+          <TextInput v-model="milestone.description" :label="`Installment ${index + 1}`" placeholder="e.g. At signup" />
+          <NumberInput :model-value="milestone.percentage" label="% of Contract" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
+          <DatePicker v-model="milestone.dueDate" label="Due Date" required />
+        </div>
+      </div>
+
+      <p class="mt-2 text-xs" :class="Math.abs(milestoneTotal - 100) <= 0.5 ? 'text-text-muted' : 'font-medium text-danger-600'">
+        Total: {{ milestoneTotal }}% {{ Math.abs(milestoneTotal - 100) <= 0.5 ? '' : '(must add up to 100%)' }}
       </p>
     </FormSection>
 
