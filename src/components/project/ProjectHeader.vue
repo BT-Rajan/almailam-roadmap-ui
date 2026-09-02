@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Building2, Pencil, RefreshCw, Trash2, User, Workflow } from '@lucide/vue'
+import { Building2, Pencil, Plus, RefreshCw, Trash2, User, Workflow } from '@lucide/vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -22,6 +22,7 @@ defineEmits<{
   edit: []
   'change-stage': []
   'change-status': []
+  'add-service': []
   delete: []
 }>()
 </script>
@@ -50,6 +51,7 @@ defineEmits<{
         <StatusBadge :label="`${project.priority} Priority`" :variant="getProjectPriorityVariant(project.priority)" />
         <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">Stage</BaseButton>
         <BaseButton variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">Status</BaseButton>
+        <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">Add Service</BaseButton>
         <IconButton :icon="Pencil" label="Edit project" size="sm" class="no-print" @click="$emit('edit')" />
         <IconButton :icon="Trash2" label="Delete project" size="sm" class="no-print" @click="$emit('delete')" />
       </div>

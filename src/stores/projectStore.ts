@@ -5,7 +5,7 @@ import { projectService } from '@/services/projectService'
 import type { ProjectCreateInput, ProjectUpdateInput } from '@/services/projectService'
 import { useAuthStore } from '@/stores/authStore'
 import type { Client } from '@/types/Client'
-import type { Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
+import type { AddServicesInput, Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
 interface ProjectPaginationState {
   page: number
@@ -184,6 +184,13 @@ export const useProjectStore = defineStore('project', {
 
     async setStage(projectId: string, currentStage: string, reason?: string): Promise<Project> {
       const updated = await projectService.setStage(projectId, currentStage, reason)
+      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      return updated
+    },
+
+    async addServices(projectId: string, input: AddServicesInput): Promise<Project> {
+      const updated = await projectService.addServices(projectId, input)
       this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
       this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
       return updated

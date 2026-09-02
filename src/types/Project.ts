@@ -42,6 +42,20 @@ export interface StageEligibility {
   reason?: string
 }
 
+// Adds more billable Design and/or Supervision activities to an
+// existing project at any point in its lifecycle -- see
+// projectService.addServices and backend project_service.
+// add_selected_services. Only genuinely new activities (by activityId)
+// get inserted; anything already selected is left alone. supervision*
+// dates are only required the first time Supervision is added to a
+// project that never had a Supervision window before.
+export interface AddServicesInput {
+  designActivities: SelectedServiceActivity[]
+  supervisionActivities: SelectedSupervisionActivity[]
+  supervisionStartDate?: string | null
+  supervisionEndDate?: string | null
+}
+
 export type ProjectPriority = 'High' | 'Medium' | 'Low'
 
 // One Supervision activity picked in the unified ServicePickerDialog at

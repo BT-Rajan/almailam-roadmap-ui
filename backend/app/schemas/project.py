@@ -284,6 +284,26 @@ class ProjectStatusUpdate(BaseModel):
     _check = field_validator("status")(_enum_validator(PROJECT_STATUSES, "status"))
 
 
+class AddServicesInput(BaseModel):
+    """Adds more billable Design and/or Supervision activities to an
+    existing project at any point in its lifecycle -- see
+    project_service.add_selected_services. Only genuinely new activities
+    (by activityId) are inserted; anything already selected is silently
+    left alone rather than duplicated or re-validated."""
+
+    designActivities: list[SelectedActivityIn] = []
+    supervisionActivities: list[SelectedSupervisionActivityIn] = []
+    # Only required the first time Supervision activities are added to a
+    # project that has never had a Supervision window before -- mirrors
+    # ProjectCreate's own supervisionStartDate/supervisionEndDate fields
+    # exactly (see create_project). Ignored once the project already has
+    # a window: each new activity's own dates are validated against that
+    # existing window instead, same as _persist_supervision_selection
+    # already does for every other Supervision activity.
+    supervisionStartDate: date | None = None
+    supervisionEndDate: date | None = None
+
+
 class StageEligibilityOut(BaseModel):
     """One entry per structurally-reachable next stage for this project
     right now -- see project_service.get_stage_eligibility. A stage the

@@ -8,6 +8,7 @@ from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.schemas.common import PagedResponse
 from app.schemas.project import (
+    AddServicesInput,
     ProjectCreate,
     ProjectOut,
     ProjectStageUpdate,
@@ -121,6 +122,20 @@ def set_stage(
 ):
     project = project_service.set_stage(
         db, project_no, payload.currentStage, payload.reason, current_user.id
+    )
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.post("/{project_no}/services", response_model=ProjectOut)
+def add_services(
+    project_no: str,
+    payload: AddServicesInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.add_selected_services(
+        db, project_no, payload.designActivities, payload.supervisionActivities,
+        payload.supervisionStartDate, payload.supervisionEndDate, current_user.id,
     )
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 

@@ -13,6 +13,8 @@ import ProjectEditDialog from '@/components/project/ProjectEditDialog.vue'
 import ProjectTransitionDialog from '@/components/project/ProjectTransitionDialog.vue'
 import ProjectOverviewTab from '@/components/project/ProjectOverviewTab.vue'
 import ProjectWorkspaceTabs from '@/components/project/ProjectWorkspaceTabs.vue'
+import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
+import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
@@ -32,10 +34,11 @@ import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ProjectUpdateInput } from '@/services/projectService'
-import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { AddServicesInput, ProjectWorkspaceTab, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
@@ -47,6 +50,7 @@ const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
+const serviceCatalogStore = useServiceCatalogStore()
 const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
@@ -254,8 +258,44 @@ const isStageDialogOpen = ref(false)
 const isStageSaving = ref(false)
 const isStatusDialogOpen = ref(false)
 const isStatusSaving = ref(false)
+const isAddServiceDialogOpen = ref(false)
+const isAddServiceSaving = ref(false)
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
+
+function openAddServiceDialog(): void {
+  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+  isAddServiceDialogOpen.value = true
+}
+
+async function handleAddServices(payload: ServicePickerConfirmPayload): Promise<void> {
+  if (!project.value) return
+  isAddServiceSaving.value = true
+  try {
+    // Only what's newly checked here actually gets added -- anything
+    // already part of the project is silently ignored server-side (see
+    // project_service.add_selected_services), so sending the dialog's
+    // full current+new selection back is safe even though it also
+    // includes rows the project already had.
+    const input: AddServicesInput = {
+      designActivities: payload.design,
+      supervisionActivities: payload.supervision,
+      supervisionStartDate: payload.supervisionStartDate,
+      supervisionEndDate: payload.supervisionEndDate,
+    }
+    await projectStore.addServices(project.value.id, input)
+    resultDialogStore.showSuccess(
+      'Services added',
+      'Cover the new work with a quotation, payment plan, and contract the same way as the rest of this project.',
+    )
+    isAddServiceDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to add services', detail)
+  } finally {
+    isAddServiceSaving.value = false
+  }
+}
 
 async function handleConfirmEdit(payload: ProjectUpdateInput): Promise<void> {
   if (!project.value) return
@@ -341,6 +381,7 @@ async function handleConfirmDelete(): Promise<void> {
         @edit="isEditDialogOpen = true"
         @change-stage="isStageDialogOpen = true"
         @change-status="isStatusDialogOpen = true"
+        @add-service="openAddServiceDialog"
         @delete="isDeleteDialogOpen = true"
       />
 
@@ -400,6 +441,15 @@ async function handleConfirmDelete(): Promise<void> {
         :project="project"
         :loading="isEditSaving"
         @confirm="handleConfirmEdit"
+      />
+      <ServicePickerDialog
+        v-model="isAddServiceDialogOpen"
+        :services="serviceCatalogStore.services"
+        :selected-design="project.selectedActivities ?? []"
+        :selected-supervision="project.selectedSupervisionActivities ?? []"
+        :supervision-start-date="project.supervisionStartDate"
+        :supervision-end-date="project.supervisionEndDate"
+        @confirm="handleAddServices"
       />
       <ProjectTransitionDialog
         v-model="isStageDialogOpen"

@@ -212,6 +212,83 @@ def _persist_supervision_selection(
     return sum(float(a.monthlyRate) for a in selection)
 
 
+def add_selected_services(
+    db: Session,
+    project_no: str,
+    design_activities: list,
+    supervision_activities: list,
+    supervision_start_date,
+    supervision_end_date,
+    user_id: int | None,
+) -> Project:
+    """Lets staff add more billable Design and/or Supervision activities
+    to a project at any point in its lifecycle -- selections used to be
+    fixed forever at creation (see ServicePickerDialog.vue), which meant
+    a Design-only project had no way to ever pick up Supervision work
+    (or additional Design work) later. Only genuinely new activities (by
+    activityId, not already selected) are inserted; existing rows are
+    left untouched.
+
+    Deliberately does NOT create a quotation/agreement/contract itself --
+    once the new activities exist here, includesDesign/includesSupervision
+    (compute_stage_flags) picks them up automatically, and staff cover the
+    newly billable work with an ordinary "New Quotation" / "New Contract" /
+    "Create Payment Plan" action, exactly like the project's original
+    services were -- all three already support more than one row per
+    project (Quotation and Contract have no cardinality limit at all;
+    FinancialAgreement only blocks a *second* agreement for a stream that
+    already has one, which doesn't apply to a stream being billed for the
+    first time)."""
+    project = get_project(db, project_no)
+    assert_project_open_for_new_work(project)
+
+    existing_design_ids = {a.activity_id for a in get_selected_activities(db, project.id)}
+    existing_supervision_ids = {a.activity_id for a in get_selected_supervision_activities(db, project.id)}
+    new_design = [a for a in design_activities if a.activityId not in existing_design_ids]
+    new_supervision = [a for a in supervision_activities if a.activityId not in existing_supervision_ids]
+
+    if not new_design and not new_supervision:
+        raise ValidationAppError("Every selected activity is already part of this project.")
+
+    for activity in new_design:
+        db.add(
+            ProjectSelectedActivity(
+                project_id=project.id,
+                service_id=activity.serviceId,
+                service_name=activity.serviceName,
+                activity_id=activity.activityId,
+                activity_name=activity.activityName,
+                fixed_cost=activity.fixedCost,
+            )
+        )
+    if new_design:
+        project.service_total = float(project.service_total or 0) + sum(float(a.fixedCost) for a in new_design)
+
+    if new_supervision and project.supervision_start_date is None:
+        # First-ever Supervision activity for this project -- same
+        # requirement create_project enforces up front.
+        if supervision_start_date is None:
+            raise ValidationAppError("supervisionStartDate is required when adding Supervision activities for the first time.")
+        project.supervision_start_date = supervision_start_date
+        project.supervision_end_date = supervision_end_date
+
+    added_monthly = _persist_supervision_selection(
+        db, project.id, new_supervision, project.supervision_start_date, project.supervision_end_date,
+    )
+    if added_monthly:
+        project.supervision_monthly_total = float(project.supervision_monthly_total or 0) + added_monthly
+
+    added_names = ", ".join(a.activityName for a in [*new_design, *new_supervision])
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Services added", user_id, new_value=added_names)
+    timeline_service.create_system_event(
+        db, project.id, "note", title="Additional services added", description=added_names, actor_id=user_id,
+    )
+
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 def compute_stage_flags(selected_activities: list, selected_supervision_activities: list) -> tuple[bool, bool]:
     """(includes_design, includes_supervision) -- whether this project's
     workflow should offer a Design stage/tab and/or a Supervision one

@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
+import type { AddServicesInput, Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -151,6 +151,21 @@ async function setStage(projectId: string, currentStage: string, reason?: string
   } catch (error) {
     console.error(`Failed to change stage for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to change project stage')
+  }
+}
+
+/**
+ * Adds more billable Design and/or Supervision activities to an
+ * existing project -- see AddServicesInput. Only genuinely new
+ * activities are inserted server-side; sending one already selected is
+ * harmless (silently ignored), not an error.
+ */
+async function addServices(projectId: string, input: AddServicesInput): Promise<Project> {
+  try {
+    return await apiClient.post<Project>(`/api/projects/${projectId}/services`, input)
+  } catch (error) {
+    console.error(`Failed to add services to project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add services')
   }
 }
 
@@ -305,6 +320,7 @@ export const projectService = {
   updateProject,
   setStage,
   getStageEligibility,
+  addServices,
   setStatus,
   deleteProject,
   getScopeOfWork,
