@@ -16,7 +16,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import { computeObligationStatus } from '@/utils/paymentHelpers'
+import { computeObligationStatus, getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import type { AdjustmentType, AgreementStream, FinancialAgreement, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 
@@ -133,6 +133,30 @@ const approvedQuotation = computed(() => quotationStore.quotations.find((quotati
 const allRequiredAgreementsApproved = computed(
   () => visibleStreams.value.length > 0 && visibleStreams.value.every((stream) => agreementForStream(stream)?.status === 'Approved'),
 )
+
+// Gates the explainer banner below -- once every included stream's
+// agreement exists, the two-part structure it explains is no longer
+// news to anyone looking at this tab, so it stops showing (regardless
+// of whether this is the dedicated Payment Plan tab or the later
+// ongoing "Payments" view -- see showAdvanceToContract for that
+// distinction, which only matters for the Advance button, not this).
+const anyAgreementMissing = computed(() => visibleStreams.value.some((stream) => !agreementForStream(stream)))
+
+// Explains the project's payment plan up front, in plain terms, before
+// staff start creating agreements -- only mentions whichever stream(s)
+// this project actually includes (see visibleStreams).
+const planExplainer = computed(() => {
+  const parts: string[] = []
+  if (visibleStreams.value.includes('Design')) {
+    parts.push('a one-time Design & Permit fee, paid in full or split into up to 5 installments you control')
+  }
+  if (visibleStreams.value.includes('Supervision')) {
+    parts.push('a monthly Supervision fee, billed pro-rata for partial months')
+  }
+  if (parts.length === 2) return `This project's payment plan has two parts: ${parts[0]}, and ${parts[1]}.`
+  if (parts.length === 1) return `This project's payment plan is ${parts[0]}.`
+  return ''
+})
 
 const isApprovingStream = ref<AgreementStream | undefined>(undefined)
 
@@ -260,6 +284,11 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       description="This project has no Design or Supervision work selected, so there's no financial agreement to create yet."
     />
 
+    <div v-if="showAdvanceToContract" class="flex flex-col gap-1">
+      <h2 class="text-base font-semibold text-text-primary">Project Payment Plan</h2>
+      <p v-if="anyAgreementMissing" class="text-sm text-text-muted">{{ planExplainer }} Every part has to be approved here before this project can move to Contract.</p>
+    </div>
+
     <div
       v-if="showAdvanceToContract && allRequiredAgreementsApproved"
       class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
@@ -270,7 +299,7 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
 
     <div v-for="stream in visibleStreams" :key="stream" class="flex flex-col gap-4">
       <div v-if="visibleStreams.length > 1" class="flex items-center gap-2">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ stream }}</h3>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ getAgreementStreamLabel(stream) }}</h3>
         <StatusBadge
           v-if="agreementForStream(stream)"
           :label="agreementForStream(stream)!.status"
@@ -281,13 +310,13 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       <EmptyState
         v-if="!agreementForStream(stream)"
         :icon="Wallet"
-        :title="`No ${stream} financial agreement yet`"
+        :title="`No ${getAgreementStreamLabel(stream)} payment plan yet`"
         :description="
           stream === 'Supervision'
             ? 'Create a Supervision agreement to generate its day-prorated monthly payment schedule for this project.'
-            : 'Create a financial agreement to start tracking the contract value, payment schedule, and collections for this project.'
+            : 'Create a one-time payment plan for this project -- paid in full, or split into up to 5 installments you control.'
         "
-        :action-label="`Create ${stream} Agreement`"
+        :action-label="`Create ${getAgreementStreamLabel(stream)} Payment Plan`"
         @action="openCreateAgreement(stream)"
       />
 

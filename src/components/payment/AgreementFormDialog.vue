@@ -8,6 +8,7 @@ import FormSection from '@/components/common/FormSection.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import type { AgreementStream, CreateAgreementInput, PaymentFrequency, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
 
@@ -50,13 +51,14 @@ const PAYMENT_MODE_OPTIONS: SelectOption[] = [
   { label: 'Other', value: 'Other' },
 ]
 
+// Design & Permit is billed once -- in full, or split into up to 5
+// installments -- never on a recurring interval (that's what
+// distinguishes it from Supervision's own separate monthly billing).
+// Only ever shown for that stream (see the SelectBox's v-if below), so
+// this doesn't need a Supervision-specific variant.
 const PAYMENT_FREQUENCY_OPTIONS: SelectOption[] = [
-  { label: 'One-time', value: 'One-time' },
-  { label: 'Monthly', value: 'Monthly' },
-  { label: 'Quarterly', value: 'Quarterly' },
-  { label: 'Half-yearly', value: 'Half-yearly' },
-  { label: 'Yearly', value: 'Yearly' },
-  { label: 'Milestone plan', value: 'Custom' },
+  { label: 'One-time (paid in full)', value: 'One-time' },
+  { label: 'Split into installments (up to 5)', value: 'Custom' },
 ]
 
 const INSTALLMENT_COUNT_OPTIONS: SelectOption[] = [1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: String(n) }))
@@ -72,23 +74,16 @@ const DEFAULT_FOUR_MILESTONE_LABELS = ['At signup', 'On design approval', 'On ap
 const contractAmount = ref(0)
 const currency = ref('KWD')
 const contractStartDate = ref(new Date().toISOString().slice(0, 10))
-const contractEndDate = ref('')
 const agreementDate = ref(new Date().toISOString().slice(0, 10))
 const quotationReference = ref('')
 const contractReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
-const paymentFrequency = ref<PaymentFrequency>('Monthly')
+const paymentFrequency = ref<PaymentFrequency>('Custom')
 const milestoneCount = ref(4)
 const milestones = ref<PaymentMilestoneInput[]>([])
 
 const isSupervision = computed(() => props.stream === 'Supervision')
 const isMilestonePlan = computed(() => !isSupervision.value && paymentFrequency.value === 'Custom')
-// 'One-time' has no interval and 'Custom' uses per-milestone due dates
-// instead of a contract end date -- only the even-interval frequencies
-// (Monthly/Quarterly/Half-yearly/Yearly) actually need one.
-const needsEndDate = computed(
-  () => !isSupervision.value && paymentFrequency.value !== 'One-time' && paymentFrequency.value !== 'Custom',
-)
 
 function evenSplitPercentages(count: number): number[] {
   const base = Math.floor((100 / count) * 100) / 100
@@ -114,12 +109,11 @@ function resetForm(): void {
   contractAmount.value = props.approvedContract?.contractValue ?? 0
   currency.value = props.approvedContract?.currency ?? 'KWD'
   contractStartDate.value = new Date().toISOString().slice(0, 10)
-  contractEndDate.value = ''
   agreementDate.value = new Date().toISOString().slice(0, 10)
   quotationReference.value = ''
   contractReference.value = ''
   paymentMode.value = 'Bank Transfer'
-  paymentFrequency.value = 'Monthly'
+  paymentFrequency.value = 'Custom'
   milestoneCount.value = 4
   milestones.value = buildDefaultMilestones(4)
 }
@@ -147,7 +141,7 @@ const milestonesValid = computed(
 // for that stream.
 const canSubmit = computed(() => {
   if (isSupervision.value) return agreementDate.value.length > 0
-  const baseValid = contractAmount.value > 0 && contractStartDate.value.length > 0 && (!needsEndDate.value || contractEndDate.value.length > 0)
+  const baseValid = contractAmount.value > 0 && contractStartDate.value.length > 0
   return baseValid && (!isMilestonePlan.value || milestonesValid.value)
 })
 
@@ -169,7 +163,6 @@ function handleSubmit(): void {
         contractAmount: contractAmount.value,
         currency: currency.value,
         contractStartDate: contractStartDate.value,
-        contractEndDate: needsEndDate.value ? contractEndDate.value : undefined,
         agreementDate: agreementDate.value,
         quotationReference: quotationReference.value.trim() || undefined,
         contractReference: contractReference.value.trim() || undefined,
@@ -190,7 +183,7 @@ function handleClose(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="isSupervision ? 'Create Supervision Financial Agreement' : 'Create Financial Agreement'"
+    :title="`Create ${getAgreementStreamLabel(stream)} Financial Agreement`"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -213,13 +206,15 @@ function handleClose(): void {
         <TextInput v-model="currency" label="Currency" placeholder="KWD" required />
         <DatePicker v-model="agreementDate" label="Agreement Date" required />
         <DatePicker v-model="contractStartDate" label="Contract Start Date" required />
-        <DatePicker v-if="needsEndDate" v-model="contractEndDate" label="Contract End Date" required hint="Used to generate the payment schedule." />
         <TextInput v-model="quotationReference" label="Quotation Reference (optional)" placeholder="QTN-2026-…" />
         <TextInput v-model="contractReference" label="Contract Reference (optional)" placeholder="CNT-2026-…" />
       </div>
     </FormSection>
 
-    <FormSection title="Payment Terms" :description="isSupervision ? 'Monthly, prorated by day for partial months.' : 'A payment schedule will be generated automatically based on the frequency selected.'">
+    <FormSection
+      title="Payment Terms"
+      :description="isSupervision ? 'Monthly, prorated by day for partial months.' : 'Billed once -- paid in full immediately, or split into up to 5 installments you configure below.'"
+    >
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
         <SelectBox

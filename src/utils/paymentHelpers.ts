@@ -1,5 +1,23 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { FinancialAgreement, FinancialSummary, ObligationStatus, PaymentObligation } from '@/types/Payment'
+import type { AgreementStream, FinancialAgreement, FinancialSummary, ObligationStatus, PaymentObligation } from '@/types/Payment'
+
+// Design/Permit work is billed once, split into up to 5 user-
+// configurable installments (or paid in full as a single payment);
+// Supervision is billed monthly and prorated automatically -- see
+// generate_prorated_monthly_schedule. The AgreementStream key itself
+// stays 'Design' (matches the DB enum and the service catalog's own
+// branch name -- Permit is cataloged under the Design branch, migration
+// 0060) -- only the label shown to staff reflects that it covers Permit
+// fees too. Route every user-facing display of a stream through this,
+// same convention as getWorkflowStageLabel (utils/projectHelpers.ts).
+const AGREEMENT_STREAM_LABELS: Record<AgreementStream, string> = {
+  Design: 'Design & Permit',
+  Supervision: 'Supervision',
+}
+
+export function getAgreementStreamLabel(stream: AgreementStream): string {
+  return AGREEMENT_STREAM_LABELS[stream]
+}
 
 function startOfDay(date: Date): number {
   const copy = new Date(date)

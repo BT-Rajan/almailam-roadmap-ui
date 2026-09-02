@@ -25,6 +25,7 @@ import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
+import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
@@ -301,7 +302,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             :key="row.stream"
             class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
           >
-            <span class="text-sm text-text-secondary">{{ row.stream }} Financial Agreement</span>
+            <span class="text-sm text-text-secondary">{{ getAgreementStreamLabel(row.stream) }}</span>
             <StatusBadge
               v-if="row.agreement"
               :label="row.agreement.status"
@@ -312,7 +313,8 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
         </div>
 
         <p class="text-xs text-text-muted">
-          Every included stream's agreement has to be generated and approved here before this project can move to Contract.
+          Design &amp; Permit is billed once, in up to 5 configurable installments; Supervision is billed monthly and
+          prorated automatically. Every part this project includes has to be approved here before it can move to Contract.
         </p>
 
         <div class="flex justify-end no-print">

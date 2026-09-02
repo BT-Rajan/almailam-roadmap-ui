@@ -170,6 +170,19 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
             raise ValidationAppError(
                 "contractAmount, contractStartDate and paymentFrequency are required for a Design agreement."
             )
+        # Design & Permit work is billed once -- in full, or split into
+        # up to 5 installments (payload.milestones) -- not on a
+        # recurring interval the way Monthly/Quarterly/Half-yearly/
+        # Yearly implies. Those frequencies still exist in PAYMENT_
+        # FREQUENCIES for Supervision's own internal use (always
+        # "Monthly", forced above) and for agreements created before
+        # this restriction; a Design agreement just can't pick them
+        # anymore. Checked here, not only hidden from the create form,
+        # so a direct API call can't bypass it either.
+        if payload.paymentFrequency not in ("One-time", "Custom"):
+            raise ValidationAppError(
+                "A Design & Permit agreement is billed once -- choose 'One-time' or a milestone plan of up to 5 installments, not a recurring frequency."
+            )
         contract_amount = Decimal(str(payload.contractAmount))
         contract_start_date = payload.contractStartDate
         contract_end_date = payload.contractEndDate
