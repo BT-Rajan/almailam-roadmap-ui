@@ -19,6 +19,7 @@ import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -172,7 +173,11 @@ function handleAdvanceToPaymentPlan(): void {
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">New Quotation</BaseButton>
     <div class="no-print flex items-center gap-2">
       <BaseButton
-        v-if="quotationStore.selectedQuotation?.status === 'Approved' && quotationStore.selectedQuotation?.finalizedAt"
+        v-if="
+          !hasProjectPassedStage(project.currentStage, 'Payment Plan') &&
+          quotationStore.selectedQuotation?.status === 'Approved' &&
+          quotationStore.selectedQuotation?.finalizedAt
+        "
         size="sm"
         :icon="ArrowRight"
         @click="handleAdvanceToPaymentPlan"

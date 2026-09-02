@@ -17,6 +17,20 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Supervision',
 ]
 
+// True once the project's real current stage is strictly past
+// referenceStage in the straight-line order above -- gates every
+// "Advance to X" convenience button/banner (Quotation's "Advance to
+// Payment Plan", Payment Plan's "Advance to Contract", and so on) so
+// they only appear while genuinely still relevant. Those buttons are
+// pure navigation shown once the underlying stage change has already
+// auto-advanced the project -- without this check they stayed visible
+// forever afterward (the quotation/agreement they check is Approved
+// permanently), so revisiting an old tab long after actually moving on
+// kept dangling a stale "you should go here next" prompt.
+export function hasProjectPassedStage(currentStage: WorkflowStage, referenceStage: WorkflowStage): boolean {
+  return WORKFLOW_STAGES.indexOf(currentStage) > WORKFLOW_STAGES.indexOf(referenceStage)
+}
+
 // Display-only relabeling -- "Government Submission" reads as "Approvals &
 // Permits" everywhere shown to users. The stored/compared value stays
 // "Government Submission" (it's a real backend ENUM value -- see

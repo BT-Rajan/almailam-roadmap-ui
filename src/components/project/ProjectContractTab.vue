@@ -65,9 +65,9 @@ function openCreateDialog(): void {
   isCreateDialogOpen.value = true
 }
 
-// Picked up when the user clicks "Advance to Contract" on the quotation
-// tab -- selects that quotation here too (in case a different one was
-// selected on this tab) and opens the dialog straight away.
+// Picked up when the user clicks "Advance to Contract" on the Payment
+// Plan tab -- selects that quotation here too (in case a different one
+// was selected on this tab) and opens the dialog straight away.
 onMounted(() => {
   const pendingId = quotationStore.consumePendingContractRequest()
   if (pendingId) {

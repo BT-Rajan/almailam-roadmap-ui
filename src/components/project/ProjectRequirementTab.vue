@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, MessageSquare } from '@lucide/vue'
+import { ArrowRight, CheckCircle2, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -22,6 +22,7 @@ import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey, ScopeOfWork, ScopeRevision } from '@/types/Project'
 import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -103,6 +104,26 @@ const canApprove = computed(
     (scopeOfWork.value?.description ?? '').trim().length > 0 &&
     !hasTextChanged.value,
 )
+
+// Mirrors the real Requirement -> Quotation exit criterion exactly
+// (project_service._assert_stage_exit_criteria: scope Approved + client
+// identification on file) -- the project has already auto-advanced to
+// Quotation the moment both became true (see try_auto_advance_stage),
+// so this is just the UI convenience of jumping straight to that tab
+// instead of leaving staff to find it via the stepper. Guarded by
+// hasProjectPassedStage the same way as the other "Advance to X"
+// buttons, so it doesn't linger once the project has moved on further
+// still (e.g. Payment Plan or beyond) on a later visit to this tab.
+const canAdvanceToQuotation = computed(
+  () =>
+    scopeOfWork.value?.scopeStatus === 'Approved' &&
+    hasClientIdentification.value &&
+    !hasProjectPassedStage(props.project.currentStage, 'Quotation'),
+)
+
+function handleAdvanceToQuotation(): void {
+  emit('navigate-tab', 'quotation')
+}
 
 async function handleSave(): Promise<void> {
   isSaving.value = true
@@ -267,12 +288,17 @@ const clientDetailItems = computed(() => {
           internal sign-off, but the project will stay at Requirement until identification is added too.
         </p>
 
-        <div v-if="!isRequirementLocked" class="flex flex-wrap items-center justify-end gap-2 no-print">
-          <BaseButton variant="secondary" :disabled="!canSave" :loading="isSaving" @click="handleSave">
-            Save Scope of Work
-          </BaseButton>
-          <BaseButton :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
-            Approve
+        <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center justify-end gap-2 no-print">
+          <template v-if="!isRequirementLocked">
+            <BaseButton variant="secondary" :disabled="!canSave" :loading="isSaving" @click="handleSave">
+              Save Scope of Work
+            </BaseButton>
+            <BaseButton :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
+              Approve
+            </BaseButton>
+          </template>
+          <BaseButton v-if="canAdvanceToQuotation" :icon="ArrowRight" @click="handleAdvanceToQuotation">
+            Advance to Quotation
           </BaseButton>
         </div>
       </div>

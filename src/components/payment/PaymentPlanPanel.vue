@@ -18,6 +18,7 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
+import { hasProjectPassedStage } from '@/utils/projectHelpers'
 import type { AgreementStream, CreateAgreementInput, FinancialAgreement } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { SmartTableColumn } from '@/types/Table'
@@ -73,6 +74,13 @@ const approvedQuotation = () => quotationStore.quotations.find((quotation) => qu
 
 const allRequiredAgreementsApproved = () =>
   visibleStreams.value.length > 0 && visibleStreams.value.every((stream) => agreementForStream(stream)?.status === 'Approved')
+
+// Gates the "Advance to Contract" banner specifically -- once the
+// project has actually moved past Contract (Design, Government
+// Submission, Supervision), every agreement is still permanently
+// Approved, so allRequiredAgreementsApproved() alone would keep this
+// banner dangling forever on an old Payment Plan tab visit.
+const showAdvanceToContractBanner = () => allRequiredAgreementsApproved() && !hasProjectPassedStage(props.project.currentStage, 'Contract')
 
 const anyAgreementMissing = () => visibleStreams.value.some((stream) => !agreementForStream(stream))
 
@@ -192,7 +200,7 @@ async function handleConfirmDelete(): Promise<void> {
     </div>
 
     <div
-      v-if="allRequiredAgreementsApproved()"
+      v-if="showAdvanceToContractBanner()"
       class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
     >
       <p class="text-sm text-success-700">Every required payment plan is approved -- this project is ready for Contract.</p>

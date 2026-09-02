@@ -10,8 +10,8 @@ interface QuotationStoreState {
   selectedQuotationId: string | undefined
   isLoading: boolean
   error: string | undefined
-  // Set by "Advance to Contract" on the quotation tab, consumed by the
-  // contract tab (which opens its New Contract dialog prefilled from
+  // Set by "Advance to Contract" on the Payment Plan tab, consumed by
+  // the contract tab (which opens its New Contract dialog prefilled from
   // this quotation, then clears it) -- the two tabs otherwise have no
   // direct way to talk to each other.
   pendingContractQuotationId: string | undefined
@@ -57,7 +57,7 @@ export const useQuotationStore = defineStore('quotation', {
     },
 
     // "Advance to Contract" only ever fires from a quotation that's
-    // already Approved + Final (see ProjectQuotationTab's button guard),
+    // already Approved + Final (see PaymentPlanPanel's approvedQuotation),
     // so no re-check is needed here -- this just hands the intent off.
     requestAdvanceToContract(quotationId: string) {
       this.selectedQuotationId = quotationId
