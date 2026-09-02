@@ -176,6 +176,8 @@ def create_service(db: Session, name: str, branch: str, user_id: int) -> Service
     if not clean_name:
         raise ValidationAppError("Service name is required.")
     _assert_name_available(db, clean_name)
+    if branch == "Supervision":
+        _assert_no_existing_supervision_service(db)
     service = ServiceCatalogItem(name=clean_name, branch=branch)
     db.add(service)
     db.flush()
@@ -183,6 +185,30 @@ def create_service(db: Session, name: str, branch: str, user_id: int) -> Service
     db.commit()
     db.refresh(service)
     return service
+
+
+def _assert_no_existing_supervision_service(db: Session) -> None:
+    """Every caller that bills Supervision work -- the project Service
+    Picker (which only ever renders the *first* Supervision-branch
+    service it finds), payment_service.create_agreement, and
+    get_selected_supervision_activities -- assumes there's exactly one
+    Supervision-branch service in the catalog (see the SUPERVISION_
+    SERVICE_NAME comment above). Nothing previously stopped a second one
+    from being created; it wouldn't error, it would just silently never
+    appear in the picker, so any activities under it could never be
+    selected on a project or billed monthly. Enforced here instead --
+    add more monthly-billed activities to the existing Supervision
+    service rather than creating a second one."""
+    existing = (
+        db.query(ServiceCatalogItem)
+        .filter(ServiceCatalogItem.deleted_at.is_(None), ServiceCatalogItem.branch == "Supervision")
+        .first()
+    )
+    if existing is not None:
+        raise ValidationAppError(
+            f'"{existing.name}" is already the Supervision service -- only one is allowed. '
+            "Add new monthly-billed activities to it instead of creating a second Supervision service."
+        )
 
 
 def rename_service(db: Session, service_raw_id: str, name: str, user_id: int) -> ServiceCatalogItem:

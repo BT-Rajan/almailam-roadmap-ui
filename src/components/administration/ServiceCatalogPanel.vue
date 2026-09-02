@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -26,6 +26,14 @@ const BRANCH_OPTIONS: SelectOption[] = [
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
 
+// Only one Supervision-branch service is allowed (the backend now
+// rejects a second one -- see service_catalog_service.
+// _assert_no_existing_supervision_service) -- once one exists, hide the
+// option here too rather than letting the admin pick it and only find
+// out from a rejected-save toast.
+const hasSupervisionService = computed(() => serviceCatalogStore.services.some((service) => service.branch === 'Supervision'))
+const availableBranchOptions = computed(() => (hasSupervisionService.value ? BRANCH_OPTIONS.filter((option) => option.value !== 'Supervision') : BRANCH_OPTIONS))
+
 function loadData(): void {
   serviceCatalogStore.loadServices()
 }
@@ -47,6 +55,14 @@ function reportIfFailed(action: Promise<void>): void {
 
 const newServiceName = ref('')
 const newServiceBranch = ref<ServiceCatalogBranch>('Design')
+
+// If Supervision stops being offered (another admin/tab just added the
+// one-and-only Supervision service) while 'Supervision' is still
+// selected in this draft, fall back to 'Design' instead of submitting a
+// choice that's no longer valid.
+watch(hasSupervisionService, (hasOne) => {
+  if (hasOne && newServiceBranch.value === 'Supervision') newServiceBranch.value = 'Design'
+})
 
 function submitNewService(): void {
   if (newServiceName.value.trim().length === 0) return
@@ -109,7 +125,7 @@ function handleRemoveActivity(activityId: string): void {
 
       <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
         <p class="text-sm font-medium text-text-secondary">Add Service</p>
-        <RadioGroup v-model="newServiceBranch" :options="BRANCH_OPTIONS" :vertical="false" />
+        <RadioGroup v-model="newServiceBranch" :options="availableBranchOptions" :vertical="false" />
         <div class="flex flex-col gap-2 sm:flex-row">
           <TextInput v-model="newServiceName" placeholder="Service name" class="sm:flex-1" @keyup.enter="submitNewService" />
           <BaseButton :icon="Plus" variant="secondary" :disabled="newServiceName.trim().length === 0" @click="submitNewService">
