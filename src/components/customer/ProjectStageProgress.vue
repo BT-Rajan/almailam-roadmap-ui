@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import Card from '@/components/common/Card.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import type { WorkflowStage } from '@/types/Project'
 import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
-// Mirrors src/components/project/WorkflowProgress.vue -- same Card +
+// Mirrors src/components/project/WorkflowProgress.vue -- same box +
 // Stepper structure, same WORKFLOW_STAGES/getWorkflowStageLabel source
 // of truth, so the client portal's stage stepper renders visually
 // identical to the one staff see (and to the stepper the project/client
@@ -40,14 +39,16 @@ const currentStepRank = computed(() => WORKFLOW_STAGES.indexOf(props.currentStag
 </script>
 
 <template>
-  <Card>
-    <template #header>
-      <h2 class="text-xl font-semibold text-text-primary">Project Progress</h2>
-    </template>
+  <!-- Same plain rounded-xl border box (no Card header divider, same p-6
+       padding) the wizards and WorkflowProgress.vue wrap their own
+       Stepper in -- so this looks like the exact same UI element on
+       every screen it appears, staff and customer portal alike. -->
+  <div class="rounded-xl border border-border-light bg-bg-card p-6">
+    <h2 class="mb-6 text-sm font-semibold text-text-primary">Project Progress</h2>
     <div class="overflow-x-auto pb-1">
       <div class="min-w-[640px]">
         <Stepper :steps="steps" :current-step="currentStepRank" :step-ranks="stepRanks" />
       </div>
     </div>
-  </Card>
+  </div>
 </template>

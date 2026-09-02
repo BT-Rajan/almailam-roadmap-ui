@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import Card from '@/components/common/Card.vue'
 import Stepper from '@/components/common/Stepper.vue'
 import type { ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
@@ -74,10 +73,12 @@ function handleSelect(index: number): void {
 </script>
 
 <template>
-  <Card>
-    <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">Workflow Progress</h3>
-    </template>
+  <!-- Same plain rounded-xl border box (no Card header divider, same p-6
+       padding) the New Project/New Client wizards wrap their own Stepper
+       in -- so this stage stepper looks like the exact same UI element,
+       not a differently-styled sibling of it. -->
+  <div class="rounded-xl border border-border-light bg-bg-card p-6">
+    <h3 class="mb-6 text-sm font-semibold text-text-primary">Workflow Progress</h3>
     <div class="overflow-x-auto pb-1">
       <div class="min-w-[720px]">
         <Stepper
@@ -90,5 +91,5 @@ function handleSelect(index: number): void {
         />
       </div>
     </div>
-  </Card>
+  </div>
 </template>
