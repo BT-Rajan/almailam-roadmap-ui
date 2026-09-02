@@ -8,7 +8,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { getDefaultIdentificationTypeForClientType, getIdentificationTypeOptionsForClientType } from '@/constants/clientOptions'
 import type { ClientIdentification, ClientIdentificationType, ClientType } from '@/types/Client'
-import { todayIso } from '@/utils/clientValidation'
+import { isValidCivilId, todayIso } from '@/utils/clientValidation'
 
 const props = defineProps<{
   modelValue: boolean
@@ -62,7 +62,11 @@ function closeDialog(): void {
 }
 
 function handleConfirm(): void {
-  errors.documentNumber = form.documentNumber.trim() ? '' : 'Document number is required'
+  errors.documentNumber = !form.documentNumber.trim()
+    ? 'Document number is required'
+    : form.documentType === 'Civil ID' && !isValidCivilId(form.documentNumber)
+      ? 'Enter a valid 12-digit Civil ID number (NYYMMDDNNNNN)'
+      : ''
   errors.issueDate = !form.issueDate
     ? 'Issue date is required'
     : form.issueDate > maxDate

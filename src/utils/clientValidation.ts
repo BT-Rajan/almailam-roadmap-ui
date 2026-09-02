@@ -37,6 +37,17 @@ function isValidKuwaitMobile(value: string): boolean {
 // since website fields here are typed in freely rather than pasted.
 const WEBSITE_PATTERN = /^(https?:\/\/)?([\w-]+\.)+[a-zA-Z]{2,}(\/\S*)?$/
 
+// Kuwait Civil ID: N YY MM DD NNNNN -- a century digit, a 6-digit date of
+// birth (YYMMDD, month/day range-checked), then a 5-digit serial, 12
+// digits total. Only Civil ID has this fixed government format; Passport,
+// Trade Licence and Other vary by issuer and stay freeform (document
+// number is only ever checked for presence, never a shape).
+const CIVIL_ID_PATTERN = /^\d{3}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{5}$/
+
+export function isValidCivilId(value: string): boolean {
+  return CIVIL_ID_PATTERN.test(value.trim())
+}
+
 function isFutureDate(value: string): boolean {
   if (!value) return false
   return value > todayIso()
@@ -162,6 +173,9 @@ export function validateIdentification(
 ): FieldErrors {
   const errors: FieldErrors = {}
   if (!identification.documentNumber.trim()) errors.documentNumber = 'Document number is required'
+  else if (identification.documentType === 'Civil ID' && !isValidCivilId(identification.documentNumber)) {
+    errors.documentNumber = 'Enter a valid 12-digit Civil ID number (NYYMMDDNNNNN)'
+  }
 
   if (!identification.issueDate) errors.issueDate = 'Issue date is required'
   else if (isFutureDate(identification.issueDate)) errors.issueDate = 'Issue date cannot be in the future'
