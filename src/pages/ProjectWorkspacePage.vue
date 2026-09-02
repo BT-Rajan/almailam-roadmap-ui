@@ -146,15 +146,12 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // Reuses the existing 'design' tab key (ProjectDocumentsTab's
       // mode="design", Drawing-typed documents only) rather than the
       // generic 'documents' key, which would show every project
-      // document, not just design deliverables. Payments stays visible
-      // here (and at Government Submission below) since a financial
-      // agreement made at Contract keeps needing tracking for the rest
-      // of the project's life -- Government Submission is the terminal
-      // stage now, there's no later stage for it to move to instead.
+      // document, not just design deliverables. No Payments tab here --
+      // financial tracking stays reachable from Contract/Supervision
+      // instead of being duplicated at every remaining stage.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'design', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Supervision':
