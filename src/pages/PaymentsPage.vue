@@ -70,7 +70,10 @@ const rows = computed<AgreementTableRow[]>(() =>
 )
 
 function goToProjectPayments(row: AgreementTableRow): void {
-  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId }, query: { tab: 'payments' } })
+  // 'payment-plan' is the only place a project's financial agreements
+  // live now -- reachable any time via the Workflow Progress stepper's
+  // Payment Plan step, regardless of the project's current stage.
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId }, query: { tab: 'payment-plan' } })
 }
 
 function loadData(): void {
@@ -101,7 +104,7 @@ onMounted(loadData)
       :loading="store.isLoading"
       :searchable="false"
       empty-title="No financial agreements yet"
-      empty-description="Financial agreements created from a project's Payments tab will appear here."
+      empty-description="Financial agreements created from a project's Payment Plan step will appear here."
       @row-click="goToProjectPayments"
     >
       <template #cell-stream="{ value }">

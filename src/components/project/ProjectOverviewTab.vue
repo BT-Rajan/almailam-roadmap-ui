@@ -413,11 +413,11 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
         <p class="text-xs text-text-muted">
           Billed monthly and prorated by day for partial months -- see the Supervision Financial Agreement on the
-          Payments tab for the actual billed schedule.
+          Payment Plan step for the actual billed schedule.
         </p>
 
         <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payments')">Go to Payments</BaseButton>
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
         </div>
       </div>
     </Card>

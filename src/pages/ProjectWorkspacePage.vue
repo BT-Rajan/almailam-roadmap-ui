@@ -50,7 +50,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'contract', 'payments', 'design', 'supervision', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'contract', 'design', 'supervision', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -136,10 +136,15 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Contract':
+      // No Payments tab here -- Payment Plan is its own stage now (the
+      // financial agreement is created and approved there, before a
+      // project ever reaches Contract), reachable any time via the
+      // Workflow Progress stepper's own Payment Plan step. Duplicating
+      // that same view behind a top-tab in every later stage as well
+      // was the thing being removed.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'documents', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Design':
@@ -147,8 +152,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // mode="design", Drawing-typed documents only) rather than the
       // generic 'documents' key, which would show every project
       // document, not just design deliverables. No Payments tab here --
-      // financial tracking stays reachable from Contract/Supervision
-      // instead of being duplicated at every remaining stage.
+      // see the Contract case above for why.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'design', label: 'Documents' },
@@ -158,18 +162,17 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // Plain placeholder for now -- reuses the generic 'documents' mode
       // (no supervision-specific document type/filtering yet), same as
       // the Contract/Government Submission stages' own Documents tab.
+      // No Payments tab here either -- see the Contract case above.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'supervision', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
       // already has the full submission list/create/detail experience, so
       // it becomes this stage's Documents tab content unchanged. No
-      // Payments tab here (removed) -- financial tracking stays reachable
-      // from Contract/Design, Approvals & Permits doesn't surface it.
+      // Payments tab here either -- see the Contract case above.
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'government', label: 'Documents' },
@@ -179,7 +182,6 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'documents', label: 'Documents' },
-        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
   }
@@ -193,7 +195,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payments', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -358,7 +360,7 @@ async function handleConfirmDelete(): Promise<void> {
       </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
-      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
+      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
       <div
         v-else-if="activeTab === 'documents' || activeTab === 'design'"
         :id="activeTab === 'documents' ? 'project-tabpanel-documents' : undefined"
@@ -375,19 +377,8 @@ async function handleConfirmDelete(): Promise<void> {
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
       </div>
-      <div
-        v-else-if="activeTab === 'payments' || activeTab === 'payment-plan'"
-        :id="activeTab === 'payments' ? 'project-tabpanel-payments' : undefined"
-        role="tabpanel"
-        :aria-labelledby="activeTab === 'payments' ? 'project-tab-payments' : undefined"
-        tabindex="0"
-      >
-        <PaymentWorkspacePanel
-          :project-id="projectId"
-          :project="project"
-          :show-advance-to-contract="activeTab === 'payment-plan'"
-          @navigate-tab="activeTab = $event"
-        />
+      <div v-else-if="activeTab === 'payment-plan'" role="tabpanel" tabindex="0">
+        <PaymentWorkspacePanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" />
       </div>
 
       <ProjectEditDialog

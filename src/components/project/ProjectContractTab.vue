@@ -18,16 +18,12 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Contract } from '@/types/Contract'
-import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
   project: Project
   client: Client | undefined
-}>()
-
-const emit = defineEmits<{
-  'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
 const contractStore = useContractStore()
@@ -183,9 +179,7 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
 // Draft -> Signed -> Active -> Expired/Terminated, and back to Draft
 // from Expired. The backend refuses moving out of Draft unless the
 // contract is already saved as Final (see contract_service.
-// set_status). Marking a contract Signed is what payment configuration
-// is waiting on next, so jump straight to the Payments tab rather than
-// leaving staff to find it themselves.
+// set_status).
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
@@ -195,11 +189,11 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
     isStatusDialogOpen.value = false
     if (payload.value === 'Signed') {
       // Marking a contract Signed can itself be the last thing "Contract"
-      // -> "Design" was waiting on (e.g. a financial agreement already
-      // exists) -- refresh the shared project store so the header/
-      // stepper reflect it immediately rather than only on next reload.
+      // -> "Design" was waiting on (the financial agreement was already
+      // created and approved back at the Payment Plan stage) -- refresh
+      // the shared project store so the header/stepper reflect it
+      // immediately rather than only on next reload.
       await projectStore.refreshProject(props.project.id)
-      emit('navigate-tab', 'payments')
     }
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'

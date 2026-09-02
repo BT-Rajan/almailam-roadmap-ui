@@ -111,7 +111,6 @@ export type ProjectWorkspaceTabKey =
   | 'quotation'
   | 'payment-plan'
   | 'contract'
-  | 'payments'
   | 'tasks'
 
 export interface ProjectWorkspaceTab {

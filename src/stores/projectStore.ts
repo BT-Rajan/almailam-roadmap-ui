@@ -197,9 +197,9 @@ export const useProjectStore = defineStore('project', {
     },
 
     // Re-fetches one project and patches the local cache -- same shape
-    // as setStage/setStatus above, for callers (the Payments tab) that
-    // mutate a project's data through an endpoint that doesn't itself
-    // return the project.
+    // as setStage/setStatus above, for callers (the Payment Plan tab)
+    // that mutate a project's data through an endpoint that doesn't
+    // itself return the project.
     async refreshProject(projectId: string): Promise<void> {
       const updated = await projectService.getProjectById(projectId)
       if (!updated) return

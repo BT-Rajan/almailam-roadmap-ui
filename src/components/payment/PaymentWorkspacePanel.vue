@@ -23,15 +23,9 @@ import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 interface Props {
   projectId: string
   project: Project
-  // True only when this panel is showing the Payment Plan stage's own
-  // tab (as opposed to the ongoing "Payments" tab still available at
-  // Contract/Design/Supervision) -- gates the "Advance to Contract"
-  // convenience button, which would otherwise make no sense once the
-  // project is already past Payment Plan.
-  showAdvanceToContract?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showAdvanceToContract: false })
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
@@ -136,10 +130,7 @@ const allRequiredAgreementsApproved = computed(
 
 // Gates the explainer banner below -- once every included stream's
 // agreement exists, the two-part structure it explains is no longer
-// news to anyone looking at this tab, so it stops showing (regardless
-// of whether this is the dedicated Payment Plan tab or the later
-// ongoing "Payments" view -- see showAdvanceToContract for that
-// distinction, which only matters for the Advance button, not this).
+// news to anyone looking at this tab, so it stops showing.
 const anyAgreementMissing = computed(() => visibleStreams.value.some((stream) => !agreementForStream(stream)))
 
 // Explains the project's payment plan up front, in plain terms, before
@@ -284,13 +275,13 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       description="This project has no Design or Supervision work selected, so there's no financial agreement to create yet."
     />
 
-    <div v-if="showAdvanceToContract" class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1">
       <h2 class="text-base font-semibold text-text-primary">Project Payment Plan</h2>
       <p v-if="anyAgreementMissing" class="text-sm text-text-muted">{{ planExplainer }} Every part has to be approved here before this project can move to Contract.</p>
     </div>
 
     <div
-      v-if="showAdvanceToContract && allRequiredAgreementsApproved"
+      v-if="allRequiredAgreementsApproved"
       class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
     >
       <p class="text-sm text-success-700">Every required financial agreement is approved -- this project is ready for Contract.</p>
