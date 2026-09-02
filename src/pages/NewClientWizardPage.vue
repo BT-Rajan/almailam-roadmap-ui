@@ -200,36 +200,9 @@ function goNext(): void {
     )
     return
   }
-  // Leaving step 0 (Client Type): step 0 already collected mobile/email
-  // (needed early for the duplicate-client check) -- pre-fill a primary
-  // contact with those same values rather than making staff retype the
-  // same phone number and email they entered seconds ago. Only creates
-  // Contact 1 if the user actually entered a mobile or email on Client
-  // Type -- if they left both blank there, Contacts & Address opens
-  // with no contact shown rather than an empty "Contact 1" card, and
-  // the user adds one explicitly (Add Contact) if needed. Mobile/email
-  // apply to every client type (an org's registered contact info is
-  // still almost always its first contact's too, entered in the same
-  // sitting); the client's own name only pre-fills the contact name for
-  // an Individual, where the primary contact is almost always the
-  // client themselves -- a company's legal name isn't a person's name.
-  // Only fills blanks either way, so anything already typed (e.g. this
-  // really is someone else, like an assistant) is left alone, and it's
-  // still fully editable regardless.
-  if (currentStep.value === 0) {
-    const hasBasicContactInfo = Boolean(form.value.mobile.trim() || form.value.email.trim())
-    if (hasBasicContactInfo && form.value.contacts.length === 0) {
-      form.value.contacts.push({ name: '', contactType: 'Primary Contact', mobile: '', email: '', isAuthorisedRepresentative: true })
-    }
-    const primaryContact = form.value.contacts[0]
-    if (primaryContact) {
-      if (form.value.clientType === 'Individual' && !primaryContact.name.trim()) {
-        primaryContact.name = form.value.individualProfile.fullLegalName
-      }
-      if (!primaryContact.mobile.trim()) primaryContact.mobile = form.value.mobile
-      if (!primaryContact.email.trim()) primaryContact.email = form.value.email
-    }
-  }
+  // Leaving step 0 (Client Type) no longer auto-creates or pre-fills a
+  // contact from its mobile/email -- Contacts & Address always starts
+  // with no contact shown; the user adds one explicitly via Add Contact.
   currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
 }
 
