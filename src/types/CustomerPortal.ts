@@ -1,3 +1,5 @@
+import type { WorkflowStage } from '@/types/Project'
+
 export interface CustomerProjectStatus {
   projectId: string
   projectName: string
@@ -8,6 +10,13 @@ export interface CustomerProjectStatus {
   actualEndDate?: string
   status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled'
   progress: number
+  // The real workflow stage, same value staff see -- drives
+  // ProjectStageProgress.vue's stepper. includesDesign/includesSupervision
+  // mirror Project.includesDesign/includesSupervision, filtering the
+  // stepper down to whichever of those two stages actually applies.
+  currentStage: WorkflowStage
+  includesDesign: boolean
+  includesSupervision: boolean
   summary: string
   engineerName: string
   supportEmail: string

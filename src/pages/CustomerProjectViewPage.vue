@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import CustomerProjectHeader from '@/components/customer/CustomerProjectHeader.vue'
+import ProjectStageProgress from '@/components/customer/ProjectStageProgress.vue'
 import MilestoneTimeline from '@/components/customer/MilestoneTimeline.vue'
 import DeliverablesPanel from '@/components/customer/DeliverablesPanel.vue'
 import ProjectUpdatesPanel from '@/components/customer/ProjectUpdatesPanel.vue'
@@ -121,6 +122,13 @@ onMounted(() => loadProject())
 
     <!-- Project Header -->
     <CustomerProjectHeader :project="projectData" />
+
+    <!-- Workflow Stage -->
+    <ProjectStageProgress
+      :current-stage="projectData.currentStage"
+      :includes-design="projectData.includesDesign"
+      :includes-supervision="projectData.includesSupervision"
+    />
 
     <!-- Milestones -->
     <MilestoneTimeline :milestones="milestones" />

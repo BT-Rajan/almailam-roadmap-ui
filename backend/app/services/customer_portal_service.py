@@ -10,7 +10,7 @@ from app.models.payment import FinancialAgreement, PaymentObligation
 from app.models.project import Project, ProjectSelectedActivity
 from app.models.timeline import ProjectTimelineEvent
 from app.models.user import User
-from app.services import company_service, payment_service
+from app.services import company_service, payment_service, project_service
 
 
 def _require_customer(current_user: User) -> User:
@@ -157,6 +157,8 @@ def get_project_view(db: Session, project: Project) -> dict:
         .order_by(ProjectSelectedActivity.service_name.asc(), ProjectSelectedActivity.activity_name.asc())
         .all()
     )
+    supervision_activities = project_service.get_selected_supervision_activities(db, project.id)
+    includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
 
     today = datetime.now(timezone.utc).date()
     milestones = [
@@ -270,6 +272,9 @@ def get_project_view(db: Session, project: Project) -> dict:
             "actualEndDate": None,
             "status": _customer_status(project),
             "progress": project.progress,
+            "currentStage": project.current_stage,
+            "includesDesign": includes_design,
+            "includesSupervision": includes_supervision,
             "summary": summary,
             "engineerName": engineer.full_name if engineer else "Al Mailam Team",
             "supportEmail": settings.email or "info@almailam.example",

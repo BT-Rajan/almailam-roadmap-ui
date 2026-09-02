@@ -367,11 +367,13 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
     it. Design, when it applies, must be approved by the client before
     Government Submission begins (you can't submit unapproved drawings
     to an authority for permit approval) -- that's the "at least one
-    design link" check below. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
-    reopening paths backward (Government Submission -> Design, Supervision
-    -> Government Submission, for when an authority's feedback or
-    supervision findings require changes) -- those require a reason like
-    any other reopening.
+    design link" check below. Government Submission itself must have at
+    least one Approved submission on file before Supervision (a real,
+    billed stage -- see migration 0059) begins. PROJECT_STAGE_ALLOWED_
+    TRANSITIONS keeps reopening paths backward (Government Submission ->
+    Design, Supervision -> Government Submission, for when an
+    authority's feedback or supervision findings require changes) --
+    those require a reason like any other reopening.
     """
     if new_stage in ("Design", "Supervision"):
         includes_design, includes_supervision = compute_stage_flags(
@@ -486,10 +488,32 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # its own to move past Design, matching how this stage is
         # actually meant to work.
 
-    # Leaving Government Submission for Supervision, and leaving
-    # Supervision back for Government Submission, have no exit criteria
-    # yet -- Supervision is a placeholder stage/tab for now (see
-    # WORKFLOW_STAGES).
+    elif previous_stage == "Government Submission" and new_stage == "Supervision":
+        # Gates leaving Government Submission into Supervision -- at
+        # least one of the project's government submissions actually has
+        # to have been Approved by the authority before supervision work
+        # (and its monthly billing) begins. Supervision used to be a
+        # placeholder stage with no exit criteria at all, which meant
+        # try_auto_advance_stage would move a project into it the moment
+        # *any* unrelated action (e.g. saving an edit to a design
+        # document) happened to run while the project sat in Government
+        # Submission -- well before the authority had actually signed
+        # off. Mirrors the "at least one" bar used for Design's own exit
+        # criterion above, not "every submission", since a project can
+        # have several submissions to different authorities and only
+        # needs its permit(s) in hand, not a clean sweep.
+        has_approved_submission = (
+            db.query(GovernmentSubmission)
+            .filter(
+                GovernmentSubmission.project_id == project.id,
+                GovernmentSubmission.status == "Approved",
+                GovernmentSubmission.deleted_at.is_(None),
+            )
+            .first()
+            is not None
+        )
+        if not has_approved_submission:
+            problems.append("at least one government submission Approved")
 
     if problems:
         raise ValidationAppError(

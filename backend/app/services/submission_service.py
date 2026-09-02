@@ -13,7 +13,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.government import GovernmentSubmission, SubmissionDocument, SubmissionFollowup
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, government_service, timeline_service
+from app.services import audit_service, government_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
@@ -167,6 +167,18 @@ def set_status(
         submission.submitted_date = date.today()
     if new_status in ("Approved", "Rejected") and submission.decision_date is None:
         submission.decision_date = date.today()
+
+    # An Approved submission is exactly what project_service's Government
+    # Submission -> Supervision exit criterion requires -- flush first so
+    # that check's own fresh query sees this row's new status (session is
+    # autoflush=False), then let the same auto-advance path every other
+    # stage-completing action goes through pick it up, instead of leaving
+    # Supervision waiting on a separate manual "move stage" click.
+    if new_status == "Approved":
+        db.flush()
+        project = db.query(Project).filter(Project.id == submission.project_id).first()
+        if project is not None:
+            project_service.try_auto_advance_stage(db, project, user_id)
 
     db.commit()
     db.refresh(submission)
