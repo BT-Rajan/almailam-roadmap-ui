@@ -392,7 +392,11 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       v-model="isAgreementFormOpen"
       :project-id="projectId"
       :stream="agreementFormStream"
-      :approved-contract="approvedQuotation ? { contractValue: approvedQuotation.amount, currency: approvedQuotation.currency } : undefined"
+      :approved-contract="
+        approvedQuotation
+          ? { quotationNo: approvedQuotation.quotationNo, contractValue: approvedQuotation.amount, currency: approvedQuotation.currency }
+          : undefined
+      "
       :is-submitting="store.isSubmitting"
       @submit="handleCreateAgreement"
     />

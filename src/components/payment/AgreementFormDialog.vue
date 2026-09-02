@@ -9,10 +9,11 @@ import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import type { AgreementStream, CreateAgreementInput, PaymentFrequency, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
 
-interface ApprovedContract {
+interface ApprovedQuotation {
+  quotationNo: string
   contractValue: number
   currency: string
 }
@@ -26,12 +27,14 @@ interface Props {
   // choice made inside this dialog.
   stream: AgreementStream
   isSubmitting?: boolean
-  // The project's Signed/Active contract, if it has one -- used to
-  // pre-fill Total Contract Amount and Currency instead of leaving them
-  // at 0/KWD for the user to re-type from the contract they just
-  // approved. undefined for Supervision (which doesn't use these
-  // fields) or a project with no approved contract yet.
-  approvedContract?: ApprovedContract
+  // The project's Approved quotation -- always present by the time this
+  // dialog can open (a Payment Plan agreement can't be created before
+  // one exists, see project_service._assert_stage_exit_criteria's
+  // Payment Plan entry criterion), so Quotation Reference/Total Contract
+  // Amount/Currency are auto-filled from it rather than left for staff
+  // to re-type. undefined only in the impossible-in-practice case of no
+  // approved quotation yet.
+  approvedContract?: ApprovedQuotation
 }
 
 const props = withDefaults(defineProps<Props>(), { isSubmitting: false, approvedContract: undefined })
@@ -51,14 +54,10 @@ const PAYMENT_MODE_OPTIONS: SelectOption[] = [
   { label: 'Other', value: 'Other' },
 ]
 
-// Design & Permit is billed once -- in full, or split into up to 5
-// installments -- never on a recurring interval (that's what
-// distinguishes it from Supervision's own separate monthly billing).
-// Only ever shown for that stream (see the SelectBox's v-if below), so
-// this doesn't need a Supervision-specific variant.
-const PAYMENT_FREQUENCY_OPTIONS: SelectOption[] = [
-  { label: 'One-time (paid in full)', value: 'One-time' },
-  { label: 'Split into installments (up to 5)', value: 'Custom' },
+const CURRENCY_OPTIONS: SelectOption[] = [
+  { label: 'KWD', value: 'KWD' },
+  { label: 'USD', value: 'USD' },
+  { label: 'EUR', value: 'EUR' },
 ]
 
 const INSTALLMENT_COUNT_OPTIONS: SelectOption[] = [1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: String(n) }))
@@ -76,14 +75,16 @@ const currency = ref('KWD')
 const contractStartDate = ref(new Date().toISOString().slice(0, 10))
 const agreementDate = ref(new Date().toISOString().slice(0, 10))
 const quotationReference = ref('')
-const contractReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
-const paymentFrequency = ref<PaymentFrequency>('Custom')
 const milestoneCount = ref(4)
 const milestones = ref<PaymentMilestoneInput[]>([])
 
 const isSupervision = computed(() => props.stream === 'Supervision')
-const isMilestonePlan = computed(() => !isSupervision.value && paymentFrequency.value === 'Custom')
+// Design & Permit is always billed as installments now -- 1 installment
+// is exactly a single one-time payment (generate_milestone_schedule
+// puts 100% of the contract amount on that one row), so there's no
+// separate "One-time" structure/toggle needed alongside this one.
+const isMilestonePlan = computed(() => !isSupervision.value)
 
 function evenSplitPercentages(count: number): number[] {
   const base = Math.floor((100 / count) * 100) / 100
@@ -110,10 +111,8 @@ function resetForm(): void {
   currency.value = props.approvedContract?.currency ?? 'KWD'
   contractStartDate.value = new Date().toISOString().slice(0, 10)
   agreementDate.value = new Date().toISOString().slice(0, 10)
-  quotationReference.value = ''
-  contractReference.value = ''
+  quotationReference.value = props.approvedContract?.quotationNo ?? ''
   paymentMode.value = 'Bank Transfer'
-  paymentFrequency.value = 'Custom'
   milestoneCount.value = 4
   milestones.value = buildDefaultMilestones(4)
 }
@@ -134,15 +133,14 @@ const milestonesValid = computed(
     milestones.value.every((m) => m.description.trim().length > 0 && m.dueDate.length > 0 && m.percentage > 0),
 )
 
-// Supervision's contractAmount/contractStartDate/contractEndDate/
-// paymentFrequency are all derived server-side from the project's
-// selected Supervision activities (see payment_service.create_agreement)
-// -- only agreementDate and paymentMode are ever required from this form
-// for that stream.
+// Supervision's contractAmount/contractStartDate/contractEndDate are all
+// derived server-side from the project's selected Supervision activities
+// (see payment_service.create_agreement) -- only agreementDate and
+// paymentMode are ever required from this form for that stream.
 const canSubmit = computed(() => {
   if (isSupervision.value) return agreementDate.value.length > 0
   const baseValid = contractAmount.value > 0 && contractStartDate.value.length > 0
-  return baseValid && (!isMilestonePlan.value || milestonesValid.value)
+  return baseValid && milestonesValid.value
 })
 
 function handleSubmit(): void {
@@ -154,7 +152,6 @@ function handleSubmit(): void {
         currency: currency.value,
         agreementDate: agreementDate.value,
         quotationReference: quotationReference.value.trim() || undefined,
-        contractReference: contractReference.value.trim() || undefined,
         paymentMode: paymentMode.value,
       }
     : {
@@ -165,12 +162,9 @@ function handleSubmit(): void {
         contractStartDate: contractStartDate.value,
         agreementDate: agreementDate.value,
         quotationReference: quotationReference.value.trim() || undefined,
-        contractReference: contractReference.value.trim() || undefined,
         paymentMode: paymentMode.value,
-        paymentFrequency: paymentFrequency.value,
-        milestones: isMilestonePlan.value
-          ? milestones.value.map((m) => ({ description: m.description.trim(), percentage: m.percentage, dueDate: m.dueDate }))
-          : undefined,
+        paymentFrequency: 'Custom',
+        milestones: milestones.value.map((m) => ({ description: m.description.trim(), percentage: m.percentage, dueDate: m.dueDate })),
       }
   emit('submit', input)
 }
@@ -195,42 +189,55 @@ function handleClose(): void {
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <TextInput v-model="currency" label="Currency" placeholder="KWD" required />
         <DatePicker v-model="agreementDate" label="Agreement Date" required />
-        <TextInput v-model="quotationReference" label="Quotation Reference (optional)" placeholder="QTN-2026-…" />
-        <TextInput v-model="contractReference" label="Contract Reference (optional)" placeholder="CNT-2026-…" />
+        <TextInput
+          v-model="quotationReference"
+          label="Quotation Reference"
+          disabled
+          hint="Auto-filled from this project's approved quotation."
+        />
       </div>
     </FormSection>
 
     <FormSection v-else title="Contract Value" description="The total agreed value of the engagement with this client.">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <NumberInput :model-value="contractAmount" label="Total Contract Amount" :min="0" step="0.01" required @update:model-value="contractAmount = Number($event)" />
-        <TextInput v-model="currency" label="Currency" placeholder="KWD" required />
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-text-secondary">Total Contract Amount <span class="text-danger-500">*</span></label>
+          <div class="flex gap-2">
+            <div class="w-24 shrink-0">
+              <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
+            </div>
+            <NumberInput
+              class="flex-1"
+              :model-value="contractAmount"
+              :min="0"
+              step="0.01"
+              required
+              @update:model-value="contractAmount = Number($event)"
+            />
+          </div>
+        </div>
         <DatePicker v-model="agreementDate" label="Agreement Date" required />
         <DatePicker v-model="contractStartDate" label="Contract Start Date" required />
-        <TextInput v-model="quotationReference" label="Quotation Reference (optional)" placeholder="QTN-2026-…" />
-        <TextInput v-model="contractReference" label="Contract Reference (optional)" placeholder="CNT-2026-…" />
-      </div>
-    </FormSection>
-
-    <FormSection
-      title="Payment Terms"
-      :description="isSupervision ? 'Monthly, prorated by day for partial months.' : 'Billed once -- paid in full immediately, or split into up to 5 installments you configure below.'"
-    >
-      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
-        <SelectBox
-          v-if="!isSupervision"
-          :model-value="paymentFrequency"
-          label="Payment Frequency"
-          :options="PAYMENT_FREQUENCY_OPTIONS"
-          @update:model-value="paymentFrequency = $event as PaymentFrequency"
+        <TextInput
+          v-model="quotationReference"
+          label="Quotation Reference"
+          disabled
+          hint="Auto-filled from this project's approved quotation."
         />
       </div>
     </FormSection>
 
     <FormSection
+      title="Payment Mode"
+      :description="isSupervision ? 'Monthly, prorated by day for partial months.' : 'How this will be paid -- the installment schedule is set below.'"
+    >
+      <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
+    </FormSection>
+
+    <FormSection
       v-if="isMilestonePlan"
-      title="Milestone Payment Plan"
-      description="Choose how many payments the client will make (up to 5), then set each installment's share of the contract amount and its due date. Percentages must add up to 100%."
+      title="Installments"
+      description="Choose how many payments the client will make (1 for a single one-time payment, up to 5), then set each installment's share of the contract amount and its due date. Percentages must add up to 100%."
     >
       <SelectBox
         :model-value="String(milestoneCount)"
