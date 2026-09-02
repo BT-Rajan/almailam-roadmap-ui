@@ -162,7 +162,7 @@ function handleUploaderError(message: string): void {
       </div>
     </FormSection>
 
-    <FormSection title="Upload Document" description="Upload a copy of the identification or trade licence document. JPG, PNG or PDF, up to 5 MB. Required.">
+    <FormSection title="Upload Document" description="Upload a copy of the identification or trade licence document. JPG, PNG or PDF, up to 5 MB." required>
       <FileUploader
         hint="JPG, PNG or PDF, up to 5 MB"
         accept=".jpg,.jpeg,.png,.pdf"
