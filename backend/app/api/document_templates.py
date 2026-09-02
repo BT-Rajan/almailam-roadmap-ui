@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.exceptions import ValidationAppError
 from app.core.file_storage import resolve_path
 from app.models.user import User
-from app.schemas.document_template import DocumentTemplateOut
+from app.schemas.document_template import DocumentTemplateOut, MergeField, TemplateLayout, TemplateMappingIn
 from app.services import document_template_service
 
 router = APIRouter(prefix="/api/document-templates", tags=["document-templates"])
@@ -46,6 +46,27 @@ def upload_template(
     current_user: User = Depends(can_edit),
 ):
     template = document_template_service.upload_template(db, documentType, file, current_user.id)
+    return _to_out(db, template)
+
+
+@router.get("/merge-fields", response_model=list[MergeField])
+def list_merge_fields(documentType: str, _=Depends(can_view)):
+    return document_template_service.get_merge_fields(documentType)
+
+
+@router.get("/{template_id}/layout", response_model=TemplateLayout)
+def get_template_layout(template_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    template = document_template_service.get_template(db, _parse_id(template_id))
+    return document_template_service.extract_layout(template.storage_key)
+
+
+@router.post("/{template_id}/mapping", response_model=DocumentTemplateOut)
+def save_template_mapping(
+    template_id: str, payload: TemplateMappingIn, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    template = document_template_service.save_mapping(
+        db, _parse_id(template_id), [block.model_dump() for block in payload.blocks], current_user.id
+    )
     return _to_out(db, template)
 
 

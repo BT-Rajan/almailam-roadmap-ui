@@ -11,12 +11,18 @@ downloaded. There is no PDF conversion step -- the merged .docx is the
 deliverable, opened/printed from Word like any other document.
 """
 
+import copy
 import html
 import io
 import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.table import Table
+from docx.text.paragraph import Paragraph
 from docxtpl import DocxTemplate
 from sqlalchemy.orm import Session
 
@@ -252,3 +258,293 @@ def render_contract_document(db: Session, contract: Contract) -> tuple[bytes, st
     }
     filename = f"{contract.contract_no}.docx"
     return _render_docx(template.storage_key, context), filename
+
+
+# --- Visual field mapping -- lets an admin click a spot in an uploaded
+# template and place a merge field there instead of hand-typing {{ field
+# }}/{%tr %} syntax into Word. The catalog below is the single source of
+# truth for what a template can reference; it must stay in lockstep with
+# the context dicts render_quotation_document/render_contract_document
+# actually build above, since _sample_context's save-time validation
+# render is only as meaningful as that agreement.
+MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
+    "Quotation": [
+        {"key": "quotation_no", "label": "Quotation No.", "kind": "text"},
+        {"key": "revision", "label": "Revision", "kind": "text"},
+        {"key": "issue_date", "label": "Issue Date", "kind": "text"},
+        {"key": "validity", "label": "Valid Until", "kind": "text"},
+        {"key": "status", "label": "Status", "kind": "text"},
+        {"key": "currency", "label": "Currency", "kind": "text"},
+        {"key": "prepared_by", "label": "Prepared By", "kind": "text"},
+        {"key": "client_name", "label": "Client Name", "kind": "text"},
+        {"key": "project_name", "label": "Project Name", "kind": "text"},
+        {"key": "project_no", "label": "Project No.", "kind": "text"},
+        {"key": "subtotal", "label": "Subtotal", "kind": "text"},
+        {"key": "discount_amount", "label": "Discount Amount", "kind": "text"},
+        {"key": "amount", "label": "Total Amount", "kind": "text"},
+        {"key": "notes", "label": "Notes", "kind": "text"},
+        {
+            "key": "line_items",
+            "label": "Line Items",
+            "kind": "repeating_table",
+            "loopVar": "item",
+            "columns": [
+                {"key": "description", "label": "Description"},
+                {"key": "quantity", "label": "Quantity"},
+                {"key": "unit_price", "label": "Unit Price"},
+                {"key": "amount", "label": "Amount"},
+            ],
+        },
+        {"key": "terms_and_conditions", "label": "Terms & Conditions", "kind": "repeating_list", "loopVar": "term"},
+    ],
+    "Contract": [
+        {"key": "contract_no", "label": "Contract No.", "kind": "text"},
+        {"key": "revision", "label": "Revision", "kind": "text"},
+        {"key": "currency", "label": "Currency", "kind": "text"},
+        {"key": "contract_value", "label": "Contract Value", "kind": "text"},
+        {"key": "issue_date", "label": "Issue Date", "kind": "text"},
+        {"key": "signed_date", "label": "Signed Date", "kind": "text"},
+        {"key": "expiry_date", "label": "Expiry Date", "kind": "text"},
+        {"key": "status", "label": "Status", "kind": "text"},
+        {"key": "prepared_by", "label": "Prepared By", "kind": "text"},
+        {"key": "client_representative", "label": "Client Representative", "kind": "text"},
+        {"key": "client_name", "label": "Client Name", "kind": "text"},
+        {"key": "project_name", "label": "Project Name", "kind": "text"},
+        {"key": "project_no", "label": "Project No.", "kind": "text"},
+        {"key": "scope_summary", "label": "Scope Summary", "kind": "text"},
+        {
+            "key": "clauses",
+            "label": "Clauses",
+            "kind": "repeating_table",
+            "loopVar": "clause",
+            "columns": [
+                {"key": "title", "label": "Title"},
+                {"key": "content", "label": "Content"},
+            ],
+        },
+    ],
+}
+
+_FIELD_BY_KEY: dict[str, dict[str, dict]] = {
+    doc_type: {field["key"]: field for field in fields} for doc_type, fields in MERGE_FIELD_CATALOG.items()
+}
+
+
+def get_merge_fields(document_type: str) -> list[dict]:
+    _check_document_type(document_type)
+    return MERGE_FIELD_CATALOG[document_type]
+
+
+def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
+    """Rewrites a paragraph down to a single run containing `text`,
+    preserving the first existing run's character formatting (bold,
+    font, etc.) if there was one. A deliberate simplification -- a
+    paragraph that mixed multiple run styles mid-sentence collapses to
+    one style -- far more robust than trying to splice text in while
+    preserving every original run boundary, and irrelevant for the
+    short, mostly-plain lines a merge field actually lives in."""
+    runs = list(paragraph.runs)
+    preserved_rpr = None
+    if runs:
+        existing_rpr = runs[0]._r.find(qn("w:rPr"))
+        if existing_rpr is not None:
+            preserved_rpr = copy.deepcopy(existing_rpr)
+    for run in runs:
+        run._r.getparent().remove(run._r)
+    new_run = OxmlElement("w:r")
+    if preserved_rpr is not None:
+        new_run.append(preserved_rpr)
+    new_text_el = OxmlElement("w:t")
+    new_text_el.set(qn("xml:space"), "preserve")
+    new_text_el.text = text
+    new_run.append(new_text_el)
+    paragraph._p.append(new_run)
+
+
+def _marker_paragraph_element(tag_text: str):
+    """A bare, unstyled paragraph holding one docxtpl {%p %}/{%tr %} tag
+    -- used as a disposable before/after marker, never seen by anyone:
+    docxtpl's preprocessing deletes the entire <w:p>/<w:tr> a tag like
+    this is found in and replaces it with just the bare Jinja tag (see
+    the module-level docxtpl docs), so this element's own formatting
+    never survives to be seen."""
+    p = OxmlElement("w:p")
+    run = OxmlElement("w:r")
+    text_el = OxmlElement("w:t")
+    text_el.set(qn("xml:space"), "preserve")
+    text_el.text = tag_text
+    run.append(text_el)
+    p.append(run)
+    return p
+
+
+def _clone_marker_row(row, marker_text: str):
+    """A row-shaped clone of `row` (same cell count/widths/borders) with
+    every cell's text cleared and one docxtpl {%tr %} marker tag written
+    into its first cell. Needs a whole extra row rather than just text
+    inside the marked row itself: docxtpl deletes the ENTIRE <w:tr> a
+    {%tr %} tag is found in, replacing it with the bare Jinja tag -- the
+    marked row itself is left as an ordinary row and is what actually
+    repeats, so the for/endfor tags need their own throwaway rows
+    immediately before/after it, not to live inside it."""
+    cloned_element = copy.deepcopy(row._tr)
+    cloned_row = type(row)(cloned_element, row._parent)
+    for cell in cloned_row.cells:
+        for paragraph in cell.paragraphs:
+            _set_paragraph_text(paragraph, "")
+    if cloned_row.cells and cloned_row.cells[0].paragraphs:
+        _set_paragraph_text(cloned_row.cells[0].paragraphs[0], marker_text)
+    return cloned_element
+
+
+def _body_blocks(document) -> list[tuple[int, str, object]]:
+    """(blockIndex, kind, wrapper) for every top-level paragraph/table in
+    the document body, in document order -- extract_layout and
+    apply_mapping both walk this exact same way, so a blockIndex always
+    means the same block between the two calls (nothing changes the
+    docx's own body structure in between; only text within existing
+    blocks/cells does)."""
+    blocks: list[tuple[int, str, object]] = []
+    index = 0
+    for child in document.element.body:
+        if child.tag == qn("w:p"):
+            blocks.append((index, "paragraph", Paragraph(child, document)))
+            index += 1
+        elif child.tag == qn("w:tbl"):
+            blocks.append((index, "table", Table(child, document)))
+            index += 1
+    return blocks
+
+
+def extract_layout(storage_key: str) -> dict:
+    """The uploaded template's paragraphs/tables, in document order, as
+    plain editable text -- what the admin's field-mapping screen shows
+    and edits. Only a table cell's first paragraph is exposed (a cell
+    with more than one paragraph is the rare case, and editing just the
+    first is a reasonable simplification for a merge-field target)."""
+    document = Document(str(resolve_path(storage_key)))
+    blocks: list[dict] = []
+    for block_index, kind, wrapper in _body_blocks(document):
+        if kind == "paragraph":
+            blocks.append({"kind": "paragraph", "blockIndex": block_index, "text": wrapper.text, "repeatingField": None})
+        else:
+            rows = []
+            for row_index, row in enumerate(wrapper.rows):
+                cells = [
+                    {"cellIndex": cell_index, "text": cell.paragraphs[0].text if cell.paragraphs else ""}
+                    for cell_index, cell in enumerate(row.cells)
+                ]
+                rows.append({"rowIndex": row_index, "cells": cells, "repeatingField": None})
+            blocks.append({"kind": "table", "blockIndex": block_index, "rows": rows})
+    return {"blocks": blocks}
+
+
+def apply_mapping(storage_key: str, document_type: str, blocks: list[dict]) -> bytes:
+    """Writes the admin's edited text back into the template (one plain
+    run per paragraph/cell -- see _set_paragraph_text), then, for at
+    most one paragraph and one table row across the whole document,
+    wraps it in docxtpl's repeating-block marker tags if it was flagged
+    `repeatingField` -- see _clone_marker_row/_marker_paragraph_element
+    for why that needs extra rows/paragraphs rather than editing in
+    place. A second block flagged for the same or another repeating
+    field is simply ignored (last one processed in document order wins
+    for a given kind) rather than erroring -- the frontend's palette
+    only ever lets one location hold a given repeating field at a time,
+    so this only matters for a payload assembled by hand."""
+    _check_document_type(document_type)
+    document = Document(str(resolve_path(storage_key)))
+    by_index = {index: (kind, wrapper) for index, kind, wrapper in _body_blocks(document)}
+
+    repeating_paragraph: Paragraph | None = None
+    repeating_paragraph_field: dict | None = None
+    repeating_row = None
+    repeating_row_field: dict | None = None
+
+    for block in blocks:
+        located = by_index.get(block.get("blockIndex"))
+        if located is None:
+            continue
+        kind, wrapper = located
+        if kind != block.get("kind"):
+            continue
+
+        if kind == "paragraph":
+            _set_paragraph_text(wrapper, block.get("text") or "")
+            field_key = block.get("repeatingField")
+            if field_key and field_key in _FIELD_BY_KEY[document_type]:
+                repeating_paragraph = wrapper
+                repeating_paragraph_field = _FIELD_BY_KEY[document_type][field_key]
+        else:
+            for row_payload in block.get("rows") or []:
+                row_index = row_payload.get("rowIndex")
+                if row_index is None or row_index >= len(wrapper.rows):
+                    continue
+                row = wrapper.rows[row_index]
+                for cell_payload in row_payload.get("cells") or []:
+                    cell_index = cell_payload.get("cellIndex")
+                    if cell_index is None or cell_index >= len(row.cells):
+                        continue
+                    cell = row.cells[cell_index]
+                    if cell.paragraphs:
+                        _set_paragraph_text(cell.paragraphs[0], cell_payload.get("text") or "")
+                field_key = row_payload.get("repeatingField")
+                if field_key and field_key in _FIELD_BY_KEY[document_type]:
+                    repeating_row = row
+                    repeating_row_field = _FIELD_BY_KEY[document_type][field_key]
+
+    if repeating_paragraph is not None and repeating_paragraph_field is not None:
+        loop_var = repeating_paragraph_field["loopVar"]
+        list_key = repeating_paragraph_field["key"]
+        repeating_paragraph._p.addprevious(_marker_paragraph_element(f"{{%p for {loop_var} in {list_key} %}}"))
+        repeating_paragraph._p.addnext(_marker_paragraph_element("{%p endfor %}"))
+
+    if repeating_row is not None and repeating_row_field is not None:
+        loop_var = repeating_row_field["loopVar"]
+        list_key = repeating_row_field["key"]
+        repeating_row._tr.addprevious(_clone_marker_row(repeating_row, f"{{%tr for {loop_var} in {list_key} %}}"))
+        repeating_row._tr.addnext(_clone_marker_row(repeating_row, "{%tr endfor %}"))
+
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def _sample_context(document_type: str) -> dict:
+    """A minimal but structurally-complete context (one sample row/term)
+    for every field in the catalog -- used only to validate a mapping
+    renders cleanly (see save_mapping) before it's allowed to overwrite
+    the template's actual file. Not used for a real document -- that's
+    render_quotation_document/render_contract_document, with the
+    project's real data."""
+    context: dict = {}
+    for field in MERGE_FIELD_CATALOG[document_type]:
+        if field["kind"] == "text":
+            context[field["key"]] = "Sample"
+        elif field["kind"] == "repeating_table":
+            context[field["key"]] = [{column["key"]: "Sample" for column in field["columns"]}]
+        elif field["kind"] == "repeating_list":
+            context[field["key"]] = ["Sample"]
+    return context
+
+
+def save_mapping(db: Session, template_id: int, blocks: list[dict], actor_id: int) -> DocumentTemplate:
+    template = get_template(db, template_id)
+    new_bytes = apply_mapping(template.storage_key, template.document_type, blocks)
+
+    # Fail the save, not the next real download -- catches a stray
+    # {{ / {% left over from a bad edit, or two locations flagged for
+    # the same repeating field, immediately, with the template's
+    # previous, still-working file left untouched on disk either way.
+    try:
+        DocxTemplate(io.BytesIO(new_bytes)).render(_sample_context(template.document_type))
+    except Exception as exc:
+        raise ValidationAppError(
+            f"This field mapping couldn't be validated -- check for overlapping or malformed placeholders. ({exc})"
+        ) from exc
+
+    resolve_path(template.storage_key).write_bytes(new_bytes)
+    template.file_size_bytes = len(new_bytes)
+    audit_service.log_event(db, ENTITY_TYPE, template.id, f"{template.document_type} template fields mapped", actor_id)
+    db.commit()
+    db.refresh(template)
+    return template

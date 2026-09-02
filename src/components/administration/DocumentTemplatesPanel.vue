@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, CheckCircle2, Download, Trash2, Upload, UserRound } from '@lucide/vue'
+import { CalendarClock, CheckCircle2, Download, MapPin, Trash2, Upload, UserRound } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,6 +10,7 @@ import IconButton from '@/components/common/IconButton.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
+import TemplateFieldMapperDialog from '@/components/administration/TemplateFieldMapperDialog.vue'
 import { useDocumentTemplateStore } from '@/stores/documentTemplateStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
@@ -46,6 +47,14 @@ const deleteTarget = ref<DocumentTemplate | undefined>(undefined)
 const isDeleting = ref(false)
 const isSettingDefaultId = ref<string | undefined>(undefined)
 const isDownloadingId = ref<string | undefined>(undefined)
+
+const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
+const isMapperOpen = ref(false)
+
+function openFieldMapper(template: DocumentTemplate): void {
+  mappingTarget.value = template
+  isMapperOpen.value = true
+}
 
 onMounted(() => {
   if (store.templates.length === 0) store.loadTemplates()
@@ -179,6 +188,7 @@ async function confirmDelete(): Promise<void> {
               >
                 Set Default
               </BaseButton>
+              <IconButton :icon="MapPin" label="Map fields" size="sm" @click="openFieldMapper(template)" />
               <IconButton
                 :icon="Download"
                 label="Download template"
@@ -203,9 +213,11 @@ async function confirmDelete(): Promise<void> {
     <BaseDialog :model-value="Boolean(uploadTarget)" :title="`Upload ${uploadTarget} Template`" size="sm" :closable="!isUploading" @update:model-value="closeUpload">
       <div class="flex flex-col gap-3">
         <p class="text-xs text-text-muted">
-          Word (.docx) only. Use <code class="rounded bg-bg-secondary px-1 py-0.5">{{ PLACEHOLDER_SYNTAX_EXAMPLE }}</code> placeholders
-          and, inside a table row, docxtpl's <code class="rounded bg-bg-secondary px-1 py-0.5">{{ ROW_LOOP_SYNTAX_EXAMPLE }}</code>
-          row-loop syntax for line items/clauses.
+          Word (.docx) only. Any layout works -- once uploaded, use each template's
+          <MapPin class="inline h-3 w-3 align-text-bottom" /> "Map fields" button to click merge fields into place
+          visually, or hand-type <code class="rounded bg-bg-secondary px-1 py-0.5">{{ PLACEHOLDER_SYNTAX_EXAMPLE }}</code>
+          placeholders and, inside a table row, docxtpl's <code class="rounded bg-bg-secondary px-1 py-0.5">{{ ROW_LOOP_SYNTAX_EXAMPLE }}</code>
+          row-loop syntax yourself in Word.
         </p>
         <FileUploader accept=".docx" hint="Word (.docx) template" @select="uploadFile = $event" />
       </div>
@@ -225,5 +237,7 @@ async function confirmDelete(): Promise<void> {
       @update:model-value="deleteTarget = undefined"
       @confirm="confirmDelete"
     />
+
+    <TemplateFieldMapperDialog v-model="isMapperOpen" :template="mappingTarget" @saved="store.loadTemplates()" />
   </div>
 </template>

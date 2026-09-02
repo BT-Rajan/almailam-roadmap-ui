@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
-import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
+import type { DocumentTemplate, DocumentTemplateType, MergeField, TemplateBlock, TemplateLayout } from '@/types/DocumentTemplate'
 
 async function getTemplates(documentType?: DocumentTemplateType): Promise<DocumentTemplate[]> {
   try {
@@ -46,6 +46,21 @@ async function uploadTemplate(documentType: DocumentTemplateType, file: File): P
     console.error('Failed to upload document template:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to upload document template')
   }
+}
+
+/** The field-mapping palette's contents for a document type. */
+async function getMergeFields(documentType: DocumentTemplateType): Promise<MergeField[]> {
+  return apiClient.get<MergeField[]>(`/api/document-templates/merge-fields?documentType=${documentType}`)
+}
+
+/** The uploaded template's paragraphs/tables, as plain editable text. */
+async function getTemplateLayout(templateId: string): Promise<TemplateLayout> {
+  return apiClient.get<TemplateLayout>(`/api/document-templates/${templateId}/layout`)
+}
+
+/** Writes the edited/field-mapped blocks back into the template's .docx. */
+async function saveTemplateMapping(templateId: string, blocks: TemplateBlock[]): Promise<DocumentTemplate> {
+  return apiClient.post<DocumentTemplate>(`/api/document-templates/${templateId}/mapping`, { blocks })
 }
 
 async function setDefaultTemplate(templateId: string): Promise<DocumentTemplate> {
@@ -106,6 +121,9 @@ async function downloadContractDocument(contractNo: string): Promise<Blob> {
 export const documentTemplateService = {
   getTemplates,
   uploadTemplate,
+  getMergeFields,
+  getTemplateLayout,
+  saveTemplateMapping,
   setDefaultTemplate,
   deleteTemplate,
   downloadTemplate,
