@@ -1,18 +1,16 @@
 import { defineStore } from 'pinia'
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'serviceos-sidebar-collapsed'
-const TABLET_MAX_WIDTH = 1024
 
 function getInitialCollapsedState(): boolean {
   const stored = localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
   if (stored !== null) return stored === 'true'
 
-  // No saved preference yet: default to collapsed on tablet-sized viewports
-  // to leave more room for content, matching the desktop default otherwise.
-  if (typeof window !== 'undefined') {
-    return window.innerWidth < TABLET_MAX_WIDTH
-  }
-  return false
+  // No saved preference yet: default to collapsed everywhere, desktop
+  // included, to leave more room for content until the user opts to
+  // expand it themselves (see toggleSidebarCollapsed, which persists
+  // that choice from then on).
+  return true
 }
 
 export const useNavigationStore = defineStore('navigation', {
