@@ -32,6 +32,8 @@ const selectedTaskProjectName = computed(
   () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? 'Unknown Project',
 )
 
+const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
+
 function loadData(): void {
   taskStore.loadTasks()
 }
@@ -109,6 +111,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       v-else
       :tasks="taskStore.myTasks"
       :get-project-by-id="taskStore.getProjectById"
+      :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
       @open="taskStore.selectTask"
     />
 
@@ -117,6 +120,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         v-if="taskStore.selectedTask"
         :task="taskStore.selectedTask"
         :project-name="selectedTaskProjectName"
+        :client-name="selectedTaskClientName"
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"

@@ -7,6 +7,7 @@ import type { Task, TaskStatus } from '@/types/Task'
 const props = defineProps<{
   tasksByStatus: Record<TaskStatus, Task[]>
   getProjectById: (projectId: string) => Project | undefined
+  getClientNameByProjectId: (projectId: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -50,6 +51,7 @@ function projectName(projectId: string): string {
         :key="task.id"
         :task="task"
         :project-name="projectName(task.projectId)"
+        :client-name="getClientNameByProjectId(task.projectId)"
         @open="emit('open', $event)"
         @advance="emit('advance', $event)"
       />

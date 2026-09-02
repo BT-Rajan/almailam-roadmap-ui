@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -13,6 +13,7 @@ import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import TaskList from '@/components/task/TaskList.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { TaskInput } from '@/services/taskService'
+import { useClientStore } from '@/stores/clientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project } from '@/types/Project'
@@ -27,8 +28,16 @@ const router = useRouter()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
+const clientStore = useClientStore()
+onMounted(() => {
+  if (clientStore.clients.length === 0) clientStore.loadClients()
+})
 
 const projectTasks = computed(() => taskStore.tasksByProject(props.project.id))
+// Every task on this tab belongs to this one project, so its client is
+// fixed too -- no need to resolve per-task like the cross-project Task
+// Board/My Tasks views do.
+const clientName = computed(() => clientStore.getClientById(props.project.clientId)?.companyName ?? 'Unknown Client')
 
 type PendingChange =
   | { kind: 'status'; value: TaskStatus }
@@ -161,7 +170,13 @@ async function handleReassign(assignee: string): Promise<void> {
 
   <ErrorState v-else-if="taskStore.error" :description="taskStore.error" @retry="taskStore.loadTasks" />
 
-  <TaskList v-else :tasks="projectTasks" :get-project-by-id="taskStore.getProjectById" @open="taskStore.selectTask" />
+  <TaskList
+    v-else
+    :tasks="projectTasks"
+    :get-project-by-id="taskStore.getProjectById"
+    :get-client-name-by-project-id="() => clientName"
+    @open="taskStore.selectTask"
+  />
 
   <TaskFormDialog
     v-model="isCreateDialogOpen"
@@ -175,6 +190,7 @@ async function handleReassign(assignee: string): Promise<void> {
       v-if="taskStore.selectedTask"
       :task="taskStore.selectedTask"
       :project-name="project.projectName"
+      :client-name="clientName"
       @status-change="requestStatusChange"
       @priority-change="requestPriorityChange"
       @reassign="requestReassign"

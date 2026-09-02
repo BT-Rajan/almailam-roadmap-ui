@@ -12,6 +12,7 @@ import type { Task } from '@/types/Task'
 const props = defineProps<{
   task: Task
   projectName: string
+  clientName: string
 }>()
 
 const emit = defineEmits<{
@@ -36,7 +37,7 @@ const nextStatus = computed(() => getNextTaskStatus(props.task.status))
       </div>
     </div>
 
-    <p class="truncate text-xs text-text-muted">{{ projectName }}</p>
+    <p class="truncate text-xs text-text-muted">{{ projectName }} &middot; {{ clientName }}</p>
 
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">

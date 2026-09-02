@@ -4,6 +4,7 @@ import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
 import type { TaskInput } from '@/services/taskService'
 import { useAuthStore } from '@/stores/authStore'
+import { useClientStore } from '@/stores/clientStore'
 import type { Project } from '@/types/Project'
 import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 
@@ -35,6 +36,20 @@ export const useTaskStore = defineStore('task', {
   getters: {
     getProjectById(state) {
       return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    },
+
+    // Every task belongs to exactly one project, and every project to
+    // exactly one client (Project.clientId is required) -- so a task's
+    // client is always resolvable transitively through its project.
+    // Centralized here rather than in each view so "Unknown Client"
+    // fallback wording only lives in one place.
+    getClientNameByProjectId(state) {
+      return (projectId: string): string => {
+        const project = state.projects.find((item) => item.id === projectId)
+        if (!project) return 'Unknown Client'
+        const clientStore = useClientStore()
+        return clientStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client'
+      }
     },
 
     filteredTasks(state): Task[] {
@@ -90,7 +105,12 @@ export const useTaskStore = defineStore('task', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [tasks, projects] = await Promise.all([taskService.getTasks(), projectService.getProjects()])
+        const clientStore = useClientStore()
+        const [tasks, projects] = await Promise.all([
+          taskService.getTasks(),
+          projectService.getProjects(),
+          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
+        ])
         this.tasks = tasks
         this.projects = projects
       } catch {

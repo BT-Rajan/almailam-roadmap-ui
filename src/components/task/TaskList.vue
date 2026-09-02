@@ -13,6 +13,7 @@ import type { Task } from '@/types/Task'
 const props = defineProps<{
   tasks: Task[]
   getProjectById: (projectId: string) => Project | undefined
+  getClientNameByProjectId: (projectId: string) => string
 }>()
 
 defineEmits<{
@@ -42,7 +43,9 @@ function projectName(projectId: string): string {
         >
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold text-text-primary">{{ task.title }}</p>
-            <p class="truncate text-xs text-text-muted">{{ projectName(task.projectId) }}</p>
+            <p class="truncate text-xs text-text-muted">
+              {{ projectName(task.projectId) }} &middot; {{ getClientNameByProjectId(task.projectId) }}
+            </p>
           </div>
 
           <div class="flex shrink-0 items-center gap-3">

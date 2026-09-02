@@ -12,6 +12,7 @@ import type { SelectOption } from '@/types/Ui'
 const props = defineProps<{
   task: Task
   projectName: string
+  clientName: string
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +42,7 @@ const SEVERITY_OPTIONS: SelectOption[] = [
 
 const details = [
   { label: 'Project', value: props.projectName },
+  { label: 'Client', value: props.clientName },
   { label: 'Completion Date & Time', value: formatTaskDueDateTime(props.task) },
 ]
 </script>

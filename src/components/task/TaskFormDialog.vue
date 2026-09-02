@@ -8,6 +8,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import { useAuthStore } from '@/stores/authStore'
+import { useClientStore } from '@/stores/clientStore'
 import { useUserStore } from '@/stores/userStore'
 import type { TaskInput } from '@/services/taskService'
 import type { Project } from '@/types/Project'
@@ -40,8 +41,10 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const clientStore = useClientStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
+  if (clientStore.clients.length === 0) clientStore.loadClients()
 })
 
 const title = ref('')
@@ -65,6 +68,16 @@ const projectOptions = computed<SelectOption[]>(() =>
   props.projects.map((project) => ({ label: project.projectName, value: project.id })),
 )
 
+// Every task must belong to exactly one project, and through it, one
+// client -- resolving and showing the client here (read-only) as soon
+// as a project is picked makes that tagging visible to whoever is
+// creating the task, rather than leaving the client implicit.
+const selectedClientName = computed<string | undefined>(() => {
+  const project = props.projects.find((item) => item.id === projectId.value)
+  if (!project) return undefined
+  return clientStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client'
+})
+
 const assigneeOptions = computed<SelectOption[]>(() =>
   userStore.users
     .filter((user) => user.status === 'Active')
@@ -79,7 +92,13 @@ watch(
   () => props.modelValue,
   (isOpen) => {
     if (isOpen) {
-      projectId.value = props.defaultProjectId ?? props.projects[0]?.id ?? ''
+      // No fallback to the first project in the list here -- a task
+      // created from a project-scoped context (e.g. ProjectTasksTab)
+      // still gets pinned via defaultProjectId, but a task created from
+      // a global context (Task Board, My Tasks, an activity with no
+      // project) must have its project explicitly chosen rather than
+      // silently landing on whichever project happens to sort first.
+      projectId.value = props.defaultProjectId ?? ''
       title.value = props.defaultTitle ?? ''
       assignedTo.value = authStore.user?.id ?? ''
     }
@@ -133,6 +152,7 @@ function submitTask(): void {
       />
 
       <SelectBox v-model="projectId" label="Project" placeholder="Select project" :options="projectOptions" required />
+      <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">Client: {{ selectedClientName }}</p>
 
       <SelectBox
         :model-value="assignedTo"
