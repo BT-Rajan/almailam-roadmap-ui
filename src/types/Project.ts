@@ -15,11 +15,16 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled'
 // Tracking" and "Completed" were removed entirely -- "Government
 // Submission" is now the terminal stage. "Supervision" sits alongside
 // "Design" -- a project can include either, both, or neither, depending
-// on Project.includesDesign/includesSupervision below. See
-// backend/app/models/project.py's WORKFLOW_STAGES comment.
+// on Project.includesDesign/includesSupervision below. "Payment Plan"
+// sits between Quotation and Contract -- the project's financial
+// agreement(s) have to be generated and explicitly approved (see
+// FinancialAgreement.status in types/Payment.ts) before a contract is
+// even drafted. See backend/app/models/project.py's WORKFLOW_STAGES
+// comment.
 export type WorkflowStage =
   | 'Requirement'
   | 'Quotation'
+  | 'Payment Plan'
   | 'Contract'
   | 'Design'
   | 'Supervision'
@@ -104,6 +109,7 @@ export type ProjectWorkspaceTabKey =
   | 'supervision'
   | 'government'
   | 'quotation'
+  | 'payment-plan'
   | 'contract'
   | 'payments'
   | 'tasks'

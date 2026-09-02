@@ -271,7 +271,10 @@ CREATE TABLE IF NOT EXISTS projects (
     -- "Government Submission" is now the terminal stage. "Supervision"
     -- (migration 0056) sits alongside "Design" -- a project can include
     -- either, both, or neither (see project_service.compute_stage_flags).
-    current_stage   ENUM('Requirement','Quotation','Contract','Design','Supervision','Government Submission')
+    -- "Payment Plan" (migration 0061) sits between Quotation and
+    -- Contract -- the financial agreement(s) have to be generated and
+    -- approved before a contract is drafted.
+    current_stage   ENUM('Requirement','Quotation','Payment Plan','Contract','Design','Supervision','Government Submission')
                         NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
@@ -592,6 +595,11 @@ CREATE TABLE IF NOT EXISTS financial_agreements (
     -- partial start/end months) at the same time; see
     -- uq_financial_agreements_project_stream below.
     stream                  ENUM('Design','Supervision') NOT NULL DEFAULT 'Design',
+    -- Migration 0061 -- a freshly-created agreement starts as 'Draft'
+    -- and must be explicitly approved (payment_service.approve_agreement)
+    -- before the project can leave the Payment Plan stage for Contract.
+    -- Terminal once 'Approved' -- see AGREEMENT_STATUSES.
+    status                  ENUM('Draft','Approved') NOT NULL DEFAULT 'Draft',
     -- For stream='Supervision' this is derived (sum of the generated
     -- prorated obligations), not entered -- see
     -- payment_service.create_agreement.

@@ -10,6 +10,7 @@ import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Proj
 export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Requirement',
   'Quotation',
+  'Payment Plan',
   'Contract',
   'Design',
   'Government Submission',
@@ -26,6 +27,7 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
 const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
   Requirement: 'Requirement',
   Quotation: 'Quotation',
+  'Payment Plan': 'Payment Plan',
   Contract: 'Contract',
   Design: 'Design',
   Supervision: 'Supervision',

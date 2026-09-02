@@ -114,9 +114,14 @@ CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
 # is actually allowed into "Design"/"Supervision" specifically (i.e.
 # whether it includes that kind of work at all) is enforced separately,
 # in project_service._assert_stage_exit_criteria.
+#
+# "Payment Plan" (migration 0061) sits between Quotation and Contract --
+# the project's financial agreement(s) now have to be generated and
+# explicitly approved before a contract is even drafted.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Requirement": {"Quotation"},
-    "Quotation": {"Contract"},
+    "Quotation": {"Payment Plan"},
+    "Payment Plan": {"Contract"},
     "Contract": {"Design", "Government Submission"},
     "Design": {"Government Submission"},
     # Supervision (forward, when included) and Design (the one reopening
@@ -132,6 +137,22 @@ PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Supervision": {"Government Submission"},
 }
 PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
+
+# --- Financial Agreement (the "payment plan") -- src/types/Payment.ts:
+# FinancialAgreement.status
+#
+# Added alongside "Payment Plan" becoming a real workflow stage
+# (migration 0061) -- a freshly-created agreement is a Draft (its
+# obligations/schedule already exist, same as always, but it isn't yet
+# what gates advancing the project) until explicitly Approved. Terminal
+# once Approved: a payment plan that needs to change after approval is
+# adjusted via a real Adjustment/refund against its obligations, not
+# reopened back to Draft.
+FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Draft": {"Approved"},
+    "Approved": set(),
+}
+FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = set()
 
 # --- Project Status -- src/types/Project.ts: ProjectStatus
 #

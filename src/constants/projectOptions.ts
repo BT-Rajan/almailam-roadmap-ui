@@ -31,11 +31,14 @@ export const PROJECT_SERVICES: string[] = [
 // the permissive superset of every structurally possible edge, same as
 // the backend's own table; whether "Design"/"Supervision" specifically
 // applies to a given project is enforced server-side, not by which
-// options this offers. See backend/app/core/status_transitions.py's own
-// comment.
+// options this offers. "Payment Plan" sits between Quotation and
+// Contract -- the project's financial agreement(s) have to be
+// generated and approved before a contract is even drafted. See
+// backend/app/core/status_transitions.py's own comment.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Requirement: ['Quotation'],
-  Quotation: ['Contract'],
+  Quotation: ['Payment Plan'],
+  'Payment Plan': ['Contract'],
   Contract: ['Design', 'Government Submission'],
   Design: ['Government Submission'],
   // Supervision (forward, when included) and Design (the one reopening

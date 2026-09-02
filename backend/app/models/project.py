@@ -38,9 +38,17 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
 # -> Government Submission -> [Supervision] depends on the project, not
 # a fixed straight line (see project_service._assert_stage_exit_criteria
 # and _auto_advance_target for how each project's own path is derived).
+#
+# "Payment Plan" (migration 0061) sits between Quotation and Contract --
+# the financial agreement(s) (contract value, payment schedule) now have
+# to be generated AND explicitly approved before a contract is even
+# drafted, not created as an afterthought partway through Contract once
+# a signed contract already exists. See FinancialAgreement.status
+# (backend/app/models/payment.py) and payment_service.approve_agreement.
 WORKFLOW_STAGES = (
     "Requirement",
     "Quotation",
+    "Payment Plan",
     "Contract",
     "Design",
     "Government Submission",

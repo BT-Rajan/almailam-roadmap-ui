@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core import payment_calculations as calc
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.status_transitions import (
+    FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS,
     OBLIGATION_OVERRIDE_ALLOWED_TRANSITIONS,
     OBLIGATION_OVERRIDE_STATUSES_REQUIRING_REASON,
 )
@@ -28,15 +29,18 @@ ENTITY_TYPE = "FINANCIAL_AGREEMENT"
 
 
 def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int | None) -> None:
-    """A financial agreement being created is one of the three things
-    "Contract" -> "Design" is waiting on (see project_service.
-    _assert_stage_exit_criteria) -- typically the last of the three to
-    be completed in practice, so this is the moment that condition most
-    often newly becomes true. Advance automatically instead of
-    requiring a separate manual stage click once it is. Local import:
-    project_service already imports this module at module level, so
-    importing it back at module level here would be circular (see
-    audit_service.get_history for the same pattern)."""
+    """An agreement being Approved is what "Payment Plan" -> "Contract"
+    actually waits on now (see project_service._assert_stage_exit_
+    criteria) -- called from approve_agreement, once per approval, so
+    a project with only one included stream advances the moment that
+    stream's agreement is approved, and one with both waits for the
+    second approval too (the exit criteria check below only passes once
+    every included stream's agreement is Approved). Advance
+    automatically instead of requiring a separate manual stage click
+    once it is. Local import: project_service already imports this
+    module at module level, so importing it back at module level here
+    would be circular (see audit_service.get_history for the same
+    pattern)."""
     from app.services import project_service
 
     # The session is autoflush=False -- without this, a payment/refund/
@@ -211,15 +215,27 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
     for _ in schedule:
         audit_service.log_event(db, ENTITY_TYPE, agreement.id, "Obligation Created", user_id)
 
-    # A financial agreement existing is one of three things "Contract" ->
-    # "Design"/"Government Submission" is waiting on (see project_
-    # service._assert_stage_exit_criteria) -- typically the last of the
-    # three to be completed in practice, so this is the moment that
-    # condition most often newly becomes true. Missing this call
-    # entirely was the actual reason a project could satisfy every real
-    # requirement and still sit at "Contract" indefinitely, waiting on
-    # nothing but a manual click nobody knew to make.
-    _try_auto_advance_project_stage(db, project.id, user_id)
+    # No auto-advance here, unlike approve_agreement below -- a freshly
+    # created agreement starts as 'Draft' (see FinancialAgreement.status),
+    # which _assert_stage_exit_criteria's Payment Plan -> Contract check
+    # doesn't accept, so calling it now would only ever no-op. Approval,
+    # not creation, is what "Payment Plan" -> "Contract" actually waits on.
+    db.commit()
+    db.refresh(agreement)
+    return agreement
+
+
+def approve_agreement(db: Session, agreement_id: int, user_id: int) -> FinancialAgreement:
+    """Formally signs off on the payment plan a Design/Supervision
+    agreement represents -- the moment project_service._assert_stage_
+    exit_criteria's Payment Plan -> Contract check can newly become true
+    for this stream (see _try_auto_advance_project_stage below)."""
+    agreement = get_agreement(db, agreement_id)
+    assert_transition_allowed(FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS, agreement.status, "Approved", "financial agreement")
+
+    audit_service.log_event(db, ENTITY_TYPE, agreement.id, "Agreement Approved", user_id)
+    agreement.status = "Approved"
+    _try_auto_advance_project_stage(db, agreement.project_id, user_id)
 
     db.commit()
     db.refresh(agreement)

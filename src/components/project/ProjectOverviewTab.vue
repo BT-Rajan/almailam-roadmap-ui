@@ -13,8 +13,10 @@ import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { usePaymentStore } from '@/stores/paymentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
 import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
@@ -47,6 +49,7 @@ const emit = defineEmits<{
 const router = useRouter()
 const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
+const paymentStore = usePaymentStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
@@ -118,6 +121,21 @@ function viewCivilIdDocument(): void {
 }
 
 const latestQuotation = computed(() => quotationStore.latestQuotation)
+
+// The quotation the payment plan is built against -- the one Approved
+// quotation, same fact the Payment Plan stage's own entry criterion
+// checks server-side (project_service._assert_stage_exit_criteria).
+const paymentPlanQuotation = computed(() => quotationStore.quotations.find((quotation) => quotation.status === 'Approved'))
+
+// One row per billing stream this project actually includes, each with
+// its financial agreement if one has been created yet -- mirrors
+// PaymentWorkspacePanel.vue's own visibleStreams/agreementForStream.
+const paymentPlanAgreements = computed(() => {
+  const streams: AgreementStream[] = []
+  if (props.project.includesDesign) streams.push('Design')
+  if (props.project.includesSupervision) streams.push('Supervision')
+  return streams.map((stream) => ({ stream, agreement: paymentStore.getAgreementByProject(props.project.id, stream) }))
+})
 
 // The contract's own linked quotation (contract.quotationNo) rather than
 // quotationStore.latestQuotation -- once a contract exists it should
@@ -253,6 +271,52 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
         <div class="flex justify-end no-print">
           <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'quotation')">Go to Quotation</BaseButton>
+        </div>
+      </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Payment Plan'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Payment Plan</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+          <div>
+            <p class="text-xs text-text-muted">Quotation Number</p>
+            <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation?.quotationNo ?? '—' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-text-muted">Quotation Date</p>
+            <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation ? formatDate(paymentPlanQuotation.issueDate) : '—' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-text-muted">Quotation Amount</p>
+            <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation ? formatCurrency(paymentPlanQuotation.amount) : '—' }}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="row in paymentPlanAgreements"
+            :key="row.stream"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+          >
+            <span class="text-sm text-text-secondary">{{ row.stream }} Financial Agreement</span>
+            <StatusBadge
+              v-if="row.agreement"
+              :label="row.agreement.status"
+              :variant="row.agreement.status === 'Approved' ? 'success' : 'warning'"
+            />
+            <span v-else class="text-sm text-text-muted">Not created yet</span>
+          </div>
+        </div>
+
+        <p class="text-xs text-text-muted">
+          Every included stream's agreement has to be generated and approved here before this project can move to Contract.
+        </p>
+
+        <div class="flex justify-end no-print">
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
         </div>
       </div>
     </Card>

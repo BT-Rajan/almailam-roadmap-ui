@@ -96,7 +96,7 @@ def get_document_download_target(db: Session, project: Project, document_id: str
     return path, document.original_filename
 
 
-_STAGE_TO_CUSTOMER_STATUS = {"Requirement", "Quotation", "Contract"}
+_STAGE_TO_CUSTOMER_STATUS = {"Requirement", "Quotation", "Payment Plan", "Contract"}
 
 
 def _customer_status(project: Project) -> str:

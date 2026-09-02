@@ -35,6 +35,9 @@ class FinancialAgreementOut(BaseModel):
     id: str
     projectId: str
     stream: Literal["Design", "Supervision"]
+    # See AGREEMENT_STATUSES -- gates the Payment Plan -> Contract stage
+    # transition (project_service._assert_stage_exit_criteria).
+    status: Literal["Draft", "Approved"]
     contractAmount: float
     currency: str
     contractStartDate: date
@@ -51,6 +54,7 @@ class FinancialAgreementOut(BaseModel):
             id=f"FA-{agreement.id:03d}",
             projectId=project_no,
             stream=agreement.stream,
+            status=agreement.status,
             contractAmount=float(agreement.contract_amount),
             currency=agreement.currency,
             contractStartDate=agreement.contract_start_date,

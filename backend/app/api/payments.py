@@ -77,6 +77,12 @@ def get_agreement(agreement_id: str, db: Session = Depends(get_db), _=Depends(ca
     return _agreement_out(db, agreement)
 
 
+@router.post("/financial-agreements/{agreement_id}/approve", response_model=FinancialAgreementOut)
+def approve_agreement(agreement_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    agreement = payment_service.approve_agreement(db, payment_service.parse_agreement_id(agreement_id), current_user.id)
+    return _agreement_out(db, agreement)
+
+
 @router.get("/financial-agreements/{agreement_id}/obligations", response_model=list[ObligationOut])
 def list_obligations(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     obligations = payment_service.get_obligations(db, payment_service.parse_agreement_id(agreement_id))

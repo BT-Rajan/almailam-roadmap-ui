@@ -11,6 +11,15 @@ PAYMENT_FREQUENCIES = ("One-time", "Daily", "Weekly", "Monthly", "Quarterly", "H
 OBLIGATION_MANUAL_STATUSES = ("Cancelled", "Waived")
 ADJUSTMENT_TYPES = ("Increase", "Decrease", "Correction")
 AGREEMENT_STREAMS = ("Design", "Supervision")
+# Migration 0061: a freshly-created agreement (the "payment plan") now
+# starts life as a Draft and has to be explicitly Approved before the
+# project can advance out of the Payment Plan stage into Contract --
+# see project_service._assert_stage_exit_criteria and payment_service.
+# approve_agreement. Terminal once Approved (no reopening path) --
+# a payment plan that needs to change after approval gets adjusted via
+# a real Adjustment/refund against its obligations, same as any other
+# already-final agreement, rather than reopened wholesale.
+AGREEMENT_STATUSES = ("Draft", "Approved")
 
 
 class FinancialAgreement(Base):
@@ -26,6 +35,11 @@ class FinancialAgreement(Base):
     # the (project_id, stream) unique constraint rather than the old
     # one-per-project rule.
     stream: Mapped[str] = mapped_column(Enum(*AGREEMENT_STREAMS, name="agreement_stream"), nullable=False, default="Design")
+    # See AGREEMENT_STATUSES above -- gates the Payment Plan -> Contract
+    # stage transition, not whether obligations exist (those are
+    # generated immediately on creation either way, same as before this
+    # column existed).
+    status: Mapped[str] = mapped_column(Enum(*AGREEMENT_STATUSES, name="agreement_status"), nullable=False, default="Draft")
     contract_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="KWD")
     contract_start_date: Mapped[date] = mapped_column(Date, nullable=False)

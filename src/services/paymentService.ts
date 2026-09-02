@@ -143,6 +143,18 @@ async function createAgreement(input: CreateAgreementInput, _createdBy: string):
   }
 }
 
+/** Approves a Draft financial agreement -- see AgreementStatus. This is
+ * what project_service._assert_stage_exit_criteria's Payment Plan ->
+ * Contract check waits on, not the agreement's mere existence. */
+async function approveAgreement(agreementId: string): Promise<FinancialAgreement> {
+  try {
+    return await apiClient.post<FinancialAgreement>(`/api/financial-agreements/${agreementId}/approve`)
+  } catch (error) {
+    console.error('Failed to approve agreement:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to approve agreement')
+  }
+}
+
 /**
  * Record a payment via the backend API.
  * The authorised user is derived server-side from the auth token, so
@@ -259,6 +271,7 @@ export const paymentService = {
   getRefunds,
   getAdjustments,
   createAgreement,
+  approveAgreement,
   recordPayment,
   createRefund,
   createAdjustment,

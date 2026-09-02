@@ -50,7 +50,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'contract', 'payments', 'design', 'supervision', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'contract', 'payments', 'design', 'supervision', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -77,7 +77,7 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // tracks whichever stage section was last actually navigated to via the
 // stepper (falling back to the project's real current_stage until the
 // first such navigation), so Overview always matches where staff are
-// actually working. Payments is relabeled "Payment Config" at Contract.
+// actually working.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
 const stageContext = ref<WorkflowStage>('Requirement')
@@ -90,6 +90,7 @@ const stageContext = ref<WorkflowStage>('Requirement')
 const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   requirement: 'Requirement',
   quotation: 'Quotation',
+  'payment-plan': 'Payment Plan',
   contract: 'Contract',
   design: 'Design',
   supervision: 'Supervision',
@@ -129,11 +130,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'overview', label: 'Overview' },
         { key: 'tasks', label: 'Tasks' },
       ]
+    case 'Payment Plan':
+      return [
+        { key: 'overview', label: 'Overview' },
+        { key: 'tasks', label: 'Tasks' },
+      ]
     case 'Contract':
       return [
         { key: 'overview', label: 'Overview' },
         { key: 'documents', label: 'Documents' },
-        { key: 'payments', label: 'Payment Config' },
+        { key: 'payments', label: 'Payments' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Design':
@@ -372,8 +378,19 @@ async function handleConfirmDelete(): Promise<void> {
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
       </div>
-      <div v-else-if="activeTab === 'payments'" id="project-tabpanel-payments" role="tabpanel" aria-labelledby="project-tab-payments" tabindex="0">
-        <PaymentWorkspacePanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" />
+      <div
+        v-else-if="activeTab === 'payments' || activeTab === 'payment-plan'"
+        :id="activeTab === 'payments' ? 'project-tabpanel-payments' : undefined"
+        role="tabpanel"
+        :aria-labelledby="activeTab === 'payments' ? 'project-tab-payments' : undefined"
+        tabindex="0"
+      >
+        <PaymentWorkspacePanel
+          :project-id="projectId"
+          :project="project"
+          :show-advance-to-contract="activeTab === 'payment-plan'"
+          @navigate-tab="activeTab = $event"
+        />
       </div>
 
       <ProjectEditDialog

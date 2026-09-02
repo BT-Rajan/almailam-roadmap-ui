@@ -152,16 +152,18 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   }
 }
 
-// Only an Approved, Final quotation can become a contract -- mirrors the
-// backend check in contract_service.create_contract. Hands the chosen
-// quotation off via the store and switches to the Contract tab, which
-// picks up the pending request and opens its New Contract dialog
-// prefilled from it.
-function handleAdvanceToContract(): void {
-  const quotation = quotationStore.selectedQuotation
-  if (!quotation) return
-  quotationStore.requestAdvanceToContract(quotation.id)
-  emit('navigate-tab', 'contract')
+// Only an Approved, Final quotation can move on -- mirrors the backend
+// check in project_service._assert_stage_exit_criteria's Payment Plan
+// entry criterion. The project's stage has already auto-advanced to
+// "Payment Plan" the moment the quotation was approved (see
+// try_auto_advance_stage); this is just the UI convenience of jumping
+// straight to that tab instead of leaving staff to find it via the
+// stepper themselves. No hand-off queue needed here the way Payment
+// Plan -> Contract uses one (quotationStore.requestAdvanceToContract) --
+// the Payment Plan tab reads the project's one Approved quotation
+// directly (see PaymentWorkspacePanel.vue's approvedQuotation).
+function handleAdvanceToPaymentPlan(): void {
+  emit('navigate-tab', 'payment-plan')
 }
 </script>
 
@@ -173,9 +175,9 @@ function handleAdvanceToContract(): void {
         v-if="quotationStore.selectedQuotation?.status === 'Approved' && quotationStore.selectedQuotation?.finalizedAt"
         size="sm"
         :icon="ArrowRight"
-        @click="handleAdvanceToContract"
+        @click="handleAdvanceToPaymentPlan"
       >
-        Advance to Contract
+        Advance to Payment Plan
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation && hasStatusOptions"

@@ -31,6 +31,7 @@ const emit = defineEmits<{
 const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Requirement: 'requirement',
   Quotation: 'quotation',
+  'Payment Plan': 'payment-plan',
   Contract: 'contract',
   Design: 'design',
   Supervision: 'supervision',

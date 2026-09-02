@@ -360,20 +360,30 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
     """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Requirement
-    -> Quotation -> Contract -> [Design] -> Government Submission is a
-    straight line for every project, skipping Design when the project
-    doesn't include it (see compute_stage_flags); Supervision, when the
-    project includes it, comes after Government Submission, not before
-    it. Design, when it applies, must be approved by the client before
-    Government Submission begins (you can't submit unapproved drawings
-    to an authority for permit approval) -- that's the "at least one
-    design link" check below. Government Submission itself must have at
-    least one Approved submission on file before Supervision (a real,
-    billed stage -- see migration 0059) begins. PROJECT_STAGE_ALLOWED_
-    TRANSITIONS keeps reopening paths backward (Government Submission ->
-    Design, Supervision -> Government Submission, for when an
-    authority's feedback or supervision findings require changes) --
-    those require a reason like any other reopening.
+    -> Quotation -> Payment Plan -> Contract -> [Design] -> Government
+    Submission is a straight line for every project, skipping Design
+    when the project doesn't include it (see compute_stage_flags);
+    Supervision, when the project includes it, comes after Government
+    Submission, not before it. Design, when it applies, must be
+    approved by the client before Government Submission begins (you
+    can't submit unapproved drawings to an authority for permit
+    approval) -- that's the "at least one design link" check below.
+    Government Submission itself must have at least one Approved
+    submission on file before Supervision (a real, billed stage -- see
+    migration 0059) begins. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
+    reopening paths backward (Government Submission -> Design,
+    Supervision -> Government Submission, for when an authority's
+    feedback or supervision findings require changes) -- those require
+    a reason like any other reopening.
+
+    Payment Plan (migration 0061) requires an Approved quotation to
+    enter (moved here from Contract's own entry criterion -- Contract
+    is now only reachable via Payment Plan, so checking it there instead
+    is equivalent and no longer needs re-checking a second time on the
+    way into Contract), and requires every included stream's financial
+    agreement to exist AND be Approved before leaving into Contract
+    (strengthened from Contract's own former exit criterion, which only
+    checked existence -- see FinancialAgreement.status).
     """
     if new_stage in ("Design", "Supervision"):
         includes_design, includes_supervision = compute_stage_flags(
@@ -417,7 +427,14 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if project.scope_status != "Approved":
             problems.append("the scope of work approved")
 
-    elif new_stage == "Contract":
+    elif new_stage == "Payment Plan":
+        # Moved here from Contract's own former entry criterion --
+        # Contract is now only reachable via Payment Plan (see
+        # PROJECT_STAGE_ALLOWED_TRANSITIONS), so checking it on the way
+        # into Payment Plan is equivalent and Contract itself no longer
+        # needs to re-check it (Quotation.status can't be un-approved
+        # once set -- QUOTATION_ALLOWED_TRANSITIONS has no path out of
+        # "Approved" -- so the fact stays true transitively).
         approved_quotation = (
             db.query(Quotation)
             .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
@@ -425,6 +442,31 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if approved_quotation is None:
             problems.append("an Approved quotation")
+
+    elif previous_stage == "Payment Plan":
+        # Gates leaving Payment Plan for Contract -- every included
+        # stream's financial agreement (payment dates, amount, schedule)
+        # has to exist AND be explicitly Approved, not merely created.
+        # Checked per stream (migration 0059) -- a project that includes
+        # both Design and Supervision needs both agreements approved,
+        # not just one. Only approval is required here, not that it's
+        # fully paid -- payment is expected to happen across the
+        # project's lifetime, tracked by the reminder job below.
+        includes_design, includes_supervision = compute_stage_flags(
+            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+        )
+        if includes_design:
+            design_agreement = payment_service.get_agreement_by_project(db, project.project_no, "Design")
+            if design_agreement is None:
+                problems.append("a Design financial agreement (payment dates and amount)")
+            elif design_agreement.status != "Approved":
+                problems.append("the Design financial agreement approved")
+        if includes_supervision:
+            supervision_agreement = payment_service.get_agreement_by_project(db, project.project_no, "Supervision")
+            if supervision_agreement is None:
+                problems.append("a Supervision financial agreement (payment dates and amount)")
+            elif supervision_agreement.status != "Approved":
+                problems.append("the Supervision financial agreement approved")
 
     elif previous_stage == "Contract":
         # Gates leaving Contract into whichever of Design/Government
@@ -448,20 +490,6 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if signed_contract is None:
             problems.append("a signed contract")
-        # A financial agreement -- payment dates and amounts -- has to be
-        # prepared right after the contract, not left until later. Only
-        # the agreement's existence is required here, not that it's
-        # fully paid -- payment is expected to happen across the
-        # project's lifetime, tracked by the reminder job below. Checked
-        # per stream (migration 0059) -- a project that includes both
-        # Design and Supervision needs both agreements, not just one.
-        includes_design, includes_supervision = compute_stage_flags(
-            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
-        )
-        if includes_design and payment_service.get_agreement_by_project(db, project.project_no, "Design") is None:
-            problems.append("a Design financial agreement (payment dates and amount)")
-        if includes_supervision and payment_service.get_agreement_by_project(db, project.project_no, "Supervision") is None:
-            problems.append("a Supervision financial agreement (payment dates and amount)")
 
     elif previous_stage == "Design":
         # Gates leaving Design into Government Submission -- Design
@@ -532,17 +560,18 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 # Design and/or Supervision (see compute_stage_flags) still just jumps
 # straight to whichever band it actually lands on -- the bands
 # themselves don't shift around per project, so progress is always "how
-# far through the full 6-band scale", not "how far through this
+# far through the full 7-band scale", not "how far through this
 # project's own shorter path".
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Requirement": 0,
     "Quotation": 1,
-    "Contract": 2,
-    "Design": 3,
-    "Government Submission": 4,
-    "Supervision": 5,
+    "Payment Plan": 2,
+    "Contract": 3,
+    "Design": 4,
+    "Government Submission": 5,
+    "Supervision": 6,
 }
-_PROGRESS_BAND_COUNT = 6
+_PROGRESS_BAND_COUNT = 7
 
 
 def recompute_progress(db: Session, project: Project) -> int:
@@ -560,18 +589,21 @@ def _auto_advance_target(current_stage: str, includes_design: bool, includes_sup
     (_assert_stage_exit_criteria) are met, so firing it automatically
     doesn't remove a real choice from anyone -- it just saves the
     separate manual click after the condition that already gates it
-    becomes true (approving a quotation, signing a contract, saving a
-    design link). Which stage that actually is depends on the project --
-    Design is skipped when this project doesn't include it, and
-    Supervision (after Government Submission) is skipped -- staying the
-    terminal state -- when it doesn't include that either (see
-    compute_stage_flags). Reopening (Government Submission -> Design,
-    Supervision -> Government Submission) stays manual -- an
-    exceptional, reason-required correction, not something that should
-    ever happen as a side effect of an unrelated action."""
+    becomes true (approving a quotation, approving a financial
+    agreement, signing a contract, saving a design link). Which stage
+    that actually is depends on the project -- Design is skipped when
+    this project doesn't include it, and Supervision (after Government
+    Submission) is skipped -- staying the terminal state -- when it
+    doesn't include that either (see compute_stage_flags). Reopening
+    (Government Submission -> Design, Supervision -> Government
+    Submission) stays manual -- an exceptional, reason-required
+    correction, not something that should ever happen as a side effect
+    of an unrelated action."""
     if current_stage == "Requirement":
         return "Quotation"
     if current_stage == "Quotation":
+        return "Payment Plan"
+    if current_stage == "Payment Plan":
         return "Contract"
     if current_stage == "Contract":
         return "Design" if includes_design else "Government Submission"

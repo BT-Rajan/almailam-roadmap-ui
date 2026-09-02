@@ -155,17 +155,16 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     # First revision history entry, written automatically -- not just on
     # every later save, but from the very first time the contract exists.
     _record_revision(db, contract, f"Initial contract created from quotation {quotation.quotation_no}", user_id, bump=False)
-    # A contract existing is one of three things "Contract" -> "Design"/
-    # "Government Submission" is waiting on (see project_service.
-    # _assert_stage_exit_criteria) -- the other two (the Documents
-    # Signed gate, a financial agreement) may already be satisfied by
-    # the time this runs, or may not be for a while yet; either way,
-    # this is one of the three moments that condition could newly
-    # become true, so it needs to check too, not just the other two.
-    # The session is autoflush=False -- flush first so the exit-
-    # criteria check's own fresh DB queries actually see this contract
-    # (and try_auto_fill's step update above) rather than stale,
-    # pre-transaction data.
+    # Leaving Contract for Design/Government Submission now depends on
+    # just one thing -- a Signed/Active contract (see project_service.
+    # _assert_stage_exit_criteria) -- since the financial agreement
+    # check moved to the earlier Payment Plan stage (migration 0061), so
+    # a freshly-created (Draft) contract can't satisfy it yet; this call
+    # is a harmless no-op today, kept only in case a future path ever
+    # creates a contract that's already Signed in one step. The session
+    # is autoflush=False -- flush first so the exit-criteria check's own
+    # fresh DB queries actually see this contract (and try_auto_fill's
+    # step update above) rather than stale, pre-transaction data.
     db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()

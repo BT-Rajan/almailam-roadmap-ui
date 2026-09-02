@@ -52,6 +52,7 @@ const STAGE_OPTIONS: SelectOption[] = [
   { label: 'All Stages', value: 'All' },
   { label: 'Requirement', value: 'Requirement' },
   { label: 'Quotation', value: 'Quotation' },
+  { label: 'Payment Plan', value: 'Payment Plan' },
   { label: 'Contract', value: 'Contract' },
   { label: 'Design', value: 'Design' },
   { label: 'Supervision', value: 'Supervision' },

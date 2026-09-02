@@ -22,10 +22,18 @@ export type FinancialEventType =
 // day-prorated) agreement side by side.
 export type AgreementStream = 'Design' | 'Supervision'
 
+// A freshly-created agreement (the "payment plan") starts as 'Draft'
+// and has to be explicitly approved -- see paymentService.
+// approveAgreement -- before the project can leave the Payment Plan
+// stage for Contract. Terminal once 'Approved' -- see
+// backend/app/models/payment.py's AGREEMENT_STATUSES.
+export type AgreementStatus = 'Draft' | 'Approved'
+
 export interface FinancialAgreement {
   id: string
   projectId: string
   stream: AgreementStream
+  status: AgreementStatus
   contractAmount: number
   currency: string
   contractStartDate: string

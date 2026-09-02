@@ -197,6 +197,17 @@ export const usePaymentStore = defineStore('payment', {
       }
     },
 
+    async approveAgreement(agreementId: string): Promise<FinancialAgreement> {
+      this.isSubmitting = true
+      try {
+        const updated = await paymentService.approveAgreement(agreementId)
+        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        return updated
+      } finally {
+        this.isSubmitting = false
+      }
+    },
+
     async recordPayment(input: Parameters<typeof paymentService.recordPayment>[0], createdBy: string) {
       this.isSubmitting = true
       try {
