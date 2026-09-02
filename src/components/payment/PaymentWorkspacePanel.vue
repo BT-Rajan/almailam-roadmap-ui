@@ -99,7 +99,6 @@ async function loadDetailIfNeeded(): Promise<void> {
 }
 
 onMounted(loadDetailIfNeeded)
-onMounted(() => contractStore.loadContractsForProject(props.projectId))
 watch(agreementIds, loadDetailIfNeeded)
 
 // The most recent Signed/Active contract for this project, if any --
@@ -107,6 +106,18 @@ watch(agreementIds, loadDetailIfNeeded)
 // Financial Agreement" form instead of leaving them blank for staff to
 // re-type from the contract that was just approved. A Draft contract
 // isn't "approved" yet, so it's deliberately excluded here.
+//
+// Reads straight from contractStore.contracts without loading it here --
+// ProjectWorkspacePage.vue's own loadData() already fetches this
+// project's contracts before any tab (this one included) ever mounts,
+// so contractStore.contracts is always already populated by the time
+// this computed runs. An onMounted() call here used to re-fetch it
+// anyway: that flips contractStore.isLoading true, which is also part
+// of the *workspace page's own* isLoading gate, so the whole page
+// (not just this tab) fell back to its skeleton mid-render, destroying
+// this panel; the fetch resolving then cleared the gate, remounted the
+// panel, and re-fired the same onMounted -- an infinite mount/fetch
+// loop that meant the Payment Config tab could never actually render.
 const approvedContract = computed(() => {
   const candidates = contractStore.contracts.filter((c) => c.status === 'Signed' || c.status === 'Active')
   return [...candidates].sort((a, b) => b.issueDate.localeCompare(a.issueDate))[0]
