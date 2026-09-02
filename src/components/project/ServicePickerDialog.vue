@@ -200,10 +200,6 @@ function toggleSupervisionActivity(activityId: string, activityName: string, mon
   }
 }
 
-function removeSupervisionActivity(activityId: string): void {
-  delete supervisionRows[activityId]
-}
-
 const selectedSupervisionItems = computed<SelectedSupervisionActivity[]>(() =>
   Object.values(supervisionRows).map((row) => ({
     activityId: row.activityId,
