@@ -169,7 +169,20 @@ function viewDuplicate(clientId: string): void {
 // or submitted, with a payload the API will reject -- and so problems are
 // shown inline on the relevant field rather than only as a toast at the end.
 const basicInfoErrors = computed<FieldErrors>(() => validateBasicInfo(form.value))
-const contactsValidation = computed(() => validateContacts(form.value.contacts))
+// Client Type already requires (and validates) mobile, email, and a name
+// (individualProfile.fullLegalName or organisationProfile.legalName)
+// before this step is reachable -- that's the same shape a contact row
+// needs, so a client with zero rows here still has a genuine primary
+// contact's worth of information; validateContacts()'s "At least one
+// contact is required" only makes sense for a client with none of that
+// at all, which can no longer happen by the time this step loads. Only
+// the "no contact" formError is suppressed -- duplicate mobile/email
+// between multiple entered rows still needs fixing.
+const contactsValidation = computed(() => {
+  const result = validateContacts(form.value.contacts)
+  if (form.value.contacts.length === 0) return { ...result, formError: undefined }
+  return result
+})
 const addressErrors = computed<FieldErrors>(() => validateAddress(form.value.address))
 const identificationErrors = computed<FieldErrors>(() =>
   validateIdentification(form.value.identification, form.value.identificationFile),
