@@ -120,6 +120,39 @@ class FinancialAgreementCreate(BaseModel):
         return self
 
 
+class FinancialAgreementUpdate(BaseModel):
+    """Same editable fields as FinancialAgreementCreate, minus projectId
+    and stream -- neither can change on an existing agreement (stream is
+    fixed at creation; moving projects would mean a different agreement
+    entirely). Only ever accepted while the agreement is still Draft --
+    see payment_service._assert_agreement_editable."""
+
+    contractAmount: float | None = Field(default=None, gt=0)
+    currency: str = Field(default="KWD", min_length=1, max_length=10)
+    contractStartDate: date | None = None
+    contractEndDate: date | None = None
+    agreementDate: date
+    quotationReference: str | None = Field(default=None, max_length=30)
+    contractReference: str | None = Field(default=None, max_length=30)
+    paymentMode: str
+    paymentFrequency: str | None = None
+    milestones: list[MilestoneInput] | None = None
+
+    _check_mode = field_validator("paymentMode")(_enum_validator(PAYMENT_MODES, "paymentMode"))
+    _check_freq = field_validator("paymentFrequency")(_optional_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))
+
+    @model_validator(mode="after")
+    def _check_milestones(self) -> "FinancialAgreementUpdate":
+        if self.milestones is None:
+            return self
+        if len(self.milestones) > MAX_MILESTONES:
+            raise ValueError(f"A payment plan can have at most {MAX_MILESTONES} installments.")
+        total = sum((Decimal(str(m.percentage)) for m in self.milestones), Decimal("0"))
+        if abs(total - Decimal("100")) > Decimal("0.5"):
+            raise ValueError(f"Milestone percentages must add up to 100% (currently {total}%).")
+        return self
+
+
 # --- obligation ------------------------------------------------------------
 
 
@@ -191,6 +224,11 @@ class PaymentOut(BaseModel):
     notes: str | None
     createdBy: str
     createdDate: datetime
+    # Set once an optional proof-of-payment file has been attached (see
+    # payment_service.attach_payment_proof) -- download it via
+    # GET /api/payments/{id}/proof/download, gated the same way as
+    # every other document download in this app.
+    proofFileName: str | None = None
 
     @staticmethod
     def from_model(payment, agreement_display_no: int, project_no: str, created_by_name: str) -> "PaymentOut":
@@ -207,6 +245,7 @@ class PaymentOut(BaseModel):
             notes=payment.notes,
             createdBy=created_by_name,
             createdDate=payment.created_at,
+            proofFileName=payment.proof_original_filename,
         )
 
 

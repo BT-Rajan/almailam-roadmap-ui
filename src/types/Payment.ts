@@ -9,9 +9,13 @@ export type ObligationStatus = 'Scheduled' | 'Due' | 'Partially Paid' | 'Paid' |
 
 export type FinancialEventType =
   | 'Agreement Created'
+  | 'Agreement Updated'
+  | 'Agreement Deleted'
+  | 'Agreement Approved'
   | 'Obligation Created'
   | 'Payment Received'
   | 'Payment Allocated'
+  | 'Payment Proof Attached'
   | 'Payment Refunded'
   | 'Obligation Cancelled'
   | 'Obligation Waived'
@@ -75,6 +79,11 @@ export interface Payment {
   notes?: string
   createdBy: string
   createdDate: string
+  // Set once an optional proof-of-payment file has been attached (see
+  // paymentService.attachPaymentProof) -- a Payment is otherwise
+  // immutable once recorded, so this is the one thing addable after
+  // the fact. Download via paymentService.downloadPaymentProof.
+  proofFileName?: string
 }
 
 export interface PaymentAllocation {
@@ -180,3 +189,8 @@ export interface CreateAgreementInput {
   // split when paymentFrequency is 'Custom'. Ignored for Supervision.
   milestones?: PaymentMilestoneInput[]
 }
+
+// Same editable fields as CreateAgreementInput, minus projectId and
+// stream -- neither can change on an existing agreement. Only ever
+// accepted by the backend while the agreement is still Draft.
+export type UpdateAgreementInput = Omit<CreateAgreementInput, 'projectId' | 'stream'>

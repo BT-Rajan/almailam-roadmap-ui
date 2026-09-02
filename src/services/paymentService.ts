@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
 import type {
   Adjustment,
@@ -11,6 +12,7 @@ import type {
   PaymentObligation,
   RecordPaymentInput,
   Refund,
+  UpdateAgreementInput,
 } from '@/types/Payment'
 
 /**
@@ -156,6 +158,34 @@ async function approveAgreement(agreementId: string): Promise<FinancialAgreement
 }
 
 /**
+ * Edits a Draft financial agreement's terms and regenerates its
+ * installment schedule -- rejected by the backend once the agreement is
+ * Approved or already has payments recorded (see payment_service.
+ * _assert_agreement_editable).
+ */
+async function updateAgreement(agreementId: string, input: UpdateAgreementInput): Promise<FinancialAgreement> {
+  try {
+    return await apiClient.patch<FinancialAgreement>(`/api/financial-agreements/${agreementId}`, input)
+  } catch (error) {
+    console.error('Failed to update agreement:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update agreement')
+  }
+}
+
+/**
+ * Deletes a Draft financial agreement (and its obligations) -- same
+ * editability guard as updateAgreement.
+ */
+async function deleteAgreement(agreementId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/financial-agreements/${agreementId}`)
+  } catch (error) {
+    console.error('Failed to delete agreement:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete agreement')
+  }
+}
+
+/**
  * Record a payment via the backend API.
  * The authorised user is derived server-side from the auth token, so
  * `createdBy` is accepted for interface stability but not sent.
@@ -167,6 +197,79 @@ async function recordPayment(input: RecordPaymentInput, _createdBy: string): Pro
   } catch (error) {
     console.error('Failed to record payment:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to record payment')
+  }
+}
+
+/**
+ * Attaches a proof-of-payment file to an already-recorded Payment --
+ * the one thing addable to a Payment after the fact (it has no
+ * update/delete endpoint otherwise). Multipart, so this goes through a
+ * raw fetch with manual token/refresh handling rather than the JSON
+ * apiClient, same reasoning and 401-retry shape as documentService.
+ * uploadDocument.
+ */
+async function attachPaymentProof(paymentId: string, file: File): Promise<Payment> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const doRequest = () =>
+    fetch(`/api/payments/${paymentId}/proof`, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+    return (await response.json()) as Payment
+  } catch (error) {
+    console.error(`Failed to attach proof to payment ${paymentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to attach payment proof')
+  }
+}
+
+/**
+ * Downloads an already-attached proof-of-payment file as a Blob --
+ * caller (paymentStore) hands this to triggerBlobDownload. Same
+ * authenticated-fetch shape as documentService.downloadDocument, since
+ * the download route is permission-gated, not a public static file.
+ */
+async function downloadPaymentProof(paymentId: string): Promise<Blob> {
+  const authStore = useAuthStore()
+
+  const doRequest = () =>
+    fetch(`/api/payments/${paymentId}/proof/download`, {
+      method: 'GET',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+    })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`)
+    }
+    return await response.blob()
+  } catch (error) {
+    console.error(`Failed to download proof for payment ${paymentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to download payment proof')
   }
 }
 
@@ -271,8 +374,12 @@ export const paymentService = {
   getRefunds,
   getAdjustments,
   createAgreement,
+  updateAgreement,
+  deleteAgreement,
   approveAgreement,
   recordPayment,
+  attachPaymentProof,
+  downloadPaymentProof,
   createRefund,
   createAdjustment,
   cancelObligation,

@@ -8,8 +8,7 @@ import FormSection from '@/components/common/FormSection.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import type { AgreementStream, CreateAgreementInput, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, FinancialAgreement, PaymentMilestoneInput, PaymentMode, PaymentObligation } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
 
 interface ApprovedQuotation {
@@ -35,14 +34,30 @@ interface Props {
   // to re-type. undefined only in the impossible-in-practice case of no
   // approved quotation yet.
   approvedContract?: ApprovedQuotation
+  // 'edit' prefills every field from existingAgreement/existingObligations
+  // and submits an update instead of a create -- only ever offered for a
+  // Draft agreement with no payments recorded yet (see
+  // payment_service._assert_agreement_editable), same rule the backend
+  // enforces regardless of what this dialog does.
+  mode?: 'create' | 'edit'
+  existingAgreement?: FinancialAgreement
+  existingObligations?: PaymentObligation[]
 }
 
-const props = withDefaults(defineProps<Props>(), { isSubmitting: false, approvedContract: undefined })
+const props = withDefaults(defineProps<Props>(), {
+  isSubmitting: false,
+  approvedContract: undefined,
+  mode: 'create',
+  existingAgreement: undefined,
+  existingObligations: () => [],
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   submit: [input: CreateAgreementInput]
 }>()
+
+const isEditMode = computed(() => props.mode === 'edit')
 
 const PAYMENT_MODE_OPTIONS: SelectOption[] = [
   { label: 'Cash', value: 'Cash' },
@@ -102,11 +117,34 @@ function buildDefaultMilestones(count: number): PaymentMilestoneInput[] {
   }))
 }
 
-watch(milestoneCount, (count) => {
+// Bound directly to the "Number of Installments" SelectBox rather than a
+// watch(milestoneCount, ...) -- a watcher would also fire (and clobber
+// the real prefilled rows with fresh defaults) the moment resetForm's
+// edit-mode branch sets milestoneCount.value from existingObligations.
+function handleMilestoneCountChange(count: number): void {
+  milestoneCount.value = count
   milestones.value = buildDefaultMilestones(count)
-})
+}
 
 function resetForm(): void {
+  const existing = props.existingAgreement
+  if (isEditMode.value && existing) {
+    contractAmount.value = existing.contractAmount
+    currency.value = existing.currency
+    contractStartDate.value = existing.contractStartDate
+    agreementDate.value = existing.agreementDate
+    quotationReference.value = existing.quotationReference ?? ''
+    paymentMode.value = existing.paymentMode
+    const rows = [...props.existingObligations].sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+    milestoneCount.value = rows.length || 1
+    milestones.value = rows.map((obligation) => ({
+      description: obligation.description,
+      percentage: Math.round((obligation.amountDue / existing.contractAmount) * 10000) / 100,
+      dueDate: obligation.dueDate,
+    }))
+    return
+  }
+
   contractAmount.value = props.approvedContract?.contractValue ?? 0
   currency.value = props.approvedContract?.currency ?? 'KWD'
   contractStartDate.value = new Date().toISOString().slice(0, 10)
@@ -177,7 +215,7 @@ function handleClose(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="`Create ${getAgreementStreamLabel(stream)} Financial Agreement`"
+    :title="isEditMode ? 'Edit Payment Plan' : 'Create Payment Plan'"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -198,10 +236,10 @@ function handleClose(): void {
       </div>
     </FormSection>
 
-    <FormSection v-else title="Contract Value" description="The total agreed value of the engagement with this client.">
+    <FormSection v-else title="Payment Plan" description="The total amount and installment schedule for this payment plan.">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium text-text-secondary">Total Contract Amount <span class="text-danger-500">*</span></label>
+          <label class="text-sm font-medium text-text-secondary">Total Amount <span class="text-danger-500">*</span></label>
           <div class="flex gap-2">
             <div class="w-24 shrink-0">
               <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
@@ -243,7 +281,7 @@ function handleClose(): void {
         :model-value="String(milestoneCount)"
         label="Number of Installments"
         :options="INSTALLMENT_COUNT_OPTIONS"
-        @update:model-value="milestoneCount = Number($event)"
+        @update:model-value="handleMilestoneCountChange(Number($event))"
       />
 
       <div class="mt-3 flex flex-col gap-2">
@@ -260,7 +298,13 @@ function handleClose(): void {
     </FormSection>
 
     <template #footer>
-      <FormActionBar submit-label="Create Agreement" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
+      <FormActionBar
+        :submit-label="isEditMode ? 'Save Changes' : 'Create Payment Plan'"
+        :loading="isSubmitting"
+        :disabled="!canSubmit"
+        @submit="handleSubmit"
+        @cancel="handleClose"
+      />
     </template>
   </BaseDialog>
 </template>

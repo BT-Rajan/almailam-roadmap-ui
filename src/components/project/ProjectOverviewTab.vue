@@ -130,7 +130,7 @@ const paymentPlanQuotation = computed(() => quotationStore.quotations.find((quot
 
 // One row per billing stream this project actually includes, each with
 // its financial agreement if one has been created yet -- mirrors
-// PaymentWorkspacePanel.vue's own visibleStreams/agreementForStream.
+// usePaymentAgreements' own visibleStreams/agreementForStream.
 const paymentPlanAgreements = computed(() => {
   const streams: AgreementStream[] = []
   if (props.project.includesDesign) streams.push('Design')

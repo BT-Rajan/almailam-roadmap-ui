@@ -70,10 +70,10 @@ const rows = computed<AgreementTableRow[]>(() =>
 )
 
 function goToProjectPayments(row: AgreementTableRow): void {
-  // 'payment-plan' is the only place a project's financial agreements
-  // live now -- reachable any time via the Workflow Progress stepper's
-  // Payment Plan step, regardless of the project's current stage.
-  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId }, query: { tab: 'payment-plan' } })
+  // This table is about collections (received/pending/overdue), so a
+  // row click lands on Payment Status -- the plan itself (create/edit/
+  // approve) lives one tab over, at Payment Plan.
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId }, query: { tab: 'payment-status' } })
 }
 
 function loadData(): void {

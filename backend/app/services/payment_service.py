@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core import payment_calculations as calc
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.file_storage import resolve_path, save_upload
 from app.core.status_transitions import (
     FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS,
     OBLIGATION_OVERRIDE_ALLOWED_TRANSITIONS,
@@ -117,30 +118,26 @@ def get_agreement_by_project(db: Session, project_no: str, stream: str | None = 
     return query.order_by(FinancialAgreement.id.desc()).first()
 
 
-def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
-    # Local import: project_service already imports this module at
-    # module level, so importing it back at module level here would be
-    # circular (same reasoning as _try_auto_advance_project_stage above).
+def _compute_contract_terms(
+    db: Session,
+    project: Project,
+    stream: str,
+    contract_amount: Decimal | None,
+    contract_start_date: date | None,
+    contract_end_date: date | None,
+    payment_frequency: str | None,
+    milestones,
+) -> tuple[Decimal, date, date | None, str, list[dict]]:
+    """Validates the stream-specific inputs and builds the obligation
+    schedule -- shared by create_agreement and update_agreement, since
+    editing a Draft plan has to recompute the exact same schedule a
+    fresh create would. Local import of project_service: it already
+    imports this module at module level, so importing it back at module
+    level here would be circular (same reasoning as
+    _try_auto_advance_project_stage above)."""
     from app.services import project_service
 
-    project = _project_by_no(db, payload.projectId)
-    # The staff UI only ever offers "Create Agreement" when none exists
-    # yet for the chosen stream (hides the button once one does) --
-    # that's a UI convention, not a rule the backend itself enforced, so
-    # a race between two requests or a direct API call could previously
-    # create a second agreement for the same project/stream with nothing
-    # stopping it. The database now also enforces this as a real
-    # constraint (uq_financial_agreements_project_stream, migration
-    # 0059), but checking here first means a clear, specific error
-    # instead of a raw constraint-violation message.
-    existing = get_agreement_by_project(db, payload.projectId, payload.stream)
-    if existing:
-        raise ValidationAppError(
-            f"{project.project_no} already has a {payload.stream} financial agreement -- "
-            "only one is allowed per project per stream."
-        )
-
-    if payload.stream == "Supervision":
+    if stream == "Supervision":
         activities = project_service.get_selected_supervision_activities(db, project.id)
         if not activities:
             raise ValidationAppError(
@@ -161,40 +158,60 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
         schedule = calc.generate_prorated_monthly_schedule(periods)
         if not schedule:
             raise ValidationAppError("The selected Supervision activities don't produce any billable months.")
-        contract_amount = sum((Decimal(str(item["amountDue"])) for item in schedule), Decimal("0"))
-        contract_start_date = min(a.start_date for a in activities)
-        contract_end_date = max(a.end_date for a in activities)
-        payment_frequency = "Monthly"
+        resolved_amount = sum((Decimal(str(item["amountDue"])) for item in schedule), Decimal("0"))
+        resolved_start = min(a.start_date for a in activities)
+        resolved_end = max(a.end_date for a in activities)
+        return resolved_amount, resolved_start, resolved_end, "Monthly", schedule
+
+    if contract_amount is None or contract_start_date is None or payment_frequency is None:
+        raise ValidationAppError(
+            "contractAmount, contractStartDate and paymentFrequency are required for a Design agreement."
+        )
+    # Design & Permit work is billed once -- in full, or split into
+    # up to 5 installments (milestones) -- not on a recurring interval
+    # the way Monthly/Quarterly/Half-yearly/Yearly implies. Those
+    # frequencies still exist in PAYMENT_FREQUENCIES for Supervision's
+    # own internal use (always "Monthly", forced above) and for
+    # agreements created before this restriction; a Design agreement
+    # just can't pick them anymore. Checked here, not only hidden from
+    # the create/edit form, so a direct API call can't bypass it either.
+    if payment_frequency not in ("One-time", "Custom"):
+        raise ValidationAppError(
+            "A Design & Permit agreement is billed once -- choose 'One-time' or a milestone plan of up to 5 installments, not a recurring frequency."
+        )
+    if milestones:
+        milestone_dicts = [
+            {"description": m.description, "percentage": m.percentage, "dueDate": m.dueDate} for m in milestones
+        ]
+        schedule = calc.generate_milestone_schedule(contract_amount, milestone_dicts)
     else:
-        if payload.contractAmount is None or payload.contractStartDate is None or payload.paymentFrequency is None:
-            raise ValidationAppError(
-                "contractAmount, contractStartDate and paymentFrequency are required for a Design agreement."
-            )
-        # Design & Permit work is billed once -- in full, or split into
-        # up to 5 installments (payload.milestones) -- not on a
-        # recurring interval the way Monthly/Quarterly/Half-yearly/
-        # Yearly implies. Those frequencies still exist in PAYMENT_
-        # FREQUENCIES for Supervision's own internal use (always
-        # "Monthly", forced above) and for agreements created before
-        # this restriction; a Design agreement just can't pick them
-        # anymore. Checked here, not only hidden from the create form,
-        # so a direct API call can't bypass it either.
-        if payload.paymentFrequency not in ("One-time", "Custom"):
-            raise ValidationAppError(
-                "A Design & Permit agreement is billed once -- choose 'One-time' or a milestone plan of up to 5 installments, not a recurring frequency."
-            )
-        contract_amount = Decimal(str(payload.contractAmount))
-        contract_start_date = payload.contractStartDate
-        contract_end_date = payload.contractEndDate
-        payment_frequency = payload.paymentFrequency
-        if payload.milestones:
-            milestones = [
-                {"description": m.description, "percentage": m.percentage, "dueDate": m.dueDate}
-                for m in payload.milestones
-            ]
-            schedule = calc.generate_milestone_schedule(contract_amount, milestones)
-        else:
-            schedule = calc.generate_even_schedule(contract_amount, contract_start_date, contract_end_date, payment_frequency)
+        schedule = calc.generate_even_schedule(contract_amount, contract_start_date, contract_end_date, payment_frequency)
+    return contract_amount, contract_start_date, contract_end_date, payment_frequency, schedule
+
+
+def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
+    project = _project_by_no(db, payload.projectId)
+    # The staff UI only ever offers "Create Agreement" when none exists
+    # yet for the chosen stream (hides the button once one does) --
+    # that's a UI convention, not a rule the backend itself enforced, so
+    # a race between two requests or a direct API call could previously
+    # create a second agreement for the same project/stream with nothing
+    # stopping it. The database now also enforces this as a real
+    # constraint (uq_financial_agreements_project_stream, migration
+    # 0059), but checking here first means a clear, specific error
+    # instead of a raw constraint-violation message.
+    existing = get_agreement_by_project(db, payload.projectId, payload.stream)
+    if existing:
+        raise ValidationAppError(
+            f"{project.project_no} already has a {payload.stream} financial agreement -- "
+            "only one is allowed per project per stream."
+        )
+
+    contract_amount, contract_start_date, contract_end_date, payment_frequency, schedule = _compute_contract_terms(
+        db, project, payload.stream,
+        Decimal(str(payload.contractAmount)) if payload.contractAmount is not None else None,
+        payload.contractStartDate, payload.contractEndDate, payload.paymentFrequency, payload.milestones,
+    )
 
     agreement = FinancialAgreement(
         project_id=project.id,
@@ -236,6 +253,97 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
     db.commit()
     db.refresh(agreement)
     return agreement
+
+
+def _assert_agreement_editable(db: Session, agreement: FinancialAgreement, action: str) -> None:
+    """Shared guard for update_agreement and delete_agreement -- a
+    payment plan is only ever safe to rewrite or remove wholesale while
+    it's still Draft (Approved is terminal by design, see
+    AGREEMENT_STATUSES) AND before any real money has been recorded
+    against it (once a Payment exists, its allocations point at specific
+    PaymentObligation rows that an edit would delete and regenerate out
+    from under it, and a delete would orphan entirely -- Payment's own
+    FK to financial_agreements is ON DELETE RESTRICT, so the database
+    would refuse the delete anyway, but this gives a clear reason
+    instead of a raw constraint-violation error)."""
+    if agreement.status != "Draft":
+        raise ValidationAppError(
+            f"Only a Draft payment plan can be {action} -- once Approved it's terminal; "
+            "use an Adjustment or Refund against its obligations instead."
+        )
+    if get_payments(db, agreement.id):
+        raise ValidationAppError(
+            f"This payment plan already has payments recorded against it and can no longer be {action} -- "
+            "use an Adjustment or Refund instead."
+        )
+
+
+def update_agreement(db: Session, agreement_id: int, payload, user_id: int) -> FinancialAgreement:
+    agreement = get_agreement(db, agreement_id)
+    _assert_agreement_editable(db, agreement, "edited")
+    project = db.query(Project).filter(Project.id == agreement.project_id).first()
+
+    contract_amount, contract_start_date, contract_end_date, payment_frequency, schedule = _compute_contract_terms(
+        db, project, agreement.stream,
+        Decimal(str(payload.contractAmount)) if payload.contractAmount is not None else None,
+        payload.contractStartDate, payload.contractEndDate, payload.paymentFrequency, payload.milestones,
+    )
+
+    previous_value = f"{agreement.contract_amount} {agreement.currency}"
+    agreement.contract_amount = contract_amount
+    agreement.currency = payload.currency
+    agreement.contract_start_date = contract_start_date
+    agreement.contract_end_date = contract_end_date
+    agreement.agreement_date = payload.agreementDate
+    agreement.quotation_reference = payload.quotationReference
+    agreement.contract_reference = payload.contractReference
+    agreement.payment_mode = payload.paymentMode
+    agreement.payment_frequency = payment_frequency
+
+    # No payments exist yet (guaranteed by _assert_agreement_editable),
+    # so the old schedule can be safely replaced wholesale rather than
+    # reconciled row-by-row.
+    db.query(PaymentObligation).filter(PaymentObligation.agreement_id == agreement.id).delete()
+    for item in schedule:
+        db.add(
+            PaymentObligation(
+                agreement_id=agreement.id,
+                sequence_number=item["sequenceNumber"],
+                description=item["description"],
+                amount_due=item["amountDue"],
+                due_date=item["dueDate"],
+                amount_received=0,
+            )
+        )
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, agreement.id, "Agreement Updated", user_id,
+        previous_value=previous_value, new_value=f"{contract_amount} {payload.currency}",
+    )
+
+    db.commit()
+    db.refresh(agreement)
+    return agreement
+
+
+def delete_agreement(db: Session, agreement_id: int, user_id: int) -> None:
+    agreement = get_agreement(db, agreement_id)
+    _assert_agreement_editable(db, agreement, "deleted")
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, agreement.id, "Agreement Deleted", user_id,
+        previous_value=f"{agreement.stream}: {agreement.contract_amount} {agreement.currency}",
+    )
+    # PaymentObligation.agreement_id is ON DELETE CASCADE -- its rows go
+    # with the agreement automatically. audit_log's entity_id is a plain
+    # column, not an FK (see schema.sql), so the history logged above
+    # (and everything logged earlier for this agreement) survives in the
+    # database even though this specific agreement's own /audit-events
+    # endpoint can no longer resolve it -- still visible from the
+    # Administration audit log, which doesn't require the entity to
+    # still exist.
+    db.delete(agreement)
+    db.commit()
 
 
 def approve_agreement(db: Session, agreement_id: int, user_id: int) -> FinancialAgreement:
@@ -330,6 +438,40 @@ def get_payments(db: Session, agreement_id: int) -> list[Payment]:
         .order_by(Payment.payment_date.desc(), Payment.id.desc())
         .all()
     )
+
+
+def get_payment(db: Session, payment_id: int) -> Payment:
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    if payment is None:
+        raise NotFoundError("Payment")
+    return payment
+
+
+def attach_payment_proof(db: Session, payment_id: int, file, user_id: int) -> Payment:
+    """A Payment is otherwise immutable once recorded -- no update/delete
+    endpoint exists for it, corrections go through Refund/Adjustment
+    instead -- so attaching proof is deliberately the one thing that can
+    still be added to it afterward, and only additive (there's no
+    replace/remove for an attached proof either)."""
+    payment = get_payment(db, payment_id)
+    storage_key, original_filename, size_bytes = save_upload(file, "payment-proofs")
+    payment.proof_storage_key = storage_key
+    payment.proof_original_filename = original_filename
+    payment.proof_file_size_bytes = size_bytes
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, payment.agreement_id, "Payment Proof Attached", user_id, new_value=original_filename,
+    )
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+def get_payment_proof_download_target(db: Session, payment_id: int) -> tuple:
+    payment = get_payment(db, payment_id)
+    if not payment.proof_storage_key:
+        raise NotFoundError("Payment proof")
+    return resolve_path(payment.proof_storage_key), payment.proof_original_filename
 
 
 def get_allocations_for_payment(db: Session, payment_id: int) -> list[PaymentAllocation]:

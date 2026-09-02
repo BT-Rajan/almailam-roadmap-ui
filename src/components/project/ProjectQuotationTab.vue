@@ -161,7 +161,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
 // stepper themselves. No hand-off queue needed here the way Payment
 // Plan -> Contract uses one (quotationStore.requestAdvanceToContract) --
 // the Payment Plan tab reads the project's one Approved quotation
-// directly (see PaymentWorkspacePanel.vue's approvedQuotation).
+// directly (see PaymentPlanPanel.vue's approvedQuotation).
 function handleAdvanceToPaymentPlan(): void {
   emit('navigate-tab', 'payment-plan')
 }

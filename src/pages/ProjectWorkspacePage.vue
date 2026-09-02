@@ -23,7 +23,8 @@ const ProjectContractTab = defineAsyncComponent(() => import('@/components/proje
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
-const PaymentWorkspacePanel = defineAsyncComponent(() => import('@/components/payment/PaymentWorkspacePanel.vue'))
+const PaymentPlanPanel = defineAsyncComponent(() => import('@/components/payment/PaymentPlanPanel.vue'))
+const PaymentStatusPanel = defineAsyncComponent(() => import('@/components/payment/PaymentStatusPanel.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -50,7 +51,7 @@ const resultDialogStore = useResultDialogStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'contract', 'design', 'supervision', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'payment-status', 'contract', 'design', 'supervision', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -91,6 +92,7 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   requirement: 'Requirement',
   quotation: 'Quotation',
   'payment-plan': 'Payment Plan',
+  'payment-status': 'Payment Plan',
   contract: 'Contract',
   design: 'Design',
   supervision: 'Supervision',
@@ -131,8 +133,17 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Payment Plan':
+      // Unlike Quotation/Contract/Design/Government, Payment Plan and
+      // Payment Status are real top-bar tabs here rather than only
+      // stepper-driven -- this is the one stage where staff are actively
+      // working the payment plan itself (define/edit/approve it, then
+      // track what's actually been collected against it), so both
+      // deserve their own tab rather than being buried behind the
+      // stepper the way a stage staff mostly just glance at doesn't.
       return [
         { key: 'overview', label: 'Overview' },
+        { key: 'payment-plan', label: 'Payment Plan' },
+        { key: 'payment-status', label: 'Payment Status' },
         { key: 'tasks', label: 'Tasks' },
       ]
     case 'Contract':
@@ -195,7 +206,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payment-plan', 'payment-status', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -377,8 +388,11 @@ async function handleConfirmDelete(): Promise<void> {
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
       </div>
-      <div v-else-if="activeTab === 'payment-plan'" role="tabpanel" tabindex="0">
-        <PaymentWorkspacePanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" />
+      <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
+        <PaymentPlanPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" />
+      </div>
+      <div v-else-if="activeTab === 'payment-status'" id="project-tabpanel-payment-status" role="tabpanel" aria-labelledby="project-tab-payment-status" tabindex="0">
+        <PaymentStatusPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" />
       </div>
 
       <ProjectEditDialog

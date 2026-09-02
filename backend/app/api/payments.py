@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -10,6 +11,7 @@ from app.schemas.payment import (
     AdjustmentOut,
     FinancialAgreementCreate,
     FinancialAgreementOut,
+    FinancialAgreementUpdate,
     FinancialSummaryOut,
     ObligationOut,
     ObligationOverrideUpdate,
@@ -77,6 +79,24 @@ def get_agreement(agreement_id: str, db: Session = Depends(get_db), _=Depends(ca
     return _agreement_out(db, agreement)
 
 
+@router.patch("/financial-agreements/{agreement_id}", response_model=FinancialAgreementOut)
+def update_agreement(
+    agreement_id: str,
+    payload: FinancialAgreementUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    agreement = payment_service.update_agreement(
+        db, payment_service.parse_agreement_id(agreement_id), payload, current_user.id
+    )
+    return _agreement_out(db, agreement)
+
+
+@router.delete("/financial-agreements/{agreement_id}", status_code=204)
+def delete_agreement(agreement_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    payment_service.delete_agreement(db, payment_service.parse_agreement_id(agreement_id), current_user.id)
+
+
 @router.post("/financial-agreements/{agreement_id}/approve", response_model=FinancialAgreementOut)
 def approve_agreement(agreement_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     agreement = payment_service.approve_agreement(db, payment_service.parse_agreement_id(agreement_id), current_user.id)
@@ -120,6 +140,27 @@ def record_payment(
 ):
     payment = payment_service.record_payment(db, payload, current_user.id)
     return _payment_out(db, payment)
+
+
+@router.post("/payments/{payment_id}/proof", response_model=PaymentOut)
+def attach_payment_proof(
+    payment_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    payment = payment_service.attach_payment_proof(
+        db, payment_service.parse_payment_id(payment_id), file, current_user.id
+    )
+    return _payment_out(db, payment)
+
+
+@router.get("/payments/{payment_id}/proof/download")
+def download_payment_proof(payment_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    path, original_filename = payment_service.get_payment_proof_download_target(
+        db, payment_service.parse_payment_id(payment_id)
+    )
+    return FileResponse(path, filename=original_filename)
 
 
 @router.get("/payments/{payment_id}/allocations", response_model=list[PaymentAllocationOut])

@@ -110,6 +110,7 @@ export type ProjectWorkspaceTabKey =
   | 'government'
   | 'quotation'
   | 'payment-plan'
+  | 'payment-status'
   | 'contract'
   | 'tasks'
 

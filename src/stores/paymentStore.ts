@@ -16,8 +16,10 @@ import type {
   Payment,
   PaymentObligation,
   Refund,
+  UpdateAgreementInput,
 } from '@/types/Payment'
 import type { Project } from '@/types/Project'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 import { getFinancialSummary } from '@/utils/paymentHelpers'
 
 interface PaymentAgreementRow {
@@ -197,6 +199,38 @@ export const usePaymentStore = defineStore('payment', {
       }
     },
 
+    async updateAgreement(agreementId: string, input: UpdateAgreementInput): Promise<FinancialAgreement> {
+      this.isSubmitting = true
+      try {
+        const updated = await paymentService.updateAgreement(agreementId, input)
+        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        // The schedule was regenerated server-side -- refetch this
+        // agreement's obligations rather than trying to patch the old
+        // ones in place, since their count/ids may have changed entirely.
+        const obligations = await paymentService.getObligations(agreementId)
+        this.obligations = [...this.obligations.filter((o) => o.agreementId !== agreementId), ...obligations]
+        await this.loadAgreementDetail(agreementId)
+        return updated
+      } finally {
+        this.isSubmitting = false
+      }
+    },
+
+    async deleteAgreement(agreementId: string): Promise<void> {
+      this.isSubmitting = true
+      try {
+        await paymentService.deleteAgreement(agreementId)
+        this.agreements = this.agreements.filter((agreement) => agreement.id !== agreementId)
+        this.obligations = this.obligations.filter((obligation) => obligation.agreementId !== agreementId)
+        delete this.paymentsByAgreement[agreementId]
+        delete this.auditEventsByAgreement[agreementId]
+        delete this.refundsByAgreement[agreementId]
+        delete this.adjustmentsByAgreement[agreementId]
+      } finally {
+        this.isSubmitting = false
+      }
+    },
+
     async approveAgreement(agreementId: string): Promise<FinancialAgreement> {
       this.isSubmitting = true
       try {
@@ -208,15 +242,31 @@ export const usePaymentStore = defineStore('payment', {
       }
     },
 
-    async recordPayment(input: Parameters<typeof paymentService.recordPayment>[0], createdBy: string) {
+    async recordPayment(input: Parameters<typeof paymentService.recordPayment>[0], createdBy: string): Promise<Payment> {
       this.isSubmitting = true
       try {
-        await paymentService.recordPayment(input, createdBy)
+        const payment = await paymentService.recordPayment(input, createdBy)
         this.obligations = await paymentService.getAllObligations()
         await this.loadAgreementDetail(input.agreementId)
+        return payment
       } finally {
         this.isSubmitting = false
       }
+    },
+
+    async attachPaymentProof(paymentId: string, file: File, agreementId: string): Promise<void> {
+      this.isSubmitting = true
+      try {
+        await paymentService.attachPaymentProof(paymentId, file)
+        await this.loadAgreementDetail(agreementId)
+      } finally {
+        this.isSubmitting = false
+      }
+    },
+
+    async downloadPaymentProof(paymentId: string, filename: string): Promise<void> {
+      const blob = await paymentService.downloadPaymentProof(paymentId)
+      triggerBlobDownload(blob, filename)
     },
 
     async recordRefund(input: Parameters<typeof paymentService.createRefund>[0]) {

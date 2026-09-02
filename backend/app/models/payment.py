@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -104,6 +104,16 @@ class Payment(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Optional proof-of-payment attachment (receipt, transfer slip, etc.)
+    # -- migration 0062. Same storage_key/original_filename/size_bytes
+    # triple as ProjectDocument/DocumentVersion (app/models/document.py);
+    # see app.core.file_storage.save_upload. A Payment is otherwise
+    # immutable once recorded (no update/delete endpoint exists -- see
+    # payment_service.record_payment's module comment), so attaching
+    # proof is the one thing that can be added to it after the fact.
+    proof_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    proof_original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proof_file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class PaymentAllocation(Base):

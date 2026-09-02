@@ -4,6 +4,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
+import FileUploader from '@/components/document/FileUploader.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
@@ -33,7 +34,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  submit: [input: RecordPaymentInput]
+  // proofFile is sent as a separate follow-up multipart request (see
+  // paymentService.attachPaymentProof) once the payment itself exists --
+  // RecordPaymentInput stays a plain JSON body.
+  submit: [input: RecordPaymentInput, proofFile: File | undefined]
 }>()
 
 const PAYMENT_MODE_OPTIONS: SelectOption[] = [
@@ -54,6 +58,8 @@ const referenceNumber = ref('')
 const notes = ref('')
 const selectedObligationIds = ref<string[]>([])
 const allocationAmounts = reactive<Record<string, number>>({})
+const proofFile = ref<File>()
+const proofFileError = ref<string>()
 
 function resetForm(): void {
   amountReceived.value = 0
@@ -64,6 +70,8 @@ function resetForm(): void {
   notes.value = ''
   selectedObligationIds.value = props.preselectedObligationId ? [props.preselectedObligationId] : []
   Object.keys(allocationAmounts).forEach((key) => delete allocationAmounts[key])
+  proofFile.value = undefined
+  proofFileError.value = undefined
 }
 
 watch(
@@ -139,7 +147,7 @@ function handleSubmit(): void {
     notes: notes.value.trim() || undefined,
     allocations: selectedObligationIds.value.map((obligationId) => ({ obligationId, amount: allocationAmounts[obligationId] ?? 0 })),
   }
-  emit('submit', input)
+  emit('submit', input, proofFile.value)
 }
 
 function handleClose(): void {
@@ -159,6 +167,19 @@ function handleClose(): void {
           <TextInput v-model="referenceNumber" label="Reference Number" placeholder="Transaction/cheque reference" />
         </div>
         <TextArea v-model="notes" label="Notes" :rows="2" />
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-text-secondary">Payment Proof (optional)</label>
+          <FileUploader
+            accept=".pdf,.png,.jpg,.jpeg"
+            hint="Receipt, transfer slip, or similar (PDF or image)"
+            :allowed-extensions="['.pdf', '.png', '.jpg', '.jpeg']"
+            :max-size-bytes="50 * 1024 * 1024"
+            @select="proofFile = $event"
+            @error="proofFileError = $event"
+          />
+          <p v-if="proofFileError" class="text-xs text-danger-500">{{ proofFileError }}</p>
+        </div>
       </FormSection>
 
       <FormSection title="Allocation" description="Select which payment obligation(s) this payment settles.">
