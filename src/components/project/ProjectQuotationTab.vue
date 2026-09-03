@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
@@ -14,12 +15,15 @@ import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.
 import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import type { QuotationCreateInput } from '@/services/quotationService'
+import { useCompanyStore } from '@/stores/companyStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
+import type { AppLanguage } from '@/types/CompanySettings'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
+import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
@@ -34,7 +38,33 @@ const emit = defineEmits<{
 
 const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
+const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+
+const LANGUAGE_OPTIONS: SelectOption[] = [
+  { label: 'English', value: 'English' },
+  { label: 'Arabic', value: 'Arabic' },
+]
+// Which of the two per-type default templates (English/Arabic) Print/
+// Download/Email use -- seeded from the company-wide default language
+// once it loads, but overridable per document afterward without
+// changing that company setting.
+const documentLanguage = ref<AppLanguage>(companyStore.settings?.defaultLanguage ?? 'English')
+onMounted(() => {
+  if (companyStore.settings === undefined) companyStore.loadSettings()
+})
+const stopSeedingDocumentLanguage = watch(
+  () => companyStore.settings,
+  (settings) => {
+    // Only a one-time seed, whether settings were already loaded (fires
+    // immediately) or load later (fires on that change) -- once applied,
+    // this stops so it never overwrites a language the user picked here.
+    if (!settings) return
+    documentLanguage.value = settings.defaultLanguage
+    stopSeedingDocumentLanguage()
+  },
+  { immediate: true },
+)
 
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
@@ -62,7 +92,7 @@ async function handlePrint(): Promise<void> {
   const printWindow = window.open('', '_blank')
   isPrinting.value = true
   try {
-    const blob = await documentTemplateService.getQuotationDocumentPdf(quotation.id)
+    const blob = await documentTemplateService.getQuotationDocumentPdf(quotation.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
@@ -80,7 +110,7 @@ async function handleDownloadDocument(): Promise<void> {
   if (!quotation) return
   isDownloadingDocument.value = true
   try {
-    const blob = await documentTemplateService.downloadQuotationDocument(quotation.id)
+    const blob = await documentTemplateService.downloadQuotationDocument(quotation.id, documentLanguage.value)
     triggerBlobDownload(blob, `${quotation.id}.docx`)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
@@ -104,7 +134,7 @@ async function handleSendEmail(): Promise<void> {
   if (!quotation || !emailTo.value.trim()) return
   isSendingEmail.value = true
   try {
-    await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim())
+    await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim(), documentLanguage.value)
     resultDialogStore.showSuccess('Quotation emailed', `Sent to ${emailTo.value.trim()}.`)
     isEmailDialogOpen.value = false
   } catch (error) {
@@ -251,6 +281,7 @@ function handleAdvanceToPaymentPlan(): void {
       >
         {{ quotationStore.selectedQuotation.finalizedAt ? 'Reopen for Editing' : 'Save as Final' }}
       </BaseButton>
+      <SelectBox v-if="quotationStore.selectedQuotation" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
       <BaseButton
         v-if="quotationStore.selectedQuotation"
         variant="secondary"

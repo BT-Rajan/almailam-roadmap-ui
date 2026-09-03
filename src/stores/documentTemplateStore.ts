@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { documentTemplateService } from '@/services/documentTemplateService'
+import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 
@@ -22,6 +23,10 @@ export const useDocumentTemplateStore = defineStore('documentTemplate', {
       return (documentType: DocumentTemplateType): DocumentTemplate[] =>
         state.templates.filter((template) => template.documentType === documentType)
     },
+    byTypeAndLanguage(state) {
+      return (documentType: DocumentTemplateType, language: AppLanguage): DocumentTemplate[] =>
+        state.templates.filter((template) => template.documentType === documentType && template.language === language)
+    },
   },
 
   actions: {
@@ -37,11 +42,12 @@ export const useDocumentTemplateStore = defineStore('documentTemplate', {
       }
     },
 
-    async uploadTemplate(documentType: DocumentTemplateType, file: File): Promise<DocumentTemplate> {
-      const created = await documentTemplateService.uploadTemplate(documentType, file)
-      // A new default for this type demotes the sibling that used to be
-      // default (see backend document_template_service.upload_template),
-      // so refresh the whole list rather than just prepending.
+    async uploadTemplate(documentType: DocumentTemplateType, language: AppLanguage, file: File): Promise<DocumentTemplate> {
+      const created = await documentTemplateService.uploadTemplate(documentType, language, file)
+      // A new default for this (type, language) pair demotes the sibling
+      // that used to be default (see backend document_template_service.
+      // upload_template), so refresh the whole list rather than just
+      // prepending.
       await this.loadTemplates()
       return created
     },

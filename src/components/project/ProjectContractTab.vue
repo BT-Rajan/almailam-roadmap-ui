@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
@@ -13,14 +14,17 @@ import ContractRevisionHistory from '@/components/project/ContractRevisionHistor
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
 import { CONTRACT_ALLOWED_TRANSITIONS, isContractReasonRequired } from '@/constants/quotationContractOptions'
 import { documentTemplateService } from '@/services/documentTemplateService'
+import { useCompanyStore } from '@/stores/companyStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
+import type { AppLanguage } from '@/types/CompanySettings'
 import type { Contract } from '@/types/Contract'
 import type { Project } from '@/types/Project'
+import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
@@ -31,7 +35,28 @@ const props = defineProps<{
 const contractStore = useContractStore()
 const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
+const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+
+const LANGUAGE_OPTIONS: SelectOption[] = [
+  { label: 'English', value: 'English' },
+  { label: 'Arabic', value: 'Arabic' },
+]
+// See ProjectQuotationTab.vue's documentLanguage for why this is seeded
+// once from the company default and then left alone.
+const documentLanguage = ref<AppLanguage>(companyStore.settings?.defaultLanguage ?? 'English')
+onMounted(() => {
+  if (companyStore.settings === undefined) companyStore.loadSettings()
+})
+const stopSeedingDocumentLanguage = watch(
+  () => companyStore.settings,
+  (settings) => {
+    if (!settings) return
+    documentLanguage.value = settings.defaultLanguage
+    stopSeedingDocumentLanguage()
+  },
+  { immediate: true },
+)
 
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
@@ -120,7 +145,7 @@ async function handlePrint(): Promise<void> {
   const printWindow = window.open('', '_blank')
   isPrinting.value = true
   try {
-    const blob = await documentTemplateService.getContractDocumentPdf(contract.id)
+    const blob = await documentTemplateService.getContractDocumentPdf(contract.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
@@ -138,7 +163,7 @@ async function handleDownloadDocument(): Promise<void> {
   if (!contract) return
   isDownloadingDocument.value = true
   try {
-    const blob = await documentTemplateService.downloadContractDocument(contract.id)
+    const blob = await documentTemplateService.downloadContractDocument(contract.id, documentLanguage.value)
     triggerBlobDownload(blob, `${contract.id}.docx`)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
@@ -162,7 +187,7 @@ async function handleSendEmail(): Promise<void> {
   if (!contract || !emailTo.value.trim()) return
   isSendingEmail.value = true
   try {
-    await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim())
+    await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim(), documentLanguage.value)
     resultDialogStore.showSuccess('Contract emailed', `Sent to ${emailTo.value.trim()}.`)
     isEmailDialogOpen.value = false
   } catch (error) {
@@ -271,6 +296,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
       >
         {{ contractStore.selectedContract.finalizedAt ? 'Reopen for Editing' : 'Save as Final' }}
       </BaseButton>
+      <SelectBox v-if="contractStore.selectedContract" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
       <BaseButton
         v-if="contractStore.selectedContract"
         variant="secondary"
