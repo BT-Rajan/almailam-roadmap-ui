@@ -6,9 +6,13 @@ project's Quotation/Contract tab asks for the actual document, the
 default template's placeholders ({{ field }}, and {%tr for ... %} row
 loops inside a table -- both standard docxtpl/Jinja2 syntax) are merged
 with that record's live data via render_quotation_document/
-render_contract_document below, and the merged .docx is what gets
-downloaded. There is no PDF conversion step -- the merged .docx is the
-deliverable, opened/printed from Word like any other document.
+render_contract_document below, and the merged .docx is the download.
+
+render_quotation_pdf/render_contract_pdf below convert that same merged
+.docx to PDF (via _docx_to_pdf) so "Print" and "Email" can use the
+identical, admin-configured template instead of the separate hardcoded
+on-screen preview (QuotationPreview.vue/ContractPreview.vue) those
+actions used to print.
 """
 
 import copy
@@ -18,6 +22,7 @@ import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import mammoth
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -25,9 +30,11 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 from docxtpl import DocxTemplate
 from sqlalchemy.orm import Session
+from weasyprint import HTML
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
+from app.core.number_to_words import amount_to_words
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.document_template import DOCUMENT_TEMPLATE_TYPES, DocumentTemplate
@@ -35,6 +42,7 @@ from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
 from app.services import audit_service
+from app.services.pdf_render import FONT_PATH
 
 ENTITY_TYPE = "DOCUMENT_TEMPLATE"
 STORAGE_SUBDIRECTORY = "document-templates"
@@ -174,6 +182,49 @@ def _render_docx(storage_key: str, context: dict) -> bytes:
     return buffer.getvalue()
 
 
+def _docx_to_pdf(docx_bytes: bytes) -> bytes:
+    """Converts a merged .docx to a real, selectable-text PDF for
+    Print/Email, reusing the exact stack pdf_render.py already relies on
+    for Government Forms (WeasyPrint + the bundled Noto Naskh Arabic
+    font) rather than adding a new system dependency: mammoth (a pure
+    pip package, no system libs) turns the .docx body into semantic
+    HTML, which WeasyPrint then paginates into a PDF. This won't
+    reproduce the admin's exact Word layout pixel-for-pixel (mammoth
+    keeps paragraphs/headings/bold/tables/lists, not precise
+    spacing/borders), but it is the same merged content, real
+    RTL-capable Arabic text throughout -- unlike a LibreOffice-based
+    docx->PDF conversion, which was tried here and does not run
+    reliably headless in this app's container."""
+    result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+    body_html = result.value
+    html_doc = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {{
+    font-family: 'NotoNaskhArabic';
+    src: url('file://{FONT_PATH}');
+  }}
+  @page {{ size: A4; margin: 2.5cm 2cm; }}
+  body {{
+    font-family: 'NotoNaskhArabic', sans-serif;
+    direction: rtl;
+    text-align: right;
+    font-size: 12pt;
+    line-height: 1.8;
+    color: #1a1a2e;
+  }}
+  table {{ width: 100%; border-collapse: collapse; margin: 0 0 1em; }}
+  td, th {{ border: 1px solid #999; padding: 0.4em 0.6em; }}
+  p {{ margin: 0 0 0.8em; }}
+</style>
+</head>
+<body>{body_html}</body>
+</html>"""
+    return HTML(string=html_doc).write_pdf()
+
+
 def render_quotation_document(db: Session, quotation: Quotation) -> tuple[bytes, str]:
     from app.services import quotation_service
 
@@ -203,6 +254,8 @@ def render_quotation_document(db: Session, quotation: Quotation) -> tuple[bytes,
         "client_name": client.company_name if client else "",
         "project_name": project.project_name if project else "",
         "project_no": project.project_no if project else "",
+        "project_address": (project.site_address or "") if project else "",
+        "amount_in_words": amount_to_words(Decimal(str(quotation.amount)), quotation.currency),
         "line_items": [
             {
                 "description": item.description,
@@ -217,9 +270,19 @@ def render_quotation_document(db: Session, quotation: Quotation) -> tuple[bytes,
         "amount": f"{float(quotation.amount):.2f}",
         "notes": _plain_text(quotation.notes),
         "terms_and_conditions": [_plain_text(term) for term in quotation.terms_and_conditions],
+        "scope_phases": [_plain_text(phase) for phase in quotation.scope_phases],
+        "payment_terms": [_plain_text(term) for term in quotation.payment_terms],
     }
     filename = f"{quotation.quotation_no}.docx"
     return _render_docx(template.storage_key, context), filename
+
+
+def render_quotation_pdf(db: Session, quotation: Quotation) -> tuple[bytes, str]:
+    """Same merged document as render_quotation_document, converted to
+    PDF -- what Print and Email actually use, so both show the admin's
+    real uploaded template rather than a separate hardcoded preview."""
+    content, filename = render_quotation_document(db, quotation)
+    return _docx_to_pdf(content), filename.removesuffix(".docx") + ".pdf"
 
 
 def render_contract_document(db: Session, contract: Contract) -> tuple[bytes, str]:
@@ -253,11 +316,20 @@ def render_contract_document(db: Session, contract: Contract) -> tuple[bytes, st
         "client_name": client.company_name if client else "",
         "project_name": project.project_name if project else "",
         "project_no": project.project_no if project else "",
+        "project_address": (project.site_address or "") if project else "",
+        "amount_in_words": amount_to_words(Decimal(str(contract.contract_value)), contract.currency),
         "scope_summary": _plain_text(contract.scope_summary),
         "clauses": [{"title": c.title, "content": _plain_text(c.content)} for c in clauses],
     }
     filename = f"{contract.contract_no}.docx"
     return _render_docx(template.storage_key, context), filename
+
+
+def render_contract_pdf(db: Session, contract: Contract) -> tuple[bytes, str]:
+    """PDF counterpart of render_contract_document -- see
+    render_quotation_pdf's docstring."""
+    content, filename = render_contract_document(db, contract)
+    return _docx_to_pdf(content), filename.removesuffix(".docx") + ".pdf"
 
 
 # --- Visual field mapping -- lets an admin click a spot in an uploaded
@@ -279,9 +351,11 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
         {"key": "client_name", "label": "Client Name", "kind": "text"},
         {"key": "project_name", "label": "Project Name", "kind": "text"},
         {"key": "project_no", "label": "Project No.", "kind": "text"},
+        {"key": "project_address", "label": "Project/Site Address", "kind": "text"},
         {"key": "subtotal", "label": "Subtotal", "kind": "text"},
         {"key": "discount_amount", "label": "Discount Amount", "kind": "text"},
         {"key": "amount", "label": "Total Amount", "kind": "text"},
+        {"key": "amount_in_words", "label": "Total Amount (in Words)", "kind": "text"},
         {"key": "notes", "label": "Notes", "kind": "text"},
         {
             "key": "line_items",
@@ -296,6 +370,8 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
             ],
         },
         {"key": "terms_and_conditions", "label": "Terms & Conditions", "kind": "repeating_list", "loopVar": "term"},
+        {"key": "scope_phases", "label": "Scope Phases", "kind": "repeating_list", "loopVar": "phase"},
+        {"key": "payment_terms", "label": "Payment Terms", "kind": "repeating_list", "loopVar": "term"},
     ],
     "Contract": [
         {"key": "contract_no", "label": "Contract No.", "kind": "text"},
@@ -311,6 +387,8 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
         {"key": "client_name", "label": "Client Name", "kind": "text"},
         {"key": "project_name", "label": "Project Name", "kind": "text"},
         {"key": "project_no", "label": "Project No.", "kind": "text"},
+        {"key": "project_address", "label": "Project/Site Address", "kind": "text"},
+        {"key": "amount_in_words", "label": "Contract Value (in Words)", "kind": "text"},
         {"key": "scope_summary", "label": "Scope Summary", "kind": "text"},
         {
             "key": "clauses",

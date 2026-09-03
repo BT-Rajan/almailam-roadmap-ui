@@ -68,6 +68,8 @@ class QuotationOut(BaseModel):
     discountAmount: float
     notes: str | None
     termsAndConditions: list[str]
+    scopePhases: list[str]
+    paymentTerms: list[str]
     lineItems: list[QuotationLineItemOut]
     amount: float
     finalizedAt: datetime | None
@@ -88,6 +90,8 @@ class QuotationOut(BaseModel):
             discountAmount=float(quotation.discount_amount),
             notes=quotation.notes,
             termsAndConditions=quotation.terms_and_conditions,
+            scopePhases=quotation.scope_phases,
+            paymentTerms=quotation.payment_terms,
             lineItems=[QuotationLineItemOut.from_model(i) for i in line_items],
             amount=float(quotation.amount),
             finalizedAt=quotation.finalized_at,
@@ -102,6 +106,8 @@ class QuotationCreate(BaseModel):
     discountAmount: float = Field(default=0, ge=0)
     notes: str | None = None
     termsAndConditions: list[str] = Field(default_factory=list)
+    scopePhases: list[str] = Field(default_factory=list)
+    paymentTerms: list[str] = Field(default_factory=list)
     lineItems: list[QuotationLineItemIn] = Field(min_length=1)
 
     @field_validator("notes")
@@ -109,7 +115,7 @@ class QuotationCreate(BaseModel):
     def sanitize_notes(cls, value: str | None) -> str | None:
         return sanitize_html(value)
 
-    @field_validator("termsAndConditions")
+    @field_validator("termsAndConditions", "scopePhases", "paymentTerms")
     @classmethod
     def sanitize_terms(cls, value: list[str]) -> list[str]:
         return [sanitize_html(term) or "" for term in value]
@@ -120,6 +126,8 @@ class QuotationUpdate(BaseModel):
     discountAmount: float | None = Field(default=None, ge=0)
     notes: str | None = None
     termsAndConditions: list[str] | None = None
+    scopePhases: list[str] | None = None
+    paymentTerms: list[str] | None = None
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
     status: str | None = None
     reason: str | None = None
@@ -129,7 +137,7 @@ class QuotationUpdate(BaseModel):
     def sanitize_notes(cls, value: str | None) -> str | None:
         return sanitize_html(value)
 
-    @field_validator("termsAndConditions")
+    @field_validator("termsAndConditions", "scopePhases", "paymentTerms")
     @classmethod
     def sanitize_terms(cls, value: list[str] | None) -> list[str] | None:
         if value is None:

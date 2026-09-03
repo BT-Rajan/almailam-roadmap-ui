@@ -118,6 +118,40 @@ async function downloadContractDocument(contractNo: string): Promise<Blob> {
   return _downloadBlob(`/api/contracts/${contractNo}/document`, 'Failed to generate contract document')
 }
 
+/** The same merged Quotation document as downloadQuotationDocument, as a
+ * PDF -- what Print opens in a new tab so it reflects the uploaded
+ * template instead of the separate on-screen preview. */
+async function getQuotationDocumentPdf(quotationNo: string): Promise<Blob> {
+  return _downloadBlob(`/api/quotations/${quotationNo}/document/pdf`, 'Failed to generate quotation PDF')
+}
+
+/** PDF counterpart of downloadContractDocument -- see
+ * getQuotationDocumentPdf. */
+async function getContractDocumentPdf(contractNo: string): Promise<Blob> {
+  return _downloadBlob(`/api/contracts/${contractNo}/document/pdf`, 'Failed to generate contract PDF')
+}
+
+/** Emails the merged Quotation PDF to the project's client (or an
+ * override address) -- same merged template as Download/Print. */
+async function emailQuotationDocument(quotationNo: string, toEmail?: string): Promise<void> {
+  try {
+    await apiClient.post(`/api/quotations/${quotationNo}/document/email`, toEmail ? { toEmail } : {})
+  } catch (error) {
+    console.error(`Failed to email quotation ${quotationNo}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to email quotation')
+  }
+}
+
+/** Emails the merged Contract PDF -- see emailQuotationDocument. */
+async function emailContractDocument(contractNo: string, toEmail?: string): Promise<void> {
+  try {
+    await apiClient.post(`/api/contracts/${contractNo}/document/email`, toEmail ? { toEmail } : {})
+  } catch (error) {
+    console.error(`Failed to email contract ${contractNo}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to email contract')
+  }
+}
+
 export const documentTemplateService = {
   getTemplates,
   uploadTemplate,
@@ -129,4 +163,8 @@ export const documentTemplateService = {
   downloadTemplate,
   downloadQuotationDocument,
   downloadContractDocument,
+  getQuotationDocumentPdf,
+  getContractDocumentPdf,
+  emailQuotationDocument,
+  emailContractDocument,
 }

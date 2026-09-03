@@ -70,6 +70,12 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     project_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     project_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    # Free-text project/plot address (migration 0063) -- the site this
+    # project is for, separate from any of the client's own
+    # ClientAddress rows. Only consumed to fill a Quotation/Contract
+    # document template's address placeholder (see
+    # document_template_service.MERGE_FIELD_CATALOG).
+    site_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     # Internal approval of `description` (the scope-of-work text) at the
     # Requirement stage -- see PROJECT_SCOPE_STATUSES above.
     # scope_approved_at/_by are both None until first approved.

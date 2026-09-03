@@ -1,6 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+
+
+class DocumentEmailRequest(BaseModel):
+    # Defaults to the project's client email (see api/quotations.py's
+    # and api/contracts.py's email_document endpoints) when omitted --
+    # only needed to send somewhere else instead.
+    toEmail: EmailStr | None = None
 
 
 class DocumentTemplateOut(BaseModel):

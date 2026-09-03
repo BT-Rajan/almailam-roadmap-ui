@@ -339,6 +339,7 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
         project_no=project_no,
         project_name=payload.projectName,
         description=payload.description,
+        site_address=payload.siteAddress,
         client_id=client.id,
         service=payload.service,
         engineer_id=engineer.id,
@@ -387,6 +388,11 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
         if new_description != project.description:
             changes["description"] = (project.description, new_description)
         project.description = new_description
+    if payload.siteAddress is not None:
+        new_site_address = payload.siteAddress.strip() or None
+        if new_site_address != project.site_address:
+            changes["site_address"] = (project.site_address, new_site_address)
+        project.site_address = new_site_address
     if payload.service is not None and payload.service != project.service:
         changes["service"] = (project.service, payload.service)
         project.service = payload.service

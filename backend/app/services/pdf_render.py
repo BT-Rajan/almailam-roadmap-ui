@@ -29,7 +29,7 @@ from weasyprint import HTML
 _TOKEN_RE = re.compile(r"{{\s*(\w+)\s*}}", re.UNICODE)
 _MISSING_PLACEHOLDER = "………………"
 
-_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoNaskhArabic-Regular.ttf"
+FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoNaskhArabic-Regular.ttf"
 
 
 def render_template(template: str, context: dict[str, str | None]) -> str:
@@ -74,7 +74,7 @@ def render_agreement_pdf(title: str, body_text: str) -> bytes:
 <style>
   @font-face {{
     font-family: 'NotoNaskhArabic';
-    src: url('file://{_FONT_PATH}');
+    src: url('file://{FONT_PATH}');
   }}
   @page {{ size: A4; margin: 2.5cm 2cm; }}
   body {{

@@ -4,15 +4,18 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.exceptions import ValidationAppError
+from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.document_template import DocumentEmailRequest
 from app.schemas.quotation import (
     QuotationCreate,
     QuotationOut,
     QuotationStatusUpdate,
     QuotationUpdate,
 )
-from app.services import document_template_service, quotation_service
+from app.services import document_template_service, email_service, quotation_service
 
 router = APIRouter(prefix="/api/quotations", tags=["quotations"])
 
@@ -103,6 +106,44 @@ def download_document(quotation_no: str, db: Session = Depends(get_db), _=Depend
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{quotation_no}/document/pdf")
+def download_document_pdf(quotation_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    quotation = quotation_service.get_quotation(db, quotation_no)
+    content, filename = document_template_service.render_quotation_pdf(db, quotation)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        # inline, not attachment -- this is what Print opens in a new tab
+        # to send straight to the browser's PDF viewer/print dialog.
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.post("/{quotation_no}/document/email", status_code=204)
+def email_document(
+    quotation_no: str,
+    payload: DocumentEmailRequest,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    quotation = quotation_service.get_quotation(db, quotation_no)
+    project = db.query(Project).filter(Project.id == quotation.project_id).first()
+    client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
+    to_email = payload.toEmail or (client.email if client else None)
+    if not to_email:
+        raise ValidationAppError("No recipient email address on file for this project's client.")
+
+    content, filename = document_template_service.render_quotation_pdf(db, quotation)
+    email_service.send_document_email(
+        to_email=to_email,
+        subject=f"Quotation {quotation.quotation_no}",
+        body_text=f"Please find attached Quotation {quotation.quotation_no}.",
+        attachment_bytes=content,
+        attachment_filename=filename,
+        attachment_mimetype="application/pdf",
     )
 
 

@@ -121,6 +121,10 @@ class ProjectOut(BaseModel):
     # hold -- each is a mandatory upload requirement on the Documents
     # tab (see ProjectDocumentsTab.vue's permitChecklist).
     requiredPermitDocuments: list[str] = Field(default_factory=list)
+    # The project/plot address (migration 0063) -- fills a Quotation/
+    # Contract document template's address placeholder. Distinct from
+    # any of the client's own ClientAddress rows.
+    siteAddress: str | None = None
 
     @staticmethod
     def from_model(
@@ -157,6 +161,7 @@ class ProjectOut(BaseModel):
             includesDesign=includes_design,
             includesSupervision=includes_supervision,
             requiredPermitDocuments=list(project.required_permit_documents or []),
+            siteAddress=project.site_address,
         )
 
 
@@ -216,6 +221,7 @@ class ProjectCreate(BaseModel):
     # client doesn't have yet aren't sent here at all; the wizard turns
     # those into Tasks instead, against the project this call returns.
     requiredPermitDocuments: list[str] = Field(default_factory=list)
+    siteAddress: str | None = Field(default=None, max_length=300)
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
 
@@ -239,6 +245,7 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     projectName: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    siteAddress: str | None = Field(default=None, max_length=300)
     service: str | None = Field(default=None, min_length=1, max_length=100)
     engineerId: str | None = None
     priority: str | None = None

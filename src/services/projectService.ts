@@ -74,6 +74,11 @@ async function getProjectsByClient(clientId: string): Promise<Project[]> {
 export interface ProjectCreateInput {
   projectName: string
   description?: string
+  // The project/plot address -- fills a Quotation/Contract document
+  // template's address placeholder (see document_template_service.
+  // MERGE_FIELD_CATALOG). Distinct from any of the client's own
+  // addresses.
+  siteAddress?: string
   clientId: string
   service: string
   engineerId: string
@@ -116,6 +121,7 @@ async function createProject(projectData: ProjectCreateInput): Promise<Project> 
 export interface ProjectUpdateInput {
   projectName?: string
   description?: string
+  siteAddress?: string
   service?: string
   engineerId?: string
   priority?: ProjectPriority

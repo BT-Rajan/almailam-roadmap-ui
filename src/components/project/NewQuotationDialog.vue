@@ -58,6 +58,8 @@ function emptyForm() {
     discountAmount: 0,
     notes: '',
     termsText: '',
+    scopePhasesText: '',
+    paymentTermsText: '',
     lineItems: [emptyLineItem()] as DraftLineItem[],
   }
 }
@@ -155,6 +157,14 @@ function handleConfirm(): void {
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0),
+    scopePhases: form.scopePhasesText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0),
+    paymentTerms: form.paymentTermsText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0),
     lineItems,
   })
 }
@@ -243,6 +253,20 @@ function handleConfirm(): void {
       />
 
       <TextArea v-model="form.notes" label="Notes" placeholder="Optional notes for this quotation" :rows="2" />
+      <TextArea
+        v-model="form.scopePhasesText"
+        label="Scope Phases"
+        placeholder="One phase per line, e.g. Phase 1 (Design): architectural design, approvals..."
+        hint="Each line becomes one phase in the document template's phased-scope section."
+        :rows="3"
+      />
+      <TextArea
+        v-model="form.paymentTermsText"
+        label="Payment Terms"
+        placeholder="One installment per line, e.g. First payment 25% upon signing the contract"
+        hint="Each line becomes one row in the document template's payment breakdown."
+        :rows="3"
+      />
       <TextArea
         v-model="form.termsText"
         label="Terms &amp; Conditions"

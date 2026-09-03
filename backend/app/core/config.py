@@ -74,6 +74,29 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-chat"
 
+    # SMTP credentials for emailing a generated Quotation/Contract
+    # document (see app/services/email_service.py). Same "empty by
+    # default, feature honestly reports itself unavailable until
+    # configured" pattern as the LLM keys above -- there is no in-app
+    # admin screen for these, only infrastructure-level .env config.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    # Shown as the message's From: address -- falls back to SMTP_USERNAME
+    # (the typical case: authenticating and sending as the same mailbox)
+    # when left unset, so most setups only need to set this once.
+    SMTP_FROM_ADDRESS: str = ""
+    SMTP_USE_TLS: bool = True
+
+    @property
+    def smtp_from_address(self) -> str:
+        return self.SMTP_FROM_ADDRESS or self.SMTP_USERNAME
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.SMTP_HOST and self.smtp_from_address)
+
     @property
     def database_url(self) -> str:
         return (

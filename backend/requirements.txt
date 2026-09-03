@@ -45,6 +45,15 @@ tzdata==2025.2
 # requirements.txt` succeeds but importing weasyprint fails, that's the
 # missing piece, not a Python problem.
 weasyprint==69.0
+# Turns a merged Quotation/Contract .docx into semantic HTML (see
+# document_template_service._docx_to_pdf), which is then handed to
+# WeasyPrint above to produce the PDF "Print"/"Email" actually use --
+# so those show the admin's real uploaded-template content instead of a
+# separate hardcoded preview. Pure-Python, no system dependency (unlike
+# weasyprint above): a LibreOffice-headless docx->PDF conversion was
+# tried first and does not run reliably in this app's container, hence
+# this HTML round-trip instead of a direct docx->PDF tool.
+mammoth==1.12.1
 # Server-side sanitizer for the rich-text content saved from Quotation/
 # Contract preview editors (scope summary, clauses, notes, terms) --
 # strips anything outside the small formatting allowlist (bold/italic/

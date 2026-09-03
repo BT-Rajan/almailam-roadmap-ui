@@ -58,6 +58,7 @@ const engineerOptions = computed<SelectOption[]>(() =>
 interface EditForm {
   projectName: string
   description: string
+  siteAddress: string
   service: string
   priority: string
   targetDate: string
@@ -68,6 +69,7 @@ function emptyForm(): EditForm {
   return {
     projectName: '',
     description: '',
+    siteAddress: '',
     service: '',
     priority: 'Medium',
     targetDate: '',
@@ -91,6 +93,7 @@ watch(
     if (!open) return
     form.projectName = props.project.projectName
     form.description = props.project.description ?? ''
+    form.siteAddress = props.project.siteAddress ?? ''
     form.service = props.project.service
     form.priority = props.project.priority
     form.targetDate = props.project.targetDate
@@ -120,6 +123,7 @@ function handleConfirm(): void {
   emit('confirm', {
     projectName: form.projectName,
     description: form.description,
+    siteAddress: form.siteAddress,
     service: form.service,
     priority: form.priority as ProjectPriority,
     targetDate: form.targetDate,
@@ -133,6 +137,7 @@ function handleConfirm(): void {
     <div class="flex flex-col gap-4">
       <TextInput v-model="form.projectName" label="Project Name" required :error="errors.projectName" />
       <TextArea v-model="form.description" label="Scope of Work" placeholder="Describe the scope of this engagement" :rows="3" />
+      <TextInput v-model="form.siteAddress" label="Project/Site Address" placeholder="e.g. Plot 572, Parcel 4, Second Suburb, Al Mutlaa" />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox v-model="form.service" label="Service" :options="serviceOptions" required :error="errors.service" />
