@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue'
-import { nextTick, ref, watch } from 'vue'
+import { CornerDownRight, Repeat, X } from '@lucide/vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
+import SearchBox from '@/components/common/SearchBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import MergeFieldRichInput from '@/components/administration/MergeFieldRichInput.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import { useToastStore } from '@/stores/toastStore'
-import type { DocumentTemplate, MergeField, TemplateBlock } from '@/types/DocumentTemplate'
+import type { DocumentTemplate, MergeField, TemplateBlock, TemplateRow } from '@/types/DocumentTemplate'
 
 interface Props {
   modelValue: boolean
@@ -28,20 +30,40 @@ const isSaving = ref(false)
 const loadError = ref('')
 const mergeFields = ref<MergeField[]>([])
 const blocks = ref<TemplateBlock[]>([])
+const searchQuery = ref('')
 
-// Which input the last "insert field" click should target -- set by
-// every paragraph/cell input's own @focus handler. Kept as a plain
-// (non-reactive) object holding the live element, not a ref to a
-// Vue-tracked value, since what's inserted needs the DOM's own current
-// selectionStart/selectionEnd (cursor position), which Vue's reactivity
-// has no notion of.
-type FocusTarget =
-  | { kind: 'paragraph'; blockIndex: number; el: HTMLInputElement }
-  | { kind: 'cell'; blockIndex: number; rowIndex: number; cellIndex: number; el: HTMLInputElement }
-let focusTarget: FocusTarget | null = null
+type RichInputInstance = InstanceType<typeof MergeFieldRichInput>
 
-function setFocus(target: FocusTarget): void {
-  focusTarget = target
+// Live handles to every rendered editor, keyed so `insertToken` can
+// look one up and call its own imperative `insertToken` -- kept as
+// plain (non-reactive) maps, since these hold DOM-backed component
+// instances, not values Vue's reactivity has any business tracking.
+const paragraphRefs = new Map<number, RichInputInstance>()
+const cellRefs = new Map<string, RichInputInstance>()
+function cellKey(blockIndex: number, rowIndex: number, cellIndex: number): string {
+  return `${blockIndex}-${rowIndex}-${cellIndex}`
+}
+function setParagraphRef(blockIndex: number, el: RichInputInstance | null): void {
+  if (el) paragraphRefs.set(blockIndex, el)
+}
+function setCellRef(blockIndex: number, rowIndex: number, cellIndex: number, el: RichInputInstance | null): void {
+  if (el) cellRefs.set(cellKey(blockIndex, rowIndex, cellIndex), el)
+}
+
+// Which editor the next "insert field" click should target -- set by
+// every paragraph/cell editor's own @focus handler.
+type ActiveEditor =
+  | { kind: 'paragraph'; blockIndex: number }
+  | { kind: 'cell'; blockIndex: number; rowIndex: number; cellIndex: number }
+const activeEditor = ref<ActiveEditor | null>(null)
+
+function setActiveEditor(target: ActiveEditor): void {
+  activeEditor.value = target
+}
+
+function loopVarFor(fieldKey: string | null | undefined): string | null {
+  if (!fieldKey) return null
+  return mergeFields.value.find((f) => f.key === fieldKey)?.loopVar ?? null
 }
 
 watch(
@@ -51,7 +73,10 @@ watch(
     isLoading.value = true
     loadError.value = ''
     blocks.value = []
-    focusTarget = null
+    searchQuery.value = ''
+    activeEditor.value = null
+    paragraphRefs.clear()
+    cellRefs.clear()
     try {
       const [fields, layout] = await Promise.all([
         documentTemplateService.getMergeFields(props.template.documentType),
@@ -81,66 +106,175 @@ function repeatingListFields(): MergeField[] {
   return mergeFields.value.filter((f) => f.kind === 'repeating_list')
 }
 
+// --- Usage tracking: scans the whole document for where each field is
+// currently placed, so the palette can show it instead of making the
+// admin hunt through every paragraph/cell to find out. ---
+interface Placement {
+  label: string
+  scrollTo: () => void
+}
+
+const blockLabels = computed<Map<number, string>>(() => {
+  const labels = new Map<number, string>()
+  let paragraphCount = 0
+  let tableCount = 0
+  for (const block of blocks.value) {
+    if (block.kind === 'paragraph') {
+      paragraphCount += 1
+      labels.set(block.blockIndex, `Paragraph ${paragraphCount}`)
+    } else {
+      tableCount += 1
+      labels.set(block.blockIndex, `Table ${tableCount}`)
+    }
+  }
+  return labels
+})
+
+function scrollToBlock(blockIndex: number): void {
+  nextTick(() => {
+    document.getElementById(`mf-block-${blockIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+/** How many times a plain text field's token appears anywhere in the
+ * document (it can legitimately be placed more than once, e.g. a
+ * client name in both a header and a footer paragraph). */
+function textFieldUsageCount(field: MergeField): number {
+  const token = `{{ ${field.key} }}`
+  let count = 0
+  for (const block of blocks.value) {
+    if (block.kind === 'paragraph') {
+      if ((block.text ?? '').includes(token)) count += 1
+    } else {
+      for (const row of block.rows ?? []) {
+        for (const cell of row.cells) {
+          if (cell.text.includes(token)) count += 1
+        }
+      }
+    }
+  }
+  return count
+}
+
+/** Where a repeating-list field's single marker paragraph currently
+ * is, if placed. */
+function repeatingListPlacement(field: MergeField): Placement | undefined {
+  const flagged = blocks.value.find((b) => b.kind === 'paragraph' && b.repeatingField === field.key)
+  if (!flagged) return undefined
+  return { label: blockLabels.value.get(flagged.blockIndex) ?? '', scrollTo: () => scrollToBlock(flagged.blockIndex) }
+}
+
+/** Where a repeating-table field's single marked row currently is, if
+ * placed. */
+function repeatingTablePlacement(field: MergeField): Placement | undefined {
+  for (const block of blocks.value) {
+    if (block.kind !== 'table') continue
+    const row = block.rows?.find((r) => r.repeatingField === field.key)
+    if (row) {
+      return { label: blockLabels.value.get(block.blockIndex) ?? '', scrollTo: () => scrollToBlock(block.blockIndex) }
+    }
+  }
+  return undefined
+}
+
 function fieldLabel(key: string): string {
   return mergeFields.value.find((f) => f.key === key)?.label ?? key
 }
 
-/** Unsets `fieldKey` from wherever it's currently flagged -- a
- * repeating field can only occupy one paragraph/row at a time (that's
- * what makes its for/endfor markers unambiguous to place), so marking a
- * new location always displaces the old one. */
+/** Unsets `fieldKey` from wherever it's currently flagged, and strips
+ * its marker token(s) from that text too -- a repeating field can only
+ * occupy one paragraph/row at a time, so marking a new location always
+ * displaces the old one, and leaving the old token text behind would
+ * leave a dangling `{{ loopVar }}`/`{{ loopVar.col }}` reference that
+ * fails to render once it's no longer wrapped in a for/endfor. */
 function clearRepeatingField(fieldKey: string): void {
+  const field = mergeFields.value.find((f) => f.key === fieldKey)
   for (const block of blocks.value) {
     if (block.kind === 'paragraph' && block.repeatingField === fieldKey) {
       block.repeatingField = null
+      if (field?.loopVar) block.text = stripToken(block.text ?? '', field.loopVar)
     } else if (block.kind === 'table') {
       for (const row of block.rows ?? []) {
-        if (row.repeatingField === fieldKey) row.repeatingField = null
+        if (row.repeatingField === fieldKey) {
+          row.repeatingField = null
+          if (field?.loopVar) {
+            for (const cell of row.cells) cell.text = stripColumnTokens(cell.text, field.loopVar)
+          }
+        }
       }
     }
   }
 }
 
-function insertToken(token: string, markRepeatingField?: string): void {
-  if (!focusTarget) return
-  const target = focusTarget
-  const el = target.el
-  const start = el.selectionStart ?? el.value.length
-  const end = el.selectionEnd ?? el.value.length
-  const newValue = el.value.slice(0, start) + token + el.value.slice(end)
+/** Removes every `{{ loopVar }}` occurrence (bare token) from `text`. */
+function stripToken(text: string, loopVar: string): string {
+  const re = new RegExp(`\\{\\{\\s*${loopVar}\\s*\\}\\}`, 'g')
+  return text.replace(re, '').trim()
+}
 
+/** Removes every `{{ loopVar.column }}` occurrence (any column) from
+ * `text`. */
+function stripColumnTokens(text: string, loopVar: string): string {
+  const re = new RegExp(`\\{\\{\\s*${loopVar}\\.[\\w]+\\s*\\}\\}`, 'g')
+  return text.replace(re, '').trim()
+}
+
+function insertToken(token: string, markRepeatingField?: string): void {
+  const target = activeEditor.value
+  if (!target) {
+    toastStore.show('info', 'Click into the document first', 'Click a line or table cell below, then click a field to insert it there.')
+    return
+  }
   const block = blocks.value.find((b) => b.blockIndex === target.blockIndex)
   if (!block) return
 
   if (target.kind === 'paragraph' && block.kind === 'paragraph') {
-    block.text = newValue
+    const editor = paragraphRefs.get(target.blockIndex)
+    if (!editor) return
     if (markRepeatingField) {
       clearRepeatingField(markRepeatingField)
       block.repeatingField = markRepeatingField
     }
+    editor.insertToken(token)
   } else if (target.kind === 'cell' && block.kind === 'table') {
     const row = block.rows?.find((r) => r.rowIndex === target.rowIndex)
-    const cell = row?.cells.find((c) => c.cellIndex === target.cellIndex)
-    if (!row || !cell) return
-    cell.text = newValue
+    if (!row) return
+    const editor = cellRefs.get(cellKey(target.blockIndex, target.rowIndex, target.cellIndex))
+    if (!editor) return
     if (markRepeatingField) {
       clearRepeatingField(markRepeatingField)
       row.repeatingField = markRepeatingField
     }
+    editor.insertToken(token)
   }
-
-  const cursorPosition = start + token.length
-  nextTick(() => {
-    el.focus()
-    el.setSelectionRange(cursorPosition, cursorPosition)
-  })
 }
 
-function clearRowRepeating(row: { repeatingField: string | null }): void {
+function clearRowRepeating(row: TemplateRow, fieldKey: string | null | undefined): void {
+  const loopVar = loopVarFor(fieldKey)
   row.repeatingField = null
+  if (loopVar) for (const cell of row.cells) cell.text = stripColumnTokens(cell.text, loopVar)
 }
-function clearParagraphRepeating(block: TemplateBlock): void {
+function clearParagraphRepeating(block: TemplateBlock, fieldKey: string | null | undefined): void {
+  const loopVar = loopVarFor(fieldKey)
   block.repeatingField = null
+  if (loopVar) block.text = stripToken(block.text ?? '', loopVar)
+}
+
+/** A paragraph auto-fires this when its own marker chip is deleted
+ * directly in the text -- the flag needs to follow. */
+function handleParagraphRemoveRepeating(block: TemplateBlock): void {
+  block.repeatingField = null
+}
+
+// --- Simple text filter -- dims non-matching blocks rather than
+// hiding them, so a long document stays navigable (nothing seems to
+// have vanished) while the admin can still spot the line they're
+// after at a glance. ---
+function blockMatchesSearch(block: TemplateBlock): boolean {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return true
+  if (block.kind === 'paragraph') return (block.text ?? '').toLowerCase().includes(query)
+  return (block.rows ?? []).some((row) => row.cells.some((cell) => cell.text.toLowerCase().includes(query)))
 }
 
 async function handleSave(): Promise<void> {
@@ -177,8 +311,9 @@ function handleClose(): void {
 
     <div v-else class="flex flex-col gap-5">
       <p class="text-xs text-text-muted">
-        Click into a line of the document below, then click a field to insert it at that spot. For a repeating
-        table (e.g. line items), click into the row that should repeat, then click each column into its cell.
+        Click into a line of the document below, then click a field to insert it at that spot -- it'll appear as a
+        small tag, not as code. For a repeating table (e.g. line items), click into the row that should repeat, then
+        click each column into its cell.
       </p>
 
       <!-- Field palette -->
@@ -188,21 +323,36 @@ function handleClose(): void {
             v-for="field in textFields()"
             :key="field.key"
             type="button"
-            class="rounded-full border border-border-default bg-bg-card px-3 py-1 text-xs font-medium text-text-secondary transition-colors duration-fast hover:border-accent-500 hover:text-accent-600"
+            class="inline-flex items-center gap-1.5 rounded-full border border-border-default bg-bg-card px-3 py-1 text-xs font-medium text-text-secondary transition-colors duration-fast hover:border-accent-500 hover:text-accent-600"
             @click="insertToken(`{{ ${field.key} }}`)"
           >
             {{ field.label }}
+            <span v-if="textFieldUsageCount(field) > 0" class="rounded-full bg-accent-100 px-1.5 py-0.5 text-[10px] text-accent-700">
+              ×{{ textFieldUsageCount(field) }}
+            </span>
           </button>
         </div>
 
         <div v-for="field in repeatingTableFields()" :key="field.key" class="flex flex-col gap-1.5 border-t border-border-light pt-3">
-          <p class="text-xs text-text-muted">{{ field.label }} columns -- click into a table cell first:</p>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+            <Repeat class="h-3.5 w-3.5" />
+            <span>{{ field.label }} columns -- click into a table cell first:</span>
+            <button
+              v-if="repeatingTablePlacement(field)"
+              type="button"
+              class="inline-flex items-center gap-1 text-accent-600 hover:text-accent-700"
+              @click="repeatingTablePlacement(field)?.scrollTo()"
+            >
+              <CornerDownRight class="h-3 w-3" />
+              Repeating at {{ repeatingTablePlacement(field)?.label }}
+            </button>
+          </div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="column in field.columns"
               :key="column.key"
               type="button"
-              :disabled="focusTarget?.kind !== 'cell'"
+              :disabled="activeEditor?.kind !== 'cell'"
               class="rounded-full border border-border-default bg-bg-card px-3 py-1 text-xs font-medium text-text-secondary transition-colors duration-fast hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40"
               @click="insertToken(`{{ ${field.loopVar}.${column.key} }}`, field.key)"
             >
@@ -212,10 +362,22 @@ function handleClose(): void {
         </div>
 
         <div v-for="field in repeatingListFields()" :key="field.key" class="flex flex-col gap-1.5 border-t border-border-light pt-3">
-          <p class="text-xs text-text-muted">{{ field.label }} -- click into the line that should repeat first:</p>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+            <Repeat class="h-3.5 w-3.5" />
+            <span>{{ field.label }} -- click into the line that should repeat first:</span>
+            <button
+              v-if="repeatingListPlacement(field)"
+              type="button"
+              class="inline-flex items-center gap-1 text-accent-600 hover:text-accent-700"
+              @click="repeatingListPlacement(field)?.scrollTo()"
+            >
+              <CornerDownRight class="h-3 w-3" />
+              Repeating at {{ repeatingListPlacement(field)?.label }}
+            </button>
+          </div>
           <button
             type="button"
-            :disabled="focusTarget?.kind !== 'paragraph'"
+            :disabled="activeEditor?.kind !== 'paragraph'"
             class="w-fit rounded-full border border-border-default bg-bg-card px-3 py-1 text-xs font-medium text-text-secondary transition-colors duration-fast hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40"
             @click="insertToken(`{{ ${field.loopVar} }}`, field.key)"
           >
@@ -224,49 +386,66 @@ function handleClose(): void {
         </div>
       </div>
 
+      <SearchBox v-model="searchQuery" placeholder="Find text in the document..." :debounce-ms="0" />
+
       <!-- Document body -->
       <div class="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-lg border border-border-light p-3">
         <template v-for="block in blocks" :key="`${block.kind}-${block.blockIndex}`">
-          <input
+          <div
             v-if="block.kind === 'paragraph'"
-            v-model="block.text"
-            type="text"
-            class="h-9 w-full rounded-md border bg-bg-card px-2.5 text-sm text-text-primary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-accent-500/30"
-            :class="block.repeatingField ? 'border-accent-500' : 'border-border-default focus:border-accent-500'"
-            @focus="setFocus({ kind: 'paragraph', blockIndex: block.blockIndex, el: $event.target as HTMLInputElement })"
-          />
-          <div v-if="block.kind === 'paragraph' && block.repeatingField" class="-mt-2 flex items-center gap-1 text-[11px] text-accent-600">
-            <span>Repeating: {{ fieldLabel(block.repeatingField) }}</span>
-            <button type="button" class="hover:text-accent-700" @click="clearParagraphRepeating(block)">
-              <X class="h-3 w-3" />
-            </button>
+            :id="`mf-block-${block.blockIndex}`"
+            class="flex flex-col gap-1 transition-opacity duration-fast"
+            :class="{ 'opacity-30': !blockMatchesSearch(block) }"
+          >
+            <MergeFieldRichInput
+              :model-value="block.text ?? ''"
+              @update:model-value="block.text = $event"
+              :fields="mergeFields"
+              :repeating-loop-var="loopVarFor(block.repeatingField)"
+              placeholder="(empty line)"
+              :ref="(el) => setParagraphRef(block.blockIndex, el as RichInputInstance | null)"
+              @focus="setActiveEditor({ kind: 'paragraph', blockIndex: block.blockIndex })"
+              @remove-repeating="handleParagraphRemoveRepeating(block)"
+            />
+            <div v-if="block.repeatingField" class="flex items-center gap-1 text-[11px] text-accent-600">
+              <Repeat class="h-3 w-3" />
+              <span>Repeats for each: {{ fieldLabel(block.repeatingField) }}</span>
+              <button type="button" class="hover:text-accent-700" @click="clearParagraphRepeating(block, block.repeatingField)">
+                <X class="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
-          <div v-if="block.kind === 'table'" class="overflow-x-auto">
+          <div v-if="block.kind === 'table'" :id="`mf-block-${block.blockIndex}`" class="overflow-x-auto transition-opacity duration-fast" :class="{ 'opacity-30': !blockMatchesSearch(block) }">
             <table class="w-full border-collapse text-sm">
               <tbody>
                 <tr v-for="row in block.rows" :key="row.rowIndex">
-                  <td v-for="cell in row.cells" :key="cell.cellIndex" class="border border-border-light p-1">
-                    <input
+                  <td v-for="cell in row.cells" :key="cell.cellIndex" class="border border-border-light p-1 align-top">
+                    <MergeFieldRichInput
                       v-model="cell.text"
-                      type="text"
-                      class="h-9 w-full min-w-[8rem] rounded-md border bg-bg-card px-2 text-sm text-text-primary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-accent-500/30"
-                      :class="row.repeatingField ? 'border-accent-500' : 'border-border-default focus:border-accent-500'"
+                      :fields="mergeFields"
+                      :repeating-loop-var="loopVarFor(row.repeatingField)"
+                      class="min-w-[10rem]"
+                      :ref="(el) => setCellRef(block.blockIndex, row.rowIndex, cell.cellIndex, el as RichInputInstance | null)"
                       @focus="
-                        setFocus({
+                        setActiveEditor({
                           kind: 'cell',
                           blockIndex: block.blockIndex,
                           rowIndex: row.rowIndex,
                           cellIndex: cell.cellIndex,
-                          el: $event.target as HTMLInputElement,
                         })
                       "
                     />
                   </td>
-                  <td v-if="row.repeatingField" class="whitespace-nowrap p-1 text-[11px] text-accent-600">
+                  <td v-if="row.repeatingField" class="whitespace-nowrap p-1 align-top text-[11px] text-accent-600">
                     <span class="inline-flex items-center gap-1">
-                      Repeating: {{ fieldLabel(row.repeatingField) }}
-                      <button type="button" class="hover:text-accent-700" @click="clearRowRepeating(row)">
+                      <Repeat class="h-3 w-3" />
+                      Repeats: {{ fieldLabel(row.repeatingField) }}
+                      <button
+                        type="button"
+                        class="hover:text-accent-700"
+                        @click="clearRowRepeating(row, row.repeatingField)"
+                      >
                         <X class="h-3 w-3" />
                       </button>
                     </span>
