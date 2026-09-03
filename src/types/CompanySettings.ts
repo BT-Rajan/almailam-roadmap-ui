@@ -20,4 +20,11 @@ export interface CompanySettings {
   staleProjectAlertDays: number
   staleOnboardingAlertDays: number
   statusReportRecipientId?: string | null
+  // Whether a company logo has been uploaded (Administration > Company)
+  // -- insertable into any Quotation/Contract document template via its
+  // Company Logo merge field. Fetch the actual image from
+  // companyService.getLogoBlob(); hasLogo just avoids an unnecessary
+  // request when there isn't one.
+  hasLogo: boolean
+  logoFilename?: string | null
 }

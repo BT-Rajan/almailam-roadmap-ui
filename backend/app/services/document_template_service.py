@@ -1,18 +1,25 @@
 """Admin-uploaded .docx templates for Quotation/Contract documents.
 
-An Administrator uploads a .docx per document_type (Quotation, Contract)
-under Administration > Documents and marks one as the default. When a
-project's Quotation/Contract tab asks for the actual document, the
-default template's placeholders ({{ field }}, and {%tr for ... %} row
-loops inside a table -- both standard docxtpl/Jinja2 syntax) are merged
-with that record's live data via render_quotation_document/
-render_contract_document below, and the merged .docx is the download.
+An Administrator uploads a .docx per (document_type, language) --
+Quotation or Contract, English or Arabic -- under Administration >
+Documents and marks one as the default for that pair (migration 0064:
+each document_type carries two defaults side by side, not one shared
+one). When a project's Quotation/Contract tab asks for the actual
+document, the requested language's default template's placeholders
+({{ field }}, and {%tr for ... %} row loops inside a table -- both
+standard docxtpl/Jinja2 syntax) are merged with that record's live data
+via render_quotation_document/render_contract_document below, and the
+merged .docx is the download.
 
 render_quotation_pdf/render_contract_pdf below convert that same merged
 .docx to PDF (via _docx_to_pdf) so "Print" and "Email" can use the
 identical, admin-configured template instead of the separate hardcoded
 on-screen preview (QuotationPreview.vue/ContractPreview.vue) those
-actions used to print.
+actions used to print. _docx_to_pdf reads the template's own `language`
+to decide text direction/font rather than always assuming Arabic --
+previously every rendered PDF was forced right-to-left with an Arabic
+font even when the uploaded template (and its content) was plain
+English.
 """
 
 import copy
@@ -21,14 +28,16 @@ import io
 import re
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import mammoth
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.shared import Mm
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
 from sqlalchemy.orm import Session
 from weasyprint import HTML
 
@@ -37,11 +46,11 @@ from app.core.file_storage import resolve_path, save_upload
 from app.core.number_to_words import amount_to_words
 from app.models.client import Client
 from app.models.contract import Contract
-from app.models.document_template import DOCUMENT_TEMPLATE_TYPES, DocumentTemplate
+from app.models.document_template import DOCUMENT_TEMPLATE_LANGUAGES, DOCUMENT_TEMPLATE_TYPES, DocumentTemplate
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service
+from app.services import audit_service, company_service
 from app.services.pdf_render import FONT_PATH
 
 ENTITY_TYPE = "DOCUMENT_TEMPLATE"
@@ -76,11 +85,19 @@ def _check_document_type(document_type: str) -> None:
         raise ValidationAppError(f"documentType must be one of {DOCUMENT_TEMPLATE_TYPES}")
 
 
-def list_templates(db: Session, document_type: str | None = None) -> list[DocumentTemplate]:
+def _check_language(language: str) -> None:
+    if language not in DOCUMENT_TEMPLATE_LANGUAGES:
+        raise ValidationAppError(f"language must be one of {DOCUMENT_TEMPLATE_LANGUAGES}")
+
+
+def list_templates(db: Session, document_type: str | None = None, language: str | None = None) -> list[DocumentTemplate]:
     query = db.query(DocumentTemplate).filter(DocumentTemplate.deleted_at.is_(None))
     if document_type is not None:
         _check_document_type(document_type)
         query = query.filter(DocumentTemplate.document_type == document_type)
+    if language is not None:
+        _check_language(language)
+        query = query.filter(DocumentTemplate.language == language)
     return query.order_by(DocumentTemplate.id.desc()).all()
 
 
@@ -95,12 +112,14 @@ def get_template(db: Session, template_id: int) -> DocumentTemplate:
     return template
 
 
-def get_default(db: Session, document_type: str) -> DocumentTemplate | None:
+def get_default(db: Session, document_type: str, language: str) -> DocumentTemplate | None:
     _check_document_type(document_type)
+    _check_language(language)
     return (
         db.query(DocumentTemplate)
         .filter(
             DocumentTemplate.document_type == document_type,
+            DocumentTemplate.language == language,
             DocumentTemplate.is_default.is_(True),
             DocumentTemplate.deleted_at.is_(None),
         )
@@ -108,8 +127,9 @@ def get_default(db: Session, document_type: str) -> DocumentTemplate | None:
     )
 
 
-def upload_template(db: Session, document_type: str, file, actor_id: int) -> DocumentTemplate:
+def upload_template(db: Session, document_type: str, language: str, file, actor_id: int) -> DocumentTemplate:
     _check_document_type(document_type)
+    _check_language(language)
     if not (file.filename or "").lower().endswith(".docx"):
         raise ValidationAppError("Only Word (.docx) files are accepted for a document template.")
 
@@ -117,19 +137,22 @@ def upload_template(db: Session, document_type: str, file, actor_id: int) -> Doc
 
     template = DocumentTemplate(
         document_type=document_type,
+        language=language,
         storage_key=storage_key,
         original_filename=original_filename,
         file_size_bytes=size_bytes,
         uploaded_by=actor_id,
-        # The first template uploaded for a type becomes its default
-        # automatically -- otherwise "Download Document" would 404 with
-        # no default configured until an admin remembers to set one.
-        is_default=get_default(db, document_type) is None,
+        # The first template uploaded for a (type, language) pair becomes
+        # its default automatically -- otherwise "Download Document"
+        # would 404 with no default configured until an admin remembers
+        # to set one. Each language gets its own independent default.
+        is_default=get_default(db, document_type, language) is None,
     )
     db.add(template)
     db.flush()
     audit_service.log_event(
-        db, ENTITY_TYPE, template.id, f"{document_type} template uploaded", actor_id, new_value=original_filename
+        db, ENTITY_TYPE, template.id, f"{document_type} ({language}) template uploaded", actor_id,
+        new_value=original_filename,
     )
     db.commit()
     db.refresh(template)
@@ -142,12 +165,13 @@ def set_default(db: Session, template_id: int, actor_id: int) -> DocumentTemplat
         return template
     db.query(DocumentTemplate).filter(
         DocumentTemplate.document_type == template.document_type,
+        DocumentTemplate.language == template.language,
         DocumentTemplate.is_default.is_(True),
     ).update({"is_default": False})
     template.is_default = True
     audit_service.log_event(
-        db, ENTITY_TYPE, template.id, f"{template.document_type} default template changed", actor_id,
-        new_value=template.original_filename,
+        db, ENTITY_TYPE, template.id, f"{template.document_type} ({template.language}) default template changed",
+        actor_id, new_value=template.original_filename,
     )
     db.commit()
     db.refresh(template)
@@ -168,10 +192,31 @@ def delete_template(db: Session, template_id: int, actor_id: int) -> None:
     db.commit()
 
 
-def _render_docx(storage_key: str, context: dict) -> bytes:
+def _get_company_logo_path(db: Session) -> Path | None:
+    """The company-wide logo (Administration > Company), if one has been
+    uploaded -- see company_service.upload_logo. Shared by every
+    template/document_type/language rather than uploaded per-template:
+    there is exactly one letterhead logo, and any template's {{ logo }}
+    merge field (see MERGE_FIELD_CATALOG below) refers to this same
+    file."""
+    settings = company_service.get_settings(db)
+    if not settings.logo_storage_key:
+        return None
+    return resolve_path(settings.logo_storage_key)
+
+
+def _render_docx(storage_key: str, context: dict, logo_path: Path | None) -> bytes:
     path = resolve_path(storage_key)
     try:
         doc = DocxTemplate(str(path))
+        # {{ logo }} uses the exact same {{ field }} syntax as every text
+        # field in MERGE_FIELD_CATALOG -- docxtpl draws an actual image at
+        # that spot because the context value is an InlineImage instance,
+        # not because the placeholder is written any differently. Empty
+        # string (not omitted) when there's no logo yet, so a template
+        # that already has {{ logo }} placed renders cleanly rather than
+        # failing on an undefined Jinja variable.
+        context = {**context, "logo": InlineImage(doc, str(logo_path), width=Mm(35)) if logo_path else ""}
         doc.render(context)
     except Exception as exc:
         raise ValidationAppError(
@@ -182,7 +227,18 @@ def _render_docx(storage_key: str, context: dict) -> bytes:
     return buffer.getvalue()
 
 
-def _docx_to_pdf(docx_bytes: bytes) -> bytes:
+# (direction, text-align, primary font stack) per template language --
+# NotoNaskhArabic is always loaded and always in the stack (as a fallback
+# for English, primary for Arabic) so embedded Arabic text (a client's
+# Arabic name, say) never renders as tofu boxes regardless of which one
+# the template's own static text is written in.
+_PDF_STYLE_BY_LANGUAGE = {
+    "Arabic": ("rtl", "right", "'NotoNaskhArabic', sans-serif"),
+    "English": ("ltr", "left", "'Helvetica Neue', Arial, 'NotoNaskhArabic', sans-serif"),
+}
+
+
+def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
     """Converts a merged .docx to a real, selectable-text PDF for
     Print/Email, reusing the exact stack pdf_render.py already relies on
     for Government Forms (WeasyPrint + the bundled Noto Naskh Arabic
@@ -194,11 +250,18 @@ def _docx_to_pdf(docx_bytes: bytes) -> bytes:
     spacing/borders), but it is the same merged content, real
     RTL-capable Arabic text throughout -- unlike a LibreOffice-based
     docx->PDF conversion, which was tried here and does not run
-    reliably headless in this app's container."""
+    reliably headless in this app's container.
+
+    Direction/alignment/font follow the template's own declared
+    `language` (DocumentTemplate.language) rather than always assuming
+    Arabic -- previously this forced right-to-left with an Arabic font
+    on every document, English ones included."""
+    direction, text_align, font_stack = _PDF_STYLE_BY_LANGUAGE[language]
+    html_lang = "ar" if language == "Arabic" else "en"
     result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
     body_html = result.value
     html_doc = f"""<!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html dir="{direction}" lang="{html_lang}">
 <head>
 <meta charset="utf-8">
 <style>
@@ -208,9 +271,9 @@ def _docx_to_pdf(docx_bytes: bytes) -> bytes:
   }}
   @page {{ size: A4; margin: 2.5cm 2cm; }}
   body {{
-    font-family: 'NotoNaskhArabic', sans-serif;
-    direction: rtl;
-    text-align: right;
+    font-family: {font_stack};
+    direction: {direction};
+    text-align: {text_align};
     font-size: 12pt;
     line-height: 1.8;
     color: #1a1a2e;
@@ -225,13 +288,26 @@ def _docx_to_pdf(docx_bytes: bytes) -> bytes:
     return HTML(string=html_doc).write_pdf()
 
 
-def render_quotation_document(db: Session, quotation: Quotation) -> tuple[bytes, str]:
+def _resolve_language(db: Session, language: str | None) -> str:
+    """Falls back to CompanySettings.default_language when the caller
+    (an API endpoint that lets staff pick, or one that doesn't expose the
+    choice at all) doesn't specify one -- same "explicit choice wins,
+    company-wide setting otherwise" pattern already established for
+    quotation/contract currency defaults."""
+    if language is not None:
+        _check_language(language)
+        return language
+    return company_service.get_settings(db).default_language
+
+
+def render_quotation_document(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
     from app.services import quotation_service
 
-    template = get_default(db, "Quotation")
+    language = _resolve_language(db, language)
+    template = get_default(db, "Quotation", language)
     if template is None:
         raise ValidationAppError(
-            "No default Quotation template is configured. Upload one in Administration > Documents."
+            f"No default {language} Quotation template is configured. Upload one in Administration > Documents."
         )
 
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
@@ -274,24 +350,26 @@ def render_quotation_document(db: Session, quotation: Quotation) -> tuple[bytes,
         "payment_terms": [_plain_text(term) for term in quotation.payment_terms],
     }
     filename = f"{quotation.quotation_no}.docx"
-    return _render_docx(template.storage_key, context), filename
+    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
 
 
-def render_quotation_pdf(db: Session, quotation: Quotation) -> tuple[bytes, str]:
+def render_quotation_pdf(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
     """Same merged document as render_quotation_document, converted to
     PDF -- what Print and Email actually use, so both show the admin's
     real uploaded template rather than a separate hardcoded preview."""
-    content, filename = render_quotation_document(db, quotation)
-    return _docx_to_pdf(content), filename.removesuffix(".docx") + ".pdf"
+    language = _resolve_language(db, language)
+    content, filename = render_quotation_document(db, quotation, language)
+    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
 
 
-def render_contract_document(db: Session, contract: Contract) -> tuple[bytes, str]:
+def render_contract_document(db: Session, contract: Contract, language: str | None = None) -> tuple[bytes, str]:
     from app.services import contract_service
 
-    template = get_default(db, "Contract")
+    language = _resolve_language(db, language)
+    template = get_default(db, "Contract", language)
     if template is None:
         raise ValidationAppError(
-            "No default Contract template is configured. Upload one in Administration > Documents."
+            f"No default {language} Contract template is configured. Upload one in Administration > Documents."
         )
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
@@ -322,14 +400,15 @@ def render_contract_document(db: Session, contract: Contract) -> tuple[bytes, st
         "clauses": [{"title": c.title, "content": _plain_text(c.content)} for c in clauses],
     }
     filename = f"{contract.contract_no}.docx"
-    return _render_docx(template.storage_key, context), filename
+    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
 
 
-def render_contract_pdf(db: Session, contract: Contract) -> tuple[bytes, str]:
+def render_contract_pdf(db: Session, contract: Contract, language: str | None = None) -> tuple[bytes, str]:
     """PDF counterpart of render_contract_document -- see
     render_quotation_pdf's docstring."""
-    content, filename = render_contract_document(db, contract)
-    return _docx_to_pdf(content), filename.removesuffix(".docx") + ".pdf"
+    language = _resolve_language(db, language)
+    content, filename = render_contract_document(db, contract, language)
+    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
 
 
 # --- Visual field mapping -- lets an admin click a spot in an uploaded
@@ -341,6 +420,12 @@ def render_contract_pdf(db: Session, contract: Contract) -> tuple[bytes, str]:
 # render is only as meaningful as that agreement.
 MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
     "Quotation": [
+        # Same {{ field }} syntax as every other text field -- see
+        # _render_docx: docxtpl draws an actual image here because the
+        # context value is an InlineImage, not because this placeholder
+        # is written any differently. Renders as nothing if no company
+        # logo has been uploaded yet (Administration > Company).
+        {"key": "logo", "label": "Company Logo", "kind": "text"},
         {"key": "quotation_no", "label": "Quotation No.", "kind": "text"},
         {"key": "revision", "label": "Revision", "kind": "text"},
         {"key": "issue_date", "label": "Issue Date", "kind": "text"},
@@ -374,6 +459,7 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
         {"key": "payment_terms", "label": "Payment Terms", "kind": "repeating_list", "loopVar": "term"},
     ],
     "Contract": [
+        {"key": "logo", "label": "Company Logo", "kind": "text"},
         {"key": "contract_no", "label": "Contract No.", "kind": "text"},
         {"key": "revision", "label": "Revision", "kind": "text"},
         {"key": "currency", "label": "Currency", "kind": "text"},

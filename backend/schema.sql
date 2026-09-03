@@ -590,6 +590,10 @@ CREATE TABLE IF NOT EXISTS contract_revisions (
 CREATE TABLE IF NOT EXISTS document_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     document_type       ENUM('Quotation','Contract') NOT NULL,
+    -- migration 0064 -- a document_type can have one default PER
+    -- language (English and Arabic each get their own), not one shared
+    -- default regardless of the template's actual language.
+    language            ENUM('English','Arabic') NOT NULL DEFAULT 'English',
     storage_key         VARCHAR(300) NOT NULL,
     original_filename   VARCHAR(255) NOT NULL,
     file_size_bytes     BIGINT UNSIGNED NOT NULL,
@@ -599,7 +603,7 @@ CREATE TABLE IF NOT EXISTS document_templates (
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
     CONSTRAINT fk_document_templates_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_document_templates_type (document_type, is_default)
+    INDEX idx_document_templates_type (document_type, language, is_default)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS financial_agreements (
@@ -1037,6 +1041,11 @@ CREATE TABLE IF NOT EXISTS company_settings (
     stale_project_alert_days           INT UNSIGNED NOT NULL DEFAULT 45,
     stale_onboarding_alert_days        INT UNSIGNED NOT NULL DEFAULT 5,
     status_report_recipient_id         BIGINT UNSIGNED NULL,
+    -- migration 0064 -- inserted into any Quotation/Contract document
+    -- template via its {{ logo }} merge field (see
+    -- document_template_service._render_docx).
+    logo_storage_key                   VARCHAR(300) NULL,
+    logo_original_filename             VARCHAR(255) NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_company_settings_singleton CHECK (id = 1),

@@ -21,6 +21,8 @@ class CompanySettingsOut(BaseModel):
     staleProjectAlertDays: int
     staleOnboardingAlertDays: int
     statusReportRecipientId: str | None = None
+    hasLogo: bool = False
+    logoFilename: str | None = None
 
     @staticmethod
     def from_model(settings) -> "CompanySettingsOut":
@@ -44,6 +46,8 @@ class CompanySettingsOut(BaseModel):
             staleProjectAlertDays=settings.stale_project_alert_days,
             staleOnboardingAlertDays=settings.stale_onboarding_alert_days,
             statusReportRecipientId=f"USR-{settings.status_report_recipient_id:03d}" if settings.status_report_recipient_id else None,
+            hasLogo=bool(settings.logo_storage_key),
+            logoFilename=settings.logo_original_filename,
         )
 
 

@@ -1,8 +1,15 @@
+import type { AppLanguage } from '@/types/CompanySettings'
+
 export type DocumentTemplateType = 'Quotation' | 'Contract'
 
 export interface DocumentTemplate {
   id: string
   documentType: DocumentTemplateType
+  // Each (documentType, language) pair can have its own default (see
+  // backend document_template_service.set_default) -- English and
+  // Arabic templates for the same document type are independent, not
+  // mutually exclusive.
+  language: AppLanguage
   originalFilename: string
   fileSizeBytes: number
   isDefault: boolean

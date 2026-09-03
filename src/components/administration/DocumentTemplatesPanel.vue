@@ -7,13 +7,16 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import TemplateFieldMapperDialog from '@/components/administration/TemplateFieldMapperDialog.vue'
 import { useDocumentTemplateStore } from '@/stores/documentTemplateStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
+import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
 
 // Split out of the template below -- a literal '{{' sequence inside a
@@ -23,16 +26,21 @@ import { formatDate } from '@/utils/dateFormatter'
 const PLACEHOLDER_SYNTAX_EXAMPLE = '{{ field }}'
 const ROW_LOOP_SYNTAX_EXAMPLE = '{%tr for ... %}'
 
+const LANGUAGES: AppLanguage[] = ['English', 'Arabic']
+const LANGUAGE_OPTIONS: SelectOption[] = LANGUAGES.map((language) => ({ label: language, value: language }))
+
 const SECTIONS: { type: DocumentTemplateType; title: string; description: string }[] = [
   {
     type: 'Quotation',
     title: 'Quotation Templates',
-    description: 'The default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',
+    description:
+      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',
   },
   {
     type: 'Contract',
     title: 'Contract Templates',
-    description: 'The default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
+    description:
+      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
   },
 ]
 
@@ -40,6 +48,7 @@ const store = useDocumentTemplateStore()
 const toastStore = useToastStore()
 
 const uploadTarget = ref<DocumentTemplateType | undefined>(undefined)
+const uploadLanguage = ref<AppLanguage>('English')
 const uploadFile = ref<File>()
 const isUploading = ref(false)
 
@@ -74,6 +83,7 @@ function formatFileSize(bytes: number): string {
 
 function openUpload(type: DocumentTemplateType): void {
   uploadTarget.value = type
+  uploadLanguage.value = 'English'
   uploadFile.value = undefined
 }
 
@@ -88,7 +98,7 @@ async function submitUpload(): Promise<void> {
   isUploading.value = true
   try {
     const filename = uploadFile.value.name
-    await store.uploadTemplate(uploadTarget.value, uploadFile.value)
+    await store.uploadTemplate(uploadTarget.value, uploadLanguage.value, uploadFile.value)
     toastStore.show('success', 'Template uploaded', `${filename} was uploaded.`)
     // Not closeUpload() -- it deliberately no-ops while isUploading is
     // true (so a backdrop click or Cancel can't dismiss mid-upload), and
@@ -160,53 +170,61 @@ async function confirmDelete(): Promise<void> {
           No {{ section.type.toLowerCase() }} templates uploaded yet.
         </div>
 
-        <ul v-else class="flex flex-col divide-y divide-border-light">
-          <li
-            v-for="template in store.byType(section.type)"
-            :key="template.id"
-            class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-          >
-            <div class="flex min-w-0 flex-col gap-1">
-              <div class="flex items-center gap-2">
-                <span class="truncate text-sm font-medium text-text-primary">{{ template.originalFilename }}</span>
-                <StatusBadge v-if="template.isDefault" label="Default" variant="success" show-dot />
-              </div>
-              <div class="flex items-center gap-3 text-xs text-text-muted">
-                <span class="flex items-center gap-1"><UserRound class="h-3.5 w-3.5" />{{ template.uploadedBy }}</span>
-                <span class="flex items-center gap-1"><CalendarClock class="h-3.5 w-3.5" />{{ formatDate(template.uploadedAt) }}</span>
-                <span>{{ formatFileSize(template.fileSizeBytes) }}</span>
-              </div>
+        <div v-else class="flex flex-col gap-5">
+          <div v-for="language in LANGUAGES" :key="language">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">{{ language }}</p>
+            <div v-if="store.byTypeAndLanguage(section.type, language).length === 0" class="py-2 text-sm text-text-muted">
+              No {{ language.toLowerCase() }} {{ section.type.toLowerCase() }} template uploaded yet.
             </div>
-            <div class="flex shrink-0 items-center gap-1">
-              <BaseButton
-                v-if="!template.isDefault"
-                variant="secondary"
-                size="sm"
-                :icon="CheckCircle2"
-                :loading="isSettingDefaultId === template.id"
-                @click="handleSetDefault(template)"
+            <ul v-else class="flex flex-col divide-y divide-border-light">
+              <li
+                v-for="template in store.byTypeAndLanguage(section.type, language)"
+                :key="template.id"
+                class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
               >
-                Set Default
-              </BaseButton>
-              <IconButton :icon="MapPin" label="Map fields" size="sm" @click="openFieldMapper(template)" />
-              <IconButton
-                :icon="Download"
-                label="Download template"
-                size="sm"
-                :disabled="isDownloadingId === template.id"
-                @click="handleDownload(template)"
-              />
-              <IconButton
-                :icon="Trash2"
-                label="Delete template"
-                variant="danger"
-                size="sm"
-                :disabled="template.isDefault"
-                @click="deleteTarget = template"
-              />
-            </div>
-          </li>
-        </ul>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <div class="flex items-center gap-2">
+                    <span class="truncate text-sm font-medium text-text-primary">{{ template.originalFilename }}</span>
+                    <StatusBadge v-if="template.isDefault" label="Default" variant="success" show-dot />
+                  </div>
+                  <div class="flex items-center gap-3 text-xs text-text-muted">
+                    <span class="flex items-center gap-1"><UserRound class="h-3.5 w-3.5" />{{ template.uploadedBy }}</span>
+                    <span class="flex items-center gap-1"><CalendarClock class="h-3.5 w-3.5" />{{ formatDate(template.uploadedAt) }}</span>
+                    <span>{{ formatFileSize(template.fileSizeBytes) }}</span>
+                  </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-1">
+                  <BaseButton
+                    v-if="!template.isDefault"
+                    variant="secondary"
+                    size="sm"
+                    :icon="CheckCircle2"
+                    :loading="isSettingDefaultId === template.id"
+                    @click="handleSetDefault(template)"
+                  >
+                    Set Default
+                  </BaseButton>
+                  <IconButton :icon="MapPin" label="Map fields" size="sm" @click="openFieldMapper(template)" />
+                  <IconButton
+                    :icon="Download"
+                    label="Download template"
+                    size="sm"
+                    :disabled="isDownloadingId === template.id"
+                    @click="handleDownload(template)"
+                  />
+                  <IconButton
+                    :icon="Trash2"
+                    label="Delete template"
+                    variant="danger"
+                    size="sm"
+                    :disabled="template.isDefault"
+                    @click="deleteTarget = template"
+                  />
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </Card>
     </template>
 
@@ -219,6 +237,12 @@ async function confirmDelete(): Promise<void> {
           placeholders and, inside a table row, docxtpl's <code class="rounded bg-bg-secondary px-1 py-0.5">{{ ROW_LOOP_SYNTAX_EXAMPLE }}</code>
           row-loop syntax yourself in Word.
         </p>
+        <SelectBox
+          v-model="uploadLanguage"
+          label="Language"
+          :options="LANGUAGE_OPTIONS"
+          hint="Drives this document's text direction and font when printed/emailed as PDF -- English stays left-to-right, Arabic right-to-left."
+        />
         <FileUploader accept=".docx" hint="Word (.docx) template" @select="uploadFile = $event" />
       </div>
       <template #footer>

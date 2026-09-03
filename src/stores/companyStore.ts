@@ -49,5 +49,13 @@ export const useCompanyStore = defineStore('company', {
         this.isSaving = false
       }
     },
+
+    async uploadLogo(file: File): Promise<void> {
+      this.settings = await companyService.uploadLogo(file)
+    },
+
+    async deleteLogo(): Promise<void> {
+      this.settings = await companyService.deleteLogo()
+    },
   },
 })

@@ -34,18 +34,21 @@ def _to_out(db: Session, template) -> DocumentTemplateOut:
 
 
 @router.get("", response_model=list[DocumentTemplateOut])
-def list_templates(documentType: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
-    return [_to_out(db, t) for t in document_template_service.list_templates(db, documentType)]
+def list_templates(
+    documentType: str | None = None, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view),
+):
+    return [_to_out(db, t) for t in document_template_service.list_templates(db, documentType, language)]
 
 
 @router.post("", response_model=DocumentTemplateOut, status_code=201)
 def upload_template(
     documentType: str = Form(...),
+    language: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    template = document_template_service.upload_template(db, documentType, file, current_user.id)
+    template = document_template_service.upload_template(db, documentType, language, file, current_user.id)
     return _to_out(db, template)
 
 

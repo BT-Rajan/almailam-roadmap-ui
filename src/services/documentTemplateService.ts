@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
+import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType, MergeField, TemplateBlock, TemplateLayout } from '@/types/DocumentTemplate'
 
 async function getTemplates(documentType?: DocumentTemplateType): Promise<DocumentTemplate[]> {
@@ -17,10 +18,11 @@ async function getTemplates(documentType?: DocumentTemplateType): Promise<Docume
  * FormData rather than the JSON apiClient wrapper -- same convention as
  * documentService.uploadDocument.
  */
-async function uploadTemplate(documentType: DocumentTemplateType, file: File): Promise<DocumentTemplate> {
+async function uploadTemplate(documentType: DocumentTemplateType, language: AppLanguage, file: File): Promise<DocumentTemplate> {
   const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('documentType', documentType)
+  formData.append('language', language)
   formData.append('file', file)
 
   const doRequest = () =>
@@ -106,36 +108,41 @@ async function downloadTemplate(templateId: string): Promise<Blob> {
   return _downloadBlob(`/api/document-templates/${templateId}/download`, 'Failed to download document template')
 }
 
-/** Downloads the merged Quotation document (the uploaded default
- * template with this quotation's live data merged in). */
-async function downloadQuotationDocument(quotationNo: string): Promise<Blob> {
-  return _downloadBlob(`/api/quotations/${quotationNo}/document`, 'Failed to generate quotation document')
+/** Downloads the merged Quotation document (the given language's
+ * default template, or the company's default language if omitted, with
+ * this quotation's live data merged in). */
+async function downloadQuotationDocument(quotationNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/quotations/${quotationNo}/document${query}`, 'Failed to generate quotation document')
 }
 
-/** Downloads the merged Contract document (the uploaded default
- * template with this contract's live data merged in). */
-async function downloadContractDocument(contractNo: string): Promise<Blob> {
-  return _downloadBlob(`/api/contracts/${contractNo}/document`, 'Failed to generate contract document')
+/** Downloads the merged Contract document -- see
+ * downloadQuotationDocument. */
+async function downloadContractDocument(contractNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/contracts/${contractNo}/document${query}`, 'Failed to generate contract document')
 }
 
 /** The same merged Quotation document as downloadQuotationDocument, as a
  * PDF -- what Print opens in a new tab so it reflects the uploaded
  * template instead of the separate on-screen preview. */
-async function getQuotationDocumentPdf(quotationNo: string): Promise<Blob> {
-  return _downloadBlob(`/api/quotations/${quotationNo}/document/pdf`, 'Failed to generate quotation PDF')
+async function getQuotationDocumentPdf(quotationNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/quotations/${quotationNo}/document/pdf${query}`, 'Failed to generate quotation PDF')
 }
 
 /** PDF counterpart of downloadContractDocument -- see
  * getQuotationDocumentPdf. */
-async function getContractDocumentPdf(contractNo: string): Promise<Blob> {
-  return _downloadBlob(`/api/contracts/${contractNo}/document/pdf`, 'Failed to generate contract PDF')
+async function getContractDocumentPdf(contractNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/contracts/${contractNo}/document/pdf${query}`, 'Failed to generate contract PDF')
 }
 
 /** Emails the merged Quotation PDF to the project's client (or an
  * override address) -- same merged template as Download/Print. */
-async function emailQuotationDocument(quotationNo: string, toEmail?: string): Promise<void> {
+async function emailQuotationDocument(quotationNo: string, toEmail?: string, language?: AppLanguage): Promise<void> {
   try {
-    await apiClient.post(`/api/quotations/${quotationNo}/document/email`, toEmail ? { toEmail } : {})
+    await apiClient.post(`/api/quotations/${quotationNo}/document/email`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email quotation ${quotationNo}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to email quotation')
@@ -143,9 +150,9 @@ async function emailQuotationDocument(quotationNo: string, toEmail?: string): Pr
 }
 
 /** Emails the merged Contract PDF -- see emailQuotationDocument. */
-async function emailContractDocument(contractNo: string, toEmail?: string): Promise<void> {
+async function emailContractDocument(contractNo: string, toEmail?: string, language?: AppLanguage): Promise<void> {
   try {
-    await apiClient.post(`/api/contracts/${contractNo}/document/email`, toEmail ? { toEmail } : {})
+    await apiClient.post(`/api/contracts/${contractNo}/document/email`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email contract ${contractNo}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to email contract')

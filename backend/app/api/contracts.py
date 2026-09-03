@@ -117,9 +117,9 @@ def add_revision(
 
 
 @router.get("/{contract_no}/document")
-def download_document(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document(contract_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
     contract = contract_service.get_contract(db, contract_no)
-    content, filename = document_template_service.render_contract_document(db, contract)
+    content, filename = document_template_service.render_contract_document(db, contract, language)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -128,9 +128,9 @@ def download_document(contract_no: str, db: Session = Depends(get_db), _=Depends
 
 
 @router.get("/{contract_no}/document/pdf")
-def download_document_pdf(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document_pdf(contract_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
     contract = contract_service.get_contract(db, contract_no)
-    content, filename = document_template_service.render_contract_pdf(db, contract)
+    content, filename = document_template_service.render_contract_pdf(db, contract, language)
     return Response(
         content=content,
         media_type="application/pdf",
@@ -152,7 +152,7 @@ def email_document(
     if not to_email:
         raise ValidationAppError("No recipient email address on file for this project's client.")
 
-    content, filename = document_template_service.render_contract_pdf(db, contract)
+    content, filename = document_template_service.render_contract_pdf(db, contract, payload.language)
     email_service.send_document_email(
         to_email=to_email,
         subject=f"Contract {contract.contract_no}",

@@ -8,11 +8,16 @@ class DocumentEmailRequest(BaseModel):
     # and api/contracts.py's email_document endpoints) when omitted --
     # only needed to send somewhere else instead.
     toEmail: EmailStr | None = None
+    # Which of the two per-type defaults (English/Arabic) to render --
+    # defaults to CompanySettings.default_language when omitted, same
+    # as the GET .../document and .../document/pdf endpoints.
+    language: str | None = None
 
 
 class DocumentTemplateOut(BaseModel):
     id: str
     documentType: str
+    language: str
     originalFilename: str
     fileSizeBytes: int
     isDefault: bool
@@ -24,6 +29,7 @@ class DocumentTemplateOut(BaseModel):
         return DocumentTemplateOut(
             id=f"TPL-{template.id:03d}",
             documentType=template.document_type,
+            language=template.language,
             originalFilename=template.original_filename,
             fileSizeBytes=template.file_size_bytes,
             isDefault=template.is_default,

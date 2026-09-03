@@ -48,3 +48,9 @@ class CompanySettings(Base, TimestampMixin):
     status_report_recipient_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # The company logo, insertable into any Quotation/Contract document
+    # template via its {{ logo }} merge field (see
+    # document_template_service._render_docx). Both NULL until an admin
+    # uploads one (company_service.upload_logo).
+    logo_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    logo_original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)

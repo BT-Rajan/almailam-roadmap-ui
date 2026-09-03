@@ -99,9 +99,9 @@ def set_status(
 
 
 @router.get("/{quotation_no}/document")
-def download_document(quotation_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document(quotation_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
     quotation = quotation_service.get_quotation(db, quotation_no)
-    content, filename = document_template_service.render_quotation_document(db, quotation)
+    content, filename = document_template_service.render_quotation_document(db, quotation, language)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -110,9 +110,9 @@ def download_document(quotation_no: str, db: Session = Depends(get_db), _=Depend
 
 
 @router.get("/{quotation_no}/document/pdf")
-def download_document_pdf(quotation_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document_pdf(quotation_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
     quotation = quotation_service.get_quotation(db, quotation_no)
-    content, filename = document_template_service.render_quotation_pdf(db, quotation)
+    content, filename = document_template_service.render_quotation_pdf(db, quotation, language)
     return Response(
         content=content,
         media_type="application/pdf",
@@ -136,7 +136,7 @@ def email_document(
     if not to_email:
         raise ValidationAppError("No recipient email address on file for this project's client.")
 
-    content, filename = document_template_service.render_quotation_pdf(db, quotation)
+    content, filename = document_template_service.render_quotation_pdf(db, quotation, payload.language)
     email_service.send_document_email(
         to_email=to_email,
         subject=f"Quotation {quotation.quotation_no}",
