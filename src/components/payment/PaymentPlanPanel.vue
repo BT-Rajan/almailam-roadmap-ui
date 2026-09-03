@@ -32,6 +32,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
+  'add-service': []
 }>()
 
 const { visibleStreams, agreementForStream, obligationsForStream } = usePaymentAgreements(
@@ -192,6 +193,8 @@ async function handleConfirmDelete(): Promise<void> {
       :icon="Wallet"
       title="No billable services selected"
       description="This project has no Design or Supervision work selected, so there's no payment plan to create yet."
+      action-label="Add Service"
+      @action="emit('add-service')"
     />
 
     <div class="flex flex-col gap-1">
