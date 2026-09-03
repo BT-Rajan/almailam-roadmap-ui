@@ -27,7 +27,7 @@ import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
-import { getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -95,7 +95,7 @@ const hasScope = computed(
 // fetched only when their card is actually showing, not on every visit to
 // this tab regardless of stage context.
 function loadStageDataIfNeeded(): void {
-  if (props.stageContext === 'Quotation' && props.client) {
+  if ((props.stageContext === 'Requirement' || props.stageContext === 'Quotation') && props.client) {
     clientStore.loadClientDetail(props.client.id)
   }
   if (props.stageContext === 'Design' && documentStore.documents.length === 0) {
@@ -113,6 +113,17 @@ watch(() => [props.stageContext, props.client?.id], loadStageDataIfNeeded)
 // the client's actual document-type label -- see
 // getDocumentCategoryForIdentificationType (constants/clientOptions.ts).
 const civilIdDocument = computed(() => clientStore.documents.find((document) => document.category === 'Identity Document'))
+
+// Mirrors ProjectRequirementTab's own check exactly (and the backend's
+// real Requirement -> Quotation exit criterion,
+// project_service._assert_stage_exit_criteria) -- a ClientIdentification
+// record on file, not just any uploaded document. This tab is the one
+// staff land on by default while a project sits at Requirement (the top
+// tab bar shows only "Overview" for that stage -- see
+// ProjectWorkspacePage.vue's TABS), so the "ready to advance" state has
+// to be visible here, not only on the Requirement tab itself which
+// needs an extra click via the Workflow Progress stepper to reach.
+const hasClientIdentification = computed(() => clientStore.identifications.length > 0)
 
 function viewCivilIdDocument(): void {
   if (!props.client || !civilIdDocument.value) return
@@ -236,6 +247,40 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             <span class="shrink-0 text-text-muted">{{ formatCurrency(item.monthlyRate) }}/mo</span>
           </li>
         </ul>
+      </div>
+    </Card>
+
+    <Card v-if="stageContext === 'Requirement'">
+      <template #header>
+        <h3 class="text-sm font-semibold text-text-primary">Requirement</h3>
+      </template>
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm text-text-secondary">Scope of Work Status</span>
+          <StatusBadge
+            :label="project.scopeStatus"
+            :variant="project.scopeStatus === 'Approved' ? 'success' : 'neutral'"
+          />
+        </div>
+
+        <div
+          v-if="project.scopeStatus === 'Approved' && !hasClientIdentification"
+          class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700"
+        >
+          <AlertTriangle class="h-4 w-4 shrink-0" />
+          <span>The client has no identification document on file yet -- required before moving on to Quotation.</span>
+        </div>
+
+        <div class="flex justify-end gap-2 no-print">
+          <BaseButton
+            v-if="project.scopeStatus === 'Approved' && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
+            size="sm"
+            @click="emit('navigate-tab', 'quotation')"
+          >
+            Advance to Quotation
+          </BaseButton>
+          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">Go to Requirement</BaseButton>
+        </div>
       </div>
     </Card>
 
