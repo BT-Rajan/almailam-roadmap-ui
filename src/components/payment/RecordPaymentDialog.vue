@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -12,7 +11,6 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate } from '@/utils/dateFormatter'
 import { getObligationAmountPending } from '@/utils/paymentHelpers'
 import type { PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
@@ -56,8 +54,6 @@ const paymentMode = ref<PaymentMode>('Bank Transfer')
 const payer = ref('')
 const referenceNumber = ref('')
 const notes = ref('')
-const selectedObligationIds = ref<string[]>([])
-const allocationAmounts = reactive<Record<string, number>>({})
 const proofFile = ref<File>()
 const proofFileError = ref<string>()
 
@@ -68,8 +64,6 @@ function resetForm(): void {
   payer.value = ''
   referenceNumber.value = ''
   notes.value = ''
-  selectedObligationIds.value = props.preselectedObligationId ? [props.preselectedObligationId] : []
-  Object.keys(allocationAmounts).forEach((key) => delete allocationAmounts[key])
   proofFile.value = undefined
   proofFileError.value = undefined
 }
@@ -81,57 +75,42 @@ watch(
   },
 )
 
-function toggleObligation(obligationId: string, checked: boolean | string | number): void {
-  if (checked) {
-    if (!selectedObligationIds.value.includes(obligationId)) selectedObligationIds.value.push(obligationId)
-  } else {
-    selectedObligationIds.value = selectedObligationIds.value.filter((id) => id !== obligationId)
-    delete allocationAmounts[obligationId]
-  }
-}
+// Which obligation(s) this payment can settle -- just the one the dialog
+// was opened against (clicking "Record Payment" on a specific
+// installment row) when there is one, otherwise every outstanding
+// obligation on this agreement, oldest/earliest due first.
+const targetObligations = computed(() =>
+  props.preselectedObligationId
+    ? props.outstandingObligations.filter((obligation) => obligation.id === props.preselectedObligationId)
+    : props.outstandingObligations,
+)
 
-// Waterfall default: when the received amount or selection changes,
-// suggest allocation amounts by filling each selected obligation (in
-// schedule order) up to its pending amount before moving to the next.
-// The user can still edit any individual amount afterward.
-watch([amountReceived, selectedObligationIds], () => {
+const totalOutstanding = computed(
+  () => Math.round(targetObligations.value.reduce((sum, obligation) => sum + getObligationAmountPending(obligation), 0) * 100) / 100,
+)
+
+// No manual "which obligation(s) does this settle" step any more --
+// staff just enter what was received and it's applied automatically,
+// oldest obligation first, filling each fully before moving to the next.
+const allocations = computed(() => {
   let remaining = amountReceived.value
-  const orderedSelected = props.outstandingObligations.filter((obligation) => selectedObligationIds.value.includes(obligation.id))
-
-  orderedSelected.forEach((obligation) => {
-    const pending = getObligationAmountPending(obligation)
-    const suggested = Math.max(0, Math.min(pending, remaining))
-    allocationAmounts[obligation.id] = Math.round(suggested * 100) / 100
-    remaining = Math.round((remaining - suggested) * 100) / 100
-  })
+  const result: { obligationId: string; amount: number }[] = []
+  for (const obligation of targetObligations.value) {
+    if (remaining <= 0) break
+    const amount = Math.round(Math.min(getObligationAmountPending(obligation), remaining) * 100) / 100
+    if (amount > 0) result.push({ obligationId: obligation.id, amount })
+    remaining = Math.round((remaining - amount) * 100) / 100
+  }
+  return result
 })
 
-const totalAllocated = computed(() =>
-  Math.round(selectedObligationIds.value.reduce((sum, id) => sum + (allocationAmounts[id] ?? 0), 0) * 100) / 100,
-)
-
-const allocationMismatch = computed(() => Math.abs(totalAllocated.value - amountReceived.value) > 0.009)
-
-// A manual override can otherwise allocate more to one obligation than
-// it actually needs (as long as the total still matches amountReceived
-// overall) -- caught here per-row, mirroring the same cap the backend
-// now enforces in payment_service.record_payment.
-const overAllocatedObligationIds = computed(() =>
-  new Set(
-    props.outstandingObligations
-      .filter((obligation) => selectedObligationIds.value.includes(obligation.id))
-      .filter((obligation) => (allocationAmounts[obligation.id] ?? 0) > getObligationAmountPending(obligation) + 0.009)
-      .map((obligation) => obligation.id),
-  ),
-)
+// Amount Received can't exceed what's actually outstanding to apply it
+// to -- there's nowhere left for the excess to go now that staff can't
+// manually redirect it elsewhere.
+const exceedsOutstanding = computed(() => amountReceived.value > totalOutstanding.value + 0.009)
 
 const canSubmit = computed(
-  () =>
-    amountReceived.value > 0 &&
-    payer.value.trim().length > 0 &&
-    selectedObligationIds.value.length > 0 &&
-    !allocationMismatch.value &&
-    overAllocatedObligationIds.value.size === 0,
+  () => amountReceived.value > 0 && payer.value.trim().length > 0 && allocations.value.length > 0 && !exceedsOutstanding.value,
 )
 
 function handleSubmit(): void {
@@ -145,7 +124,7 @@ function handleSubmit(): void {
     referenceNumber: referenceNumber.value.trim() || undefined,
     payer: payer.value.trim(),
     notes: notes.value.trim() || undefined,
-    allocations: selectedObligationIds.value.map((obligationId) => ({ obligationId, amount: allocationAmounts[obligationId] ?? 0 })),
+    allocations: allocations.value,
   }
   emit('submit', input, proofFile.value)
 }
@@ -160,7 +139,20 @@ function handleClose(): void {
     <div class="flex flex-col gap-6">
       <FormSection title="Payment Details">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <NumberInput :model-value="amountReceived" label="Amount Received" :min="0" step="0.01" required @update:model-value="amountReceived = Number($event)" />
+          <div class="flex flex-col gap-1">
+            <NumberInput
+              :model-value="amountReceived"
+              label="Amount Received"
+              :min="0"
+              step="0.01"
+              required
+              :error="exceedsOutstanding ? `Exceeds the ${formatCurrency(totalOutstanding, currency)} outstanding` : undefined"
+              @update:model-value="amountReceived = Number($event)"
+            />
+            <p class="text-xs text-text-muted">
+              Applied automatically to {{ preselectedObligationId ? 'this installment' : 'outstanding installments, oldest due first' }}.
+            </p>
+          </div>
           <DatePicker v-model="paymentDate" label="Payment Date" required />
           <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
           <TextInput v-model="payer" label="Payer" placeholder="Name of the person/company paying" required />
@@ -180,32 +172,9 @@ function handleClose(): void {
           />
           <p v-if="proofFileError" class="text-xs text-danger-500">{{ proofFileError }}</p>
         </div>
-      </FormSection>
 
-      <FormSection title="Allocation" description="Select which payment obligation(s) this payment settles.">
-        <div v-if="outstandingObligations.length === 0" class="text-sm text-text-muted">No outstanding obligations to allocate against.</div>
-        <div v-for="obligation in outstandingObligations" :key="obligation.id" class="rounded-lg border border-border-light p-3">
-          <div class="flex items-center justify-between gap-3">
-            <Checkbox
-              :model-value="selectedObligationIds.includes(obligation.id)"
-              :label="`${obligation.description} — due ${formatDate(obligation.dueDate)}`"
-              :hint="`Pending: ${formatCurrency(getObligationAmountPending(obligation), currency)}`"
-              @update:model-value="toggleObligation(obligation.id, $event)"
-            />
-            <NumberInput
-              v-if="selectedObligationIds.includes(obligation.id)"
-              :model-value="allocationAmounts[obligation.id] ?? 0"
-              :min="0"
-              :max="getObligationAmountPending(obligation)"
-              step="0.01"
-              class="w-32"
-              :error="overAllocatedObligationIds.has(obligation.id) ? `Exceeds pending (${formatCurrency(getObligationAmountPending(obligation), currency)})` : undefined"
-              @update:model-value="allocationAmounts[obligation.id] = Number($event)"
-            />
-          </div>
-        </div>
-        <p class="text-xs" :class="allocationMismatch ? 'font-medium text-danger-500' : 'text-text-muted'">
-          Allocated {{ formatCurrency(totalAllocated, currency) }} of {{ formatCurrency(amountReceived, currency) }} received
+        <p v-if="targetObligations.length === 0" class="text-sm text-danger-500">
+          No outstanding installment{{ preselectedObligationId ? '' : 's' }} to record this payment against.
         </p>
       </FormSection>
     </div>

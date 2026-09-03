@@ -6,7 +6,7 @@ import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import type { ProjectBudget } from '@/types/CustomerPortal'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate, isPastDate } from '@/utils/dateFormatter'
+import { isPastDate } from '@/utils/dateFormatter'
 
 const props = defineProps<{
   budget: ProjectBudget | null
@@ -67,10 +67,9 @@ const paidPercent = computed(() => {
           >
             <div>
               <p class="text-sm font-medium text-text-primary">{{ payment.description }}</p>
-              <p class="text-xs" :class="isPastDate(payment.dueDate) ? 'text-danger-600' : 'text-text-secondary'">
-                Due {{ formatDate(payment.dueDate) }}
-                <span v-if="isPastDate(payment.dueDate)">· Overdue</span>
-              </p>
+              <!-- Deliberately no due date shown to the customer here --
+                   only whether it's overdue, not the schedule itself. -->
+              <p v-if="isPastDate(payment.dueDate)" class="text-xs text-danger-600">Overdue</p>
             </div>
             <div class="text-right">
               <p class="text-sm font-semibold text-text-primary">

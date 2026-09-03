@@ -20,6 +20,7 @@ from app.models.payment import (
     PaymentObligation,
     Refund,
 )
+from app.models.client import Client
 from app.models.contract import Contract
 from app.models.project import Project
 from app.models.quotation import Quotation
@@ -495,6 +496,54 @@ def get_allocations_for_payment(db: Session, payment_id: int) -> list[PaymentAll
     return db.query(PaymentAllocation).filter(PaymentAllocation.payment_id == payment_id).all()
 
 
+def _notify_installments_settled(
+    db: Session, agreement: FinancialAgreement, settled: list[tuple[PaymentObligation, bool]],
+) -> None:
+    """Notifies the project's Account Manager and every Administrator the
+    moment an installment (payment obligation) becomes fully paid --
+    either way, on time or late -- so both actually hear about the
+    payment plan's real state instead of only ever being nagged before/
+    at/after a due date (see check_and_notify_payment_reminders, which
+    goes silent forever the instant date_paid is set and never tells
+    anyone the money actually arrived).
+
+    Unlike the reminder job (which notifies the project's Engineer --
+    the "chase this" audience), settlement is an accounts/oversight
+    event, so it goes to the Account Manager on the project's client
+    (same account_manager_id FK client_service.check_and_notify_stale_
+    onboarding notifies) and to every Administrator -- there's no
+    single FK to hang "the admin" off of, so this is a broadcast to the
+    whole role, the first one of its kind in this codebase."""
+    if not settled:
+        return
+    project = db.query(Project).filter(Project.id == agreement.project_id).first()
+    if project is None:
+        return
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+
+    lines = []
+    for obligation, on_time in settled:
+        timing = "on time" if on_time else f"late (was due {obligation.due_date.isoformat()})"
+        lines.append(f"{obligation.description} -- {obligation.amount_due} {agreement.currency}, paid {timing}")
+    message = f"{project.project_name} ({project.project_no}): " + "; ".join(lines)
+
+    recipient_ids: set[int] = set()
+    if client is not None and client.account_manager_id is not None:
+        recipient_ids.add(client.account_manager_id)
+    admins = (
+        db.query(User)
+        .filter(User.role == "Administrator", User.deleted_at.is_(None), User.is_active.is_(True))
+        .all()
+    )
+    recipient_ids.update(admin.id for admin in admins)
+
+    for recipient_id in recipient_ids:
+        notification_service.create_notification(
+            db, recipient_id, "Installment payment recorded", message, "Payment",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+
+
 def record_payment(db: Session, payload, user_id: int) -> Payment:
     agreement = get_agreement(db, parse_agreement_id(payload.agreementId))
 
@@ -531,6 +580,7 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
     db.add(payment)
     db.flush()
 
+    newly_settled: list[tuple[PaymentObligation, bool]] = []
     for obligation, amount in allocation_targets:
         remaining = Decimal(str(obligation.amount_due)) - Decimal(str(obligation.amount_received))
         if Decimal(str(amount)) > remaining:
@@ -544,6 +594,7 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
             obligation.date_paid = payload.paymentDate
             obligation.payment_method = payload.paymentMode
             obligation.reference_number = payload.referenceNumber
+            newly_settled.append((obligation, payload.paymentDate <= obligation.due_date))
 
     mode_label = "payment" if payload.paymentMode == "Other" else f"{payload.amountReceived} via {payload.paymentMode}"
     audit_service.log_event(db, ENTITY_TYPE, agreement.id, "Payment Received", user_id, new_value=mode_label)
@@ -555,6 +606,8 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
         audit_service.log_event(
             db, ENTITY_TYPE, agreement.id, "Payment Allocated", user_id, new_value=allocation_summary
         )
+
+    _notify_installments_settled(db, agreement, newly_settled)
 
     db.commit()
     db.refresh(payment)
