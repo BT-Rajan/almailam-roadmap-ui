@@ -234,19 +234,35 @@ const clientDetailItems = computed(() => {
 
     <Card>
       <template #header>
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-text-primary">Scope of Work</h3>
-          <StatusBadge
-            v-if="scopeOfWork"
-            :label="scopeOfWork.scopeStatus"
-            :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
-          />
-          <span
-            v-if="isRequirementLocked"
-            class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-          >
-            Content Locked
-          </span>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-text-primary">Scope of Work</h3>
+            <StatusBadge
+              v-if="scopeOfWork"
+              :label="scopeOfWork.scopeStatus"
+              :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
+            />
+            <span
+              v-if="isRequirementLocked"
+              class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+            >
+              Content Locked
+            </span>
+          </div>
+
+          <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center gap-2 no-print">
+            <template v-if="!isRequirementLocked">
+              <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
+                Save Scope of Work
+              </BaseButton>
+              <BaseButton size="sm" :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
+                Approve
+              </BaseButton>
+            </template>
+            <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="ArrowRight" @click="handleAdvanceToQuotation">
+              Advance to Quotation
+            </BaseButton>
+          </div>
         </div>
       </template>
 
@@ -287,20 +303,6 @@ const clientDetailItems = computed(() => {
           The client has no identification document on file yet (e.g. Civil ID) -- Approve will still record this
           internal sign-off, but the project will stay at Requirement until identification is added too.
         </p>
-
-        <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center justify-end gap-2 no-print">
-          <template v-if="!isRequirementLocked">
-            <BaseButton variant="secondary" :disabled="!canSave" :loading="isSaving" @click="handleSave">
-              Save Scope of Work
-            </BaseButton>
-            <BaseButton :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
-              Approve
-            </BaseButton>
-          </template>
-          <BaseButton v-if="canAdvanceToQuotation" :icon="ArrowRight" @click="handleAdvanceToQuotation">
-            Advance to Quotation
-          </BaseButton>
-        </div>
       </div>
     </Card>
 

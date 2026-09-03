@@ -252,7 +252,19 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
     <Card v-if="stageContext === 'Requirement'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Requirement</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Requirement</h3>
+          <div class="flex items-center gap-2 no-print">
+            <BaseButton
+              v-if="project.scopeStatus === 'Approved' && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
+              size="sm"
+              @click="emit('navigate-tab', 'quotation')"
+            >
+              Advance to Quotation
+            </BaseButton>
+            <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">Go to Requirement</BaseButton>
+          </div>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-3">
@@ -270,23 +282,15 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           <AlertTriangle class="h-4 w-4 shrink-0" />
           <span>The client has no identification document on file yet -- required before moving on to Quotation.</span>
         </div>
-
-        <div class="flex justify-end gap-2 no-print">
-          <BaseButton
-            v-if="project.scopeStatus === 'Approved' && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
-            size="sm"
-            @click="emit('navigate-tab', 'quotation')"
-          >
-            Advance to Quotation
-          </BaseButton>
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">Go to Requirement</BaseButton>
-        </div>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Quotation'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Quotation</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Quotation</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">Go to Quotation</BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-3">
@@ -314,16 +318,15 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             View Civil ID Attachment
           </BaseButton>
         </div>
-
-        <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'quotation')">Go to Quotation</BaseButton>
-        </div>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Payment Plan'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Payment Plan</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Payment Plan</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
@@ -361,16 +364,23 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           Design &amp; Permit is billed once, in up to 5 configurable installments; Supervision is billed monthly and
           prorated automatically. Every part this project includes has to be approved here before it can move to Contract.
         </p>
-
-        <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
-        </div>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Contract'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Contract</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Contract</h3>
+          <BaseButton
+            v-if="contractQuotation"
+            variant="secondary"
+            size="sm"
+            class="no-print"
+            @click="emit('navigate-tab', 'quotation')"
+          >
+            View Approved Quotation
+          </BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
@@ -388,27 +398,25 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           </div>
         </div>
 
-        <div class="flex flex-col items-start justify-between gap-3 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 tablet:flex-row tablet:items-center">
-          <div class="flex items-center gap-2 text-sm text-warning-700">
-            <AlertTriangle class="h-4 w-4 shrink-0" />
-            <span>Quotation approval is a must</span>
-            <StatusBadge
-              v-if="contractQuotation"
-              :label="contractQuotation.status"
-              :variant="contractQuotation.status === 'Approved' ? 'success' : contractQuotation.status === 'Rejected' ? 'danger' : 'neutral'"
-            />
-            <span v-else class="text-warning-700">-- no quotation linked</span>
-          </div>
-          <BaseButton v-if="contractQuotation" variant="ghost" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">
-            View Approved Quotation
-          </BaseButton>
+        <div class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+          <AlertTriangle class="h-4 w-4 shrink-0" />
+          <span>Quotation approval is a must</span>
+          <StatusBadge
+            v-if="contractQuotation"
+            :label="contractQuotation.status"
+            :variant="contractQuotation.status === 'Approved' ? 'success' : contractQuotation.status === 'Rejected' ? 'danger' : 'neutral'"
+          />
+          <span v-else class="text-warning-700">-- no quotation linked</span>
         </div>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Design'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Design</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Design</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div v-if="designDocuments.length > 0" class="flex flex-col gap-2">
@@ -422,16 +430,15 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           </div>
         </div>
         <p v-else class="text-sm text-text-muted">No design documents delivered yet.</p>
-
-        <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
-        </div>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Supervision'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Supervision</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Supervision</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <p class="text-sm text-text-secondary">
@@ -460,10 +467,6 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           Billed monthly and prorated by day for partial months -- see the Supervision Financial Agreement on the
           Payment Plan step for the actual billed schedule.
         </p>
-
-        <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
-        </div>
       </div>
     </Card>
 
@@ -500,7 +503,10 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
     <Card v-if="stageContext === 'Government Submission'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Approvals &amp; Permits</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">Approvals &amp; Permits</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
+        </div>
       </template>
       <div class="flex flex-col gap-4">
         <div v-if="governmentSubmissions.length > 0" class="flex flex-col gap-2">
@@ -522,10 +528,6 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           </div>
         </div>
         <p v-else class="text-sm text-text-muted">No approvals or permits filed yet.</p>
-
-        <div class="flex justify-end no-print">
-          <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
-        </div>
       </div>
     </Card>
 
