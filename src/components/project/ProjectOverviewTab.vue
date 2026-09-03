@@ -344,7 +344,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           </div>
         </div>
 
-        <div class="flex flex-col gap-2">
+        <div v-if="paymentPlanAgreements.length > 0" class="flex flex-col gap-2">
           <div
             v-for="row in paymentPlanAgreements"
             :key="row.stream"
@@ -359,8 +359,12 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             <span v-else class="text-sm text-text-muted">Not created yet</span>
           </div>
         </div>
+        <p v-else class="text-sm text-text-muted">
+          This project has no Design or Supervision work selected yet, so there's no payment plan to create. Use
+          "Add Service" on the project header to select the work this quotation covers.
+        </p>
 
-        <p class="text-xs text-text-muted">
+        <p v-if="paymentPlanAgreements.length > 0" class="text-xs text-text-muted">
           Design &amp; Permit is billed once, in up to 5 configurable installments; Supervision is billed monthly and
           prorated automatically. Every part this project includes has to be approved here before it can move to Contract.
         </p>
