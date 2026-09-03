@@ -50,6 +50,8 @@ export interface QuotationCreateInput {
   discountAmount: number
   notes?: string
   termsAndConditions: string[]
+  scopePhases: string[]
+  paymentTerms: string[]
   lineItems: QuotationLineItemInput[]
 }
 

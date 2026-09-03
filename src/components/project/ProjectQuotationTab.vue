@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
 import { computed, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
@@ -18,7 +20,7 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
-import { triggerBlobDownload } from '@/utils/fileDownload'
+import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
@@ -46,8 +48,29 @@ const hasStatusOptions = computed(
   () => (QUOTATION_ALLOWED_TRANSITIONS[quotationStore.selectedQuotation?.status ?? ''] ?? []).length > 0,
 )
 
-function handlePrint(): void {
-  window.print()
+// Opens the same admin-uploaded/field-mapped template Download Document
+// merges, as a PDF, in a new tab -- so Print reflects that template
+// instead of the separate hardcoded on-screen preview below. The blank
+// window has to open synchronously, before the async PDF fetch, or most
+// browsers treat it as an unrequested pop-up and block it (see
+// openBlobInWindow's docstring).
+const isPrinting = ref(false)
+
+async function handlePrint(): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  const printWindow = window.open('', '_blank')
+  isPrinting.value = true
+  try {
+    const blob = await documentTemplateService.getQuotationDocumentPdf(quotation.id)
+    openBlobInWindow(blob, printWindow)
+  } catch (error) {
+    printWindow?.close()
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to generate document', detail)
+  } finally {
+    isPrinting.value = false
+  }
 }
 
 const isDownloadingDocument = ref(false)
@@ -64,6 +87,31 @@ async function handleDownloadDocument(): Promise<void> {
     resultDialogStore.showError('Failed to generate document', detail)
   } finally {
     isDownloadingDocument.value = false
+  }
+}
+
+const isEmailDialogOpen = ref(false)
+const isSendingEmail = ref(false)
+const emailTo = ref('')
+
+function openEmailDialog(): void {
+  emailTo.value = props.client?.email ?? ''
+  isEmailDialogOpen.value = true
+}
+
+async function handleSendEmail(): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation || !emailTo.value.trim()) return
+  isSendingEmail.value = true
+  try {
+    await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim())
+    resultDialogStore.showSuccess('Quotation emailed', `Sent to ${emailTo.value.trim()}.`)
+    isEmailDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to send email', detail)
+  } finally {
+    isSendingEmail.value = false
   }
 }
 
@@ -208,6 +256,7 @@ function handleAdvanceToPaymentPlan(): void {
         variant="secondary"
         size="sm"
         :icon="Printer"
+        :loading="isPrinting"
         @click="handlePrint"
       >
         Print Quotation
@@ -222,8 +271,25 @@ function handleAdvanceToPaymentPlan(): void {
       >
         Download Document
       </BaseButton>
+      <BaseButton
+        v-if="quotationStore.selectedQuotation"
+        variant="secondary"
+        size="sm"
+        :icon="Mail"
+        @click="openEmailDialog"
+      >
+        Email Quotation
+      </BaseButton>
     </div>
   </div>
+
+  <BaseDialog v-model="isEmailDialogOpen" title="Email Quotation" size="sm">
+    <TextInput v-model="emailTo" label="Recipient Email" type="email" required placeholder="client@example.com" />
+    <template #footer>
+      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">Cancel</BaseButton>
+      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">Send</BaseButton>
+    </template>
+  </BaseDialog>
 
   <div class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
     <div class="laptop:col-span-2 print:col-span-3">

@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.exceptions import ValidationAppError
+from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.contract import (
@@ -13,7 +15,8 @@ from app.schemas.contract import (
     ContractStatusUpdate,
     ContractUpdate,
 )
-from app.services import contract_service, document_template_service
+from app.schemas.document_template import DocumentEmailRequest
+from app.services import contract_service, document_template_service, email_service
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
@@ -121,6 +124,42 @@ def download_document(contract_no: str, db: Session = Depends(get_db), _=Depends
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{contract_no}/document/pdf")
+def download_document_pdf(contract_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    contract = contract_service.get_contract(db, contract_no)
+    content, filename = document_template_service.render_contract_pdf(db, contract)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.post("/{contract_no}/document/email", status_code=204)
+def email_document(
+    contract_no: str,
+    payload: DocumentEmailRequest,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    contract = contract_service.get_contract(db, contract_no)
+    project = db.query(Project).filter(Project.id == contract.project_id).first()
+    client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
+    to_email = payload.toEmail or (client.email if client else None)
+    if not to_email:
+        raise ValidationAppError("No recipient email address on file for this project's client.")
+
+    content, filename = document_template_service.render_contract_pdf(db, contract)
+    email_service.send_document_email(
+        to_email=to_email,
+        subject=f"Contract {contract.contract_no}",
+        body_text=f"Please find attached Contract {contract.contract_no}.",
+        attachment_bytes=content,
+        attachment_filename=filename,
+        attachment_mimetype="application/pdf",
     )
 
 

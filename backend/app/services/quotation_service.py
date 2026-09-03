@@ -133,6 +133,8 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         discount_amount=payload.discountAmount,
         notes=payload.notes,
         terms_and_conditions=payload.termsAndConditions,
+        scope_phases=payload.scopePhases,
+        payment_terms=payload.paymentTerms,
         amount=amount,
     )
     db.add(quotation)
@@ -170,7 +172,9 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     return quotation
 
 
-_QUOTATION_CONTENT_FIELDS = ("validity", "discountAmount", "notes", "termsAndConditions", "lineItems")
+_QUOTATION_CONTENT_FIELDS = (
+    "validity", "discountAmount", "notes", "termsAndConditions", "scopePhases", "paymentTerms", "lineItems",
+)
 
 
 def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Quotation:
@@ -193,6 +197,10 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
         quotation.notes = payload.notes
     if payload.termsAndConditions is not None:
         quotation.terms_and_conditions = payload.termsAndConditions
+    if payload.scopePhases is not None:
+        quotation.scope_phases = payload.scopePhases
+    if payload.paymentTerms is not None:
+        quotation.payment_terms = payload.paymentTerms
 
     discount = payload.discountAmount if payload.discountAmount is not None else quotation.discount_amount
     if payload.discountAmount is not None:

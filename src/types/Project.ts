@@ -81,6 +81,11 @@ export interface Project {
   projectNo: string
   projectName: string
   description?: string
+  // The project/plot address -- fills a Quotation/Contract document
+  // template's address placeholder (see document_template_service.
+  // MERGE_FIELD_CATALOG). Distinct from any of the client's own
+  // ClientAddress rows.
+  siteAddress?: string
   scopeStatus: ScopeStatus
   scopeApprovedAt?: string | null
   clientId: string

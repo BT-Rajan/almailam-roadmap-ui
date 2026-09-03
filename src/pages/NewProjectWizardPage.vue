@@ -69,6 +69,7 @@ const form = reactive({
   priority: 'Medium' as ProjectPriority,
   projectName: '',
   scope: '',
+  siteAddress: '',
   startDate: '',
   targetDate: '',
   // Supervision picks from the same unified ServicePickerDialog -- each
@@ -300,6 +301,7 @@ async function submitWizard(): Promise<void> {
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: form.scope || undefined,
+      siteAddress: form.siteAddress || undefined,
       clientId: form.clientId,
       service: form.service,
       selectedActivities: form.selectedActivities,
@@ -433,6 +435,12 @@ function goToCreatedProject(): void {
             placeholder="Describe the scope of this engagement"
             hint="Auto-filled from the services and additional activities picked earlier -- edit freely if it needs adjusting."
             :rows="6"
+          />
+          <TextInput
+            v-model="form.siteAddress"
+            label="Project/Site Address"
+            placeholder="e.g. Plot 572, Parcel 4, Second Suburb, Al Mutlaa"
+            hint="Fills the address placeholder on a Quotation/Contract document template, if the uploaded one has one."
           />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <DatePicker v-model="form.startDate" label="Start Date" required :error="errors.startDate" />

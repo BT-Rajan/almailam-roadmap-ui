@@ -250,6 +250,15 @@ CREATE TABLE IF NOT EXISTS projects (
     project_no      VARCHAR(20)  NOT NULL UNIQUE,
     project_name    VARCHAR(200) NOT NULL,
     description     VARCHAR(2000) NULL,
+    -- Free-text project/plot address (migration 0063) -- e.g. a Kuwait
+    -- plot/parcel description. Separate from any ClientAddress row: this
+    -- is the site the project is *for*, not one of the client's own
+    -- registered/mailing addresses. Used only to fill a Quotation/
+    -- Contract document template's address placeholder (see
+    -- document_template_service.MERGE_FIELD_CATALOG); nothing else reads
+    -- it, so it stays a single free-text field rather than structured
+    -- street/city/etc columns.
+    site_address    VARCHAR(300) NULL,
     -- Internal approval of the scope-of-work text above -- set by the
     -- Requirement stage's Approve action (migration 0038), which is what
     -- gates the automatic move to "Quotation". scope_approved_at/_by
@@ -472,6 +481,13 @@ CREATE TABLE IF NOT EXISTS quotations (
     -- base64-encoded image well past TEXT's 64KB cap.
     notes               MEDIUMTEXT NULL,
     terms_and_conditions JSON NOT NULL,
+    -- Both migration 0063 -- same "one free-text block per row" shape as
+    -- terms_and_conditions above, filling the equivalent placeholders
+    -- (phased scope description, payment installment breakdown) in an
+    -- uploaded Quotation document template. See
+    -- document_template_service.MERGE_FIELD_CATALOG.
+    scope_phases        JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    payment_terms       JSON NOT NULL DEFAULT (JSON_ARRAY()),
     amount              DECIMAL(12,2) NOT NULL DEFAULT 0,
     -- NULL while still an editable draft; set once saved as Final,
     -- after which content is locked (migration 0053 removed the

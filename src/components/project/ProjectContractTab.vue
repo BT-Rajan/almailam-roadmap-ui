@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Download, Lock, LockOpen, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import TextInput from '@/components/common/TextInput.vue'
 import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
@@ -19,7 +21,7 @@ import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { Contract } from '@/types/Contract'
 import type { Project } from '@/types/Project'
-import { triggerBlobDownload } from '@/utils/fileDownload'
+import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
   project: Project
@@ -108,8 +110,25 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
   }
 }
 
-function handlePrint(): void {
-  window.print()
+// See ProjectQuotationTab.vue's handlePrint for why the blank window has
+// to open synchronously, before the async PDF fetch.
+const isPrinting = ref(false)
+
+async function handlePrint(): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  const printWindow = window.open('', '_blank')
+  isPrinting.value = true
+  try {
+    const blob = await documentTemplateService.getContractDocumentPdf(contract.id)
+    openBlobInWindow(blob, printWindow)
+  } catch (error) {
+    printWindow?.close()
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to generate document', detail)
+  } finally {
+    isPrinting.value = false
+  }
 }
 
 const isDownloadingDocument = ref(false)
@@ -126,6 +145,31 @@ async function handleDownloadDocument(): Promise<void> {
     resultDialogStore.showError('Failed to generate document', detail)
   } finally {
     isDownloadingDocument.value = false
+  }
+}
+
+const isEmailDialogOpen = ref(false)
+const isSendingEmail = ref(false)
+const emailTo = ref('')
+
+function openEmailDialog(): void {
+  emailTo.value = props.client?.email ?? ''
+  isEmailDialogOpen.value = true
+}
+
+async function handleSendEmail(): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract || !emailTo.value.trim()) return
+  isSendingEmail.value = true
+  try {
+    await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim())
+    resultDialogStore.showSuccess('Contract emailed', `Sent to ${emailTo.value.trim()}.`)
+    isEmailDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
+    resultDialogStore.showError('Failed to send email', detail)
+  } finally {
+    isSendingEmail.value = false
   }
 }
 
@@ -232,6 +276,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         variant="secondary"
         size="sm"
         :icon="Printer"
+        :loading="isPrinting"
         @click="handlePrint"
       >
         Print Contract
@@ -246,8 +291,25 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
       >
         Download Document
       </BaseButton>
+      <BaseButton
+        v-if="contractStore.selectedContract"
+        variant="secondary"
+        size="sm"
+        :icon="Mail"
+        @click="openEmailDialog"
+      >
+        Email Contract
+      </BaseButton>
     </div>
   </div>
+
+  <BaseDialog v-model="isEmailDialogOpen" title="Email Contract" size="sm">
+    <TextInput v-model="emailTo" label="Recipient Email" type="email" required placeholder="client@example.com" />
+    <template #footer>
+      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">Cancel</BaseButton>
+      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">Send</BaseButton>
+    </template>
+  </BaseDialog>
 
   <EmptyState
     v-if="!contractStore.selectedContract"

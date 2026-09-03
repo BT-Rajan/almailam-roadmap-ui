@@ -28,6 +28,8 @@ export interface Quotation {
   discountAmount: number
   notes: string
   termsAndConditions: string[]
+  scopePhases: string[]
+  paymentTerms: string[]
   lineItems: QuotationLineItem[]
   amount: number
   // undefined while an editable draft; set once finalized.

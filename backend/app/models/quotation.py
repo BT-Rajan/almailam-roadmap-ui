@@ -29,6 +29,12 @@ class Quotation(Base, TimestampMixin, SoftDeleteMixin):
     discount_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     terms_and_conditions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # Both migration 0063 -- same "list of free-text blocks" shape as
+    # terms_and_conditions above (one paragraph per entry), used to fill
+    # a Quotation document template's phased-scope and payment-breakdown
+    # placeholders (see document_template_service.MERGE_FIELD_CATALOG).
+    scope_phases: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    payment_terms: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     # Recomputed from line items + discount on every write (see
     # services/quotation_service.py) -- stored rather than computed at
     # read time purely so list views can sort/filter on it without
