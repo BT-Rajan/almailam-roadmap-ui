@@ -125,12 +125,22 @@ export default {
         '5xl': ['3rem', { lineHeight: '1.15' }],
       },
       boxShadow: {
-        soft: '0 1px 2px 0 rgb(23 23 26 / 0.06), 0 1px 3px 0 rgb(23 23 26 / 0.08)',
-        medium: '0 4px 8px -2px rgb(23 23 26 / 0.10), 0 2px 4px -2px rgb(23 23 26 / 0.06)',
-        elevated: '0 12px 24px -4px rgb(23 23 26 / 0.14), 0 4px 8px -2px rgb(23 23 26 / 0.08)',
-        glass: '0 8px 32px 0 rgb(23 23 26 / 0.10), inset 0 1px 0 0 rgb(255 255 255 / 0.5)',
-        'glass-dark': '0 8px 32px 0 rgb(0 0 0 / 0.45), inset 0 1px 0 0 rgb(255 255 255 / 0.06)',
-        'glass-sm': '0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.4)',
+        // These read from CSS custom properties (defined per-theme in
+        // main.css) rather than fixed rgb values. Previously every one of
+        // these was tuned only for the light surface -- a warm, low-opacity
+        // black shadow that all but disappears against the near-black dark
+        // page background, leaving every card/sidebar/button flat in dark
+        // mode. Routing through vars lets .dark redefine them with their
+        // own (deeper, higher-contrast) values so both themes get matching
+        // depth without touching every component that already uses these
+        // utility classes.
+        soft: 'var(--shadow-soft)',
+        medium: 'var(--shadow-medium)',
+        elevated: 'var(--shadow-elevated)',
+        glass: 'var(--shadow-glass)',
+        'glass-dark': 'var(--shadow-glass)',
+        'glass-sm': 'var(--shadow-glass-sm)',
+        'glow-accent': 'var(--shadow-glow-accent)',
       },
       borderRadius: {
         md: '0.5rem',
