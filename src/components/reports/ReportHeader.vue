@@ -29,7 +29,7 @@ const handlePrint = () => {
   <div class="space-y-4 pb-6 border-b border-border-light print:border-b-0">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold text-text-primary">{{ title }}</h1>
+        <h1 class="font-display text-3xl font-semibold text-text-primary">{{ title }}</h1>
         <p v-if="subtitle" class="text-text-secondary mt-1">{{ subtitle }}</p>
         <p v-if="generatedDate" class="text-xs text-text-muted mt-2">Generated: {{ generatedDate }}</p>
       </div>

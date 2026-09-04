@@ -321,6 +321,63 @@
   transform: translateX(16px);
 }
 
+/* Champagne gradient text -- used sparingly for hero headings (e.g. the
+   dashboard greeting) so a couple of premium moments stand out against
+   the otherwise-neutral heading color, without recoloring every heading
+   in the app. */
+.text-gradient-accent {
+  background-image: linear-gradient(
+    120deg,
+    theme('colors.accent.300'),
+    theme('colors.accent.500') 50%,
+    theme('colors.accent.700')
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.dark .text-gradient-accent {
+  background-image: linear-gradient(
+    120deg,
+    theme('colors.accent.200'),
+    theme('colors.accent.400') 50%,
+    theme('colors.accent.600')
+  );
+}
+
+/* Ambient background: soft accent/graphite glow blobs plus a faint grain
+   texture, fixed behind the app shell. Mirrors the "living background"
+   treatment behind JDK's glass panels -- without it, large flat glass
+   cards on a flat page read as sterile. Purely decorative: fixed,
+   inert, and never affects layout or scroll height. */
+.ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient-background__blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(110px);
+  opacity: 0.35;
+}
+
+.dark .ambient-background__blob {
+  opacity: 0.5;
+}
+
+.ambient-background__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 /* Reusable glass surface for elements that can't use the bg-bg-* tokens
    (teleported overlays, dropdowns, etc.) */
 .glass-panel {

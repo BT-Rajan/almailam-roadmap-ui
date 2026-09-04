@@ -47,7 +47,7 @@ const textColor = computed(() => {
         <p class="text-2xl font-bold text-text-primary">{{ statistic.value }}</p>
       </div>
       <div v-if="statistic.icon" :class="['flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center', bgColor]">
-        <span :class="['text-lg', textColor]">{{ statistic.icon }}</span>
+        <component :is="statistic.icon" :class="['h-5 w-5', textColor]" />
       </div>
     </div>
   </Card>

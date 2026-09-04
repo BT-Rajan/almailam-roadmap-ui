@@ -9,6 +9,9 @@ export default {
         // Used by the lettered quotation/contract templates for their
         // Arabic blocks (see src/components/project/letters/).
         arabic: ['"Noto Naskh Arabic"', '"Segoe UI"', 'Tahoma', 'sans-serif'],
+        // Editorial display serif for page headings and hero text -- gives
+        // headings a premium, less "default SaaS" feel than Inter alone.
+        display: ['"Playfair Display"', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         // Rich graphite/charcoal — the "Uber-black" premium action colour

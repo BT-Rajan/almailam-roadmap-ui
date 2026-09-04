@@ -4,10 +4,12 @@ import MobileSidebar from '@/components/navigation/MobileSidebar.vue'
 import Sidebar from '@/components/navigation/Sidebar.vue'
 import TopNavigation from '@/components/navigation/TopNavigation.vue'
 import PageFooter from '@/components/common/PageFooter.vue'
+import AmbientBackground from '@/components/common/AmbientBackground.vue'
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden print:h-auto print:overflow-visible">
+    <AmbientBackground class="no-print" />
     <Sidebar class="no-print" />
     <MobileSidebar class="no-print" />
 

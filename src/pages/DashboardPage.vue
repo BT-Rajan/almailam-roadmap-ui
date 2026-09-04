@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, FileUp, Zap } from '@lucide/vue'
+import { Plus, FileUp, Zap, CheckCircle2, Clock, BarChart3 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -57,8 +57,8 @@ const kpis = computed<KPI[]>(() => [
 ])
 
 const statistics = computed<StatisticItem[]>(() => [
-  { id: '1', label: 'On Hold Projects', value: metricValue('On Hold Projects'), icon: '✓', color: 'success' },
-  { id: '2', label: 'Overdue Tasks', value: metricValue('Overdue Tasks'), icon: '⏱', color: 'danger' },
+  { id: '1', label: 'On Hold Projects', value: metricValue('On Hold Projects'), icon: CheckCircle2, color: 'success' },
+  { id: '2', label: 'Overdue Tasks', value: metricValue('Overdue Tasks'), icon: Clock, color: 'danger' },
   {
     id: '3',
     label: 'Total Received',
@@ -68,7 +68,7 @@ const statistics = computed<StatisticItem[]>(() => [
       const amount = typeof metric.value === 'number' ? metric.value.toLocaleString() : metric.value
       return metric.unit ? `${amount} ${metric.unit}` : amount
     })(),
-    icon: '📊',
+    icon: BarChart3,
     color: 'info',
   },
 ])
@@ -230,7 +230,9 @@ function handleDocumentClick(): void {
   <div class="space-y-8 pb-8">
     <!-- Page Header -->
     <div>
-      <h1 class="text-3xl font-bold text-text-primary">Executive Dashboard</h1>
+      <h1 class="font-display text-3xl font-semibold text-text-primary">
+        Executive <span class="text-gradient-accent">Dashboard</span>
+      </h1>
       <p class="text-text-muted mt-1">Welcome back. Here's your project overview.</p>
     </div>
 

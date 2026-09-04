@@ -1,9 +1,12 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import AmbientBackground from '@/components/common/AmbientBackground.vue'
+</script>
 
 <template>
   <div
     class="flex min-h-screen items-center justify-center px-4 py-12"
   >
+    <AmbientBackground />
     <div class="w-full max-w-md">
       <div class="mb-8 flex items-center justify-center gap-2">
         <div

@@ -1,3 +1,5 @@
+import type { Component } from 'vue'
+
 export type TrendDirection = 'up' | 'down' | 'stable'
 
 export interface KPI {
@@ -16,7 +18,7 @@ export interface StatisticItem {
   id: string
   label: string
   value: string | number
-  icon?: string
+  icon?: Component
   color?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
 }
 
