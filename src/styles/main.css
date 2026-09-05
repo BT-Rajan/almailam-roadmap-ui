@@ -89,6 +89,16 @@
     @apply antialiased;
   }
 
+  /* Arabic (Kuwait) locale: Inter has no Arabic glyphs, so switch the body
+     font stack to the Arabic-capable family already loaded for the
+     lettered quotation/contract templates (see tailwind.config.js's
+     `arabic` font family) whenever the document is set to RTL. Layout
+     mirroring beyond text direction/alignment is out of scope for now --
+     this only swaps the typeface and text flow. */
+  html[dir='rtl'] body {
+    font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, sans-serif;
+  }
+
   body {
     @apply font-sans transition-colors duration-normal;
     color: var(--color-text-primary);
@@ -279,7 +289,7 @@
 .skip-link {
   position: absolute;
   top: -100%;
-  left: 1rem;
+  inset-inline-start: 1rem;
   z-index: 60;
   padding: 0.625rem 1rem;
   border-radius: 0.5rem;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check } from '@lucide/vue'
 import { computed, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/types/Ui'
 
 interface Props {
@@ -24,6 +25,11 @@ defineEmits<{
 }>()
 
 const groupId = useId()
+const { t } = useI18n()
+
+function optionLabel(option: SelectOption): string {
+  return option.labelKey ? t(option.labelKey) : option.label
+}
 
 const containerClasses = computed(() => [
   'flex gap-4',
@@ -69,7 +75,7 @@ const containerClasses = computed(() => [
           <div v-if="modelValue === option.value" class="absolute inset-0 rounded-full border-2 border-primary-500/30 pointer-events-none" />
         </div>
         <span class="text-sm text-text-secondary" :class="disabled ? 'text-text-muted' : ''">
-          {{ option.label }}
+          {{ optionLabel(option) }}
         </span>
       </label>
     </div>

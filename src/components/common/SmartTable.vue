@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, unknown>">
 import { ChevronDown, ChevronUp, ChevronsUpDown, Download, X } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -36,14 +37,14 @@ const props = withDefaults(
     loading: false,
     error: undefined,
     searchable: true,
-    searchPlaceholder: 'Search',
+    searchPlaceholder: undefined,
     searchKeys: undefined,
     selectable: false,
     exportable: false,
     pageSize: 10,
     paginated: true,
-    emptyTitle: 'No records found',
-    emptyDescription: 'There is nothing to display yet.',
+    emptyTitle: undefined,
+    emptyDescription: undefined,
   },
 )
 
@@ -53,6 +54,8 @@ const emit = defineEmits<{
   export: [rows: T[]]
   retry: []
 }>()
+
+const { t } = useI18n()
 
 const searchTerm = ref('')
 const sortKey = ref<(keyof T & string) | null>(null)
@@ -161,10 +164,10 @@ function clearSelection(): void {
       v-if="selectable && selectedCount > 0"
       class="flex items-center justify-between gap-3 border-b border-border-light bg-bg-selected px-4 py-3"
     >
-      <p class="text-sm font-medium text-primary-700">{{ selectedCount }} selected</p>
+      <p class="text-sm font-medium text-primary-700">{{ t('common.selectedCount', { count: selectedCount }) }}</p>
       <div class="flex items-center gap-2">
         <slot name="bulk-actions" :rows="rows.filter((row) => selectedKeys.has(row[rowKey]))" />
-        <IconButton :icon="X" label="Clear selection" size="sm" @click="clearSelection" />
+        <IconButton :icon="X" :label="t('common.clearSelection')" size="sm" @click="clearSelection" />
       </div>
     </div>
 
@@ -173,7 +176,7 @@ function clearSelection(): void {
       class="flex flex-col gap-3 border-b border-border-light px-4 py-3 tablet:flex-row tablet:items-center"
     >
       <div v-if="searchable" class="w-full tablet:max-w-xs">
-        <SearchBox v-model="searchTerm" :placeholder="searchPlaceholder" />
+        <SearchBox v-model="searchTerm" :placeholder="searchPlaceholder ?? t('common.search')" />
       </div>
       <slot name="filters" />
       <div class="flex-1" />
@@ -184,13 +187,17 @@ function clearSelection(): void {
         :icon="Download"
         @click="emit('export', sortedRows)"
       >
-        Export
+        {{ t('common.export') }}
       </BaseButton>
     </div>
 
     <ErrorState v-if="error" :description="error" @retry="emit('retry')" />
 
-    <EmptyState v-else-if="isEmpty" :title="emptyTitle" :description="emptyDescription" />
+    <EmptyState
+      v-else-if="isEmpty"
+      :title="emptyTitle ?? t('common.noRecordsFound')"
+      :description="emptyDescription ?? t('common.noRecordsFoundDescription')"
+    />
 
     <div v-else class="overflow-x-auto">
       <table class="w-full border-collapse">
@@ -201,7 +208,7 @@ function clearSelection(): void {
                 type="checkbox"
                 class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-accent-500/30"
                 :checked="isAllSelected"
-                aria-label="Select all rows on this page"
+                :aria-label="t('common.selectAllRowsOnPage')"
                 @change="toggleAllRows"
               />
             </th>
@@ -248,7 +255,7 @@ function clearSelection(): void {
                 type="checkbox"
                 class="h-4 w-4 rounded border-border-default text-primary-600 focus:ring-2 focus:ring-accent-500/30"
                 :checked="selectedKeys.has(row[rowKey])"
-                :aria-label="`Select row ${String(row[rowKey])}`"
+                :aria-label="t('common.selectRow', { id: String(row[rowKey]) })"
                 @change="toggleRow(row)"
               />
             </td>

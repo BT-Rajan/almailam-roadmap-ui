@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Deadline } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
 
@@ -10,9 +11,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Upcoming Deadlines',
+  title: undefined,
   maxItems: 5,
 })
+
+const { t } = useI18n()
 
 defineEmits<{
   'deadline-click': [deadlineId: string]
@@ -63,25 +66,20 @@ const statusTextColor = (status: string) => {
 }
 
 const statusLabel = (status: string, days: number) => {
-  const labels: Record<string, string> = {
-    overdue: `${Math.abs(days)} days overdue`,
-    today: 'Due today',
-    urgent: `${days} day${days !== 1 ? 's' : ''} left`,
-    soon: `${days} day${days !== 1 ? 's' : ''} left`,
-    upcoming: `${days} day${days !== 1 ? 's' : ''} left`,
-  }
-  return labels[status]
+  if (status === 'overdue') return t('dashboard.deadlineOverdue', { days: Math.abs(days) })
+  if (status === 'today') return t('dashboard.deadlineDueToday')
+  return days === 1 ? t('dashboard.deadlineOneDayLeft') : t('dashboard.deadlineDaysLeft', { days })
 }
 </script>
 
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.upcomingDeadlines') }}</h3>
     </template>
 
     <div v-if="sortedDeadlines.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">No upcoming deadlines</p>
+      <p class="text-sm">{{ t('dashboard.noUpcomingDeadlines') }}</p>
     </div>
     <div v-else class="space-y-2">
       <div

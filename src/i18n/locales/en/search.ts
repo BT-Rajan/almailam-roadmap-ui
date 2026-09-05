@@ -1,0 +1,21 @@
+export default {
+  placeholder: 'Search clients, projects, documents, contracts, quotations, payments, forms, submissions, tasks, users...',
+  searching: 'Searching...',
+  noResultsFor: 'No results for "{query}"',
+  emptyPrompt: 'Search across projects, documents, forms, tasks, and users.',
+  navigate: 'Navigate',
+  select: 'Select',
+  close: 'Close',
+  categories: {
+    Client: 'Clients',
+    Project: 'Projects',
+    Document: 'Documents',
+    Form: 'Forms',
+    Task: 'Tasks',
+    Contract: 'Contracts',
+    Quotation: 'Quotations',
+    Submission: 'Government Submissions',
+    Payment: 'Payments',
+    User: 'Users',
+  },
+}

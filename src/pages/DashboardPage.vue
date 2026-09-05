@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, FileUp, Zap, CheckCircle2, Clock, BarChart3 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import KPIWidget from '@/components/dashboard/KPIWidget.vue'
@@ -20,6 +21,7 @@ import type { ProjectStatus } from '@/types/Project'
 import type { TaskPriority, TaskStatus } from '@/types/Task'
 
 const router = useRouter()
+const { t } = useI18n()
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const documentStore = useDocumentStore()
@@ -50,18 +52,18 @@ function metricValue(label: string): string | number {
 // mock data (Total Projects: 5, Documents: 47, ...) that never changed no
 // matter what was actually in the system.
 const kpis = computed<KPI[]>(() => [
-  { id: '1', label: 'Total Projects', value: metricValue('Total Projects') },
-  { id: '2', label: 'Active Projects', value: metricValue('Active Projects') },
-  { id: '3', label: 'Total Clients', value: metricValue('Total Clients') },
-  { id: '4', label: 'Open Tasks', value: metricValue('Open Tasks') },
+  { id: '1', label: t('dashboard.totalProjects'), value: metricValue('Total Projects') },
+  { id: '2', label: t('dashboard.activeProjects'), value: metricValue('Active Projects') },
+  { id: '3', label: t('dashboard.totalClients'), value: metricValue('Total Clients') },
+  { id: '4', label: t('dashboard.openTasks'), value: metricValue('Open Tasks') },
 ])
 
 const statistics = computed<StatisticItem[]>(() => [
-  { id: '1', label: 'On Hold Projects', value: metricValue('On Hold Projects'), icon: CheckCircle2, color: 'success' },
-  { id: '2', label: 'Overdue Tasks', value: metricValue('Overdue Tasks'), icon: Clock, color: 'danger' },
+  { id: '1', label: t('dashboard.onHoldProjects'), value: metricValue('On Hold Projects'), icon: CheckCircle2, color: 'success' },
+  { id: '2', label: t('dashboard.overdueTasks'), value: metricValue('Overdue Tasks'), icon: Clock, color: 'danger' },
   {
     id: '3',
-    label: 'Total Received',
+    label: t('dashboard.totalReceived'),
     value: (() => {
       const metric = summaryMetrics.value.find((m) => m.label === 'Total Received')
       if (!metric) return '—'
@@ -190,28 +192,28 @@ const handleTaskClick = () => {
 }
 
 // KPI/Statistics cards link out to the page that best explains that
-// number -- keyed by label since these report metrics don't carry a
-// route of their own.
+// number -- keyed by the card's own id (its label is now display text,
+// translated per locale, so it can no longer double as a lookup key).
 const KPI_ROUTES: Record<string, string> = {
-  'Total Projects': ROUTE_NAMES.PROJECTS,
-  'Active Projects': ROUTE_NAMES.PROJECTS,
-  'Total Clients': ROUTE_NAMES.CLIENTS,
-  'Open Tasks': ROUTE_NAMES.TASKS,
+  '1': ROUTE_NAMES.PROJECTS,
+  '2': ROUTE_NAMES.PROJECTS,
+  '3': ROUTE_NAMES.CLIENTS,
+  '4': ROUTE_NAMES.TASKS,
 }
 
 const STATISTIC_ROUTES: Record<string, string> = {
-  'On Hold Projects': ROUTE_NAMES.PROJECTS,
-  'Overdue Tasks': ROUTE_NAMES.TASKS,
-  'Total Received': ROUTE_NAMES.REPORT_EXECUTIVE,
+  '1': ROUTE_NAMES.PROJECTS,
+  '2': ROUTE_NAMES.TASKS,
+  '3': ROUTE_NAMES.REPORT_EXECUTIVE,
 }
 
-function handleKpiClick(label: string): void {
-  const routeName = KPI_ROUTES[label]
+function handleKpiClick(id: string): void {
+  const routeName = KPI_ROUTES[id]
   if (routeName) router.push({ name: routeName })
 }
 
-function handleStatisticClick(label: string): void {
-  const routeName = STATISTIC_ROUTES[label]
+function handleStatisticClick(id: string): void {
+  const routeName = STATISTIC_ROUTES[id]
   if (routeName) router.push({ name: routeName })
 }
 
@@ -231,35 +233,35 @@ function handleDocumentClick(): void {
     <!-- Page Header -->
     <div>
       <h1 class="font-display text-3xl font-semibold text-text-primary">
-        Executive <span class="text-gradient-accent">Dashboard</span>
+        <span class="text-gradient-accent">{{ t('dashboard.title') }}</span>
       </h1>
-      <p class="text-text-muted mt-1">Welcome back. Here's your project overview.</p>
+      <p class="text-text-muted mt-1">{{ t('dashboard.welcomeSubtitle') }}</p>
     </div>
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
-      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick(kpi.label)" />
+      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick(kpi.id)" />
     </div>
 
     <!-- Statistics Row -->
     <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
-      <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick(stat.label)" />
+      <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick(stat.id)" />
     </div>
 
     <!-- Quick Actions -->
     <div>
-      <h2 class="text-lg font-semibold text-text-primary mb-4">Quick Actions</h2>
+      <h2 class="text-lg font-semibold text-text-primary mb-4">{{ t('dashboard.quickActions') }}</h2>
       <div class="grid grid-cols-2 tablet:grid-cols-4 gap-4">
-        <QuickActionCard label="New Project" :icon="Plus" @click="handleQuickAction('new-project')" />
-        <QuickActionCard label="New Task" :icon="Plus" color="success" @click="handleQuickAction('new-task')" />
-        <QuickActionCard label="Upload Document" :icon="FileUp" color="info" @click="handleQuickAction('upload-document')" />
-        <QuickActionCard label="Submit Form" :icon="Zap" color="warning" @click="handleQuickAction('submit-form')" />
+        <QuickActionCard :label="t('dashboard.newProject')" :icon="Plus" @click="handleQuickAction('new-project')" />
+        <QuickActionCard :label="t('dashboard.newTask')" :icon="Plus" color="success" @click="handleQuickAction('new-task')" />
+        <QuickActionCard :label="t('dashboard.uploadDocument')" :icon="FileUp" color="info" @click="handleQuickAction('upload-document')" />
+        <QuickActionCard :label="t('dashboard.submitForm')" :icon="Zap" color="warning" @click="handleQuickAction('submit-form')" />
       </div>
     </div>
 
     <!-- Projects Grid -->
     <div v-if="!isLoading && recentProjects.length > 0">
-      <h2 class="text-lg font-semibold text-text-primary mb-4">Recent Projects</h2>
+      <h2 class="text-lg font-semibold text-text-primary mb-4">{{ t('dashboard.recentProjects') }}</h2>
       <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
         <ProjectSummaryCard v-for="project in recentProjects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
       </div>
@@ -269,13 +271,13 @@ function handleDocumentClick(): void {
     <div class="grid grid-cols-1 laptop:grid-cols-3 gap-6">
       <!-- Left Column: Tasks -->
       <div class="laptop:col-span-2 space-y-6">
-        <PendingTasksWidget :tasks="pendingTasks" @task-click="handleTaskClick" />
+        <PendingTasksWidget :title="t('dashboard.pendingTasks')" :tasks="pendingTasks" @task-click="handleTaskClick" />
       </div>
 
       <!-- Right Column: Deadlines and Documents -->
       <div class="space-y-6">
-        <UpcomingDeadlinesWidget :deadlines="upcomingDeadlines" @deadline-click="handleDeadlineClick" />
-        <RecentDocumentsWidget :documents="recentDocuments" @document-click="handleDocumentClick" />
+        <UpcomingDeadlinesWidget :title="t('dashboard.upcomingDeadlines')" :deadlines="upcomingDeadlines" @deadline-click="handleDeadlineClick" />
+        <RecentDocumentsWidget :title="t('dashboard.recentDocuments')" :documents="recentDocuments" @document-click="handleDocumentClick" />
       </div>
     </div>
   </div>

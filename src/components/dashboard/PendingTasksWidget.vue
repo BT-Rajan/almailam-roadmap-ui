@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Task } from '@/types/Dashboard'
@@ -12,9 +13,23 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Pending Tasks',
+  title: undefined,
   maxItems: 4,
 })
+
+const { t } = useI18n()
+
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  urgent: 'dashboard.priority.urgent',
+  high: 'dashboard.priority.high',
+  medium: 'dashboard.priority.medium',
+  low: 'dashboard.priority.low',
+}
+
+function priorityLabel(priority: string): string {
+  const key = PRIORITY_LABEL_KEYS[priority]
+  return key ? t(key) : priority
+}
 
 defineEmits<{
   'task-click': [taskId: string]
@@ -49,11 +64,11 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', 
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.pendingTasks') }}</h3>
     </template>
 
     <div v-if="displayedTasks.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">No pending tasks</p>
+      <p class="text-sm">{{ t('dashboard.noPendingTasks') }}</p>
     </div>
     <div v-else class="space-y-2">
       <div
@@ -66,7 +81,7 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', 
           <div class="flex-1 min-w-0">
             <div class="flex items-start gap-2">
               <p class="text-sm font-medium text-text-primary flex-1">{{ task.title }}</p>
-              <StatusBadge :label="task.priority" :variant="priorityColor(task.priority)" class="flex-shrink-0" />
+              <StatusBadge :label="priorityLabel(task.priority)" :variant="priorityColor(task.priority)" class="flex-shrink-0" />
             </div>
             <p class="text-xs text-text-muted mt-1">{{ task.project }}</p>
           </div>

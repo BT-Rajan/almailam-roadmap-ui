@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search, X } from '@lucide/vue'
 import { onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   modelValue: string
@@ -9,9 +10,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: 'Search',
+  placeholder: undefined,
   debounceMs: 300,
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -50,14 +53,14 @@ onBeforeUnmount(() => {
     <input
       type="text"
       :value="modelValue"
-      :placeholder="placeholder"
+      :placeholder="placeholder ?? t('common.search')"
       class="h-10 w-full rounded-lg border border-border-default bg-bg-card py-2 pl-10 pr-9 text-sm text-text-primary placeholder:text-text-muted transition-colors duration-fast focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
       @input="handleInput"
     />
     <button
       v-if="modelValue"
       type="button"
-      aria-label="Clear search"
+      :aria-label="t('common.clearSearch')"
       class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
       @click="clearSearch"
     >

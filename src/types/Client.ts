@@ -147,6 +147,8 @@ export interface OnboardingCheckContext {
 
 export interface ClientOnboardingRequirement {
   label: string
+  /** i18n key resolved for display -- `label` itself stays the stable English key used to track completion (see satisfiedByLabel). */
+  labelKey: string
   category: 'Information' | 'Document' | 'Identification'
   required: boolean
   isSatisfied: (ctx: OnboardingCheckContext) => boolean

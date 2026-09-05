@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FileText } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { DocumentItem } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
 
@@ -11,7 +12,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Recent Documents',
+  title: undefined,
   maxItems: 5,
 })
 
@@ -19,6 +20,7 @@ defineEmits<{
   'document-click': [documentId: string]
 }>()
 
+const { t } = useI18n()
 
 const displayedDocuments = computed(() =>
   [...props.documents]
@@ -26,7 +28,7 @@ const displayedDocuments = computed(() =>
     .slice(0, props.maxItems),
 )
 
-const formatSize = (size: string | null) => size ?? 'No file'
+const formatSize = (size: string | null) => size ?? t('dashboard.noFile')
 
 const formatDate = (date: string) => {
   const d = new Date(date)
@@ -37,11 +39,11 @@ const formatDate = (date: string) => {
 <template>
   <Card>
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title }}</h3>
+      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.recentDocuments') }}</h3>
     </template>
 
     <div v-if="displayedDocuments.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">No recent documents</p>
+      <p class="text-sm">{{ t('dashboard.noRecentDocuments') }}</p>
     </div>
     <div v-else class="space-y-2">
       <div

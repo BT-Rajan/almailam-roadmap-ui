@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import AdminModuleCard from '@/components/administration/AdminModuleCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { ADMINISTRATION_MODULE_GROUPS } from '@/constants/administrationModules'
+
+const { t } = useI18n()
 </script>
 
 <template>
   <div class="flex flex-col gap-8 p-6 laptop:p-8">
-    <PageHeader title="Administration" subtitle="Configure and manage ServiceOS across the firm." />
+    <PageHeader :title="t('administration.pageTitle')" :subtitle="t('administration.pageSubtitle')" />
 
     <section v-for="group in ADMINISTRATION_MODULE_GROUPS" :key="group.label" class="flex flex-col gap-3">
       <div>
-        <h2 class="text-sm font-semibold text-text-primary">{{ group.label }}</h2>
-        <p class="text-xs text-text-muted">{{ group.description }}</p>
+        <h2 class="text-sm font-semibold text-text-primary">{{ t(group.labelKey) }}</h2>
+        <p class="text-xs text-text-muted">{{ t(group.descriptionKey) }}</p>
       </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <AdminModuleCard v-for="module in group.modules" :key="module.routeName" :module="module" />

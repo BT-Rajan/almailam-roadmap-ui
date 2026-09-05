@@ -12,6 +12,7 @@ import {
   Wallet,
 } from '@lucide/vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import Loader from '@/components/common/Loader.vue'
@@ -24,19 +25,7 @@ import type { SearchResult, SearchResultCategory } from '@/types/Search'
 const searchStore = useSearchStore()
 const router = useRouter()
 const paletteRef = ref<HTMLElement>()
-
-const CATEGORY_LABELS: Record<SearchResultCategory, string> = {
-  Client: 'Clients',
-  Project: 'Projects',
-  Document: 'Documents',
-  Form: 'Forms',
-  Task: 'Tasks',
-  Contract: 'Contracts',
-  Quotation: 'Quotations',
-  Submission: 'Government Submissions',
-  Payment: 'Payments',
-  User: 'Users',
-}
+const { t } = useI18n()
 
 const CATEGORY_ICONS: Record<SearchResultCategory, typeof FolderKanban> = {
   Client: Building2,
@@ -120,7 +109,7 @@ watch(
         <div class="border-b border-border-light p-3">
           <SearchBox
             :model-value="searchStore.query"
-            placeholder="Search clients, projects, documents, contracts, quotations, payments, forms, submissions, tasks, users..."
+            :placeholder="t('search.placeholder')"
             :debounce-ms="200"
             @update:model-value="searchStore.query = $event"
             @search="handleSearch"
@@ -128,23 +117,23 @@ watch(
         </div>
 
         <div class="flex-1 overflow-y-auto p-2">
-          <Loader v-if="searchStore.isLoading" label="Searching..." />
+          <Loader v-if="searchStore.isLoading" :label="t('search.searching')" />
 
           <p
             v-else-if="searchStore.hasQuery && searchStore.groupedResults.length === 0"
             class="px-3 py-8 text-center text-sm text-text-muted"
           >
-            No results for "{{ searchStore.query }}"
+            {{ t('search.noResultsFor', { query: searchStore.query }) }}
           </p>
 
           <p v-else-if="!searchStore.hasQuery" class="px-3 py-8 text-center text-sm text-text-muted">
-            Search across projects, documents, forms, tasks, and users.
+            {{ t('search.emptyPrompt') }}
           </p>
 
           <div v-else class="flex flex-col gap-3">
             <section v-for="group in searchStore.groupedResults" :key="group.category">
               <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-                {{ CATEGORY_LABELS[group.category] }}
+                {{ t(`search.categories.${group.category}`) }}
               </p>
               <div class="flex flex-col">
                 <button
@@ -180,16 +169,16 @@ watch(
             <span class="flex items-center gap-1">
               <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↑</kbd>
               <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↓</kbd>
-              Navigate
+              {{ t('search.navigate') }}
             </span>
             <span class="flex items-center gap-1">
               <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">↵</kbd>
-              Select
+              {{ t('search.select') }}
             </span>
           </span>
           <span class="flex items-center gap-1 text-xs text-text-muted">
             <kbd class="rounded border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted">Esc</kbd>
-            Close
+            {{ t('search.close') }}
           </span>
         </div>
       </div>

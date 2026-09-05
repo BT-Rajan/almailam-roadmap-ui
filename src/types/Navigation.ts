@@ -1,7 +1,8 @@
 import type { RouteNameValue } from '@/types/Route'
 
 export interface NavItem {
-  label: string
+  /** i18n key under the `navigation` namespace, resolved by SidebarItem.vue -- not display text. */
+  labelKey: string
   routeName: RouteNameValue
   icon: string
   matchPath: string

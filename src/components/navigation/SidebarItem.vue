@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { ICONS } from '@/utils/icons'
@@ -11,6 +12,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const { t } = useI18n()
 
 const icon = computed(() => ICONS[props.item.icon])
 const isActive = computed(() => route.path.startsWith(props.item.matchPath))
@@ -32,6 +34,6 @@ const isActive = computed(() => route.path.startsWith(props.item.matchPath))
       aria-hidden="true"
     />
     <component :is="icon" :size="20" class="shrink-0" aria-hidden="true" />
-    <span v-if="!collapsed" class="truncate">{{ item.label }}</span>
+    <span v-if="!collapsed" class="truncate">{{ t(item.labelKey) }}</span>
   </RouterLink>
 </template>

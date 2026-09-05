@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { KeyRound, LogOut, Moon, Sun, User, UserCircle } from '@lucide/vue'
-import { onBeforeUnmount, reactive, ref } from 'vue'
+import { Globe, KeyRound, LogOut, Moon, Sun, User, UserCircle } from '@lucide/vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import ChangePasswordDialog from '@/components/navigation/ChangePasswordDialog.vue'
 import { useAuth } from '@/composables/useAuthComposable'
+import { useLocale } from '@/composables/useLocale'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useTheme } from '@/composables/useTheme'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { SUPPORTED_LOCALES } from '@/constants/locale'
 
 const router = useRouter()
+const { t } = useI18n()
 const { username, logout } = useAuth()
 const { isDark, toggleMode } = useTheme()
+const { locale, toggleLocale } = useLocale()
+
+const otherLocale = computed(() => SUPPORTED_LOCALES.find((entry) => entry.value !== locale.value))
 
 const isOpen = ref(false)
 const isChangePasswordOpen = ref(false)
@@ -158,7 +165,7 @@ async function handleLogout(): Promise<void> {
             @click="openProfile"
           >
             <UserCircle :size="16" class="text-text-muted" />
-            <span>My Profile</span>
+            <span>{{ t('auth.myProfile') }}</span>
           </button>
 
           <button
@@ -168,7 +175,17 @@ async function handleLogout(): Promise<void> {
             @click="toggleMode"
           >
             <component :is="isDark ? Sun : Moon" :size="16" class="text-text-muted" />
-            <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
+            <span>{{ isDark ? t('auth.lightMode') : t('auth.darkMode') }}</span>
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="toggleLocale"
+          >
+            <Globe :size="16" class="text-text-muted" />
+            <span>{{ t('common.language') }}: {{ otherLocale?.nativeLabel }}</span>
           </button>
 
           <button
@@ -178,7 +195,7 @@ async function handleLogout(): Promise<void> {
             @click="openChangePassword"
           >
             <KeyRound :size="16" class="text-text-muted" />
-            <span>Change Password</span>
+            <span>{{ t('auth.changePassword') }}</span>
           </button>
 
           <hr class="my-1.5 border-border-light" />
@@ -190,7 +207,7 @@ async function handleLogout(): Promise<void> {
             @click="handleLogout"
           >
             <LogOut :size="16" />
-            <span>Logout</span>
+            <span>{{ t('auth.logout') }}</span>
           </button>
         </div>
       </Transition>
