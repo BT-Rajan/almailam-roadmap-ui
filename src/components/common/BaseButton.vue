@@ -48,8 +48,16 @@ function handleClick(event: MouseEvent): void {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
+  // Every default-variant button in the app (New Project, Sign In, Save,
+  // Submit, ...) renders through this one variant -- it needs to be the
+  // brand's actual accent color, not graphite, or the app reads as two
+  // competing identities: jade everywhere the brand shows through
+  // deliberately (links, focus rings, the sidebar/login mark), graphite
+  // everywhere a button defaults. JDK doesn't have this split -- its
+  // primary CTA is the same gold as everything else -- which is why it
+  // reads as one uniform product instead of patchwork.
   primary:
-    'gradient-luxe text-neutral-0 shadow-glass-sm hover:brightness-110 focus-visible:outline-accent-500 disabled:opacity-40 disabled:brightness-100',
+    'gradient-luxe-accent text-neutral-0 shadow-glass-sm hover:brightness-110 focus-visible:outline-accent-500 disabled:opacity-40 disabled:brightness-100',
   secondary:
     'bg-bg-card text-text-primary border border-border-default backdrop-blur-xl hover:bg-bg-hover disabled:text-text-muted',
   ghost: 'bg-transparent text-text-secondary hover:bg-bg-hover disabled:text-text-muted',
