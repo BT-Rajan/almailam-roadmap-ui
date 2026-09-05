@@ -248,6 +248,14 @@ export default {
     noQuotationSelectedDescription: 'اختر عرض سعر من القائمة لمعاينته، أو أنشئ واحداً جديداً.',
   },
 
+  revisionHistory: {
+    title: 'سجل المراجعات',
+    scopeTitle: 'سجل مراجعات النطاق',
+    emptyTitle: 'لا توجد مراجعات مسجلة',
+    current: 'الحالية',
+    attachedDocument: 'مستند مرفق',
+  },
+
   pricingSummary: {
     title: 'ملخص التسعير',
     subtotal: 'المجموع الفرعي',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download, Eye, FileEdit, Plus, Printer, Trash2 } from '@lucide/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -29,6 +30,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectFormStore = useProjectFormStore()
 const projectStore = useProjectStore()
@@ -36,15 +38,24 @@ const toastStore = useToastStore()
 
 const project = computed(() => projectStore.projects.find((item) => item.id === props.projectId))
 
-const STATUS_OPTIONS: SelectOption[] = [
-  'Draft',
-  'Submitted',
-  'Under Review',
-  'Comments Received',
-  'Approved',
-  'Rejected',
-  'Withdrawn',
-].map((status) => ({ label: status, value: status }))
+const SUBMISSION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'government.submissionStatus.draft',
+  Submitted: 'government.submissionStatus.submitted',
+  'Under Review': 'government.submissionStatus.underReview',
+  'Comments Received': 'government.submissionStatus.commentsReceived',
+  Approved: 'government.submissionStatus.approved',
+  Rejected: 'government.submissionStatus.rejected',
+  Withdrawn: 'government.submissionStatus.withdrawn',
+}
+
+const STATUS_OPTIONS = computed<SelectOption[]>(() =>
+  Object.entries(SUBMISSION_STATUS_LABEL_KEYS).map(([status, key]) => ({ label: t(key), value: status })),
+)
+
+function statusLabel(status: string): string {
+  const key = SUBMISSION_STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
 
 // Every fillable form under this authority -- the picker below only
 // offers ones this project hasn't already filed (see availableForms),
@@ -73,7 +84,7 @@ const scopedAuthorityForms = computed(() =>
 // > Service Document Map, worth saying so explicitly.
 const scopeMismatchHint = computed(() =>
   authorityForms.value.length > 0 && scopedAuthorityForms.value.length === 0
-    ? "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map."
+    ? t('government.authorityFormsPanel.scopeMismatchHint')
     : undefined,
 )
 
@@ -104,13 +115,13 @@ interface EntryRow {
   createdBy: string
 }
 
-const TABLE_COLUMNS: SmartTableColumn<EntryRow>[] = [
-  { key: 'formCode', label: 'Code', width: '110px' },
-  { key: 'formTitle', label: 'Form', sortable: true },
-  { key: 'status', label: 'Status', width: '190px' },
-  { key: 'createdAt', label: 'Filed', sortable: true },
-  { key: 'createdBy', label: 'Filed By' },
-]
+const TABLE_COLUMNS = computed<SmartTableColumn<EntryRow>[]>(() => [
+  { key: 'formCode', label: t('government.authorityFormsPanel.columnCode'), width: '110px' },
+  { key: 'formTitle', label: t('government.authorityFormsPanel.columnForm'), sortable: true },
+  { key: 'status', label: t('common.status'), width: '190px' },
+  { key: 'createdAt', label: t('government.authorityFormsPanel.columnFiled'), sortable: true },
+  { key: 'createdBy', label: t('government.authorityFormsPanel.columnFiledBy') },
+])
 
 const tableRows = computed<EntryRow[]>(() =>
   filedEntries.value.map((entry) => ({
@@ -119,7 +130,7 @@ const tableRows = computed<EntryRow[]>(() =>
     formCode: entry.formCode,
     status: entry.status,
     createdAt: entry.createdAt,
-    createdBy: entry.createdBy ?? 'Unknown',
+    createdBy: entry.createdBy ?? t('government.authorityFormsPanel.unknownFiledBy'),
   })),
 )
 
@@ -209,8 +220,8 @@ async function confirmDelete(): Promise<void> {
   <div class="flex flex-col gap-4">
     <EmptyState
       v-if="authorityForms.length === 0"
-      title="No fillable forms for this authority yet"
-      description="Add a form with template content under Administration > Documents > Government Forms to make it available here."
+      :title="t('government.authorityFormsPanel.noFillableFormsTitle')"
+      :description="t('government.authorityFormsPanel.noFillableFormsDescription')"
     />
 
     <template v-else>
@@ -218,16 +229,16 @@ async function confirmDelete(): Promise<void> {
         <div class="min-w-[16rem] flex-1">
           <SelectBox
             v-model="selectedNewFormId"
-            label="Add a Form"
-            placeholder="Select a form to fill"
+            :label="t('government.authorityFormsPanel.addAForm')"
+            :placeholder="t('government.authorityFormsPanel.selectFormToFill')"
             :options="availableFormOptions"
           />
         </div>
-        <BaseButton :icon="Plus" :disabled="!selectedNewFormId" @click="openAddDialog">Add Form</BaseButton>
+        <BaseButton :icon="Plus" :disabled="!selectedNewFormId" @click="openAddDialog">{{ t('government.authorityFormsPanel.addForm') }}</BaseButton>
       </div>
       <p v-if="scopeMismatchHint" class="text-xs text-text-muted">{{ scopeMismatchHint }}</p>
       <p v-else-if="availableForms.length === 0" class="text-xs text-text-muted">
-        Every fillable form for this authority has already been added to this project.
+        {{ t('government.authorityFormsPanel.allFormsAdded') }}
       </p>
 
       <SmartTable
@@ -236,8 +247,8 @@ async function confirmDelete(): Promise<void> {
         row-key="id"
         :loading="projectFormStore.isLoading"
         :searchable="false"
-        empty-title="No forms filed yet"
-        :empty-description="`Forms filled in for this project under this authority will appear here.`"
+        :empty-title="t('government.authorityFormsPanel.noFormsFiledTitle')"
+        :empty-description="t('government.authorityFormsPanel.noFormsFiledDescription')"
       >
         <template #cell-status="{ row }">
           <SelectBox
@@ -246,18 +257,18 @@ async function confirmDelete(): Promise<void> {
             class="no-print"
             @update:model-value="handleStatusChange(row.id as string, $event)"
           />
-          <span class="hidden print:inline">{{ row.status }}</span>
+          <span class="hidden print:inline">{{ statusLabel(row.status as string) }}</span>
         </template>
         <template #cell-createdAt="{ value }">
           {{ formatDate(value as string) }}
         </template>
         <template #row-actions="{ row }">
           <div class="flex items-center justify-end gap-1 no-print">
-            <IconButton :icon="Eye" label="View" size="sm" variant="ghost" @click="entryById(row.id as string) && viewDocument(entryById(row.id as string)!)" />
-            <IconButton :icon="Download" label="Download" size="sm" variant="ghost" @click="entryById(row.id as string) && downloadDocument(entryById(row.id as string)!)" />
-            <IconButton :icon="Printer" label="Print" size="sm" variant="ghost" @click="entryById(row.id as string) && printDocument(entryById(row.id as string)!)" />
-            <IconButton :icon="FileEdit" label="Edit" size="sm" variant="ghost" @click="entryById(row.id as string) && openEditDialog(entryById(row.id as string)!)" />
-            <IconButton :icon="Trash2" label="Remove" size="sm" variant="danger" @click="entryById(row.id as string) && requestDelete(entryById(row.id as string)!)" />
+            <IconButton :icon="Eye" :label="t('common.view')" size="sm" variant="ghost" @click="entryById(row.id as string) && viewDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="Download" :label="t('common.download')" size="sm" variant="ghost" @click="entryById(row.id as string) && downloadDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="Printer" :label="t('common.print')" size="sm" variant="ghost" @click="entryById(row.id as string) && printDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="FileEdit" :label="t('common.edit')" size="sm" variant="ghost" @click="entryById(row.id as string) && openEditDialog(entryById(row.id as string)!)" />
+            <IconButton :icon="Trash2" :label="t('government.authorityFormsPanel.remove')" size="sm" variant="danger" @click="entryById(row.id as string) && requestDelete(entryById(row.id as string)!)" />
           </div>
         </template>
       </SmartTable>

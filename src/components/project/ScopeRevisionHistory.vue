@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Download, History } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -16,6 +17,8 @@ const emit = defineEmits<{
   download: [revision: ScopeRevision]
 }>()
 
+const { t } = useI18n()
+
 function isLatestRevision(revision: ScopeRevision): boolean {
   return props.revisions[props.revisions.length - 1]?.id === revision.id
 }
@@ -24,10 +27,10 @@ function isLatestRevision(revision: ScopeRevision): boolean {
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">Scope Revision History</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('project.revisionHistory.scopeTitle') }}</h3>
     </template>
 
-    <EmptyState v-if="revisions.length === 0" :icon="History" title="No revisions recorded" />
+    <EmptyState v-if="revisions.length === 0" :icon="History" :title="t('project.revisionHistory.emptyTitle')" />
 
     <ul v-else class="flex flex-col gap-4">
       <li
@@ -37,7 +40,7 @@ function isLatestRevision(revision: ScopeRevision): boolean {
       >
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold text-text-primary">{{ revision.revision }}</span>
-          <StatusBadge v-if="isLatestRevision(revision)" label="Current" variant="success" size="sm" />
+          <StatusBadge v-if="isLatestRevision(revision)" :label="t('project.revisionHistory.current')" variant="success" size="sm" />
         </div>
         <p class="text-xs text-text-muted">{{ revision.changedBy }} · {{ formatDate(revision.date) }}</p>
         <p class="text-sm text-text-secondary">{{ revision.summary }}</p>
@@ -49,7 +52,7 @@ function isLatestRevision(revision: ScopeRevision): boolean {
           class="self-start no-print"
           @click="emit('download', revision)"
         >
-          {{ revision.documentName ?? 'Attached document' }}
+          {{ revision.documentName ?? t('project.revisionHistory.attachedDocument') }}
         </BaseButton>
       </li>
     </ul>

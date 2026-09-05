@@ -16,6 +16,44 @@ export default {
   unknownProject: 'Unknown Project',
   unknownForm: 'Unknown Form',
 
+  requiredDocumentStatus: {
+    pending: 'Pending',
+    uploaded: 'Uploaded',
+    verified: 'Verified',
+  },
+
+  requiredDocumentChecklist: {
+    uploaded: 'uploaded {date}',
+    notUploadedYet: 'Not uploaded yet',
+    replace: 'Replace',
+  },
+
+  authorityFormsPanel: {
+    noFillableFormsTitle: 'No fillable forms for this authority yet',
+    noFillableFormsDescription: 'Add a form with template content under Administration > Documents > Government Forms to make it available here.',
+    addAForm: 'Add a Form',
+    selectFormToFill: 'Select a form to fill',
+    addForm: 'Add Form',
+    scopeMismatchHint: "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map.",
+    allFormsAdded: 'Every fillable form for this authority has already been added to this project.',
+    columnCode: 'Code',
+    columnForm: 'Form',
+    columnFiled: 'Filed',
+    columnFiledBy: 'Filed By',
+    unknownFiledBy: 'Unknown',
+    noFormsFiledTitle: 'No forms filed yet',
+    noFormsFiledDescription: 'Forms filled in for this project under this authority will appear here.',
+    remove: 'Remove',
+  },
+
+  authorityCard: {
+    formCount: '{count} forms',
+    formCountOne: '1 form',
+    viewDocuments: 'View documents',
+    editAuthority: 'Edit authority',
+    deleteAuthority: 'Delete authority',
+  },
+
   authorityBrowser: {
     pageTitle: 'Government Forms Library',
     pageSubtitle: 'Browse government authorities and their submission forms.',

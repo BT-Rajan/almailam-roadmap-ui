@@ -248,6 +248,14 @@ export default {
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
   },
 
+  revisionHistory: {
+    title: 'Revision History',
+    scopeTitle: 'Scope Revision History',
+    emptyTitle: 'No revisions recorded',
+    current: 'Current',
+    attachedDocument: 'Attached document',
+  },
+
   pricingSummary: {
     title: 'Pricing Summary',
     subtotal: 'Subtotal',

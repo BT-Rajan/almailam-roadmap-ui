@@ -16,6 +16,44 @@ export default {
   unknownProject: 'مشروع غير معروف',
   unknownForm: 'نموذج غير معروف',
 
+  requiredDocumentStatus: {
+    pending: 'قيد الانتظار',
+    uploaded: 'تم الرفع',
+    verified: 'موثَّق',
+  },
+
+  requiredDocumentChecklist: {
+    uploaded: 'رُفع في {date}',
+    notUploadedYet: 'لم يُرفع بعد',
+    replace: 'استبدال',
+  },
+
+  authorityFormsPanel: {
+    noFillableFormsTitle: 'لا توجد نماذج قابلة للتعبئة لهذه الجهة بعد',
+    noFillableFormsDescription: 'أضف نموذجاً بمحتوى قالب ضمن الإدارة > المستندات > النماذج الحكومية لإتاحته هنا.',
+    addAForm: 'إضافة نموذج',
+    selectFormToFill: 'اختر نموذجاً لتعبئته',
+    addForm: 'إضافة نموذج',
+    scopeMismatchHint: 'لا توجد نماذج لهذه الجهة مرتبطة بخدمة هذا المشروع -- راجع الإدارة > خريطة مستندات الخدمة.',
+    allFormsAdded: 'تمت إضافة جميع النماذج القابلة للتعبئة لهذه الجهة إلى هذا المشروع بالفعل.',
+    columnCode: 'الرمز',
+    columnForm: 'النموذج',
+    columnFiled: 'تاريخ التقديم',
+    columnFiledBy: 'قدَّمه',
+    unknownFiledBy: 'غير معروف',
+    noFormsFiledTitle: 'لا توجد نماذج مُقدَّمة بعد',
+    noFormsFiledDescription: 'ستظهر هنا النماذج المُعبَّأة لهذا المشروع ضمن هذه الجهة.',
+    remove: 'إزالة',
+  },
+
+  authorityCard: {
+    formCount: '{count} نماذج',
+    formCountOne: 'نموذج واحد',
+    viewDocuments: 'عرض المستندات',
+    editAuthority: 'تعديل الجهة',
+    deleteAuthority: 'حذف الجهة',
+  },
+
   authorityBrowser: {
     pageTitle: 'مكتبة النماذج الحكومية',
     pageSubtitle: 'تصفح الجهات الحكومية ونماذج التقديم الخاصة بها.',
