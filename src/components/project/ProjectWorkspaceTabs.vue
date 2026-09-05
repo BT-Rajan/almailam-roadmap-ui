@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { ProjectWorkspaceTab, ProjectWorkspaceTabKey } from '@/types/Project'
 
@@ -13,6 +14,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   select: [tab: ProjectWorkspaceTabKey]
 }>()
+
+const { t } = useI18n()
 
 const tabRefs = ref<HTMLButtonElement[]>([])
 
@@ -56,7 +59,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
 </script>
 
 <template>
-  <div class="no-print flex gap-1 overflow-x-auto border-b border-border-light" role="tablist" aria-label="Project workspace sections">
+  <div class="no-print flex gap-1 overflow-x-auto border-b border-border-light" role="tablist" :aria-label="t('project.workspaceTabs.sectionsAria')">
     <button
       v-for="(tab, index) in tabs"
       :key="tab.key"

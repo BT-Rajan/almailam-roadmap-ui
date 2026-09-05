@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Globe, Mail, MapPin, Phone } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Avatar from '@/components/common/Avatar.vue'
 import Card from '@/components/common/Card.vue'
 import type { CompanySettings } from '@/types/CompanySettings'
+
+const { t } = useI18n()
 
 defineProps<{
   settings: CompanySettings
@@ -22,7 +25,7 @@ defineProps<{
       </div>
 
       <div class="flex items-center gap-2">
-        <span class="text-xs font-medium text-text-muted">Brand Color</span>
+        <span class="text-xs font-medium text-text-muted">{{ t('administration.companyPage.brandColor') }}</span>
         <span class="h-5 w-5 rounded-full border border-border-light" :style="{ backgroundColor: settings.brandColor }" />
         <span class="text-xs text-text-muted">{{ settings.brandColor }}</span>
       </div>

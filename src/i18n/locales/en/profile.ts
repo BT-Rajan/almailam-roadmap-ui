@@ -1,0 +1,16 @@
+export default {
+  pageTitle: 'My Profile',
+  pageSubtitle: 'View and update your personal details.',
+  personalDetails: 'Personal Details',
+  personalDetailsDescription: "These details appear across the app and on documents you're assigned to.",
+  fullName: 'Full Name',
+  designation: 'Designation',
+  designationPlaceholder: 'e.g. Senior Engineer',
+  mobile: 'Mobile',
+  mobilePlaceholder: 'e.g. +971 50 000 0000',
+  account: 'Account',
+  accountDescription: 'Managed by an administrator -- contact one to change these.',
+  email: 'Email',
+  role: 'Role',
+  saveChanges: 'Save Changes',
+}

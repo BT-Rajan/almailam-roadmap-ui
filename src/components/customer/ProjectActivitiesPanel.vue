@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ListChecks } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -8,19 +9,21 @@ import type { ProjectActivityGroup } from '@/types/CustomerPortal'
 defineProps<{
   activities: ProjectActivityGroup[]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-text-primary">Scope of Work</h2>
+      <h2 class="text-xl font-semibold text-text-primary">{{ t('customer.activitiesPanel.title') }}</h2>
     </template>
 
     <EmptyState
       v-if="activities.length === 0"
       :icon="ListChecks"
-      title="No activities on file"
-      description="The specific activities covered by this engagement will appear here once set up."
+      :title="t('customer.activitiesPanel.emptyTitle')"
+      :description="t('customer.activitiesPanel.emptyDescription')"
     />
 
     <div v-else class="flex flex-col gap-4">

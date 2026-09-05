@@ -10,15 +10,15 @@ import type { NavItem } from '@/types/Navigation'
 // document prep is moving into the project workflow itself instead of
 // living here. Re-add the entries below to restore them to the sidebar.
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', routeName: ROUTE_NAMES.DASHBOARD, icon: 'LayoutDashboard', matchPath: '/dashboard' },
-  { label: 'Clients', routeName: ROUTE_NAMES.CLIENTS, icon: 'Users', matchPath: '/clients' },
-  { label: 'Projects', routeName: ROUTE_NAMES.PROJECTS, icon: 'FolderKanban', matchPath: '/projects' },
-  { label: 'Payments', routeName: ROUTE_NAMES.PAYMENTS, icon: 'Wallet', matchPath: '/payments' },
-  // { label: 'Documents', routeName: ROUTE_NAMES.DOCUMENTS, icon: 'FileText', matchPath: '/documents' },
-  { label: 'Tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
-  { label: 'Reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },
+  { labelKey: 'navigation.dashboard', routeName: ROUTE_NAMES.DASHBOARD, icon: 'LayoutDashboard', matchPath: '/dashboard' },
+  { labelKey: 'navigation.clients', routeName: ROUTE_NAMES.CLIENTS, icon: 'Users', matchPath: '/clients' },
+  { labelKey: 'navigation.projects', routeName: ROUTE_NAMES.PROJECTS, icon: 'FolderKanban', matchPath: '/projects' },
+  { labelKey: 'navigation.payments', routeName: ROUTE_NAMES.PAYMENTS, icon: 'Wallet', matchPath: '/payments' },
+  // { labelKey: 'navigation.documents', routeName: ROUTE_NAMES.DOCUMENTS, icon: 'FileText', matchPath: '/documents' },
+  { labelKey: 'navigation.tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
+  { labelKey: 'navigation.reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },
   {
-    label: 'Administration',
+    labelKey: 'navigation.administration',
     routeName: ROUTE_NAMES.ADMIN,
     icon: 'Settings',
     matchPath: '/admin',

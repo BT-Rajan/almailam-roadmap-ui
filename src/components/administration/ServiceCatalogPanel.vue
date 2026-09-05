@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -18,10 +19,16 @@ import { useToastStore } from '@/stores/toastStore'
 import type { ServiceCatalogBranch } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 
+const { t } = useI18n()
+
 const BRANCH_OPTIONS: SelectOption[] = [
-  { label: 'Design (one-time)', value: 'Design' },
-  { label: 'Supervision (monthly)', value: 'Supervision' },
+  { label: 'Design (one-time)', value: 'Design', labelKey: 'administration.serviceCatalog.branchDesignOneTime' },
+  { label: 'Supervision (monthly)', value: 'Supervision', labelKey: 'administration.serviceCatalog.branchSupervisionMonthly' },
 ]
+
+function branchLabel(branch: ServiceCatalogBranch): string {
+  return branch === 'Supervision' ? t('administration.serviceCatalog.branchSupervision') : t('administration.serviceCatalog.branchDesign')
+}
 
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -124,12 +131,12 @@ function handleRemoveActivity(activityId: string): void {
       />
 
       <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-        <p class="text-sm font-medium text-text-secondary">Add Service</p>
+        <p class="text-sm font-medium text-text-secondary">{{ t('administration.serviceCatalog.addService') }}</p>
         <RadioGroup v-model="newServiceBranch" :options="availableBranchOptions" :vertical="false" />
         <div class="flex flex-col gap-2 sm:flex-row">
-          <TextInput v-model="newServiceName" placeholder="Service name" class="sm:flex-1" @keyup.enter="submitNewService" />
+          <TextInput v-model="newServiceName" :placeholder="t('administration.serviceCatalog.serviceName')" class="sm:flex-1" @keyup.enter="submitNewService" />
           <BaseButton :icon="Plus" variant="secondary" :disabled="newServiceName.trim().length === 0" @click="submitNewService">
-            Add
+            {{ t('administration.serviceCatalog.add') }}
           </BaseButton>
         </div>
       </div>
@@ -138,8 +145,8 @@ function handleRemoveActivity(activityId: string): void {
     <div class="flex flex-col gap-6 laptop:col-span-2">
       <EmptyState
         v-if="!serviceCatalogStore.selectedService"
-        title="Select a service"
-        description="Choose a service on the left, or add a new one, to view and edit its activities."
+        :title="t('administration.serviceCatalog.selectService')"
+        :description="t('administration.serviceCatalog.selectServiceDescription')"
       />
 
       <template v-else>
@@ -154,13 +161,13 @@ function handleRemoveActivity(activityId: string): void {
                   @blur="commitRename(serviceCatalogStore.selectedService!.id, $event, serviceCatalogStore.selectedService!.name)"
                 />
                 <StatusBadge
-                  :label="serviceCatalogStore.selectedService.branch"
+                  :label="branchLabel(serviceCatalogStore.selectedService.branch)"
                   :variant="serviceCatalogStore.selectedService.branch === 'Supervision' ? 'info' : 'neutral'"
                 />
               </div>
               <IconButton
                 :icon="Trash2"
-                label="Remove service"
+                :label="t('administration.serviceCatalog.removeService')"
                 size="sm"
                 variant="danger"
                 @click="handleRemoveService(serviceCatalogStore.selectedService!.id)"

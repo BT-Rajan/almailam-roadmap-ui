@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { TrendingUp, TrendingDown } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
+
+const { t } = useI18n()
 
 interface Props {
   label: string
@@ -48,7 +51,7 @@ const bgColor = computed(() => {
       </div>
       <div v-if="change" class="flex items-center gap-1 pt-1">
         <component :is="change.direction === 'up' ? TrendingUp : TrendingDown" :class="['h-4 w-4', changeColor]" />
-        <span :class="['text-sm font-medium', changeColor]">{{ change.percentage }}% vs last period</span>
+        <span :class="['text-sm font-medium', changeColor]">{{ t('report.metricCard.vsLastPeriod', { percentage: change.percentage }) }}</span>
       </div>
     </div>
   </Card>

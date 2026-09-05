@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CloudUpload, FileText, X } from '@lucide/vue'
 import { ref, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   accept?: string
@@ -16,10 +17,12 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   accept: '.pdf,.doc,.docx,.dwg,.xlsx,.png,.jpg',
-  hint: 'PDF, Word, Excel, DWG or image files',
+  hint: undefined,
   maxSizeBytes: undefined,
   allowedExtensions: undefined,
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [file: File | undefined]
@@ -87,8 +90,8 @@ function clearFile(): void {
       @drop.prevent="handleDrop"
     >
       <CloudUpload class="h-8 w-8 text-text-muted" />
-      <p class="text-sm font-medium text-text-secondary">Click to upload or drag and drop</p>
-      <p class="text-xs text-text-muted">{{ hint }}</p>
+      <p class="text-sm font-medium text-text-secondary">{{ t('document.fileUploader.clickToUpload') }}</p>
+      <p class="text-xs text-text-muted">{{ hint ?? t('document.fileUploader.defaultHint') }}</p>
       <input :id="inputId" type="file" :accept="accept" class="hidden" @change="handleInputChange" />
     </label>
 
@@ -97,7 +100,7 @@ function clearFile(): void {
       <span class="flex-1 truncate text-sm font-medium text-text-secondary">{{ selectedFile.name }}</span>
       <button
         type="button"
-        aria-label="Remove file"
+        :aria-label="t('document.fileUploader.removeFile')"
         class="text-text-muted hover:text-text-secondary"
         @click="clearFile"
       >

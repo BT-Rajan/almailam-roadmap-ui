@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -19,6 +20,7 @@ import { useUserStore } from '@/stores/userStore'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { SelectOption } from '@/types/Ui'
 
+const { t } = useI18n()
 const companyStore = useCompanyStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
@@ -81,8 +83,8 @@ const statusReportRecipientOptions = computed<SelectOption[]>(() =>
 )
 
 const LANGUAGE_OPTIONS: SelectOption[] = [
-  { label: 'English', value: 'English' },
-  { label: 'Arabic', value: 'Arabic' },
+  { label: 'English', value: 'English', labelKey: 'administration.companyPage.languageEnglish' },
+  { label: 'Arabic', value: 'Arabic', labelKey: 'administration.companyPage.languageArabic' },
 ]
 
 const DATE_FORMAT_OPTIONS: SelectOption[] = [
@@ -121,7 +123,7 @@ function handleCancel(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="Company Settings" subtitle="Manage your company profile, branding and business preferences." />
+    <PageHeader :title="t('administration.companyPage.pageTitle')" :subtitle="t('administration.companyPage.pageSubtitle')" />
 
     <ErrorState v-if="companyStore.error" :description="companyStore.error" @retry="loadData" />
 
@@ -138,66 +140,66 @@ function handleCancel(): void {
       <CompanyProfileCard :settings="companyStore.settings" />
 
       <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <FormSection title="Company Profile" description="Basic details shown on quotations, contracts and government submissions.">
+        <FormSection :title="t('administration.companyPage.companyProfile')" :description="t('administration.companyPage.companyProfileDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <TextInput
               :model-value="companyStore.settings.companyName"
-              label="Company Name"
+              :label="t('administration.companyPage.companyName')"
               required
               @update:model-value="companyStore.updateField('companyName', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.tagline"
-              label="Tagline"
+              :label="t('administration.companyPage.tagline')"
               @update:model-value="companyStore.updateField('tagline', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.tradeLicenseNumber"
-              label="Trade License Number"
+              :label="t('administration.companyPage.tradeLicenseNumber')"
               @update:model-value="companyStore.updateField('tradeLicenseNumber', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.website"
-              label="Website"
+              :label="t('administration.companyPage.website')"
               @update:model-value="companyStore.updateField('website', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.email"
               type="email"
-              label="Email"
+              :label="t('administration.companyPage.email')"
               @update:model-value="companyStore.updateField('email', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.phone"
               type="tel"
-              label="Phone"
+              :label="t('administration.companyPage.phone')"
               @update:model-value="companyStore.updateField('phone', $event)"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Address" description="Registered office address used on official documents.">
+        <FormSection :title="t('administration.companyPage.address')" :description="t('administration.companyPage.addressDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <TextInput
               :model-value="companyStore.settings.address"
-              label="Address"
+              :label="t('administration.companyPage.address')"
               class="tablet:col-span-2"
               @update:model-value="companyStore.updateField('address', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.city"
-              label="City"
+              :label="t('administration.companyPage.city')"
               @update:model-value="companyStore.updateField('city', $event)"
             />
             <TextInput
               :model-value="companyStore.settings.country"
-              label="Country"
+              :label="t('administration.companyPage.country')"
               @update:model-value="companyStore.updateField('country', $event)"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Branding" description="Applied to report headers, portals and printable documents.">
+        <FormSection :title="t('administration.companyPage.branding')" :description="t('administration.companyPage.brandingDescription')">
           <div class="flex items-center gap-3">
             <input
               type="color"
@@ -207,31 +209,30 @@ function handleCancel(): void {
             />
             <TextInput
               :model-value="companyStore.settings.brandColor"
-              label="Brand Color"
+              :label="t('administration.companyPage.brandColor')"
               class="flex-1"
               @update:model-value="companyStore.updateField('brandColor', $event)"
             />
           </div>
 
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-text-secondary">Company Logo</label>
+            <label class="text-sm font-medium text-text-secondary">{{ t('administration.companyPage.companyLogo') }}</label>
             <p class="text-xs text-text-muted">
-              Insertable into any Quotation/Contract document template via its Company Logo merge field. Applies
-              immediately -- not part of "Save Changes" below.
+              {{ t('administration.companyPage.companyLogoDescription') }}
             </p>
             <div v-if="companyStore.settings.hasLogo" class="flex items-center gap-3">
               <img
                 v-if="logoPreviewUrl"
                 :src="logoPreviewUrl"
-                alt="Company logo"
+                :alt="t('administration.companyPage.companyLogo')"
                 class="h-14 w-auto max-w-[10rem] rounded border border-border-light bg-white object-contain p-1"
               />
               <span class="text-sm text-text-secondary">{{ companyStore.settings.logoFilename }}</span>
-              <BaseButton variant="ghost" size="sm" :loading="isRemovingLogo" @click="handleLogoRemove">Remove</BaseButton>
+              <BaseButton variant="ghost" size="sm" :loading="isRemovingLogo" @click="handleLogoRemove">{{ t('common.delete') }}</BaseButton>
             </div>
             <FileUploader
               accept=".png,.jpg,.jpeg"
-              :hint="isUploadingLogo ? 'Uploading…' : companyStore.settings.hasLogo ? 'Upload a different logo to replace it' : 'PNG or JPEG'"
+              :hint="isUploadingLogo ? t('administration.companyPage.uploading') : companyStore.settings.hasLogo ? t('administration.companyPage.uploadDifferentLogo') : t('administration.companyPage.pngOrJpeg')"
               :allowed-extensions="['.png', '.jpg', '.jpeg']"
               :max-size-bytes="5 * 1024 * 1024"
               @select="handleLogoSelect"
@@ -239,88 +240,88 @@ function handleCancel(): void {
           </div>
         </FormSection>
 
-        <FormSection title="Application Preferences" description="Defaults applied across the application.">
+        <FormSection :title="t('administration.companyPage.applicationPreferences')" :description="t('administration.companyPage.applicationPreferencesDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <SelectBox
               :model-value="companyStore.settings.defaultLanguage"
-              label="Default Language"
+              :label="t('administration.companyPage.defaultLanguage')"
               :options="LANGUAGE_OPTIONS"
               @update:model-value="companyStore.updateField('defaultLanguage', $event as AppLanguage)"
             />
             <TextInput
               :model-value="companyStore.settings.timezone"
-              label="Timezone"
+              :label="t('administration.companyPage.timezone')"
               @update:model-value="companyStore.updateField('timezone', $event)"
             />
             <SelectBox
               :model-value="companyStore.settings.dateFormat"
-              label="Date Format"
+              :label="t('administration.companyPage.dateFormat')"
               :options="DATE_FORMAT_OPTIONS"
               @update:model-value="companyStore.updateField('dateFormat', $event)"
             />
             <SelectBox
               :model-value="companyStore.settings.currency"
-              label="Currency"
+              :label="t('administration.companyPage.currency')"
               :options="CURRENCY_OPTIONS"
               @update:model-value="companyStore.updateField('currency', $event)"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Business Settings" description="Default terms applied to new quotations.">
+        <FormSection :title="t('administration.companyPage.businessSettings')" :description="t('administration.companyPage.businessSettingsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <NumberInput
               :model-value="companyStore.settings.defaultPaymentTermsDays"
-              label="Default Payment Terms (days)"
+              :label="t('administration.companyPage.defaultPaymentTerms')"
               :min="0"
               @update:model-value="companyStore.updateField('defaultPaymentTermsDays', Number($event))"
             />
             <NumberInput
               :model-value="companyStore.settings.defaultQuotationValidityDays"
-              label="Default Quotation Validity (days)"
+              :label="t('administration.companyPage.defaultQuotationValidity')"
               :min="0"
               @update:model-value="companyStore.updateField('defaultQuotationValidityDays', Number($event))"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Project Alerts" description="Notify the assigned engineer when a project sits without moving forward.">
+        <FormSection :title="t('administration.companyPage.projectAlerts')" :description="t('administration.companyPage.projectAlertsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <NumberInput
               :model-value="companyStore.settings.staleProjectAlertDays"
-              label="Stale Project Alert Threshold (days)"
-              hint="A notification is sent once a project's workflow stage hasn't advanced for this many days."
+              :label="t('administration.companyPage.staleProjectAlertThreshold')"
+              :hint="t('administration.companyPage.staleProjectAlertHint')"
               :min="1"
               @update:model-value="companyStore.updateField('staleProjectAlertDays', Number($event))"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Onboarding Alerts" description="Notify the account manager when a client's onboarding sits without moving forward.">
+        <FormSection :title="t('administration.companyPage.onboardingAlerts')" :description="t('administration.companyPage.onboardingAlertsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <NumberInput
               :model-value="companyStore.settings.staleOnboardingAlertDays"
-              label="Stale Onboarding Alert Threshold (days)"
-              hint="A notification is sent once a client's onboarding status hasn't advanced for this many days."
+              :label="t('administration.companyPage.staleOnboardingAlertThreshold')"
+              :hint="t('administration.companyPage.staleOnboardingAlertHint')"
               :min="1"
               @update:model-value="companyStore.updateField('staleOnboardingAlertDays', Number($event))"
             />
           </div>
         </FormSection>
 
-        <FormSection title="Site Engineer Status Reports" description="Whoever is selected here reviews every incoming field status report and attaches it to the relevant project.">
+        <FormSection :title="t('administration.companyPage.siteEngineerStatusReports')" :description="t('administration.companyPage.siteEngineerStatusReportsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <SelectBox
               :model-value="companyStore.settings.statusReportRecipientId ?? ''"
-              label="Status Report Recipient"
-              placeholder="No one assigned"
+              :label="t('administration.companyPage.statusReportRecipient')"
+              :placeholder="t('administration.companyPage.noOneAssigned')"
               :options="statusReportRecipientOptions"
               @update:model-value="companyStore.updateField('statusReportRecipientId', $event || null)"
             />
           </div>
         </FormSection>
 
-        <FormActionBar submit-label="Save Changes" :loading="companyStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
+        <FormActionBar :submit-label="t('administration.companyPage.saveChanges')" :loading="companyStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>
   </div>

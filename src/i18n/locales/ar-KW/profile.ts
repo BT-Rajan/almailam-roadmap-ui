@@ -1,0 +1,16 @@
+export default {
+  pageTitle: 'ملفي الشخصي',
+  pageSubtitle: 'عرض بياناتك الشخصية وتحديثها.',
+  personalDetails: 'البيانات الشخصية',
+  personalDetailsDescription: 'تظهر هذه البيانات عبر التطبيق وعلى المستندات المُسندة إليك.',
+  fullName: 'الاسم الكامل',
+  designation: 'المسمى الوظيفي',
+  designationPlaceholder: 'مثال: مهندس أول',
+  mobile: 'الجوال',
+  mobilePlaceholder: 'مثال: 971 50 000 0000+',
+  account: 'الحساب',
+  accountDescription: 'يديره أحد المسؤولين -- تواصل معه لتغيير هذه البيانات.',
+  email: 'البريد الإلكتروني',
+  role: 'الدور',
+  saveChanges: 'حفظ التغييرات',
+}

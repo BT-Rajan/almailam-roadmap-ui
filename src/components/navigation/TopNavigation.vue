@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Bell, Calendar, Menu, MessageSquare, Search, Sparkles } from '@lucide/vue'
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import UserMenu from '@/components/navigation/UserMenu.vue'
@@ -12,6 +13,7 @@ import { useNotificationStore } from '@/stores/notificationStore'
 import { useSearchStore } from '@/stores/searchStore'
 
 const router = useRouter()
+const { t } = useI18n()
 const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
@@ -32,7 +34,7 @@ onMounted(() => {
       <button
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] lg:hidden"
-        aria-label="Open navigation menu"
+        :aria-label="t('common.openNavigationMenu')"
         @click="navigationStore.openMobileSidebar"
       >
         <Menu :size="20" />
@@ -44,7 +46,7 @@ onMounted(() => {
         @click="searchStore.open"
       >
         <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-        <span class="flex-1 truncate">Search clients, projects, documents...</span>
+        <span class="flex-1 truncate">{{ t('common.searchGlobalPlaceholder') }}</span>
         <kbd class="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
           Ctrl K
         </kbd>
@@ -56,7 +58,7 @@ onMounted(() => {
         v-if="can('knowledgebase.view') && knowledgeStore.isEnabled !== false"
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Knowledge Assistant"
+        :aria-label="t('common.knowledgeAssistant')"
         @click="knowledgeStore.toggleDrawer"
       >
         <Sparkles :size="18" />
@@ -66,7 +68,7 @@ onMounted(() => {
         v-if="can('activity.view')"
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Activity Calendar"
+        :aria-label="t('common.activityCalendar')"
         @click="router.push({ name: ROUTE_NAMES.ADMIN_ACTIVITY_CALENDAR })"
       >
         <Calendar :size="18" />
@@ -75,7 +77,7 @@ onMounted(() => {
       <button
         type="button"
         class="relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Notifications"
+        :aria-label="t('common.notifications')"
         @click="notificationStore.toggleDrawer"
       >
         <Bell :size="18" />
@@ -91,7 +93,7 @@ onMounted(() => {
       <button
         type="button"
         class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
-        aria-label="Message Centre"
+        :aria-label="t('common.messageCentre')"
         @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE })"
       >
         <MessageSquare :size="18" />

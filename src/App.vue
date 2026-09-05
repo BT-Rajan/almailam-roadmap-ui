@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
@@ -14,6 +15,7 @@ import CustomerPortalLayout from '@/layouts/CustomerPortalLayout.vue'
 import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 
 const route = useRoute()
+const { t } = useI18n()
 
 useIdleLogout()
 
@@ -30,7 +32,7 @@ const layout = computed(() => {
 </script>
 
 <template>
-  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <a href="#main-content" class="skip-link">{{ t('common.skipToMainContent') }}</a>
   <component :is="layout" />
   <ToastContainer />
   <ResultDialog />

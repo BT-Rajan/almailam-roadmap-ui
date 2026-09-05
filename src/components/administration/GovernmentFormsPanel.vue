@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Ban, Eye, Landmark, Pencil, Plus, RotateCcw, Trash2, Upload } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -38,6 +39,7 @@ interface FormRow {
   lastUpdated: string
 }
 
+const { t } = useI18n()
 const store = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -61,20 +63,23 @@ const previewTarget = ref<GovernmentForm | undefined>(undefined)
 const deleteTarget = ref<{ type: 'authority' | 'form'; id: string; label: string } | undefined>(undefined)
 const isDeleting = ref(false)
 
-const TABLE_COLUMNS: SmartTableColumn<FormRow>[] = [
-  { key: 'formCode', label: 'Code', sortable: true, width: '140px' },
-  { key: 'title', label: 'Form Title', sortable: true },
-  { key: 'category', label: 'Category', sortable: true },
-  { key: 'language', label: 'Language', sortable: true },
-  { key: 'version', label: 'Version', width: '100px' },
-  { key: 'status', label: 'Status', sortable: true, width: '110px' },
-  { key: 'lastUpdated', label: 'Last Updated', sortable: true, align: 'right' },
-]
+const TABLE_COLUMNS = computed<SmartTableColumn<FormRow>[]>(() => [
+  { key: 'formCode', label: t('administration.governmentFormsPanel.columnCode'), sortable: true, width: '140px' },
+  { key: 'title', label: t('administration.governmentFormsPanel.columnFormTitle'), sortable: true },
+  { key: 'category', label: t('administration.governmentFormsPanel.columnCategory'), sortable: true },
+  { key: 'language', label: t('administration.governmentFormsPanel.columnLanguage'), sortable: true },
+  { key: 'version', label: t('administration.governmentFormsPanel.columnVersion'), width: '100px' },
+  { key: 'status', label: t('administration.governmentFormsPanel.columnStatus'), sortable: true, width: '110px' },
+  { key: 'lastUpdated', label: t('administration.governmentFormsPanel.columnLastUpdated'), sortable: true, align: 'right' },
+])
 
 const authorityOptions = computed<SelectOption[]>(() => [
-  { label: `All Authorities (${store.forms.length})`, value: 'All' },
+  { label: t('administration.governmentFormsPanel.allAuthoritiesCount', { count: store.forms.length }), value: 'All' },
   ...store.authorities.map((authority) => ({
-    label: `${authority.name} (${store.forms.filter((form) => form.authorityId === authority.id).length})`,
+    label: t('administration.governmentFormsPanel.authorityWithCount', {
+      name: authority.name,
+      count: store.forms.filter((form) => form.authorityId === authority.id).length,
+    }),
     value: authority.id,
   })),
 ])
@@ -199,6 +204,10 @@ function formById(formId: string): GovernmentForm | undefined {
   return store.forms.find((form) => form.id === formId)
 }
 
+function statusLabel(status: string): string {
+  return status === 'Active' ? t('government.formStatus.active') : t('government.formStatus.archived')
+}
+
 async function toggleFormStatus(form: GovernmentForm): Promise<void> {
   try {
     if (form.status === 'Active') {
@@ -247,9 +256,9 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
 <template>
   <div class="flex flex-col gap-3">
     <div class="flex justify-end gap-2">
-      <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">Add Authority</BaseButton>
-      <BaseButton variant="secondary" :icon="Upload" @click="isImportDialogOpen = true">Load Standard Forms</BaseButton>
-      <BaseButton :icon="Plus" @click="openAddForm">Add Form</BaseButton>
+      <BaseButton variant="secondary" :icon="Landmark" @click="openAddAuthority">{{ t('administration.governmentFormsPanel.addAuthority') }}</BaseButton>
+      <BaseButton variant="secondary" :icon="Upload" @click="isImportDialogOpen = true">{{ t('administration.governmentFormsPanel.loadStandardForms') }}</BaseButton>
+      <BaseButton :icon="Plus" @click="openAddForm">{{ t('administration.governmentFormsPanel.addForm') }}</BaseButton>
     </div>
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
@@ -262,12 +271,12 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex items-end gap-2">
           <div class="w-64">
-            <SelectBox v-model="selectedAuthorityId" label="Authority" :options="authorityOptions" />
+            <SelectBox v-model="selectedAuthorityId" :label="t('administration.governmentFormsPanel.authority')" :options="authorityOptions" />
           </div>
           <IconButton
             v-if="selectedAuthority"
             :icon="Pencil"
-            label="Edit authority"
+            :label="t('administration.governmentFormsPanel.editAuthority')"
             size="sm"
             variant="ghost"
             @click="openEditAuthority(selectedAuthority)"
@@ -275,7 +284,7 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
           <IconButton
             v-if="selectedAuthority"
             :icon="Trash2"
-            label="Delete authority"
+            :label="t('administration.governmentFormsPanel.deleteAuthority')"
             size="sm"
             variant="ghost"
             @click="requestDeleteAuthority(selectedAuthority)"
@@ -283,12 +292,12 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
         </div>
 
         <div class="w-48">
-          <SelectBox v-model="statusFilter" label="Status" :options="FORM_STATUS_FILTER_OPTIONS" />
+          <SelectBox v-model="statusFilter" :label="t('administration.governmentFormsPanel.status')" :options="FORM_STATUS_FILTER_OPTIONS" />
         </div>
       </div>
 
       <p v-if="store.authorities.length === 0" class="text-sm text-text-muted">
-        No authorities yet -- add one to start filing forms under it.
+        {{ t('administration.governmentFormsPanel.noAuthoritiesYet') }}
       </p>
 
       <div>
@@ -297,15 +306,15 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
           :rows="tableRows"
           row-key="id"
           :searchable="true"
-          search-placeholder="Search forms by title or code"
-          empty-title="No forms found"
-          empty-description="Add a government form to build out the library."
+          :search-placeholder="t('administration.governmentFormsPanel.searchPlaceholder')"
+          :empty-title="t('administration.governmentFormsPanel.noFormsFound')"
+          :empty-description="t('administration.governmentFormsPanel.noFormsFoundDescription')"
         >
           <template #cell-category="{ value }">
             <StatusBadge :label="value as string" :variant="getFormCategoryVariant(value as GovernmentForm['category'])" />
           </template>
           <template #cell-status="{ value }">
-            <StatusBadge :label="value as string" :variant="value === 'Active' ? 'success' : 'neutral'" show-dot />
+            <StatusBadge :label="statusLabel(value as string)" :variant="value === 'Active' ? 'success' : 'neutral'" show-dot />
           </template>
           <template #cell-lastUpdated="{ value }">
             {{ formatDate(value as string) }}
@@ -314,7 +323,7 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
             <div class="flex items-center justify-end gap-1">
               <IconButton
                 :icon="Eye"
-                label="Preview form"
+                :label="t('administration.governmentFormsPanel.previewForm')"
                 size="sm"
                 variant="ghost"
                 @click="previewTarget = formById(row.id)"
@@ -322,7 +331,7 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
               <IconButton
                 v-if="formById(row.id)?.status === 'Active'"
                 :icon="Ban"
-                label="Disable form"
+                :label="t('administration.governmentFormsPanel.disableForm')"
                 size="sm"
                 variant="ghost"
                 @click="formById(row.id) && toggleFormStatus(formById(row.id)!)"
@@ -330,21 +339,21 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
               <IconButton
                 v-else
                 :icon="RotateCcw"
-                label="Enable form"
+                :label="t('administration.governmentFormsPanel.enableForm')"
                 size="sm"
                 variant="ghost"
                 @click="formById(row.id) && toggleFormStatus(formById(row.id)!)"
               />
               <IconButton
                 :icon="Pencil"
-                label="Edit form"
+                :label="t('administration.governmentFormsPanel.editForm')"
                 size="sm"
                 variant="ghost"
                 @click="formById(row.id) && openEditForm(formById(row.id)!)"
               />
               <IconButton
                 :icon="Trash2"
-                label="Delete form"
+                :label="t('administration.governmentFormsPanel.deleteForm')"
                 size="sm"
                 variant="ghost"
                 @click="formById(row.id) && requestDeleteForm(formById(row.id)!)"

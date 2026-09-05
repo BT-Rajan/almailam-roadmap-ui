@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
+
+const { t } = useI18n()
 
 defineProps<{
   permits: PermitCatalogItem[]
@@ -48,22 +51,22 @@ function commitName(permit: PermitCatalogItem, value: string): void {
       >
         <TextInput
           :model-value="nameDrafts[permit.id] ?? permit.name"
-          placeholder="Permit name"
+          :placeholder="t('administration.permitCatalog.permitName')"
           class="flex-1"
           @update:model-value="nameDrafts[permit.id] = $event"
           @blur="commitName(permit, $event)"
         />
-        <IconButton :icon="Trash2" label="Remove permit" size="sm" variant="danger" @click="emit('remove', permit.id)" />
+        <IconButton :icon="Trash2" :label="t('administration.permitCatalog.removePermit')" size="sm" variant="danger" @click="emit('remove', permit.id)" />
       </li>
     </ol>
-    <p v-else class="text-sm text-text-muted">No permits yet -- add one below.</p>
+    <p v-else class="text-sm text-text-muted">{{ t('administration.permitCatalog.noPermitsYet') }}</p>
 
     <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-      <p class="text-sm font-medium text-text-secondary">Add Permit</p>
+      <p class="text-sm font-medium text-text-secondary">{{ t('administration.permitCatalog.addPermit') }}</p>
       <div class="flex flex-col gap-2 sm:flex-row">
-        <TextInput v-model="newPermitName" placeholder="Permit name" class="sm:flex-1" @keyup.enter="submitNewPermit" />
+        <TextInput v-model="newPermitName" :placeholder="t('administration.permitCatalog.permitName')" class="sm:flex-1" @keyup.enter="submitNewPermit" />
         <BaseButton :icon="Plus" variant="secondary" :disabled="newPermitName.trim().length === 0" @click="submitNewPermit">
-          Add
+          {{ t('administration.permitCatalog.add') }}
         </BaseButton>
       </div>
     </div>

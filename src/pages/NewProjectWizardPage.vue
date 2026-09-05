@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -38,18 +39,28 @@ const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
+const { t } = useI18n()
 
-const WIZARD_STEPS = [
-  { label: 'Client & Service' },
-  { label: 'Project Details' },
-  { label: 'Review & Confirm' },
-]
+const WIZARD_STEPS = computed(() => [
+  { label: t('project.newWizard.steps.clientService') },
+  { label: t('project.newWizard.steps.projectDetails') },
+  { label: t('project.newWizard.steps.reviewConfirm') },
+])
 
-const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
-]
+const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('project.priority.high'), value: 'High' },
+  { label: t('project.priority.medium'), value: 'Medium' },
+  { label: t('project.priority.low'), value: 'Low' },
+])
+
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  High: 'project.priority.high',
+  Medium: 'project.priority.medium',
+  Low: 'project.priority.low',
+}
+function priorityLabel(priority: string): string {
+  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
+}
 
 const currentStep = ref(0)
 const isSubmitting = ref(false)
@@ -243,11 +254,11 @@ function goNext(): void {
     toastStore.show(
       'error',
       'Please fix the highlighted fields',
-      `Some fields under "${WIZARD_STEPS[currentStep.value].label}" need attention before continuing.`,
+      `Some fields under "${WIZARD_STEPS.value[currentStep.value].label}" need attention before continuing.`,
     )
     return
   }
-  currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
+  currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.value.length - 1)
 }
 
 function goBack(): void {
@@ -345,7 +356,7 @@ function goToCreatedProject(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="New Project Wizard" subtitle="Set up a new engineering consulting engagement in a few steps." />
+    <PageHeader :title="t('project.newWizard.title')" :subtitle="t('project.newWizard.subtitle')" />
 
     <div class="rounded-xl border border-border-light bg-bg-card p-6">
       <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" />
@@ -353,31 +364,31 @@ function goToCreatedProject(): void {
       <div class="mt-8">
         <FormSection
           v-if="currentStep === 0"
-          title="Client & Service"
-          description="Choose the client this engagement is for and the service being delivered."
+          :title="t('project.newWizard.clientServiceTitle')"
+          :description="t('project.newWizard.clientServiceDescription')"
         >
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <div class="flex flex-col gap-1.5">
               <SelectBox
                 v-model="form.clientId"
-                label="Client"
-                placeholder="Select a client"
+                :label="t('project.newWizard.client')"
+                :placeholder="t('project.newWizard.selectClient')"
                 required
                 :options="clientOptions"
                 :error="errors.clientId"
               />
               <p v-if="clientOptions.length === 0" class="text-xs text-warning-600">
-                No eligible clients found. A client must have completed onboarding ("Ready") and be Active before a project can be created for them.
+                {{ t('project.newWizard.noEligibleClients') }}
               </p>
               <p v-else-if="hasIneligibleClients" class="text-xs text-text-muted">
-                Only clients that are Active and have completed onboarding are shown.
+                {{ t('project.newWizard.onlyEligibleClientsShown') }}
               </p>
               <RouterLink :to="{ name: ROUTE_NAMES.CLIENT_NEW }" class="self-start text-xs font-medium text-primary-600 hover:text-primary-700">
-                + Onboard a new client
+                {{ t('project.newWizard.onboardNewClient') }}
               </RouterLink>
             </div>
             <div class="flex flex-col gap-1.5">
-              <label id="service-picker-label" class="text-sm font-medium text-text-secondary">Service <span class="text-danger-500">*</span></label>
+              <label id="service-picker-label" class="text-sm font-medium text-text-secondary">{{ t('project.newWizard.service') }} <span class="text-danger-500">*</span></label>
               <button
                 id="service-picker-button"
                 type="button"
@@ -386,20 +397,20 @@ function goToCreatedProject(): void {
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
               >
-                <span v-if="form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0" class="text-text-muted">Select a service</span>
+                <span v-if="form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0" class="text-text-muted">{{ t('project.newWizard.selectService') }}</span>
                 <span v-else class="text-text-primary">
                   <template v-if="form.selectedActivities.length > 0">
-                    {{ form.selectedActivities.length }} activit{{ form.selectedActivities.length === 1 ? 'y' : 'ies' }} ·
+                    {{ t('project.newWizard.activityCount', form.selectedActivities.length) }} ·
                     {{ formatCurrency(serviceTotal, 'KWD') }}
                   </template>
                   <template v-if="form.selectedActivities.length > 0 && form.selectedSupervisionActivities.length > 0"> + </template>
                   <template v-if="form.selectedSupervisionActivities.length > 0">
-                    {{ form.selectedSupervisionActivities.length }} supervision ·
+                    {{ t('project.newWizard.supervisionCount', form.selectedSupervisionActivities.length) }} ·
                     {{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo
                   </template>
                 </span>
                 <span class="text-xs font-medium text-primary-600">
-                  {{ form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 ? 'Choose' : 'Edit' }}
+                  {{ form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 ? t('project.newWizard.choose') : t('project.newWizard.edit') }}
                 </span>
               </button>
               <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
@@ -407,114 +418,113 @@ function goToCreatedProject(): void {
             </div>
             <SelectBox
               v-model="form.engineer"
-              label="Field Engineer"
-              placeholder="Assign an engineer"
+              :label="t('project.newWizard.fieldEngineer')"
+              :placeholder="t('project.newWizard.assignEngineer')"
               required
               :options="engineerOptions"
               :error="errors.engineer"
             />
-            <RadioGroup v-model="form.priority" label="Priority" :options="PRIORITY_OPTIONS" :vertical="false" />
+            <RadioGroup v-model="form.priority" :label="t('project.newWizard.priority')" :options="PRIORITY_OPTIONS" :vertical="false" />
           </div>
         </FormSection>
 
         <FormSection
           v-else-if="currentStep === 1"
-          title="Project Details"
-          description="Describe the engagement and set the delivery timeline."
+          :title="t('project.newWizard.projectDetailsTitle')"
+          :description="t('project.newWizard.projectDetailsDescription')"
         >
           <TextInput
             v-model="form.projectName"
-            label="Project Name"
+            :label="t('project.newWizard.projectName')"
             placeholder="e.g. Al Reem Residential Tower - Structural Design"
             required
             :error="errors.projectName"
           />
           <TextArea
             v-model="form.scope"
-            label="Scope of Work"
-            placeholder="Describe the scope of this engagement"
-            hint="Auto-filled from the services and additional activities picked earlier -- edit freely if it needs adjusting."
+            :label="t('project.newWizard.scopeOfWork')"
+            :placeholder="t('project.newWizard.scopeOfWorkPlaceholder')"
+            :hint="t('project.newWizard.scopeOfWorkHint')"
             :rows="6"
           />
           <TextInput
             v-model="form.siteAddress"
-            label="Project/Site Address"
+            :label="t('project.newWizard.siteAddress')"
             placeholder="e.g. Plot 572, Parcel 4, Second Suburb, Al Mutlaa"
-            hint="Fills the address placeholder on a Quotation/Contract document template, if the uploaded one has one."
+            :hint="t('project.newWizard.siteAddressHint')"
           />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <DatePicker v-model="form.startDate" label="Start Date" required :error="errors.startDate" />
-            <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />
+            <DatePicker v-model="form.startDate" :label="t('project.newWizard.startDate')" required :error="errors.startDate" />
+            <DatePicker v-model="form.targetDate" :label="t('project.newWizard.targetDate')" required :error="errors.targetDate" />
           </div>
         </FormSection>
 
-        <FormSection v-else title="Review & Confirm" description="Confirm the details before creating the project.">
+        <FormSection v-else :title="t('project.newWizard.reviewTitle')" :description="t('project.newWizard.reviewDescription')">
           <div class="grid grid-cols-1 gap-x-8 gap-y-4 tablet:grid-cols-2">
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Client</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.client') }}</p>
               <p class="text-sm text-text-primary">{{ selectedClientName() }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Service</p>
-              <p class="text-sm text-text-primary">{{ form.service || 'Not selected' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.service') }}</p>
+              <p class="text-sm text-text-primary">{{ form.service || t('project.newWizard.notSelected') }}</p>
               <ul v-if="form.selectedActivities.length > 0" class="mt-1 flex flex-col gap-0.5">
                 <li v-for="item in form.selectedActivities" :key="item.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
                   <span class="truncate">{{ item.activityName }}</span>
                   <span class="shrink-0">{{ formatCurrency(item.fixedCost, 'KWD') }}</span>
                 </li>
                 <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
-                  <span>Total</span>
+                  <span>{{ t('project.newWizard.total') }}</span>
                   <span>{{ formatCurrency(serviceTotal, 'KWD') }}</span>
                 </li>
               </ul>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Field Engineer</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.fieldEngineer') }}</p>
               <p class="text-sm text-text-primary">{{ selectedEngineerName() }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Priority</p>
-              <StatusBadge :label="form.priority" :variant="getProjectPriorityVariant(form.priority)" />
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.priority') }}</p>
+              <StatusBadge :label="priorityLabel(form.priority)" :variant="getProjectPriorityVariant(form.priority)" />
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Project Name</p>
-              <p class="text-sm text-text-primary">{{ form.projectName || 'Not entered' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.projectName') }}</p>
+              <p class="text-sm text-text-primary">{{ form.projectName || t('project.newWizard.notEntered') }}</p>
             </div>
             <div v-if="form.scope" class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Scope of Work</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.scopeOfWork') }}</p>
               <p class="text-sm text-text-primary">{{ form.scope }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Start Date</p>
-              <p class="text-sm text-text-primary">{{ form.startDate ? formatDate(form.startDate) : 'Not set' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.startDate') }}</p>
+              <p class="text-sm text-text-primary">{{ form.startDate ? formatDate(form.startDate) : t('project.newWizard.notSet') }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Target Date</p>
-              <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : 'Not set' }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.targetDate') }}</p>
+              <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : t('project.newWizard.notSet') }}</p>
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Supervision</p>
-              <p v-if="form.selectedSupervisionActivities.length === 0" class="text-sm text-text-primary">None</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.stage.supervision') }}</p>
+              <p v-if="form.selectedSupervisionActivities.length === 0" class="text-sm text-text-primary">{{ t('project.newWizard.none') }}</p>
               <template v-else>
                 <p class="text-sm text-text-primary">
-                  {{ form.supervisionStartDate ? formatDate(form.supervisionStartDate) : 'Not set' }} –
-                  {{ form.supervisionEndDate ? formatDate(form.supervisionEndDate) : 'Ongoing' }}
+                  {{ form.supervisionStartDate ? formatDate(form.supervisionStartDate) : t('project.newWizard.notSet') }} –
+                  {{ form.supervisionEndDate ? formatDate(form.supervisionEndDate) : t('project.newWizard.ongoing') }}
                 </p>
                 <ul class="mt-1 flex flex-col gap-0.5">
                   <li v-for="activity in form.selectedSupervisionActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
                     <span class="truncate">
-                      {{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : 'Ongoing' }})
+                      {{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.newWizard.ongoing') }})
                     </span>
                     <span class="shrink-0">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
                   </li>
                   <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
-                    <span>Combined monthly total</span>
+                    <span>{{ t('project.newWizard.combinedMonthlyTotal') }}</span>
                     <span>{{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo</span>
                   </li>
                 </ul>
                 <p class="mt-1 text-xs text-text-muted">
-                  Billed monthly and prorated by day for partial months -- see the Financial Agreement created once
-                  this project reaches Contract.
+                  {{ t('project.newWizard.supervisionBillingNote') }}
                 </p>
               </template>
             </div>
@@ -525,22 +535,22 @@ function goToCreatedProject(): void {
       <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
         <FormActionBar
           v-if="currentStep === 0"
-          cancel-label="Cancel"
-          submit-label="Next"
+          :cancel-label="t('project.newWizard.cancel')"
+          :submit-label="t('project.newWizard.next')"
           @cancel="cancelWizard"
           @submit="goNext"
         />
         <FormActionBar
           v-else-if="currentStep < WIZARD_STEPS.length - 1"
-          cancel-label="Back"
-          submit-label="Next"
+          :cancel-label="t('project.newWizard.back')"
+          :submit-label="t('project.newWizard.next')"
           @cancel="goBack"
           @submit="goNext"
         />
         <FormActionBar
           v-else
-          cancel-label="Back"
-          submit-label="Create Project"
+          :cancel-label="t('project.newWizard.back')"
+          :submit-label="t('project.newWizard.createProject')"
           :loading="isSubmitting"
           @cancel="goBack"
           @submit="submitWizard"

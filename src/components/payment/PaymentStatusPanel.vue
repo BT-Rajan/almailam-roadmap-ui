@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Banknote, RefreshCcw, Wallet } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -16,7 +17,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import type { AdjustmentType, FinancialAgreement, Payment, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
+import type { AdjustmentType, AgreementStream, FinancialAgreement, Payment, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 
 interface Props {
@@ -43,6 +44,23 @@ const projectStore = useProjectStore()
 // an explicit acknowledgment dialog for actions that change money on
 // record, not a toast that could be missed.
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
+
+const AGREEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'payment.agreementStatus.draft',
+  Approved: 'payment.agreementStatus.approved',
+}
+function agreementStatusLabel(status: string): string {
+  return t(AGREEMENT_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const AGREEMENT_STREAM_LABEL_KEYS: Record<string, string> = {
+  Design: 'payment.agreementStream.design',
+  Supervision: 'payment.agreementStream.supervision',
+}
+function agreementStreamLabel(stream: string): string {
+  return t(AGREEMENT_STREAM_LABEL_KEYS[stream] ?? getAgreementStreamLabel(stream as AgreementStream))
+}
 
 const isRecordPaymentOpen = ref(false)
 const preselectedObligationId = ref<string | undefined>(undefined)
@@ -149,32 +167,32 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
     <EmptyState
       v-if="visibleStreams.length === 0"
       :icon="Wallet"
-      title="No billable services selected"
-      description="This project has no Design or Supervision work selected, so there's no payment status to track yet."
-      action-label="Add Service"
+      :title="t('payment.statusPanel.noBillableTitle')"
+      :description="t('payment.statusPanel.noBillableDescription')"
+      :action-label="t('payment.statusPanel.addService')"
       @action="emit('add-service')"
     />
 
     <EmptyState
       v-else-if="streamsWithAgreement().length === 0"
       :icon="Wallet"
-      title="No payment plan defined yet"
-      description="Define this project's payment plan before payments can be tracked here."
-      action-label="Go to Payment Plan"
+      :title="t('payment.statusPanel.noPlanDefinedTitle')"
+      :description="t('payment.statusPanel.noPlanDefinedDescription')"
+      :action-label="t('payment.statusPanel.goToPaymentPlan')"
       @action="emit('navigate-tab', 'payment-plan')"
     />
 
     <template v-else>
       <p v-if="streamsMissingAgreement().length > 0" class="text-sm text-text-muted">
-        Still missing a payment plan for {{ streamsMissingAgreement().map((s) => getAgreementStreamLabel(s)).join(' and ') }} --
-        <button type="button" class="text-accent-600 underline" @click="emit('navigate-tab', 'payment-plan')">go to Payment Plan</button>.
+        {{ t('payment.statusPanel.missingPlanNotice', { streams: streamsMissingAgreement().map((s) => agreementStreamLabel(s)).join(' and ') }) }}
+        <button type="button" class="text-accent-600 underline" @click="emit('navigate-tab', 'payment-plan')">{{ t('payment.statusPanel.missingPlanLink') }}</button>.
       </p>
 
       <div v-for="stream in streamsWithAgreement()" :key="stream" class="flex flex-col gap-4">
         <div v-if="streamsWithAgreement().length > 1" class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ getAgreementStreamLabel(stream) }}</h3>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ agreementStreamLabel(stream) }}</h3>
           <StatusBadge
-            :label="agreementForStream(stream)!.status"
+            :label="agreementStatusLabel(agreementForStream(stream)!.status)"
             :variant="agreementForStream(stream)!.status === 'Approved' ? 'success' : 'warning'"
           />
         </div>
@@ -182,9 +200,9 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
         <PaymentSummaryCards :summary="summaryForStream(stream)!" :currency="agreementForStream(stream)!.currency" />
 
         <div class="flex flex-wrap items-center justify-end gap-2 no-print">
-          <BaseButton variant="secondary" size="sm" :icon="Banknote" @click="openRecordPayment(agreementForStream(stream)!)">Record Payment</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click="openFinancialAction(agreementForStream(stream)!, 'refund')">Issue Refund</BaseButton>
-          <BaseButton variant="ghost" size="sm" :icon="RefreshCcw" @click="openFinancialAction(agreementForStream(stream)!, 'adjustment')">Apply Adjustment</BaseButton>
+          <BaseButton variant="secondary" size="sm" :icon="Banknote" @click="openRecordPayment(agreementForStream(stream)!)">{{ t('payment.statusPanel.recordPayment') }}</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="openFinancialAction(agreementForStream(stream)!, 'refund')">{{ t('payment.statusPanel.issueRefund') }}</BaseButton>
+          <BaseButton variant="ghost" size="sm" :icon="RefreshCcw" @click="openFinancialAction(agreementForStream(stream)!, 'adjustment')">{{ t('payment.statusPanel.applyAdjustment') }}</BaseButton>
         </div>
 
         <PaymentTimeline

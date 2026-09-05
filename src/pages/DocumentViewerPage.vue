@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download, MessageSquare, Plus, RefreshCw, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -23,13 +24,14 @@ import type { DocumentStatus, DocumentVersion } from '@/types/Document'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const documentStore = useDocumentStore()
 const toastStore = useToastStore()
 
 const documentId = computed(() => route.params.documentId as string)
 
 const projectName = computed(
-  () => documentStore.getProjectById(documentStore.currentDocument?.projectId ?? '')?.projectName ?? 'Unknown Project',
+  () => documentStore.getProjectById(documentStore.currentDocument?.projectId ?? '')?.projectName ?? t('document.unknownProject'),
 )
 
 function loadData(): void {
@@ -113,14 +115,14 @@ async function handleDelete(): Promise<void> {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader
-      :title="documentStore.currentDocument?.title ?? 'Document Viewer'"
+      :title="documentStore.currentDocument?.title ?? t('document.viewerPage.documentViewer')"
       :subtitle="documentStore.currentDocument ? `${documentStore.currentDocument.type} · ${documentStore.currentDocument.revision}` : undefined"
     >
       <template v-if="documentStore.currentDocument" #actions>
-        <BaseButton :icon="Download" variant="secondary" @click="handleDownload">Download</BaseButton>
-        <BaseButton :icon="RefreshCw" variant="secondary" @click="isStatusDialogOpen = true">Status</BaseButton>
-        <BaseButton :icon="Plus" variant="secondary" @click="isAddVersionOpen = true">Add Version</BaseButton>
-        <IconButton :icon="Trash2" label="Delete document" @click="isDeleteDialogOpen = true" />
+        <BaseButton :icon="Download" variant="secondary" @click="handleDownload">{{ t('document.viewerPage.download') }}</BaseButton>
+        <BaseButton :icon="RefreshCw" variant="secondary" @click="isStatusDialogOpen = true">{{ t('document.viewerPage.status') }}</BaseButton>
+        <BaseButton :icon="Plus" variant="secondary" @click="isAddVersionOpen = true">{{ t('document.viewerPage.addVersion') }}</BaseButton>
+        <IconButton :icon="Trash2" :label="t('document.viewerPage.deleteDocument')" @click="isDeleteDialogOpen = true" />
       </template>
     </PageHeader>
 
@@ -140,7 +142,11 @@ async function handleDelete(): Promise<void> {
       </div>
     </div>
 
-    <EmptyState v-else-if="!documentStore.currentDocument" title="Document not found" description="This document may have been removed or the link is incorrect." />
+    <EmptyState
+      v-else-if="!documentStore.currentDocument"
+      :title="t('document.viewerPage.documentNotFound')"
+      :description="t('document.viewerPage.documentNotFoundDescription')"
+    />
 
     <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
       <div class="flex flex-col gap-6 laptop:col-span-2">
@@ -148,9 +154,13 @@ async function handleDelete(): Promise<void> {
 
         <Card>
           <template #header>
-            <h3 class="text-sm font-semibold text-text-primary">Comments</h3>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('document.viewerPage.comments') }}</h3>
           </template>
-          <EmptyState :icon="MessageSquare" title="No comments yet" description="Comment threads for this document will appear here." />
+          <EmptyState
+            :icon="MessageSquare"
+            :title="t('document.viewerPage.noCommentsYet')"
+            :description="t('document.viewerPage.noCommentsYetDescription')"
+          />
         </Card>
       </div>
 

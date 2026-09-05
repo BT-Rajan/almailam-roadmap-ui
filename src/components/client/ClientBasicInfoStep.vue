@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DuplicateClientAlert from '@/components/client/DuplicateClientAlert.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
@@ -26,6 +27,8 @@ defineEmits<{
 
 const form = defineModel<ClientWizardForm>({ required: true })
 
+const { t } = useI18n()
+
 const isIndividual = computed(() => form.value.clientType === 'Individual')
 const maxDate = todayIso()
 
@@ -38,63 +41,65 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
     .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
 )
+
+const languageOptions = computed<SelectOption[]>(() => [
+  { label: t('governmentFormOptions.language.english'), value: 'English' },
+  { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
+])
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <FormSection title="Client Type" description="Select the type of client being onboarded.">
+    <FormSection :title="t('client.basicInfoStep.clientTypeTitle')" :description="t('client.basicInfoStep.clientTypeDescription')">
       <RadioGroup v-model="form.clientType" :options="CLIENT_TYPE_OPTIONS" :vertical="false" />
     </FormSection>
 
     <DuplicateClientAlert :matches="duplicates" @view="$emit('viewDuplicate', $event)" />
 
-    <FormSection v-if="isIndividual" title="Personal Information">
+    <FormSection v-if="isIndividual" :title="t('client.basicInfoStep.personalInformation')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="form.individualProfile.fullLegalName" label="Full Legal Name" required :error="errors.fullLegalName" />
-        <TextInput v-model="form.individualProfile.preferredName" label="Preferred Name" />
-        <TextInput v-model="form.individualProfile.nationality" label="Nationality" required :error="errors.nationality" />
-        <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required :max="maxDate" :error="errors.dateOfBirth" />
+        <TextInput v-model="form.individualProfile.fullLegalName" :label="t('client.basicInfoStep.fullLegalName')" required :error="errors.fullLegalName" />
+        <TextInput v-model="form.individualProfile.preferredName" :label="t('client.basicInfoStep.preferredName')" />
+        <TextInput v-model="form.individualProfile.nationality" :label="t('client.basicInfoStep.nationality')" required :error="errors.nationality" />
+        <DatePicker v-model="form.individualProfile.dateOfBirth" :label="t('client.basicInfoStep.dateOfBirth')" required :max="maxDate" :error="errors.dateOfBirth" />
       </div>
     </FormSection>
 
-    <FormSection v-else title="Organisation Information">
+    <FormSection v-else :title="t('client.basicInfoStep.organisationInformation')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="form.organisationProfile.legalName" label="Legal Name" required :error="errors.legalName" />
-        <TextInput v-model="form.organisationProfile.tradeName" label="Trade Name" />
-        <TextInput v-model="form.organisationProfile.organisationType" label="Organisation Type" required :error="errors.organisationType" />
-        <TextInput v-model="form.organisationProfile.registrationNumber" label="Registration Number" required :error="errors.registrationNumber" />
-        <TextInput v-model="form.organisationProfile.tradeLicenceNumber" label="Trade Licence Number" />
-        <TextInput v-model="form.organisationProfile.countryOfRegistration" label="Country of Registration" required :error="errors.countryOfRegistration" />
-        <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" required :max="maxDate" :error="errors.dateOfIncorporation" />
-        <TextInput v-model="form.organisationProfile.website" label="Website" placeholder="example.com" :error="errors.website" />
+        <TextInput v-model="form.organisationProfile.legalName" :label="t('client.basicInfoStep.legalName')" required :error="errors.legalName" />
+        <TextInput v-model="form.organisationProfile.tradeName" :label="t('client.basicInfoStep.tradeName')" />
+        <TextInput v-model="form.organisationProfile.organisationType" :label="t('client.basicInfoStep.organisationType')" required :error="errors.organisationType" />
+        <TextInput v-model="form.organisationProfile.registrationNumber" :label="t('client.basicInfoStep.registrationNumber')" required :error="errors.registrationNumber" />
+        <TextInput v-model="form.organisationProfile.tradeLicenceNumber" :label="t('client.basicInfoStep.tradeLicenceNumber')" />
+        <TextInput v-model="form.organisationProfile.countryOfRegistration" :label="t('client.basicInfoStep.countryOfRegistration')" required :error="errors.countryOfRegistration" />
+        <DatePicker v-model="form.organisationProfile.dateOfIncorporation" :label="t('client.basicInfoStep.dateOfIncorporation')" required :max="maxDate" :error="errors.dateOfIncorporation" />
+        <TextInput v-model="form.organisationProfile.website" :label="t('client.basicInfoStep.website')" placeholder="example.com" :error="errors.website" />
       </div>
     </FormSection>
 
-    <FormSection title="Contact Details">
+    <FormSection :title="t('client.basicInfoStep.contactDetails')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <TextInput
           v-model="form.mobile"
-          label="Mobile Number"
+          :label="t('client.basicInfoStep.mobileNumber')"
           placeholder="+965 5XXX XXXX"
           required
           maxlength="13"
           :error="errors.mobile"
         />
-        <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
+        <TextInput v-model="form.email" :label="t('client.basicInfoStep.emailAddress')" type="email" required :error="errors.email" />
         <SelectBox
           v-model="form.communicationPreference.preferredLanguage"
-          label="Preferred Language"
-          :options="[
-            { label: 'English', value: 'English' },
-            { label: 'Arabic', value: 'Arabic' },
-          ]"
+          :label="t('client.basicInfoStep.preferredLanguage')"
+          :options="languageOptions"
         />
       </div>
     </FormSection>
 
-    <FormSection title="Assignment" description="Who on staff owns this client relationship. Can be changed later.">
+    <FormSection :title="t('client.basicInfoStep.assignment')" :description="t('client.basicInfoStep.assignmentDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.accountManagerId" label="Account Manager" required :options="accountManagerOptions" :error="errors.accountManagerId" />
+        <SelectBox v-model="form.accountManagerId" :label="t('client.basicInfoStep.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
       </div>
     </FormSection>
   </div>

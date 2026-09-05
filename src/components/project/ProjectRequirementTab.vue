@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowRight, CheckCircle2, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -38,6 +39,7 @@ const projectStore = useProjectStore()
 const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 // Once any of this project's quotations has been finalized, the scope
 // it was built against is frozen too -- see backend project_service.
@@ -184,22 +186,31 @@ async function handleDownloadRevision(revision: ScopeRevision): Promise<void> {
   }
 }
 
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  High: 'project.priority.high',
+  Medium: 'project.priority.medium',
+  Low: 'project.priority.low',
+}
+function priorityLabel(priority: string): string {
+  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
+}
+
 const projectDetailItems = computed(() => [
-  { label: 'Service', value: props.project.service },
-  { label: 'Responsible Engineer', value: props.project.engineer },
-  { label: 'Start Date', value: formatDate(props.project.startDate) },
-  { label: 'Target Completion Date', value: formatDate(props.project.targetDate) },
-  { label: 'Priority', value: props.project.priority },
+  { label: t('project.requirementTab.fields.service'), value: props.project.service },
+  { label: t('project.requirementTab.fields.responsibleEngineer'), value: props.project.engineer },
+  { label: t('project.requirementTab.fields.startDate'), value: formatDate(props.project.startDate) },
+  { label: t('project.requirementTab.fields.targetCompletionDate'), value: formatDate(props.project.targetDate) },
+  { label: t('project.requirementTab.fields.priority'), value: priorityLabel(props.project.priority) },
 ])
 
 const clientDetailItems = computed(() => {
   if (!props.client) return []
   return [
-    { label: 'Company Name', value: props.client.companyName },
-    { label: 'Contact Person', value: props.client.contactPerson },
-    { label: 'Mobile', value: props.client.mobile },
-    { label: 'Email', value: props.client.email },
-    { label: 'City', value: props.client.city },
+    { label: t('project.requirementTab.fields.companyName'), value: props.client.companyName },
+    { label: t('project.requirementTab.fields.contactPerson'), value: props.client.contactPerson },
+    { label: t('project.requirementTab.fields.mobile'), value: props.client.mobile },
+    { label: t('project.requirementTab.fields.email'), value: props.client.email },
+    { label: t('project.requirementTab.fields.city'), value: props.client.city },
   ]
 })
 </script>
@@ -207,9 +218,9 @@ const clientDetailItems = computed(() => {
 <template>
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
-      <DetailPanel title="Project Details" :items="projectDetailItems" />
+      <DetailPanel :title="t('project.requirementTab.projectDetailsTitle')" :items="projectDetailItems" />
       <div class="flex flex-col gap-3">
-        <DetailPanel title="Client Details" :items="clientDetailItems" />
+        <DetailPanel :title="t('project.requirementTab.clientDetailsTitle')" :items="clientDetailItems" />
         <div class="flex gap-2 no-print">
           <BaseButton
             v-if="client"
@@ -218,7 +229,7 @@ const clientDetailItems = computed(() => {
             :icon="MessageSquare"
             @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
           >
-            Message Client
+            {{ t('project.requirementTab.messageClient') }}
           </BaseButton>
           <BaseButton
             v-if="client"
@@ -226,7 +237,7 @@ const clientDetailItems = computed(() => {
             size="sm"
             @click="router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })"
           >
-            View Full Profile
+            {{ t('project.requirementTab.viewFullProfile') }}
           </BaseButton>
         </div>
       </div>
@@ -236,31 +247,31 @@ const clientDetailItems = computed(() => {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <h3 class="text-sm font-semibold text-text-primary">Scope of Work</h3>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('project.requirementTab.scopeOfWorkTitle') }}</h3>
             <StatusBadge
               v-if="scopeOfWork"
-              :label="scopeOfWork.scopeStatus"
+              :label="scopeOfWork.scopeStatus === 'Approved' ? t('project.scopeStatus.approved') : t('project.scopeStatus.draft')"
               :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
             />
             <span
               v-if="isRequirementLocked"
               class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
             >
-              Content Locked
+              {{ t('project.requirementTab.contentLocked') }}
             </span>
           </div>
 
           <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center gap-2 no-print">
             <template v-if="!isRequirementLocked">
               <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
-                Save Scope of Work
+                {{ t('project.requirementTab.saveScope') }}
               </BaseButton>
               <BaseButton size="sm" :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
-                Approve
+                {{ t('project.requirementTab.approve') }}
               </BaseButton>
             </template>
             <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="ArrowRight" @click="handleAdvanceToQuotation">
-              Advance to Quotation
+              {{ t('project.requirementTab.advanceToQuotation') }}
             </BaseButton>
           </div>
         </div>
@@ -271,19 +282,21 @@ const clientDetailItems = computed(() => {
 
       <div v-else class="flex flex-col gap-4">
         <p v-if="isRequirementLocked" class="text-sm text-text-secondary">
-          This project's quotation has already been finalized against this scope, so it's locked -- a change here
-          would no longer match what was quoted.
+          {{ t('project.requirementTab.lockedNotice') }}
         </p>
         <p v-else-if="scopeOfWork?.scopeStatus === 'Approved'" class="text-sm text-text-secondary">
-          Approved{{ scopeOfWork.scopeApprovedBy ? ` by ${scopeOfWork.scopeApprovedBy}` : '' }}{{
-            scopeOfWork.scopeApprovedAt ? ` on ${formatDateTime(scopeOfWork.scopeApprovedAt)}` : ''
-          }}. Editing the text below will reopen it for approval.
+          {{
+            t('project.requirementTab.approvedByOn', {
+              by: scopeOfWork.scopeApprovedBy ? t('project.requirementTab.approvedByFragment', { name: scopeOfWork.scopeApprovedBy }) : '',
+              on: scopeOfWork.scopeApprovedAt ? t('project.requirementTab.approvedOnFragment', { date: formatDateTime(scopeOfWork.scopeApprovedAt) }) : '',
+            })
+          }}
         </p>
 
         <TextArea
           v-model="scopeDraft"
-          label="Scope of Work"
-          placeholder="What has the client asked for..."
+          :label="t('project.requirementTab.scopeOfWorkLabel')"
+          :placeholder="t('project.requirementTab.scopeOfWorkPlaceholder')"
           :rows="6"
           :disabled="isRequirementLocked"
         />
@@ -291,17 +304,16 @@ const clientDetailItems = computed(() => {
         <template v-if="!isRequirementLocked">
           <TextArea
             v-model="summaryDraft"
-            label="Change Summary (optional)"
-            placeholder="What changed in this revision..."
+            :label="t('project.requirementTab.changeSummaryLabel')"
+            :placeholder="t('project.requirementTab.changeSummaryPlaceholder')"
             :rows="2"
           />
 
-          <FileUploader hint="Optional supporting document (PDF, Word, Excel or image)" @select="selectedFile = $event" />
+          <FileUploader :hint="t('project.requirementTab.uploadHint')" @select="selectedFile = $event" />
         </template>
 
         <p v-if="canApprove && !hasClientIdentification" class="text-xs text-danger-500">
-          The client has no identification document on file yet (e.g. Civil ID) -- Approve will still record this
-          internal sign-off, but the project will stay at Requirement until identification is added too.
+          {{ t('project.requirementTab.noClientIdNotice') }}
         </p>
       </div>
     </Card>

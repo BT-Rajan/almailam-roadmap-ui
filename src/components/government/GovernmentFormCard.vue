@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarClock, Languages, Pencil, RotateCcw, Sparkles, Trash2 } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -24,8 +25,10 @@ defineEmits<{
   restore: [form: GovernmentForm]
 }>()
 
+const { t } = useI18n()
+
 const authorityIcon = computed(() => (props.authority ? getAuthorityCategoryIcon(props.authority.category) : null))
-const authorityName = computed(() => props.authority?.name ?? 'Unknown Authority')
+const authorityName = computed(() => props.authority?.name ?? t('government.unknownAuthority'))
 const isArchived = computed(() => props.form.status === 'Archived')
 
 const visibleDocuments = computed(() => props.form.requiredDocuments.slice(0, MAX_VISIBLE_DOCUMENTS))
@@ -47,7 +50,7 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
             <h3 class="text-base font-semibold leading-snug text-text-primary">{{ form.title }}</h3>
           </div>
         </div>
-        <StatusBadge v-if="isArchived" label="Archived" variant="neutral" size="sm" />
+        <StatusBadge v-if="isArchived" :label="t('government.formStatus.archived')" variant="neutral" size="sm" />
       </div>
 
       <p class="text-sm text-text-muted">{{ form.description }}</p>
@@ -59,10 +62,10 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Required Documents</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.formCard.requiredDocuments') }}</p>
         <p class="text-sm text-text-secondary">
           {{ visibleDocuments.join(', ') }}
-          <span v-if="remainingDocumentCount > 0" class="text-text-muted"> +{{ remainingDocumentCount }} more</span>
+          <span v-if="remainingDocumentCount > 0" class="text-text-muted"> {{ t('government.formCard.moreCount', { count: remainingDocumentCount }) }}</span>
         </p>
       </div>
 
@@ -73,18 +76,18 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
         </span>
         <span class="inline-flex items-center gap-1.5">
           <CalendarClock class="h-3.5 w-3.5" />
-          Updated {{ formatDate(form.lastUpdated) }}
+          {{ t('government.formCard.updatedOn', { date: formatDate(form.lastUpdated) }) }}
         </span>
       </div>
     </button>
 
     <div class="flex items-center justify-end gap-1 border-t border-border-light px-3 py-2">
-      <IconButton :icon="Sparkles" label="Get AI help" variant="ghost" size="sm" @click="$emit('ai-help', form)" />
-      <IconButton :icon="Pencil" label="Edit form" variant="ghost" size="sm" @click="$emit('edit', form)" />
+      <IconButton :icon="Sparkles" :label="t('government.formCard.getAiHelp')" variant="ghost" size="sm" @click="$emit('ai-help', form)" />
+      <IconButton :icon="Pencil" :label="t('government.formCard.editForm')" variant="ghost" size="sm" @click="$emit('edit', form)" />
       <IconButton
         v-if="isArchived"
         :icon="RotateCcw"
-        label="Restore form"
+        :label="t('government.formCard.restoreForm')"
         variant="ghost"
         size="sm"
         @click="$emit('restore', form)"
@@ -92,7 +95,7 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
       <IconButton
         v-else
         :icon="Trash2"
-        label="Archive form"
+        :label="t('government.formCard.archiveForm')"
         variant="ghost"
         size="sm"
         @click="$emit('archive', form)"

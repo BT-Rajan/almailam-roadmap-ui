@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Building2, Calendar, Layers, User } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -52,6 +53,7 @@ const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
 const projectId = computed(() => route.params.projectId as string)
 
@@ -130,11 +132,11 @@ watch(
 const TABS = computed<ProjectWorkspaceTab[]>(() => {
   switch (stageContext.value) {
     case 'Requirement':
-      return [{ key: 'overview', label: 'Overview' }]
+      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Quotation':
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Payment Plan':
       // Unlike Quotation/Contract/Design/Government, Payment Plan and
@@ -145,10 +147,10 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // deserve their own tab rather than being buried behind the
       // stepper the way a stage staff mostly just glance at doesn't.
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'payment-plan', label: 'Payment Plan' },
-        { key: 'payment-status', label: 'Payment Status' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'payment-plan', label: t('project.workspaceTabs.paymentPlan') },
+        { key: 'payment-status', label: t('project.workspaceTabs.paymentStatus') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Contract':
       // No Payments tab here -- Payment Plan is its own stage now (the
@@ -158,9 +160,9 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // that same view behind a top-tab in every later stage as well
       // was the thing being removed.
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'documents', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'documents', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Design':
       // Reuses the existing 'design' tab key (ProjectDocumentsTab's
@@ -169,9 +171,9 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // document, not just design deliverables. No Payments tab here --
       // see the Contract case above for why.
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'design', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'design', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Supervision':
       // Plain placeholder for now -- reuses the generic 'documents' mode
@@ -179,9 +181,9 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // the Contract/Government Submission stages' own Documents tab.
       // No Payments tab here either -- see the Contract case above.
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'supervision', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'supervision', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Government Submission':
       // Reuses the existing 'government' tab key -- ProjectGovernmentTab.vue
@@ -189,15 +191,15 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // it becomes this stage's Documents tab content unchanged. No
       // Payments tab here either -- see the Contract case above.
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'government', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'government', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     default:
       return [
-        { key: 'overview', label: 'Overview' },
-        { key: 'documents', label: 'Documents' },
-        { key: 'tasks', label: 'Tasks' },
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'documents', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
   }
 })
@@ -372,7 +374,7 @@ async function handleConfirmDelete(): Promise<void> {
       </div>
     </template>
 
-    <EmptyState v-else-if="!project" title="Project not found" description="This project may have been removed or the link is incorrect." />
+    <EmptyState v-else-if="!project" :title="t('project.workspacePage.notFoundTitle')" :description="t('project.workspacePage.notFoundDescription')" />
 
     <template v-else>
       <ProjectHeader
@@ -386,11 +388,11 @@ async function handleConfirmDelete(): Promise<void> {
       />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4 no-print">
-        <InfoPanel label="Service" :value="project.service" :icon="Layers" />
-        <InfoPanel label="Client" :value="client?.companyName ?? 'Unassigned'" :icon="Building2" color="info" />
-        <InfoPanel label="Field Engineer" :value="project.engineer" :icon="User" color="ai" />
+        <InfoPanel :label="t('project.workspacePage.service')" :value="project.service" :icon="Layers" />
+        <InfoPanel :label="t('project.workspacePage.client')" :value="client?.companyName ?? t('project.unassigned')" :icon="Building2" color="info" />
+        <InfoPanel :label="t('project.workspacePage.fieldEngineer')" :value="project.engineer" :icon="User" color="ai" />
         <InfoPanel
-          label="Timeline"
+          :label="t('project.workspacePage.timeline')"
           :value="`${formatDate(project.startDate)} \u2013 ${formatDate(project.targetDate)}`"
           :icon="Calendar"
           color="warning"

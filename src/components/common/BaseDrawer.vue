@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
@@ -23,6 +24,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   close: []
 }>()
+
+const { t } = useI18n()
 
 const widthClasses: Record<string, string> = {
   sm: 'max-w-sm',
@@ -75,7 +78,7 @@ onBeforeUnmount(() => {
         >
           <div v-if="title" class="flex items-center justify-between border-b border-border-light px-5 py-4">
             <h2 class="text-lg font-semibold text-text-primary">{{ title }}</h2>
-            <IconButton :icon="X" label="Close" size="sm" @click="closeDrawer" />
+            <IconButton :icon="X" :label="t('common.close')" size="sm" @click="closeDrawer" />
           </div>
           <div class="flex-1 overflow-y-auto px-5 py-4">
             <slot />

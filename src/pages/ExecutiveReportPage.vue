@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportSection from '@/components/reports/ReportSection.vue'
@@ -15,6 +16,7 @@ import { useToastStore } from '@/stores/toastStore'
 import type { ChartDataPoint, LineChartData, ReportMetric } from '@/types/Report'
 
 const router = useRouter()
+const { t } = useI18n()
 const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
@@ -64,10 +66,10 @@ const goBack = () => {
 <template>
   <div class="max-w-6xl mx-auto space-y-8 pb-12">
     <div class="flex items-center justify-between">
-      <BaseButton variant="ghost" size="sm" @click="goBack"> ← Back </BaseButton>
+      <BaseButton variant="ghost" size="sm" @click="goBack"> ← {{ t('report.back') }} </BaseButton>
     </div>
 
-    <ReportHeader title="Executive Summary Report" subtitle="Current Performance Overview" :generated-date="reportDate" @download="handleExport" />
+    <ReportHeader :title="t('report.executivePage.pageTitle')" :subtitle="t('report.executivePage.pageSubtitle')" :generated-date="reportDate" @download="handleExport" />
 
     <ErrorState v-if="error" :description="error" @retry="loadReport" />
 
@@ -79,26 +81,26 @@ const goBack = () => {
 
     <template v-else>
       <!-- Key Metrics Overview -->
-      <ReportSection title="Key Performance Indicators" description="High-level metrics for the current period">
+      <ReportSection :title="t('report.executivePage.kpiTitle')" :description="t('report.executivePage.kpiDescription')">
         <ReportMetricCard v-for="(metric, index) in keyMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
       </ReportSection>
 
       <!-- Projects Status Distribution -->
-      <ReportSection title="Project Status Distribution" description="Breakdown of projects by current status" fullWidth>
+      <ReportSection :title="t('report.executivePage.projectStatusTitle')" :description="t('report.executivePage.projectStatusDescription')" fullWidth>
         <Card>
           <BarChart :data="projectsByStatus" :height="350" />
         </Card>
       </ReportSection>
 
       <!-- Payments Received Trend -->
-      <ReportSection title="Payments Received Trend" description="Payments received over the past 6 months" fullWidth>
+      <ReportSection :title="t('report.executivePage.paymentsTrendTitle')" :description="t('report.executivePage.paymentsTrendDescription')" fullWidth>
         <Card>
           <LineChart :data="paymentsReceivedTrend" :height="350" />
         </Card>
       </ReportSection>
 
       <!-- Contract Pipeline -->
-      <ReportSection title="Contract Pipeline" description="Distribution of contracts by current status" fullWidth>
+      <ReportSection :title="t('report.executivePage.contractPipelineTitle')" :description="t('report.executivePage.contractPipelineDescription')" fullWidth>
         <Card>
           <BarChart :data="contractsByStatus" :height="350" />
         </Card>
@@ -107,8 +109,8 @@ const goBack = () => {
 
     <!-- Report Footer -->
     <div class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
-      <p>This report was automatically generated on {{ reportDate }}</p>
-      <p class="mt-1">For questions or detailed analysis, contact the project management office.</p>
+      <p>{{ t('report.executivePage.footerGenerated', { date: reportDate }) }}</p>
+      <p class="mt-1">{{ t('report.executivePage.footerContact') }}</p>
     </div>
   </div>
 </template>

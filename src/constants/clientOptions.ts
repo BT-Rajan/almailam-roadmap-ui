@@ -8,27 +8,31 @@ import type {
 import type { SelectOption } from '@/types/Ui'
 
 export const CLIENT_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Individual', value: 'Individual' },
-  { label: 'Company', value: 'Company' },
-  { label: 'Organisation', value: 'Organisation' },
-  { label: 'Government Entity', value: 'Government Entity' },
-  { label: 'Other', value: 'Other' },
+  { label: 'Individual', value: 'Individual', labelKey: 'clientOptions.type.individual' },
+  { label: 'Company', value: 'Company', labelKey: 'clientOptions.type.company' },
+  { label: 'Organisation', value: 'Organisation', labelKey: 'clientOptions.type.organisation' },
+  { label: 'Government Entity', value: 'Government Entity', labelKey: 'clientOptions.type.governmentEntity' },
+  { label: 'Other', value: 'Other', labelKey: 'clientOptions.type.other' },
 ]
 
 export const CLIENT_CONTACT_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Primary Contact', value: 'Primary Contact' },
-  { label: 'Billing Contact', value: 'Billing Contact' },
-  { label: 'Legal Contact', value: 'Legal Contact' },
-  { label: 'Authorised Representative', value: 'Authorised Representative' },
-  { label: 'Technical Contact', value: 'Technical Contact' },
-  { label: 'Other', value: 'Other' },
+  { label: 'Primary Contact', value: 'Primary Contact', labelKey: 'clientOptions.contactType.primary' },
+  { label: 'Billing Contact', value: 'Billing Contact', labelKey: 'clientOptions.contactType.billing' },
+  { label: 'Legal Contact', value: 'Legal Contact', labelKey: 'clientOptions.contactType.legal' },
+  {
+    label: 'Authorised Representative',
+    value: 'Authorised Representative',
+    labelKey: 'clientOptions.contactType.authorisedRepresentative',
+  },
+  { label: 'Technical Contact', value: 'Technical Contact', labelKey: 'clientOptions.contactType.technical' },
+  { label: 'Other', value: 'Other', labelKey: 'clientOptions.contactType.other' },
 ]
 
 export const CLIENT_IDENTIFICATION_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Civil ID', value: 'Civil ID' },
-  { label: 'Passport', value: 'Passport' },
-  { label: 'Trade Licence', value: 'Trade Licence' },
-  { label: 'Other', value: 'Other' },
+  { label: 'Civil ID', value: 'Civil ID', labelKey: 'clientOptions.identificationType.civilId' },
+  { label: 'Passport', value: 'Passport', labelKey: 'clientOptions.identificationType.passport' },
+  { label: 'Trade Licence', value: 'Trade Licence', labelKey: 'clientOptions.identificationType.tradeLicence' },
+  { label: 'Other', value: 'Other', labelKey: 'clientOptions.identificationType.other' },
 ]
 
 // Individuals identify with a personal document; every entity-type client
@@ -77,41 +81,49 @@ export function getDocumentCategoryForIdentificationType(documentType: ClientIde
 }
 
 export const CLIENT_DOCUMENT_CATEGORY_OPTIONS: SelectOption[] = [
-  { label: 'Identity Document', value: 'Identity Document' },
-  { label: 'Passport', value: 'Passport' },
-  { label: 'Trade Licence', value: 'Trade Licence' },
-  { label: 'Registration Document', value: 'Registration Document' },
-  { label: 'Authorisation Document', value: 'Authorisation Document' },
-  { label: 'Other', value: 'Other' },
+  { label: 'Identity Document', value: 'Identity Document', labelKey: 'clientOptions.documentCategory.identityDocument' },
+  { label: 'Passport', value: 'Passport', labelKey: 'clientOptions.documentCategory.passport' },
+  { label: 'Trade Licence', value: 'Trade Licence', labelKey: 'clientOptions.documentCategory.tradeLicence' },
+  {
+    label: 'Registration Document',
+    value: 'Registration Document',
+    labelKey: 'clientOptions.documentCategory.registrationDocument',
+  },
+  {
+    label: 'Authorisation Document',
+    value: 'Authorisation Document',
+    labelKey: 'clientOptions.documentCategory.authorisationDocument',
+  },
+  { label: 'Other', value: 'Other', labelKey: 'clientOptions.documentCategory.other' },
 ]
 
 export const CLIENT_VERIFICATION_RESULT_OPTIONS: SelectOption[] = [
-  { label: 'Verified', value: 'Verified' },
-  { label: 'Rejected', value: 'Rejected' },
-  { label: 'Pending', value: 'Pending' },
+  { label: 'Verified', value: 'Verified', labelKey: 'clientOptions.verificationResult.verified' },
+  { label: 'Rejected', value: 'Rejected', labelKey: 'clientOptions.verificationResult.rejected' },
+  { label: 'Pending', value: 'Pending', labelKey: 'clientOptions.verificationResult.pending' },
 ]
 
 export const CLIENT_ADDRESS_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Registered', value: 'Registered' },
-  { label: 'Operating', value: 'Operating' },
-  { label: 'Residential', value: 'Residential' },
-  { label: 'Mailing', value: 'Mailing' },
+  { label: 'Registered', value: 'Registered', labelKey: 'clientOptions.addressType.registered' },
+  { label: 'Operating', value: 'Operating', labelKey: 'clientOptions.addressType.operating' },
+  { label: 'Residential', value: 'Residential', labelKey: 'clientOptions.addressType.residential' },
+  { label: 'Mailing', value: 'Mailing', labelKey: 'clientOptions.addressType.mailing' },
 ]
 
 export const CLIENT_STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Active', value: 'Active' },
-  { label: 'Inactive', value: 'Inactive' },
+  { label: 'All Statuses', value: 'All', labelKey: 'clientOptions.status.all' },
+  { label: 'Active', value: 'Active', labelKey: 'clientOptions.status.active' },
+  { label: 'Inactive', value: 'Inactive', labelKey: 'clientOptions.status.inactive' },
 ]
 
 export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
-  { label: 'All Onboarding States', value: 'All' },
-  { label: 'Information Required', value: 'Information Required' },
-  { label: 'Documents Required', value: 'Documents Required' },
-  { label: 'Under Review', value: 'Under Review' },
-  { label: 'Ready', value: 'Ready' },
-  { label: 'Rejected', value: 'Rejected' },
-  { label: 'Suspended', value: 'Suspended' },
+  { label: 'All Onboarding States', value: 'All', labelKey: 'clientOptions.onboardingState.all' },
+  { label: 'Information Required', value: 'Information Required', labelKey: 'clientOptions.onboardingState.informationRequired' },
+  { label: 'Documents Required', value: 'Documents Required', labelKey: 'clientOptions.onboardingState.documentsRequired' },
+  { label: 'Under Review', value: 'Under Review', labelKey: 'clientOptions.onboardingState.underReview' },
+  { label: 'Ready', value: 'Ready', labelKey: 'clientOptions.onboardingState.ready' },
+  { label: 'Rejected', value: 'Rejected', labelKey: 'clientOptions.onboardingState.rejected' },
+  { label: 'Suspended', value: 'Suspended', labelKey: 'clientOptions.onboardingState.suspended' },
 ]
 
 // Mirrors backend/app/core/status_transitions.py CLIENT_ONBOARDING_ALLOWED_TRANSITIONS
@@ -134,30 +146,35 @@ export const CLIENT_ONBOARDING_STATES_REQUIRING_REASON: ClientOnboardingState[] 
 const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
   {
     label: 'Full legal name',
+    labelKey: 'clientOptions.onboardingRequirement.fullLegalName',
     category: 'Information',
     required: true,
     isSatisfied: (ctx) => Boolean(ctx.client.individualProfile?.fullLegalName?.trim()),
   },
   {
     label: 'Mobile number',
+    labelKey: 'clientOptions.onboardingRequirement.mobileNumber',
     category: 'Information',
     required: true,
     isSatisfied: (ctx) => Boolean(ctx.client.mobile?.trim()),
   },
   {
     label: 'Identification document',
+    labelKey: 'clientOptions.onboardingRequirement.identificationDocument',
     category: 'Document',
     required: true,
     isSatisfied: (ctx) => ctx.documents.length > 0,
   },
   {
     label: 'Address on file',
+    labelKey: 'clientOptions.onboardingRequirement.addressOnFile',
     category: 'Information',
     required: false,
     isSatisfied: (ctx) => ctx.addresses.length > 0,
   },
   {
     label: 'Identification recorded',
+    labelKey: 'clientOptions.onboardingRequirement.identificationRecorded',
     category: 'Identification',
     required: true,
     isSatisfied: (ctx) => ctx.identifications.length > 0,
@@ -167,36 +184,42 @@ const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
 const ORGANISATION_REQUIREMENTS: ClientOnboardingRequirement[] = [
   {
     label: 'Legal name',
+    labelKey: 'clientOptions.onboardingRequirement.legalName',
     category: 'Information',
     required: true,
     isSatisfied: (ctx) => Boolean(ctx.client.organisationProfile?.legalName?.trim()),
   },
   {
     label: 'Registration number',
+    labelKey: 'clientOptions.onboardingRequirement.registrationNumber',
     category: 'Information',
     required: true,
     isSatisfied: (ctx) => Boolean(ctx.client.organisationProfile?.registrationNumber?.trim()),
   },
   {
     label: 'Trade licence',
+    labelKey: 'clientOptions.onboardingRequirement.tradeLicence',
     category: 'Document',
     required: true,
     isSatisfied: (ctx) => ctx.documents.some((d) => d.category === 'Trade Licence'),
   },
   {
     label: 'Authorised representative',
+    labelKey: 'clientOptions.onboardingRequirement.authorisedRepresentative',
     category: 'Information',
     required: true,
     isSatisfied: (ctx) => ctx.contacts.some((c) => c.isAuthorisedRepresentative),
   },
   {
     label: 'Additional supporting document',
+    labelKey: 'clientOptions.onboardingRequirement.additionalSupportingDocument',
     category: 'Document',
     required: false,
     isSatisfied: (ctx) => ctx.documents.length > 1,
   },
   {
     label: 'Identification recorded',
+    labelKey: 'clientOptions.onboardingRequirement.identificationRecorded',
     category: 'Identification',
     required: true,
     isSatisfied: (ctx) => ctx.identifications.length > 0,

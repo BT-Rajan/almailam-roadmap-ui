@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CalendarClock, Languages, Pencil, Printer, RotateCcw, Trash2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -28,6 +29,24 @@ const emit = defineEmits<{
   restore: [form: GovernmentForm]
   print: [form: GovernmentForm]
 }>()
+
+const { t } = useI18n()
+
+const FORM_CATEGORY_KEYS: Record<string, string> = {
+  'Building Permit': 'governmentFormOptions.formCategory.buildingPermit',
+  'Occupancy Certificate': 'governmentFormOptions.formCategory.occupancyCertificate',
+  'Fire Safety Approval': 'governmentFormOptions.formCategory.fireSafetyApproval',
+  'Utility Connection': 'governmentFormOptions.formCategory.utilityConnection',
+  'Environmental Clearance': 'governmentFormOptions.formCategory.environmentalClearance',
+  'Business License': 'governmentFormOptions.formCategory.businessLicense',
+  Agreement: 'governmentFormOptions.formCategory.agreement',
+  'Legal Undertaking': 'governmentFormOptions.formCategory.legalUndertaking',
+}
+
+function categoryLabel(category: string): string {
+  const key = FORM_CATEGORY_KEYS[category]
+  return key ? t(key) : category
+}
 </script>
 
 <template>
@@ -40,13 +59,13 @@ const emit = defineEmits<{
     <div v-if="form" class="flex flex-col gap-5">
       <div class="flex flex-wrap items-center gap-2">
         <h2 class="text-lg font-semibold text-text-primary">{{ form.title }}</h2>
-        <StatusBadge v-if="form.status === 'Archived'" label="Archived" variant="neutral" />
+        <StatusBadge v-if="form.status === 'Archived'" :label="t('governmentFormOptions.statusFilter.archived')" variant="neutral" />
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <StatusBadge :label="form.category" :variant="getFormCategoryVariant(form.category)" />
+        <StatusBadge :label="categoryLabel(form.category)" :variant="getFormCategoryVariant(form.category)" />
         <span class="text-xs text-text-muted">·</span>
-        <span class="text-xs font-medium text-text-muted">{{ authority?.name ?? 'Unknown Authority' }}</span>
+        <span class="text-xs font-medium text-text-muted">{{ authority?.name ?? t('government.unknownAuthority') }}</span>
       </div>
 
       <div class="flex items-center gap-4 text-xs text-text-muted">
@@ -56,14 +75,14 @@ const emit = defineEmits<{
         </span>
         <span class="inline-flex items-center gap-1.5">
           <CalendarClock class="h-3.5 w-3.5" />
-          Updated {{ formatDate(form.lastUpdated) }}
+          {{ t('government.formDetailDrawer.updated', { date: formatDate(form.lastUpdated) }) }}
         </span>
       </div>
 
       <p class="text-sm text-text-secondary">{{ form.description }}</p>
 
       <div>
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Required Documents</p>
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.formDetailDrawer.requiredDocuments') }}</p>
         <ul class="list-inside list-disc text-sm text-text-secondary">
           <li v-for="document in form.requiredDocuments" :key="document">{{ document }}</li>
         </ul>
@@ -72,33 +91,33 @@ const emit = defineEmits<{
       <Divider />
 
       <div>
-        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Fillable Form</p>
+        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.formDetailDrawer.fillableForm') }}</p>
         <iframe
           v-if="form.previewUrl"
           :src="form.previewUrl"
-          title="Fillable form preview"
+          :title="t('government.formDetailDrawer.fillableFormPreview')"
           class="h-[420px] w-full rounded-lg border border-border-light bg-white"
         />
         <EmptyState
           v-else
-          title="No fillable sample attached"
-          description="This form doesn't have a digital fillable sample yet. You can still print a summary sheet."
+          :title="t('government.formDetailDrawer.noFillableSampleTitle')"
+          :description="t('government.formDetailDrawer.noFillableSampleDescription')"
         />
       </div>
     </div>
 
     <template v-if="form" #footer>
-      <BaseButton variant="secondary" :icon="Printer" @click="emit('print', form)">Print</BaseButton>
+      <BaseButton variant="secondary" :icon="Printer" @click="emit('print', form)">{{ t('common.print') }}</BaseButton>
       <BaseButton
         v-if="form.status === 'Archived'"
         variant="secondary"
         :icon="RotateCcw"
         @click="emit('restore', form)"
       >
-        Restore
+        {{ t('government.formDetailDrawer.restore') }}
       </BaseButton>
-      <BaseButton v-else variant="secondary" :icon="Trash2" @click="emit('archive', form)">Archive</BaseButton>
-      <BaseButton :icon="Pencil" @click="emit('edit', form)">Edit Form</BaseButton>
+      <BaseButton v-else variant="secondary" :icon="Trash2" @click="emit('archive', form)">{{ t('government.formDetailDrawer.archive') }}</BaseButton>
+      <BaseButton :icon="Pencil" @click="emit('edit', form)">{{ t('government.formDetailDrawer.editForm') }}</BaseButton>
     </template>
   </BaseDrawer>
 </template>

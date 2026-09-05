@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
@@ -19,6 +20,7 @@ import type { GovernmentForm } from '@/types/Government'
 // toggling a checkbox here calls the exact same updateForm action the
 // Government Forms panel uses, so the two panels can never drift out of
 // sync with each other.
+const { t } = useI18n()
 const governmentFormStore = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -78,14 +80,14 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
 
     <EmptyState
       v-else-if="serviceCatalogStore.services.length === 0"
-      title="No services in the catalog yet"
-      description="Add services under Administration > Catalogs > Service Catalog first."
+      :title="t('administration.serviceDocumentMap.noServicesYet')"
+      :description="t('administration.serviceDocumentMap.noServicesYetDescription')"
     />
 
     <EmptyState
       v-else-if="fillableForms().length === 0"
-      title="No fillable forms yet"
-      description="Add Template Content to a form under Administration > Documents > Government Forms to make it assignable here."
+      :title="t('administration.serviceDocumentMap.noFillableFormsYet')"
+      :description="t('administration.serviceDocumentMap.noFillableFormsYetDescription')"
     />
 
     <div v-else class="flex flex-col gap-4">

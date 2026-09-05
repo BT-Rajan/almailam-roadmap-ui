@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface WizardStep {
   label: string
@@ -40,6 +41,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), { clickable: false, isStepNavigable: undefined, stepRanks: undefined })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [index: number]
@@ -101,7 +104,7 @@ function connectorClasses(index: number): string[] {
         :type="isNavigable(index) ? 'button' : undefined"
         class="group flex flex-col items-center gap-2 text-center"
         :class="isNavigable(index) ? 'cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : ''"
-        :aria-label="isNavigable(index) ? `Go to step ${index + 1}: ${step.label}` : undefined"
+        :aria-label="isNavigable(index) ? t('common.goToStep', { step: index + 1, label: step.label }) : undefined"
         @click="handleStepClick(index)"
       >
         <div :class="circleClasses(index)">

@@ -1,48 +1,63 @@
 <script setup lang="ts">
 import { BarChart3, TrendingUp, Users } from '@lucide/vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
 const router = useRouter()
+const { t } = useI18n()
 
-const reports = [
+const reports = computed(() => [
   {
     id: 'executive',
-    title: 'Executive Summary Report',
-    description: 'High-level KPIs, project status distribution, delivery trends, and resource allocation overview.',
+    title: t('report.listPage.executiveTitle'),
+    description: t('report.listPage.executiveDescription'),
     icon: TrendingUp,
     color: 'primary',
-    metrics: ['5 Active Projects', '87% Completion Rate', '82% Team Utilization'],
+    metrics: [
+      t('report.listPage.executiveMetric1', { count: 5 }),
+      t('report.listPage.executiveMetric2', { percent: 87 }),
+      t('report.listPage.executiveMetric3', { percent: 82 }),
+    ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_EXECUTIVE }),
   },
   {
     id: 'project',
-    title: 'Project Performance Report',
-    description: 'Detailed analysis of a specific project including progress, budget tracking, task status, and risk assessment.',
+    title: t('report.listPage.projectTitle'),
+    description: t('report.listPage.projectDescription'),
     icon: BarChart3,
     color: 'info',
-    metrics: ['Marina Bay Hotel Renovation', '42% Complete', 'On Schedule'],
+    metrics: [
+      'Marina Bay Hotel Renovation',
+      t('report.listPage.projectMetric2', { percent: 42 }),
+      t('report.listPage.projectMetric3'),
+    ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_PROJECT }),
   },
   {
     id: 'workload',
-    title: 'Team Workload Summary',
-    description: 'Team capacity analysis, member allocation details, department utilization, and rebalancing recommendations.',
+    title: t('report.listPage.workloadTitle'),
+    description: t('report.listPage.workloadDescription'),
     icon: Users,
     color: 'success',
-    metrics: ['3 Team Members', '82% Avg Utilization', '18% Capacity Free'],
+    metrics: [
+      t('report.listPage.workloadMetric1', { count: 3 }),
+      t('report.listPage.workloadMetric2', { percent: 82 }),
+      t('report.listPage.workloadMetric3', { percent: 18 }),
+    ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_WORKLOAD }),
   },
-]
+])
 </script>
 
 <template>
   <div class="space-y-8 pb-12">
     <!-- Page Header -->
     <div>
-      <h1 class="text-4xl font-bold text-text-primary">Reports</h1>
-      <p class="text-text-secondary mt-2">Access executive summaries, project performance analytics, and team workload insights.</p>
+      <h1 class="text-4xl font-bold text-text-primary">{{ t('report.listPage.pageTitle') }}</h1>
+      <p class="text-text-secondary mt-2">{{ t('report.listPage.pageSubtitle') }}</p>
     </div>
 
     <!-- Reports Grid -->
@@ -77,7 +92,7 @@ const reports = [
           <!-- CTA -->
           <div class="pt-2">
             <button class="text-sm font-medium transition-colors" :class="report.color === 'primary' ? 'text-primary-600 hover:text-primary-700' : report.color === 'info' ? 'text-info-600 hover:text-info-700' : 'text-success-600 hover:text-success-700'">
-              View Report →
+              {{ t('report.listPage.viewReport') }} →
             </button>
           </div>
         </div>
@@ -87,19 +102,19 @@ const reports = [
     <!-- Info Section -->
     <Card class="bg-gradient-to-r from-primary-50 to-info-50 border border-primary-200">
       <div class="space-y-3">
-        <h3 class="text-lg font-semibold text-text-primary">📊 About Reports</h3>
+        <h3 class="text-lg font-semibold text-text-primary">📊 {{ t('report.listPage.aboutReports') }}</h3>
         <div class="space-y-2 text-sm text-text-secondary">
           <p>
-            <strong>Executive Summary:</strong> Get a quick overview of overall organizational performance, project status, and team capacity in one comprehensive dashboard.
+            <strong>{{ t('report.listPage.aboutExecutiveLabel') }}</strong> {{ t('report.listPage.aboutExecutiveText') }}
           </p>
           <p>
-            <strong>Project Performance:</strong> Deep-dive into specific project metrics, track progress against timelines, and identify risks early.
+            <strong>{{ t('report.listPage.aboutProjectLabel') }}</strong> {{ t('report.listPage.aboutProjectText') }}
           </p>
           <p>
-            <strong>Team Workload:</strong> Monitor individual and department-level capacity, identify overallocation issues, and optimize resource distribution.
+            <strong>{{ t('report.listPage.aboutWorkloadLabel') }}</strong> {{ t('report.listPage.aboutWorkloadText') }}
           </p>
         </div>
-        <p class="text-xs text-text-muted pt-2">💡 Tip: All reports are printable and can be exported for sharing with stakeholders.</p>
+        <p class="text-xs text-text-muted pt-2">💡 {{ t('report.listPage.tip') }}</p>
       </div>
     </Card>
   </div>

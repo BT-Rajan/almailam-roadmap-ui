@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import SearchBox from '@/components/common/SearchBox.vue'
@@ -14,12 +15,14 @@ interface Props {
   showSearch?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   searchValue: '',
-  searchPlaceholder: 'Search',
+  searchPlaceholder: undefined,
   hasActiveFilters: false,
   showSearch: true,
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:searchValue': [value: string]
@@ -34,7 +37,7 @@ const emit = defineEmits<{
       <div v-if="showSearch" class="sm:w-72">
         <SearchBox
           :model-value="searchValue"
-          :placeholder="searchPlaceholder"
+          :placeholder="props.searchPlaceholder ?? t('common.search')"
           @update:model-value="emit('update:searchValue', $event)"
           @search="emit('search', $event)"
         />
@@ -42,7 +45,9 @@ const emit = defineEmits<{
       <div class="flex flex-wrap items-end gap-3">
         <slot name="filters" />
       </div>
-      <BaseButton v-if="hasActiveFilters" variant="ghost" size="sm" :icon="X" @click="emit('clear')"> Clear filters </BaseButton>
+      <BaseButton v-if="hasActiveFilters" variant="ghost" size="sm" :icon="X" @click="emit('clear')">
+        {{ t('common.clearFilters') }}
+      </BaseButton>
     </div>
     <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
       <slot name="actions" />

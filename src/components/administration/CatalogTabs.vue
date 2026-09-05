@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export type CatalogTabKey = 'services' | 'permits'
 
@@ -14,6 +15,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [tab: CatalogTabKey]
@@ -59,7 +61,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
 </script>
 
 <template>
-  <div class="flex gap-1 overflow-x-auto border-b border-border-light" role="tablist" aria-label="Catalog sections">
+  <div class="flex gap-1 overflow-x-auto border-b border-border-light" role="tablist" :aria-label="t('administration.catalogsPage.tabsAriaLabel')">
     <button
       v-for="(tab, index) in tabs"
       :key="tab.key"

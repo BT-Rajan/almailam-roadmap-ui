@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowRight, CheckCircle2, Pencil, Trash2, Wallet } from '@lucide/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -48,6 +49,36 @@ const quotationStore = useQuotationStore()
 // an explicit acknowledgment dialog for actions that change money on
 // record, not a toast that could be missed.
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
+
+const AGREEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'payment.agreementStatus.draft',
+  Approved: 'payment.agreementStatus.approved',
+}
+function agreementStatusLabel(status: string): string {
+  return t(AGREEMENT_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const PAYMENT_MODE_LABEL_KEYS: Record<string, string> = {
+  Cash: 'payment.paymentMode.cash',
+  'Bank Transfer': 'payment.paymentMode.bankTransfer',
+  'Credit Card': 'payment.paymentMode.creditCard',
+  'Debit Card': 'payment.paymentMode.debitCard',
+  'Online Payment': 'payment.paymentMode.onlinePayment',
+  Cheque: 'payment.paymentMode.cheque',
+  Other: 'payment.paymentMode.other',
+}
+function paymentModeLabel(mode: string): string {
+  return t(PAYMENT_MODE_LABEL_KEYS[mode] ?? mode)
+}
+
+const AGREEMENT_STREAM_LABEL_KEYS: Record<string, string> = {
+  Design: 'payment.agreementStream.design',
+  Supervision: 'payment.agreementStream.supervision',
+}
+function agreementStreamLabel(stream: string): string {
+  return t(AGREEMENT_STREAM_LABEL_KEYS[stream] ?? getAgreementStreamLabel(stream as AgreementStream))
+}
 
 const isAgreementFormOpen = ref(false)
 const agreementFormMode = ref<'create' | 'edit'>('create')
@@ -88,22 +119,22 @@ const anyAgreementMissing = () => visibleStreams.value.some((stream) => !agreeme
 const planExplainer = () => {
   const parts: string[] = []
   if (visibleStreams.value.includes('Design')) {
-    parts.push('a one-time Design & Permit fee, paid in full or split into up to 5 installments you control')
+    parts.push(t('payment.planPanel.explainerDesign'))
   }
   if (visibleStreams.value.includes('Supervision')) {
-    parts.push('a monthly Supervision fee, billed pro-rata for partial months')
+    parts.push(t('payment.planPanel.explainerSupervision'))
   }
-  if (parts.length === 2) return `This project's payment plan has two parts: ${parts[0]}, and ${parts[1]}.`
-  if (parts.length === 1) return `This project's payment plan is ${parts[0]}.`
+  if (parts.length === 2) return t('payment.planPanel.explainerBoth', { design: parts[0], supervision: parts[1] })
+  if (parts.length === 1) return t('payment.planPanel.explainerSingle', { part: parts[0] })
   return ''
 }
 
-const SCHEDULE_COLUMNS: SmartTableColumn<{ id: string; sequenceNumber: number; description: string; amountDue: number; dueDate: string }>[] = [
-  { key: 'sequenceNumber', label: '#', width: '48px' },
-  { key: 'description', label: 'Installment' },
-  { key: 'amountDue', label: 'Amount', align: 'right' },
-  { key: 'dueDate', label: 'Due Date' },
-]
+const SCHEDULE_COLUMNS = computed<SmartTableColumn<{ id: string; sequenceNumber: number; description: string; amountDue: number; dueDate: string }>[]>(() => [
+  { key: 'sequenceNumber', label: t('payment.planPanel.columns.number'), width: '48px' },
+  { key: 'description', label: t('payment.planPanel.columns.installment') },
+  { key: 'amountDue', label: t('payment.planPanel.columns.amount'), align: 'right' },
+  { key: 'dueDate', label: t('payment.planPanel.columns.dueDate') },
+])
 
 function scheduleRows(stream: AgreementStream) {
   return obligationsForStream(stream)
@@ -191,31 +222,31 @@ async function handleConfirmDelete(): Promise<void> {
     <EmptyState
       v-if="visibleStreams.length === 0"
       :icon="Wallet"
-      title="No billable services selected"
-      description="This project has no Design or Supervision work selected, so there's no payment plan to create yet."
-      action-label="Add Service"
+      :title="t('payment.planPanel.noBillableTitle')"
+      :description="t('payment.planPanel.noBillableDescription')"
+      :action-label="t('payment.planPanel.addService')"
       @action="emit('add-service')"
     />
 
     <div class="flex flex-col gap-1">
-      <h2 class="text-base font-semibold text-text-primary">Project Payment Plan</h2>
-      <p v-if="anyAgreementMissing()" class="text-sm text-text-muted">{{ planExplainer() }} Every part has to be approved here before this project can move to Contract.</p>
+      <h2 class="text-base font-semibold text-text-primary">{{ t('payment.planPanel.title') }}</h2>
+      <p v-if="anyAgreementMissing()" class="text-sm text-text-muted">{{ planExplainer() }} {{ t('payment.planPanel.everyPartMustBeApproved') }}</p>
     </div>
 
     <div
       v-if="showAdvanceToContractBanner()"
       class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
     >
-      <p class="text-sm text-success-700">Every required payment plan is approved -- this project is ready for Contract.</p>
-      <BaseButton size="sm" :icon="ArrowRight" @click="handleAdvanceToContract">Advance to Contract</BaseButton>
+      <p class="text-sm text-success-700">{{ t('payment.planPanel.readyForContract') }}</p>
+      <BaseButton size="sm" :icon="ArrowRight" @click="handleAdvanceToContract">{{ t('payment.planPanel.advanceToContract') }}</BaseButton>
     </div>
 
     <div v-for="stream in visibleStreams" :key="stream" class="flex flex-col gap-4">
       <div v-if="visibleStreams.length > 1" class="flex items-center gap-2">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ getAgreementStreamLabel(stream) }}</h3>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ agreementStreamLabel(stream) }}</h3>
         <StatusBadge
           v-if="agreementForStream(stream)"
-          :label="agreementForStream(stream)!.status"
+          :label="agreementStatusLabel(agreementForStream(stream)!.status)"
           :variant="agreementForStream(stream)!.status === 'Approved' ? 'success' : 'warning'"
         />
       </div>
@@ -223,13 +254,13 @@ async function handleConfirmDelete(): Promise<void> {
       <EmptyState
         v-if="!agreementForStream(stream)"
         :icon="Wallet"
-        title="No payment plan yet"
+        :title="t('payment.planPanel.noPlanYetTitle')"
         :description="
           stream === 'Supervision'
-            ? 'Create a payment plan to generate its day-prorated monthly schedule for this project.'
-            : 'Create a one-time payment plan for this project -- paid in full, or split into up to 5 installments you control.'
+            ? t('payment.planPanel.noPlanSupervisionDescription')
+            : t('payment.planPanel.noPlanDesignDescription')
         "
-        action-label="Create Payment Plan"
+        :action-label="t('payment.planPanel.createPaymentPlan')"
         @action="openCreateAgreement(stream)"
       />
 
@@ -239,7 +270,7 @@ async function handleConfirmDelete(): Promise<void> {
             <div class="flex items-center justify-between gap-3">
               <div v-if="visibleStreams.length === 1">
                 <StatusBadge
-                  :label="agreementForStream(stream)!.status"
+                  :label="agreementStatusLabel(agreementForStream(stream)!.status)"
                   :variant="agreementForStream(stream)!.status === 'Approved' ? 'success' : 'warning'"
                 />
               </div>
@@ -252,7 +283,7 @@ async function handleConfirmDelete(): Promise<void> {
                   :loading="isApprovingStream === stream"
                   @click="handleApproveAgreement(agreementForStream(stream)!)"
                 >
-                  Approve Payment Plan
+                  {{ t('payment.planPanel.approvePaymentPlan') }}
                 </BaseButton>
                 <BaseButton
                   v-if="agreementForStream(stream)!.status === 'Draft'"
@@ -261,7 +292,7 @@ async function handleConfirmDelete(): Promise<void> {
                   :icon="Pencil"
                   @click="openEditAgreement(agreementForStream(stream)!)"
                 >
-                  Edit
+                  {{ t('payment.planPanel.edit') }}
                 </BaseButton>
                 <BaseButton
                   v-if="agreementForStream(stream)!.status === 'Draft'"
@@ -270,26 +301,26 @@ async function handleConfirmDelete(): Promise<void> {
                   :icon="Trash2"
                   @click="requestDeleteAgreement(agreementForStream(stream)!)"
                 >
-                  Delete
+                  {{ t('payment.planPanel.delete') }}
                 </BaseButton>
               </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
               <div>
-                <p class="text-xs font-medium uppercase text-text-muted">Total Amount</p>
+                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.totalAmount') }}</p>
                 <p class="text-sm font-semibold text-text-primary">{{ formatCurrency(agreementForStream(stream)!.contractAmount, agreementForStream(stream)!.currency) }}</p>
               </div>
               <div>
-                <p class="text-xs font-medium uppercase text-text-muted">Payment Mode</p>
-                <p class="text-sm text-text-primary">{{ agreementForStream(stream)!.paymentMode }}</p>
+                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.paymentMode') }}</p>
+                <p class="text-sm text-text-primary">{{ paymentModeLabel(agreementForStream(stream)!.paymentMode) }}</p>
               </div>
               <div>
-                <p class="text-xs font-medium uppercase text-text-muted">Agreement Date</p>
+                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.agreementDate') }}</p>
                 <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(stream)!.agreementDate) }}</p>
               </div>
               <div>
-                <p class="text-xs font-medium uppercase text-text-muted">Start Date</p>
+                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.startDate') }}</p>
                 <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(stream)!.contractStartDate) }}</p>
               </div>
             </div>

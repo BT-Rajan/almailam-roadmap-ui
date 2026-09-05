@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Calendar } from '@lucide/vue'
 import { computed, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   modelValue: string
@@ -16,7 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: undefined,
-  placeholder: 'Select a date',
+  placeholder: undefined,
   hint: undefined,
   error: undefined,
   disabled: false,
@@ -24,6 +25,8 @@ const props = withDefaults(defineProps<Props>(), {
   min: undefined,
   max: undefined,
 })
+
+const { t } = useI18n()
 
 defineEmits<{
   'update:modelValue': [value: string]
@@ -56,7 +59,7 @@ const inputClasses = computed(() => [
         :id="inputId"
         type="date"
         :value="modelValue"
-        :placeholder="placeholder"
+        :placeholder="placeholder ?? t('common.selectDate')"
         :disabled="disabled"
         :required="required"
         :min="min"

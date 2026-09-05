@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -15,30 +16,31 @@ import type { SmartTableColumn } from '@/types/Table'
 import type { SelectOption } from '@/types/Ui'
 import { formatDateTime } from '@/utils/dateFormatter'
 
+const { t } = useI18n()
 const auditLogStore = useAuditLogStore()
 const toastStore = useToastStore()
 
 // Matches every ENTITY_TYPE constant actually used across the backend
 // services -- kept as a plain list here rather than fetched, since it's
 // a fixed set of code-level identifiers, not data.
-const ENTITY_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'All Entities', value: 'All' },
-  { label: 'Clients', value: 'CLIENT' },
-  { label: 'Projects', value: 'PROJECT' },
-  { label: 'Documents', value: 'DOCUMENT' },
-  { label: 'Tasks', value: 'TASK' },
-  { label: 'Quotations', value: 'QUOTATION' },
-  { label: 'Contracts', value: 'CONTRACT' },
-  { label: 'Financial Agreements', value: 'FINANCIAL_AGREEMENT' },
-  { label: 'Government Authorities', value: 'GOVERNMENT_AUTHORITY' },
-  { label: 'Government Forms', value: 'GOVERNMENT_FORM' },
-  { label: 'Government Submissions', value: 'GOVERNMENT_SUBMISSION' },
-  { label: 'Users', value: 'USER' },
-  { label: 'Workflow Templates', value: 'WORKFLOW_TEMPLATE' },
-  { label: 'Company Settings', value: 'COMPANY_SETTINGS' },
-  { label: 'AI Configuration', value: 'AI_CONFIGURATION' },
-  { label: 'Project Timeline', value: 'PROJECT_TIMELINE_EVENT' },
-]
+const ENTITY_TYPE_OPTIONS = computed<SelectOption[]>(() => [
+  { label: 'All Entities', value: 'All', labelKey: 'administration.auditLogPage.entityAll' },
+  { label: 'Clients', value: 'CLIENT', labelKey: 'administration.auditLogPage.entityClients' },
+  { label: 'Projects', value: 'PROJECT', labelKey: 'administration.auditLogPage.entityProjects' },
+  { label: 'Documents', value: 'DOCUMENT', labelKey: 'administration.auditLogPage.entityDocuments' },
+  { label: 'Tasks', value: 'TASK', labelKey: 'administration.auditLogPage.entityTasks' },
+  { label: 'Quotations', value: 'QUOTATION', labelKey: 'administration.auditLogPage.entityQuotations' },
+  { label: 'Contracts', value: 'CONTRACT', labelKey: 'administration.auditLogPage.entityContracts' },
+  { label: 'Financial Agreements', value: 'FINANCIAL_AGREEMENT', labelKey: 'administration.auditLogPage.entityFinancialAgreements' },
+  { label: 'Government Authorities', value: 'GOVERNMENT_AUTHORITY', labelKey: 'administration.auditLogPage.entityGovernmentAuthorities' },
+  { label: 'Government Forms', value: 'GOVERNMENT_FORM', labelKey: 'administration.auditLogPage.entityGovernmentForms' },
+  { label: 'Government Submissions', value: 'GOVERNMENT_SUBMISSION', labelKey: 'administration.auditLogPage.entityGovernmentSubmissions' },
+  { label: 'Users', value: 'USER', labelKey: 'administration.auditLogPage.entityUsers' },
+  { label: 'Workflow Templates', value: 'WORKFLOW_TEMPLATE', labelKey: 'administration.auditLogPage.entityWorkflowTemplates' },
+  { label: 'Company Settings', value: 'COMPANY_SETTINGS', labelKey: 'administration.auditLogPage.entityCompanySettings' },
+  { label: 'AI Configuration', value: 'AI_CONFIGURATION', labelKey: 'administration.auditLogPage.entityAiConfiguration' },
+  { label: 'Project Timeline', value: 'PROJECT_TIMELINE_EVENT', labelKey: 'administration.auditLogPage.entityProjectTimeline' },
+])
 
 interface AuditLogRow {
   [key: string]: unknown
@@ -51,14 +53,37 @@ interface AuditLogRow {
   reason: string
 }
 
-const TABLE_COLUMNS: SmartTableColumn<AuditLogRow>[] = [
-  { key: 'eventLabel', label: 'Event' },
-  { key: 'entityType', label: 'Entity Type' },
-  { key: 'entityId', label: 'Entity ID' },
-  { key: 'changedBy', label: 'Changed By' },
-  { key: 'changedAt', label: 'Changed At' },
-  { key: 'reason', label: 'Reason' },
-]
+const TABLE_COLUMNS = computed<SmartTableColumn<AuditLogRow>[]>(() => [
+  { key: 'eventLabel', label: t('administration.auditLogPage.columnEvent') },
+  { key: 'entityType', label: t('administration.auditLogPage.columnEntityType') },
+  { key: 'entityId', label: t('administration.auditLogPage.columnEntityId') },
+  { key: 'changedBy', label: t('administration.auditLogPage.columnChangedBy') },
+  { key: 'changedAt', label: t('administration.auditLogPage.columnChangedAt') },
+  { key: 'reason', label: t('administration.auditLogPage.columnReason') },
+])
+
+const ENTITY_TYPE_LABEL_KEYS: Record<string, string> = {
+  CLIENT: 'administration.auditLogPage.entityClients',
+  PROJECT: 'administration.auditLogPage.entityProjects',
+  DOCUMENT: 'administration.auditLogPage.entityDocuments',
+  TASK: 'administration.auditLogPage.entityTasks',
+  QUOTATION: 'administration.auditLogPage.entityQuotations',
+  CONTRACT: 'administration.auditLogPage.entityContracts',
+  FINANCIAL_AGREEMENT: 'administration.auditLogPage.entityFinancialAgreements',
+  GOVERNMENT_AUTHORITY: 'administration.auditLogPage.entityGovernmentAuthorities',
+  GOVERNMENT_FORM: 'administration.auditLogPage.entityGovernmentForms',
+  GOVERNMENT_SUBMISSION: 'administration.auditLogPage.entityGovernmentSubmissions',
+  USER: 'administration.auditLogPage.entityUsers',
+  WORKFLOW_TEMPLATE: 'administration.auditLogPage.entityWorkflowTemplates',
+  COMPANY_SETTINGS: 'administration.auditLogPage.entityCompanySettings',
+  AI_CONFIGURATION: 'administration.auditLogPage.entityAiConfiguration',
+  PROJECT_TIMELINE_EVENT: 'administration.auditLogPage.entityProjectTimeline',
+}
+
+function entityTypeLabel(entityType: string): string {
+  const key = ENTITY_TYPE_LABEL_KEYS[entityType]
+  return key ? t(key) : entityType.replace(/_/g, ' ')
+}
 
 const tableRows = computed<AuditLogRow[]>(() =>
   auditLogStore.logs.map((log) => ({
@@ -89,9 +114,9 @@ async function handleExport(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="Audit Log" subtitle="A record of every tracked change across the system, who made it, and when.">
+    <PageHeader :title="t('administration.auditLogPage.pageTitle')" :subtitle="t('administration.auditLogPage.pageSubtitle')">
       <template #actions>
-        <BaseButton :icon="Download" variant="secondary" @click="handleExport">Export CSV</BaseButton>
+        <BaseButton :icon="Download" variant="secondary" @click="handleExport">{{ t('administration.auditLogPage.exportCsv') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -104,7 +129,7 @@ async function handleExport(): Promise<void> {
         />
       </div>
       <BaseButton v-if="auditLogStore.entityTypeFilter !== 'All'" variant="ghost" size="sm" @click="auditLogStore.setEntityTypeFilter('All')">
-        Clear filter
+        {{ t('administration.auditLogPage.clearFilter') }}
       </BaseButton>
     </div>
 
@@ -118,11 +143,11 @@ async function handleExport(): Promise<void> {
         :loading="auditLogStore.isLoading"
         :searchable="false"
         :paginated="false"
-        empty-title="No audit events found"
-        empty-description="Try a different entity type filter, or check back once more changes have been made."
+        :empty-title="t('administration.auditLogPage.noAuditEventsFound')"
+        :empty-description="t('administration.auditLogPage.noAuditEventsFoundDescription')"
       >
         <template #cell-entityType="{ value }">
-          <StatusBadge :label="(value as string).replace(/_/g, ' ')" variant="info" />
+          <StatusBadge :label="entityTypeLabel(value as string)" variant="info" />
         </template>
         <template #cell-changedAt="{ value }">
           {{ formatDateTime(value as string) }}

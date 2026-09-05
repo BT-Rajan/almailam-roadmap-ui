@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ListChecks, Plus, Users as UsersIcon } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -33,6 +34,7 @@ interface UserTableRow {
   status: UserStatus
 }
 
+const { t } = useI18n()
 const userStore = useUserStore()
 const toastStore = useToastStore()
 const authStore = useAuthStore()
@@ -53,27 +55,50 @@ const isDeleteConfirmOpen = ref(false)
 const isDeletingUser = ref(false)
 
 const ROLE_OPTIONS: SelectOption[] = [
-  { label: 'All Roles', value: 'All' },
-  { label: 'Administrator', value: 'Administrator' },
-  { label: 'Project Manager', value: 'Project Manager' },
-  { label: 'Engineer', value: 'Engineer' },
-  { label: 'Document Controller', value: 'Document Controller' },
-  { label: 'Viewer', value: 'Viewer' },
+  { label: 'All Roles', value: 'All', labelKey: 'administration.userManagementPage.allRoles' },
+  { label: 'Administrator', value: 'Administrator', labelKey: 'administration.userRole.administrator' },
+  { label: 'Project Manager', value: 'Project Manager', labelKey: 'administration.userRole.projectManager' },
+  { label: 'Engineer', value: 'Engineer', labelKey: 'administration.userRole.engineer' },
+  { label: 'Document Controller', value: 'Document Controller', labelKey: 'administration.userRole.documentController' },
+  { label: 'Viewer', value: 'Viewer', labelKey: 'administration.userRole.viewer' },
 ]
 
 const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Active', value: 'Active' },
-  { label: 'Inactive', value: 'Inactive' },
+  { label: 'All Statuses', value: 'All', labelKey: 'governmentFormOptions.statusFilter.all' },
+  { label: 'Active', value: 'Active', labelKey: 'administration.userStatus.active' },
+  { label: 'Inactive', value: 'Inactive', labelKey: 'administration.userStatus.inactive' },
 ]
 
-const TABLE_COLUMNS: SmartTableColumn<UserTableRow>[] = [
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'designation', label: 'Designation', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'role', label: 'Role', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-]
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  Administrator: 'administration.userRole.administrator',
+  'Project Manager': 'administration.userRole.projectManager',
+  Engineer: 'administration.userRole.engineer',
+  'Document Controller': 'administration.userRole.documentController',
+  Viewer: 'administration.userRole.viewer',
+}
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'administration.userStatus.active',
+  Inactive: 'administration.userStatus.inactive',
+}
+
+function roleLabel(role: string): string {
+  const key = ROLE_LABEL_KEYS[role]
+  return key ? t(key) : role
+}
+
+function userStatusLabel(status: string): string {
+  const key = STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
+
+const TABLE_COLUMNS = computed<SmartTableColumn<UserTableRow>[]>(() => [
+  { key: 'name', label: t('administration.userManagementPage.columnName'), sortable: true },
+  { key: 'designation', label: t('administration.userManagementPage.columnDesignation'), sortable: true },
+  { key: 'email', label: t('administration.userManagementPage.columnEmail'), sortable: true },
+  { key: 'role', label: t('administration.userManagementPage.columnRole'), sortable: true },
+  { key: 'status', label: t('administration.userManagementPage.columnStatus'), sortable: true },
+])
 
 const tableRows = computed<UserTableRow[]>(() =>
   userStore.filteredUsers.map((user) => ({
@@ -182,9 +207,9 @@ async function handleDeleteUser(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="User Management" subtitle="Manage users, roles, and permissions across the firm.">
+    <PageHeader :title="t('administration.userManagementPage.pageTitle')" :subtitle="t('administration.userManagementPage.pageSubtitle')">
       <template #actions>
-        <BaseButton :icon="Plus" @click="openCreateDialog">Add User</BaseButton>
+        <BaseButton :icon="Plus" @click="openCreateDialog">{{ t('administration.userManagementPage.addUser') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -196,7 +221,7 @@ async function handleDeleteUser(): Promise<void> {
         @click="activeTab = 'users'"
       >
         <UsersIcon :size="15" />
-        Users
+        {{ t('administration.userManagementPage.usersTab') }}
       </button>
       <button
         type="button"
@@ -205,7 +230,7 @@ async function handleDeleteUser(): Promise<void> {
         @click="activeTab = 'roles'"
       >
         <ListChecks :size="15" />
-        Roles &amp; Permissions
+        {{ t('administration.userManagementPage.rolesTab') }}
       </button>
     </div>
 
@@ -242,15 +267,15 @@ async function handleDeleteUser(): Promise<void> {
         row-key="id"
         :loading="userStore.isLoading"
         :searchable="false"
-        empty-title="No users found"
-        empty-description="Try adjusting your search or filters, or add a new user."
+        :empty-title="t('administration.userManagementPage.noUsersFound')"
+        :empty-description="t('administration.userManagementPage.noUsersFoundDescription')"
         @row-click="openUser"
       >
         <template #cell-role="{ value }">
-          <StatusBadge :label="value as string" :variant="getUserRoleVariant(value as UserRole)" />
+          <StatusBadge :label="roleLabel(value as string)" :variant="getUserRoleVariant(value as UserRole)" />
         </template>
         <template #cell-status="{ value }">
-          <StatusBadge :label="value as string" :variant="getUserStatusVariant(value as UserStatus)" show-dot />
+          <StatusBadge :label="userStatusLabel(value as string)" :variant="getUserStatusVariant(value as UserStatus)" show-dot />
         </template>
       </SmartTable>
     </template>

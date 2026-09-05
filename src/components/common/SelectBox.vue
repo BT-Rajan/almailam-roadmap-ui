@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronDown } from '@lucide/vue'
 import { computed, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { SelectOption } from '@/types/Ui'
 
@@ -16,7 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: undefined,
-  placeholder: 'Select an option',
+  placeholder: undefined,
   error: undefined,
   disabled: false,
   required: false,
@@ -27,6 +28,11 @@ defineEmits<{
 }>()
 
 const selectId = useId()
+const { t } = useI18n()
+
+function optionLabel(option: SelectOption): string {
+  return option.labelKey ? t(option.labelKey) : option.label
+}
 
 const selectClasses = computed(() => [
   'h-10 w-full appearance-none rounded-lg border bg-bg-card px-3 pr-9 text-sm text-text-primary',
@@ -53,9 +59,9 @@ const selectClasses = computed(() => [
         :aria-invalid="Boolean(error)"
         @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
-        <option value="" disabled>{{ placeholder }}</option>
+        <option value="" disabled>{{ placeholder ?? t('common.selectOption') }}</option>
         <option v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled">
-          {{ option.label }}
+          {{ optionLabel(option) }}
         </option>
       </select>
       <ChevronDown

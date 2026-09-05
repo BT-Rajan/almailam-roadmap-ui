@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { ProjectSummary } from '@/types/Dashboard'
@@ -10,6 +11,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {})
+const { t } = useI18n()
 
 defineEmits<{
   click: []
@@ -33,6 +35,19 @@ const statusVariant = computed<BadgeVariant>(() => {
   }
   return variants[props.project.status] || 'neutral'
 })
+
+const statusLabelKeys: Record<string, string> = {
+  draft: 'dashboard.projectStatus.draft',
+  active: 'dashboard.projectStatus.active',
+  pending: 'dashboard.projectStatus.pending',
+  completed: 'dashboard.projectStatus.completed',
+  'on-hold': 'dashboard.projectStatus.onHold',
+}
+
+const statusLabel = computed(() => {
+  const key = statusLabelKeys[props.project.status]
+  return key ? t(key) : props.project.status
+})
 </script>
 
 <template>
@@ -42,12 +57,12 @@ const statusVariant = computed<BadgeVariant>(() => {
         <h3 class="font-medium text-text-primary truncate">{{ project.name }}</h3>
         <p class="text-xs text-text-muted truncate">{{ project.client }}</p>
       </div>
-      <StatusBadge :label="project.status" :variant="statusVariant" />
+      <StatusBadge :label="statusLabel" :variant="statusVariant" />
     </div>
 
     <div class="space-y-2">
       <div class="flex items-center justify-between text-xs">
-        <span class="text-text-secondary">Progress</span>
+        <span class="text-text-secondary">{{ t('dashboard.progress') }}</span>
         <span class="font-medium text-text-primary">{{ project.progress }}%</span>
       </div>
       <div class="h-2 bg-bg-secondary rounded-full overflow-hidden">
@@ -56,7 +71,7 @@ const statusVariant = computed<BadgeVariant>(() => {
     </div>
 
     <div class="text-xs text-text-muted">
-      Due {{ new Date(project.dueDate).toLocaleDateString() }}
+      {{ t('dashboard.due', { date: new Date(project.dueDate).toLocaleDateString() }) }}
     </div>
   </Card>
 </template>

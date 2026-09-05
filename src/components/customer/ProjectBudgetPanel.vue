@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Wallet } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -12,6 +13,8 @@ const props = defineProps<{
   budget: ProjectBudget | null
 }>()
 
+const { t } = useI18n()
+
 const paidPercent = computed(() => {
   if (!props.budget || props.budget.contractAmount <= 0) return 0
   return Math.min(100, Math.round((props.budget.totalPaid / props.budget.contractAmount) * 100))
@@ -21,28 +24,28 @@ const paidPercent = computed(() => {
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-text-primary">Budget & Payments</h2>
+      <h2 class="text-xl font-semibold text-text-primary">{{ t('customer.budgetPanel.title') }}</h2>
     </template>
 
     <EmptyState
       v-if="!budget"
       :icon="Wallet"
-      title="No financial agreement on file"
-      description="Contract and payment details will appear here once set up."
+      :title="t('customer.budgetPanel.emptyTitle')"
+      :description="t('customer.budgetPanel.emptyDescription')"
     />
 
     <div v-else class="flex flex-col gap-5">
       <div class="grid grid-cols-2 gap-4 tablet:grid-cols-3">
         <div>
-          <p class="text-xs text-text-secondary">Contract Amount</p>
+          <p class="text-xs text-text-secondary">{{ t('customer.budgetPanel.contractAmount') }}</p>
           <p class="mt-0.5 text-lg font-semibold text-text-primary">{{ formatCurrency(budget.contractAmount, budget.currency) }}</p>
         </div>
         <div>
-          <p class="text-xs text-text-secondary">Paid to Date</p>
+          <p class="text-xs text-text-secondary">{{ t('customer.budgetPanel.paidToDate') }}</p>
           <p class="mt-0.5 text-lg font-semibold text-success-600">{{ formatCurrency(budget.totalPaid, budget.currency) }}</p>
         </div>
         <div>
-          <p class="text-xs text-text-secondary">Remaining</p>
+          <p class="text-xs text-text-secondary">{{ t('customer.budgetPanel.remaining') }}</p>
           <p class="mt-0.5 text-lg font-semibold text-text-primary">{{ formatCurrency(budget.totalDue, budget.currency) }}</p>
         </div>
       </div>
@@ -52,11 +55,11 @@ const paidPercent = computed(() => {
       </div>
 
       <div>
-        <p class="mb-2 text-sm font-semibold text-text-primary">Upcoming Payments</p>
+        <p class="mb-2 text-sm font-semibold text-text-primary">{{ t('customer.budgetPanel.upcomingPayments') }}</p>
         <EmptyState
           v-if="budget.upcomingPayments.length === 0"
-          title="Nothing outstanding"
-          description="All scheduled payments have been settled."
+          :title="t('customer.budgetPanel.nothingOutstandingTitle')"
+          :description="t('customer.budgetPanel.nothingOutstandingDescription')"
         />
         <div v-else class="flex flex-col gap-2">
           <div
@@ -69,14 +72,14 @@ const paidPercent = computed(() => {
               <p class="text-sm font-medium text-text-primary">{{ payment.description }}</p>
               <!-- Deliberately no due date shown to the customer here --
                    only whether it's overdue, not the schedule itself. -->
-              <p v-if="isPastDate(payment.dueDate)" class="text-xs text-danger-600">Overdue</p>
+              <p v-if="isPastDate(payment.dueDate)" class="text-xs text-danger-600">{{ t('customer.budgetPanel.overdue') }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm font-semibold text-text-primary">
                 {{ formatCurrency(payment.amountDue - payment.amountReceived, budget.currency) }}
               </p>
               <p v-if="payment.amountReceived > 0" class="text-xs text-text-secondary">
-                {{ formatCurrency(payment.amountReceived, budget.currency) }} received
+                {{ t('customer.budgetPanel.received', { amount: formatCurrency(payment.amountReceived, budget.currency) }) }}
               </p>
             </div>
           </div>

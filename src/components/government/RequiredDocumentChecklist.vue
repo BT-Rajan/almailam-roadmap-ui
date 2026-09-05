@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, Clock, Download, FileCheck2, Loader2, Upload } from '@lucide/vue'
 import type { Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { RequiredDocumentStatus, SubmissionDocument } from '@/types/Submission'
@@ -24,10 +25,18 @@ const emit = defineEmits<{
   download: [documentId: number]
 }>()
 
+const { t } = useI18n()
+
 const STATUS_ICONS: Record<RequiredDocumentStatus, Component> = {
   Pending: Clock,
   Uploaded: FileCheck2,
   Verified: Check,
+}
+
+const STATUS_LABEL_KEYS: Record<RequiredDocumentStatus, string> = {
+  Pending: 'government.requiredDocumentStatus.pending',
+  Uploaded: 'government.requiredDocumentStatus.uploaded',
+  Verified: 'government.requiredDocumentStatus.verified',
 }
 
 function handleFileChange(documentId: number, event: Event): void {
@@ -46,16 +55,16 @@ function handleFileChange(documentId: number, event: Event): void {
           <component :is="STATUS_ICONS[document.status]" class="h-4 w-4 text-text-muted" />
           {{ document.name }}
         </span>
-        <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" size="sm" />
+        <StatusBadge :label="t(STATUS_LABEL_KEYS[document.status])" :variant="getDocumentStatusVariant(document.status)" size="sm" />
       </div>
 
       <div class="flex items-center justify-between gap-3 pl-6">
         <span v-if="document.originalFilename" class="truncate text-xs text-text-muted">
           {{ document.originalFilename }}
           <template v-if="document.fileSizeLabel"> &middot; {{ document.fileSizeLabel }}</template>
-          <template v-if="document.uploadDate"> &middot; uploaded {{ document.uploadDate }}</template>
+          <template v-if="document.uploadDate"> &middot; {{ t('government.requiredDocumentChecklist.uploaded', { date: document.uploadDate }) }}</template>
         </span>
-        <span v-else class="text-xs text-text-muted">Not uploaded yet</span>
+        <span v-else class="text-xs text-text-muted">{{ t('government.requiredDocumentChecklist.notUploadedYet') }}</span>
 
         <div class="flex shrink-0 items-center gap-2">
           <button
@@ -65,7 +74,7 @@ function handleFileChange(documentId: number, event: Event): void {
             @click="emit('download', document.id)"
           >
             <Download class="h-3.5 w-3.5" />
-            Download
+            {{ t('common.download') }}
           </button>
 
           <label
@@ -74,7 +83,7 @@ function handleFileChange(documentId: number, event: Event): void {
           >
             <Loader2 v-if="uploadingDocumentId === document.id" class="h-3.5 w-3.5 animate-spin" />
             <Upload v-else class="h-3.5 w-3.5" />
-            {{ document.originalFilename ? 'Replace' : 'Upload' }}
+            {{ document.originalFilename ? t('government.requiredDocumentChecklist.replace') : t('common.upload') }}
             <input
               type="file"
               class="hidden"

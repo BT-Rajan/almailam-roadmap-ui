@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LayoutGrid, TableProperties, Upload } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -38,46 +39,74 @@ interface DocumentTableRow {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const documentStore = useDocumentStore()
 const toastStore = useToastStore()
 
 const isUploadDialogOpen = ref(false)
 
 const TYPE_OPTIONS: SelectOption[] = [
-  { label: 'All Categories', value: 'All' },
-  { label: 'Drawing', value: 'Drawing' },
-  { label: 'Report', value: 'Report' },
-  { label: 'Contract', value: 'Contract' },
-  { label: 'Quotation', value: 'Quotation' },
-  { label: 'Municipality Form', value: 'Municipality Form' },
-  { label: 'Calculation Sheet', value: 'Calculation Sheet' },
-  { label: 'Government Agreement', value: 'Government Agreement' },
+  { label: 'All Categories', value: 'All', labelKey: 'document.documentsPage.allCategories' },
+  { label: 'Drawing', value: 'Drawing', labelKey: 'document.type.drawing' },
+  { label: 'Report', value: 'Report', labelKey: 'document.type.report' },
+  { label: 'Contract', value: 'Contract', labelKey: 'document.type.contract' },
+  { label: 'Quotation', value: 'Quotation', labelKey: 'document.type.quotation' },
+  { label: 'Municipality Form', value: 'Municipality Form', labelKey: 'document.type.municipalityForm' },
+  { label: 'Calculation Sheet', value: 'Calculation Sheet', labelKey: 'document.type.calculationSheet' },
+  { label: 'Government Agreement', value: 'Government Agreement', labelKey: 'document.type.governmentAgreement' },
 ]
 
 const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Draft', value: 'Draft' },
-  { label: 'Under Review', value: 'Under Review' },
-  { label: 'Approved', value: 'Approved' },
-  { label: 'Rejected', value: 'Rejected' },
+  { label: 'All Statuses', value: 'All', labelKey: 'governmentFormOptions.statusFilter.all' },
+  { label: 'Draft', value: 'Draft', labelKey: 'document.status.draft' },
+  { label: 'Under Review', value: 'Under Review', labelKey: 'document.status.underReview' },
+  { label: 'Approved', value: 'Approved', labelKey: 'document.status.approved' },
+  { label: 'Rejected', value: 'Rejected', labelKey: 'document.status.rejected' },
 ]
 
-const TABLE_COLUMNS: SmartTableColumn<DocumentTableRow>[] = [
-  { key: 'title', label: 'Document Title', sortable: true },
-  { key: 'type', label: 'Category', sortable: true },
-  { key: 'projectName', label: 'Project', sortable: true },
-  { key: 'revision', label: 'Revision', sortable: true, width: '110px' },
-  { key: 'uploadedBy', label: 'Uploaded By', sortable: true },
-  { key: 'uploadDate', label: 'Upload Date', sortable: true, align: 'right' },
-  { key: 'status', label: 'Status', sortable: true },
-]
+const TYPE_LABEL_KEYS: Record<string, string> = {
+  Drawing: 'document.type.drawing',
+  Report: 'document.type.report',
+  Contract: 'document.type.contract',
+  Quotation: 'document.type.quotation',
+  'Municipality Form': 'document.type.municipalityForm',
+  'Calculation Sheet': 'document.type.calculationSheet',
+  'Government Agreement': 'document.type.governmentAgreement',
+}
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'document.status.draft',
+  'Under Review': 'document.status.underReview',
+  Approved: 'document.status.approved',
+  Rejected: 'document.status.rejected',
+}
+
+function typeLabel(type: string): string {
+  const key = TYPE_LABEL_KEYS[type]
+  return key ? t(key) : type
+}
+
+function statusLabel(status: string): string {
+  const key = STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
+
+const TABLE_COLUMNS = computed<SmartTableColumn<DocumentTableRow>[]>(() => [
+  { key: 'title', label: t('document.documentsPage.columnTitle'), sortable: true },
+  { key: 'type', label: t('document.documentsPage.columnCategory'), sortable: true },
+  { key: 'projectName', label: t('document.documentsPage.columnProject'), sortable: true },
+  { key: 'revision', label: t('document.documentsPage.columnRevision'), sortable: true, width: '110px' },
+  { key: 'uploadedBy', label: t('document.documentsPage.columnUploadedBy'), sortable: true },
+  { key: 'uploadDate', label: t('document.documentsPage.columnUploadDate'), sortable: true, align: 'right' },
+  { key: 'status', label: t('document.documentsPage.columnStatus'), sortable: true },
+])
 
 const tableRows = computed<DocumentTableRow[]>(() =>
   documentStore.pageItems.map((document) => ({
     id: document.id,
     title: document.title,
     type: document.type,
-    projectName: documentStore.getProjectById(document.projectId)?.projectName ?? 'Unknown Project',
+    projectName: documentStore.getProjectById(document.projectId)?.projectName ?? t('document.unknownProject'),
     revision: document.revision,
     uploadedBy: document.uploadedBy,
     uploadDate: document.uploadDate,
@@ -103,9 +132,9 @@ function handleUpload(document: ProjectDocument): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="Document Repository" subtitle="Browse, filter and manage every project document in one place.">
+    <PageHeader :title="t('document.documentsPage.pageTitle')" :subtitle="t('document.documentsPage.pageSubtitle')">
       <template #actions>
-        <BaseButton :icon="Upload" @click="isUploadDialogOpen = true">Upload Document</BaseButton>
+        <BaseButton :icon="Upload" @click="isUploadDialogOpen = true">{{ t('document.documentsPage.uploadDocument') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -134,14 +163,14 @@ function handleUpload(document: ProjectDocument): void {
         <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">
           <IconButton
             :icon="LayoutGrid"
-            label="Grid view"
+            :label="t('document.documentsPage.gridView')"
             size="sm"
             :variant="documentStore.viewMode === 'grid' ? 'primary' : 'ghost'"
             @click="documentStore.setViewMode('grid')"
           />
           <IconButton
             :icon="TableProperties"
-            label="Table view"
+            :label="t('document.documentsPage.tableView')"
             size="sm"
             :variant="documentStore.viewMode === 'table' ? 'primary' : 'ghost'"
             @click="documentStore.setViewMode('table')"
@@ -161,9 +190,9 @@ function handleUpload(document: ProjectDocument): void {
 
       <EmptyState
         v-else-if="documentStore.pageItems.length === 0"
-        title="No documents found"
-        description="Try adjusting your search or filters, or upload a new document."
-        action-label="Upload Document"
+        :title="t('document.documentsPage.noDocumentsFound')"
+        :description="t('document.documentsPage.noDocumentsFoundDescription')"
+        :action-label="t('document.documentsPage.uploadDocument')"
         @action="isUploadDialogOpen = true"
       />
 
@@ -201,15 +230,15 @@ function handleUpload(document: ProjectDocument): void {
         :loading="documentStore.isPageLoading"
         :searchable="false"
         :paginated="false"
-        empty-title="No documents found"
-        empty-description="Try adjusting your search or filters, or upload a new document."
+        :empty-title="t('document.documentsPage.noDocumentsFound')"
+        :empty-description="t('document.documentsPage.noDocumentsFoundDescription')"
         @row-click="openDocument($event.id)"
       >
         <template #cell-type="{ value }">
-          <StatusBadge :label="value as string" variant="info" />
+          <StatusBadge :label="typeLabel(value as string)" variant="info" />
         </template>
         <template #cell-status="{ value }">
-          <StatusBadge :label="value as string" :variant="getDocumentStatusVariant(value as DocumentStatus)" show-dot />
+          <StatusBadge :label="statusLabel(value as string)" :variant="getDocumentStatusVariant(value as DocumentStatus)" show-dot />
         </template>
         <template #cell-uploadDate="{ value }">
           {{ formatDate(value as string) }}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import DocumentTabs from '@/components/administration/DocumentTabs.vue'
@@ -8,25 +9,26 @@ import DocumentTemplatesPanel from '@/components/administration/DocumentTemplate
 import GovernmentFormsPanel from '@/components/administration/GovernmentFormsPanel.vue'
 import ServiceDocumentMapPanel from '@/components/administration/ServiceDocumentMapPanel.vue'
 
-const TABS: DocumentTab[] = [
-  { key: 'forms', label: 'Government Forms' },
-  { key: 'serviceMap', label: 'Service Document Map' },
-  { key: 'templates', label: 'Quotation & Contract Templates' },
-]
+const { t } = useI18n()
 
-const SUBTITLES: Record<DocumentTabKey, string> = {
-  forms: 'Maintain authorities, forms and their document requirements.',
-  serviceMap:
-    'For each service, which fillable government forms/agreements a project needs. Staff fill these in from the project itself (Approvals & Permits) -- this only controls which ones are offered there.',
-  templates: 'Upload the .docx templates used to generate Quotation and Contract documents, and choose the default for each.',
-}
+const TABS = computed<DocumentTab[]>(() => [
+  { key: 'forms', label: t('administration.adminDocumentsPage.formsTab') },
+  { key: 'serviceMap', label: t('administration.adminDocumentsPage.serviceMapTab') },
+  { key: 'templates', label: t('administration.adminDocumentsPage.templatesTab') },
+])
+
+const SUBTITLES = computed<Record<DocumentTabKey, string>>(() => ({
+  forms: t('administration.adminDocumentsPage.formsSubtitle'),
+  serviceMap: t('administration.adminDocumentsPage.serviceMapSubtitle'),
+  templates: t('administration.adminDocumentsPage.templatesSubtitle'),
+}))
 
 const activeTab = ref<DocumentTabKey>('forms')
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="Documents" :subtitle="SUBTITLES[activeTab]" />
+    <PageHeader :title="t('administration.adminDocumentsPage.pageTitle')" :subtitle="SUBTITLES[activeTab]" />
 
     <DocumentTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, Loader2, ShieldCheck } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormSection from '@/components/common/FormSection.vue'
@@ -19,6 +20,7 @@ defineProps<{
 
 const form = defineModel<ClientWizardForm>({ required: true })
 const maxDate = todayIso()
+const { t } = useI18n()
 
 const IDENTIFICATION_MAX_SIZE_BYTES = 5 * 1024 * 1024
 const IDENTIFICATION_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf']
@@ -30,12 +32,9 @@ const IDENTIFICATION_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf']
 const identificationTypeOptions = computed(() => getIdentificationTypeOptionsForClientType(form.value.clientType))
 const isEntityClient = computed(() => form.value.clientType !== 'Individual' && form.value.clientType !== 'Other')
 
-const identificationDescription = computed(() => {
-  if (isEntityClient.value) {
-    return "Record this client's trade licence, including issue and expiry dates."
-  }
-  return "Record the client's primary identification document, including issue and expiry dates."
-})
+const identificationDescription = computed(() =>
+  isEntityClient.value ? t('client.identificationStep.entityDescription') : t('client.identificationStep.individualDescription'),
+)
 
 // If the client type changes (e.g. Individual -> Company) after a document
 // type was already picked, drop it back to a valid choice for the new type
@@ -152,17 +151,17 @@ function handleUploaderError(message: string): void {
 
 <template>
   <div class="flex flex-col gap-6">
-    <FormSection title="Identification" :description="identificationDescription">
+    <FormSection :title="t('client.identificationStep.title')" :description="identificationDescription">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.identification.documentType" label="Document Type" required :options="identificationTypeOptions" />
-        <TextInput v-model="form.identification.documentNumber" label="Document Number" required :error="errors.documentNumber" />
-        <DatePicker v-model="form.identification.issueDate" label="Issue Date" required :max="maxDate" :error="errors.issueDate" />
-        <DatePicker v-model="form.identification.expiryDate" label="Expiry Date" required :error="errors.expiryDate" />
-        <TextInput v-model="form.identification.issuingCountry" label="Issuing Country" required :error="errors.issuingCountry" />
+        <SelectBox v-model="form.identification.documentType" :label="t('client.identificationStep.documentType')" required :options="identificationTypeOptions" />
+        <TextInput v-model="form.identification.documentNumber" :label="t('client.identificationStep.documentNumber')" required :error="errors.documentNumber" />
+        <DatePicker v-model="form.identification.issueDate" :label="t('client.identificationStep.issueDate')" required :max="maxDate" :error="errors.issueDate" />
+        <DatePicker v-model="form.identification.expiryDate" :label="t('client.identificationStep.expiryDate')" required :error="errors.expiryDate" />
+        <TextInput v-model="form.identification.issuingCountry" :label="t('client.identificationStep.issuingCountry')" required :error="errors.issuingCountry" />
       </div>
     </FormSection>
 
-    <FormSection title="Upload Document" description="Upload a copy of the identification or trade licence document. JPG, PNG or PDF, up to 5 MB." required>
+    <FormSection :title="t('client.identificationStep.uploadTitle')" :description="t('client.identificationStep.uploadDescription')" required>
       <FileUploader
         hint="JPG, PNG or PDF, up to 5 MB"
         accept=".jpg,.jpeg,.png,.pdf"

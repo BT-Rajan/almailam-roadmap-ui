@@ -21,3 +21,6 @@ dist-ssr
 /backend/.env
 /backend/venv/
 /ecosystem*.config.cjs
+
+# Agent worktrees created during this session
+.claude/worktrees/

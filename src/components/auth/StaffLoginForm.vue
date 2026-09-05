@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LogIn } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Alert from '@/components/common/Alert.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -37,7 +38,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   idAutocomplete: 'username',
-  submitLabel: 'Sign In',
+  submitLabel: undefined,
   showRememberMe: false,
   showForgotPassword: false,
   showClear: false,
@@ -48,6 +49,9 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   success: []
 }>()
+
+const { t } = useI18n()
+const resolvedSubmitLabel = computed(() => props.submitLabel ?? t('auth.signIn'))
 
 const id = ref('')
 const password = ref('')
@@ -113,44 +117,44 @@ function clearLogin(): void {
     <TextInput
       v-model="password"
       type="password"
-      label="Password"
-      placeholder="Enter your password"
+      :label="t('auth.passwordLabel')"
+      :placeholder="t('auth.passwordPlaceholder')"
       autocomplete="current-password"
       required
       :error="errors.password"
     />
 
     <div v-if="showRememberMe || showForgotPassword" class="flex items-center justify-between">
-      <Checkbox v-if="showRememberMe" v-model="rememberMe" label="Remember me" />
+      <Checkbox v-if="showRememberMe" v-model="rememberMe" :label="t('auth.rememberMe')" />
       <button
         v-if="showForgotPassword"
         type="button"
         class="text-sm font-medium text-text-link transition-colors duration-fast hover:opacity-80"
         @click="isForgotPasswordOpen = true"
       >
-        Forgot password?
+        {{ t('auth.forgotPassword') }}
       </button>
     </div>
 
-    <Alert v-if="infoMessage" :variant="initialMessageVariant" title="Signed out" :description="infoMessage" />
-    <Alert v-if="authError" variant="error" title="Couldn't sign you in" :description="authError" />
+    <Alert v-if="infoMessage" :variant="initialMessageVariant" :title="t('auth.signedOut')" :description="infoMessage" />
+    <Alert v-if="authError" variant="error" :title="t('auth.signInFailedTitle')" :description="authError" />
 
     <div class="flex gap-3">
       <BaseButton type="submit" :icon="LogIn" :loading="isSubmitting" full-width>
-        {{ submitLabel }}
+        {{ resolvedSubmitLabel }}
       </BaseButton>
       <BaseButton v-if="showClear" type="button" variant="secondary" :disabled="isSubmitting" full-width @click="clearLogin">
-        Clear
+        {{ t('auth.clear') }}
       </BaseButton>
     </div>
   </form>
 
-  <BaseDialog v-if="showForgotPassword" v-model="isForgotPasswordOpen" title="Forgot Password" size="sm">
+  <BaseDialog v-if="showForgotPassword" v-model="isForgotPasswordOpen" :title="t('auth.forgotPasswordTitle')" size="sm">
     <p class="text-sm text-text-secondary">
-      Please contact your system administrator to reset your password. This prototype does not send reset emails.
+      {{ t('auth.forgotPasswordBody') }}
     </p>
     <template #footer>
-      <BaseButton @click="isForgotPasswordOpen = false">Got It</BaseButton>
+      <BaseButton @click="isForgotPasswordOpen = false">{{ t('auth.gotIt') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

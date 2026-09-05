@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Stepper from '@/components/common/Stepper.vue'
 import type { ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
@@ -19,6 +20,22 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
+
+const { t } = useI18n()
+
+const STAGE_LABEL_KEYS: Record<WorkflowStage, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+
+function stageLabel(stage: WorkflowStage): string {
+  return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
+}
 
 // Every one of these stages jumps to the tab that covers it -- this
 // stepper is now the only place Quotation/Contract/Design/Supervision/
@@ -49,7 +66,7 @@ const visibleStages = computed<WorkflowStage[]>(() =>
   }),
 )
 
-const steps = computed(() => visibleStages.value.map((stage) => ({ label: getWorkflowStageLabel(stage) })))
+const steps = computed(() => visibleStages.value.map((stage) => ({ label: stageLabel(stage) })))
 
 // Rank = position in the full, unfiltered WORKFLOW_STAGES sequence, not
 // in visibleStages -- Design/Supervision can drop in or out of
@@ -79,7 +96,7 @@ function handleSelect(index: number): void {
        in -- so this stage stepper looks like the exact same UI element,
        not a differently-styled sibling of it. -->
   <div class="rounded-xl border border-border-light bg-bg-card p-6">
-    <h3 class="mb-6 text-sm font-semibold text-text-primary">Workflow Progress</h3>
+    <h3 class="mb-6 text-sm font-semibold text-text-primary">{{ t('project.workflowProgress') }}</h3>
     <div class="overflow-x-auto pb-1">
       <div class="min-w-[720px]">
         <Stepper

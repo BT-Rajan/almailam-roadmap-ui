@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Pencil, X } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -20,9 +21,23 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { t } = useI18n()
 const { can } = useRbac()
 const userStore = useUserStore()
 const toastStore = useToastStore()
+
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  Administrator: 'administration.userRole.administrator',
+  'Project Manager': 'administration.userRole.projectManager',
+  Engineer: 'administration.userRole.engineer',
+  'Document Controller': 'administration.userRole.documentController',
+  Viewer: 'administration.userRole.viewer',
+}
+
+function roleLabel(role: string): string {
+  const key = ROLE_LABEL_KEYS[role]
+  return key ? t(key) : role
+}
 
 const isEditing = ref(false)
 const isConfirmOpen = ref(false)
@@ -62,17 +77,20 @@ async function confirmSave(): Promise<void> {
   <Card>
     <template #header>
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold text-text-primary">{{ definition.role }}</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ roleLabel(definition.role) }}</h3>
         <div class="flex items-center gap-2">
-          <StatusBadge :label="`${userCount} ${userCount === 1 ? 'user' : 'users'}`" variant="neutral" />
+          <StatusBadge
+            :label="userCount === 1 ? t('administration.roleCard.userCount', { count: userCount }) : t('administration.roleCard.usersCount', { count: userCount })"
+            variant="neutral"
+          />
           <IconButton
             v-if="can('roles.edit') && !isEditing"
             :icon="Pencil"
-            label="Edit permissions"
+            :label="t('administration.roleCard.editPermissions')"
             size="sm"
             @click="startEditing"
           />
-          <IconButton v-else-if="isEditing" :icon="X" label="Cancel" size="sm" @click="cancelEditing" />
+          <IconButton v-else-if="isEditing" :icon="X" :label="t('common.cancel')" size="sm" @click="cancelEditing" />
         </div>
       </div>
     </template>
@@ -85,8 +103,8 @@ async function confirmSave(): Promise<void> {
     />
 
     <div v-if="isEditing" class="mt-4 flex justify-end gap-3">
-      <BaseButton variant="secondary" @click="cancelEditing">Cancel</BaseButton>
-      <BaseButton @click="requestSave">Save Changes</BaseButton>
+      <BaseButton variant="secondary" @click="cancelEditing">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton @click="requestSave">{{ t('administration.roleCard.saveChanges') }}</BaseButton>
     </div>
   </Card>
 

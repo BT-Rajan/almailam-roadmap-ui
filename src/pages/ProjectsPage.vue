@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LayoutGrid, Plus, TableProperties } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -40,50 +41,51 @@ interface ProjectTableRow {
 
 const router = useRouter()
 const projectStore = useProjectStore()
+const { t } = useI18n()
 
-const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Active', value: 'Active' },
-  { label: 'On Hold', value: 'On Hold' },
-  { label: 'Cancelled', value: 'Cancelled' },
-]
+const STATUS_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('project.projectsPage.allStatuses'), value: 'All' },
+  { label: t('project.status.active'), value: 'Active' },
+  { label: t('project.status.onHold'), value: 'On Hold' },
+  { label: t('project.status.cancelled'), value: 'Cancelled' },
+])
 
-const STAGE_OPTIONS: SelectOption[] = [
-  { label: 'All Stages', value: 'All' },
-  { label: 'Requirement', value: 'Requirement' },
-  { label: 'Quotation', value: 'Quotation' },
-  { label: 'Payment Plan', value: 'Payment Plan' },
-  { label: 'Contract', value: 'Contract' },
-  { label: 'Design', value: 'Design' },
-  { label: 'Supervision', value: 'Supervision' },
-  { label: 'Approvals & Permits', value: 'Government Submission' },
-]
+const STAGE_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('project.projectsPage.allStages'), value: 'All' },
+  { label: t('project.stage.requirement'), value: 'Requirement' },
+  { label: t('project.stage.quotation'), value: 'Quotation' },
+  { label: t('project.stage.paymentPlan'), value: 'Payment Plan' },
+  { label: t('project.stage.contract'), value: 'Contract' },
+  { label: t('project.stage.design'), value: 'Design' },
+  { label: t('project.stage.supervision'), value: 'Supervision' },
+  { label: t('project.stage.governmentSubmission'), value: 'Government Submission' },
+])
 
-const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'All Priorities', value: 'All' },
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
-]
+const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('project.projectsPage.allPriorities'), value: 'All' },
+  { label: t('project.priority.high'), value: 'High' },
+  { label: t('project.priority.medium'), value: 'Medium' },
+  { label: t('project.priority.low'), value: 'Low' },
+])
 
-const TABLE_COLUMNS: SmartTableColumn<ProjectTableRow>[] = [
-  { key: 'projectNo', label: 'Project No.', sortable: true, width: '140px' },
-  { key: 'projectName', label: 'Project Name', sortable: true },
-  { key: 'clientName', label: 'Client', sortable: true },
-  { key: 'currentStage', label: 'Stage', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'priority', label: 'Priority', sortable: true },
-  { key: 'progress', label: 'Progress', sortable: true, width: '160px' },
-  { key: 'engineer', label: 'Engineer', sortable: true },
-  { key: 'targetDate', label: 'Target Date', sortable: true, align: 'right' },
-]
+const TABLE_COLUMNS = computed<SmartTableColumn<ProjectTableRow>[]>(() => [
+  { key: 'projectNo', label: t('project.projectsPage.columns.projectNo'), sortable: true, width: '140px' },
+  { key: 'projectName', label: t('project.projectsPage.columns.projectName'), sortable: true },
+  { key: 'clientName', label: t('project.projectsPage.columns.client'), sortable: true },
+  { key: 'currentStage', label: t('project.projectsPage.columns.stage'), sortable: true },
+  { key: 'status', label: t('project.projectsPage.columns.status'), sortable: true },
+  { key: 'priority', label: t('project.projectsPage.columns.priority'), sortable: true },
+  { key: 'progress', label: t('project.projectsPage.columns.progress'), sortable: true, width: '160px' },
+  { key: 'engineer', label: t('project.projectsPage.columns.engineer'), sortable: true },
+  { key: 'targetDate', label: t('project.projectsPage.columns.targetDate'), sortable: true, align: 'right' },
+])
 
 const tableRows = computed<ProjectTableRow[]>(() =>
   projectStore.pageItems.map((project) => ({
     id: project.id,
     projectNo: project.projectNo,
     projectName: project.projectName,
-    clientName: projectStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client',
+    clientName: projectStore.getClientById(project.clientId)?.companyName ?? t('project.unknownClient'),
     currentStage: project.currentStage,
     status: project.status,
     priority: project.priority,
@@ -92,6 +94,37 @@ const tableRows = computed<ProjectTableRow[]>(() =>
     targetDate: project.targetDate,
   })),
 )
+
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+function stageLabel(stage: string): string {
+  return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
+}
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'project.status.active',
+  'On Hold': 'project.status.onHold',
+  Cancelled: 'project.status.cancelled',
+}
+function statusLabel(status: string): string {
+  return t(STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  High: 'project.priority.high',
+  Medium: 'project.priority.medium',
+  Low: 'project.priority.low',
+}
+function priorityLabel(priority: string): string {
+  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
+}
 
 function loadData(): void {
   void projectStore.loadProjectsPage()
@@ -110,9 +143,9 @@ function createProject(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="Project Explorer" subtitle="Browse, filter and open every engineering consulting engagement.">
+    <PageHeader :title="t('project.projectsPage.title')" :subtitle="t('project.projectsPage.subtitle')">
       <template #actions>
-        <BaseButton :icon="Plus" @click="createProject">New Project</BaseButton>
+        <BaseButton :icon="Plus" @click="createProject">{{ t('project.projectsPage.newProject') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -124,7 +157,7 @@ function createProject(): void {
       <template #filters>
         <div class="w-44">
           <SelectBox
-            label="Status"
+            :label="t('project.projectsPage.status')"
             :model-value="projectStore.statusFilter"
             :options="STATUS_OPTIONS"
             @update:model-value="projectStore.setStatusFilter($event as ProjectStatus | 'All')"
@@ -132,7 +165,7 @@ function createProject(): void {
         </div>
         <div class="w-52">
           <SelectBox
-            label="Stage"
+            :label="t('project.projectsPage.stage')"
             :model-value="projectStore.stageFilter"
             :options="STAGE_OPTIONS"
             @update:model-value="projectStore.setStageFilter($event as WorkflowStage | 'All')"
@@ -140,7 +173,7 @@ function createProject(): void {
         </div>
         <div class="w-44">
           <SelectBox
-            label="Priority"
+            :label="t('project.projectsPage.priority')"
             :model-value="projectStore.priorityFilter"
             :options="PRIORITY_OPTIONS"
             @update:model-value="projectStore.setPriorityFilter($event as ProjectPriority | 'All')"
@@ -152,14 +185,14 @@ function createProject(): void {
           :aria-pressed="projectStore.myProjectsOnly"
           @click="projectStore.setMyProjectsOnly(!projectStore.myProjectsOnly)"
         >
-          My Projects
+          {{ t('project.projectsPage.myProjects') }}
         </BaseButton>
       </template>
       <template #actions>
-        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" aria-label="Project list layout">
+        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" :aria-label="t('project.projectsPage.layoutAria')">
           <IconButton
             :icon="LayoutGrid"
-            label="Grid view"
+            :label="t('project.projectsPage.gridView')"
             size="sm"
             :variant="projectStore.viewMode === 'grid' ? 'primary' : 'ghost'"
             :aria-pressed="projectStore.viewMode === 'grid'"
@@ -167,7 +200,7 @@ function createProject(): void {
           />
           <IconButton
             :icon="TableProperties"
-            label="Table view"
+            :label="t('project.projectsPage.tableView')"
             size="sm"
             :variant="projectStore.viewMode === 'table' ? 'primary' : 'ghost'"
             :aria-pressed="projectStore.viewMode === 'table'"
@@ -188,9 +221,9 @@ function createProject(): void {
 
       <EmptyState
         v-else-if="projectStore.pageItems.length === 0"
-        title="No projects found"
-        description="Try adjusting your search or filters, or create a new project."
-        action-label="New Project"
+        :title="t('project.projectsPage.noProjectsFoundTitle')"
+        :description="t('project.projectsPage.noProjectsFoundDescription')"
+        :action-label="t('project.projectsPage.newProject')"
         @action="createProject"
       />
 
@@ -228,18 +261,18 @@ function createProject(): void {
         :loading="projectStore.isPageLoading"
         :searchable="false"
         :paginated="false"
-        empty-title="No projects found"
-        empty-description="Try adjusting your search or filters, or create a new project."
+        :empty-title="t('project.projectsPage.noProjectsFoundTitle')"
+        :empty-description="t('project.projectsPage.noProjectsFoundDescription')"
         @row-click="openProject($event.id)"
       >
         <template #cell-status="{ value }">
-          <StatusBadge :label="value as string" :variant="getProjectStatusVariant(value as ProjectStatus)" show-dot />
+          <StatusBadge :label="statusLabel(value as string)" :variant="getProjectStatusVariant(value as ProjectStatus)" show-dot />
         </template>
         <template #cell-priority="{ value }">
-          <StatusBadge :label="value as string" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
+          <StatusBadge :label="priorityLabel(value as string)" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
         </template>
         <template #cell-currentStage="{ value }">
-          <StatusBadge :label="getWorkflowStageLabel(value as string)" variant="info" />
+          <StatusBadge :label="stageLabel(value as string)" variant="info" />
         </template>
         <template #cell-progress="{ value }">
           <ProgressBar :value="value as number" show-label />

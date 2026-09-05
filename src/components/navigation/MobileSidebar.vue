@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { useAuth } from '@/composables/useAuthComposable'
@@ -9,6 +10,7 @@ import { useNavigationStore } from '@/stores/navigationStore'
 
 const navigationStore = useNavigationStore()
 const { isAdmin } = useAuth()
+const { t } = useI18n()
 
 // Same adminOnly filter as Sidebar.vue -- kept in sync so the mobile drawer
 // never shows a link the desktop nav wouldn't.
@@ -36,12 +38,12 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
           >
             SO
           </div>
-          <span class="text-base font-semibold text-[var(--color-text-primary)]">ServiceOS</span>
+          <span class="text-base font-semibold text-[var(--color-text-primary)]">{{ t('common.appName') }}</span>
         </div>
         <button
           type="button"
           class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
-          aria-label="Close navigation menu"
+          :aria-label="t('common.closeNavigationMenu')"
           @click="navigationStore.closeMobileSidebar"
         >
           <X :size="20" />

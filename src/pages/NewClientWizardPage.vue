@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -28,13 +29,14 @@ const router = useRouter()
 const clientStore = useClientStore()
 const toastStore = useToastStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
-const WIZARD_STEPS = [
-  { label: 'Client Type' },
-  { label: 'Contacts & Address' },
-  { label: 'Identification' },
-  { label: 'Review & Confirm' },
-]
+const WIZARD_STEPS = computed(() => [
+  { label: t('client.newWizard.steps.clientType') },
+  { label: t('client.newWizard.steps.contactsAddress') },
+  { label: t('client.newWizard.steps.identification') },
+  { label: t('client.newWizard.steps.reviewConfirm') },
+])
 
 const currentStep = ref(0)
 const isSubmitting = ref(false)
@@ -216,7 +218,7 @@ function goNext(): void {
   // Leaving step 0 (Client Type) no longer auto-creates or pre-fills a
   // contact from its mobile/email -- Contacts & Address always starts
   // with no contact shown; the user adds one explicitly via Add Contact.
-  currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.length - 1)
+  currentStep.value = Math.min(currentStep.value + 1, WIZARD_STEPS.value.length - 1)
 }
 
 function goBack(): void {
@@ -408,7 +410,7 @@ function goToCreatedClient(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="New Client Onboarding" subtitle="Collect, verify and confirm client information in a few steps." />
+    <PageHeader :title="t('client.newWizard.title')" :subtitle="t('client.newWizard.subtitle')" />
 
     <BaseDialog :model-value="draftAvailable" title="Resume unsaved draft?" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
@@ -439,15 +441,15 @@ function goToCreatedClient(): void {
       <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
         <FormActionBar
           v-if="currentStep < WIZARD_STEPS.length - 1"
-          :cancel-label="currentStep === 0 ? 'Cancel' : 'Back'"
-          submit-label="Next"
+          :cancel-label="currentStep === 0 ? t('client.newWizard.cancel') : t('client.newWizard.back')"
+          :submit-label="t('client.newWizard.next')"
           @cancel="currentStep === 0 ? cancelWizard() : goBack()"
           @submit="goNext"
         />
         <FormActionBar
           v-else
-          cancel-label="Back"
-          submit-label="Add Client"
+          :cancel-label="t('client.newWizard.back')"
+          :submit-label="t('client.newWizard.addClient')"
           :loading="isSubmitting"
           @cancel="goBack"
           @submit="submitWizard"

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { CalendarClock, Download, Eye, FileText } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import type { ClientDocument } from '@/types/Client'
 import { formatDate } from '@/utils/dateFormatter'
+
+const { t } = useI18n()
 
 defineProps<{
   document: ClientDocument
@@ -30,8 +33,8 @@ defineEmits<{
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2 no-print">
-          <IconButton :icon="Eye" label="View document" size="sm" @click="$emit('view', document)" />
-          <IconButton :icon="Download" label="Download document" size="sm" @click="$emit('download', document)" />
+          <IconButton :icon="Eye" :label="t('document.card.viewDocument')" size="sm" @click="$emit('view', document)" />
+          <IconButton :icon="Download" :label="t('document.card.downloadDocument')" size="sm" @click="$emit('download', document)" />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { MapPin, Pencil, Trash2 } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -16,11 +17,21 @@ defineEmits<{
   delete: []
 }>()
 
+const { t } = useI18n()
+
 const addressLine = computed(() =>
   [props.address.building, props.address.street, props.address.area, props.address.city, props.address.state, props.address.country]
     .filter(Boolean)
     .join(', '),
 )
+
+const ADDRESS_TYPE_LABEL_KEYS: Record<string, string> = {
+  Registered: 'clientOptions.addressType.registered',
+  Operating: 'clientOptions.addressType.operating',
+  Residential: 'clientOptions.addressType.residential',
+  Mailing: 'clientOptions.addressType.mailing',
+}
+const addressTypeLabel = computed(() => t(ADDRESS_TYPE_LABEL_KEYS[props.address.addressType] ?? props.address.addressType))
 </script>
 
 <template>
@@ -31,13 +42,13 @@ const addressLine = computed(() =>
           <MapPin class="h-4 w-4" />
         </span>
         <div class="flex flex-col gap-1">
-          <StatusBadge :label="address.addressType" variant="info" size="sm" />
+          <StatusBadge :label="addressTypeLabel" variant="info" size="sm" />
           <p class="text-sm text-text-secondary">{{ addressLine }}</p>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">
-        <IconButton :icon="Pencil" :label="`Edit ${address.addressType} address`" size="sm" @click="$emit('edit')" />
-        <IconButton :icon="Trash2" :label="`Remove ${address.addressType} address`" size="sm" variant="danger" @click="$emit('delete')" />
+        <IconButton :icon="Pencil" :label="t('client.addressCard.edit', { type: addressTypeLabel })" size="sm" @click="$emit('edit')" />
+        <IconButton :icon="Trash2" :label="t('client.addressCard.remove', { type: addressTypeLabel })" size="sm" variant="danger" @click="$emit('delete')" />
       </div>
     </div>
   </Card>

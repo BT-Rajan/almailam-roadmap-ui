@@ -2,6 +2,7 @@
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from '@lucide/vue'
 import { computed } from 'vue'
 import type { Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { ToastVariant } from '@/types/Toast'
 
@@ -37,6 +38,7 @@ const variantClasses: Record<ToastVariant, string> = {
 }
 
 const icon = computed(() => variantIcons[props.variant])
+const { t } = useI18n()
 </script>
 
 <template>
@@ -52,7 +54,7 @@ const icon = computed(() => variantIcons[props.variant])
     <button
       v-if="dismissible"
       type="button"
-      aria-label="Dismiss alert"
+      :aria-label="t('common.dismissAlert')"
       class="opacity-70 hover:opacity-100"
       @click="$emit('close')"
     >

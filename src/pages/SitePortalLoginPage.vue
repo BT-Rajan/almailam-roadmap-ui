@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import AuthCard from '@/components/auth/AuthCard.vue'
@@ -6,6 +7,7 @@ import StaffLoginForm from '@/components/auth/StaffLoginForm.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
@@ -19,10 +21,10 @@ async function handleSuccess(): Promise<void> {
 </script>
 
 <template>
-  <AuthCard title="Site Engineer Sign In" subtitle="File your daily status report and view your report history.">
+  <AuthCard :title="t('sitePortal.loginPage.title')" :subtitle="t('sitePortal.loginPage.subtitle')">
     <StaffLoginForm
-      id-label="Employee ID"
-      id-placeholder="Enter your Employee ID"
+      :id-label="t('sitePortal.loginPage.idLabel')"
+      :id-placeholder="t('sitePortal.loginPage.idPlaceholder')"
       :login-fn="authStore.login"
       :initial-message="initialMessage"
       @success="handleSuccess"

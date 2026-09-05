@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Bell, CheckCircle2, FileText, TrendingUp } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ProjectUpdate } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const sortedUpdates = computed(() => {
   return [...props.updates].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8)
@@ -41,11 +43,11 @@ const getIconColor = (type: string) => {
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-text-primary">Recent Updates</h2>
+      <h2 class="text-xl font-semibold text-text-primary">{{ t('customer.updatesPanel.title') }}</h2>
     </template>
 
     <div v-if="sortedUpdates.length === 0">
-      <EmptyState :icon="Bell" title="No updates yet" description="You'll see the latest project activity here as work progresses." />
+      <EmptyState :icon="Bell" :title="t('customer.updatesPanel.emptyTitle')" :description="t('customer.updatesPanel.emptyDescription')" />
     </div>
 
     <div v-else class="space-y-3">

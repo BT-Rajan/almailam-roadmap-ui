@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { CustomerProjectStatus } from '@/types/CustomerPortal'
 import type { BadgeVariant } from '@/types/Ui'
 import Card from '@/components/common/Card.vue'
@@ -10,6 +11,20 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  planning: 'customer.projectStatus.planning',
+  active: 'customer.projectStatus.active',
+  'on-hold': 'customer.projectStatus.onHold',
+  completed: 'customer.projectStatus.completed',
+  cancelled: 'customer.projectStatus.cancelled',
+}
+
+const statusLabel = computed(() => {
+  const key = STATUS_LABEL_KEYS[props.project.status]
+  return key ? t(key) : props.project.status
+})
 
 const statusVariant = computed(() => {
   const variants: Record<string, BadgeVariant> = {
@@ -60,18 +75,18 @@ const formatDate = (date: string) =>
           <h1 class="text-xl font-bold text-text-primary tablet:text-3xl">{{ project.projectName }}</h1>
           <p class="text-text-secondary mt-2">{{ project.description }}</p>
           <p class="text-sm text-text-muted mt-3">
-            <strong>Client:</strong> {{ project.clientName }}
+            <strong>{{ t('customer.header.client') }}</strong> {{ project.clientName }}
           </p>
         </div>
         <div class="flex-shrink-0">
-          <StatusBadge :label="project.status" :variant="statusVariant" />
+          <StatusBadge :label="statusLabel" :variant="statusVariant" />
         </div>
       </div>
 
       <!-- Progress Bar -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-text-secondary">Overall Progress</span>
+          <span class="text-sm font-medium text-text-secondary">{{ t('customer.header.overallProgress') }}</span>
           <span class="text-sm font-bold text-text-primary">{{ project.progress }}%</span>
         </div>
         <div class="h-3 bg-bg-secondary rounded-full overflow-hidden">
@@ -90,17 +105,17 @@ const formatDate = (date: string) =>
       <!-- Timeline Info -->
       <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
         <div class="space-y-1">
-          <p class="text-xs text-text-secondary uppercase font-medium">Start Date</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">{{ t('customer.header.startDate') }}</p>
           <p class="text-sm font-medium text-text-primary">{{ formatDate(project.startDate) }}</p>
         </div>
         <div class="space-y-1">
-          <p class="text-xs text-text-secondary uppercase font-medium">Expected Completion</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">{{ t('customer.header.expectedCompletion') }}</p>
           <p class="text-sm font-medium text-text-primary">{{ formatDate(project.expectedEndDate) }}</p>
-          <p v-if="isActiveTimeline && !showOverdueWarning" class="text-xs text-text-muted mt-1">{{ daysRemaining }} days remaining</p>
-          <p v-else-if="showOverdueWarning" class="text-xs text-danger-500 font-medium mt-1">Target date passed</p>
+          <p v-if="isActiveTimeline && !showOverdueWarning" class="text-xs text-text-muted mt-1">{{ t('customer.header.daysRemaining', { count: daysRemaining }) }}</p>
+          <p v-else-if="showOverdueWarning" class="text-xs text-danger-500 font-medium mt-1">{{ t('customer.header.targetDatePassed') }}</p>
         </div>
         <div v-if="project.actualEndDate" class="space-y-1">
-          <p class="text-xs text-text-secondary uppercase font-medium">Actual Completion</p>
+          <p class="text-xs text-text-secondary uppercase font-medium">{{ t('customer.header.actualCompletion') }}</p>
           <p class="text-sm font-medium text-success-600">{{ formatDate(project.actualEndDate) }}</p>
         </div>
       </div>

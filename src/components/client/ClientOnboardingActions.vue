@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowRightCircle, Settings2 } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -23,6 +24,20 @@ const emit = defineEmits<{
   autoAdvance: []
   changeStatus: []
 }>()
+
+const { t } = useI18n()
+
+const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
+  'Information Required': 'clientOptions.onboardingState.informationRequired',
+  'Documents Required': 'clientOptions.onboardingState.documentsRequired',
+  'Under Review': 'clientOptions.onboardingState.underReview',
+  Ready: 'clientOptions.onboardingState.ready',
+  Rejected: 'clientOptions.onboardingState.rejected',
+  Suspended: 'clientOptions.onboardingState.suspended',
+}
+function onboardingStateLabel(state: string): string {
+  return t(ONBOARDING_STATE_LABEL_KEYS[state] ?? state)
+}
 
 // Purely informational -- what the actual contacts/addresses/documents/
 // identifications on file say the state should ultimately be, shown as
@@ -62,21 +77,21 @@ const canAutoAdvance = computed(
 <template>
   <Card>
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">Onboarding Status</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('client.onboardingActions.title') }}</h3>
     </template>
 
     <div class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <span class="text-sm text-text-muted">Current status</span>
-        <StatusBadge :label="client.onboardingState" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
+        <span class="text-sm text-text-muted">{{ t('client.onboardingActions.currentStatus') }}</span>
+        <StatusBadge :label="onboardingStateLabel(client.onboardingState)" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
       </div>
 
       <p v-if="recommendedState !== client.onboardingState" class="text-xs text-text-muted">
-        Based on the documents and verifications on file, this client can move toward
-        <strong>{{ recommendedState }}</strong>.
+        {{ t('client.onboardingActions.recommendedPrefix') }}
+        <strong>{{ onboardingStateLabel(recommendedState) }}</strong>.
       </p>
       <p v-else-if="availableTransitions.length === 0" class="text-xs text-text-muted">
-        No further status changes are available from this status.
+        {{ t('client.onboardingActions.noFurtherChanges') }}
       </p>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -87,7 +102,7 @@ const canAutoAdvance = computed(
           :loading="loading"
           @click="emit('autoAdvance')"
         >
-          Advance
+          {{ t('client.onboardingActions.advance') }}
         </BaseButton>
         <BaseButton
           v-if="availableTransitions.length > 0"
@@ -97,7 +112,7 @@ const canAutoAdvance = computed(
           :disabled="loading"
           @click="emit('changeStatus')"
         >
-          Change Status
+          {{ t('client.onboardingActions.changeStatus') }}
         </BaseButton>
       </div>
     </div>

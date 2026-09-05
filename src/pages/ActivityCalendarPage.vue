@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ClipboardPlus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -24,6 +25,7 @@ import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 
 const router = useRouter()
+const { t } = useI18n()
 const toastStore = useToastStore()
 const taskStore = useTaskStore()
 const { can } = useRbac()
@@ -105,11 +107,11 @@ async function loadFilterOptions() {
         activityCalendarService.getUsersForFiltering(),
       ])
       projectOptions.value = [
-        { label: 'All Projects', value: '' },
+        { label: t('workspace.activityCalendarPage.allProjects'), value: '' },
         ...projects.map((p) => ({ label: p.name, value: p.id })),
       ]
       userOptions.value = [
-        { label: 'All Users', value: '' },
+        { label: t('workspace.activityCalendarPage.allUsers'), value: '' },
         ...users.map((u) => ({ label: u.name, value: u.id })),
       ]
     } else {
@@ -119,7 +121,7 @@ async function loadFilterOptions() {
       // dropdown at all: this page never shows anyone else's activity.
       const page = await projectService.getProjectsPage({ pageSize: 200 })
       projectOptions.value = [
-        { label: 'All Projects', value: '' },
+        { label: t('workspace.activityCalendarPage.allProjects'), value: '' },
         ...page.items.map((p: Project) => ({ label: p.projectName, value: p.id })),
       ]
     }
@@ -215,7 +217,15 @@ const calendarDays = computed(() => {
   return days
 })
 
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const weekDays = computed(() => [
+  t('sitePortal.calendarPage.weekdaySun'),
+  t('sitePortal.calendarPage.weekdayMon'),
+  t('sitePortal.calendarPage.weekdayTue'),
+  t('sitePortal.calendarPage.weekdayWed'),
+  t('sitePortal.calendarPage.weekdayThu'),
+  t('sitePortal.calendarPage.weekdayFri'),
+  t('sitePortal.calendarPage.weekdaySat'),
+])
 
 async function exportToCSV() {
   try {
@@ -270,7 +280,7 @@ const isTaskDrawerOpen = computed({
 })
 
 const selectedTaskProjectName = computed(
-  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? 'Unknown Project',
+  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? t('task.unknownProject'),
 )
 
 const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
@@ -317,12 +327,12 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 <template>
   <div class="min-h-screen">
     <PageHeader
-      title="Activity Calendar"
-      :subtitle="canViewAll ? 'View all updates by team members across projects' : 'View your updates across projects'"
+      :title="t('common.activityCalendar')"
+      :subtitle="canViewAll ? t('workspace.activityCalendarPage.subtitleAll') : t('workspace.activityCalendarPage.subtitleMine')"
     >
       <template #actions>
         <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.TASKS })">
-          Open Task Board
+          {{ t('workspace.activityCalendarPage.openTaskBoard') }}
         </BaseButton>
       </template>
     </PageHeader>
@@ -337,30 +347,30 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
           <!-- View Mode -->
           <SelectBox
             v-model="viewMode"
-            label="View Mode"
+            :label="t('workspace.activityCalendarPage.viewMode')"
             :options="[
-              { label: 'Monthly', value: 'month' },
-              { label: 'Weekly', value: 'week' },
-              { label: 'Daily', value: 'day' },
-              { label: 'List', value: 'list' },
+              { label: t('workspace.activityCalendarPage.viewModeMonthly'), value: 'month' },
+              { label: t('workspace.activityCalendarPage.viewModeWeekly'), value: 'week' },
+              { label: t('workspace.activityCalendarPage.viewModeDaily'), value: 'day' },
+              { label: t('workspace.activityCalendarPage.viewModeList'), value: 'list' },
             ]"
           />
 
           <!-- Project Filter -->
-          <SelectBox v-model="selectedProject" label="Project" placeholder="All Projects" :options="projectOptions" />
+          <SelectBox v-model="selectedProject" :label="t('workspace.activityCalendarPage.project')" :placeholder="t('workspace.activityCalendarPage.allProjects')" :options="projectOptions" />
 
           <!-- User Filter (Administrators only -- everyone else only ever sees their own activity) -->
           <SelectBox
             v-if="canViewAll"
             v-model="selectedUser"
-            label="User"
-            placeholder="All Users"
+            :label="t('workspace.activityCalendarPage.user')"
+            :placeholder="t('workspace.activityCalendarPage.allUsers')"
             :options="userOptions"
           />
 
           <!-- Date Picker -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium text-text-secondary">Date</label>
+            <label class="text-sm font-medium text-text-secondary">{{ t('workspace.activityCalendarPage.date') }}</label>
             <input
               v-model="currentMonth"
               type="month"
@@ -370,15 +380,15 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 
           <!-- Export Button (Administrators only) -->
           <div v-if="canViewAll" class="flex items-end">
-            <BaseButton full-width @click="exportToCSV">Export CSV</BaseButton>
+            <BaseButton full-width @click="exportToCSV">{{ t('workspace.activityCalendarPage.exportCsv') }}</BaseButton>
           </div>
         </div>
 
         <!-- Navigation Buttons -->
         <div class="mt-4 flex items-center justify-between">
-          <BaseButton variant="secondary" @click="goToPreviousMonth">← Previous</BaseButton>
-          <BaseButton @click="goToToday">Today</BaseButton>
-          <BaseButton variant="secondary" @click="goToNextMonth">Next →</BaseButton>
+          <BaseButton variant="secondary" @click="goToPreviousMonth">← {{ t('workspace.activityCalendarPage.previous') }}</BaseButton>
+          <BaseButton @click="goToToday">{{ t('workspace.activityCalendarPage.today') }}</BaseButton>
+          <BaseButton variant="secondary" @click="goToNextMonth">{{ t('workspace.activityCalendarPage.next') }} →</BaseButton>
         </div>
       </Card>
 
@@ -440,19 +450,19 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
                     v-if="getDaySummary(day.getDate())?.new"
                     size="sm"
                     variant="success"
-                    :label="`${getDaySummary(day.getDate())?.new} new`"
+                    :label="t('workspace.activityCalendarPage.newCount', { count: getDaySummary(day.getDate())?.new })"
                   />
                   <StatusBadge
                     v-if="getDaySummary(day.getDate())?.updated"
                     size="sm"
                     variant="info"
-                    :label="`${getDaySummary(day.getDate())?.updated} updated`"
+                    :label="t('workspace.activityCalendarPage.updatedCount', { count: getDaySummary(day.getDate())?.updated })"
                   />
                   <StatusBadge
                     v-if="getDaySummary(day.getDate())?.delayed"
                     size="sm"
                     variant="danger"
-                    :label="`${getDaySummary(day.getDate())?.delayed} delayed`"
+                    :label="t('workspace.activityCalendarPage.delayedCount', { count: getDaySummary(day.getDate())?.delayed })"
                   />
                 </div>
               </div>
@@ -463,14 +473,14 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 
       <!-- Other view modes not yet built out -- Monthly is the only one currently backed by data. -->
       <Card v-else>
-        <EmptyState title="Coming soon" :description="`The ${viewMode} view isn't available yet -- switch to Monthly.`" />
+        <EmptyState :title="t('workspace.activityCalendarPage.comingSoon')" :description="t('workspace.activityCalendarPage.comingSoonDescription', { view: viewMode })" />
       </Card>
     </div>
 
     <!-- Day Activity Details -->
     <BaseDrawer v-model="isDetailsPanelOpen" :title="selectedDateStr" width="md" @close="closeDetailsPanel">
       <div v-if="filteredActivities.length === 0">
-        <EmptyState title="No activities on this day" />
+        <EmptyState :title="t('workspace.activityCalendarPage.noActivitiesOnThisDay')" />
       </div>
 
       <div v-else class="flex flex-col gap-3">
@@ -492,17 +502,17 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
           <p class="mt-2 text-sm text-text-secondary">{{ activity.description }}</p>
 
           <div class="mt-2 flex items-center justify-between text-xs text-text-muted">
-            <span v-if="canViewAll">By {{ activity.userName }}</span>
+            <span v-if="canViewAll">{{ t('workspace.activityCalendarPage.byUser', { name: activity.userName }) }}</span>
             <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
           </div>
 
           <div class="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary-600">
             <template v-if="activity.entityType === EntityType.TASK">
-              View task details
+              {{ t('workspace.activityCalendarPage.viewTaskDetails') }}
             </template>
             <template v-else>
               <ClipboardPlus class="h-3.5 w-3.5" />
-              Create follow-up task
+              {{ t('workspace.activityCalendarPage.createFollowUpTask') }}
             </template>
           </div>
         </Card>

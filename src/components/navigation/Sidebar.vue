@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { useAuth } from '@/composables/useAuthComposable'
@@ -9,6 +10,7 @@ import { useNavigationStore } from '@/stores/navigationStore'
 
 const navigationStore = useNavigationStore()
 const { isAdmin } = useAuth()
+const { t } = useI18n()
 
 // adminOnly items (currently just Administration) are hidden from the nav
 // entirely for every other role -- the route itself also redirects a
@@ -33,7 +35,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
         v-if="!navigationStore.isSidebarCollapsed"
         class="truncate text-base font-semibold text-[var(--color-text-primary)]"
       >
-        ServiceOS
+        {{ t('common.appName') }}
       </span>
     </div>
 
@@ -53,7 +55,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
     <button
       type="button"
       class="absolute -right-3 top-16 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-bg-sidebar text-[var(--color-text-secondary)] opacity-0 shadow-glass-sm transition-opacity duration-fast hover:text-[var(--color-text-primary)] group-hover:opacity-100"
-      :aria-label="navigationStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      :aria-label="navigationStore.isSidebarCollapsed ? t('navigation.expandSidebar') : t('navigation.collapseSidebar')"
       @click="navigationStore.toggleSidebarCollapsed"
     >
       <ChevronLeft v-if="!navigationStore.isSidebarCollapsed" :size="14" />

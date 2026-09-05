@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, FileText, Pencil, Plus, Trash2, X } from '@lucide/vue'
 import { reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -36,6 +37,8 @@ const emit = defineEmits<{
   patch: [value: Partial<Quotation>]
   saveAsFinal: [value: Partial<Quotation>]
 }>()
+
+const { t } = useI18n()
 
 const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'KWD', value: 'KWD' },
@@ -134,6 +137,13 @@ function saveAsFinal(): void {
   emit('saveAsFinal', buildPatch())
   isEditing.value = false
 }
+
+const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
+  Draft: 'project.quotationStatus.draft',
+  Approved: 'project.quotationStatus.approved',
+  Rejected: 'project.quotationStatus.rejected',
+  Expired: 'project.quotationStatus.expired',
+}
 </script>
 
 <template>
@@ -142,22 +152,22 @@ function saveAsFinal(): void {
       <div class="no-print flex items-center justify-between">
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-semibold text-text-primary">{{ quotation.quotationNo }}</h2>
-          <StatusBadge :label="quotation.status" :variant="getQuotationStatusVariant(quotation.status)" />
+          <StatusBadge :label="t(QUOTATION_STATUS_KEYS[quotation.status])" :variant="getQuotationStatusVariant(quotation.status)" />
         </div>
         <div class="flex items-center gap-2">
           <span
             class="rounded-full px-2.5 py-1 text-xs font-medium"
             :class="quotation.finalizedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
           >
-            {{ quotation.finalizedAt ? 'Content Locked' : isEditing ? 'Editing' : 'Editable' }}
+            {{ quotation.finalizedAt ? t('project.quotationPreview.contentLocked') : isEditing ? t('project.quotationPreview.editing') : t('project.quotationPreview.editable') }}
           </span>
           <BaseButton v-if="!quotation.finalizedAt && !isEditing" variant="secondary" size="sm" :icon="Pencil" @click="startEditing">
-            Edit
+            {{ t('common.edit') }}
           </BaseButton>
           <template v-else-if="isEditing">
-            <BaseButton variant="ghost" size="sm" :icon="X" @click="cancelEditing">Cancel</BaseButton>
-            <BaseButton variant="secondary" size="sm" :icon="Check" @click="saveDraft">Save</BaseButton>
-            <BaseButton size="sm" @click="saveAsFinal">Save as Final</BaseButton>
+            <BaseButton variant="ghost" size="sm" :icon="X" @click="cancelEditing">{{ t('common.cancel') }}</BaseButton>
+            <BaseButton variant="secondary" size="sm" :icon="Check" @click="saveDraft">{{ t('common.save') }}</BaseButton>
+            <BaseButton size="sm" @click="saveAsFinal">{{ t('project.quotationPreview.saveAsFinal') }}</BaseButton>
           </template>
         </div>
       </div>
@@ -168,13 +178,13 @@ function saveAsFinal(): void {
             <FileText class="h-5 w-5" />
           </span>
           <div>
-            <p class="text-sm font-semibold text-text-primary">Almailam Engineering Consultants</p>
-            <p class="text-xs text-text-muted">Engineering Design & Government Approvals</p>
+            <p class="text-sm font-semibold text-text-primary">{{ t('common.companyName') }}</p>
+            <p class="text-xs text-text-muted">{{ t('project.quotationPreview.companyTagline') }}</p>
           </div>
         </div>
 
         <div class="flex flex-col gap-1 tablet:items-end">
-          <p class="text-xs text-text-muted">Revision {{ quotation.revision }}</p>
+          <p class="text-xs text-text-muted">{{ t('project.quotationPreview.revision', { revision: quotation.revision }) }}</p>
         </div>
       </div>
 
@@ -182,25 +192,25 @@ function saveAsFinal(): void {
 
       <div class="grid grid-cols-1 gap-6 tablet:grid-cols-3">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Bill To</p>
-          <p class="text-sm font-semibold text-text-primary">{{ client?.companyName ?? 'Unknown Client' }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.billTo') }}</p>
+          <p class="text-sm font-semibold text-text-primary">{{ client?.companyName ?? t('client.unknownClient') }}</p>
           <p class="text-sm text-text-muted">{{ client?.contactPerson }}</p>
           <p class="text-sm text-text-muted">{{ client?.city }}</p>
         </div>
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Project</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.project') }}</p>
           <p class="text-sm font-semibold text-text-primary">{{ project.projectName }}</p>
           <p class="text-sm text-text-muted">{{ project.projectNo }} · {{ project.service }}</p>
         </div>
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Dates</p>
-          <p class="text-sm text-text-muted">Issued: {{ formatDate(quotation.issueDate) }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.dates') }}</p>
+          <p class="text-sm text-text-muted">{{ t('project.quotationPreview.issued', { date: formatDate(quotation.issueDate) }) }}</p>
           <template v-if="isEditing">
-            <DatePicker v-model="draft.validity" label="Valid Until" />
-            <SelectBox v-model="draft.currency" label="Currency" :options="CURRENCY_OPTIONS" />
+            <DatePicker v-model="draft.validity" :label="t('project.quotationPreview.validUntil')" />
+            <SelectBox v-model="draft.currency" :label="t('project.quotationPreview.currency')" :options="CURRENCY_OPTIONS" />
           </template>
-          <p v-else class="text-sm text-text-muted">Valid Until: {{ formatDate(quotation.validity) }}</p>
-          <p class="text-sm text-text-muted">Prepared By: {{ quotation.preparedBy }}</p>
+          <p v-else class="text-sm text-text-muted">{{ t('project.quotationPreview.validUntilValue', { date: formatDate(quotation.validity) }) }}</p>
+          <p class="text-sm text-text-muted">{{ t('project.quotationPreview.preparedBy', { name: quotation.preparedBy }) }}</p>
         </div>
       </div>
 
@@ -211,16 +221,16 @@ function saveAsFinal(): void {
           <thead>
             <tr class="border-b border-border-light bg-bg-secondary">
               <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Description
+                {{ t('common.description') }}
               </th>
               <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Qty
+                {{ t('project.quotationPreview.qty') }}
               </th>
               <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Unit Price
+                {{ t('project.quotationPreview.unitPrice') }}
               </th>
               <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Amount
+                {{ t('common.amount') }}
               </th>
             </tr>
           </thead>
@@ -241,19 +251,19 @@ function saveAsFinal(): void {
 
       <div v-else class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-text-secondary">Line Items</label>
-          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addLineItem">Add Line Item</BaseButton>
+          <label class="text-sm font-medium text-text-secondary">{{ t('project.quotationPreview.lineItems') }}</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addLineItem">{{ t('project.quotationPreview.addLineItem') }}</BaseButton>
         </div>
         <div v-for="(item, index) in draft.lineItems" :key="item.id" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
           <div class="flex items-start gap-2">
             <div class="flex-1">
-              <TextInput v-model="item.description" placeholder="Description" />
+              <TextInput v-model="item.description" :placeholder="t('common.description')" />
             </div>
-            <IconButton :icon="Trash2" :label="`Remove line item ${index + 1}`" size="sm" :disabled="draft.lineItems.length === 1" @click="removeLineItem(index)" />
+            <IconButton :icon="Trash2" :label="t('project.quotationPreview.removeLineItem', { index: index + 1 })" size="sm" :disabled="draft.lineItems.length === 1" @click="removeLineItem(index)" />
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <NumberInput :model-value="item.quantity" placeholder="Quantity" :min="0.01" step="0.01" @update:model-value="item.quantity = Number($event)" />
-            <NumberInput :model-value="item.unitPrice" placeholder="Unit Price" :min="0" step="0.01" @update:model-value="item.unitPrice = Number($event)" />
+            <NumberInput :model-value="item.quantity" :placeholder="t('project.quotationPreview.quantity')" :min="0.01" step="0.01" @update:model-value="item.quantity = Number($event)" />
+            <NumberInput :model-value="item.unitPrice" :placeholder="t('project.quotationPreview.unitPrice')" :min="0" step="0.01" @update:model-value="item.unitPrice = Number($event)" />
           </div>
         </div>
       </div>
@@ -261,7 +271,7 @@ function saveAsFinal(): void {
       <div v-if="isEditing" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <NumberInput
           :model-value="draft.discountAmount"
-          label="Discount Amount"
+          :label="t('project.quotationPreview.discountAmount')"
           :min="0"
           step="0.01"
           @update:model-value="draft.discountAmount = Number($event)"
@@ -275,27 +285,27 @@ function saveAsFinal(): void {
       </div>
 
       <div v-if="isEditing" class="flex flex-col gap-1.5">
-        <RichTextEditor v-model="draft.notes" label="Notes" placeholder="Optional notes for this quotation" />
+        <RichTextEditor v-model="draft.notes" :label="t('common.notes')" :placeholder="t('project.quotationPreview.notesPlaceholder')" />
       </div>
       <div v-else-if="quotation.notes" class="flex flex-col gap-1">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Notes</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('common.notes') }}</p>
         <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(quotation.notes)" />
       </div>
 
       <div v-if="isEditing" class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-text-secondary">Terms &amp; Conditions</label>
-          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addTerm">Add Term</BaseButton>
+          <label class="text-sm font-medium text-text-secondary">{{ t('project.quotationPreview.termsAndConditions') }}</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addTerm">{{ t('project.quotationPreview.addTerm') }}</BaseButton>
         </div>
         <div v-for="(term, index) in draft.terms" :key="index" class="flex items-start gap-2">
           <div class="flex-1">
             <RichTextEditor :model-value="term" @update:model-value="draft.terms[index] = $event" />
           </div>
-          <IconButton :icon="Trash2" :label="`Remove term ${index + 1}`" size="sm" @click="removeTerm(index)" />
+          <IconButton :icon="Trash2" :label="t('project.quotationPreview.removeTerm', { index: index + 1 })" size="sm" @click="removeTerm(index)" />
         </div>
       </div>
       <div v-else-if="quotation.termsAndConditions.length" class="flex flex-col gap-2">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Terms & Conditions</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.termsAndConditions') }}</p>
         <ul class="flex flex-col gap-1">
           <li
             v-for="(term, index) in quotation.termsAndConditions"

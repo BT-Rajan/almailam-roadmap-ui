@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, Inbox, Paperclip } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -19,6 +20,7 @@ import type { StatusReport } from '@/types/StatusReport'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
 
+const { t } = useI18n()
 const statusReportStore = useStatusReportStore()
 const toastStore = useToastStore()
 
@@ -74,7 +76,7 @@ async function handleAttach(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="Status Report Inbox" subtitle="Field reports awaiting review, oldest first." />
+    <PageHeader :title="t('report.inboxPage.pageTitle')" :subtitle="t('report.inboxPage.pageSubtitle')" />
 
     <div v-if="statusReportStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="6" />
@@ -85,8 +87,8 @@ async function handleAttach(): Promise<void> {
     <EmptyState
       v-else-if="statusReportStore.reports.length === 0"
       :icon="Inbox"
-      title="Inbox is empty"
-      description="No status reports are waiting for review."
+      :title="t('report.inboxPage.inboxEmpty')"
+      :description="t('report.inboxPage.inboxEmptyDescription')"
     />
 
     <div v-else class="flex flex-col gap-3">
@@ -95,7 +97,7 @@ async function handleAttach(): Promise<void> {
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <p class="text-sm font-semibold text-text-primary">{{ report.reportNo }}</p>
-              <StatusBadge label="Pending" variant="warning" size="sm" />
+              <StatusBadge :label="t('report.inboxPage.pending')" variant="warning" size="sm" />
             </div>
             <p class="mt-0.5 text-sm text-text-secondary">{{ report.projectName }}</p>
             <p class="text-xs text-text-muted">
@@ -105,13 +107,13 @@ async function handleAttach(): Promise<void> {
             <p class="mt-2 whitespace-pre-wrap text-sm text-text-secondary" dir="auto">{{ report.notes }}</p>
           </div>
           <BaseButton size="sm" :icon="Paperclip" class="shrink-0" @click="openAttachDialog(report)">
-            Attach
+            {{ t('report.inboxPage.attach') }}
           </BaseButton>
         </div>
       </Card>
     </div>
 
-    <BaseDialog v-model="isAttachDialogOpen" title="Attach to Project" size="md">
+    <BaseDialog v-model="isAttachDialogOpen" :title="t('report.inboxPage.attachToProject')" size="md">
       <div v-if="selectedReport" class="flex flex-col gap-4">
         <div class="rounded-lg bg-bg-secondary p-3 text-sm">
           <p class="font-medium text-text-primary">{{ selectedReport.projectName }}</p>
@@ -122,18 +124,18 @@ async function handleAttach(): Promise<void> {
 
         <SelectBox
           v-model="attachTaskId"
-          label="Task (optional)"
-          placeholder="No specific task"
+          :label="t('report.inboxPage.task')"
+          :placeholder="t('report.inboxPage.noSpecificTask')"
           :disabled="isLoadingTasks"
           :options="taskOptions"
         />
 
-        <TextArea v-model="attachNotes" label="Notes" placeholder="Brief note for the project timeline..." :rows="3" required />
+        <TextArea v-model="attachNotes" :label="t('report.inboxPage.notes')" :placeholder="t('report.inboxPage.notesPlaceholder')" :rows="3" required />
       </div>
 
       <template #footer>
-        <BaseButton variant="secondary" @click="isAttachDialogOpen = false">Cancel</BaseButton>
-        <BaseButton :icon="CheckCircle2" :loading="isSaving" @click="handleAttach">Attach to Project</BaseButton>
+        <BaseButton variant="secondary" @click="isAttachDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
+        <BaseButton :icon="CheckCircle2" :loading="isSaving" @click="handleAttach">{{ t('report.inboxPage.attachToProject') }}</BaseButton>
       </template>
     </BaseDialog>
   </div>

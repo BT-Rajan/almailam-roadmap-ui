@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
@@ -25,13 +26,15 @@ const emit = defineEmits<{
   'page-size-change': [size: number]
 }>()
 
+const { t } = useI18n()
+
 const rangeLabel = computed(() => {
-  if (props.totalItems === 0) return 'Showing 0 results'
-  return `Showing ${props.startIndex + 1}\u2013${props.endIndex} of ${props.totalItems}`
+  if (props.totalItems === 0) return t('common.showingZeroResults')
+  return t('common.showingRange', { start: props.startIndex + 1, end: props.endIndex, total: props.totalItems })
 })
 
 const pageSizeOptionList = computed<SelectOption[]>(() =>
-  props.pageSizeOptions.map((size) => ({ label: `${size} / page`, value: String(size) })),
+  props.pageSizeOptions.map((size) => ({ label: t('common.perPage', { size }), value: String(size) })),
 )
 
 const isFirstPage = computed(() => props.currentPage <= 1)
@@ -56,7 +59,7 @@ function handlePageSizeChange(value: string): void {
       <div class="flex items-center gap-1">
         <IconButton
           :icon="ChevronLeft"
-          label="Previous page"
+          :label="t('common.previousPage')"
           size="sm"
           :disabled="isFirstPage"
           @click="emit('page-change', currentPage - 1)"
@@ -64,7 +67,7 @@ function handlePageSizeChange(value: string): void {
         <span class="px-2 text-sm text-text-secondary">{{ currentPage }} / {{ totalPages }}</span>
         <IconButton
           :icon="ChevronRight"
-          label="Next page"
+          :label="t('common.nextPage')"
           size="sm"
           :disabled="isLastPage"
           @click="emit('page-change', currentPage + 1)"

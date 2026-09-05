@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import CatalogTabs from '@/components/administration/CatalogTabs.vue'
@@ -7,23 +8,24 @@ import type { CatalogTab, CatalogTabKey } from '@/components/administration/Cata
 import ServiceCatalogPanel from '@/components/administration/ServiceCatalogPanel.vue'
 import PermitCatalogPanel from '@/components/administration/PermitCatalogPanel.vue'
 
-const TABS: CatalogTab[] = [
-  { key: 'services', label: 'Services' },
-  { key: 'permits', label: 'Permit Catalog' },
-]
+const { t } = useI18n()
 
-const SUBTITLES: Record<CatalogTabKey, string> = {
-  services:
-    "Configure the services offered, split into Design (one-time fee) and Supervision (monthly, day-prorated) branches, and each service's activities and costs.",
-  permits: 'Configure the permits that can be attached to a project during setup.',
-}
+const TABS = computed<CatalogTab[]>(() => [
+  { key: 'services', label: t('administration.catalogsPage.servicesTab') },
+  { key: 'permits', label: t('administration.catalogsPage.permitsTab') },
+])
+
+const SUBTITLES = computed<Record<CatalogTabKey, string>>(() => ({
+  services: t('administration.catalogsPage.servicesSubtitle'),
+  permits: t('administration.catalogsPage.permitsSubtitle'),
+}))
 
 const activeTab = ref<CatalogTabKey>('services')
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="Catalogs" :subtitle="SUBTITLES[activeTab]" />
+    <PageHeader :title="t('administration.catalogsPage.pageTitle')" :subtitle="SUBTITLES[activeTab]" />
 
     <CatalogTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 

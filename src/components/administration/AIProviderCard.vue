@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, Info, Plug, XCircle } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -23,6 +24,8 @@ const emit = defineEmits<{
   'update-key': [rawKey: string]
   test: []
 }>()
+
+const { t } = useI18n()
 
 const newApiKey = ref('')
 const staged = ref(false)
@@ -50,34 +53,34 @@ function applyNewKey(): void {
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <p class="text-sm font-semibold text-text-primary">{{ provider.label }}</p>
-        <StatusBadge v-if="isDefault" label="Default" variant="primary" />
+        <StatusBadge v-if="isDefault" :label="t('administration.aiPage.default')" variant="primary" />
       </div>
       <StatusBadge
-        :label="provider.status === 'connected' ? 'Connected' : provider.status === 'error' ? 'Error' : 'Not Configured'"
+        :label="provider.status === 'connected' ? t('administration.aiPage.connected') : provider.status === 'error' ? t('administration.aiPage.error') : t('administration.aiPage.notConfigured')"
         :variant="STATUS_VARIANTS[provider.status]"
         show-dot
       />
     </div>
 
-    <p class="text-xs text-text-muted">Model: <span class="font-medium text-text-secondary">{{ provider.model || 'Server default' }}</span></p>
+    <p class="text-xs text-text-muted">{{ t('administration.aiPage.modelLine', { model: provider.model || t('administration.aiPage.serverDefault') }) }}</p>
 
     <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
       <TextInput
         v-model="newApiKey"
         type="password"
-        :label="provider.apiKeyMasked ? `Current key: ${provider.apiKeyMasked}` : 'API Key'"
-        placeholder="Enter new API key to update"
+        :label="provider.apiKeyMasked ? t('administration.aiPage.currentKey', { key: provider.apiKeyMasked }) : t('administration.aiPage.apiKey')"
+        :placeholder="t('administration.aiPage.apiKeyPlaceholder')"
         class="flex-1"
       />
-      <BaseButton variant="secondary" size="sm" :disabled="!newApiKey.trim()" @click="applyNewKey">Update Key</BaseButton>
+      <BaseButton variant="secondary" size="sm" :disabled="!newApiKey.trim()" @click="applyNewKey">{{ t('administration.aiPage.updateKey') }}</BaseButton>
     </div>
     <p v-if="staged" class="flex items-center gap-1.5 text-xs text-text-muted">
       <Info class="h-3.5 w-3.5 shrink-0" />
-      Staged -- click Save Changes below to store it (encrypted) and make it live. No restart needed.
+      {{ t('administration.aiPage.stagedNotice') }}
     </p>
 
     <div class="flex items-center justify-between gap-3 border-t border-border-light pt-3">
-      <BaseButton variant="ghost" size="sm" :icon="Plug" :loading="testing" @click="emit('test')"> Test Connection </BaseButton>
+      <BaseButton variant="ghost" size="sm" :icon="Plug" :loading="testing" @click="emit('test')"> {{ t('administration.aiPage.testConnection') }} </BaseButton>
       <p v-if="testResult" class="flex items-center gap-1.5 text-xs" :class="testResult.success ? 'text-success-600' : 'text-danger-600'">
         <CheckCircle2 v-if="testResult.success" class="h-3.5 w-3.5" />
         <XCircle v-else class="h-3.5 w-3.5" />
