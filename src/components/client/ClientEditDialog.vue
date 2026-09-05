@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   confirm: [payload: ClientEditForm]
 }>()
 
+const { t } = useI18n()
 const maxDate = todayIso()
 const userStore = useUserStore()
 
@@ -45,15 +47,15 @@ const accountManagerOptions = computed<SelectOption[]>(() =>
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
 )
 
-const LANGUAGE_OPTIONS = [
-  { label: 'English', value: 'English' },
-  { label: 'Arabic', value: 'Arabic' },
+const LANGUAGE_OPTIONS: SelectOption[] = [
+  { label: 'English', value: 'English', labelKey: 'client.editDialog.languageEnglish' },
+  { label: 'Arabic', value: 'Arabic', labelKey: 'client.editDialog.languageArabic' },
 ]
-const CHANNEL_OPTIONS = [
-  { label: 'Email', value: 'Email' },
-  { label: 'WhatsApp', value: 'WhatsApp' },
-  { label: 'SMS', value: 'SMS' },
-  { label: 'Phone', value: 'Phone' },
+const CHANNEL_OPTIONS: SelectOption[] = [
+  { label: 'Email', value: 'Email', labelKey: 'client.editDialog.channelEmail' },
+  { label: 'WhatsApp', value: 'WhatsApp', labelKey: 'client.editDialog.channelWhatsapp' },
+  { label: 'SMS', value: 'SMS', labelKey: 'client.editDialog.channelSms' },
+  { label: 'Phone', value: 'Phone', labelKey: 'client.editDialog.channelPhone' },
 ]
 
 function emptyForm(): ClientEditForm {
@@ -142,53 +144,53 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Edit Client" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('client.editDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-6">
-      <FormSection title="Contact Details">
+      <FormSection :title="t('client.editDialog.contactDetails')">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput v-model="form.contactPerson" label="Contact Person" required :error="errors.contactPerson" />
-          <TextInput v-model="form.mobile" label="Mobile Number" required :error="errors.mobile" />
-          <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
-          <TextInput v-model="form.city" label="City" required :error="errors.city" />
-          <SelectBox v-model="form.preferredLanguage" label="Preferred Language" :options="LANGUAGE_OPTIONS" />
-          <SelectBox v-model="form.preferredChannel" label="Preferred Contact Channel" :options="CHANNEL_OPTIONS" />
+          <TextInput v-model="form.contactPerson" :label="t('client.editDialog.contactPerson')" required :error="errors.contactPerson" />
+          <TextInput v-model="form.mobile" :label="t('client.editDialog.mobileNumber')" required :error="errors.mobile" />
+          <TextInput v-model="form.email" :label="t('client.editDialog.emailAddress')" type="email" required :error="errors.email" />
+          <TextInput v-model="form.city" :label="t('client.editDialog.city')" required :error="errors.city" />
+          <SelectBox v-model="form.preferredLanguage" :label="t('client.editDialog.preferredLanguage')" :options="LANGUAGE_OPTIONS" />
+          <SelectBox v-model="form.preferredChannel" :label="t('client.editDialog.preferredChannel')" :options="CHANNEL_OPTIONS" />
         </div>
       </FormSection>
 
-      <FormSection title="Relationship">
+      <FormSection :title="t('client.editDialog.relationship')">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <SelectBox v-model="form.accountManagerId" label="Account Manager" required :options="accountManagerOptions" :error="errors.accountManagerId" />
+          <SelectBox v-model="form.accountManagerId" :label="t('client.editDialog.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
         </div>
-        <TextArea v-model="form.notes" label="Internal Notes" hint="Preferences, risk flags, or handling instructions -- visible to staff only." :rows="3" />
+        <TextArea v-model="form.notes" :label="t('client.editDialog.internalNotes')" :hint="t('client.editDialog.internalNotesHint')" :rows="3" />
       </FormSection>
 
-      <FormSection v-if="client.clientType === 'Individual'" title="Personal Information">
+      <FormSection v-if="client.clientType === 'Individual'" :title="t('client.editDialog.personalInformation')">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput v-model="form.individualProfile.fullLegalName" label="Full Legal Name" required :error="errors.fullLegalName" />
-          <TextInput v-model="form.individualProfile.preferredName" label="Preferred Name" />
-          <TextInput v-model="form.individualProfile.nationality" label="Nationality" required :error="errors.nationality" />
-          <DatePicker v-model="form.individualProfile.dateOfBirth" label="Date of Birth" required :max="maxDate" :error="errors.dateOfBirth" />
-          <TextInput v-model="form.individualProfile.countryOfResidence" label="Country of Residence" required :error="errors.countryOfResidence" />
+          <TextInput v-model="form.individualProfile.fullLegalName" :label="t('client.editDialog.fullLegalName')" required :error="errors.fullLegalName" />
+          <TextInput v-model="form.individualProfile.preferredName" :label="t('client.editDialog.preferredName')" />
+          <TextInput v-model="form.individualProfile.nationality" :label="t('client.editDialog.nationality')" required :error="errors.nationality" />
+          <DatePicker v-model="form.individualProfile.dateOfBirth" :label="t('client.editDialog.dateOfBirth')" required :max="maxDate" :error="errors.dateOfBirth" />
+          <TextInput v-model="form.individualProfile.countryOfResidence" :label="t('client.editDialog.countryOfResidence')" required :error="errors.countryOfResidence" />
         </div>
       </FormSection>
 
-      <FormSection v-else title="Organisation Information">
+      <FormSection v-else :title="t('client.editDialog.organisationInformation')">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput v-model="form.organisationProfile.legalName" label="Legal Name" required :error="errors.legalName" />
-          <TextInput v-model="form.organisationProfile.tradeName" label="Trade Name" />
-          <TextInput v-model="form.organisationProfile.organisationType" label="Organisation Type" required :error="errors.organisationType" />
-          <TextInput v-model="form.organisationProfile.registrationNumber" label="Registration Number" required :error="errors.registrationNumber" />
-          <TextInput v-model="form.organisationProfile.tradeLicenceNumber" label="Trade Licence Number" />
-          <TextInput v-model="form.organisationProfile.countryOfRegistration" label="Country of Registration" required :error="errors.countryOfRegistration" />
-          <DatePicker v-model="form.organisationProfile.dateOfIncorporation" label="Date of Incorporation" required :max="maxDate" :error="errors.dateOfIncorporation" />
-          <TextInput v-model="form.organisationProfile.website" label="Website" placeholder="example.com" :error="errors.website" />
+          <TextInput v-model="form.organisationProfile.legalName" :label="t('client.editDialog.legalName')" required :error="errors.legalName" />
+          <TextInput v-model="form.organisationProfile.tradeName" :label="t('client.editDialog.tradeName')" />
+          <TextInput v-model="form.organisationProfile.organisationType" :label="t('client.editDialog.organisationType')" required :error="errors.organisationType" />
+          <TextInput v-model="form.organisationProfile.registrationNumber" :label="t('client.editDialog.registrationNumber')" required :error="errors.registrationNumber" />
+          <TextInput v-model="form.organisationProfile.tradeLicenceNumber" :label="t('client.editDialog.tradeLicenceNumber')" />
+          <TextInput v-model="form.organisationProfile.countryOfRegistration" :label="t('client.editDialog.countryOfRegistration')" required :error="errors.countryOfRegistration" />
+          <DatePicker v-model="form.organisationProfile.dateOfIncorporation" :label="t('client.editDialog.dateOfIncorporation')" required :max="maxDate" :error="errors.dateOfIncorporation" />
+          <TextInput v-model="form.organisationProfile.website" :label="t('client.editDialog.website')" placeholder="example.com" :error="errors.website" />
         </div>
       </FormSection>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Save Changes</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.saveChanges') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

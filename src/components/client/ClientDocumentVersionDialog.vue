@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Download } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -21,6 +22,8 @@ defineEmits<{
   download: [version: ClientDocumentVersion]
 }>()
 
+const { t } = useI18n()
+
 function isCurrentVersion(version: ClientDocumentVersion): boolean {
   return props.versions[props.versions.length - 1]?.id === version.id
 }
@@ -29,13 +32,17 @@ function isCurrentVersion(version: ClientDocumentVersion): boolean {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="document ? `Version History — ${document.title}` : 'Version History'"
+    :title="document ? t('client.documentVersionDialog.titleWithName', { name: document.title }) : t('client.documentVersionDialog.title')"
     size="md"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <SkeletonLoader v-if="loading" variant="block" height="8rem" />
 
-    <EmptyState v-else-if="versions.length === 0" title="No versions recorded" description="This document has no file on record yet." />
+    <EmptyState
+      v-else-if="versions.length === 0"
+      :title="t('client.documentVersionDialog.noVersionsTitle')"
+      :description="t('client.documentVersionDialog.noVersionsDescription')"
+    />
 
     <ul v-else class="flex flex-col gap-4">
       <li
@@ -45,10 +52,10 @@ function isCurrentVersion(version: ClientDocumentVersion): boolean {
       >
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-text-primary">Version {{ version.version }}</span>
-            <StatusBadge v-if="isCurrentVersion(version)" label="Current" variant="success" size="sm" />
+            <span class="text-sm font-semibold text-text-primary">{{ t('client.documentVersionDialog.version', { version: version.version }) }}</span>
+            <StatusBadge v-if="isCurrentVersion(version)" :label="t('client.documentVersionDialog.current')" variant="success" size="sm" />
           </div>
-          <IconButton :icon="Download" :label="`Download version ${version.version}`" size="sm" @click="$emit('download', version)" />
+          <IconButton :icon="Download" :label="t('client.documentVersionDialog.downloadVersion', { version: version.version })" size="sm" @click="$emit('download', version)" />
         </div>
         <p class="text-xs text-text-muted">{{ version.uploadedBy }} · {{ formatDateTime(version.uploadDate) }}</p>
         <p class="text-sm text-text-secondary">{{ version.notes }}</p>

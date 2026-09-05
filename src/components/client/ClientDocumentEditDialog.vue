@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { category: ClientDocumentCategory; title: string; issueDate: string; expiryDate: string; issuingAuthority: string }]
 }>()
+
+const { t } = useI18n()
 
 const form = reactive({
   category: 'Other' as ClientDocumentCategory,
@@ -57,18 +60,18 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Edit Document" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('client.documentEditDialog.title')" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.category" label="Document Category" required :options="CLIENT_DOCUMENT_CATEGORY_OPTIONS" />
-      <TextInput v-model="form.title" label="Document Title" required :error="errors.title" />
-      <DatePicker v-model="form.issueDate" label="Issue Date" />
-      <DatePicker v-model="form.expiryDate" label="Expiry Date" :error="errors.expiryDate" />
-      <TextInput v-model="form.issuingAuthority" label="Issuing Authority" />
+      <SelectBox v-model="form.category" :label="t('client.documentEditDialog.documentCategory')" required :options="CLIENT_DOCUMENT_CATEGORY_OPTIONS" />
+      <TextInput v-model="form.title" :label="t('client.documentEditDialog.documentTitle')" required :error="errors.title" />
+      <DatePicker v-model="form.issueDate" :label="t('client.documentEditDialog.issueDate')" />
+      <DatePicker v-model="form.expiryDate" :label="t('client.documentEditDialog.expiryDate')" :error="errors.expiryDate" />
+      <TextInput v-model="form.issuingAuthority" :label="t('client.documentEditDialog.issuingAuthority')" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Save Changes</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.saveChanges') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -14,6 +14,7 @@ export default {
   language: 'Language',
   actions: 'Actions',
   save: 'Save',
+  saveChanges: 'Save Changes',
   cancel: 'Cancel',
   confirm: 'Confirm',
   ok: 'OK',

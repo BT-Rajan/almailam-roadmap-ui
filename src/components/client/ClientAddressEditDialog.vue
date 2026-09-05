@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -28,6 +29,8 @@ const emit = defineEmits<{
     },
   ]
 }>()
+
+const { t } = useI18n()
 
 function emptyForm() {
   return { addressType: 'Registered' as ClientAddressType, country: '', state: '', city: '', area: '', street: '', building: '' }
@@ -69,22 +72,22 @@ function handleConfirm(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="address ? 'Edit Address' : 'Add Address'"
+    :title="address ? t('client.addressEditDialog.editTitle') : t('client.addressEditDialog.addTitle')"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.addressType" label="Address Type" :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
-      <TextInput v-model="form.country" label="Country" required :error="errors.country" />
-      <TextInput v-model="form.state" label="Governorate / State" required :error="errors.state" />
-      <TextInput v-model="form.city" label="City" required :error="errors.city" />
-      <TextInput v-model="form.area" label="Area" />
-      <TextInput v-model="form.street" label="Street" />
-      <TextInput v-model="form.building" label="Building" />
+      <SelectBox v-model="form.addressType" :label="t('client.addressEditDialog.addressType')" :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
+      <TextInput v-model="form.country" :label="t('client.addressEditDialog.country')" required :error="errors.country" />
+      <TextInput v-model="form.state" :label="t('client.addressEditDialog.state')" required :error="errors.state" />
+      <TextInput v-model="form.city" :label="t('client.addressEditDialog.city')" required :error="errors.city" />
+      <TextInput v-model="form.area" :label="t('client.addressEditDialog.area')" />
+      <TextInput v-model="form.street" :label="t('client.addressEditDialog.street')" />
+      <TextInput v-model="form.building" :label="t('client.addressEditDialog.building')" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">{{ address ? 'Save Changes' : 'Add Address' }}</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ address ? t('common.saveChanges') : t('client.addressEditDialog.addAddress') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

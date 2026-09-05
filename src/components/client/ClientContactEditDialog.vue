@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -20,6 +21,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { name: string; contactType: ClientContactType; mobile: string; email: string; isAuthorisedRepresentative: boolean }]
 }>()
+
+const { t } = useI18n()
 
 function emptyForm() {
   return { name: '', contactType: 'Other' as ClientContactType, mobile: '', email: '', isAuthorisedRepresentative: false }
@@ -80,20 +83,20 @@ function handleConfirm(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="contact ? 'Edit Contact' : 'Add Contact'"
+    :title="contact ? t('client.contactEditDialog.editTitle') : t('client.contactEditDialog.addTitle')"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
-      <TextInput v-model="form.name" label="Name" required :error="errors.name" />
-      <SelectBox v-model="form.contactType" label="Contact Type" :options="CLIENT_CONTACT_TYPE_OPTIONS" />
-      <TextInput v-model="form.mobile" label="Mobile Number" required :error="errors.mobile" />
-      <TextInput v-model="form.email" label="Email Address" type="email" required :error="errors.email" />
-      <ToggleSwitch v-model="form.isAuthorisedRepresentative" label="Authorised to Act on Client's Behalf" />
+      <TextInput v-model="form.name" :label="t('client.contactEditDialog.name')" required :error="errors.name" />
+      <SelectBox v-model="form.contactType" :label="t('client.contactEditDialog.contactType')" :options="CLIENT_CONTACT_TYPE_OPTIONS" />
+      <TextInput v-model="form.mobile" :label="t('client.contactEditDialog.mobileNumber')" required :error="errors.mobile" />
+      <TextInput v-model="form.email" :label="t('client.contactEditDialog.emailAddress')" type="email" required :error="errors.email" />
+      <ToggleSwitch v-model="form.isAuthorisedRepresentative" :label="t('client.contactEditDialog.authorisedToggle')" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">{{ contact ? 'Save Changes' : 'Add Contact' }}</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ contact ? t('common.saveChanges') : t('client.contactEditDialog.addContact') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

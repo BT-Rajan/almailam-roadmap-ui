@@ -16,6 +16,7 @@ export default {
   language: 'اللغة',
   actions: 'الإجراءات',
   save: 'حفظ',
+  saveChanges: 'حفظ التغييرات',
   cancel: 'إلغاء',
   confirm: 'تأكيد',
   ok: 'موافق',

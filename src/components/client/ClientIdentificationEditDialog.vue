@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   ]
 }>()
 
+const { t } = useI18n()
 const maxDate = todayIso()
 
 // Individuals identify with Civil ID/Passport; entity clients (Company/
@@ -87,20 +89,20 @@ function handleConfirm(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="identification ? 'Edit Identification' : 'Add Identification'"
+    :title="identification ? t('client.identificationEditDialog.editTitle') : t('client.identificationEditDialog.addTitle')"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.documentType" label="Document Type" :options="identificationTypeOptions" />
-      <TextInput v-model="form.documentNumber" label="Document Number" required :error="errors.documentNumber" />
-      <DatePicker v-model="form.issueDate" label="Issue Date" required :max="maxDate" :error="errors.issueDate" />
-      <DatePicker v-model="form.expiryDate" label="Expiry Date" required :error="errors.expiryDate" />
-      <TextInput v-model="form.issuingCountry" label="Issuing Country" required :error="errors.issuingCountry" />
+      <SelectBox v-model="form.documentType" :label="t('client.identificationEditDialog.documentType')" :options="identificationTypeOptions" />
+      <TextInput v-model="form.documentNumber" :label="t('client.identificationEditDialog.documentNumber')" required :error="errors.documentNumber" />
+      <DatePicker v-model="form.issueDate" :label="t('client.identificationEditDialog.issueDate')" required :max="maxDate" :error="errors.issueDate" />
+      <DatePicker v-model="form.expiryDate" :label="t('client.identificationEditDialog.expiryDate')" required :error="errors.expiryDate" />
+      <TextInput v-model="form.issuingCountry" :label="t('client.identificationEditDialog.issuingCountry')" required :error="errors.issuingCountry" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">{{ identification ? 'Save Changes' : 'Add Identification' }}</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ identification ? t('common.saveChanges') : t('client.identificationEditDialog.addIdentification') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

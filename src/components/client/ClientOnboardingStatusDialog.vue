@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { onboardingState: ClientOnboardingState; reason?: string }]
 }>()
+
+const { t } = useI18n()
 
 const options = computed(() =>
   (CLIENT_ONBOARDING_ALLOWED_TRANSITIONS[props.currentState] ?? []).map((state) => ({ label: state, value: state })),
@@ -64,22 +67,22 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Change Onboarding Status" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('client.onboardingStatusDialog.title')" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.onboardingState" label="New Status" required :options="options" :error="errors.onboardingState" />
+      <SelectBox v-model="form.onboardingState" :label="t('client.onboardingStatusDialog.newStatus')" required :options="options" :error="errors.onboardingState" />
       <TextArea
         v-model="form.reason"
-        label="Reason"
+        :label="t('client.onboardingStatusDialog.reason')"
         :required="reasonRequired"
         :error="errors.reason"
-        :hint="reasonRequired ? 'Required for this status change' : 'Optional'"
+        :hint="reasonRequired ? t('client.onboardingStatusDialog.reasonRequiredHint') : t('common.optional')"
         :rows="3"
       />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Confirm</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.confirm') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -23,6 +24,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { item: string; result: ClientVerificationResult; notes?: string; documentId?: string }]
 }>()
+
+const { t } = useI18n()
 
 const form = reactive({
   item: '',
@@ -66,23 +69,23 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Record Verification" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('client.verificationDialog.title')" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
       <TextInput
         v-model="form.item"
-        label="What was checked"
-        placeholder="e.g. Trade Licence, Registration Number"
+        :label="t('client.verificationDialog.whatWasChecked')"
+        :placeholder="t('client.verificationDialog.whatWasCheckedPlaceholder')"
         required
         :disabled="Boolean(documentId)"
         :error="errors.item"
       />
-      <SelectBox v-model="form.result" label="Result" required :options="CLIENT_VERIFICATION_RESULT_OPTIONS" />
-      <TextArea v-model="form.notes" label="Notes" hint="Optional" :rows="3" />
+      <SelectBox v-model="form.result" :label="t('client.verificationDialog.result')" required :options="CLIENT_VERIFICATION_RESULT_OPTIONS" />
+      <TextArea v-model="form.notes" :label="t('common.notes')" :hint="t('common.optional')" :rows="3" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Save Verification</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('client.verificationDialog.saveVerification') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>
