@@ -9,6 +9,65 @@ export default {
     cancelled: 'Cancelled',
   },
 
+  budgetPanel: {
+    title: 'Budget & Payments',
+    emptyTitle: 'No financial agreement on file',
+    emptyDescription: 'Contract and payment details will appear here once set up.',
+    contractAmount: 'Contract Amount',
+    paidToDate: 'Paid to Date',
+    remaining: 'Remaining',
+    upcomingPayments: 'Upcoming Payments',
+    nothingOutstandingTitle: 'Nothing outstanding',
+    nothingOutstandingDescription: 'All scheduled payments have been settled.',
+    overdue: 'Overdue',
+    received: '{amount} received',
+  },
+
+  updatesPanel: {
+    title: 'Recent Updates',
+    emptyTitle: 'No updates yet',
+    emptyDescription: "You'll see the latest project activity here as work progresses.",
+  },
+
+  activitiesPanel: {
+    title: 'Scope of Work',
+    emptyTitle: 'No activities on file',
+    emptyDescription: 'The specific activities covered by this engagement will appear here once set up.',
+  },
+
+  milestoneTimeline: {
+    title: 'Project Milestones',
+    emptyTitle: 'No milestones yet',
+    emptyDescription: 'Milestones will appear here once your project plan is set.',
+    due: 'Due:',
+    completed: 'Completed:',
+    overdue: 'Overdue',
+  },
+
+  milestoneStatus: {
+    completed: 'Completed',
+    inProgress: 'In Progress',
+    delayed: 'Delayed',
+    upcoming: 'Upcoming',
+  },
+
+  deliverablesPanel: {
+    title: 'Deliverables',
+    completedCount: '{completed}/{total} completed ({rate}%)',
+    emptyTitle: 'No deliverables yet',
+    emptyDescription: "Drawings, reports, and other deliverables will appear here as they're shared.",
+    type: 'Type:',
+    delivered: 'Delivered:',
+    approved: 'Approved:',
+  },
+
+  deliverableStatus: {
+    pending: 'Pending',
+    delivered: 'Delivered',
+    approved: 'Approved',
+    revision: 'Revision',
+  },
+
   header: {
     client: 'Client:',
     overallProgress: 'Overall Progress',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, Clock, AlertCircle } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ProjectMilestone } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -11,6 +12,18 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
+
+const MILESTONE_STATUS_KEYS: Record<string, string> = {
+  completed: 'customer.milestoneStatus.completed',
+  'in-progress': 'customer.milestoneStatus.inProgress',
+  delayed: 'customer.milestoneStatus.delayed',
+  upcoming: 'customer.milestoneStatus.upcoming',
+}
+
+function milestoneStatusLabel(status: string): string {
+  return t(MILESTONE_STATUS_KEYS[status] ?? 'customer.milestoneStatus.upcoming')
+}
 
 const sortedMilestones = computed(() => {
   return [...props.milestones].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
@@ -52,11 +65,11 @@ const isOverdue = (dueDate: string, status: string) => {
 <template>
   <Card>
     <template #header>
-      <h2 class="text-xl font-semibold text-text-primary">Project Milestones</h2>
+      <h2 class="text-xl font-semibold text-text-primary">{{ t('customer.milestoneTimeline.title') }}</h2>
     </template>
 
     <div v-if="sortedMilestones.length === 0">
-      <EmptyState :icon="Clock" title="No milestones yet" description="Milestones will appear here once your project plan is set." />
+      <EmptyState :icon="Clock" :title="t('customer.milestoneTimeline.emptyTitle')" :description="t('customer.milestoneTimeline.emptyDescription')" />
     </div>
 
     <div v-else class="space-y-6">
@@ -87,18 +100,18 @@ const isOverdue = (dueDate: string, status: string) => {
                         : 'bg-bg-secondary text-text-secondary',
                 ]"
               >
-                {{ milestone.status }}
+                {{ milestoneStatusLabel(milestone.status) }}
               </span>
             </div>
 
             <!-- Dates -->
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
-              <span>Due: <strong>{{ formatDate(milestone.dueDate) }}</strong></span>
+              <span>{{ t('customer.milestoneTimeline.due') }} <strong>{{ formatDate(milestone.dueDate) }}</strong></span>
               <span v-if="milestone.completedDate" class="text-success-600">
-                Completed: <strong>{{ formatDate(milestone.completedDate) }}</strong>
+                {{ t('customer.milestoneTimeline.completed') }} <strong>{{ formatDate(milestone.completedDate) }}</strong>
               </span>
               <span v-if="isOverdue(milestone.dueDate, milestone.status)" class="text-danger-600 font-medium">
-                ⚠ Overdue
+                ⚠ {{ t('customer.milestoneTimeline.overdue') }}
               </span>
             </div>
           </div>

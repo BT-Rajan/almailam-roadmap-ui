@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download, FileText, CheckCircle2, Clock, RefreshCw } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ProjectDeliverable } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -11,10 +12,22 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 defineEmits<{
   download: [documentId: string]
 }>()
+
+const DELIVERABLE_STATUS_KEYS: Record<string, string> = {
+  pending: 'customer.deliverableStatus.pending',
+  delivered: 'customer.deliverableStatus.delivered',
+  approved: 'customer.deliverableStatus.approved',
+  revision: 'customer.deliverableStatus.revision',
+}
+
+function deliverableStatusLabel(status: string): string {
+  return t(DELIVERABLE_STATUS_KEYS[status] ?? 'customer.deliverableStatus.pending')
+}
 
 const getStatusIcon = (status: string) => {
   if (status === 'delivered') return FileText
@@ -60,15 +73,15 @@ const deliveryRate = computed(() =>
   <Card>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-text-primary">Deliverables</h2>
+        <h2 class="text-xl font-semibold text-text-primary">{{ t('customer.deliverablesPanel.title') }}</h2>
         <span class="text-sm font-medium text-text-secondary">
-          {{ completedCount }}/{{ deliverables.length }} completed ({{ deliveryRate }}%)
+          {{ t('customer.deliverablesPanel.completedCount', { completed: completedCount, total: deliverables.length, rate: deliveryRate }) }}
         </span>
       </div>
     </template>
 
     <div v-if="deliverables.length === 0">
-      <EmptyState :icon="FileText" title="No deliverables yet" description="Drawings, reports, and other deliverables will appear here as they're shared." />
+      <EmptyState :icon="FileText" :title="t('customer.deliverablesPanel.emptyTitle')" :description="t('customer.deliverablesPanel.emptyDescription')" />
     </div>
 
     <div v-else class="space-y-3">
@@ -90,12 +103,12 @@ const deliveryRate = computed(() =>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                   <span :class="['text-xs font-medium px-2.5 py-1 rounded-full', getStatusBadgeColor(deliverable.status)]">
-                    {{ deliverable.status }}
+                    {{ deliverableStatusLabel(deliverable.status) }}
                   </span>
                   <IconButton
                     v-if="isDownloadable(deliverable.status)"
                     :icon="Download"
-                    label="Download document"
+                    :label="t('document.card.downloadDocument')"
                     size="sm"
                     @click="$emit('download', deliverable.id)"
                   />
@@ -104,12 +117,12 @@ const deliveryRate = computed(() =>
 
               <!-- Metadata -->
               <div class="flex flex-wrap gap-3 mt-3 text-xs text-text-secondary">
-                <span>Type: <strong>{{ deliverable.type }}</strong></span>
+                <span>{{ t('customer.deliverablesPanel.type') }} <strong>{{ deliverable.type }}</strong></span>
                 <span v-if="deliverable.deliveryDate">
-                  Delivered: <strong>{{ formatDate(deliverable.deliveryDate) }}</strong>
+                  {{ t('customer.deliverablesPanel.delivered') }} <strong>{{ formatDate(deliverable.deliveryDate) }}</strong>
                 </span>
                 <span v-if="deliverable.approvalDate" class="text-success-600">
-                  Approved: <strong>{{ formatDate(deliverable.approvalDate) }}</strong>
+                  {{ t('customer.deliverablesPanel.approved') }} <strong>{{ formatDate(deliverable.approvalDate) }}</strong>
                 </span>
               </div>
             </div>

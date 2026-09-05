@@ -9,6 +9,65 @@ export default {
     cancelled: 'ملغى',
   },
 
+  budgetPanel: {
+    title: 'الميزانية والمدفوعات',
+    emptyTitle: 'لا توجد اتفاقية مالية مسجلة',
+    emptyDescription: 'ستظهر هنا تفاصيل العقد والمدفوعات بمجرد إعدادها.',
+    contractAmount: 'قيمة العقد',
+    paidToDate: 'المدفوع حتى الآن',
+    remaining: 'المتبقي',
+    upcomingPayments: 'المدفوعات القادمة',
+    nothingOutstandingTitle: 'لا يوجد مستحقات',
+    nothingOutstandingDescription: 'تمت تسوية جميع المدفوعات المجدولة.',
+    overdue: 'متأخر',
+    received: 'تم استلام {amount}',
+  },
+
+  updatesPanel: {
+    title: 'آخر التحديثات',
+    emptyTitle: 'لا توجد تحديثات بعد',
+    emptyDescription: 'ستظهر هنا آخر أنشطة المشروع مع تقدم العمل.',
+  },
+
+  activitiesPanel: {
+    title: 'نطاق العمل',
+    emptyTitle: 'لا توجد أنشطة مسجلة',
+    emptyDescription: 'ستظهر هنا الأنشطة المحددة التي يشملها هذا التعاقد بمجرد إعدادها.',
+  },
+
+  milestoneTimeline: {
+    title: 'مراحل المشروع',
+    emptyTitle: 'لا توجد مراحل بعد',
+    emptyDescription: 'ستظهر هنا مراحل المشروع بمجرد إعداد خطة المشروع.',
+    due: 'الاستحقاق:',
+    completed: 'الإنجاز:',
+    overdue: 'متأخر',
+  },
+
+  milestoneStatus: {
+    completed: 'مكتمل',
+    inProgress: 'قيد التنفيذ',
+    delayed: 'متأخر',
+    upcoming: 'قادم',
+  },
+
+  deliverablesPanel: {
+    title: 'المخرجات',
+    completedCount: '{completed}/{total} مكتمل ({rate}%)',
+    emptyTitle: 'لا توجد مخرجات بعد',
+    emptyDescription: 'ستظهر هنا الرسومات والتقارير والمخرجات الأخرى عند مشاركتها.',
+    type: 'النوع:',
+    delivered: 'تاريخ التسليم:',
+    approved: 'تاريخ الاعتماد:',
+  },
+
+  deliverableStatus: {
+    pending: 'قيد الانتظار',
+    delivered: 'تم التسليم',
+    approved: 'معتمد',
+    revision: 'قيد المراجعة',
+  },
+
   header: {
     client: 'العميل:',
     overallProgress: 'التقدم الإجمالي',
