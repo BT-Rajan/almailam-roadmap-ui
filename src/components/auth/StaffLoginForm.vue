@@ -125,7 +125,7 @@ function clearLogin(): void {
       <button
         v-if="showForgotPassword"
         type="button"
-        class="text-sm font-medium text-primary-600 transition-colors duration-fast hover:text-primary-700"
+        class="text-sm font-medium text-text-link transition-colors duration-fast hover:opacity-80"
         @click="isForgotPasswordOpen = true"
       >
         Forgot password?
