@@ -22,7 +22,7 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
     <header class="sticky top-0 z-sticky border-b border-border-light bg-bg-header shadow-glass-sm backdrop-blur-xl">
       <div class="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
         <div class="flex items-center gap-2">
-          <div class="gradient-luxe flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
+          <div class="gradient-luxe-accent flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
             SO
           </div>
           <div class="text-left">

@@ -32,7 +32,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
       <div class="flex h-16 items-center justify-between border-b border-[var(--color-border-default)] px-4">
         <div class="flex items-center gap-2">
           <div
-            class="gradient-luxe flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
+            class="gradient-luxe-accent flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
           >
             SO
           </div>
