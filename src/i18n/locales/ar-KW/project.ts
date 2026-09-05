@@ -2,6 +2,7 @@ export default {
   unknownClient: 'عميل غير معروف',
   unknownProject: 'مشروع غير معروف',
   unassigned: 'غير معيّن',
+  workflowProgress: 'تقدم سير العمل',
 
   status: {
     active: 'نشط',
@@ -245,6 +246,72 @@ export default {
     emailQuotation: 'إرسال عرض السعر بالبريد',
     noQuotationSelectedTitle: 'لم يتم تحديد عرض سعر',
     noQuotationSelectedDescription: 'اختر عرض سعر من القائمة لمعاينته، أو أنشئ واحداً جديداً.',
+  },
+
+  pricingSummary: {
+    title: 'ملخص التسعير',
+    subtotal: 'المجموع الفرعي',
+    discount: 'الخصم',
+    totalAmount: 'المبلغ الإجمالي',
+  },
+
+  quotationList: {
+    title: 'عروض الأسعار',
+    emptyTitle: 'لا توجد عروض أسعار بعد',
+    emptyDescription: 'ستظهر هنا عروض الأسعار الصادرة لهذا المشروع.',
+    revisionIssued: 'المراجعة {revision} · صدر في {date}',
+  },
+
+  contractList: {
+    title: 'العقود',
+    emptyTitle: 'لا توجد عقود بعد',
+    emptyDescription: 'ستظهر هنا العقود الصادرة لهذا المشروع.',
+    revisionIssued: 'المراجعة {revision} · صدر في {date}',
+  },
+
+  quotationPreview: {
+    contentLocked: 'المحتوى مقفل',
+    editing: 'قيد التعديل',
+    editable: 'قابل للتعديل',
+    saveAsFinal: 'حفظ كنهائي',
+    companyTagline: 'التصميم الهندسي والموافقات الحكومية',
+    revision: 'المراجعة {revision}',
+    billTo: 'إرسال الفاتورة إلى',
+    project: 'المشروع',
+    dates: 'التواريخ',
+    issued: 'تاريخ الإصدار: {date}',
+    validUntil: 'صالح حتى',
+    validUntilValue: 'صالح حتى: {date}',
+    currency: 'العملة',
+    preparedBy: 'أُعِدَّ بواسطة: {name}',
+    qty: 'الكمية',
+    unitPrice: 'سعر الوحدة',
+    lineItems: 'بنود الفاتورة',
+    addLineItem: 'إضافة بند',
+    removeLineItem: 'إزالة البند {index}',
+    quantity: 'الكمية',
+    discountAmount: 'مبلغ الخصم',
+    notesPlaceholder: 'ملاحظات اختيارية لعرض السعر هذا',
+    termsAndConditions: 'الشروط والأحكام',
+    addTerm: 'إضافة شرط',
+    removeTerm: 'إزالة الشرط {index}',
+  },
+
+  contractPreview: {
+    client: 'العميل',
+    clientRepresentative: 'ممثل العميل',
+    representedBy: 'يمثله {name}',
+    signed: 'تاريخ التوقيع: {date}',
+    expiryDate: 'تاريخ الانتهاء',
+    expires: 'ينتهي في: {date}',
+    scopeSummary: 'ملخص النطاق',
+    contractValue: 'قيمة العقد',
+    clauses: 'البنود',
+    addClause: 'إضافة بند',
+    clauseTitle: 'عنوان البند',
+    removeClause: 'إزالة البند {index}',
+    clauseContent: 'محتوى البند',
+    prototypeNotice: 'هذه معاينة أولية. يتم إعداد وإصدار المستندات القانونية النهائية خارج هذا النظام.',
   },
 
   contractTab: {

@@ -1,4 +1,6 @@
 export default {
+  projectProgress: 'Project Progress',
+
   projectStatus: {
     planning: 'Planning',
     active: 'Active',

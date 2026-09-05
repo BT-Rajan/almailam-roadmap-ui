@@ -1,4 +1,6 @@
 export default {
+  projectProgress: 'تقدم المشروع',
+
   projectStatus: {
     planning: 'التخطيط',
     active: 'نشط',

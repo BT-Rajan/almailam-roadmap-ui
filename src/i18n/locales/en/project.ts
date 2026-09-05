@@ -2,6 +2,7 @@ export default {
   unknownClient: 'Unknown Client',
   unknownProject: 'Unknown Project',
   unassigned: 'Unassigned',
+  workflowProgress: 'Workflow Progress',
 
   status: {
     active: 'Active',
@@ -245,6 +246,72 @@ export default {
     emailQuotation: 'Email Quotation',
     noQuotationSelectedTitle: 'No quotation selected',
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
+  },
+
+  pricingSummary: {
+    title: 'Pricing Summary',
+    subtotal: 'Subtotal',
+    discount: 'Discount',
+    totalAmount: 'Total Amount',
+  },
+
+  quotationList: {
+    title: 'Quotations',
+    emptyTitle: 'No quotations yet',
+    emptyDescription: 'Quotations issued for this project will appear here.',
+    revisionIssued: 'Revision {revision} · Issued {date}',
+  },
+
+  contractList: {
+    title: 'Contracts',
+    emptyTitle: 'No contracts yet',
+    emptyDescription: 'Contracts issued for this project will appear here.',
+    revisionIssued: 'Revision {revision} · Issued {date}',
+  },
+
+  quotationPreview: {
+    contentLocked: 'Content Locked',
+    editing: 'Editing',
+    editable: 'Editable',
+    saveAsFinal: 'Save as Final',
+    companyTagline: 'Engineering Design & Government Approvals',
+    revision: 'Revision {revision}',
+    billTo: 'Bill To',
+    project: 'Project',
+    dates: 'Dates',
+    issued: 'Issued: {date}',
+    validUntil: 'Valid Until',
+    validUntilValue: 'Valid Until: {date}',
+    currency: 'Currency',
+    preparedBy: 'Prepared By: {name}',
+    qty: 'Qty',
+    unitPrice: 'Unit Price',
+    lineItems: 'Line Items',
+    addLineItem: 'Add Line Item',
+    removeLineItem: 'Remove line item {index}',
+    quantity: 'Quantity',
+    discountAmount: 'Discount Amount',
+    notesPlaceholder: 'Optional notes for this quotation',
+    termsAndConditions: 'Terms & Conditions',
+    addTerm: 'Add Term',
+    removeTerm: 'Remove term {index}',
+  },
+
+  contractPreview: {
+    client: 'Client',
+    clientRepresentative: 'Client representative',
+    representedBy: 'Represented by {name}',
+    signed: 'Signed: {date}',
+    expiryDate: 'Expiry Date',
+    expires: 'Expires: {date}',
+    scopeSummary: 'Scope Summary',
+    contractValue: 'Contract Value',
+    clauses: 'Clauses',
+    addClause: 'Add Clause',
+    clauseTitle: 'Clause title',
+    removeClause: 'Remove clause {index}',
+    clauseContent: 'Clause content',
+    prototypeNotice: 'This is a prototype preview. Final legal documents are prepared and issued outside this system.',
   },
 
   contractTab: {
