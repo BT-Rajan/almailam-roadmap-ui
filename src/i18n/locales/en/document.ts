@@ -18,6 +18,36 @@ export default {
     governmentAgreement: 'Government Agreement',
   },
 
+  metadataPanel: {
+    title: 'Metadata',
+    project: 'Project',
+    category: 'Category',
+    revision: 'Revision',
+    uploadedBy: 'Uploaded By',
+    uploadDate: 'Upload Date',
+    fileSize: 'File Size',
+  },
+
+  versionHistory: {
+    title: 'Version History',
+    emptyTitle: 'No previous versions',
+    current: 'Current',
+    downloadThisVersion: 'Download this version',
+  },
+
+  pdfViewer: {
+    pageOf: 'Page {current} of {total}',
+    zoomOut: 'Zoom out',
+    zoomIn: 'Zoom in',
+    previewPage: 'Preview page {page}',
+  },
+
+  fileUploader: {
+    clickToUpload: 'Click to upload or drag and drop',
+    defaultHint: 'PDF, Word, Excel, DWG or image files',
+    removeFile: 'Remove file',
+  },
+
   card: {
     viewDocument: 'View document',
     downloadDocument: 'Download document',

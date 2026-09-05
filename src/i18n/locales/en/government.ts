@@ -28,6 +28,18 @@ export default {
     replace: 'Replace',
   },
 
+  formDetailDrawer: {
+    updated: 'Updated {date}',
+    requiredDocuments: 'Required Documents',
+    fillableForm: 'Fillable Form',
+    fillableFormPreview: 'Fillable form preview',
+    noFillableSampleTitle: 'No fillable sample attached',
+    noFillableSampleDescription: "This form doesn't have a digital fillable sample yet. You can still print a summary sheet.",
+    restore: 'Restore',
+    archive: 'Archive',
+    editForm: 'Edit Form',
+  },
+
   authorityFormsPanel: {
     noFillableFormsTitle: 'No fillable forms for this authority yet',
     noFillableFormsDescription: 'Add a form with template content under Administration > Documents > Government Forms to make it available here.',

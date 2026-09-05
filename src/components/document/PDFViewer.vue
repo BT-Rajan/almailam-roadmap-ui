@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, FileText, ZoomIn, ZoomOut } from '@lucide/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 
@@ -12,6 +13,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   pageCount: 4,
 })
+
+const { t } = useI18n()
 
 const currentPage = ref(1)
 const zoomLevel = ref(100)
@@ -40,14 +43,14 @@ function zoomIn(): void {
   <div class="flex flex-col gap-3">
     <div class="flex items-center justify-between rounded-lg border border-border-light bg-bg-secondary px-3 py-2">
       <div class="flex items-center gap-1">
-        <IconButton :icon="ChevronLeft" label="Previous page" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
-        <span class="px-2 text-sm text-text-secondary">Page {{ currentPage }} of {{ pageCount }}</span>
-        <IconButton :icon="ChevronRight" label="Next page" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
+        <IconButton :icon="ChevronLeft" :label="t('common.previousPage')" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
+        <span class="px-2 text-sm text-text-secondary">{{ t('document.pdfViewer.pageOf', { current: currentPage, total: pageCount }) }}</span>
+        <IconButton :icon="ChevronRight" :label="t('common.nextPage')" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
       </div>
       <div class="flex items-center gap-1">
-        <IconButton :icon="ZoomOut" label="Zoom out" size="sm" :disabled="zoomLevel <= 50" @click="zoomOut" />
+        <IconButton :icon="ZoomOut" :label="t('document.pdfViewer.zoomOut')" size="sm" :disabled="zoomLevel <= 50" @click="zoomOut" />
         <span class="w-12 text-center text-sm text-text-secondary">{{ zoomLevel }}%</span>
-        <IconButton :icon="ZoomIn" label="Zoom in" size="sm" :disabled="zoomLevel >= 200" @click="zoomIn" />
+        <IconButton :icon="ZoomIn" :label="t('document.pdfViewer.zoomIn')" size="sm" :disabled="zoomLevel >= 200" @click="zoomIn" />
       </div>
     </div>
 
@@ -58,7 +61,7 @@ function zoomIn(): void {
       >
         <FileText class="h-12 w-12 text-text-muted" />
         <p class="text-sm font-medium text-text-secondary">{{ title }}</p>
-        <p class="text-xs text-text-muted">Preview page {{ currentPage }}</p>
+        <p class="text-xs text-text-muted">{{ t('document.pdfViewer.previewPage', { page: currentPage }) }}</p>
       </div>
     </div>
   </div>

@@ -18,6 +18,36 @@ export default {
     governmentAgreement: 'اتفاقية حكومية',
   },
 
+  metadataPanel: {
+    title: 'البيانات الوصفية',
+    project: 'المشروع',
+    category: 'الفئة',
+    revision: 'المراجعة',
+    uploadedBy: 'رفعه',
+    uploadDate: 'تاريخ الرفع',
+    fileSize: 'حجم الملف',
+  },
+
+  versionHistory: {
+    title: 'سجل الإصدارات',
+    emptyTitle: 'لا توجد إصدارات سابقة',
+    current: 'الحالي',
+    downloadThisVersion: 'تنزيل هذا الإصدار',
+  },
+
+  pdfViewer: {
+    pageOf: 'صفحة {current} من {total}',
+    zoomOut: 'تصغير',
+    zoomIn: 'تكبير',
+    previewPage: 'معاينة الصفحة {page}',
+  },
+
+  fileUploader: {
+    clickToUpload: 'انقر للرفع أو اسحب وأفلت',
+    defaultHint: 'ملفات PDF أو Word أو Excel أو DWG أو صور',
+    removeFile: 'إزالة الملف',
+  },
+
   card: {
     viewDocument: 'عرض المستند',
     downloadDocument: 'تنزيل المستند',

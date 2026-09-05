@@ -28,6 +28,18 @@ export default {
     replace: 'استبدال',
   },
 
+  formDetailDrawer: {
+    updated: 'آخر تحديث {date}',
+    requiredDocuments: 'المستندات المطلوبة',
+    fillableForm: 'النموذج القابل للتعبئة',
+    fillableFormPreview: 'معاينة النموذج القابل للتعبئة',
+    noFillableSampleTitle: 'لا توجد نسخة قابلة للتعبئة مرفقة',
+    noFillableSampleDescription: 'لا يحتوي هذا النموذج على نسخة رقمية قابلة للتعبئة بعد. لا يزال بإمكانك طباعة ورقة ملخص.',
+    restore: 'استعادة',
+    archive: 'أرشفة',
+    editForm: 'تعديل النموذج',
+  },
+
   authorityFormsPanel: {
     noFillableFormsTitle: 'لا توجد نماذج قابلة للتعبئة لهذه الجهة بعد',
     noFillableFormsDescription: 'أضف نموذجاً بمحتوى قالب ضمن الإدارة > المستندات > النماذج الحكومية لإتاحته هنا.',
