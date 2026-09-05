@@ -23,7 +23,15 @@
     --color-text-secondary: theme('colors.neutral.500');
     --color-text-muted: theme('colors.neutral.400');
     --color-text-inverse: theme('colors.neutral.0');
-    --color-text-link: theme('colors.primary.700');
+    /* Brand accent, not graphite -- this is the app's default hyperlink
+       color, and light is the mode a fresh visitor with no stored theme
+       preference actually lands on (see DEFAULT_THEME_MODE), so this is
+       the color most people see first. It was still pointing at
+       primary.700 (graphite) here, only remapped to accent below in
+       .dark -- meaning every text-text-link usage rendered as plain
+       near-black in the app's own default theme, regardless of how
+       consistently jade the rest of the (dark-mode-tuned) rebrand read. */
+    --color-text-link: theme('colors.accent.700');
 
     --color-border-light: rgb(23 23 26 / 0.06);
     --color-border-default: rgb(23 23 26 / 0.10);
@@ -136,6 +144,30 @@
   }
 
   /*
+   * "Primary" icon badges and brand-tinted text/links (bg-primary-50 +
+   * text-primary-600, e.g. document-type icons, admin cards, "Forgot
+   * password?") are meant to read as the app's brand accent, not literal
+   * graphite -- but only .dark remapped them (below), so light mode --
+   * the actual default a fresh visitor with no stored theme preference
+   * lands on -- showed these as plain gray, undercutting the jade
+   * identity everywhere it should have shown through most. These two
+   * light-mode rules close that gap; .text-primary-700 covers the
+   * hover-darken state these badges/links commonly pair with (also
+   * previously only defined for .dark's own accent.400 base, not its
+   * hover shade, so a hover in dark mode used to jump from jade to
+   * flat graphite-black instead of a slightly deeper jade).
+   */
+  .bg-primary-50 {
+    background-color: theme('colors.accent.50');
+  }
+  .text-primary-600 {
+    color: theme('colors.accent.700');
+  }
+  .text-primary-700 {
+    color: theme('colors.accent.800');
+  }
+
+  /*
    * Dark-mode "bold multicolor" icon badges. Icon chips across the app
    * (dashboard widgets, admin cards, status badges) pair a pale *-50
    * background with a *-600 icon colour. In dark mode the *-50 background
@@ -163,6 +195,9 @@
   }
   .dark .text-primary-600 {
     color: theme('colors.accent.400');
+  }
+  .dark .text-primary-700 {
+    color: theme('colors.accent.500');
   }
   .dark .text-success-600 {
     color: theme('colors.success.500');

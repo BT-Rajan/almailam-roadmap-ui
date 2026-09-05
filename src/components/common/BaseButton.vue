@@ -59,7 +59,21 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'gradient-luxe-accent text-neutral-0 shadow-glass-sm hover:brightness-110 focus-visible:outline-accent-500 disabled:opacity-40 disabled:brightness-100',
   secondary:
-    'bg-bg-card text-text-primary border border-border-default backdrop-blur-xl hover:bg-bg-hover disabled:text-text-muted',
+    // No backdrop-blur here, deliberately -- FilterBar, SelectBox,
+    // TextInput, Card, and every other bg-bg-card surface in the app
+    // (16 components) use this exact token as a flat translucent tint
+    // with no blur. This button was the one place still adding
+    // backdrop-blur-xl on top of it. A blurred surface samples whatever
+    // sits behind it, so the SAME token+button rendered near the
+    // ambient background's glow blobs picked up a visibly lighter,
+    // washed-out tint than a plain dropdown two inches to its right
+    // using the identical bg-bg-card color without blur -- position-
+    // dependent inconsistency for what's supposed to be one shared
+    // "glass surface" look, which is exactly what read as patchy.
+    // (Modal panels via .glass-panel are a different, legitimately
+    // blurred tier -- floating overlays over blurred page content --
+    // not inline page furniture like this.)
+    'bg-bg-card text-text-primary border border-border-default hover:bg-bg-hover disabled:text-text-muted',
   ghost: 'bg-transparent text-text-secondary hover:bg-bg-hover disabled:text-text-muted',
   danger:
     'bg-danger-500 text-neutral-0 hover:bg-danger-700 focus-visible:outline-danger-500 disabled:bg-danger-100',

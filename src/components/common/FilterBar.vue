@@ -42,7 +42,7 @@ const emit = defineEmits<{
           @search="emit('search', $event)"
         />
       </div>
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-end gap-3">
         <slot name="filters" />
       </div>
       <BaseButton v-if="hasActiveFilters" variant="ghost" size="sm" :icon="X" @click="emit('clear')">
