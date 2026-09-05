@@ -17,7 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: undefined,
-  placeholder: 'Select an option',
+  placeholder: undefined,
   error: undefined,
   disabled: false,
   required: false,
@@ -59,7 +59,7 @@ const selectClasses = computed(() => [
         :aria-invalid="Boolean(error)"
         @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
-        <option value="" disabled>{{ placeholder }}</option>
+        <option value="" disabled>{{ placeholder ?? t('common.selectOption') }}</option>
         <option v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled">
           {{ optionLabel(option) }}
         </option>

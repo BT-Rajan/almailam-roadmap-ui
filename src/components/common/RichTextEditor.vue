@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Bold, ImagePlus, Italic, Underline } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { sanitizeHtml } from '@/utils/sanitizeHtml'
 
@@ -15,7 +16,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: undefined,
-  placeholder: 'Start typing...',
+  placeholder: undefined,
   hint: undefined,
   error: undefined,
   required: false,
@@ -25,13 +26,15 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const FONT_SIZES = [
-  { label: 'Small', value: '12' },
-  { label: 'Normal', value: '14' },
-  { label: 'Medium', value: '18' },
-  { label: 'Large', value: '24' },
-  { label: 'X-Large', value: '32' },
-]
+const { t } = useI18n()
+
+const FONT_SIZES = computed(() => [
+  { label: t('common.richText.fontSizeSmall'), value: '12' },
+  { label: t('common.richText.fontSizeNormal'), value: '14' },
+  { label: t('common.richText.fontSizeMedium'), value: '18' },
+  { label: t('common.richText.fontSizeLarge'), value: '24' },
+  { label: t('common.richText.fontSizeXLarge'), value: '32' },
+])
 
 // A file this size, base64-encoded, comfortably fits the MEDIUMTEXT
 // columns these fields save into (see backend migration 0055) even
@@ -172,8 +175,8 @@ const wrapperClasses = computed(() => [
         <button
           type="button"
           class="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors duration-fast hover:bg-bg-hover hover:text-text-primary"
-          title="Bold"
-          aria-label="Bold"
+          :title="t('common.richText.bold')"
+          :aria-label="t('common.richText.bold')"
           @mousedown.prevent
           @click="applyCommand('bold')"
         >
@@ -182,8 +185,8 @@ const wrapperClasses = computed(() => [
         <button
           type="button"
           class="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors duration-fast hover:bg-bg-hover hover:text-text-primary"
-          title="Italic"
-          aria-label="Italic"
+          :title="t('common.richText.italic')"
+          :aria-label="t('common.richText.italic')"
           @mousedown.prevent
           @click="applyCommand('italic')"
         >
@@ -192,8 +195,8 @@ const wrapperClasses = computed(() => [
         <button
           type="button"
           class="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors duration-fast hover:bg-bg-hover hover:text-text-primary"
-          title="Underline"
-          aria-label="Underline"
+          :title="t('common.richText.underline')"
+          :aria-label="t('common.richText.underline')"
           @mousedown.prevent
           @click="applyCommand('underline')"
         >
@@ -202,20 +205,20 @@ const wrapperClasses = computed(() => [
         <div class="mx-1 h-5 w-px bg-border-light" />
         <select
           class="h-8 rounded-md border border-border-default bg-bg-card px-1.5 text-xs text-text-secondary"
-          title="Font size (select text first)"
-          aria-label="Font size"
+          :title="t('common.richText.fontSizeHint')"
+          :aria-label="t('common.richText.fontSize')"
           @mousedown="trackSelection"
           @change="applyFontSize"
         >
-          <option value="">Font Size</option>
+          <option value="">{{ t('common.richText.fontSize') }}</option>
           <option v-for="size in FONT_SIZES" :key="size.value" :value="size.value">{{ size.label }}</option>
         </select>
         <div class="mx-1 h-5 w-px bg-border-light" />
         <button
           type="button"
           class="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors duration-fast hover:bg-bg-hover hover:text-text-primary"
-          title="Insert Image"
-          aria-label="Insert Image"
+          :title="t('common.richText.insertImage')"
+          :aria-label="t('common.richText.insertImage')"
           @mousedown.prevent
           @click="triggerImagePicker"
         >
@@ -228,7 +231,7 @@ const wrapperClasses = computed(() => [
         ref="editorRef"
         class="rich-text-content min-h-[6rem] p-3 focus:outline-none"
         contenteditable="true"
-        :data-placeholder="placeholder"
+        :data-placeholder="placeholder ?? t('common.richText.startTyping')"
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? `${editorId}-error` : hint ? `${editorId}-hint` : undefined"
         @input="handleInput"
