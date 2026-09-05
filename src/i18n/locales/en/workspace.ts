@@ -52,6 +52,16 @@ export default {
     cached: 'Cached',
   },
 
+  knowledgeUploadDialog: {
+    title: 'Upload Knowledgebase Document',
+    description:
+      "The document's text is extracted and used to ground answers on the Knowledge Base page. Only the text-layer content of the file is used -- a scanned/image-only PDF with no selectable text can't be answered from.",
+    titleLabel: 'Title (optional)',
+    titlePlaceholder: 'Defaults to the file name',
+    fileHint: 'PDF, Word (.docx), or plain text (.txt)',
+    upload: 'Upload',
+  },
+
   messageCentrePage: {
     pageTitle: 'Message Centre',
     pageSubtitle: 'Email, SMS, and WhatsApp communication with your customers — from templates or your own words.',

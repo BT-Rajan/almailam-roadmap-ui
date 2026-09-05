@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -37,6 +38,8 @@ function emptyForm() {
     notes: '',
   }
 }
+
+const { t } = useI18n()
 
 const form = reactive(emptyForm())
 const { errors, setRules, validateAll } = useFormValidation()
@@ -83,7 +86,7 @@ const formOptions = computed<SelectOption[]>(() =>
 // so explicitly rather than just showing an empty dropdown either way.
 const scopeMismatchHint = computed(() =>
   form.authorityId && formsForAuthority.value.length > 0 && scopedForms.value.length === 0
-    ? "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map."
+    ? t('government.newSubmissionDialog.scopeMismatchHint')
     : undefined,
 )
 
@@ -125,28 +128,28 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="New Government Submission" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('government.newSubmissionDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
-      <SelectBox v-model="form.projectId" label="Project" required :options="projectOptions" :error="errors.projectId" />
+      <SelectBox v-model="form.projectId" :label="t('government.newSubmissionDialog.project')" required :options="projectOptions" :error="errors.projectId" />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.authorityId" label="Authority" required :options="authorityOptions" :error="errors.authorityId" />
+        <SelectBox v-model="form.authorityId" :label="t('government.newSubmissionDialog.authority')" required :options="authorityOptions" :error="errors.authorityId" />
         <SelectBox
           v-model="form.formId"
-          label="Form"
+          :label="t('government.newSubmissionDialog.form')"
           required
           :disabled="!form.authorityId"
           :options="formOptions"
           :error="errors.formId"
-          :hint="!form.authorityId ? 'Select an authority first' : scopeMismatchHint"
+          :hint="!form.authorityId ? t('government.newSubmissionDialog.selectAuthorityFirstHint') : scopeMismatchHint"
         />
       </div>
 
-      <DatePicker v-model="form.expectedDecisionDate" label="Expected Decision Date (optional)" />
-      <TextArea v-model="form.notes" label="Notes" placeholder="Optional notes for this submission" :rows="2" />
+      <DatePicker v-model="form.expectedDecisionDate" :label="t('government.newSubmissionDialog.expectedDecisionDate')" />
+      <TextArea v-model="form.notes" :label="t('common.notes')" :placeholder="t('government.newSubmissionDialog.notesPlaceholder')" :rows="2" />
 
       <div v-if="selectedForm && selectedForm.requiredDocuments.length > 0" class="rounded-lg bg-bg-secondary p-4 text-sm">
-        <p class="mb-2 font-medium text-text-secondary">This form requires:</p>
+        <p class="mb-2 font-medium text-text-secondary">{{ t('government.newSubmissionDialog.thisFormRequires') }}</p>
         <ul class="flex flex-col gap-1 text-text-secondary">
           <li v-for="documentName in selectedForm.requiredDocuments" :key="documentName">• {{ documentName }}</li>
         </ul>
@@ -154,8 +157,8 @@ function handleConfirm(): void {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Create Submission</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('government.newSubmissionDialog.createSubmission') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

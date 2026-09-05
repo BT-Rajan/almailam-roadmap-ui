@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -32,6 +33,7 @@ const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const documentStore = useDocumentStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
 const project = computed(() => projectStore.projects.find((item) => item.id === props.projectId))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
@@ -128,22 +130,27 @@ async function handleGenerate(): Promise<void> {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Fill Government Form" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('government.fillFormDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
       <EmptyState
         v-if="forms.length === 0"
-        title="No fillable forms yet"
-        description="Add template content to a government form under Administration > Documents > Government Forms to make it fillable here."
+        :title="t('government.fillFormDialog.noFillableFormsTitle')"
+        :description="t('government.fillFormDialog.noFillableFormsDescription')"
       />
 
       <template v-else>
-        <SelectBox v-model="selectedFormId" label="Form" :options="formOptions" :error="formError" required />
+        <SelectBox v-model="selectedFormId" :label="t('government.fillFormDialog.form')" :options="formOptions" :error="formError" required />
 
         <template v-if="selectedForm">
-          <TextInput v-model="titleOverride" label="Document Title" :placeholder="selectedForm.title" hint="Defaults to the form's own title." />
+          <TextInput
+            v-model="titleOverride"
+            :label="t('government.fillFormDialog.documentTitle')"
+            :placeholder="selectedForm.title"
+            :hint="t('government.fillFormDialog.documentTitleHint')"
+          />
 
           <div v-if="tokens.length > 0" class="flex flex-col gap-3">
-            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Fill in the details</p>
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.fillFormDialog.fillInTheDetails') }}</p>
             <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
               <TextInput
                 v-for="token in tokens"
@@ -155,7 +162,7 @@ async function handleGenerate(): Promise<void> {
           </div>
 
           <div>
-            <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Preview</p>
+            <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.fillFormDialog.preview') }}</p>
             <pre
               class="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border-light bg-bg-card p-4 font-sans text-sm leading-relaxed text-text-primary"
               >{{ renderedPreview }}</pre
@@ -166,8 +173,8 @@ async function handleGenerate(): Promise<void> {
     </div>
 
     <template v-if="forms.length > 0" #footer>
-      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="isSaving" :disabled="!selectedForm" @click="handleGenerate">Generate &amp; Save PDF</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSaving" :disabled="!selectedForm" @click="handleGenerate">{{ t('government.fillFormDialog.generateAndSavePdf') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -86,4 +86,60 @@ export default {
     documentNotFound: 'المستند غير موجود',
     documentNotFoundDescription: 'ربما تمت إزالة هذا المستند أو أن الرابط غير صحيح.',
   },
+
+  addLinkDialog: {
+    title: 'إضافة مستند',
+    category: 'الفئة',
+    categoryPlaceholder: 'اختر الفئة',
+    categoryProperty: 'مستندات الملكية',
+    categoryGovernment: 'مستندات حكومية',
+    categoryOthers: 'أخرى',
+    categoryProjectClosure: 'إغلاق المشروع',
+    documentName: 'اسم المستند',
+    documentNamePlaceholder: 'مثال: سند الملكية',
+    documentPathLink: 'مسار المستند / الرابط',
+    documentPathLinkPlaceholder: 'مثال: https://drive.example.com/... أو \\\\server\\share\\file.pdf',
+    addDocument: 'إضافة مستند',
+  },
+
+  addVersionDialog: {
+    title: 'إضافة إصدار جديد',
+    notes: 'ملاحظات',
+    notesPlaceholder: 'ما الذي تغير في هذه المراجعة؟',
+    uploadNewVersion: 'رفع إصدار جديد',
+  },
+
+  designDocumentDialog: {
+    editTitle: 'تعديل المستند',
+    addTitle: 'إضافة مستند',
+    document: 'المستند',
+    documentPlaceholder: 'مثال: مخطط إنشائي R1',
+    date: 'التاريخ',
+    link: 'الرابط',
+  },
+
+  statusDialog: {
+    title: 'تغيير حالة المستند',
+    newStatus: 'الحالة الجديدة',
+    reason: 'السبب',
+    reasonRequiredHint: 'مطلوب عند الرفض',
+  },
+
+  uploadDialog: {
+    title: 'رفع مستند',
+    documentTitle: 'عنوان المستند',
+    documentTitlePlaceholder: 'مثال: مخطط إنشائي',
+    project: 'المشروع',
+    projectPlaceholder: 'اختر المشروع',
+    documentType: 'نوع المستند',
+    documentTypePlaceholder: 'اختر النوع',
+    typeDrawing: 'مخطط',
+    typeReport: 'تقرير',
+    typeContract: 'عقد',
+    typeQuotation: 'عرض سعر',
+    typeMunicipalityForm: 'نموذج بلدية',
+    typeCalculationSheet: 'ورقة حسابات',
+    typeGovernmentAgreement: 'اتفاقية حكومية',
+    uploadDocument: 'رفع المستند',
+  },
 }

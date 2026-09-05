@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [payload: { title: string; date: string; link: string; file: File | undefined }]
 }>()
+
+const { t } = useI18n()
 
 const title = ref('')
 const date = ref('')
@@ -74,20 +77,26 @@ function closeDialog(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="document ? 'Edit Document' : 'Add Document'"
+    :title="document ? t('document.designDocumentDialog.editTitle') : t('document.designDocumentDialog.addTitle')"
     size="md"
     :closable="!isSaving"
     @update:model-value="closeDialog"
   >
     <div class="flex flex-col gap-4">
-      <TextInput v-model="title" label="Document" placeholder="e.g. Structural Drawing R1" required :error="titleError" />
-      <DatePicker v-model="date" label="Date" required />
-      <TextInput v-model="link" label="Link" placeholder="https://..." required :error="linkError" />
+      <TextInput
+        v-model="title"
+        :label="t('document.designDocumentDialog.document')"
+        :placeholder="t('document.designDocumentDialog.documentPlaceholder')"
+        required
+        :error="titleError"
+      />
+      <DatePicker v-model="date" :label="t('document.designDocumentDialog.date')" required />
+      <TextInput v-model="link" :label="t('document.designDocumentDialog.link')" placeholder="https://..." required :error="linkError" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="isSaving" @click="handleSave">Save</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSaving" @click="handleSave">{{ t('common.save') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

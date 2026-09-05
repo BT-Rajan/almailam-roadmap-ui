@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const projectFormStore = useProjectFormStore()
+const { t } = useI18n()
 
 const project = computed(() => projectStore.projects.find((item) => item.id === props.projectId))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
@@ -114,13 +116,19 @@ async function handleSave(): Promise<void> {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="form ? `${entry ? 'Edit' : 'Fill'} · ${form.title}` : 'Fill Form'"
+    :title="
+      form
+        ? entry
+          ? t('government.projectFormEntryDialog.editTitle', { name: form.title })
+          : t('government.projectFormEntryDialog.fillTitle', { name: form.title })
+        : t('government.projectFormEntryDialog.defaultTitle')
+    "
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="form" class="flex flex-col gap-4">
       <div v-if="templateTokens.length > 0" class="flex flex-col gap-3">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Fill in the details</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.projectFormEntryDialog.fillInTheDetails') }}</p>
         <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
           <template v-for="token in templateTokens" :key="token">
             <SelectBox
@@ -138,7 +146,7 @@ async function handleSave(): Promise<void> {
       </div>
 
       <div>
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Preview</p>
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.projectFormEntryDialog.preview') }}</p>
         <pre
           class="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border-light bg-bg-card p-4 font-sans text-sm leading-relaxed text-text-primary"
           >{{ renderedPreview }}</pre
@@ -149,8 +157,8 @@ async function handleSave(): Promise<void> {
     </div>
 
     <template v-if="form" #footer>
-      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="isSaving" @click="handleSave">Save &amp; Generate PDF</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSaving" @click="handleSave">{{ t('government.projectFormEntryDialog.saveAndGeneratePdf') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

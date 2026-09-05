@@ -187,4 +187,48 @@ export default {
     reasonForWithdrawal: 'سبب السحب',
     reasonForWithdrawalPlaceholder: 'مثال: تغير نطاق المشروع، وسيتم تقديم طلب معدّل بدلاً منه',
   },
+
+  fillFormDialog: {
+    title: 'تعبئة نموذج حكومي',
+    noFillableFormsTitle: 'لا توجد نماذج قابلة للتعبئة بعد',
+    noFillableFormsDescription: 'أضف محتوى قالب إلى نموذج حكومي ضمن الإدارة > المستندات > النماذج الحكومية لجعله قابلاً للتعبئة هنا.',
+    form: 'النموذج',
+    documentTitle: 'عنوان المستند',
+    documentTitleHint: 'يفترض عنوان النموذج نفسه ما لم يُحدد غير ذلك.',
+    fillInTheDetails: 'تعبئة التفاصيل',
+    preview: 'معاينة',
+    generateAndSavePdf: 'إنشاء وحفظ PDF',
+  },
+
+  formPreviewDialog: {
+    title: 'معاينة',
+    titleWithName: 'معاينة · {name}',
+    noTemplateTitle: 'لا يوجد قالب بعد',
+    noTemplateDescription: 'أضف محتوى قالب لهذا النموذج لمعاينته معبأً.',
+    fillInTheDetails: 'تعبئة التفاصيل',
+    preview: 'معاينة',
+    saveAsPdf: 'حفظ كـ PDF',
+  },
+
+  newSubmissionDialog: {
+    title: 'تقديم حكومي جديد',
+    project: 'المشروع',
+    authority: 'الجهة',
+    form: 'النموذج',
+    selectAuthorityFirstHint: 'اختر جهة أولاً',
+    scopeMismatchHint: 'لا توجد نماذج لهذه الجهة مرتبطة بخدمة هذا المشروع -- راجع الإدارة > خريطة مستندات الخدمة.',
+    expectedDecisionDate: 'تاريخ القرار المتوقع (اختياري)',
+    notesPlaceholder: 'ملاحظات اختيارية لهذا التقديم',
+    thisFormRequires: 'يتطلب هذا النموذج:',
+    createSubmission: 'إنشاء تقديم',
+  },
+
+  projectFormEntryDialog: {
+    editTitle: 'تعديل · {name}',
+    fillTitle: 'تعبئة · {name}',
+    defaultTitle: 'تعبئة النموذج',
+    fillInTheDetails: 'تعبئة التفاصيل',
+    preview: 'معاينة',
+    saveAndGeneratePdf: 'حفظ وإنشاء PDF',
+  },
 }

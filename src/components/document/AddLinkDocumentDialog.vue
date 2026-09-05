@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -11,10 +12,10 @@ import type { ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/D
 import type { SelectOption } from '@/types/Ui'
 
 const CATEGORY_OPTIONS: SelectOption[] = [
-  { label: 'Property Documents', value: 'Property' },
-  { label: 'Government Documents', value: 'Government' },
-  { label: 'Others', value: 'Others' },
-  { label: 'Project Closure', value: 'Project Closure' },
+  { label: 'Property Documents', value: 'Property', labelKey: 'document.addLinkDialog.categoryProperty' },
+  { label: 'Government Documents', value: 'Government', labelKey: 'document.addLinkDialog.categoryGovernment' },
+  { label: 'Others', value: 'Others', labelKey: 'document.addLinkDialog.categoryOthers' },
+  { label: 'Project Closure', value: 'Project Closure', labelKey: 'document.addLinkDialog.categoryProjectClosure' },
 ]
 
 const props = defineProps<{
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 
 const linkDocumentStore = useProjectLinkDocumentStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const name = ref('')
 const path = ref('')
@@ -100,32 +102,38 @@ async function submitAdd(): Promise<void> {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Add Document" size="md" :closable="!isSaving" @update:model-value="closeDialog">
+  <BaseDialog :model-value="modelValue" :title="t('document.addLinkDialog.title')" size="md" :closable="!isSaving" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
       <SelectBox
         :model-value="selectedCategory"
-        label="Category"
-        placeholder="Select category"
+        :label="t('document.addLinkDialog.category')"
+        :placeholder="t('document.addLinkDialog.categoryPlaceholder')"
         :options="CATEGORY_OPTIONS"
         required
         :disabled="Boolean(props.category)"
         @update:model-value="selectedCategory = $event as ProjectLinkDocumentCategory"
       />
 
-      <TextInput v-model="name" label="Document Name" placeholder="e.g. Title Deed" required :error="nameError" />
+      <TextInput
+        v-model="name"
+        :label="t('document.addLinkDialog.documentName')"
+        :placeholder="t('document.addLinkDialog.documentNamePlaceholder')"
+        required
+        :error="nameError"
+      />
 
       <TextInput
         v-model="path"
-        label="Document Path / Link"
-        placeholder="e.g. https://drive.example.com/... or \\server\share\file.pdf"
+        :label="t('document.addLinkDialog.documentPathLink')"
+        :placeholder="t('document.addLinkDialog.documentPathLinkPlaceholder')"
         required
         :error="pathError"
       />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" :loading="isSaving" @click="submitAdd">Add Document</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :disabled="!canSubmit" :loading="isSaving" @click="submitAdd">{{ t('document.addLinkDialog.addDocument') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

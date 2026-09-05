@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -13,13 +14,13 @@ import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 
 const DOCUMENT_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Drawing', value: 'Drawing' },
-  { label: 'Report', value: 'Report' },
-  { label: 'Contract', value: 'Contract' },
-  { label: 'Quotation', value: 'Quotation' },
-  { label: 'Municipality Form', value: 'Municipality Form' },
-  { label: 'Calculation Sheet', value: 'Calculation Sheet' },
-  { label: 'Government Agreement', value: 'Government Agreement' },
+  { label: 'Drawing', value: 'Drawing', labelKey: 'document.uploadDialog.typeDrawing' },
+  { label: 'Report', value: 'Report', labelKey: 'document.uploadDialog.typeReport' },
+  { label: 'Contract', value: 'Contract', labelKey: 'document.uploadDialog.typeContract' },
+  { label: 'Quotation', value: 'Quotation', labelKey: 'document.uploadDialog.typeQuotation' },
+  { label: 'Municipality Form', value: 'Municipality Form', labelKey: 'document.uploadDialog.typeMunicipalityForm' },
+  { label: 'Calculation Sheet', value: 'Calculation Sheet', labelKey: 'document.uploadDialog.typeCalculationSheet' },
+  { label: 'Government Agreement', value: 'Government Agreement', labelKey: 'document.uploadDialog.typeGovernmentAgreement' },
 ]
 
 const props = defineProps<{
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 
 const documentStore = useDocumentStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const title = ref('')
 const documentType = ref<DocumentType | ''>('')
@@ -112,16 +114,22 @@ async function submitUpload(): Promise<void> {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Upload Document" size="md" :closable="!isUploading" @update:model-value="closeDialog">
+  <BaseDialog :model-value="modelValue" :title="t('document.uploadDialog.title')" size="md" :closable="!isUploading" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
-      <TextInput v-model="title" label="Document Title" placeholder="e.g. Structural Drawing" required :error="titleError" />
+      <TextInput
+        v-model="title"
+        :label="t('document.uploadDialog.documentTitle')"
+        :placeholder="t('document.uploadDialog.documentTitlePlaceholder')"
+        required
+        :error="titleError"
+      />
 
-      <SelectBox v-model="projectId" label="Project" placeholder="Select project" :options="projectOptions" required />
+      <SelectBox v-model="projectId" :label="t('document.uploadDialog.project')" :placeholder="t('document.uploadDialog.projectPlaceholder')" :options="projectOptions" required />
 
       <SelectBox
         :model-value="documentType"
-        label="Document Type"
-        placeholder="Select type"
+        :label="t('document.uploadDialog.documentType')"
+        :placeholder="t('document.uploadDialog.documentTypePlaceholder')"
         :options="DOCUMENT_TYPE_OPTIONS"
         required
         @update:model-value="documentType = $event as DocumentType"
@@ -134,8 +142,8 @@ async function submitUpload(): Promise<void> {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="isUploading" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" :loading="isUploading" @click="submitUpload">Upload Document</BaseButton>
+      <BaseButton variant="secondary" :disabled="isUploading" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :disabled="!canSubmit" :loading="isUploading" @click="submitUpload">{{ t('document.uploadDialog.uploadDocument') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

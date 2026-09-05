@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -28,6 +29,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { status: DocumentStatus; reason?: string }]
 }>()
+
+const { t } = useI18n()
 
 const options = (): SelectOption[] =>
   (DOCUMENT_ALLOWED_TRANSITIONS[props.currentStatus] ?? []).map((status) => ({ label: status, value: status }))
@@ -61,22 +64,22 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Change Document Status" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('document.statusDialog.title')" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.status" label="New Status" required :options="options()" :error="errors.status" />
+      <SelectBox v-model="form.status" :label="t('document.statusDialog.newStatus')" required :options="options()" :error="errors.status" />
       <TextArea
         v-model="form.reason"
-        label="Reason"
+        :label="t('document.statusDialog.reason')"
         :required="form.status === 'Rejected'"
         :error="errors.reason"
-        :hint="form.status === 'Rejected' ? 'Required when rejecting' : 'Optional'"
+        :hint="form.status === 'Rejected' ? t('document.statusDialog.reasonRequiredHint') : t('common.optional')"
         :rows="3"
       />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Confirm</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.confirm') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

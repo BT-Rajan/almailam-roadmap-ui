@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download, Printer } from '@lucide/vue'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -33,6 +34,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
+
+const { t } = useI18n()
 
 const tokens = computed(() => (props.form?.template ? extractTemplateTokens(props.form.template) : []))
 const contextValues = reactive<Record<string, string>>({})
@@ -110,7 +113,7 @@ async function downloadPdf(): Promise<void> {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="form ? `Preview · ${form.title}` : 'Preview'"
+    :title="form ? t('government.formPreviewDialog.titleWithName', { name: form.title }) : t('government.formPreviewDialog.title')"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -121,13 +124,13 @@ async function downloadPdf(): Promise<void> {
 
       <EmptyState
         v-if="!form.template"
-        title="No template yet"
-        description="Add template content to this form to preview it filled in."
+        :title="t('government.formPreviewDialog.noTemplateTitle')"
+        :description="t('government.formPreviewDialog.noTemplateDescription')"
       />
 
       <template v-else>
         <div v-if="tokens.length > 0" class="flex flex-col gap-3">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Fill in the details</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.formPreviewDialog.fillInTheDetails') }}</p>
           <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
             <TextInput
               v-for="token in tokens"
@@ -139,7 +142,7 @@ async function downloadPdf(): Promise<void> {
         </div>
 
         <div>
-          <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Preview</p>
+          <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.formPreviewDialog.preview') }}</p>
           <pre
             class="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border-light bg-bg-card p-5 font-sans text-sm leading-relaxed text-text-primary"
             >{{ renderedBody }}</pre
@@ -151,9 +154,9 @@ async function downloadPdf(): Promise<void> {
     </div>
 
     <template v-if="form" #footer>
-      <BaseButton variant="secondary" :icon="Printer" :disabled="!form.template" @click="printPreview">Print</BaseButton>
+      <BaseButton variant="secondary" :icon="Printer" :disabled="!form.template" @click="printPreview">{{ t('common.print') }}</BaseButton>
       <BaseButton :icon="Download" :disabled="!form.template" :loading="isDownloading" @click="downloadPdf">
-        Save as PDF
+        {{ t('government.formPreviewDialog.saveAsPdf') }}
       </BaseButton>
     </template>
   </BaseDialog>

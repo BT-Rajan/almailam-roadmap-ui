@@ -86,4 +86,60 @@ export default {
     documentNotFound: 'Document not found',
     documentNotFoundDescription: 'This document may have been removed or the link is incorrect.',
   },
+
+  addLinkDialog: {
+    title: 'Add Document',
+    category: 'Category',
+    categoryPlaceholder: 'Select category',
+    categoryProperty: 'Property Documents',
+    categoryGovernment: 'Government Documents',
+    categoryOthers: 'Others',
+    categoryProjectClosure: 'Project Closure',
+    documentName: 'Document Name',
+    documentNamePlaceholder: 'e.g. Title Deed',
+    documentPathLink: 'Document Path / Link',
+    documentPathLinkPlaceholder: 'e.g. https://drive.example.com/... or \\\\server\\share\\file.pdf',
+    addDocument: 'Add Document',
+  },
+
+  addVersionDialog: {
+    title: 'Add New Version',
+    notes: 'Notes',
+    notesPlaceholder: 'What changed in this revision?',
+    uploadNewVersion: 'Upload New Version',
+  },
+
+  designDocumentDialog: {
+    editTitle: 'Edit Document',
+    addTitle: 'Add Document',
+    document: 'Document',
+    documentPlaceholder: 'e.g. Structural Drawing R1',
+    date: 'Date',
+    link: 'Link',
+  },
+
+  statusDialog: {
+    title: 'Change Document Status',
+    newStatus: 'New Status',
+    reason: 'Reason',
+    reasonRequiredHint: 'Required when rejecting',
+  },
+
+  uploadDialog: {
+    title: 'Upload Document',
+    documentTitle: 'Document Title',
+    documentTitlePlaceholder: 'e.g. Structural Drawing',
+    project: 'Project',
+    projectPlaceholder: 'Select project',
+    documentType: 'Document Type',
+    documentTypePlaceholder: 'Select type',
+    typeDrawing: 'Drawing',
+    typeReport: 'Report',
+    typeContract: 'Contract',
+    typeQuotation: 'Quotation',
+    typeMunicipalityForm: 'Municipality Form',
+    typeCalculationSheet: 'Calculation Sheet',
+    typeGovernmentAgreement: 'Government Agreement',
+    uploadDocument: 'Upload Document',
+  },
 }

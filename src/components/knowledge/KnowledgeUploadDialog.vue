@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 
 const knowledgeStore = useKnowledgeStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const title = ref('')
 const selectedFile = ref<File>()
@@ -60,24 +62,22 @@ async function submitUpload(): Promise<void> {
 <template>
   <BaseDialog
     :model-value="props.modelValue"
-    title="Upload Knowledgebase Document"
+    :title="t('workspace.knowledgeUploadDialog.title')"
     size="md"
     :closable="!knowledgeStore.isUploading"
     @update:model-value="closeDialog"
   >
     <div class="flex flex-col gap-4">
       <p class="text-sm text-text-muted">
-        The document's text is extracted and used to ground answers on the Knowledge Base page. Only the
-        text-layer content of the file is used -- a scanned/image-only PDF with no selectable text can't be
-        answered from.
+        {{ t('workspace.knowledgeUploadDialog.description') }}
       </p>
 
-      <TextInput v-model="title" label="Title (optional)" placeholder="Defaults to the file name" />
+      <TextInput v-model="title" :label="t('workspace.knowledgeUploadDialog.titleLabel')" :placeholder="t('workspace.knowledgeUploadDialog.titlePlaceholder')" />
 
       <div class="flex flex-col gap-1.5">
         <FileUploader
           accept=".pdf,.docx,.txt"
-          hint="PDF, Word (.docx), or plain text (.txt)"
+          :hint="t('workspace.knowledgeUploadDialog.fileHint')"
           :allowed-extensions="['.pdf', '.docx', '.txt']"
           @select="selectedFile = $event"
           @error="fileError = $event"
@@ -87,8 +87,8 @@ async function submitUpload(): Promise<void> {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="knowledgeStore.isUploading" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" :loading="knowledgeStore.isUploading" @click="submitUpload">Upload</BaseButton>
+      <BaseButton variant="secondary" :disabled="knowledgeStore.isUploading" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :disabled="!canSubmit" :loading="knowledgeStore.isUploading" @click="submitUpload">{{ t('workspace.knowledgeUploadDialog.upload') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

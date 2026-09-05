@@ -187,4 +187,48 @@ export default {
     reasonForWithdrawal: 'Reason for withdrawal',
     reasonForWithdrawalPlaceholder: 'e.g. Project scope changed, submitting a revised application instead',
   },
+
+  fillFormDialog: {
+    title: 'Fill Government Form',
+    noFillableFormsTitle: 'No fillable forms yet',
+    noFillableFormsDescription: 'Add template content to a government form under Administration > Documents > Government Forms to make it fillable here.',
+    form: 'Form',
+    documentTitle: 'Document Title',
+    documentTitleHint: "Defaults to the form's own title.",
+    fillInTheDetails: 'Fill in the details',
+    preview: 'Preview',
+    generateAndSavePdf: 'Generate & Save PDF',
+  },
+
+  formPreviewDialog: {
+    title: 'Preview',
+    titleWithName: 'Preview · {name}',
+    noTemplateTitle: 'No template yet',
+    noTemplateDescription: 'Add template content to this form to preview it filled in.',
+    fillInTheDetails: 'Fill in the details',
+    preview: 'Preview',
+    saveAsPdf: 'Save as PDF',
+  },
+
+  newSubmissionDialog: {
+    title: 'New Government Submission',
+    project: 'Project',
+    authority: 'Authority',
+    form: 'Form',
+    selectAuthorityFirstHint: 'Select an authority first',
+    scopeMismatchHint: "None of this authority's forms are mapped to this project's service -- see Administration > Service Document Map.",
+    expectedDecisionDate: 'Expected Decision Date (optional)',
+    notesPlaceholder: 'Optional notes for this submission',
+    thisFormRequires: 'This form requires:',
+    createSubmission: 'Create Submission',
+  },
+
+  projectFormEntryDialog: {
+    editTitle: 'Edit · {name}',
+    fillTitle: 'Fill · {name}',
+    defaultTitle: 'Fill Form',
+    fillInTheDetails: 'Fill in the details',
+    preview: 'Preview',
+    saveAndGeneratePdf: 'Save & Generate PDF',
+  },
 }
