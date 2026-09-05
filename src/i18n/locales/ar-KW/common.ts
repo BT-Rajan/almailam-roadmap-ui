@@ -61,6 +61,7 @@ export default {
   clearSelection: 'إلغاء التحديد',
   selectAllRowsOnPage: 'تحديد جميع الصفوف في هذه الصفحة',
   selectRow: 'تحديد الصف {id}',
+  dismissAlert: 'إغلاق التنبيه',
   goToStep: 'الانتقال إلى الخطوة {step}: {label}',
   selectDate: 'اختر تاريخاً',
   selectOption: 'اختر خياراً',

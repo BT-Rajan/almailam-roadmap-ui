@@ -420,6 +420,7 @@ export default {
     projectDetailsDescription: 'صِف المشروع وحدد الجدول الزمني للتسليم.',
     projectName: 'اسم المشروع',
     scopeOfWork: 'نطاق العمل',
+    scopeOfWorkPlaceholder: 'صِف نطاق هذا التعاقد',
     scopeOfWorkHint: 'مُعبّأ تلقائياً من الخدمات والأنشطة الإضافية المختارة سابقاً -- عدّله بحرية إذا احتاج إلى تعديل.',
     siteAddress: 'عنوان المشروع/الموقع',
     siteAddressHint: 'يملأ حقل العنوان في قالب مستند عرض السعر/العقد، إن كان القالب المرفوع يحتوي عليه.',

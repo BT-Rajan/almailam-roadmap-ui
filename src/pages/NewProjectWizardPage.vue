@@ -443,7 +443,7 @@ function goToCreatedProject(): void {
           <TextArea
             v-model="form.scope"
             :label="t('project.newWizard.scopeOfWork')"
-            placeholder="Describe the scope of this engagement"
+            :placeholder="t('project.newWizard.scopeOfWorkPlaceholder')"
             :hint="t('project.newWizard.scopeOfWorkHint')"
             :rows="6"
           />

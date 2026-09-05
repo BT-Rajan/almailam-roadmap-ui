@@ -420,6 +420,7 @@ export default {
     projectDetailsDescription: 'Describe the engagement and set the delivery timeline.',
     projectName: 'Project Name',
     scopeOfWork: 'Scope of Work',
+    scopeOfWorkPlaceholder: 'Describe the scope of this engagement',
     scopeOfWorkHint: "Auto-filled from the services and additional activities picked earlier -- edit freely if it needs adjusting.",
     siteAddress: 'Project/Site Address',
     siteAddressHint: 'Fills the address placeholder on a Quotation/Contract document template, if the uploaded one has one.',
