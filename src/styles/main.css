@@ -17,7 +17,7 @@
     --color-bg-sidebar: rgb(255 255 255 / 0.55);
     --color-bg-header: rgb(255 255 255 / 0.55);
     --color-bg-hover: rgb(23 23 26 / 0.05);
-    --color-bg-selected: rgb(184 144 58 / 0.12);
+    --color-bg-selected: rgb(38 143 106 / 0.12);
 
     --color-text-primary: theme('colors.neutral.800');
     --color-text-secondary: theme('colors.neutral.500');
@@ -37,7 +37,7 @@
     --shadow-elevated: 0 12px 24px -4px rgb(23 23 26 / 0.14), 0 4px 8px -2px rgb(23 23 26 / 0.08);
     --shadow-glass: 0 8px 32px 0 rgb(23 23 26 / 0.10), inset 0 1px 0 0 rgb(255 255 255 / 0.5);
     --shadow-glass-sm: 0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.4);
-    --shadow-glow-accent: 0 0 0 1px rgb(184 144 58 / 0.25), 0 6px 18px -4px rgb(184 144 58 / 0.35);
+    --shadow-glow-accent: 0 0 0 1px rgb(38 143 106 / 0.25), 0 6px 18px -4px rgb(38 143 106 / 0.35);
   }
 
   .dark {
@@ -51,7 +51,7 @@
     --color-bg-sidebar: rgb(17 17 20 / 0.65);
     --color-bg-header: rgb(17 17 20 / 0.65);
     --color-bg-hover: rgb(255 255 255 / 0.06);
-    --color-bg-selected: rgb(184 144 58 / 0.16);
+    --color-bg-selected: rgb(38 143 106 / 0.16);
 
     --color-text-primary: theme('colors.neutral.100');
     --color-text-secondary: theme('colors.neutral.400');
@@ -76,7 +76,7 @@
     --shadow-elevated: 0 16px 32px -6px rgb(0 0 0 / 0.6), 0 4px 12px -2px rgb(0 0 0 / 0.5);
     --shadow-glass: 0 8px 32px 0 rgb(0 0 0 / 0.45), inset 0 1px 0 0 rgb(255 255 255 / 0.09);
     --shadow-glass-sm: 0 2px 14px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 0 rgb(255 255 255 / 0.08);
-    --shadow-glow-accent: 0 0 0 1px rgb(204 167 83 / 0.35), 0 0 20px -2px rgb(184 144 58 / 0.45), 0 6px 18px -4px rgb(0 0 0 / 0.6);
+    --shadow-glow-accent: 0 0 0 1px rgb(67 171 134 / 0.35), 0 0 20px -2px rgb(38 143 106 / 0.45), 0 6px 18px -4px rgb(0 0 0 / 0.6);
   }
 
   html {
@@ -88,9 +88,9 @@
     color: var(--color-text-primary);
     background-color: #f2f2f4;
     background-image:
-      radial-gradient(at 15% 0%, rgb(184 144 58 / 0.07) 0px, transparent 55%),
+      radial-gradient(at 15% 0%, rgb(38 143 106 / 0.07) 0px, transparent 55%),
       radial-gradient(at 85% 0%, rgb(23 23 26 / 0.06) 0px, transparent 55%),
-      radial-gradient(at 0% 55%, rgb(184 144 58 / 0.05) 0px, transparent 50%),
+      radial-gradient(at 0% 55%, rgb(38 143 106 / 0.05) 0px, transparent 50%),
       radial-gradient(at 90% 90%, rgb(23 23 26 / 0.05) 0px, transparent 50%);
     background-attachment: fixed;
     background-size: cover;
@@ -100,9 +100,9 @@
   .dark body {
     background-color: #0c0c0e;
     background-image:
-      radial-gradient(at 15% 0%, rgb(184 144 58 / 0.1) 0px, transparent 55%),
+      radial-gradient(at 15% 0%, rgb(38 143 106 / 0.1) 0px, transparent 55%),
       radial-gradient(at 85% 0%, rgb(255 255 255 / 0.04) 0px, transparent 55%),
-      radial-gradient(at 0% 55%, rgb(184 144 58 / 0.06) 0px, transparent 50%),
+      radial-gradient(at 0% 55%, rgb(38 143 106 / 0.06) 0px, transparent 50%),
       radial-gradient(at 90% 90%, rgb(255 255 255 / 0.03) 0px, transparent 50%);
   }
 
@@ -321,7 +321,7 @@
   transform: translateX(16px);
 }
 
-/* Champagne gradient text -- used sparingly for hero headings (e.g. the
+/* Jade gradient text -- used sparingly for hero headings (e.g. the
    dashboard greeting) so a couple of premium moments stand out against
    the otherwise-neutral heading color, without recoloring every heading
    in the app. */
