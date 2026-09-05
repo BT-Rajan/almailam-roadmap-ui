@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, LayoutGrid, Pencil, Plus, TableProperties, Trash2 } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, LayoutGrid, Pencil, Plus, TableProperties, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -13,6 +13,7 @@ import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import GovernmentFormFormDialog from '@/components/administration/GovernmentFormFormDialog.vue'
 import FormDetailDrawer from '@/components/government/FormDetailDrawer.vue'
 import GovernmentFormsView from '@/components/government/GovernmentFormsView.vue'
+import { useLocale } from '@/composables/useLocale'
 import type { FormInput } from '@/services/governmentFormService'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
@@ -32,6 +33,11 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way "back" actually goes, which flips with reading
+// direction.
+const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const store = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -190,7 +196,7 @@ function printForm(form: GovernmentForm): void {
       class="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-muted hover:text-text-primary"
       @click="emit('back')"
     >
-      <ArrowLeft class="h-4 w-4" />
+      <component :is="backIcon" class="h-4 w-4" />
       {{ t('government.formLibraryPanel.backToAuthorities') }}
     </button>
 

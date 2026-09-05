@@ -189,10 +189,10 @@ function documentTitle(documentId: string): string {
 
         <div v-else class="flex flex-col gap-4">
           <div v-for="entry in knowledgeStore.history" :key="entry.id" class="flex flex-col gap-2">
-            <p class="self-end max-w-[85%] rounded-xl rounded-tr-sm bg-primary-500 px-4 py-2 text-sm text-white">
+            <p class="self-end max-w-[85%] rounded-xl rounded-se-sm bg-primary-500 px-4 py-2 text-sm text-white">
               {{ entry.question }}
             </p>
-            <div class="max-w-[85%] rounded-xl rounded-tl-sm border border-border-light bg-bg-secondary px-4 py-3">
+            <div class="max-w-[85%] rounded-xl rounded-ss-sm border border-border-light bg-bg-secondary px-4 py-3">
               <p class="whitespace-pre-wrap text-sm text-text-primary" dir="auto">{{ entry.answer }}</p>
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
                 <StatusBadge

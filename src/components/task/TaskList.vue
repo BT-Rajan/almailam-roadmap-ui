@@ -41,7 +41,7 @@ function projectName(projectId: string): string {
       <li v-for="task in tasks" :key="task.id">
         <button
           type="button"
-          class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors duration-fast hover:bg-bg-hover"
+          class="flex w-full items-center justify-between gap-4 px-5 py-4 text-start transition-colors duration-fast hover:bg-bg-hover"
           @click="$emit('open', task.id)"
         >
           <div class="min-w-0">
@@ -56,7 +56,7 @@ function projectName(projectId: string): string {
             <TaskSeverityBadge :severity="task.severity" />
             <TaskStatusBadge :status="task.status" />
             <span
-              class="w-32 text-right text-xs font-medium"
+              class="w-32 text-end text-xs font-medium"
               :class="isTaskOverdue(task) ? 'text-danger-700' : 'text-text-muted'"
             >
               {{ formatTaskDueDateTime(task) }}

@@ -393,7 +393,7 @@ function goToCreatedProject(): void {
                 id="service-picker-button"
                 type="button"
                 aria-labelledby="service-picker-label service-picker-button"
-                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border bg-bg-card px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-bg-hover"
+                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border bg-bg-card px-3 py-2 text-start text-sm transition-colors duration-fast hover:bg-bg-hover"
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
               >

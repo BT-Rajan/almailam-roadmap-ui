@@ -8,12 +8,19 @@ import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useLocale } from '@/composables/useLocale'
 import { useSitePortalStore } from '@/stores/sitePortalStore'
 import type { StatusReport } from '@/types/StatusReport'
 import { engineerStatusLabel, engineerStatusVariant } from '@/utils/statusReportHelpers'
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
 const sitePortalStore = useSitePortalStore()
+
+// Previous/next chevrons point the way the reader moves, which reverses
+// with reading direction rather than staying physically fixed.
+const previousMonthIcon = computed(() => (isRtl.value ? ChevronRight : ChevronLeft))
+const nextMonthIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 const visibleMonth = ref(new Date())
 // A day can now hold more than one report -- an engineer on several
@@ -120,11 +127,11 @@ function dotsFor(day: Date): StatusReport[] {
     <Card>
       <div class="mb-4 flex items-center justify-between">
         <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" :aria-label="t('sitePortal.calendarPage.previousMonth')" @click="goToPreviousMonth">
-          <ChevronLeft class="h-4 w-4" />
+          <component :is="previousMonthIcon" class="h-4 w-4" />
         </button>
         <p class="text-sm font-semibold text-text-primary">{{ monthTitle }}</p>
         <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" :aria-label="t('sitePortal.calendarPage.nextMonth')" @click="goToNextMonth">
-          <ChevronRight class="h-4 w-4" />
+          <component :is="nextMonthIcon" class="h-4 w-4" />
         </button>
       </div>
 

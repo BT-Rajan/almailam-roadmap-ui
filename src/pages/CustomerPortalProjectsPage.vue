@@ -65,7 +65,7 @@ onMounted(loadProjects)
         v-for="project in projects"
         :key="project.projectId"
         type="button"
-        class="glass-panel flex w-full items-center gap-3 rounded-xl p-4 text-left shadow-glass transition hover:shadow-md"
+        class="glass-panel flex w-full items-center gap-3 rounded-xl p-4 text-start shadow-glass transition hover:shadow-md"
         @click="openProject(project.projectId)"
       >
         <FolderOpen class="h-5 w-5 shrink-0 text-primary-600" />

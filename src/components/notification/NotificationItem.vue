@@ -45,7 +45,7 @@ const timeLabel = computed(() => {
 <template>
   <button
     type="button"
-    class="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors duration-fast hover:bg-bg-hover"
+    class="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-start transition-colors duration-fast hover:bg-bg-hover"
     @click="emit('select', notification)"
   >
     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" :class="iconClasses">

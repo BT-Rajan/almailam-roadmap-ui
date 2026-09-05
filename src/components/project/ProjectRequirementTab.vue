@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight, CheckCircle2, MessageSquare } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, CheckCircle2, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -13,6 +13,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import ScopeRevisionHistory from '@/components/project/ScopeRevisionHistory.vue'
+import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
 import { useClientStore } from '@/stores/clientStore'
@@ -40,6 +41,11 @@ const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way this action advances the project, which flips with
+// reading direction.
+const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 // Once any of this project's quotations has been finalized, the scope
 // it was built against is frozen too -- see backend project_service.
@@ -270,7 +276,7 @@ const clientDetailItems = computed(() => {
                 {{ t('project.requirementTab.approve') }}
               </BaseButton>
             </template>
-            <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="ArrowRight" @click="handleAdvanceToQuotation">
+            <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="advanceIcon" @click="handleAdvanceToQuotation">
               {{ t('project.requirementTab.advanceToQuotation') }}
             </BaseButton>
           </div>

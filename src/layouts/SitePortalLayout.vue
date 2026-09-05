@@ -25,7 +25,7 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
           <div class="gradient-luxe-accent flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
             SO
           </div>
-          <div class="text-left">
+          <div class="text-start">
             <p class="text-sm font-semibold text-text-primary">Site Engineer Portal</p>
             <p class="hidden text-xs text-text-muted tablet:block">Almailam Engineering Consultants</p>
           </div>

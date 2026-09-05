@@ -10,7 +10,7 @@ const { toasts } = storeToRefs(toastStore)
 
 <template>
   <Teleport to="body">
-    <div class="fixed right-4 top-4 z-notification flex flex-col gap-3" role="status" aria-live="polite" aria-atomic="false">
+    <div class="fixed end-4 top-4 z-notification flex flex-col gap-3" role="status" aria-live="polite" aria-atomic="false">
       <TransitionGroup name="toast">
         <Toast v-for="toast in toasts" :key="toast.id" :toast="toast" @dismiss="toastStore.dismiss" />
       </TransitionGroup>

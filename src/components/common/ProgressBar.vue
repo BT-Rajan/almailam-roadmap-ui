@@ -30,6 +30,6 @@ const trackColor = computed(() => {
     >
       <div class="h-full rounded-full transition-all duration-normal" :class="trackColor" :style="{ width: `${clampedValue}%` }" />
     </div>
-    <span v-if="showLabel" class="w-9 shrink-0 text-right text-xs font-medium text-text-muted">{{ clampedValue }}%</span>
+    <span v-if="showLabel" class="w-9 shrink-0 text-end text-xs font-medium text-text-muted">{{ clampedValue }}%</span>
   </div>
 </template>

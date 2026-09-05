@@ -63,9 +63,9 @@ const sortDirection = ref<SortDirection>('asc')
 const selectedKeys = ref<Set<unknown>>(new Set())
 
 const alignClasses: Record<ColumnAlign, string> = {
-  left: 'text-left',
+  left: 'text-start',
   center: 'text-center',
-  right: 'text-right',
+  right: 'text-end',
 }
 
 const searchedRows = computed(() => {
@@ -269,7 +269,7 @@ function clearSelection(): void {
                 {{ row[column.key] }}
               </slot>
             </td>
-            <td v-if="$slots['row-actions']" class="px-4 py-3 text-right" @click.stop>
+            <td v-if="$slots['row-actions']" class="px-4 py-3 text-end" @click.stop>
               <slot name="row-actions" :row="row" />
             </td>
           </tr>

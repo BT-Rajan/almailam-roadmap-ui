@@ -5,12 +5,21 @@ import { useI18n } from 'vue-i18n'
 
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { useAuth } from '@/composables/useAuthComposable'
+import { useLocale } from '@/composables/useLocale'
 import { PRIMARY_NAV_ITEMS } from '@/constants/navigation'
 import { useNavigationStore } from '@/stores/navigationStore'
 
 const navigationStore = useNavigationStore()
 const { isAdmin } = useAuth()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// The chevron points the way the sidebar will move on click. The
+// sidebar itself sits at the inline-start edge (left in LTR, right in
+// RTL, thanks to the flex row auto-mirroring), so which physical
+// chevron means "collapse" vs "expand" flips right along with it.
+const collapseIcon = computed(() => (isRtl.value ? ChevronRight : ChevronLeft))
+const expandIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 // adminOnly items (currently just Administration) are hidden from the nav
 // entirely for every other role -- the route itself also redirects a
@@ -22,7 +31,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
 
 <template>
   <aside
-    class="group relative hidden shrink-0 flex-col border-r border-[var(--color-border-default)] bg-bg-sidebar shadow-glass-sm transition-all duration-normal lg:flex"
+    class="group relative hidden shrink-0 flex-col border-e border-[var(--color-border-default)] bg-bg-sidebar shadow-glass-sm transition-all duration-normal lg:flex"
     :class="navigationStore.isSidebarCollapsed ? 'w-18' : 'w-70'"
   >
     <div class="flex h-16 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
@@ -54,12 +63,11 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
     compete for attention with the nav items above it. -->
     <button
       type="button"
-      class="absolute -right-3 top-16 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-bg-sidebar text-[var(--color-text-secondary)] opacity-0 shadow-glass-sm transition-opacity duration-fast hover:text-[var(--color-text-primary)] group-hover:opacity-100"
+      class="absolute -end-3 top-16 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-bg-sidebar text-[var(--color-text-secondary)] opacity-0 shadow-glass-sm transition-opacity duration-fast hover:text-[var(--color-text-primary)] group-hover:opacity-100"
       :aria-label="navigationStore.isSidebarCollapsed ? t('navigation.expandSidebar') : t('navigation.collapseSidebar')"
       @click="navigationStore.toggleSidebarCollapsed"
     >
-      <ChevronLeft v-if="!navigationStore.isSidebarCollapsed" :size="14" />
-      <ChevronRight v-else :size="14" />
+      <component :is="navigationStore.isSidebarCollapsed ? expandIcon : collapseIcon" :size="14" />
     </button>
   </aside>
 </template>

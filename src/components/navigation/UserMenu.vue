@@ -16,7 +16,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { username, logout } = useAuth()
 const { isDark, toggleMode } = useTheme()
-const { locale, toggleLocale } = useLocale()
+const { locale, toggleLocale, isRtl } = useLocale()
 
 const otherLocale = computed(() => SUPPORTED_LOCALES.find((entry) => entry.value !== locale.value))
 
@@ -51,13 +51,24 @@ let closeTimeout: ReturnType<typeof setTimeout> | undefined
 // bury it behind page content or clip it outright, and that ancestor set
 // changes on every page. Teleporting escapes all of that in one move
 // instead of chasing down which page/element does it.
-const menuPosition = reactive({ top: 0, right: 0 })
+// Anchored to whichever edge sits nearest the trigger's own physical
+// position -- the trigger sits at the end of the top nav, which is the
+// right edge of the screen in LTR but flips to the left edge under
+// RTL. Anchoring via the far edge every time (e.g. always `right`)
+// would push the panel off-screen once the trigger has flipped sides.
+const menuPosition = reactive<{ top: number; left?: number; right?: number }>({ top: 0 })
 
 function updateMenuPosition(): void {
   const rect = triggerRef.value?.getBoundingClientRect()
   if (!rect) return
   menuPosition.top = rect.bottom + 4
-  menuPosition.right = window.innerWidth - rect.right
+  if (isRtl.value) {
+    menuPosition.left = rect.left
+    menuPosition.right = undefined
+  } else {
+    menuPosition.right = window.innerWidth - rect.right
+    menuPosition.left = undefined
+  }
 }
 
 function openOnHover(): void {
@@ -136,7 +147,7 @@ async function handleLogout(): Promise<void> {
     <button
       ref="triggerRef"
       type="button"
-      class="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
+      class="flex items-center gap-2 rounded-lg py-1.5 ps-1.5 pe-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
       aria-haspopup="menu"
       :aria-expanded="isOpen"
       @click="toggleOpen"
@@ -154,14 +165,18 @@ async function handleLogout(): Promise<void> {
           ref="panelRef"
           role="menu"
           class="glass-panel fixed z-dropdown w-56 rounded-xl border border-border-light py-1.5 shadow-elevated"
-          :style="{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }"
+          :style="
+            menuPosition.left !== undefined
+              ? { top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }
+              : { top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }
+          "
           @mouseenter="openOnHover"
           @mouseleave="closeOnHover"
         >
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
             @click="openProfile"
           >
             <UserCircle :size="16" class="text-text-muted" />
@@ -171,7 +186,7 @@ async function handleLogout(): Promise<void> {
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
             @click="toggleMode"
           >
             <component :is="isDark ? Sun : Moon" :size="16" class="text-text-muted" />
@@ -181,7 +196,7 @@ async function handleLogout(): Promise<void> {
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
             @click="toggleLocale"
           >
             <Globe :size="16" class="text-text-muted" />
@@ -191,7 +206,7 @@ async function handleLogout(): Promise<void> {
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
             @click="openChangePassword"
           >
             <KeyRound :size="16" class="text-text-muted" />
@@ -203,7 +218,7 @@ async function handleLogout(): Promise<void> {
           <button
             type="button"
             role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-danger-500 transition-colors duration-fast hover:bg-danger-50"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-danger-500 transition-colors duration-fast hover:bg-danger-50"
             @click="handleLogout"
           >
             <LogOut :size="16" />

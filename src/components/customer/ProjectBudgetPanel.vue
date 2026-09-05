@@ -74,7 +74,7 @@ const paidPercent = computed(() => {
                    only whether it's overdue, not the schedule itself. -->
               <p v-if="isPastDate(payment.dueDate)" class="text-xs text-danger-600">{{ t('customer.budgetPanel.overdue') }}</p>
             </div>
-            <div class="text-right">
+            <div class="text-end">
               <p class="text-sm font-semibold text-text-primary">
                 {{ formatCurrency(payment.amountDue - payment.amountReceived, budget.currency) }}
               </p>

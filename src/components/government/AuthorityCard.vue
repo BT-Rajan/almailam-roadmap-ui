@@ -41,7 +41,7 @@ const categoryLabel = computed(() => {
 
 <template>
   <Card hoverable class="flex h-full flex-col !p-0">
-    <button type="button" class="flex flex-1 flex-col gap-3 p-5 text-left" @click="$emit('open', authority)">
+    <button type="button" class="flex flex-1 flex-col gap-3 p-5 text-start" @click="$emit('open', authority)">
       <div class="flex items-start justify-between gap-3">
         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
           <component :is="icon" class="h-5 w-5" />

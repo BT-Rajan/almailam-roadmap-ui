@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
+import { ArrowLeft, ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -13,6 +13,7 @@ import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
+import { useLocale } from '@/composables/useLocale'
 import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import type { QuotationCreateInput } from '@/services/quotationService'
@@ -42,6 +43,11 @@ const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way this action advances the project, which flips with
+// reading direction.
+const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
@@ -259,7 +265,7 @@ function handleAdvanceToPaymentPlan(): void {
           quotationStore.selectedQuotation?.finalizedAt
         "
         size="sm"
-        :icon="ArrowRight"
+        :icon="advanceIcon"
         @click="handleAdvanceToPaymentPlan"
       >
         {{ t('project.quotationTab.advanceToPaymentPlan') }}

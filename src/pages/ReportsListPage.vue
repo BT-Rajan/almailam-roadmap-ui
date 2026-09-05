@@ -84,7 +84,7 @@ const reports = computed(() => [
           <!-- Metrics -->
           <div class="space-y-1 pt-2 border-t border-border-light">
             <div v-for="metric in report.metrics" :key="metric" class="text-xs text-text-muted">
-              <span class="inline-block w-1.5 h-1.5 rounded-full mr-2" :class="report.color === 'primary' ? 'bg-primary-300' : report.color === 'info' ? 'bg-info-300' : 'bg-success-300'" />
+              <span class="inline-block w-1.5 h-1.5 rounded-full me-2" :class="report.color === 'primary' ? 'bg-primary-300' : report.color === 'info' ? 'bg-info-300' : 'bg-success-300'" />
               {{ metric }}
             </div>
           </div>

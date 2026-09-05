@@ -50,7 +50,7 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
       <li v-for="quotation in [...quotations].reverse()" :key="quotation.id">
         <button
           type="button"
-          class="flex w-full flex-col gap-1.5 px-5 py-4 text-left transition-colors duration-fast"
+          class="flex w-full flex-col gap-1.5 px-5 py-4 text-start transition-colors duration-fast"
           :class="quotation.id === selectedQuotationId ? 'bg-bg-selected' : 'hover:bg-bg-hover'"
           :aria-current="quotation.id === selectedQuotationId ? 'true' : undefined"
           @click="emit('select', quotation.id)"

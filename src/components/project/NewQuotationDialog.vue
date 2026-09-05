@@ -191,16 +191,16 @@ function handleConfirm(): void {
           <table class="w-full min-w-[560px] border-collapse">
             <thead>
               <tr class="border-b border-border-light bg-bg-secondary">
-                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <th class="px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
                   {{ t('project.newQuotationDialog.columnLineItem') }}
                 </th>
-                <th class="w-24 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <th class="w-24 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                   {{ t('project.newQuotationDialog.columnQty') }}
                 </th>
-                <th class="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                   {{ t('project.newQuotationDialog.columnRate') }}
                 </th>
-                <th class="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                   {{ t('project.newQuotationDialog.columnAmount') }}
                 </th>
                 <th class="w-10 px-2 py-2.5"></th>
@@ -227,12 +227,12 @@ function handleConfirm(): void {
                     @update:model-value="item.unitPrice = Number($event)"
                   />
                 </td>
-                <td class="px-3 py-2 text-right align-top">
+                <td class="px-3 py-2 text-end align-top">
                   <span class="inline-block pt-2 text-sm font-medium text-text-primary">
                     {{ formatCurrency(item.quantity * item.unitPrice, form.currency) }}
                   </span>
                 </td>
-                <td class="px-2 py-2 text-right align-top">
+                <td class="px-2 py-2 text-end align-top">
                   <IconButton
                     :icon="Trash2"
                     :label="t('project.newQuotationDialog.removeLineItem', { number: index + 1 })"

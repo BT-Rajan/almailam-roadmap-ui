@@ -48,7 +48,7 @@ function isCurrentVersion(version: ClientDocumentVersion): boolean {
       <li
         v-for="version in [...versions].reverse()"
         :key="version.id"
-        class="flex flex-col gap-1 border-l-2 border-border-light pl-3"
+        class="flex flex-col gap-1 border-s-2 border-border-light ps-3"
       >
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">

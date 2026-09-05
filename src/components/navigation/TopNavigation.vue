@@ -42,10 +42,10 @@ onMounted(() => {
 
       <button
         type="button"
-        class="relative hidden w-72 items-center rounded-lg border border-[var(--color-border-default)] bg-bg-secondary py-2 pl-9 pr-3 text-left text-sm text-[var(--color-text-muted)] transition-colors duration-fast hover:border-accent-400 md:flex"
+        class="relative hidden w-72 items-center rounded-lg border border-[var(--color-border-default)] bg-bg-secondary py-2 ps-9 pe-3 text-start text-sm text-[var(--color-text-muted)] transition-colors duration-fast hover:border-accent-400 md:flex"
         @click="searchStore.open"
       >
-        <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+        <Search :size="16" class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
         <span class="flex-1 truncate">{{ t('common.searchGlobalPlaceholder') }}</span>
         <kbd class="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
           Ctrl K
@@ -83,7 +83,7 @@ onMounted(() => {
         <Bell :size="18" />
         <span
           v-if="notificationStore.hasUnread"
-          class="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-semibold leading-none text-white"
+          class="absolute end-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-semibold leading-none text-white"
           aria-hidden="true"
         >
           {{ notificationStore.unreadCount > 9 ? '9+' : notificationStore.unreadCount }}

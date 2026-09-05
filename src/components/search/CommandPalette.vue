@@ -140,7 +140,7 @@ watch(
                   v-for="result in group.results"
                   :key="result.id"
                   type="button"
-                  class="flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors duration-fast"
+                  class="flex items-center gap-3 rounded-lg px-2 py-2 text-start transition-colors duration-fast"
                   :class="
                     flatIndexOf(result) === searchStore.activeIndex
                       ? 'bg-primary-50'

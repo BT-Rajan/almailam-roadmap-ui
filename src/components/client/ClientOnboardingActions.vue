@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRightCircle, Settings2 } from '@lucide/vue'
+import { ArrowLeftCircle, ArrowRightCircle, Settings2 } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -7,6 +7,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, CLIENT_ONBOARDING_STATES_REQUIRING_REASON } from '@/constants/clientOptions'
+import { useLocale } from '@/composables/useLocale'
 import type { Client, ClientAddress, ClientContact, ClientDocument, ClientIdentification, ClientVerification } from '@/types/Client'
 import { calculateOnboardingState, getClientOnboardingStateVariant } from '@/utils/clientHelpers'
 
@@ -26,6 +27,11 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way this action advances onboarding, which flips with
+// reading direction.
+const advanceIcon = computed(() => (isRtl.value ? ArrowLeftCircle : ArrowRightCircle))
 
 const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
   'Information Required': 'clientOptions.onboardingState.informationRequired',
@@ -98,7 +104,7 @@ const canAutoAdvance = computed(
         <BaseButton
           v-if="canAutoAdvance"
           size="sm"
-          :icon="ArrowRightCircle"
+          :icon="advanceIcon"
           :loading="loading"
           @click="emit('autoAdvance')"
         >

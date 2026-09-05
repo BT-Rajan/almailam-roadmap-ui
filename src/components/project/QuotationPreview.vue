@@ -220,16 +220,16 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
         <table class="w-full border-collapse">
           <thead>
             <tr class="border-b border-border-light bg-bg-secondary">
-              <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <th class="px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {{ t('common.description') }}
               </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <th class="px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {{ t('project.quotationPreview.qty') }}
               </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <th class="px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {{ t('project.quotationPreview.unitPrice') }}
               </th>
-              <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <th class="px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {{ t('common.amount') }}
               </th>
             </tr>
@@ -237,11 +237,11 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
           <tbody>
             <tr v-for="item in quotation.lineItems" :key="item.id" class="border-b border-border-light last:border-0">
               <td class="px-3 py-3 text-sm text-text-secondary">{{ item.description }}</td>
-              <td class="px-3 py-3 text-right text-sm text-text-secondary">{{ item.quantity }}</td>
-              <td class="px-3 py-3 text-right text-sm text-text-secondary">
+              <td class="px-3 py-3 text-end text-sm text-text-secondary">{{ item.quantity }}</td>
+              <td class="px-3 py-3 text-end text-sm text-text-secondary">
                 {{ formatCurrency(item.unitPrice, quotation.currency) }}
               </td>
-              <td class="px-3 py-3 text-right text-sm font-medium text-text-primary">
+              <td class="px-3 py-3 text-end text-sm font-medium text-text-primary">
                 {{ formatCurrency(item.quantity * item.unitPrice, quotation.currency) }}
               </td>
             </tr>

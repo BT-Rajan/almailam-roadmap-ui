@@ -271,7 +271,7 @@ function handleConfirm(): void {
                   @update:model-value="toggleService(service)"
                 />
               </div>
-              <div v-if="isExpanded(service.id)" class="ml-9 flex flex-col gap-0.5 border-l border-border-light pl-3">
+              <div v-if="isExpanded(service.id)" class="ms-9 flex flex-col gap-0.5 border-s border-border-light ps-3">
                 <p v-if="service.activities.length === 0" class="py-1 text-xs text-text-muted">{{ t('project.servicePickerDialog.noActivitiesUnderService') }}</p>
                 <div v-for="activity in service.activities" :key="activity.id" class="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-bg-hover">
                   <Checkbox
@@ -307,7 +307,7 @@ function handleConfirm(): void {
           <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.servicePickerDialog.priceColumn') }}</div>
           <div class="max-h-96 overflow-y-auto p-2">
             <p v-if="selectedDesignItems.length === 0" class="p-2 text-sm text-text-muted">--</p>
-            <div v-for="item in selectedDesignItems" :key="item.activityId" class="rounded-md px-2 py-1.5 text-right text-sm text-text-primary">
+            <div v-for="item in selectedDesignItems" :key="item.activityId" class="rounded-md px-2 py-1.5 text-end text-sm text-text-primary">
               {{ formatCurrency(item.fixedCost, currency) }}
             </div>
           </div>
@@ -338,7 +338,7 @@ function handleConfirm(): void {
                   />
                   <span class="shrink-0 text-xs text-text-muted">{{ formatCurrency(activity.fixedCost, currency) }}/mo</span>
                 </div>
-                <div v-if="isSupervisionSelected(activity.id)" class="mt-2 ml-7 grid grid-cols-1 gap-2 tablet:grid-cols-2">
+                <div v-if="isSupervisionSelected(activity.id)" class="mt-2 ms-7 grid grid-cols-1 gap-2 tablet:grid-cols-2">
                   <DatePicker v-model="supervisionRows[activity.id].startDate" :label="t('project.servicePickerDialog.startDate')" required />
                   <DatePicker v-model="supervisionRows[activity.id].endDate" :label="t('project.servicePickerDialog.endDate')" />
                 </div>

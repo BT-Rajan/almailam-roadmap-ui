@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight } from '@lucide/vue'
+import { ArrowLeft, ArrowRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -7,6 +7,7 @@ import Avatar from '@/components/common/Avatar.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
 import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
+import { useLocale } from '@/composables/useLocale'
 import { formatTaskDueDateTime, getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Task, TaskStatus } from '@/types/Task'
 
@@ -22,6 +23,11 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way this action moves the task forward, which flips with
+// reading direction.
+const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 const overdue = computed(() => isTaskOverdue(props.task))
 const nextStatus = computed(() => getNextTaskStatus(props.task.status))
@@ -63,7 +69,7 @@ const moveToLabel = computed(() => (nextStatus.value ? t('task.moveTo', { status
 
     <IconButton
       v-if="nextStatus"
-      :icon="ArrowRight"
+      :icon="advanceIcon"
       :label="moveToLabel"
       size="sm"
       variant="primary"

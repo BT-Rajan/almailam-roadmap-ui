@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, CircleCheck, Upload } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, CircleCheck, Upload } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -19,6 +19,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
+import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
@@ -33,6 +34,11 @@ import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way "back" actually goes, which flips with reading
+// direction.
+const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const submissionStore = useGovernmentSubmissionStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
@@ -363,7 +369,7 @@ async function handleMoveToDraft(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <BaseButton variant="ghost" size="sm" :icon="ArrowLeft" class="self-start no-print" @click="goBack">
+    <BaseButton variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
       {{ originProjectId ? t('government.workspacePage.backToProject') : t('government.workspacePage.backToSubmissions') }}
     </BaseButton>
 

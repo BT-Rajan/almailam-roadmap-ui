@@ -31,7 +31,7 @@ const STATUS_LABEL_KEYS: Record<DocumentStatus, string> = {
     <dl class="flex flex-col gap-3 text-sm">
       <div class="flex items-center justify-between gap-3">
         <dt class="text-text-muted">{{ t('document.metadataPanel.project') }}</dt>
-        <dd class="truncate text-right font-medium text-text-primary">{{ projectName }}</dd>
+        <dd class="truncate text-end font-medium text-text-primary">{{ projectName }}</dd>
       </div>
       <div class="flex items-center justify-between gap-3">
         <dt class="text-text-muted">{{ t('document.metadataPanel.category') }}</dt>

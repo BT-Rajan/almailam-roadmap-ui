@@ -2,6 +2,8 @@
 import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useLocale } from '@/composables/useLocale'
+
 export type CatalogTabKey = 'services' | 'permits'
 
 export interface CatalogTab {
@@ -16,6 +18,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const { t } = useI18n()
+const { isRtl } = useLocale()
 
 const emit = defineEmits<{
   select: [tab: CatalogTabKey]
@@ -38,15 +41,18 @@ function focusAndSelect(index: number): void {
   nextTick(() => tabRefs.value[wrapped]?.focus())
 }
 
+// Right/Left Arrow follow reading direction, not physical direction --
+// per the WAI-ARIA tabs pattern, they swap under RTL so "next" still
+// means "the tab in front of this one," wherever that visually sits.
 function handleKeydown(event: KeyboardEvent, index: number): void {
   switch (event.key) {
     case 'ArrowRight':
       event.preventDefault()
-      focusAndSelect(index + 1)
+      focusAndSelect(isRtl.value ? index - 1 : index + 1)
       break
     case 'ArrowLeft':
       event.preventDefault()
-      focusAndSelect(index - 1)
+      focusAndSelect(isRtl.value ? index + 1 : index - 1)
       break
     case 'Home':
       event.preventDefault()

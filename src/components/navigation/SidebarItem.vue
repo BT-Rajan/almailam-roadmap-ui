@@ -30,7 +30,7 @@ const isActive = computed(() => route.path.startsWith(props.item.matchPath))
   >
     <span
       v-if="isActive"
-      class="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent-500"
+      class="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-accent-500"
       aria-hidden="true"
     />
     <component :is="icon" :size="20" class="shrink-0" aria-hidden="true" />

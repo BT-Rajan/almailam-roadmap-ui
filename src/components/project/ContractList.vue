@@ -51,7 +51,7 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
       <li v-for="contract in [...contracts].reverse()" :key="contract.id">
         <button
           type="button"
-          class="flex w-full flex-col gap-1.5 px-5 py-4 text-left transition-colors duration-fast"
+          class="flex w-full flex-col gap-1.5 px-5 py-4 text-start transition-colors duration-fast"
           :class="contract.id === selectedContractId ? 'bg-bg-selected' : 'hover:bg-bg-hover'"
           :aria-current="contract.id === selectedContractId ? 'true' : undefined"
           @click="emit('select', contract.id)"

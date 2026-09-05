@@ -37,7 +37,7 @@ const remainingDocumentCount = computed(() => props.form.requiredDocuments.lengt
 
 <template>
   <Card hoverable class="flex h-full flex-col !p-0" :class="isArchived ? 'opacity-70' : ''">
-    <button type="button" class="flex flex-1 flex-col gap-4 p-5 text-left" @click="$emit('view', form)">
+    <button type="button" class="flex flex-1 flex-col gap-4 p-5 text-start" @click="$emit('view', form)">
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3">
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50">

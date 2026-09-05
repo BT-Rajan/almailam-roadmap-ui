@@ -58,7 +58,7 @@ function handleFileChange(documentId: number, event: Event): void {
         <StatusBadge :label="t(STATUS_LABEL_KEYS[document.status])" :variant="getDocumentStatusVariant(document.status)" size="sm" />
       </div>
 
-      <div class="flex items-center justify-between gap-3 pl-6">
+      <div class="flex items-center justify-between gap-3 ps-6">
         <span v-if="document.originalFilename" class="truncate text-xs text-text-muted">
           {{ document.originalFilename }}
           <template v-if="document.fileSizeLabel"> &middot; {{ document.fileSizeLabel }}</template>

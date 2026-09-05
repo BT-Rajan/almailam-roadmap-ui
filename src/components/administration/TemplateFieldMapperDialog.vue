@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CornerDownRight, Repeat, X } from '@lucide/vue'
+import { CornerDownLeft, CornerDownRight, Repeat, X } from '@lucide/vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,6 +8,7 @@ import FormActionBar from '@/components/common/FormActionBar.vue'
 import SearchBox from '@/components/common/SearchBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import MergeFieldRichInput from '@/components/administration/MergeFieldRichInput.vue'
+import { useLocale } from '@/composables/useLocale'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import { useToastStore } from '@/stores/toastStore'
 import type { DocumentTemplate, MergeField, TemplateBlock, TemplateRow } from '@/types/DocumentTemplate'
@@ -26,6 +27,11 @@ const emit = defineEmits<{
 
 const toastStore = useToastStore()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points toward the referenced location, which flips with reading
+// direction.
+const jumpToIcon = computed(() => (isRtl.value ? CornerDownLeft : CornerDownRight))
 
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -343,7 +349,7 @@ function handleClose(): void {
               class="inline-flex items-center gap-1 text-accent-600 hover:text-accent-700"
               @click="repeatingTablePlacement(field)?.scrollTo()"
             >
-              <CornerDownRight class="h-3 w-3" />
+              <component :is="jumpToIcon" class="h-3 w-3" />
               {{ t('administration.templateFieldMapperDialog.repeatingAt', { label: repeatingTablePlacement(field)?.label }) }}
             </button>
           </div>
@@ -371,7 +377,7 @@ function handleClose(): void {
               class="inline-flex items-center gap-1 text-accent-600 hover:text-accent-700"
               @click="repeatingListPlacement(field)?.scrollTo()"
             >
-              <CornerDownRight class="h-3 w-3" />
+              <component :is="jumpToIcon" class="h-3 w-3" />
               {{ t('administration.templateFieldMapperDialog.repeatingAt', { label: repeatingListPlacement(field)?.label }) }}
             </button>
           </div>

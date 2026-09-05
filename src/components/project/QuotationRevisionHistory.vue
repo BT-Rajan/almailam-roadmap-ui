@@ -31,7 +31,7 @@ function isLatestRevision(revision: QuotationRevision): boolean {
       <li
         v-for="revision in [...revisions].reverse()"
         :key="revision.id"
-        class="flex flex-col gap-1 border-l-2 border-border-light pl-3"
+        class="flex flex-col gap-1 border-s-2 border-border-light ps-3"
       >
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold text-text-primary">{{ revision.revision }}</span>

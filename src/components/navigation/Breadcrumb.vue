@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { ChevronRight } from '@lucide/vue'
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+import { useLocale } from '@/composables/useLocale'
+
 const route = useRoute()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// The separator points the way the breadcrumb trail reads, which
+// reverses with reading direction.
+const separatorIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 </script>
 
 <template>
@@ -14,7 +22,8 @@ const { t } = useI18n()
     class="flex h-11 shrink-0 items-center gap-1.5 border-b border-[var(--color-border-light)] bg-bg-secondary px-4 text-sm lg:px-6"
   >
     <template v-for="(crumb, index) in route.meta.breadcrumbs" :key="`${crumb.label}-${index}`">
-      <ChevronRight
+      <component
+        :is="separatorIcon"
         v-if="index > 0"
         :size="14"
         class="text-[var(--color-text-muted)]"

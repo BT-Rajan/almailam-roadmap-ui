@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import { useLocale } from '@/composables/useLocale'
 import type { SelectOption } from '@/types/Ui'
 
 interface Props {
@@ -27,6 +28,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Previous/next chevrons point the way the reader moves, which reverses
+// with reading direction rather than staying physically fixed.
+const previousPageIcon = computed(() => (isRtl.value ? ChevronRight : ChevronLeft))
+const nextPageIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 const rangeLabel = computed(() => {
   if (props.totalItems === 0) return t('common.showingZeroResults')
@@ -58,7 +65,7 @@ function handlePageSizeChange(value: string): void {
       </div>
       <div class="flex items-center gap-1">
         <IconButton
-          :icon="ChevronLeft"
+          :icon="previousPageIcon"
           :label="t('common.previousPage')"
           size="sm"
           :disabled="isFirstPage"
@@ -66,7 +73,7 @@ function handlePageSizeChange(value: string): void {
         />
         <span class="px-2 text-sm text-text-secondary">{{ currentPage }} / {{ totalPages }}</span>
         <IconButton
-          :icon="ChevronRight"
+          :icon="nextPageIcon"
           :label="t('common.nextPage')"
           size="sm"
           :disabled="isLastPage"

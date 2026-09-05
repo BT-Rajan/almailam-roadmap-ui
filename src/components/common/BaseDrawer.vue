@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useLocale } from '@/composables/useLocale'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 
 interface Props {
@@ -26,12 +27,24 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
 
 const widthClasses: Record<string, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-xl',
 }
+
+// `side` picks which logical edge the panel is pinned to -- the flex
+// `justify-end`/`justify-start` placement below already mirrors that
+// correctly under dir="rtl" for free. The slide-in transform can't:
+// CSS transforms move along the physical X axis regardless of writing
+// direction, so the enter/leave animation needs to know which physical
+// edge the panel actually lands on once RTL has flipped it.
+const physicalSide = computed<'left' | 'right'>(() => {
+  if (!isRtl.value) return props.side
+  return props.side === 'left' ? 'right' : 'left'
+})
 
 const panelRef = ref<HTMLElement>()
 
@@ -69,7 +82,7 @@ onBeforeUnmount(() => {
       <Transition appear name="drawer-backdrop">
         <div class="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" @click="closeDrawer" />
       </Transition>
-      <Transition appear :name="side === 'left' ? 'drawer-slide-left' : 'drawer-slide-right'">
+      <Transition appear :name="physicalSide === 'left' ? 'drawer-slide-from-left' : 'drawer-slide-from-right'">
         <div
           ref="panelRef"
           class="glass-panel relative flex h-full w-full flex-col shadow-elevated focus:outline-none"
@@ -102,28 +115,28 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.drawer-slide-right-enter-active,
-.drawer-slide-right-leave-active,
-.drawer-slide-left-enter-active,
-.drawer-slide-left-leave-active {
+.drawer-slide-from-right-enter-active,
+.drawer-slide-from-right-leave-active,
+.drawer-slide-from-left-enter-active,
+.drawer-slide-from-left-leave-active {
   transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.drawer-slide-right-enter-from,
-.drawer-slide-right-leave-to {
+.drawer-slide-from-right-enter-from,
+.drawer-slide-from-right-leave-to {
   transform: translateX(100%);
 }
-.drawer-slide-left-enter-from,
-.drawer-slide-left-leave-to {
+.drawer-slide-from-left-enter-from,
+.drawer-slide-from-left-leave-to {
   transform: translateX(-100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .drawer-backdrop-enter-active,
   .drawer-backdrop-leave-active,
-  .drawer-slide-right-enter-active,
-  .drawer-slide-right-leave-active,
-  .drawer-slide-left-enter-active,
-  .drawer-slide-left-leave-active {
+  .drawer-slide-from-right-enter-active,
+  .drawer-slide-from-right-leave-active,
+  .drawer-slide-from-left-enter-active,
+  .drawer-slide-from-left-leave-active {
     transition: none;
   }
 }

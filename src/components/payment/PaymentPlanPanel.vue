@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight, CheckCircle2, Pencil, Trash2, Wallet } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, CheckCircle2, Pencil, Trash2, Wallet } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -11,6 +11,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useLocale } from '@/composables/useLocale'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -50,6 +51,11 @@ const quotationStore = useQuotationStore()
 // record, not a toast that could be missed.
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Points the way this action advances the project, which flips with
+// reading direction.
+const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 const AGREEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
   Draft: 'payment.agreementStatus.draft',
@@ -238,7 +244,7 @@ async function handleConfirmDelete(): Promise<void> {
       class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
     >
       <p class="text-sm text-success-700">{{ t('payment.planPanel.readyForContract') }}</p>
-      <BaseButton size="sm" :icon="ArrowRight" @click="handleAdvanceToContract">{{ t('payment.planPanel.advanceToContract') }}</BaseButton>
+      <BaseButton size="sm" :icon="advanceIcon" @click="handleAdvanceToContract">{{ t('payment.planPanel.advanceToContract') }}</BaseButton>
     </div>
 
     <div v-for="stream in visibleStreams" :key="stream" class="flex flex-col gap-4">

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
+import { useLocale } from '@/composables/useLocale'
 
 interface Props {
   title: string
@@ -15,6 +16,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+
+// Previous/next chevrons point the way the reader moves, which reverses
+// with reading direction rather than staying physically fixed.
+const previousPageIcon = computed(() => (isRtl.value ? ChevronRight : ChevronLeft))
+const nextPageIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 const currentPage = ref(1)
 const zoomLevel = ref(100)
@@ -43,9 +50,9 @@ function zoomIn(): void {
   <div class="flex flex-col gap-3">
     <div class="flex items-center justify-between rounded-lg border border-border-light bg-bg-secondary px-3 py-2">
       <div class="flex items-center gap-1">
-        <IconButton :icon="ChevronLeft" :label="t('common.previousPage')" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
+        <IconButton :icon="previousPageIcon" :label="t('common.previousPage')" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
         <span class="px-2 text-sm text-text-secondary">{{ t('document.pdfViewer.pageOf', { current: currentPage, total: pageCount }) }}</span>
-        <IconButton :icon="ChevronRight" :label="t('common.nextPage')" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
+        <IconButton :icon="nextPageIcon" :label="t('common.nextPage')" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
       </div>
       <div class="flex items-center gap-1">
         <IconButton :icon="ZoomOut" :label="t('document.pdfViewer.zoomOut')" size="sm" :disabled="zoomLevel <= 50" @click="zoomOut" />
