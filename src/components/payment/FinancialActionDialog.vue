@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
@@ -29,10 +30,12 @@ const emit = defineEmits<{
   submitAdjustment: [input: { obligationId: string; type: AdjustmentType; amount: number; reason: string; authorisingUser: string }]
 }>()
 
+const { t } = useI18n()
+
 const ADJUSTMENT_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Increase', value: 'Increase' },
-  { label: 'Decrease', value: 'Decrease' },
-  { label: 'Correction', value: 'Correction' },
+  { label: 'Increase', value: 'Increase', labelKey: 'payment.financialActionDialog.adjustmentTypeIncrease' },
+  { label: 'Decrease', value: 'Decrease', labelKey: 'payment.financialActionDialog.adjustmentTypeDecrease' },
+  { label: 'Correction', value: 'Correction', labelKey: 'payment.financialActionDialog.adjustmentTypeCorrection' },
 ]
 
 const obligationId = ref('')
@@ -94,21 +97,21 @@ function handleClose(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" :title="mode === 'refund' ? 'Issue Refund' : 'Adjust Obligation'" size="lg" @update:model-value="emit('update:modelValue', $event)">
-    <FormSection :description="mode === 'refund' ? 'Refunds are recorded against the original payment record — the payment itself is never altered.' : 'Adjustments require a reason and are fully auditable.'">
+  <BaseDialog :model-value="modelValue" :title="mode === 'refund' ? t('payment.financialActionDialog.issueRefundTitle') : t('payment.financialActionDialog.adjustObligationTitle')" size="lg" @update:model-value="emit('update:modelValue', $event)">
+    <FormSection :description="mode === 'refund' ? t('payment.financialActionDialog.refundDescription') : t('payment.financialActionDialog.adjustmentDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox :model-value="obligationId" label="Obligation" :options="obligationOptions" @update:model-value="obligationId = String($event)" />
-        <SelectBox v-if="mode === 'adjustment'" :model-value="adjustmentType" label="Adjustment Type" :options="ADJUSTMENT_TYPE_OPTIONS" @update:model-value="adjustmentType = $event as AdjustmentType" />
-        <NumberInput :model-value="amount" :label="mode === 'refund' ? 'Refund Amount' : 'Amount'" :min="0" step="0.01" required @update:model-value="amount = Number($event)" />
-        <DatePicker v-if="mode === 'refund'" v-model="actionDate" label="Refund Date" required />
-        <TextInput v-if="mode === 'refund'" v-model="reference" label="Reference (optional)" placeholder="RFD-…" />
-        <TextInput v-model="authorisingUser" label="Authorising User" required />
+        <SelectBox :model-value="obligationId" :label="t('payment.financialActionDialog.obligation')" :options="obligationOptions" @update:model-value="obligationId = String($event)" />
+        <SelectBox v-if="mode === 'adjustment'" :model-value="adjustmentType" :label="t('payment.financialActionDialog.adjustmentType')" :options="ADJUSTMENT_TYPE_OPTIONS" @update:model-value="adjustmentType = $event as AdjustmentType" />
+        <NumberInput :model-value="amount" :label="mode === 'refund' ? t('payment.financialActionDialog.refundAmount') : t('payment.financialActionDialog.amount')" :min="0" step="0.01" required @update:model-value="amount = Number($event)" />
+        <DatePicker v-if="mode === 'refund'" v-model="actionDate" :label="t('payment.financialActionDialog.refundDate')" required />
+        <TextInput v-if="mode === 'refund'" v-model="reference" :label="t('payment.financialActionDialog.referenceOptional')" placeholder="RFD-…" />
+        <TextInput v-model="authorisingUser" :label="t('payment.financialActionDialog.authorisingUser')" required />
       </div>
-      <TextArea v-model="reason" label="Reason" :rows="3" required />
+      <TextArea v-model="reason" :label="t('payment.financialActionDialog.reason')" :rows="3" required />
     </FormSection>
 
     <template #footer>
-      <FormActionBar :submit-label="mode === 'refund' ? 'Issue Refund' : 'Apply Adjustment'" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
+      <FormActionBar :submit-label="mode === 'refund' ? t('payment.financialActionDialog.issueRefund') : t('payment.financialActionDialog.applyAdjustment')" :loading="isSubmitting" :disabled="!canSubmit" @submit="handleSubmit" @cancel="handleClose" />
     </template>
   </BaseDialog>
 </template>

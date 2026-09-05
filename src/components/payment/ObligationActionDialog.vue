@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -20,6 +21,8 @@ const emit = defineEmits<{
   confirm: [reason: string]
 }>()
 
+const { t } = useI18n()
+
 const reason = ref('')
 
 watch(
@@ -29,7 +32,7 @@ watch(
   },
 )
 
-const title = computed(() => (props.mode === 'cancel' ? 'Cancel Payment Obligation' : 'Waive Payment Obligation'))
+const title = computed(() => (props.mode === 'cancel' ? t('payment.obligationActionDialog.cancelTitle') : t('payment.obligationActionDialog.waiveTitle')))
 const canConfirm = computed(() => reason.value.trim().length > 0)
 
 function handleCancel(): void {
@@ -45,14 +48,14 @@ function handleConfirm(): void {
 <template>
   <BaseDialog :model-value="modelValue" :title="title" size="sm" @update:model-value="emit('update:modelValue', $event)" @close="handleCancel">
     <p class="text-sm text-text-secondary">
-      {{ mode === 'cancel' ? 'Cancelling' : 'Waiving' }} "{{ obligation?.description }}" removes it from pending/overdue totals. This action is logged and cannot be silently undone.
+      {{ mode === 'cancel' ? t('payment.obligationActionDialog.cancellingText') : t('payment.obligationActionDialog.waivingText') }} "{{ obligation?.description }}" {{ t('payment.obligationActionDialog.consequenceText') }}
     </p>
-    <TextArea v-model="reason" label="Reason" class="mt-4" :rows="3" required />
+    <TextArea v-model="reason" :label="t('payment.obligationActionDialog.reason')" class="mt-4" :rows="3" required />
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="isSubmitting" @click="handleCancel">Back</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSubmitting" @click="handleCancel">{{ t('payment.obligationActionDialog.back') }}</BaseButton>
       <BaseButton variant="danger" :loading="isSubmitting" :disabled="!canConfirm" @click="handleConfirm">
-        {{ mode === 'cancel' ? 'Confirm Cancellation' : 'Confirm Waiver' }}
+        {{ mode === 'cancel' ? t('payment.obligationActionDialog.confirmCancellation') : t('payment.obligationActionDialog.confirmWaiver') }}
       </BaseButton>
     </template>
   </BaseDialog>

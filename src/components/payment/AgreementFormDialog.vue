@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
@@ -57,16 +58,18 @@ const emit = defineEmits<{
   submit: [input: CreateAgreementInput]
 }>()
 
+const { t } = useI18n()
+
 const isEditMode = computed(() => props.mode === 'edit')
 
 const PAYMENT_MODE_OPTIONS: SelectOption[] = [
-  { label: 'Cash', value: 'Cash' },
-  { label: 'Bank Transfer', value: 'Bank Transfer' },
-  { label: 'Credit Card', value: 'Credit Card' },
-  { label: 'Debit Card', value: 'Debit Card' },
-  { label: 'Online Payment', value: 'Online Payment' },
-  { label: 'Cheque', value: 'Cheque' },
-  { label: 'Other', value: 'Other' },
+  { label: 'Cash', value: 'Cash', labelKey: 'payment.paymentMode.cash' },
+  { label: 'Bank Transfer', value: 'Bank Transfer', labelKey: 'payment.paymentMode.bankTransfer' },
+  { label: 'Credit Card', value: 'Credit Card', labelKey: 'payment.paymentMode.creditCard' },
+  { label: 'Debit Card', value: 'Debit Card', labelKey: 'payment.paymentMode.debitCard' },
+  { label: 'Online Payment', value: 'Online Payment', labelKey: 'payment.paymentMode.onlinePayment' },
+  { label: 'Cheque', value: 'Cheque', labelKey: 'payment.paymentMode.cheque' },
+  { label: 'Other', value: 'Other', labelKey: 'payment.paymentMode.other' },
 ]
 
 const CURRENCY_OPTIONS: SelectOption[] = [
@@ -215,31 +218,31 @@ function handleClose(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="isEditMode ? 'Edit Payment Plan' : 'Create Payment Plan'"
+    :title="isEditMode ? t('payment.agreementFormDialog.editTitle') : t('payment.agreementFormDialog.createTitle')"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <FormSection
       v-if="isSupervision"
-      title="Supervision Billing"
-      description="The contract amount and payment schedule are generated automatically -- one prorated obligation per calendar month -- from this project's selected Supervision activities and their dates."
+      :title="t('payment.agreementFormDialog.supervisionBilling')"
+      :description="t('payment.agreementFormDialog.supervisionBillingDescription')"
     >
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="currency" label="Currency" placeholder="KWD" required />
-        <DatePicker v-model="agreementDate" label="Agreement Date" required />
+        <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
+        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required />
         <TextInput
           v-model="quotationReference"
-          label="Quotation Reference"
+          :label="t('payment.agreementFormDialog.quotationReference')"
           disabled
-          hint="Auto-filled from this project's approved quotation."
+          :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
         />
       </div>
     </FormSection>
 
-    <FormSection v-else title="Payment Plan" description="The total amount and installment schedule for this payment plan.">
+    <FormSection v-else :title="t('payment.agreementFormDialog.paymentPlan')" :description="t('payment.agreementFormDialog.paymentPlanDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium text-text-secondary">Total Amount <span class="text-danger-500">*</span></label>
+          <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
           <div class="flex gap-2">
             <div class="w-24 shrink-0">
               <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
@@ -254,52 +257,52 @@ function handleClose(): void {
             />
           </div>
         </div>
-        <DatePicker v-model="agreementDate" label="Agreement Date" required />
-        <DatePicker v-model="contractStartDate" label="Contract Start Date" required />
+        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required />
+        <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required />
         <TextInput
           v-model="quotationReference"
-          label="Quotation Reference"
+          :label="t('payment.agreementFormDialog.quotationReference')"
           disabled
-          hint="Auto-filled from this project's approved quotation."
+          :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
         />
       </div>
     </FormSection>
 
     <FormSection
-      title="Payment Mode"
-      :description="isSupervision ? 'Monthly, prorated by day for partial months.' : 'How this will be paid -- the installment schedule is set below.'"
+      :title="t('payment.agreementFormDialog.paymentModeTitle')"
+      :description="isSupervision ? t('payment.agreementFormDialog.paymentModeDescriptionSupervision') : t('payment.agreementFormDialog.paymentModeDescriptionMilestone')"
     >
-      <SelectBox :model-value="paymentMode" label="Payment Mode" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
+      <SelectBox :model-value="paymentMode" :label="t('payment.agreementFormDialog.paymentModeTitle')" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
     </FormSection>
 
     <FormSection
       v-if="isMilestonePlan"
-      title="Installments"
-      description="Choose how many payments the client will make (1 for a single one-time payment, up to 5), then set each installment's share of the contract amount and its due date. Percentages must add up to 100%."
+      :title="t('payment.agreementFormDialog.installments')"
+      :description="t('payment.agreementFormDialog.installmentsDescription')"
     >
       <SelectBox
         :model-value="String(milestoneCount)"
-        label="Number of Installments"
+        :label="t('payment.agreementFormDialog.numberOfInstallments')"
         :options="INSTALLMENT_COUNT_OPTIONS"
         @update:model-value="handleMilestoneCountChange(Number($event))"
       />
 
       <div class="mt-3 flex flex-col gap-2">
         <div v-for="(milestone, index) in milestones" :key="index" class="grid grid-cols-1 gap-2 rounded-lg border border-border-light p-3 tablet:grid-cols-[2fr_1fr_1fr]">
-          <TextInput v-model="milestone.description" :label="`Installment ${index + 1}`" placeholder="e.g. At signup" />
-          <NumberInput :model-value="milestone.percentage" label="% of Contract" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
-          <DatePicker v-model="milestone.dueDate" label="Due Date" required />
+          <TextInput v-model="milestone.description" :label="t('payment.agreementFormDialog.installmentLabel', { number: index + 1 })" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" />
+          <NumberInput :model-value="milestone.percentage" :label="t('payment.agreementFormDialog.percentOfContract')" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
+          <DatePicker v-model="milestone.dueDate" :label="t('payment.agreementFormDialog.dueDate')" required />
         </div>
       </div>
 
       <p class="mt-2 text-xs" :class="Math.abs(milestoneTotal - 100) <= 0.5 ? 'text-text-muted' : 'font-medium text-danger-600'">
-        Total: {{ milestoneTotal }}% {{ Math.abs(milestoneTotal - 100) <= 0.5 ? '' : '(must add up to 100%)' }}
+        {{ t('payment.agreementFormDialog.total', { percent: milestoneTotal }) }} {{ Math.abs(milestoneTotal - 100) <= 0.5 ? '' : t('payment.agreementFormDialog.mustAddUpTo100') }}
       </p>
     </FormSection>
 
     <template #footer>
       <FormActionBar
-        :submit-label="isEditMode ? 'Save Changes' : 'Create Payment Plan'"
+        :submit-label="isEditMode ? t('payment.agreementFormDialog.saveChanges') : t('payment.agreementFormDialog.createTitle')"
         :loading="isSubmitting"
         :disabled="!canSubmit"
         @submit="handleSubmit"

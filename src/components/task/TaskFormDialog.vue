@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -16,15 +17,15 @@ import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
 const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
+  { label: 'High', value: 'High', labelKey: 'task.priority.high' },
+  { label: 'Medium', value: 'Medium', labelKey: 'task.priority.medium' },
+  { label: 'Low', value: 'Low', labelKey: 'task.priority.low' },
 ]
 
 const SEVERITY_OPTIONS: SelectOption[] = [
-  { label: 'Critical', value: 'Critical' },
-  { label: 'Major', value: 'Major' },
-  { label: 'Minor', value: 'Minor' },
+  { label: 'Critical', value: 'Critical', labelKey: 'task.severity.critical' },
+  { label: 'Major', value: 'Major', labelKey: 'task.severity.major' },
+  { label: 'Minor', value: 'Minor', labelKey: 'task.severity.minor' },
 ]
 
 const props = defineProps<{
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const clientStore = useClientStore()
+const { t } = useI18n()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
   if (clientStore.clients.length === 0) clientStore.loadClients()
@@ -81,7 +83,10 @@ const selectedClientName = computed<string | undefined>(() => {
 const assigneeOptions = computed<SelectOption[]>(() =>
   userStore.users
     .filter((user) => user.status === 'Active')
-    .map((user) => ({ label: user.id === authStore.user?.id ? `${user.name} (Me)` : user.name, value: user.id })),
+    .map((user) => ({
+      label: user.id === authStore.user?.id ? t('task.formDialog.assigneeMe', { name: user.name }) : user.name,
+      value: user.id,
+    })),
 )
 
 const canSubmit = computed(
@@ -141,22 +146,22 @@ function submitTask(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Create Task" size="md" @update:model-value="closeDialog">
+  <BaseDialog :model-value="modelValue" :title="t('task.formDialog.title')" size="md" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
       <TextInput
         v-model="title"
-        label="Task Title"
-        placeholder="e.g. Review structural drawings"
+        :label="t('task.formDialog.taskTitle')"
+        :placeholder="t('task.formDialog.taskTitlePlaceholder')"
         required
         :error="titleError"
       />
 
-      <SelectBox v-model="projectId" label="Project" placeholder="Select project" :options="projectOptions" required />
-      <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">Client: {{ selectedClientName }}</p>
+      <SelectBox v-model="projectId" :label="t('task.formDialog.project')" :placeholder="t('task.formDialog.projectPlaceholder')" :options="projectOptions" required />
+      <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">{{ t('task.formDialog.client', { name: selectedClientName }) }}</p>
 
       <SelectBox
         :model-value="assignedTo"
-        label="Assign To"
+        :label="t('task.formDialog.assignTo')"
         :options="assigneeOptions"
         required
         @update:model-value="assignedTo = $event"
@@ -165,27 +170,27 @@ function submitTask(): void {
       <div class="grid grid-cols-2 gap-4">
         <SelectBox
           :model-value="priority"
-          label="Priority"
+          :label="t('task.formDialog.priority')"
           :options="PRIORITY_OPTIONS"
           @update:model-value="priority = $event as TaskPriority"
         />
         <SelectBox
           :model-value="severity"
-          label="Severity"
+          :label="t('task.formDialog.severity')"
           :options="SEVERITY_OPTIONS"
           @update:model-value="severity = $event as TaskSeverity"
         />
       </div>
 
       <div class="grid grid-cols-2 gap-4">
-        <DatePicker v-model="dueDate" label="Completion Date" required :error="dueDateError" />
-        <TimePicker v-model="dueTime" label="Completion Time" required />
+        <DatePicker v-model="dueDate" :label="t('task.formDialog.completionDate')" required :error="dueDateError" />
+        <TimePicker v-model="dueTime" :label="t('task.formDialog.completionTime')" required />
       </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" @click="submitTask">Create Task</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :disabled="!canSubmit" @click="submitTask">{{ t('task.formDialog.createTask') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

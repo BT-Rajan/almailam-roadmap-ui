@@ -64,4 +64,20 @@ export default {
     allProjects: 'All Projects',
     allAssignees: 'All Assignees',
   },
+
+  formDialog: {
+    title: 'Create Task',
+    taskTitle: 'Task Title',
+    taskTitlePlaceholder: 'e.g. Review structural drawings',
+    project: 'Project',
+    projectPlaceholder: 'Select project',
+    client: 'Client: {name}',
+    assignTo: 'Assign To',
+    assigneeMe: '{name} (Me)',
+    priority: 'Priority',
+    severity: 'Severity',
+    completionDate: 'Completion Date',
+    completionTime: 'Completion Time',
+    createTask: 'Create Task',
+  },
 }

@@ -64,4 +64,20 @@ export default {
     allProjects: 'جميع المشاريع',
     allAssignees: 'جميع المكلّفين',
   },
+
+  formDialog: {
+    title: 'إنشاء مهمة',
+    taskTitle: 'عنوان المهمة',
+    taskTitlePlaceholder: 'مثال: مراجعة المخططات الإنشائية',
+    project: 'المشروع',
+    projectPlaceholder: 'اختر المشروع',
+    client: 'العميل: {name}',
+    assignTo: 'إسناد إلى',
+    assigneeMe: '{name} (أنا)',
+    priority: 'الأولوية',
+    severity: 'الخطورة',
+    completionDate: 'تاريخ الإنجاز',
+    completionTime: 'وقت الإنجاز',
+    createTask: 'إنشاء مهمة',
+  },
 }
