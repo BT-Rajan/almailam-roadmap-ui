@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Mail, Shield } from '@lucide/vue'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Avatar from '@/components/common/Avatar.vue'
 import Card from '@/components/common/Card.vue'
@@ -14,8 +15,32 @@ import { useToastStore } from '@/stores/toastStore'
 import type { UserRole, UserStatus } from '@/types/User'
 import { getUserRoleVariant, getUserStatusVariant } from '@/utils/userHelpers'
 
+const { t } = useI18n()
 const { user, updateProfile } = useAuth()
 const toastStore = useToastStore()
+
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  Administrator: 'administration.userRole.administrator',
+  'Project Manager': 'administration.userRole.projectManager',
+  Engineer: 'administration.userRole.engineer',
+  'Document Controller': 'administration.userRole.documentController',
+  Viewer: 'administration.userRole.viewer',
+}
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'administration.userStatus.active',
+  Inactive: 'administration.userStatus.inactive',
+}
+
+const userRoleLabel = computed(() => {
+  const key = user.value ? ROLE_LABEL_KEYS[user.value.role] : undefined
+  return key ? t(key) : (user.value?.role ?? '')
+})
+
+const userStatusLabel = computed(() => {
+  const key = user.value ? STATUS_LABEL_KEYS[user.value.status] : undefined
+  return key ? t(key) : (user.value?.status ?? '')
+})
 
 interface ProfileForm {
   name: string
@@ -79,7 +104,7 @@ function handleCancel(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader title="My Profile" subtitle="View and update your personal details." />
+    <PageHeader :title="t('profile.pageTitle')" :subtitle="t('profile.pageSubtitle')" />
 
     <div v-if="user" class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
       <Card>
@@ -90,8 +115,8 @@ function handleCancel(): void {
             <p class="text-sm text-text-muted">{{ user.designation || user.role }}</p>
           </div>
           <div class="flex flex-wrap items-center justify-center gap-2">
-            <StatusBadge :label="user.role" :variant="getUserRoleVariant(user.role as UserRole)" />
-            <StatusBadge :label="user.status" :variant="getUserStatusVariant(user.status as UserStatus)" />
+            <StatusBadge :label="userRoleLabel" :variant="getUserRoleVariant(user.role as UserRole)" />
+            <StatusBadge :label="userStatusLabel" :variant="getUserStatusVariant(user.status as UserStatus)" />
           </div>
         </div>
 
@@ -108,22 +133,22 @@ function handleCancel(): void {
       </Card>
 
       <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <FormSection title="Personal Details" description="These details appear across the app and on documents you're assigned to.">
+        <FormSection :title="t('profile.personalDetails')" :description="t('profile.personalDetailsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <TextInput v-model="form.name" label="Full Name" required :error="formError" class="tablet:col-span-2" />
-            <TextInput v-model="form.designation" label="Designation" placeholder="e.g. Senior Engineer" />
-            <TextInput v-model="form.mobile" type="tel" label="Mobile" placeholder="e.g. +971 50 000 0000" />
+            <TextInput v-model="form.name" :label="t('profile.fullName')" required :error="formError" class="tablet:col-span-2" />
+            <TextInput v-model="form.designation" :label="t('profile.designation')" :placeholder="t('profile.designationPlaceholder')" />
+            <TextInput v-model="form.mobile" type="tel" :label="t('profile.mobile')" :placeholder="t('profile.mobilePlaceholder')" />
           </div>
         </FormSection>
 
-        <FormSection title="Account" description="Managed by an administrator -- contact one to change these.">
+        <FormSection :title="t('profile.account')" :description="t('profile.accountDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <TextInput :model-value="user.email" type="email" label="Email" disabled />
-            <TextInput :model-value="user.role" label="Role" disabled />
+            <TextInput :model-value="user.email" type="email" :label="t('profile.email')" disabled />
+            <TextInput :model-value="userRoleLabel" :label="t('profile.role')" disabled />
           </div>
         </FormSection>
 
-        <FormActionBar submit-label="Save Changes" :loading="isSaving" :disabled="!canSubmit" @submit="handleSave" @cancel="handleCancel" />
+        <FormActionBar :submit-label="t('profile.saveChanges')" :loading="isSaving" :disabled="!canSubmit" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>
   </div>

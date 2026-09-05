@@ -107,10 +107,11 @@ export default {
 
   catalogsPage: {
     pageTitle: 'Catalogs',
-    servicesTab: 'Service Catalog',
+    servicesTab: 'Services',
     activitiesTab: 'Additional Activity Catalog',
     permitsTab: 'Permit Catalog',
-    servicesSubtitle: "Configure the services offered and each service's activities and fixed costs.",
+    servicesSubtitle:
+      "Configure the services offered, split into Design (one-time fee) and Supervision (monthly, day-prorated) branches, and each service's activities and costs.",
     activitiesSubtitle:
       "Configure the engagement type categories (Design, Supervision, etc) offered at project creation, and each category's checklist of priced additional activities.",
     permitsSubtitle: 'Configure the permits that can be attached to a project during setup.',
@@ -258,6 +259,8 @@ export default {
     activityCountOne: '1 activity',
     branchDesign: 'Design',
     branchSupervision: 'Supervision',
+    branchDesignOneTime: 'Design (one-time)',
+    branchSupervisionMonthly: 'Supervision (monthly)',
     monthlyNote: '(monthly)',
     activityName: 'Activity name',
     fixedCost: 'Fixed cost',
@@ -270,6 +273,29 @@ export default {
     selectService: 'Select a service',
     selectServiceDescription: 'Choose a service on the left, or add a new one, to view and edit its activities.',
     removeService: 'Remove service',
+  },
+
+  mergeField: {
+    remove: 'Remove {label}',
+  },
+
+  documentTemplates: {
+    quotationTitle: 'Quotation Templates',
+    quotationDescription:
+      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',
+    contractTitle: 'Contract Templates',
+    contractDescription:
+      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
+    quotation: 'quotation',
+    contract: 'contract',
+    uploadDocx: 'Upload .docx',
+    noTemplatesForType: 'No {type} templates uploaded yet.',
+    noLanguageTemplates: 'No {language} {type} template uploaded yet.',
+    default: 'Default',
+    setDefault: 'Set Default',
+    mapFields: 'Map fields',
+    downloadTemplate: 'Download template',
+    deleteTemplate: 'Delete template',
   },
 
   serviceDocumentMap: {

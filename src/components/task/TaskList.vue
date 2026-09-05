@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ListChecks } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -20,8 +21,10 @@ defineEmits<{
   open: [taskId: string]
 }>()
 
+const { t } = useI18n()
+
 function projectName(projectId: string): string {
-  return props.getProjectById(projectId)?.projectName ?? 'Unknown Project'
+  return props.getProjectById(projectId)?.projectName ?? t('task.unknownProject')
 }
 </script>
 
@@ -30,8 +33,8 @@ function projectName(projectId: string): string {
     <EmptyState
       v-if="tasks.length === 0"
       :icon="ListChecks"
-      title="No tasks assigned"
-      description="Tasks assigned to you will appear here."
+      :title="t('task.list.emptyTitle')"
+      :description="t('task.list.emptyDescription')"
     />
 
     <ul v-else class="divide-y divide-border-light">

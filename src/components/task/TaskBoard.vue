@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 import EmptyState from '@/components/common/EmptyState.vue'
 import TaskCard from '@/components/task/TaskCard.vue'
 import type { Project } from '@/types/Project'
@@ -15,14 +18,16 @@ const emit = defineEmits<{
   advance: [taskId: string]
 }>()
 
-const COLUMNS: { status: TaskStatus; label: string }[] = [
-  { status: 'Pending', label: 'Pending' },
-  { status: 'In Progress', label: 'In Progress' },
-  { status: 'Completed', label: 'Completed' },
-]
+const { t } = useI18n()
+
+const COLUMNS = computed<{ status: TaskStatus; label: string }[]>(() => [
+  { status: 'Pending', label: t('task.status.pending') },
+  { status: 'In Progress', label: t('task.status.inProgress') },
+  { status: 'Completed', label: t('task.status.completed') },
+])
 
 function projectName(projectId: string): string {
-  return props.getProjectById(projectId)?.projectName ?? 'Unknown Project'
+  return props.getProjectById(projectId)?.projectName ?? t('task.unknownProject')
 }
 </script>
 
@@ -42,8 +47,8 @@ function projectName(projectId: string): string {
 
       <EmptyState
         v-if="tasksByStatus[column.status].length === 0"
-        title="No tasks"
-        description="Nothing here right now."
+        :title="t('task.board.noTasksTitle')"
+        :description="t('task.board.noTasksDescription')"
       />
 
       <TaskCard

@@ -104,10 +104,10 @@ export default {
 
   catalogsPage: {
     pageTitle: 'الكتالوجات',
-    servicesTab: 'كتالوج الخدمات',
+    servicesTab: 'الخدمات',
     activitiesTab: 'كتالوج الأنشطة الإضافية',
     permitsTab: 'كتالوج التصاريح',
-    servicesSubtitle: 'إعداد الخدمات المقدَّمة وأنشطة كل خدمة وتكاليفها الثابتة.',
+    servicesSubtitle: 'إعداد الخدمات المقدَّمة، مقسَّمة إلى فرعي التصميم (رسم لمرة واحدة) والإشراف (شهري، بالتناسب اليومي)، وأنشطة كل خدمة وتكاليفها.',
     activitiesSubtitle:
       'إعداد فئات نوع التكليف (تصميم، إشراف، إلخ) المتاحة عند إنشاء المشروع، وقائمة الأنشطة الإضافية المسعّرة لكل فئة.',
     permitsSubtitle: 'إعداد التصاريح التي يمكن إرفاقها بمشروع أثناء الإعداد.',
@@ -253,6 +253,8 @@ export default {
     activityCountOne: 'نشاط واحد',
     branchDesign: 'تصميم',
     branchSupervision: 'إشراف',
+    branchDesignOneTime: 'تصميم (لمرة واحدة)',
+    branchSupervisionMonthly: 'إشراف (شهري)',
     monthlyNote: '(شهري)',
     activityName: 'اسم النشاط',
     fixedCost: 'التكلفة الثابتة',
@@ -265,6 +267,27 @@ export default {
     selectService: 'اختر خدمة',
     selectServiceDescription: 'اختر خدمة من القائمة على اليسار، أو أضف خدمة جديدة، لعرض أنشطتها وتعديلها.',
     removeService: 'إزالة الخدمة',
+  },
+
+  mergeField: {
+    remove: 'إزالة {label}',
+  },
+
+  documentTemplates: {
+    quotationTitle: 'قوالب عروض الأسعار',
+    quotationDescription: 'يُدمج ملف .docx الافتراضي لكل لغة مع بيانات المشروع الحية عند استخدام "تنزيل المستند" على عرض سعر.',
+    contractTitle: 'قوالب العقود',
+    contractDescription: 'يُدمج ملف .docx الافتراضي لكل لغة مع بيانات المشروع الحية عند استخدام "تنزيل المستند" على عقد.',
+    quotation: 'عرض السعر',
+    contract: 'العقد',
+    uploadDocx: 'رفع ملف .docx',
+    noTemplatesForType: 'لم يتم رفع قوالب {type} بعد.',
+    noLanguageTemplates: 'لم يتم رفع قالب {type} بـ{language} بعد.',
+    default: 'افتراضي',
+    setDefault: 'تعيين كافتراضي',
+    mapFields: 'ربط الحقول',
+    downloadTemplate: 'تنزيل القالب',
+    deleteTemplate: 'حذف القالب',
   },
 
   serviceDocumentMap: {

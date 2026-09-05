@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
@@ -22,29 +25,31 @@ const emit = defineEmits<{
   reassign: [assignee: string]
 }>()
 
+const { t } = useI18n()
+
 const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'Pending', value: 'Pending' },
-  { label: 'In Progress', value: 'In Progress' },
-  { label: 'Completed', value: 'Completed' },
+  { label: 'Pending', value: 'Pending', labelKey: 'task.status.pending' },
+  { label: 'In Progress', value: 'In Progress', labelKey: 'task.status.inProgress' },
+  { label: 'Completed', value: 'Completed', labelKey: 'task.status.completed' },
 ]
 
 const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
+  { label: 'High', value: 'High', labelKey: 'task.priority.high' },
+  { label: 'Medium', value: 'Medium', labelKey: 'task.priority.medium' },
+  { label: 'Low', value: 'Low', labelKey: 'task.priority.low' },
 ]
 
 const SEVERITY_OPTIONS: SelectOption[] = [
-  { label: 'Critical', value: 'Critical' },
-  { label: 'Major', value: 'Major' },
-  { label: 'Minor', value: 'Minor' },
+  { label: 'Critical', value: 'Critical', labelKey: 'task.severity.critical' },
+  { label: 'Major', value: 'Major', labelKey: 'task.severity.major' },
+  { label: 'Minor', value: 'Minor', labelKey: 'task.severity.minor' },
 ]
 
-const details = [
-  { label: 'Project', value: props.projectName },
-  { label: 'Client', value: props.clientName },
-  { label: 'Completion Date & Time', value: formatTaskDueDateTime(props.task) },
-]
+const details = computed(() => [
+  { label: t('task.details.project'), value: props.projectName },
+  { label: t('task.details.client'), value: props.clientName },
+  { label: t('task.details.completionDateTime'), value: formatTaskDueDateTime(props.task) },
+])
 </script>
 
 <template>
@@ -53,12 +58,12 @@ const details = [
       <TaskStatusBadge :status="task.status" />
       <TaskPriorityBadge :priority="task.priority" />
       <TaskSeverityBadge :severity="task.severity" />
-      <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">Overdue</span>
+      <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">{{ t('task.overdue') }}</span>
     </div>
 
     <p class="text-base font-semibold leading-snug text-text-primary">{{ task.title }}</p>
 
-    <DetailPanel title="Task Details" :items="details" />
+    <DetailPanel :title="t('task.details.projectDetailsTitle')" :items="details" />
 
     <TaskAssignmentCard :assigned-to="task.assignedTo" @reassign="emit('reassign', $event)" />
 
@@ -66,19 +71,19 @@ const details = [
       <SelectBox
         :model-value="task.status"
         :options="STATUS_OPTIONS"
-        label="Status"
+        :label="t('task.details.status')"
         @update:model-value="emit('status-change', $event as TaskStatus)"
       />
       <SelectBox
         :model-value="task.priority"
         :options="PRIORITY_OPTIONS"
-        label="Priority"
+        :label="t('task.details.priority')"
         @update:model-value="emit('priority-change', $event as TaskPriority)"
       />
       <SelectBox
         :model-value="task.severity"
         :options="SEVERITY_OPTIONS"
-        label="Severity"
+        :label="t('task.details.severity')"
         @update:model-value="emit('severity-change', $event as TaskSeverity)"
       />
     </div>

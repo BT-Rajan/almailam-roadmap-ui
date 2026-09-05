@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -22,6 +23,7 @@ import { getNextTaskStatus } from '@/utils/taskHelpers'
 import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
+const { t } = useI18n()
 const router = useRouter()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
@@ -32,14 +34,14 @@ onMounted(() => {
 const isCreateDialogOpen = ref(false)
 
 const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'All Priorities', value: 'All' },
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
+  { label: 'All Priorities', value: 'All', labelKey: 'task.tasksPage.allPriorities' },
+  { label: 'High', value: 'High', labelKey: 'task.priority.high' },
+  { label: 'Medium', value: 'Medium', labelKey: 'task.priority.medium' },
+  { label: 'Low', value: 'Low', labelKey: 'task.priority.low' },
 ]
 
 const projectOptions = computed<SelectOption[]>(() => [
-  { label: 'All Projects', value: 'All' },
+  { label: 'All Projects', value: 'All', labelKey: 'task.tasksPage.allProjects' },
   ...taskStore.projects.map((project) => ({ label: project.projectName, value: project.id })),
 ])
 
@@ -49,7 +51,7 @@ const projectOptions = computed<SelectOption[]>(() => [
 // TaskFormDialog/TaskAssignmentCard which write an assignment back to
 // the backend and need real ids for that.
 const assigneeOptions = computed<SelectOption[]>(() => [
-  { label: 'All Assignees', value: 'All' },
+  { label: 'All Assignees', value: 'All', labelKey: 'task.tasksPage.allAssignees' },
   ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.name })),
 ])
 
@@ -61,7 +63,7 @@ const isDrawerOpen = computed({
 })
 
 const selectedTaskProjectName = computed(
-  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? 'Unknown Project',
+  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? t('task.unknownProject'),
 )
 
 const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
@@ -138,12 +140,12 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="Task Board" subtitle="Track project work items by status across the team.">
+    <PageHeader :title="t('task.tasksPage.title')" :subtitle="t('task.tasksPage.subtitle')">
       <template #actions>
         <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.MY_TASKS })">
-          My Tasks
+          {{ t('task.tasksPage.myTasks') }}
         </BaseButton>
-        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">Add Task</BaseButton>
+        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">{{ t('task.tasksPage.addTask') }}</BaseButton>
       </template>
     </PageHeader>
 

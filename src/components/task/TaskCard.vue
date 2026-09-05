@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ArrowRight } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Avatar from '@/components/common/Avatar.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
 import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import { formatTaskDueDateTime, getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
-import type { Task } from '@/types/Task'
+import type { Task, TaskStatus } from '@/types/Task'
 
 const props = defineProps<{
   task: Task
@@ -20,8 +21,18 @@ const emit = defineEmits<{
   advance: [taskId: string]
 }>()
 
+const { t } = useI18n()
+
 const overdue = computed(() => isTaskOverdue(props.task))
 const nextStatus = computed(() => getNextTaskStatus(props.task.status))
+
+const STATUS_LABEL_KEYS: Record<TaskStatus, string> = {
+  Pending: 'task.status.pending',
+  'In Progress': 'task.status.inProgress',
+  Completed: 'task.status.completed',
+}
+
+const moveToLabel = computed(() => (nextStatus.value ? t('task.moveTo', { status: t(STATUS_LABEL_KEYS[nextStatus.value]) }) : ''))
 </script>
 
 <template>
@@ -53,7 +64,7 @@ const nextStatus = computed(() => getNextTaskStatus(props.task.status))
     <IconButton
       v-if="nextStatus"
       :icon="ArrowRight"
-      :label="`Move to ${nextStatus}`"
+      :label="moveToLabel"
       size="sm"
       variant="primary"
       class="self-end"

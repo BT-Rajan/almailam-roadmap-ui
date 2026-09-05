@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarClock, CheckCircle2, Download, MapPin, Trash2, Upload, UserRound } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -26,23 +27,27 @@ import { formatDate } from '@/utils/dateFormatter'
 const PLACEHOLDER_SYNTAX_EXAMPLE = '{{ field }}'
 const ROW_LOOP_SYNTAX_EXAMPLE = '{%tr for ... %}'
 
-const LANGUAGES: AppLanguage[] = ['English', 'Arabic']
-const LANGUAGE_OPTIONS: SelectOption[] = LANGUAGES.map((language) => ({ label: language, value: language }))
+const { t } = useI18n()
 
-const SECTIONS: { type: DocumentTemplateType; title: string; description: string }[] = [
+const LANGUAGES: AppLanguage[] = ['English', 'Arabic']
+const LANGUAGE_OPTIONS: SelectOption[] = LANGUAGES.map((language) => ({
+  label: language,
+  value: language,
+  labelKey: language === 'English' ? 'governmentFormOptions.language.english' : 'governmentFormOptions.language.arabic',
+}))
+
+const SECTIONS = computed<{ type: DocumentTemplateType; title: string; description: string }[]>(() => [
   {
     type: 'Quotation',
-    title: 'Quotation Templates',
-    description:
-      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',
+    title: t('administration.documentTemplates.quotationTitle'),
+    description: t('administration.documentTemplates.quotationDescription'),
   },
   {
     type: 'Contract',
-    title: 'Contract Templates',
-    description:
-      'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
+    title: t('administration.documentTemplates.contractTitle'),
+    description: t('administration.documentTemplates.contractDescription'),
   },
-]
+])
 
 const store = useDocumentTemplateStore()
 const toastStore = useToastStore()
@@ -59,6 +64,14 @@ const isDownloadingId = ref<string | undefined>(undefined)
 
 const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
 const isMapperOpen = ref(false)
+
+function typeLabel(type: DocumentTemplateType): string {
+  return type === 'Quotation' ? t('administration.documentTemplates.quotation') : t('administration.documentTemplates.contract')
+}
+
+function languageLabel(language: AppLanguage): string {
+  return language === 'English' ? t('governmentFormOptions.language.english') : t('governmentFormOptions.language.arabic')
+}
 
 function openFieldMapper(template: DocumentTemplate): void {
   mappingTarget.value = template
@@ -162,19 +175,19 @@ async function confirmDelete(): Promise<void> {
               <h3 class="text-sm font-semibold text-text-primary">{{ section.title }}</h3>
               <p class="text-xs text-text-muted">{{ section.description }}</p>
             </div>
-            <BaseButton size="sm" :icon="Upload" @click="openUpload(section.type)">Upload .docx</BaseButton>
+            <BaseButton size="sm" :icon="Upload" @click="openUpload(section.type)">{{ t('administration.documentTemplates.uploadDocx') }}</BaseButton>
           </div>
         </template>
 
         <div v-if="store.byType(section.type).length === 0" class="py-4 text-center text-sm text-text-muted">
-          No {{ section.type.toLowerCase() }} templates uploaded yet.
+          {{ t('administration.documentTemplates.noTemplatesForType', { type: typeLabel(section.type) }) }}
         </div>
 
         <div v-else class="flex flex-col gap-5">
           <div v-for="language in LANGUAGES" :key="language">
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">{{ language }}</p>
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">{{ languageLabel(language) }}</p>
             <div v-if="store.byTypeAndLanguage(section.type, language).length === 0" class="py-2 text-sm text-text-muted">
-              No {{ language.toLowerCase() }} {{ section.type.toLowerCase() }} template uploaded yet.
+              {{ t('administration.documentTemplates.noLanguageTemplates', { language: languageLabel(language), type: typeLabel(section.type) }) }}
             </div>
             <ul v-else class="flex flex-col divide-y divide-border-light">
               <li
@@ -185,7 +198,7 @@ async function confirmDelete(): Promise<void> {
                 <div class="flex min-w-0 flex-col gap-1">
                   <div class="flex items-center gap-2">
                     <span class="truncate text-sm font-medium text-text-primary">{{ template.originalFilename }}</span>
-                    <StatusBadge v-if="template.isDefault" label="Default" variant="success" show-dot />
+                    <StatusBadge v-if="template.isDefault" :label="t('administration.documentTemplates.default')" variant="success" show-dot />
                   </div>
                   <div class="flex items-center gap-3 text-xs text-text-muted">
                     <span class="flex items-center gap-1"><UserRound class="h-3.5 w-3.5" />{{ template.uploadedBy }}</span>
@@ -202,19 +215,19 @@ async function confirmDelete(): Promise<void> {
                     :loading="isSettingDefaultId === template.id"
                     @click="handleSetDefault(template)"
                   >
-                    Set Default
+                    {{ t('administration.documentTemplates.setDefault') }}
                   </BaseButton>
-                  <IconButton :icon="MapPin" label="Map fields" size="sm" @click="openFieldMapper(template)" />
+                  <IconButton :icon="MapPin" :label="t('administration.documentTemplates.mapFields')" size="sm" @click="openFieldMapper(template)" />
                   <IconButton
                     :icon="Download"
-                    label="Download template"
+                    :label="t('administration.documentTemplates.downloadTemplate')"
                     size="sm"
                     :disabled="isDownloadingId === template.id"
                     @click="handleDownload(template)"
                   />
                   <IconButton
                     :icon="Trash2"
-                    label="Delete template"
+                    :label="t('administration.documentTemplates.deleteTemplate')"
                     variant="danger"
                     size="sm"
                     :disabled="template.isDefault"

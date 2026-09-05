@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -16,6 +17,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const taskStore = useTaskStore()
 const toastStore = useToastStore()
@@ -29,7 +31,7 @@ const isDrawerOpen = computed({
 })
 
 const selectedTaskProjectName = computed(
-  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? 'Unknown Project',
+  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? t('task.unknownProject'),
 )
 
 const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
@@ -95,9 +97,9 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="My Tasks" :subtitle="`Work items assigned to ${authStore.user?.name ?? 'you'}, sorted by due date.`">
+    <PageHeader :title="t('task.myTasksPage.title')" :subtitle="t('task.myTasksPage.subtitle', { name: authStore.user?.name ?? t('task.myTasksPage.you') })">
       <template #actions>
-        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">Add Task</BaseButton>
+        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">{{ t('task.myTasksPage.addTask') }}</BaseButton>
       </template>
     </PageHeader>
 

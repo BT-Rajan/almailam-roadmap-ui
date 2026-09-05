@@ -15,6 +15,7 @@
  * nothing else in the app needs to know chips exist.
  */
 import { nextTick, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { MergeField } from '@/types/DocumentTemplate'
 
@@ -45,6 +46,8 @@ const emit = defineEmits<{
    * to clear it too, not just the token text. */
   'remove-repeating': []
 }>()
+
+const { t } = useI18n()
 
 const rootEl = ref<HTMLDivElement>()
 const TOKEN_RE = /\{\{\s*([\w.]+)\s*\}\}/g
@@ -97,7 +100,7 @@ function chipHtml(token: string): string {
   return (
     `<span class="${CHIP_BASE_CLASSES} ${variantClasses}" contenteditable="false" data-token="${escapeHtml(token)}">` +
     `<span>${escapeHtml(label)}</span>` +
-    `<button type="button" class="${CHIP_REMOVE_CLASSES}" data-remove-token tabindex="-1" aria-label="Remove ${escapeHtml(label)}">&times;</button>` +
+    `<button type="button" class="${CHIP_REMOVE_CLASSES}" data-remove-token tabindex="-1" aria-label="${escapeHtml(t('administration.mergeField.remove', { label }))}">&times;</button>` +
     `</span>`
   )
 }
