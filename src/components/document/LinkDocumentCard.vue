@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { CalendarClock, Download, Eye, ExternalLink, Trash2, UserRound } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import type { ProjectLinkDocument } from '@/types/Document'
 import { formatDate } from '@/utils/dateFormatter'
+
+const { t } = useI18n()
 
 defineProps<{
   document: ProjectLinkDocument
@@ -34,9 +37,9 @@ function openDocument(path: string): void {
           <h3 class="text-sm font-semibold leading-snug text-text-primary">{{ document.name }}</h3>
         </div>
         <div class="flex shrink-0 items-center gap-2 no-print">
-          <IconButton :icon="Eye" label="View document" size="sm" @click="openDocument(document.path)" />
-          <IconButton :icon="Download" label="Download document" size="sm" @click="openDocument(document.path)" />
-          <IconButton :icon="Trash2" label="Remove document" size="sm" variant="danger" @click="$emit('delete', document)" />
+          <IconButton :icon="Eye" :label="t('document.card.viewDocument')" size="sm" @click="openDocument(document.path)" />
+          <IconButton :icon="Download" :label="t('document.card.downloadDocument')" size="sm" @click="openDocument(document.path)" />
+          <IconButton :icon="Trash2" :label="t('document.card.removeDocument')" size="sm" variant="danger" @click="$emit('delete', document)" />
         </div>
       </div>
 

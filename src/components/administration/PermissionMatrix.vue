@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, Minus } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Checkbox from '@/components/common/Checkbox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -24,14 +25,16 @@ const emit = defineEmits<{
   'update:permissions': [permissions: RolePermission[]]
 }>()
 
+const { t } = useI18n()
+
 const rows = computed<PermissionRow[]>(() => props.permissions as PermissionRow[])
 
-const COLUMNS: SmartTableColumn<PermissionRow>[] = [
-  { key: 'module', label: 'Module' },
-  { key: 'view', label: 'View', align: 'center', width: '90px' },
-  { key: 'edit', label: 'Edit', align: 'center', width: '90px' },
-  { key: 'delete', label: 'Delete', align: 'center', width: '90px' },
-]
+const COLUMNS = computed<SmartTableColumn<PermissionRow>[]>(() => [
+  { key: 'module', label: t('administration.permissionMatrix.module') },
+  { key: 'view', label: t('administration.permissionMatrix.view'), align: 'center', width: '90px' },
+  { key: 'edit', label: t('administration.permissionMatrix.edit'), align: 'center', width: '90px' },
+  { key: 'delete', label: t('administration.permissionMatrix.delete'), align: 'center', width: '90px' },
+])
 
 function toggle(module: string, field: 'view' | 'edit' | 'delete'): void {
   emit(
@@ -49,7 +52,7 @@ function toggle(module: string, field: 'view' | 'edit' | 'delete'): void {
     :rows="rows"
     row-key="module"
     :searchable="false"
-    empty-title="No permissions defined"
+    :empty-title="t('administration.permissionMatrix.noPermissionsDefined')"
   >
     <template #cell-view="{ value, row }">
       <Checkbox v-if="editable" :model-value="Boolean(value)" @update:model-value="toggle(row.module as string, 'view')" />

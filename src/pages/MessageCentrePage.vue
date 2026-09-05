@@ -2,6 +2,7 @@
 import { Mail, MessageCircle, Send, Smartphone } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import type { Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import Avatar from '@/components/common/Avatar.vue'
@@ -43,6 +44,7 @@ interface LogTableRow {
 }
 
 const route = useRoute()
+const { t } = useI18n()
 const toast = useToast()
 const store = useMessageCentreStore()
 
@@ -69,23 +71,23 @@ const CHANNEL_OPTIONS: SelectOption[] = [
   { label: 'WhatsApp', value: 'WhatsApp' },
 ]
 
-const CLIENT_COLUMNS: SmartTableColumn<ClientTableRow>[] = [
-  { key: 'companyName', label: 'Company', sortable: true },
-  { key: 'contactPerson', label: 'Contact Person', sortable: true },
-  { key: 'mobile', label: 'Mobile' },
-  { key: 'email', label: 'Email' },
-  { key: 'city', label: 'City', sortable: true },
-  { key: 'status', label: 'Status' },
-]
+const CLIENT_COLUMNS = computed<SmartTableColumn<ClientTableRow>[]>(() => [
+  { key: 'companyName', label: t('workspace.messageCentrePage.columnCompany'), sortable: true },
+  { key: 'contactPerson', label: t('workspace.messageCentrePage.columnContactPerson'), sortable: true },
+  { key: 'mobile', label: t('workspace.messageCentrePage.columnMobile') },
+  { key: 'email', label: t('workspace.messageCentrePage.columnEmail') },
+  { key: 'city', label: t('workspace.messageCentrePage.columnCity'), sortable: true },
+  { key: 'status', label: t('workspace.messageCentrePage.columnStatus') },
+])
 
-const LOG_COLUMNS: SmartTableColumn<LogTableRow>[] = [
-  { key: 'companyName', label: 'Customer', sortable: true },
-  { key: 'channel', label: 'Channel' },
-  { key: 'templateName', label: 'Template' },
-  { key: 'projectName', label: 'Related Project' },
-  { key: 'status', label: 'Status' },
-  { key: 'sentAt', label: 'Sent', align: 'right' },
-]
+const LOG_COLUMNS = computed<SmartTableColumn<LogTableRow>[]>(() => [
+  { key: 'companyName', label: t('workspace.messageCentrePage.columnCustomer'), sortable: true },
+  { key: 'channel', label: t('workspace.messageCentrePage.columnChannel') },
+  { key: 'templateName', label: t('workspace.messageCentrePage.columnTemplate') },
+  { key: 'projectName', label: t('workspace.messageCentrePage.columnRelatedProject') },
+  { key: 'status', label: t('workspace.messageCentrePage.columnStatus') },
+  { key: 'sentAt', label: t('workspace.messageCentrePage.columnSent'), align: 'right' },
+])
 
 const clientRows = computed<ClientTableRow[]>(() =>
   store.filteredClients.map((client) => ({
@@ -102,9 +104,9 @@ const clientRows = computed<ClientTableRow[]>(() =>
 const logRows = computed<LogTableRow[]>(() =>
   store.recentLog.map((entry) => ({
     id: entry.id,
-    companyName: store.getClientById(entry.clientId)?.companyName ?? 'Unknown Customer',
+    companyName: store.getClientById(entry.clientId)?.companyName ?? t('workspace.messageCentrePage.unknownCustomer'),
     channel: entry.channel,
-    templateName: store.templates.find((template) => template.id === entry.templateId)?.name ?? 'Custom message',
+    templateName: store.templates.find((template) => template.id === entry.templateId)?.name ?? t('workspace.messageCentrePage.customMessage'),
     projectName: entry.projectId ? (store.getProjectById(entry.projectId)?.projectName ?? '—') : '—',
     status: entry.status,
     sentAt: new Date(entry.sentAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
@@ -112,14 +114,14 @@ const logRows = computed<LogTableRow[]>(() =>
 )
 
 const templateOptions = computed<SelectOption[]>(() => [
-  { label: 'Custom message (no template)', value: '' },
+  { label: t('workspace.messageCentrePage.customMessageNoTemplate'), value: '' },
   ...store.templatesForChannel(channel.value).map((template) => ({ label: template.name, value: template.id })),
 ])
 
 const clientProjectOptions = computed<SelectOption[]>(() => {
-  if (!store.selectedClientId) return [{ label: 'No related project', value: '' }]
+  if (!store.selectedClientId) return [{ label: t('workspace.messageCentrePage.noRelatedProject'), value: '' }]
   return [
-    { label: 'No related project', value: '' },
+    { label: t('workspace.messageCentrePage.noRelatedProject'), value: '' },
     ...store.getProjectsForClient(store.selectedClientId).map((project) => ({ label: project.projectName, value: project.id })),
   ]
 })
@@ -199,8 +201,8 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader
-      title="Message Centre"
-      subtitle="Email, SMS, and WhatsApp communication with your customers — from templates or your own words."
+      :title="t('workspace.messageCentrePage.pageTitle')"
+      :subtitle="t('workspace.messageCentrePage.pageSubtitle')"
     />
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
@@ -212,8 +214,8 @@ onMounted(() => {
       row-key="id"
       :loading="store.isLoading"
       :searchable="false"
-      empty-title="No customers found"
-      empty-description="Try adjusting your search."
+      :empty-title="t('workspace.messageCentrePage.noCustomersFound')"
+      :empty-description="t('workspace.messageCentrePage.noCustomersFoundDescription')"
       @row-click="openCompose"
     >
       <template #cell-status="{ value }">
@@ -228,14 +230,14 @@ onMounted(() => {
     </SmartTable>
 
     <div>
-      <h2 class="mb-3 text-sm font-semibold text-text-primary">Recent Messages</h2>
+      <h2 class="mb-3 text-sm font-semibold text-text-primary">{{ t('workspace.messageCentrePage.recentMessages') }}</h2>
       <SmartTable
         :columns="LOG_COLUMNS"
         :rows="logRows"
         row-key="id"
         :searchable="false"
-        empty-title="No messages sent yet"
-        empty-description="Messages you send will show up here."
+        :empty-title="t('workspace.messageCentrePage.noMessagesSentYet')"
+        :empty-description="t('workspace.messageCentrePage.noMessagesSentYetDescription')"
       >
         <template #cell-channel="{ value }">
           <StatusBadge :label="value as string" :variant="CHANNEL_BADGE_VARIANT[value as MessageChannel]" show-dot />
@@ -246,7 +248,7 @@ onMounted(() => {
       </SmartTable>
     </div>
 
-    <BaseDrawer v-model="store.isComposeOpen" title="Compose Message" width="lg" @close="closeCompose">
+    <BaseDrawer v-model="store.isComposeOpen" :title="t('workspace.messageCentrePage.composeMessage')" width="lg" @close="closeCompose">
       <div v-if="store.selectedClient" class="flex flex-col gap-5">
         <div class="flex items-center gap-3 rounded-lg border border-border-light bg-bg-secondary p-3">
           <Avatar :name="store.selectedClient.companyName" size="md" />
@@ -256,25 +258,25 @@ onMounted(() => {
           </div>
         </div>
 
-        <SelectBox :model-value="channel" label="Channel" :options="CHANNEL_OPTIONS" @update:model-value="channel = $event as MessageChannel" />
+        <SelectBox :model-value="channel" :label="t('workspace.messageCentrePage.channel')" :options="CHANNEL_OPTIONS" @update:model-value="channel = $event as MessageChannel" />
 
         <div class="flex items-center gap-2 text-sm text-text-secondary">
           <component :is="CHANNEL_ICONS[channel]" class="h-4 w-4 text-text-muted" />
-          <span>Sending to: <strong class="text-text-primary">{{ destination }}</strong></span>
+          <span>{{ t('workspace.messageCentrePage.sendingTo') }} <strong class="text-text-primary">{{ destination }}</strong></span>
         </div>
 
-        <SelectBox v-model="templateId" label="Template" :options="templateOptions" placeholder="Custom message (no template)" />
+        <SelectBox v-model="templateId" :label="t('workspace.messageCentrePage.template')" :options="templateOptions" :placeholder="t('workspace.messageCentrePage.customMessageNoTemplate')" />
 
-        <SelectBox v-if="clientProjectOptions.length > 1" v-model="projectId" label="Related Project (optional)" :options="clientProjectOptions" placeholder="No related project" />
+        <SelectBox v-if="clientProjectOptions.length > 1" v-model="projectId" :label="t('workspace.messageCentrePage.relatedProjectOptional')" :options="clientProjectOptions" :placeholder="t('workspace.messageCentrePage.noRelatedProject')" />
 
-        <TextArea v-model="messageBody" label="Message" placeholder="Type your message…" :rows="7" required />
+        <TextArea v-model="messageBody" :label="t('workspace.messageCentrePage.message')" :placeholder="t('workspace.messageCentrePage.messagePlaceholder')" :rows="7" required />
       </div>
 
       <template #footer>
         <div class="flex justify-end gap-3">
-          <BaseButton variant="secondary" @click="closeCompose">Cancel</BaseButton>
+          <BaseButton variant="secondary" @click="closeCompose">{{ t('common.cancel') }}</BaseButton>
           <BaseButton :icon="Send" :loading="store.isSending" :disabled="messageBody.trim().length === 0" @click="handleSend">
-            Send {{ channel }}
+            {{ t('workspace.messageCentrePage.send', { channel }) }}
           </BaseButton>
         </div>
       </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ListChecks } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -13,6 +14,12 @@ defineProps<{
 defineEmits<{
   select: [serviceId: string]
 }>()
+
+const { t } = useI18n()
+
+function branchLabel(branch: ServiceCatalogItem['branch']): string {
+  return branch === 'Supervision' ? t('administration.serviceCatalog.branchSupervision') : t('administration.serviceCatalog.branchDesign')
+}
 </script>
 
 <template>
@@ -29,11 +36,15 @@ defineEmits<{
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <p class="text-sm font-semibold text-text-primary truncate">{{ service.name }}</p>
-          <StatusBadge :label="service.branch" :variant="service.branch === 'Supervision' ? 'info' : 'neutral'" />
+          <StatusBadge :label="branchLabel(service.branch)" :variant="service.branch === 'Supervision' ? 'info' : 'neutral'" />
         </div>
         <p class="mt-1 text-sm text-text-muted">
-          {{ service.activities.length }} activit{{ service.activities.length === 1 ? 'y' : 'ies' }}
-          <span v-if="service.branch === 'Supervision'">(monthly)</span>
+          {{
+            service.activities.length === 1
+              ? t('administration.serviceCatalog.activityCountOne')
+              : t('administration.serviceCatalog.activitiesCount', { count: service.activities.length })
+          }}
+          <span v-if="service.branch === 'Supervision'">{{ t('administration.serviceCatalog.monthlyNote') }}</span>
         </p>
       </div>
     </div>

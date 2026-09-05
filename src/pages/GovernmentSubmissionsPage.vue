@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -35,6 +36,7 @@ interface SubmissionTableRow {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const submissionStore = useGovernmentSubmissionStore()
 const resultDialogStore = useResultDialogStore()
 const isCreateDialogOpen = ref(false)
@@ -54,40 +56,55 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   }
 }
 
-const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Draft', value: 'Draft' },
-  { label: 'Submitted', value: 'Submitted' },
-  { label: 'Under Review', value: 'Under Review' },
-  { label: 'Comments Received', value: 'Comments Received' },
-  { label: 'Approved', value: 'Approved' },
-  { label: 'Rejected', value: 'Rejected' },
-  { label: 'Withdrawn', value: 'Withdrawn' },
-]
+const STATUS_OPTIONS = computed<SelectOption[]>(() => [
+  { label: 'All Statuses', value: 'All', labelKey: 'governmentFormOptions.statusFilter.all' },
+  { label: 'Draft', value: 'Draft', labelKey: 'government.submissionStatus.draft' },
+  { label: 'Submitted', value: 'Submitted', labelKey: 'government.submissionStatus.submitted' },
+  { label: 'Under Review', value: 'Under Review', labelKey: 'government.submissionStatus.underReview' },
+  { label: 'Comments Received', value: 'Comments Received', labelKey: 'government.submissionStatus.commentsReceived' },
+  { label: 'Approved', value: 'Approved', labelKey: 'government.submissionStatus.approved' },
+  { label: 'Rejected', value: 'Rejected', labelKey: 'government.submissionStatus.rejected' },
+  { label: 'Withdrawn', value: 'Withdrawn', labelKey: 'government.submissionStatus.withdrawn' },
+])
 
 const authorityOptions = computed<SelectOption[]>(() => [
-  { label: 'All Authorities', value: 'All' },
+  { label: 'All Authorities', value: 'All', labelKey: 'government.submissionsPage.allAuthorities' },
   ...submissionStore.authorities.map((authority) => ({ label: authority.name, value: authority.id })),
 ])
 
-const TABLE_COLUMNS: SmartTableColumn<SubmissionTableRow>[] = [
-  { key: 'submissionNo', label: 'Submission No.', sortable: true, width: '150px' },
-  { key: 'projectName', label: 'Project', sortable: true },
-  { key: 'authorityName', label: 'Authority', sortable: true },
-  { key: 'formTitle', label: 'Form' },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'submittedDate', label: 'Submitted', sortable: true },
-  { key: 'expectedDecisionDate', label: 'Estimated Response' },
-  { key: 'decisionDate', label: 'Actual Response', align: 'right' },
-]
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'government.submissionStatus.draft',
+  Submitted: 'government.submissionStatus.submitted',
+  'Under Review': 'government.submissionStatus.underReview',
+  'Comments Received': 'government.submissionStatus.commentsReceived',
+  Approved: 'government.submissionStatus.approved',
+  Rejected: 'government.submissionStatus.rejected',
+  Withdrawn: 'government.submissionStatus.withdrawn',
+}
+
+function submissionStatusLabel(status: string): string {
+  const key = STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
+
+const TABLE_COLUMNS = computed<SmartTableColumn<SubmissionTableRow>[]>(() => [
+  { key: 'submissionNo', label: t('government.submissionsPage.columnSubmissionNo'), sortable: true, width: '150px' },
+  { key: 'projectName', label: t('government.submissionsPage.columnProject'), sortable: true },
+  { key: 'authorityName', label: t('government.submissionsPage.columnAuthority'), sortable: true },
+  { key: 'formTitle', label: t('government.submissionsPage.columnForm') },
+  { key: 'status', label: t('government.submissionsPage.columnStatus'), sortable: true },
+  { key: 'submittedDate', label: t('government.submissionsPage.columnSubmitted'), sortable: true },
+  { key: 'expectedDecisionDate', label: t('government.submissionsPage.columnEstimatedResponse') },
+  { key: 'decisionDate', label: t('government.submissionsPage.columnActualResponse'), align: 'right' },
+])
 
 const tableRows = computed<SubmissionTableRow[]>(() =>
   submissionStore.filteredSubmissions.map((submission) => ({
     id: submission.id,
     submissionNo: submission.submissionNo,
-    projectName: submissionStore.getProjectById(submission.projectId)?.projectName ?? 'Unknown Project',
-    authorityName: submissionStore.getAuthorityById(submission.authorityId)?.name ?? 'Unknown Authority',
-    formTitle: submissionStore.getFormById(submission.formId)?.title ?? 'Unknown Form',
+    projectName: submissionStore.getProjectById(submission.projectId)?.projectName ?? t('government.unknownProject'),
+    authorityName: submissionStore.getAuthorityById(submission.authorityId)?.name ?? t('government.unknownAuthority'),
+    formTitle: submissionStore.getFormById(submission.formId)?.title ?? t('government.unknownForm'),
     status: submission.status,
     submittedDate: submission.submittedDate ?? '',
     expectedDecisionDate: submission.expectedDecisionDate ?? '',
@@ -111,11 +128,11 @@ function openSubmission(row: SubmissionTableRow): void {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader
-      title="Government Submission Workspace"
-      subtitle="Track every government submission from draft through approval."
+      :title="t('government.submissionsPage.pageTitle')"
+      :subtitle="t('government.submissionsPage.pageSubtitle')"
     >
       <template #actions>
-        <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Submission</BaseButton>
+        <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -160,21 +177,21 @@ function openSubmission(row: SubmissionTableRow): void {
       row-key="id"
       :loading="submissionStore.isLoading"
       :searchable="false"
-      empty-title="No submissions found"
-      empty-description="Try adjusting your search or filters."
+      :empty-title="t('government.submissionsPage.noSubmissionsFound')"
+      :empty-description="t('government.submissionsPage.noSubmissionsFoundDescription')"
       @row-click="openSubmission"
     >
       <template #cell-status="{ value }">
-        <StatusBadge :label="value as string" :variant="getSubmissionStatusVariant(value as SubmissionStatus)" />
+        <StatusBadge :label="submissionStatusLabel(value as string)" :variant="getSubmissionStatusVariant(value as SubmissionStatus)" />
       </template>
       <template #cell-submittedDate="{ value }">
-        {{ value ? formatDate(value as string) : 'Not submitted' }}
+        {{ value ? formatDate(value as string) : t('government.submissionsPage.notSubmitted') }}
       </template>
       <template #cell-expectedDecisionDate="{ value }">
-        {{ value ? formatDate(value as string) : 'Not set' }}
+        {{ value ? formatDate(value as string) : t('government.submissionsPage.notSet') }}
       </template>
       <template #cell-decisionDate="{ value }">
-        {{ value ? formatDate(value as string) : 'Not yet received' }}
+        {{ value ? formatDate(value as string) : t('government.submissionsPage.notYetReceived') }}
       </template>
     </SmartTable>
   </div>

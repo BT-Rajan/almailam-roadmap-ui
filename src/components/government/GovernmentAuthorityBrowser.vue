@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Landmark } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   delete: [authority: GovernmentAuthority]
 }>()
 
+const { t } = useI18n()
 const store = useGovernmentFormStore()
 
 const authorityFormCounts = computed<Record<string, number>>(() => {
@@ -36,9 +38,9 @@ function loadData(): void {
 </script>
 
 <template>
-  <PageHeader title="Government Forms Library" subtitle="Browse government authorities and their submission forms.">
+  <PageHeader :title="t('government.authorityBrowser.pageTitle')" :subtitle="t('government.authorityBrowser.pageSubtitle')">
     <template #actions>
-      <BaseButton :icon="Landmark" @click="emit('add')">Add Authority</BaseButton>
+      <BaseButton :icon="Landmark" @click="emit('add')">{{ t('government.authorityBrowser.addAuthority') }}</BaseButton>
     </template>
   </PageHeader>
 
@@ -52,9 +54,9 @@ function loadData(): void {
 
   <EmptyState
     v-else-if="store.authorities.length === 0"
-    title="No authorities found"
-    description="Add a government authority to get started."
-    action-label="Add Authority"
+    :title="t('government.authorityBrowser.noAuthoritiesFound')"
+    :description="t('government.authorityBrowser.noAuthoritiesFoundDescription')"
+    :action-label="t('government.authorityBrowser.addAuthority')"
     @action="emit('add')"
   />
 

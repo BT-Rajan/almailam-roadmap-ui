@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FolderOpen } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -9,6 +10,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { customerPortalService, type CustomerProjectOption } from '@/services/customerPortalService'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const isLoading = ref(true)
 const loadError = ref('')
@@ -51,14 +53,14 @@ onMounted(loadProjects)
 
     <ErrorState
       v-else-if="projects.length === 0"
-      title="No projects found"
-      description="No projects are linked to your account yet. Please contact your project engineer."
-      retry-label="Check Again"
+      :title="t('customer.projectsPage.noProjectsFound')"
+      :description="t('customer.projectsPage.noProjectsFoundDescription')"
+      :retry-label="t('customer.projectsPage.checkAgain')"
       @retry="loadProjects"
     />
 
     <template v-else>
-      <h1 class="text-lg font-semibold text-text-primary">Your Projects</h1>
+      <h1 class="text-lg font-semibold text-text-primary">{{ t('customer.projectsPage.yourProjects') }}</h1>
       <button
         v-for="project in projects"
         :key="project.projectId"
@@ -69,7 +71,7 @@ onMounted(loadProjects)
         <FolderOpen class="h-5 w-5 shrink-0 text-primary-600" />
         <div class="min-w-0">
           <p class="truncate font-medium text-text-primary">{{ project.projectName }}</p>
-          <p class="text-xs text-text-muted">Project ID: {{ project.projectId }}</p>
+          <p class="text-xs text-text-muted">{{ t('customer.projectsPage.projectIdLabel', { id: project.projectId }) }}</p>
         </div>
       </button>
     </template>

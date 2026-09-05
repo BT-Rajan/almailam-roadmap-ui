@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RefreshCw } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import CustomerProjectHeader from '@/components/customer/CustomerProjectHeader.vue'
@@ -20,6 +21,7 @@ import type { CustomerProjectStatus, ProjectActivityGroup, ProjectBudget, Projec
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const isLoading = ref(true)
 const isRefreshing = ref(false)
@@ -112,11 +114,11 @@ onMounted(() => loadProject())
     <!-- Top bar -->
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h1 class="text-lg font-semibold text-text-primary">Project Status</h1>
-        <p class="text-xs text-text-muted">Project ID: {{ projectData.projectId }}</p>
+        <h1 class="text-lg font-semibold text-text-primary">{{ t('customer.projectViewPage.projectStatus') }}</h1>
+        <p class="text-xs text-text-muted">{{ t('customer.projectViewPage.projectIdLabel', { id: projectData.projectId }) }}</p>
       </div>
       <BaseButton variant="ghost" size="sm" :icon="RefreshCw" :loading="isRefreshing" @click="loadProject(true)">
-        Refresh
+        {{ t('customer.projectViewPage.refresh') }}
       </BaseButton>
     </div>
 
@@ -149,15 +151,15 @@ onMounted(() => loadProject())
     <!-- Contact / Quick Status -->
     <Card>
       <template #header>
-        <h3 class="font-semibold text-text-primary">Need Help?</h3>
+        <h3 class="font-semibold text-text-primary">{{ t('customer.projectViewPage.needHelp') }}</h3>
       </template>
       <div class="space-y-3 text-sm">
         <div>
-          <p class="font-medium text-text-secondary">Project Engineer</p>
+          <p class="font-medium text-text-secondary">{{ t('customer.projectViewPage.projectEngineer') }}</p>
           <p class="text-text-primary">{{ projectData.engineerName }}</p>
         </div>
         <div class="border-t border-border-light pt-3">
-          <p class="font-medium text-text-secondary">Support Email</p>
+          <p class="font-medium text-text-secondary">{{ t('customer.projectViewPage.supportEmail') }}</p>
           <a :href="`mailto:${projectData.supportEmail}`" class="break-all text-primary-600 hover:underline">
             {{ projectData.supportEmail }}
           </a>
@@ -169,12 +171,26 @@ onMounted(() => loadProject())
         </div>
         <div class="border-t border-border-light pt-3 grid grid-cols-2 gap-2 text-xs">
           <div>
-            <p class="text-text-secondary">Milestones</p>
-            <p class="font-medium text-text-primary">{{ milestones.filter(m => m.status === 'completed').length }}/{{ milestones.length }} completed</p>
+            <p class="text-text-secondary">{{ t('customer.projectViewPage.milestones') }}</p>
+            <p class="font-medium text-text-primary">
+              {{
+                t('customer.projectViewPage.milestonesCompleted', {
+                  completed: milestones.filter((m) => m.status === 'completed').length,
+                  total: milestones.length,
+                })
+              }}
+            </p>
           </div>
           <div>
-            <p class="text-text-secondary">Deliverables</p>
-            <p class="font-medium text-text-primary">{{ deliverables.filter(d => d.status === 'approved').length }}/{{ deliverables.length }} approved</p>
+            <p class="text-text-secondary">{{ t('customer.projectViewPage.deliverables') }}</p>
+            <p class="font-medium text-text-primary">
+              {{
+                t('customer.projectViewPage.deliverablesApproved', {
+                  approved: deliverables.filter((d) => d.status === 'approved').length,
+                  total: deliverables.length,
+                })
+              }}
+            </p>
           </div>
         </div>
       </div>
@@ -182,9 +198,9 @@ onMounted(() => loadProject())
 
     <!-- Disclaimer -->
     <p class="text-xs text-text-muted">
-      For confidential matters or detailed discussions, please contact the project management office directly.
+      {{ t('customer.projectViewPage.disclaimer') }}
     </p>
   </div>
 
-  <ErrorState v-else :description="loadError || 'Unable to load this project.'" @retry="loadProject()" />
+  <ErrorState v-else :description="loadError || t('customer.projectViewPage.unableToLoad')" @retry="loadProject()" />
 </template>

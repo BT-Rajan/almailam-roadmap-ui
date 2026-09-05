@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Download, Printer } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import BaseButton from '@/components/common/BaseButton.vue'
+
+const { t } = useI18n()
 
 interface Props {
   title: string
@@ -31,16 +34,16 @@ const handlePrint = () => {
       <div>
         <h1 class="font-display text-3xl font-semibold text-text-primary">{{ title }}</h1>
         <p v-if="subtitle" class="text-text-secondary mt-1">{{ subtitle }}</p>
-        <p v-if="generatedDate" class="text-xs text-text-muted mt-2">Generated: {{ generatedDate }}</p>
+        <p v-if="generatedDate" class="text-xs text-text-muted mt-2">{{ t('report.header.generatedLabel', { date: generatedDate }) }}</p>
       </div>
       <div v-if="showActions" class="flex gap-2 print:hidden">
         <BaseButton variant="ghost" size="sm" @click="handlePrint">
           <Printer class="h-4 w-4" />
-          Print
+          {{ t('report.header.print') }}
         </BaseButton>
         <BaseButton variant="ghost" size="sm" @click="$emit('download')">
           <Download class="h-4 w-4" />
-          Export
+          {{ t('report.header.export') }}
         </BaseButton>
       </div>
     </div>

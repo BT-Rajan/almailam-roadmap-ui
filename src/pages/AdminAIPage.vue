@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ErrorState from '@/components/common/ErrorState.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -21,6 +22,7 @@ import { useToastStore } from '@/stores/toastStore'
 import type { AIProviderId } from '@/types/AiConfig'
 import type { SelectOption } from '@/types/Ui'
 
+const { t } = useI18n()
 const aiConfigStore = useAIConfigStore()
 const knowledgeStore = useKnowledgeStore()
 const toastStore = useToastStore()
@@ -99,8 +101,8 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <PageHeader
-      title="Knowledgebase AI"
-      subtitle="Configure the provider, grounding prompt, and limits for the knowledgebase Q&A assistant."
+      :title="t('administration.aiPage.pageTitle')"
+      :subtitle="t('administration.aiPage.pageSubtitle')"
     />
 
     <ErrorState v-if="aiConfigStore.error" :description="aiConfigStore.error" @retry="loadData" />
@@ -130,26 +132,26 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
       </div>
 
       <div class="flex flex-col gap-8 rounded-xl border border-border-light bg-bg-card p-6 laptop:col-span-2">
-        <FormSection title="Availability" description="The knowledgebase Q&A tool is the only AI-backed feature besides the client ID check. All other workflows are unaffected if this is disabled.">
+        <FormSection :title="t('administration.aiPage.availability')" :description="t('administration.aiPage.availabilityDescription')">
           <ToggleSwitch
             :model-value="aiConfigStore.config.isEnabled"
             :disabled="aiConfigStore.isSaving"
-            label="Enable Knowledgebase Assistant"
-            hint="Takes effect immediately -- hides the sparkle icon/chat drawer and the Ask panel, and disables the ask endpoint, when off."
+            :label="t('administration.aiPage.enableAssistant')"
+            :hint="t('administration.aiPage.enableAssistantHint')"
             @update:model-value="handleToggleEnabled"
           />
         </FormSection>
 
-        <FormSection title="Provider Selection" description="Choose the default provider and the fallback priority order.">
+        <FormSection :title="t('administration.aiPage.providerSelection')" :description="t('administration.aiPage.providerSelectionDescription')">
           <SelectBox
             :model-value="aiConfigStore.config.defaultProvider"
-            label="Default Provider"
+            :label="t('administration.aiPage.defaultProvider')"
             :options="providerOptions"
             @update:model-value="aiConfigStore.updateField('defaultProvider', $event as AIProviderId)"
           />
 
           <div class="flex flex-col gap-2">
-            <p class="text-sm font-medium text-text-secondary">Provider Priority</p>
+            <p class="text-sm font-medium text-text-secondary">{{ t('administration.aiPage.providerPriority') }}</p>
             <ol class="flex flex-col gap-2">
               <li
                 v-for="(provider, index) in orderedProviders"
@@ -161,19 +163,19 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
                     {{ index + 1 }}
                   </span>
                   <span class="text-sm text-text-secondary">{{ provider.label }}</span>
-                  <StatusBadge v-if="provider.id === aiConfigStore.config.defaultProvider" label="Default" variant="primary" />
+                  <StatusBadge v-if="provider.id === aiConfigStore.config.defaultProvider" :label="t('administration.aiPage.default')" variant="primary" />
                 </div>
                 <div class="flex items-center gap-1">
                   <IconButton
                     :icon="ArrowUp"
-                    label="Move up"
+                    :label="t('administration.aiPage.moveUp')"
                     size="sm"
                     :disabled="index === 0"
                     @click="aiConfigStore.movePriority(provider.id, 'up')"
                   />
                   <IconButton
                     :icon="ArrowDown"
-                    label="Move down"
+                    :label="t('administration.aiPage.moveDown')"
                     size="sm"
                     :disabled="index === orderedProviders.length - 1"
                     @click="aiConfigStore.movePriority(provider.id, 'down')"
@@ -184,18 +186,18 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Model & Performance" description="Applied to every knowledgebase Q&A request.">
+        <FormSection :title="t('administration.aiPage.modelPerformance')" :description="t('administration.aiPage.modelPerformanceDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
             <NumberInput
               :model-value="aiConfigStore.config.timeoutSeconds"
-              label="Timeout (seconds)"
+              :label="t('administration.aiPage.timeoutSeconds')"
               :min="5"
               :max="120"
               @update:model-value="aiConfigStore.updateField('timeoutSeconds', Number($event))"
             />
             <NumberInput
               :model-value="aiConfigStore.config.maxTokens"
-              label="Maximum Tokens"
+              :label="t('administration.aiPage.maxTokens')"
               :min="256"
               :max="8192"
               :step="256"
@@ -203,7 +205,7 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
             />
             <NumberInput
               :model-value="aiConfigStore.config.temperature"
-              label="Temperature"
+              :label="t('administration.aiPage.temperature')"
               :min="0"
               :max="1"
               :step="0.1"
@@ -212,19 +214,19 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Caching & Retries" description="A repeated question against the same document(s) is served from cache instead of calling the provider again.">
+        <FormSection :title="t('administration.aiPage.cachingRetries')" :description="t('administration.aiPage.cachingRetriesDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <NumberInput
               :model-value="aiConfigStore.config.cacheDurationMinutes"
-              label="Answer Cache Duration (minutes)"
-              hint="0 disables caching."
+              :label="t('administration.aiPage.answerCacheDuration')"
+              :hint="t('administration.aiPage.answerCacheDurationHint')"
               :min="0"
               :max="1440"
               @update:model-value="aiConfigStore.updateField('cacheDurationMinutes', Number($event))"
             />
             <NumberInput
               :model-value="aiConfigStore.config.retryLimit"
-              label="Retry Limit"
+              :label="t('administration.aiPage.retryLimit')"
               :min="0"
               :max="5"
               @update:model-value="aiConfigStore.updateField('retryLimit', Number($event))"
@@ -232,18 +234,18 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Document Limits" description="Bounds on what can be uploaded and how much document text is sent to the provider per question.">
+        <FormSection :title="t('administration.aiPage.documentLimits')" :description="t('administration.aiPage.documentLimitsDescription')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
             <NumberInput
               :model-value="aiConfigStore.config.kbMaxUploadSizeMb"
-              label="Max Upload Size (MB)"
+              :label="t('administration.aiPage.maxUploadSize')"
               :min="1"
               :max="100"
               @update:model-value="aiConfigStore.updateField('kbMaxUploadSizeMb', Number($event))"
             />
             <NumberInput
               :model-value="aiConfigStore.config.kbMaxDocumentChars"
-              label="Max Characters per Document"
+              :label="t('administration.aiPage.maxCharsPerDocument')"
               :min="1000"
               :max="1000000"
               :step="1000"
@@ -251,8 +253,8 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
             />
             <NumberInput
               :model-value="aiConfigStore.config.kbMaxContextChars"
-              label="Max Context Characters (all documents)"
-              hint="Caps total document text sent per question when asking across all active documents."
+              :label="t('administration.aiPage.maxContextChars')"
+              :hint="t('administration.aiPage.maxContextCharsHint')"
               :min="1000"
               :max="2000000"
               :step="1000"
@@ -261,7 +263,7 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
           </div>
         </FormSection>
 
-        <FormSection title="Grounding Prompt" description="Instructs the model to answer strictly from the uploaded document(s), stay concrete rather than generic, keep a firm-but-polite tone, and reply in the visitor's language (Arabic, English, or a mix). Edit with care.">
+        <FormSection :title="t('administration.aiPage.groundingPrompt')" :description="t('administration.aiPage.groundingPromptDescription')">
           <TextArea
             :model-value="aiConfigStore.config.kbSystemPrompt"
             :rows="10"
@@ -269,11 +271,11 @@ async function handleTest(providerId: AIProviderId): Promise<void> {
             @update:model-value="aiConfigStore.updateField('kbSystemPrompt', $event)"
           />
           <div class="flex justify-end">
-            <BaseButton variant="ghost" size="sm" @click="resetSystemPrompt">Reset to Default</BaseButton>
+            <BaseButton variant="ghost" size="sm" @click="resetSystemPrompt">{{ t('administration.aiPage.resetToDefault') }}</BaseButton>
           </div>
         </FormSection>
 
-        <FormActionBar submit-label="Save Changes" :loading="aiConfigStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
+        <FormActionBar :submit-label="t('administration.aiPage.saveChanges')" :loading="aiConfigStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
       </div>
     </div>
   </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, CircleCheck, Upload } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -31,6 +32,7 @@ import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const submissionStore = useGovernmentSubmissionStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
@@ -84,20 +86,26 @@ const form = computed(() => (submission.value ? submissionStore.getFormById(subm
 const submissionDetails = computed(() => {
   if (!submission.value) return []
   return [
-    { label: 'Project', value: project.value?.projectName ?? 'Unknown Project' },
-    { label: 'Authority', value: authority.value?.name ?? 'Unknown Authority' },
-    { label: 'Form', value: form.value?.title ?? 'Unknown Form' },
+    { label: t('government.workspacePage.detailProject'), value: project.value?.projectName ?? t('government.unknownProject') },
+    { label: t('government.workspacePage.detailAuthority'), value: authority.value?.name ?? t('government.unknownAuthority') },
+    { label: t('government.workspacePage.detailForm'), value: form.value?.title ?? t('government.unknownForm') },
     {
-      label: 'Submitted Date',
-      value: submission.value.submittedDate ? formatDate(submission.value.submittedDate) : 'Not submitted yet',
+      label: t('government.workspacePage.detailSubmittedDate'),
+      value: submission.value.submittedDate
+        ? formatDate(submission.value.submittedDate)
+        : t('government.submissionsPage.notSubmitted'),
     },
     {
-      label: 'Estimated Response',
-      value: submission.value.expectedDecisionDate ? formatDate(submission.value.expectedDecisionDate) : 'Not set',
+      label: t('government.workspacePage.detailEstimatedResponse'),
+      value: submission.value.expectedDecisionDate
+        ? formatDate(submission.value.expectedDecisionDate)
+        : t('government.submissionsPage.notSet'),
     },
     {
-      label: 'Actual Response',
-      value: submission.value.decisionDate ? formatDate(submission.value.decisionDate) : 'Not yet received',
+      label: t('government.workspacePage.detailActualResponse'),
+      value: submission.value.decisionDate
+        ? formatDate(submission.value.decisionDate)
+        : t('government.submissionsPage.notYetReceived'),
     },
   ]
 })
@@ -210,11 +218,38 @@ const isProofOfResponseDialogOpen = ref(false)
 const proofOfResponseFile = ref<File>()
 const proofOfResponseOutcome = ref<ResponseOutcome>('Approved')
 
-const OUTCOME_OPTIONS: SelectOption[] = [
-  { label: 'Approved', value: 'Approved' },
-  { label: 'Rejected', value: 'Rejected' },
-  { label: 'No Response', value: 'No Response' },
-]
+const OUTCOME_OPTIONS = computed<SelectOption[]>(() => [
+  { label: 'Approved', value: 'Approved', labelKey: 'government.submissionStatus.approved' },
+  { label: 'Rejected', value: 'Rejected', labelKey: 'government.submissionStatus.rejected' },
+  { label: 'No Response', value: 'No Response', labelKey: 'government.workspacePage.outcomeNoResponse' },
+])
+
+const OUTCOME_LABEL_KEYS: Record<string, string> = {
+  Approved: 'government.submissionStatus.approved',
+  Rejected: 'government.submissionStatus.rejected',
+  'No Response': 'government.workspacePage.outcomeNoResponse',
+}
+
+function outcomeLabel(outcome: string | null | undefined): string {
+  if (!outcome) return ''
+  const key = OUTCOME_LABEL_KEYS[outcome]
+  return key ? t(key) : outcome
+}
+
+const SUBMISSION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'government.submissionStatus.draft',
+  Submitted: 'government.submissionStatus.submitted',
+  'Under Review': 'government.submissionStatus.underReview',
+  'Comments Received': 'government.submissionStatus.commentsReceived',
+  Approved: 'government.submissionStatus.approved',
+  Rejected: 'government.submissionStatus.rejected',
+  Withdrawn: 'government.submissionStatus.withdrawn',
+}
+
+function submissionStatusLabel(status: string): string {
+  const key = SUBMISSION_STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
 
 function openProofOfResponseDialog(): void {
   proofOfResponseFile.value = undefined
@@ -329,7 +364,7 @@ async function handleMoveToDraft(): Promise<void> {
 <template>
   <div class="flex flex-col gap-6 p-6">
     <BaseButton variant="ghost" size="sm" :icon="ArrowLeft" class="self-start no-print" @click="goBack">
-      {{ originProjectId ? 'Back to Project' : 'Back to Submissions' }}
+      {{ originProjectId ? t('government.workspacePage.backToProject') : t('government.workspacePage.backToSubmissions') }}
     </BaseButton>
 
     <ErrorState v-if="loadError" :description="loadError" @retry="loadData" />
@@ -345,23 +380,23 @@ async function handleMoveToDraft(): Promise<void> {
 
     <EmptyState
       v-else-if="!submission"
-      title="Submission not found"
-      description="This submission may have been removed or the link is incorrect."
+      :title="t('government.workspacePage.submissionNotFound')"
+      :description="t('government.workspacePage.submissionNotFoundDescription')"
     />
 
     <template v-else>
       <div class="flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ authority?.name ?? 'Unknown Authority' }} &middot; {{ form?.title ?? 'Unknown Form' }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ authority?.name ?? t('government.unknownAuthority') }} &middot; {{ form?.title ?? t('government.unknownForm') }}</p>
           <h1 class="text-xl font-semibold text-text-primary">{{ submission.submissionNo }}</h1>
         </div>
         <div class="flex items-center gap-2">
-          <StatusBadge :label="submission.status" :variant="getSubmissionStatusVariant(submission.status)" />
+          <StatusBadge :label="submissionStatusLabel(submission.status)" :variant="getSubmissionStatusVariant(submission.status)" />
           <BaseButton v-if="canMoveToDraft" size="sm" variant="secondary" @click="handleMoveToDraft">
-            Move to Draft
+            {{ t('government.workspacePage.moveToDraft') }}
           </BaseButton>
           <BaseButton v-if="canWithdraw" size="sm" variant="danger" @click="openWithdrawDialog">
-            Withdraw
+            {{ t('government.workspacePage.withdraw') }}
           </BaseButton>
         </div>
       </div>
@@ -372,14 +407,14 @@ async function handleMoveToDraft(): Promise<void> {
 
       <Card>
         <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">Submission Details</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.submissionDetails') }}</h3>
         </template>
-        <DetailPanel title="Submission Details" :items="submissionDetails" />
+        <DetailPanel :title="t('government.workspacePage.submissionDetails')" :items="submissionDetails" />
       </Card>
 
       <Card>
         <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">Required Documents</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.requiredDocuments') }}</h3>
         </template>
         <RequiredDocumentChecklist
           :documents="submission.documents"
@@ -389,30 +424,34 @@ async function handleMoveToDraft(): Promise<void> {
           @download="handleDocumentDownload"
         />
         <p v-if="submission.status === 'Draft' && !submission.allDocumentsSatisfied" class="mt-3 text-xs text-text-muted">
-          Upload every required document above before proof of submission can be recorded.
+          {{ t('government.workspacePage.uploadDocumentsNotice') }}
         </p>
       </Card>
 
       <Card v-if="submission.status === 'Draft' || submission.proofOfSubmission">
         <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">Proof of Submission to Government</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.proofOfSubmission') }}</h3>
         </template>
         <div v-if="submission.proofOfSubmission" class="flex items-center justify-between gap-3">
           <span class="text-sm text-text-secondary">
             {{ submission.proofOfSubmission.originalFilename }}
             &middot; {{ submission.proofOfSubmission.fileSizeLabel }}
-            &middot; uploaded {{ formatDate(submission.proofOfSubmission.uploadDate) }} by
-            {{ submission.proofOfSubmission.uploadedBy }}
+            &middot;
+            {{
+              t('government.workspacePage.uploadedByLine', {
+                date: formatDate(submission.proofOfSubmission.uploadDate),
+                user: submission.proofOfSubmission.uploadedBy,
+              })
+            }}
           </span>
-          <BaseButton variant="secondary" size="sm" @click="downloadProofOfSubmission">Download</BaseButton>
+          <BaseButton variant="secondary" size="sm" @click="downloadProofOfSubmission">{{ t('government.workspacePage.download') }}</BaseButton>
         </div>
         <div v-else-if="canUploadProofOfSubmission" class="flex flex-col gap-2">
           <p class="text-sm text-text-secondary">
-            All required documents are uploaded. Upload proof this form was submitted to the authority to move this
-            submission forward.
+            {{ t('government.workspacePage.allDocumentsUploadedNotice') }}
           </p>
           <BaseButton size="sm" :icon="Upload" :loading="isUploadingProofOfSubmission" @click="triggerProofOfSubmissionSelect">
-            Upload Proof of Submission
+            {{ t('government.workspacePage.uploadProofOfSubmission') }}
           </BaseButton>
           <input
             ref="proofOfSubmissionInput"
@@ -423,30 +462,32 @@ async function handleMoveToDraft(): Promise<void> {
           />
         </div>
         <p v-else class="text-sm text-text-muted">
-          Upload every required document above -- once they're all satisfied, proof of submission can be recorded here.
+          {{ t('government.workspacePage.uploadDocumentsBeforeProofNotice') }}
         </p>
       </Card>
 
       <Card v-if="isAwaitingResponse || submissionStore.followups.length > 0">
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-text-primary">Follow-Up Log</h3>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.followUpLog') }}</h3>
             <BaseButton v-if="isAwaitingResponse" size="sm" variant="secondary" @click="openFollowupDialog">
-              Record Follow-Up
+              {{ t('government.workspacePage.recordFollowUp') }}
             </BaseButton>
           </div>
         </template>
         <div v-if="submissionStore.followups.length === 0" class="text-sm text-text-muted">
-          No follow-ups recorded yet.
+          {{ t('government.workspacePage.noFollowUpsRecorded') }}
         </div>
         <ul v-else class="flex flex-col divide-y divide-border-light">
           <li v-for="followup in submissionStore.followups" :key="followup.id" class="flex flex-col gap-1 py-3">
             <div class="flex items-center justify-between gap-3">
               <span class="text-sm font-medium text-text-primary">{{ followup.contactPerson }}</span>
-              <span class="text-xs text-text-muted">{{ formatDate(followup.followupDate) }} at {{ followup.followupTime }}</span>
+              <span class="text-xs text-text-muted">{{
+                t('government.workspacePage.followUpAt', { date: formatDate(followup.followupDate), time: followup.followupTime })
+              }}</span>
             </div>
             <p v-if="followup.notes" class="text-sm text-text-secondary">{{ followup.notes }}</p>
-            <p class="text-xs text-text-muted">Logged by {{ followup.createdBy }}</p>
+            <p class="text-xs text-text-muted">{{ t('government.workspacePage.loggedBy', { name: followup.createdBy }) }}</p>
           </li>
         </ul>
         <BaseButton
@@ -457,35 +498,40 @@ async function handleMoveToDraft(): Promise<void> {
           :loading="submissionStore.isFollowupsLoading"
           @click="loadFollowups"
         >
-          Refresh
+          {{ t('government.workspacePage.refresh') }}
         </BaseButton>
       </Card>
 
       <Card v-if="canUploadProofOfResponse || submission.proofOfResponse">
         <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">Proof of Government Response</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.proofOfGovernmentResponse') }}</h3>
         </template>
         <div v-if="submission.proofOfResponse" class="flex flex-col gap-3">
           <div class="flex items-center justify-between gap-3">
             <span class="text-sm text-text-secondary">
               {{ submission.proofOfResponse.originalFilename }}
               &middot; {{ submission.proofOfResponse.fileSizeLabel }}
-              &middot; uploaded {{ formatDate(submission.proofOfResponse.uploadDate) }} by
-              {{ submission.proofOfResponse.uploadedBy }}
+              &middot;
+              {{
+                t('government.workspacePage.uploadedByLine', {
+                  date: formatDate(submission.proofOfResponse.uploadDate),
+                  user: submission.proofOfResponse.uploadedBy,
+                })
+              }}
             </span>
-            <BaseButton variant="secondary" size="sm" @click="downloadProofOfResponse">Download</BaseButton>
+            <BaseButton variant="secondary" size="sm" @click="downloadProofOfResponse">{{ t('government.workspacePage.download') }}</BaseButton>
           </div>
           <StatusBadge
-            :label="`Response: ${submission.responseOutcome}`"
+            :label="t('government.workspacePage.responseOutcome', { outcome: outcomeLabel(submission.responseOutcome) })"
             :variant="submission.responseOutcome === 'Approved' ? 'success' : submission.responseOutcome === 'Rejected' ? 'danger' : 'warning'"
           />
         </div>
         <div v-else class="flex flex-col gap-2">
           <p class="text-sm text-text-secondary">
-            When the government responds, upload the proof of response here and record the outcome.
+            {{ t('government.workspacePage.governmentResponseNotice') }}
           </p>
           <BaseButton size="sm" :icon="Upload" class="self-start" @click="openProofOfResponseDialog">
-            Upload Proof of Response
+            {{ t('government.workspacePage.uploadProofOfResponse') }}
           </BaseButton>
         </div>
 
@@ -495,46 +541,56 @@ async function handleMoveToDraft(): Promise<void> {
             :loading="submissionStore.isMutating"
             @click="handleMarkComplete"
           >
-            Mark Complete
+            {{ t('government.workspacePage.markComplete') }}
           </BaseButton>
         </div>
       </Card>
 
       <Card v-if="submission.notes">
         <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">Notes</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.notes') }}</h3>
         </template>
         <p class="text-sm text-text-secondary">{{ submission.notes }}</p>
       </Card>
     </template>
 
-    <BaseDialog v-model="isFollowupDialogOpen" title="Record Follow-Up" size="sm">
+    <BaseDialog v-model="isFollowupDialogOpen" :title="t('government.workspacePage.recordFollowUp')" size="sm">
       <div class="flex flex-col gap-4">
         <p class="text-sm text-text-secondary">
-          Log a call or visit made to the authority to check on {{ submissionNo }}.
+          {{ t('government.workspacePage.followUpDialogDescription', { submissionNo }) }}
         </p>
-        <DatePicker v-model="followupDate" label="Follow-up date" required />
-        <TimePicker v-model="followupTime" label="Follow-up time" required />
-        <TextInput v-model="followupContactPerson" label="Person who checked with the Government" placeholder="e.g. Eng. Yousef" required />
-        <TextArea v-model="followupNotes" label="Notes (optional)" placeholder="What was discussed" :rows="3" />
+        <DatePicker v-model="followupDate" :label="t('government.workspacePage.followUpDate')" required />
+        <TimePicker v-model="followupTime" :label="t('government.workspacePage.followUpTime')" required />
+        <TextInput
+          v-model="followupContactPerson"
+          :label="t('government.workspacePage.followUpContactPerson')"
+          :placeholder="t('government.workspacePage.followUpContactPersonPlaceholder')"
+          required
+        />
+        <TextArea
+          v-model="followupNotes"
+          :label="t('government.workspacePage.followUpNotes')"
+          :placeholder="t('government.workspacePage.followUpNotesPlaceholder')"
+          :rows="3"
+        />
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isFollowupDialogOpen = false">Cancel</BaseButton>
+          <BaseButton variant="ghost" @click="isFollowupDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
           <BaseButton
             :disabled="!followupDate || !followupTime || !followupContactPerson.trim()"
             :loading="submissionStore.isMutating"
             @click="confirmFollowup"
           >
-            Save Follow-Up
+            {{ t('government.workspacePage.saveFollowUp') }}
           </BaseButton>
         </div>
       </div>
     </BaseDialog>
 
-    <BaseDialog v-model="isProofOfResponseDialogOpen" title="Upload Proof of Response" size="sm">
+    <BaseDialog v-model="isProofOfResponseDialogOpen" :title="t('government.workspacePage.uploadProofOfResponse')" size="sm">
       <div class="flex flex-col gap-4">
-        <SelectBox v-model="proofOfResponseOutcome" label="Outcome" :options="OUTCOME_OPTIONS" />
+        <SelectBox v-model="proofOfResponseOutcome" :label="t('government.workspacePage.outcome')" :options="OUTCOME_OPTIONS" />
         <div>
-          <label class="mb-1.5 block text-sm font-medium text-text-secondary">Proof of response document</label>
+          <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.proofOfResponseDocument') }}</label>
           <input
             type="file"
             accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
@@ -543,34 +599,33 @@ async function handleMoveToDraft(): Promise<void> {
           />
         </div>
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isProofOfResponseDialogOpen = false">Cancel</BaseButton>
+          <BaseButton variant="ghost" @click="isProofOfResponseDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
           <BaseButton :disabled="!proofOfResponseFile" :loading="submissionStore.isMutating" @click="confirmProofOfResponse">
-            Save
+            {{ t('common.save') }}
           </BaseButton>
         </div>
       </div>
     </BaseDialog>
-    <BaseDialog v-model="isWithdrawDialogOpen" title="Withdraw Submission" size="sm">
+    <BaseDialog v-model="isWithdrawDialogOpen" :title="t('government.workspacePage.withdrawSubmissionTitle')" size="sm">
       <div class="flex flex-col gap-4">
         <p class="text-sm text-text-secondary">
-          Withdrawing {{ submissionNo }} tells the authority this submission is no longer being pursued. This can't
-          be undone from here -- a new submission would need to be created to resume.
+          {{ t('government.workspacePage.withdrawDialogDescription', { submissionNo }) }}
         </p>
         <TextArea
           v-model="withdrawReason"
-          label="Reason for withdrawal"
-          placeholder="e.g. Project scope changed, submitting a revised application instead"
+          :label="t('government.workspacePage.reasonForWithdrawal')"
+          :placeholder="t('government.workspacePage.reasonForWithdrawalPlaceholder')"
           :rows="3"
         />
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isWithdrawDialogOpen = false">Cancel</BaseButton>
+          <BaseButton variant="ghost" @click="isWithdrawDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
           <BaseButton
             variant="danger"
             :disabled="!withdrawReason.trim()"
             :loading="submissionStore.isMutating"
             @click="confirmWithdraw"
           >
-            Withdraw
+            {{ t('government.workspacePage.withdraw') }}
           </BaseButton>
         </div>
       </div>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import type { ServiceCatalogActivity } from '@/types/ServiceCatalog'
+
+const { t } = useI18n()
 
 defineProps<{
   activities: ServiceCatalogActivity[]
@@ -59,7 +62,7 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
         <div class="flex flex-1 flex-col gap-2 sm:flex-row">
           <TextInput
             :model-value="nameDrafts[activity.id] ?? activity.name"
-            placeholder="Activity name"
+            :placeholder="t('administration.serviceCatalog.activityName')"
             class="sm:flex-1"
             @update:model-value="nameDrafts[activity.id] = $event"
             @blur="commitName(activity, $event)"
@@ -68,7 +71,7 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
             :model-value="costDrafts[activity.id] ?? String(activity.fixedCost)"
             type="number"
             inputmode="decimal"
-            placeholder="Fixed cost"
+            :placeholder="t('administration.serviceCatalog.fixedCost')"
             class="sm:w-40"
             @update:model-value="costDrafts[activity.id] = $event"
             @blur="commitCost(activity, $event)"
@@ -77,19 +80,19 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
 
         <div class="flex shrink-0 items-center gap-2 self-end sm:self-start">
           <span class="text-sm font-medium text-text-muted">{{ formatCurrency(activity.fixedCost) }}</span>
-          <IconButton :icon="Trash2" label="Remove activity" size="sm" variant="danger" @click="emit('remove', activity.id)" />
+          <IconButton :icon="Trash2" :label="t('administration.serviceCatalog.removeActivity')" size="sm" variant="danger" @click="emit('remove', activity.id)" />
         </div>
       </li>
     </ol>
-    <p v-else class="text-sm text-text-muted">No activities yet -- add one below.</p>
+    <p v-else class="text-sm text-text-muted">{{ t('administration.serviceCatalog.noActivitiesYet') }}</p>
 
     <div class="flex flex-col gap-2 rounded-lg border border-dashed border-border-default p-4">
-      <p class="text-sm font-medium text-text-secondary">Add Activity</p>
+      <p class="text-sm font-medium text-text-secondary">{{ t('administration.serviceCatalog.addActivity') }}</p>
       <div class="flex flex-col gap-2 sm:flex-row">
-        <TextInput v-model="newActivityName" placeholder="Activity name" class="sm:flex-1" />
-        <TextInput v-model="newActivityCost" type="number" inputmode="decimal" placeholder="Fixed cost" class="sm:w-40" />
+        <TextInput v-model="newActivityName" :placeholder="t('administration.serviceCatalog.activityName')" class="sm:flex-1" />
+        <TextInput v-model="newActivityCost" type="number" inputmode="decimal" :placeholder="t('administration.serviceCatalog.fixedCost')" class="sm:w-40" />
         <BaseButton :icon="Plus" variant="secondary" :disabled="newActivityName.trim().length === 0" @click="submitNewActivity">
-          Add
+          {{ t('administration.serviceCatalog.add') }}
         </BaseButton>
       </div>
     </div>

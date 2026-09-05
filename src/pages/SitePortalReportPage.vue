@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, Save } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Alert from '@/components/common/Alert.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -14,6 +15,7 @@ import { useSitePortalStore } from '@/stores/sitePortalStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SelectOption } from '@/types/Ui'
 
+const { t } = useI18n()
 const sitePortalStore = useSitePortalStore()
 const toastStore = useToastStore()
 const resultDialogStore = useResultDialogStore()
@@ -29,10 +31,10 @@ const form = reactive({
 })
 
 const projectOptions = ref<SelectOption[]>([])
-const supervisionOptions: SelectOption[] = [
-  { label: 'Full-time', value: 'Full-time' },
-  { label: 'Part-time', value: 'Part-time' },
-]
+const supervisionOptions = computed<SelectOption[]>(() => [
+  { label: 'Full-time', value: 'Full-time', labelKey: 'sitePortal.reportPage.supervisionFullTime' },
+  { label: 'Part-time', value: 'Part-time', labelKey: 'sitePortal.reportPage.supervisionPartTime' },
+])
 
 // Kuwait time explicitly, not the device's local timezone -- this is
 // purely the header label, but it has to agree with what the server
@@ -52,7 +54,7 @@ onMounted(async () => {
   try {
     await Promise.all([sitePortalStore.loadProjects(), sitePortalStore.loadTodaysReports()])
     projectOptions.value = sitePortalStore.projects.map((p) => ({
-      label: p.canFileReport ? p.projectName : `${p.projectName} (window closed)`,
+      label: p.canFileReport ? p.projectName : `${p.projectName}${t('sitePortal.reportPage.windowClosedSuffix')}`,
       value: p.id,
       disabled: !p.canFileReport,
     }))
@@ -143,7 +145,7 @@ async function handleSubmit(): Promise<void> {
 <template>
   <div class="flex flex-col gap-4">
     <div>
-      <h1 class="text-lg font-semibold text-text-primary">Today's Status Report</h1>
+      <h1 class="text-lg font-semibold text-text-primary">{{ t('sitePortal.reportPage.todaysStatusReport') }}</h1>
       <p class="text-sm text-text-muted">{{ todaysDate }}</p>
     </div>
 
@@ -153,26 +155,26 @@ async function handleSubmit(): Promise<void> {
 
     <template v-else>
       <p v-if="sitePortalStore.projects.length > 1" class="text-xs text-text-muted">
-        {{ filedCount }} of {{ sitePortalStore.projects.length }} projects reported today
+        {{ t('sitePortal.reportPage.projectsReportedToday', { filed: filedCount, total: sitePortalStore.projects.length }) }}
       </p>
 
       <Alert
         v-if="isReviewed()"
         variant="success"
-        title="Reviewed"
-        description="This project's report has already been reviewed and attached. It can no longer be edited."
+        :title="t('sitePortal.reportPage.reviewedTitle')"
+        :description="t('sitePortal.reportPage.reviewedDescription')"
       />
       <Alert
         v-else-if="isWindowClosed"
         variant="warning"
-        title="Filing window closed"
-        :description="selectedProject?.blockReason ?? 'Reports can no longer be filed for this project.'"
+        :title="t('sitePortal.reportPage.filingWindowClosedTitle')"
+        :description="selectedProject?.blockReason ?? t('sitePortal.reportPage.filingWindowClosedDefaultDescription')"
       />
       <Alert
         v-else
         variant="info"
-        title="Editable until 11:59 PM Kuwait time"
-        description="You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait -- wherever you're filing from."
+        :title="t('sitePortal.reportPage.editableTitle')"
+        :description="t('sitePortal.reportPage.editableDescription')"
       />
 
       <Card>
@@ -180,8 +182,8 @@ async function handleSubmit(): Promise<void> {
           <div>
             <SelectBox
               v-model="form.projectId"
-              label="Project"
-              placeholder="Select project"
+              :label="t('sitePortal.reportPage.project')"
+              :placeholder="t('sitePortal.reportPage.selectProject')"
               required
               :options="projectOptions"
             />
@@ -192,39 +194,39 @@ async function handleSubmit(): Promise<void> {
             <p v-if="form.projectId && !isWindowClosed" class="mt-1.5 flex items-center gap-1.5 text-xs">
               <template v-if="currentReport">
                 <CheckCircle2 class="h-3.5 w-3.5 text-success-600" />
-                <span class="text-success-600">Today's report {{ isReviewed() ? 'filed and reviewed' : 'submitted' }} for this project</span>
+                <span class="text-success-600">{{ isReviewed() ? t('sitePortal.reportPage.reportFiledAndReviewed') : t('sitePortal.reportPage.reportSubmitted') }}</span>
               </template>
-              <span v-else class="text-warning-600">No report filed yet for this project today</span>
+              <span v-else class="text-warning-600">{{ t('sitePortal.reportPage.noReportFiledYet') }}</span>
             </p>
           </div>
 
           <TextInput
             v-model="form.receiptType"
-            label="Receipt / Handover"
-            placeholder="e.g. First floor roof slab"
+            :label="t('sitePortal.reportPage.receiptHandover')"
+            :placeholder="t('sitePortal.reportPage.receiptHandoverPlaceholder')"
             :disabled="isLocked()"
           />
           <SelectBox
             v-model="form.supervisionType"
-            label="Supervision Type"
+            :label="t('sitePortal.reportPage.supervisionType')"
             :disabled="isLocked()"
             :options="supervisionOptions"
           />
           <TextArea
             v-model="form.notes"
-            label="Notes"
-            placeholder="Describe today's supervision activity..."
+            :label="t('sitePortal.reportPage.notes')"
+            :placeholder="t('sitePortal.reportPage.notesPlaceholder')"
             :rows="8"
             required
             :disabled="isLocked()"
           />
 
           <BaseButton v-if="!isLocked()" type="submit" :icon="Save" :loading="isSaving" full-width>
-            {{ currentReport ? 'Update & Re-submit' : 'Submit Report' }}
+            {{ currentReport ? t('sitePortal.reportPage.updateResubmit') : t('sitePortal.reportPage.submitReport') }}
           </BaseButton>
           <div v-else-if="isReviewed()" class="flex items-center justify-center gap-2 rounded-lg bg-success-50 py-2.5 text-sm font-medium text-success-700">
             <CheckCircle2 class="h-4 w-4" />
-            Filed and reviewed
+            {{ t('sitePortal.reportPage.filedAndReviewed') }}
           </div>
         </form>
       </Card>

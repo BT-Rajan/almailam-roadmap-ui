@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, FileText } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
@@ -11,6 +12,7 @@ import { useSitePortalStore } from '@/stores/sitePortalStore'
 import type { StatusReport } from '@/types/StatusReport'
 import { engineerStatusLabel, engineerStatusVariant } from '@/utils/statusReportHelpers'
 
+const { t } = useI18n()
 const sitePortalStore = useSitePortalStore()
 
 const visibleMonth = ref(new Date())
@@ -56,7 +58,15 @@ const calendarDays = computed(() => {
   return days
 })
 
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const weekDays = computed(() => [
+  t('sitePortal.calendarPage.weekdaySun'),
+  t('sitePortal.calendarPage.weekdayMon'),
+  t('sitePortal.calendarPage.weekdayTue'),
+  t('sitePortal.calendarPage.weekdayWed'),
+  t('sitePortal.calendarPage.weekdayThu'),
+  t('sitePortal.calendarPage.weekdayFri'),
+  t('sitePortal.calendarPage.weekdaySat'),
+])
 
 async function loadMonth(): Promise<void> {
   const year = visibleMonth.value.getFullYear()
@@ -103,17 +113,17 @@ function dotsFor(day: Date): StatusReport[] {
 <template>
   <div class="flex flex-col gap-4">
     <div>
-      <h1 class="text-lg font-semibold text-text-primary">My Reports</h1>
-      <p class="text-sm text-text-muted">View-only -- tap a date to see that day's report(s).</p>
+      <h1 class="text-lg font-semibold text-text-primary">{{ t('sitePortal.calendarPage.myReports') }}</h1>
+      <p class="text-sm text-text-muted">{{ t('sitePortal.calendarPage.viewOnlyNotice') }}</p>
     </div>
 
     <Card>
       <div class="mb-4 flex items-center justify-between">
-        <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" aria-label="Previous month" @click="goToPreviousMonth">
+        <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" :aria-label="t('sitePortal.calendarPage.previousMonth')" @click="goToPreviousMonth">
           <ChevronLeft class="h-4 w-4" />
         </button>
         <p class="text-sm font-semibold text-text-primary">{{ monthTitle }}</p>
-        <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" aria-label="Next month" @click="goToNextMonth">
+        <button type="button" class="rounded-lg p-2 hover:bg-bg-hover" :aria-label="t('sitePortal.calendarPage.nextMonth')" @click="goToNextMonth">
           <ChevronRight class="h-4 w-4" />
         </button>
       </div>
@@ -159,7 +169,7 @@ function dotsFor(day: Date): StatusReport[] {
         <EmptyState
           v-if="sitePortalStore.calendarReports.length === 0"
           :icon="FileText"
-          title="No reports this month"
+          :title="t('sitePortal.calendarPage.noReportsThisMonth')"
           class="mt-4"
         />
       </div>
@@ -180,19 +190,19 @@ function dotsFor(day: Date): StatusReport[] {
             />
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-text-muted">Report No.</span>
+            <span class="text-text-muted">{{ t('sitePortal.calendarPage.reportNo') }}</span>
             <span class="font-medium text-text-primary">{{ report.reportNo }}</span>
           </div>
           <div v-if="report.receiptType" class="flex items-center justify-between">
-            <span class="text-text-muted">Receipt / Handover</span>
+            <span class="text-text-muted">{{ t('sitePortal.calendarPage.receiptHandover') }}</span>
             <span class="font-medium text-text-primary">{{ report.receiptType }}</span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-text-muted">Supervision</span>
+            <span class="text-text-muted">{{ t('sitePortal.calendarPage.supervision') }}</span>
             <span class="font-medium text-text-primary">{{ report.supervisionType }}</span>
           </div>
           <div>
-            <p class="mb-1 text-text-muted">Notes</p>
+            <p class="mb-1 text-text-muted">{{ t('sitePortal.calendarPage.notes') }}</p>
             <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ report.notes }}</p>
           </div>
         </div>

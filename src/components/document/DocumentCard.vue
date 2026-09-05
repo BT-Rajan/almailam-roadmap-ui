@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarClock, FolderKanban, Pencil, Trash2, UserRound } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -21,8 +22,22 @@ defineEmits<{
   delete: [document: ProjectDocument]
 }>()
 
-const projectName = computed(() => props.project?.projectName ?? 'Unknown Project')
+const { t } = useI18n()
+
+const projectName = computed(() => props.project?.projectName ?? t('document.unknownProject'))
 const typeIcon = computed(() => getDocumentTypeIcon(props.document.type))
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'document.status.draft',
+  'Under Review': 'document.status.underReview',
+  Approved: 'document.status.approved',
+  Rejected: 'document.status.rejected',
+}
+
+const statusLabel = computed(() => {
+  const key = STATUS_LABEL_KEYS[props.document.status]
+  return key ? t(key) : props.document.status
+})
 </script>
 
 <template>
@@ -39,9 +54,9 @@ const typeIcon = computed(() => getDocumentTypeIcon(props.document.type))
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2 no-print" @click.stop>
-          <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" show-dot />
-          <IconButton :icon="Pencil" label="Edit document" size="sm" @click="$emit('edit', document)" />
-          <IconButton :icon="Trash2" label="Delete document" size="sm" variant="danger" @click="$emit('delete', document)" />
+          <StatusBadge :label="statusLabel" :variant="getDocumentStatusVariant(document.status)" show-dot />
+          <IconButton :icon="Pencil" :label="t('document.card.editDocument')" size="sm" @click="$emit('edit', document)" />
+          <IconButton :icon="Trash2" :label="t('document.card.deleteDocument')" size="sm" variant="danger" @click="$emit('delete', document)" />
         </div>
       </div>
 

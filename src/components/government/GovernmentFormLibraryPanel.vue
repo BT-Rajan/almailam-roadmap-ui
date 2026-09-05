@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, LayoutGrid, Pencil, Plus, TableProperties, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   deleteAuthority: [authority: GovernmentAuthority]
 }>()
 
+const { t } = useI18n()
 const store = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -54,13 +56,25 @@ const archiveTarget = ref<GovernmentForm | undefined>(undefined)
 const isArchiving = ref(false)
 
 const CATEGORY_OPTIONS: SelectOption[] = [
-  { label: 'All Categories', value: 'All' },
-  { label: 'Building Permit', value: 'Building Permit' },
-  { label: 'Occupancy Certificate', value: 'Occupancy Certificate' },
-  { label: 'Fire Safety Approval', value: 'Fire Safety Approval' },
-  { label: 'Utility Connection', value: 'Utility Connection' },
-  { label: 'Environmental Clearance', value: 'Environmental Clearance' },
-  { label: 'Business License', value: 'Business License' },
+  { label: 'All Categories', value: 'All', labelKey: 'government.formLibraryPanel.allCategories' },
+  { label: 'Building Permit', value: 'Building Permit', labelKey: 'governmentFormOptions.formCategory.buildingPermit' },
+  {
+    label: 'Occupancy Certificate',
+    value: 'Occupancy Certificate',
+    labelKey: 'governmentFormOptions.formCategory.occupancyCertificate',
+  },
+  {
+    label: 'Fire Safety Approval',
+    value: 'Fire Safety Approval',
+    labelKey: 'governmentFormOptions.formCategory.fireSafetyApproval',
+  },
+  { label: 'Utility Connection', value: 'Utility Connection', labelKey: 'governmentFormOptions.formCategory.utilityConnection' },
+  {
+    label: 'Environmental Clearance',
+    value: 'Environmental Clearance',
+    labelKey: 'governmentFormOptions.formCategory.environmentalClearance',
+  },
+  { label: 'Business License', value: 'Business License', labelKey: 'governmentFormOptions.formCategory.businessLicense' },
 ]
 
 const authorityForms = computed<GovernmentForm[]>(() => {
@@ -177,21 +191,21 @@ function printForm(form: GovernmentForm): void {
       @click="emit('back')"
     >
       <ArrowLeft class="h-4 w-4" />
-      Back to Authorities
+      {{ t('government.formLibraryPanel.backToAuthorities') }}
     </button>
 
     <PageHeader :title="authority.name" :subtitle="authority.description">
       <template #actions>
-        <IconButton :icon="Pencil" label="Edit authority" variant="ghost" @click="emit('editAuthority', authority)" />
-        <IconButton :icon="Trash2" label="Delete authority" variant="ghost" @click="emit('deleteAuthority', authority)" />
-        <BaseButton :icon="Plus" @click="openAddForm">Add Form</BaseButton>
+        <IconButton :icon="Pencil" :label="t('government.formLibraryPanel.editAuthority')" variant="ghost" @click="emit('editAuthority', authority)" />
+        <IconButton :icon="Trash2" :label="t('government.formLibraryPanel.deleteAuthority')" variant="ghost" @click="emit('deleteAuthority', authority)" />
+        <BaseButton :icon="Plus" @click="openAddForm">{{ t('government.formLibraryPanel.addForm') }}</BaseButton>
       </template>
     </PageHeader>
   </div>
 
   <FilterBar
     :search-value="store.searchTerm"
-    search-placeholder="Search by form title or code"
+    :search-placeholder="t('government.formLibraryPanel.searchPlaceholder')"
     :has-active-filters="store.hasActiveFilters"
     @update:search-value="store.setSearchTerm"
     @clear="store.clearFilters"
@@ -204,20 +218,20 @@ function printForm(form: GovernmentForm): void {
           @update:model-value="store.setCategoryFilter($event as GovernmentFormCategory | 'All')"
         />
       </div>
-      <ToggleSwitch v-model="showArchived" label="Show Archived" />
+      <ToggleSwitch v-model="showArchived" :label="t('government.formLibraryPanel.showArchived')" />
     </template>
     <template #actions>
       <div class="flex items-center gap-1 rounded-lg border border-border-default p-1">
         <IconButton
           :icon="LayoutGrid"
-          label="Grid view"
+          :label="t('government.formLibraryPanel.gridView')"
           size="sm"
           :variant="store.viewMode === 'grid' ? 'primary' : 'ghost'"
           @click="store.setViewMode('grid')"
         />
         <IconButton
           :icon="TableProperties"
-          label="Table view"
+          :label="t('government.formLibraryPanel.tableView')"
           size="sm"
           :variant="store.viewMode === 'table' ? 'primary' : 'ghost'"
           @click="store.setViewMode('table')"
