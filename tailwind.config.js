@@ -41,18 +41,23 @@ export default {
           800: '#292930',
           900: '#17171a',
         },
-        // Champagne / bronze accent used sparingly for premium highlights
+        // Deep emerald/jade accent -- deliberately a different premium hue
+        // family from JDK's champagne-gold (this repo's old accent scale
+        // was itself a near-identical gold, which is why the two apps'
+        // login screens read as the same product reskinned). Jade keeps
+        // the "engineering consultancy" association (precision, growth,
+        // trust) while giving Almailam its own visual identity.
         accent: {
-          50: '#fbf8f0',
-          100: '#f5ecd8',
-          200: '#ead9b0',
-          300: '#dcbf7d',
-          400: '#cca753',
-          500: '#b8903a',
-          600: '#96742c',
-          700: '#765a22',
-          800: '#5b451b',
-          900: '#453415',
+          50: '#eefaf5',
+          100: '#d3f0e3',
+          200: '#a6e0c7',
+          300: '#72c9a8',
+          400: '#43ab86',
+          500: '#268f6a',
+          600: '#1c7355',
+          700: '#165a43',
+          800: '#124635',
+          900: '#0d3628',
         },
         success: {
           50: '#f0fdf4',
