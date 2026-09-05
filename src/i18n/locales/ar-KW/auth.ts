@@ -23,4 +23,13 @@ export default {
     idLabel: 'رقم المستخدم',
     idPlaceholder: 'أدخل رقم المستخدم',
   },
+
+  changePasswordDialog: {
+    currentPassword: 'كلمة المرور الحالية',
+    currentPasswordPlaceholder: 'أدخل كلمة المرور الحالية',
+    newPassword: 'كلمة المرور الجديدة',
+    newPasswordPlaceholder: '8 أحرف على الأقل',
+    confirmNewPassword: 'تأكيد كلمة المرور الجديدة',
+    confirmNewPasswordPlaceholder: 'أعد إدخال كلمة المرور الجديدة',
+  },
 }

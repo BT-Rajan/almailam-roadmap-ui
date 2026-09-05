@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -25,6 +26,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [input: AuthorityInput]
 }>()
+
+const { t } = useI18n()
 
 function emptyForm(): AuthorityInput {
   return { name: '', category: 'Municipality', website: '', description: '' }
@@ -62,20 +65,32 @@ function handleSave(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="authority ? 'Edit Authority' : 'Add Authority'"
+    :title="authority ? t('administration.authorityFormDialog.editTitle') : t('administration.authorityFormDialog.addTitle')"
     size="md"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
-      <TextInput v-model="form.name" label="Authority Name" placeholder="e.g. Kuwait Municipality" :error="errors.name" required />
-      <SelectBox v-model="form.category" label="Category" :options="AUTHORITY_CATEGORY_OPTIONS" required />
-      <TextInput v-model="form.website" label="Website" placeholder="https://" :error="errors.website" required />
-      <TextArea v-model="form.description" label="Description" :rows="3" :error="errors.description" required />
+      <TextInput
+        v-model="form.name"
+        :label="t('administration.authorityFormDialog.authorityName')"
+        :placeholder="t('administration.authorityFormDialog.authorityNamePlaceholder')"
+        :error="errors.name"
+        required
+      />
+      <SelectBox v-model="form.category" :label="t('administration.authorityFormDialog.category')" :options="AUTHORITY_CATEGORY_OPTIONS" required />
+      <TextInput
+        v-model="form.website"
+        :label="t('administration.authorityFormDialog.website')"
+        :placeholder="t('administration.authorityFormDialog.websitePlaceholder')"
+        :error="errors.website"
+        required
+      />
+      <TextArea v-model="form.description" :label="t('administration.authorityFormDialog.description')" :rows="3" :error="errors.description" required />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="saving" @click="emit('update:modelValue', false)">Cancel</BaseButton>
-      <BaseButton :loading="saving" @click="handleSave">Save Authority</BaseButton>
+      <BaseButton variant="secondary" :disabled="saving" @click="emit('update:modelValue', false)">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="saving" @click="handleSave">{{ t('administration.authorityFormDialog.saveAuthority') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

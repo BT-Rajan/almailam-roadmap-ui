@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CornerDownRight, Repeat, X } from '@lucide/vue'
 import { computed, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -301,7 +303,7 @@ function handleClose(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="`Map Fields -- ${template?.originalFilename ?? ''}`"
+    :title="t('administration.templateFieldMapperDialog.mapFieldsTitle', { filename: template?.originalFilename ?? '' })"
     size="lg"
     :closable="!isSaving"
     @update:model-value="handleClose"
@@ -311,9 +313,7 @@ function handleClose(): void {
 
     <div v-else class="flex flex-col gap-5">
       <p class="text-xs text-text-muted">
-        Click into a line of the document below, then click a field to insert it at that spot -- it'll appear as a
-        small tag, not as code. For a repeating table (e.g. line items), click into the row that should repeat, then
-        click each column into its cell.
+        {{ t('administration.templateFieldMapperDialog.intro') }}
       </p>
 
       <!-- Field palette -->
@@ -336,7 +336,7 @@ function handleClose(): void {
         <div v-for="field in repeatingTableFields()" :key="field.key" class="flex flex-col gap-1.5 border-t border-border-light pt-3">
           <div class="flex flex-wrap items-center gap-2 text-xs text-text-muted">
             <Repeat class="h-3.5 w-3.5" />
-            <span>{{ field.label }} columns -- click into a table cell first:</span>
+            <span>{{ t('administration.templateFieldMapperDialog.tableColumnsHint', { label: field.label }) }}</span>
             <button
               v-if="repeatingTablePlacement(field)"
               type="button"
@@ -344,7 +344,7 @@ function handleClose(): void {
               @click="repeatingTablePlacement(field)?.scrollTo()"
             >
               <CornerDownRight class="h-3 w-3" />
-              Repeating at {{ repeatingTablePlacement(field)?.label }}
+              {{ t('administration.templateFieldMapperDialog.repeatingAt', { label: repeatingTablePlacement(field)?.label }) }}
             </button>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -364,7 +364,7 @@ function handleClose(): void {
         <div v-for="field in repeatingListFields()" :key="field.key" class="flex flex-col gap-1.5 border-t border-border-light pt-3">
           <div class="flex flex-wrap items-center gap-2 text-xs text-text-muted">
             <Repeat class="h-3.5 w-3.5" />
-            <span>{{ field.label }} -- click into the line that should repeat first:</span>
+            <span>{{ t('administration.templateFieldMapperDialog.listFieldHint', { label: field.label }) }}</span>
             <button
               v-if="repeatingListPlacement(field)"
               type="button"
@@ -372,7 +372,7 @@ function handleClose(): void {
               @click="repeatingListPlacement(field)?.scrollTo()"
             >
               <CornerDownRight class="h-3 w-3" />
-              Repeating at {{ repeatingListPlacement(field)?.label }}
+              {{ t('administration.templateFieldMapperDialog.repeatingAt', { label: repeatingListPlacement(field)?.label }) }}
             </button>
           </div>
           <button
@@ -386,7 +386,7 @@ function handleClose(): void {
         </div>
       </div>
 
-      <SearchBox v-model="searchQuery" placeholder="Find text in the document..." :debounce-ms="0" />
+      <SearchBox v-model="searchQuery" :placeholder="t('administration.templateFieldMapperDialog.searchPlaceholder')" :debounce-ms="0" />
 
       <!-- Document body -->
       <div class="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-lg border border-border-light p-3">
@@ -402,14 +402,14 @@ function handleClose(): void {
               @update:model-value="block.text = $event"
               :fields="mergeFields"
               :repeating-loop-var="loopVarFor(block.repeatingField)"
-              placeholder="(empty line)"
+              :placeholder="t('administration.templateFieldMapperDialog.emptyLine')"
               :ref="(el) => setParagraphRef(block.blockIndex, el as RichInputInstance | null)"
               @focus="setActiveEditor({ kind: 'paragraph', blockIndex: block.blockIndex })"
               @remove-repeating="handleParagraphRemoveRepeating(block)"
             />
             <div v-if="block.repeatingField" class="flex items-center gap-1 text-[11px] text-accent-600">
               <Repeat class="h-3 w-3" />
-              <span>Repeats for each: {{ fieldLabel(block.repeatingField) }}</span>
+              <span>{{ t('administration.templateFieldMapperDialog.repeatsForEach', { label: fieldLabel(block.repeatingField) }) }}</span>
               <button type="button" class="hover:text-accent-700" @click="clearParagraphRepeating(block, block.repeatingField)">
                 <X class="h-3 w-3" />
               </button>
@@ -440,7 +440,7 @@ function handleClose(): void {
                   <td v-if="row.repeatingField" class="whitespace-nowrap p-1 align-top text-[11px] text-accent-600">
                     <span class="inline-flex items-center gap-1">
                       <Repeat class="h-3 w-3" />
-                      Repeats: {{ fieldLabel(row.repeatingField) }}
+                      {{ t('administration.templateFieldMapperDialog.repeats', { label: fieldLabel(row.repeatingField) }) }}
                       <button
                         type="button"
                         class="hover:text-accent-700"
@@ -459,7 +459,7 @@ function handleClose(): void {
     </div>
 
     <template #footer>
-      <FormActionBar submit-label="Save Mapping" :disabled="isLoading || Boolean(loadError)" :loading="isSaving" @submit="handleSave" @cancel="handleClose" />
+      <FormActionBar :submit-label="t('administration.templateFieldMapperDialog.saveMapping')" :disabled="isLoading || Boolean(loadError)" :loading="isSaving" @submit="handleSave" @cancel="handleClose" />
     </template>
   </BaseDialog>
 </template>

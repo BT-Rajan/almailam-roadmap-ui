@@ -24,4 +24,13 @@ export default {
     idLabel: 'User ID',
     idPlaceholder: 'Enter your user ID',
   },
+
+  changePasswordDialog: {
+    currentPassword: 'Current Password',
+    currentPasswordPlaceholder: 'Enter current password',
+    newPassword: 'New Password',
+    newPasswordPlaceholder: 'At least 8 characters',
+    confirmNewPassword: 'Confirm New Password',
+    confirmNewPasswordPlaceholder: 'Re-enter new password',
+  },
 }

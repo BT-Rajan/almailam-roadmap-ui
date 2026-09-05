@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Lock } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const toastStore = useToastStore()
 const { changePassword } = useAuth()
@@ -81,13 +83,13 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <BaseDialog title="Change Password" size="sm" :model-value="modelValue" :closable="!isSaving" @update:model-value="closeDialog">
+  <BaseDialog :title="t('auth.changePassword')" size="sm" :model-value="modelValue" :closable="!isSaving" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
       <TextInput
         v-model="currentPassword"
         type="password"
-        label="Current Password"
-        placeholder="Enter current password"
+        :label="t('auth.changePasswordDialog.currentPassword')"
+        :placeholder="t('auth.changePasswordDialog.currentPasswordPlaceholder')"
         autocomplete="current-password"
         :icon="Lock"
         required
@@ -95,8 +97,8 @@ async function submit(): Promise<void> {
       <TextInput
         v-model="newPassword"
         type="password"
-        label="New Password"
-        placeholder="At least 8 characters"
+        :label="t('auth.changePasswordDialog.newPassword')"
+        :placeholder="t('auth.changePasswordDialog.newPasswordPlaceholder')"
         autocomplete="new-password"
         :icon="Lock"
         required
@@ -104,8 +106,8 @@ async function submit(): Promise<void> {
       <TextInput
         v-model="confirmPassword"
         type="password"
-        label="Confirm New Password"
-        placeholder="Re-enter new password"
+        :label="t('auth.changePasswordDialog.confirmNewPassword')"
+        :placeholder="t('auth.changePasswordDialog.confirmNewPasswordPlaceholder')"
         autocomplete="new-password"
         :icon="Lock"
         required
@@ -114,8 +116,8 @@ async function submit(): Promise<void> {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :disabled="!canSubmit" :loading="isSaving" @click="submit">Change Password</BaseButton>
+      <BaseButton variant="secondary" :disabled="isSaving" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :disabled="!canSubmit" :loading="isSaving" @click="submit">{{ t('auth.changePassword') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import type { ButtonVariant } from '@/types/Ui'
@@ -13,12 +15,14 @@ interface Props {
   loading?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
-  confirmLabel: 'Confirm',
-  cancelLabel: 'Cancel',
+const props = withDefaults(defineProps<Props>(), {
+  confirmLabel: undefined,
+  cancelLabel: undefined,
   confirmVariant: 'primary',
   loading: false,
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -44,10 +48,10 @@ const handleCancel = (): void => {
 
     <template #footer>
       <BaseButton variant="secondary" :disabled="loading" @click="handleCancel">
-        {{ cancelLabel }}
+        {{ props.cancelLabel ?? t('common.cancel') }}
       </BaseButton>
       <BaseButton :variant="confirmVariant" :loading="loading" @click="$emit('confirm')">
-        {{ confirmLabel }}
+        {{ props.confirmLabel ?? t('common.confirm') }}
       </BaseButton>
     </template>
   </BaseDialog>

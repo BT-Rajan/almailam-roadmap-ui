@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2, Upload } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -45,6 +46,7 @@ const emit = defineEmits<{
 
 const governmentFormStore = useGovernmentFormStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 type FormDraft = Omit<FormInput, 'template'> & { requiredDocumentsText: string; template: string }
 
@@ -68,9 +70,9 @@ function emptyDraft(): FormDraft {
 }
 
 const FIELD_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Text', value: 'text' },
-  { label: 'Dropdown', value: 'select' },
-  { label: 'Radio buttons', value: 'radio' },
+  { label: 'Text', value: 'text', labelKey: 'administration.governmentFormDialog.fieldType.text' },
+  { label: 'Dropdown', value: 'select', labelKey: 'administration.governmentFormDialog.fieldType.dropdown' },
+  { label: 'Radio buttons', value: 'radio', labelKey: 'administration.governmentFormDialog.fieldType.radioButtons' },
 ]
 
 function addField(): void {
@@ -190,96 +192,105 @@ function handleSave(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="form ? 'Edit Government Form' : 'Add Government Form'"
+    :title="form ? t('administration.governmentFormDialog.editTitle') : t('administration.governmentFormDialog.addTitle')"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <TextInput v-model="draft.title" label="Form Title" :error="errors.title" required />
-        <TextInput v-model="draft.formCode" label="Form Code" placeholder="e.g. MUN-BP-01" :error="errors.formCode" required />
+        <TextInput v-model="draft.title" :label="t('administration.governmentFormDialog.formTitle')" :error="errors.title" required />
+        <TextInput
+          v-model="draft.formCode"
+          :label="t('administration.governmentFormDialog.formCode')"
+          :placeholder="t('administration.governmentFormDialog.formCodePlaceholder')"
+          :error="errors.formCode"
+          required
+        />
       </div>
 
-      <SelectBox v-model="draft.authorityId" label="Authority" :options="authorityOptions" :error="errors.authorityId" required />
+      <SelectBox
+        v-model="draft.authorityId"
+        :label="t('administration.governmentFormDialog.authority')"
+        :options="authorityOptions"
+        :error="errors.authorityId"
+        required
+      />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
-        <SelectBox v-model="draft.category" label="Category" :options="FORM_CATEGORY_OPTIONS" />
-        <SelectBox v-model="draft.language" label="Language" :options="FORM_LANGUAGE_OPTIONS" />
-        <TextInput v-model="draft.version" label="Version" placeholder="v1.0" />
+        <SelectBox v-model="draft.category" :label="t('administration.governmentFormDialog.category')" :options="FORM_CATEGORY_OPTIONS" />
+        <SelectBox v-model="draft.language" :label="t('administration.governmentFormDialog.language')" :options="FORM_LANGUAGE_OPTIONS" />
+        <TextInput v-model="draft.version" :label="t('administration.governmentFormDialog.version')" :placeholder="t('administration.governmentFormDialog.versionPlaceholder')" />
       </div>
 
-      <DatePicker v-model="draft.lastUpdated" label="Last Updated" />
-      <TextArea v-model="draft.description" label="Description" :rows="3" :error="errors.description" required />
+      <DatePicker v-model="draft.lastUpdated" :label="t('administration.governmentFormDialog.lastUpdated')" />
+      <TextArea v-model="draft.description" :label="t('administration.governmentFormDialog.description')" :rows="3" :error="errors.description" required />
       <TextArea
         v-model="draft.requiredDocumentsText"
-        label="Required Documents"
-        hint="One document per line."
+        :label="t('administration.governmentFormDialog.requiredDocuments')"
+        :hint="t('administration.governmentFormDialog.requiredDocumentsHint')"
         :rows="4"
       />
 
       <TextArea
         v-model="draft.template"
-        label="Template Content"
-        hint="Written with {{token}} merge fields, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}. Used to preview and print this form filled in."
+        :label="t('administration.governmentFormDialog.templateContent')"
+        :hint="t('administration.governmentFormDialog.templateContentHint')"
         :rows="8"
       />
 
       <div class="flex flex-col gap-3 rounded-lg border border-border-light p-4">
         <div>
-          <p class="text-sm font-medium text-text-secondary">Fields</p>
+          <p class="text-sm font-medium text-text-secondary">{{ t('administration.governmentFormDialog.fieldsSectionTitle') }}</p>
           <p class="text-xs text-text-muted">
-            Give a merge-field token from the template above a dropdown or radio group instead of a plain text box
-            when a project fills this form in -- match the "token" here to the name used in the template (e.g.
-            <code v-pre>{{plotArea}}</code> in the template needs "plotArea" as its token). A token not listed here
-            just gets a plain text box.
+            {{ t('administration.governmentFormDialog.fieldsHintPrefix') }}
+            <code v-pre>{{plotArea}}</code>
+            {{ t('administration.governmentFormDialog.fieldsHintSuffix') }}
           </p>
         </div>
 
         <div v-for="(field, index) in draft.fields" :key="index" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
           <div class="flex items-start gap-2">
-            <TextInput v-model="field.token" placeholder="token (matches {{token}})" class="flex-1" />
-            <TextInput v-model="field.label" placeholder="Field label" class="flex-1" />
+            <TextInput v-model="field.token" :placeholder="t('administration.governmentFormDialog.fieldTokenPlaceholder')" class="flex-1" />
+            <TextInput v-model="field.label" :placeholder="t('administration.governmentFormDialog.fieldLabelPlaceholder')" class="flex-1" />
             <SelectBox v-model="field.type" :options="FIELD_TYPE_OPTIONS" class="w-40" />
-            <IconButton :icon="Trash2" label="Remove field" size="sm" variant="danger" @click="removeField(index)" />
+            <IconButton :icon="Trash2" :label="t('administration.governmentFormDialog.removeField')" size="sm" variant="danger" @click="removeField(index)" />
           </div>
           <TextArea
             v-if="field.type === 'select' || field.type === 'radio'"
             :model-value="optionsText(field)"
-            placeholder="One option per line"
+            :placeholder="t('administration.governmentFormDialog.fieldOptionsPlaceholder')"
             :rows="3"
             @update:model-value="setOptionsText(index, $event)"
           />
         </div>
 
-        <BaseButton variant="secondary" size="sm" :icon="Plus" @click="addField">Add Field</BaseButton>
+        <BaseButton variant="secondary" size="sm" :icon="Plus" @click="addField">{{ t('administration.governmentFormDialog.addField') }}</BaseButton>
       </div>
 
       <div v-if="form" class="flex flex-col gap-2 rounded-lg border border-border-light p-4">
-        <p class="text-sm font-medium text-text-secondary">Sample Form</p>
+        <p class="text-sm font-medium text-text-secondary">{{ t('administration.governmentFormDialog.sampleFormTitle') }}</p>
         <p class="text-xs text-text-muted">
-          Upload a reference copy of the real government form (e.g. the blank official PDF) to check the template
-          and fields above against. Not parsed -- just an attachment.
+          {{ t('administration.governmentFormDialog.sampleFormHint') }}
         </p>
         <p v-if="uploadedSampleFileName ?? form.sampleFileName" class="text-xs text-text-secondary">
-          Currently attached: {{ uploadedSampleFileName ?? form.sampleFileName }}
+          {{ t('administration.governmentFormDialog.currentlyAttached', { name: uploadedSampleFileName ?? form.sampleFileName }) }}
         </p>
         <label class="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-hover">
           <Upload class="h-4 w-4" />
-          {{ isUploadingSample ? 'Uploading…' : 'Upload Sample' }}
+          {{ isUploadingSample ? t('administration.governmentFormDialog.uploading') : t('administration.governmentFormDialog.uploadSample') }}
           <input type="file" class="hidden" :disabled="isUploadingSample" @change="handleSampleFileSelected" />
         </label>
       </div>
 
       <div>
-        <p class="mb-1.5 text-sm font-medium text-text-secondary">Tagged Services</p>
+        <p class="mb-1.5 text-sm font-medium text-text-secondary">{{ t('administration.governmentFormDialog.taggedServicesTitle') }}</p>
         <p class="mb-2 text-xs text-text-muted">
-          This form is suggested under a project's Documents &gt; Government section when the project's service
-          matches one of the tags below.
+          {{ t('administration.governmentFormDialog.taggedServicesHint') }}
         </p>
         <EmptyState
           v-if="services.length === 0"
-          title="No services in the catalog yet"
-          description="Add services under Administration > Catalogs > Service Catalog to tag this form."
+          :title="t('administration.governmentFormDialog.noServicesTitle')"
+          :description="t('administration.governmentFormDialog.noServicesDescription')"
         />
         <div v-else class="grid grid-cols-1 gap-1.5 rounded-lg border border-border-light p-3 tablet:grid-cols-2">
           <Checkbox
@@ -294,8 +305,8 @@ function handleSave(): void {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="saving" @click="emit('update:modelValue', false)">Cancel</BaseButton>
-      <BaseButton :loading="saving" @click="handleSave">Save Form</BaseButton>
+      <BaseButton variant="secondary" :disabled="saving" @click="emit('update:modelValue', false)">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="saving" @click="handleSave">{{ t('administration.governmentFormDialog.saveForm') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

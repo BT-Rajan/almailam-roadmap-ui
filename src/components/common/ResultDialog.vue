@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { CheckCircle2, XCircle } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 
 const store = useResultDialogStore()
+const { t } = useI18n()
 
 const icon = computed(() => (store.status === 'success' ? CheckCircle2 : XCircle))
 const iconClass = computed(() => (store.status === 'success' ? 'text-success-500' : 'text-danger-500'))
@@ -21,7 +23,7 @@ const iconClass = computed(() => (store.status === 'success' ? 'text-success-500
     </div>
 
     <template #footer>
-      <BaseButton class="w-full" @click="store.close">OK</BaseButton>
+      <BaseButton class="w-full" @click="store.close">{{ t('common.ok') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

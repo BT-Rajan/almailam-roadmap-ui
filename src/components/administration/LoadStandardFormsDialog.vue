@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -25,6 +26,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   import: [payload: { authorityId: string; formCodes: string[] }]
 }>()
+
+const { t } = useI18n()
 
 const selectedAuthorityId = ref('')
 const selectedFormCodes = ref<string[]>([])
@@ -67,25 +70,24 @@ function handleImport(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Load Standard Forms" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('administration.loadStandardFormsDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
       <p class="text-sm text-text-secondary">
-        Adds any of the office's standard design/licensing agreements and undertakings to the form library. Each is
-        created as an editable form -- adjust its template, tagged services, and status afterwards like any other.
+        {{ t('administration.loadStandardFormsDialog.description') }}
       </p>
 
       <EmptyState
         v-if="authorities.length === 0"
-        title="Add an authority first"
-        description="These forms need to be filed under an authority (e.g. an 'Internal' authority for the engineering office itself) before they can be imported."
+        :title="t('administration.loadStandardFormsDialog.noAuthorityTitle')"
+        :description="t('administration.loadStandardFormsDialog.noAuthorityDescription')"
       />
 
       <template v-else>
-        <SelectBox v-model="selectedAuthorityId" label="File Under Authority" :options="authorityOptions" required />
+        <SelectBox v-model="selectedAuthorityId" :label="t('administration.loadStandardFormsDialog.fileUnderAuthority')" :options="authorityOptions" required />
 
         <div class="flex flex-col rounded-lg border border-border-light">
           <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-            Standard Forms ({{ availableForms.length }})
+            {{ t('administration.loadStandardFormsDialog.standardFormsCount', { count: availableForms.length }) }}
           </div>
           <div class="max-h-96 overflow-y-auto p-2">
             <div
@@ -103,7 +105,7 @@ function handleImport(): void {
                 <p class="text-sm font-medium text-text-secondary">{{ form.title }}</p>
                 <p class="text-xs text-text-muted">
                   {{ form.formCode }} · {{ form.category }}
-                  <span v-if="form.alreadyAdded"> · Already added</span>
+                  <span v-if="form.alreadyAdded"> · {{ t('administration.loadStandardFormsDialog.alreadyAdded') }}</span>
                 </p>
               </div>
             </div>
@@ -113,13 +115,13 @@ function handleImport(): void {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" :disabled="importing" @click="closeDialog">Cancel</BaseButton>
+      <BaseButton variant="secondary" :disabled="importing" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
       <BaseButton
         :loading="importing"
         :disabled="authorities.length === 0 || !selectedAuthorityId || selectedFormCodes.length === 0"
         @click="handleImport"
       >
-        Add {{ selectedFormCodes.length }} Form{{ selectedFormCodes.length === 1 ? '' : 's' }}
+        {{ t('administration.loadStandardFormsDialog.addForms', selectedFormCodes.length) }}
       </BaseButton>
     </template>
   </BaseDialog>

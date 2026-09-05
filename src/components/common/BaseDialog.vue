@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
@@ -38,6 +39,7 @@ const sizeClasses: Record<ComponentSize, string> = {
   lg: 'max-w-4xl',
 }
 
+const { t } = useI18n()
 const panelRef = ref<HTMLElement>()
 
 const closeDialog = (): void => {
@@ -83,7 +85,7 @@ onBeforeUnmount(() => {
       >
         <div v-if="title || closable" class="flex shrink-0 items-center justify-between border-b border-border-light px-6 py-4">
           <h2 v-if="title" class="text-lg font-semibold text-text-primary">{{ title }}</h2>
-          <IconButton v-if="closable" :icon="X" label="Close dialog" size="sm" @click="closeDialog" />
+          <IconButton v-if="closable" :icon="X" :label="t('common.closeDialog')" size="sm" @click="closeDialog" />
         </div>
         <!-- The actual scroll fix: previously nothing in this component had
              overflow-y set anywhere, and the body scroll was deliberately

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
@@ -11,11 +12,11 @@ import type { AppUser, UserRole } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
 
 const ROLE_OPTIONS: SelectOption[] = [
-  { label: 'Administrator', value: 'Administrator' },
-  { label: 'Project Manager', value: 'Project Manager' },
-  { label: 'Engineer', value: 'Engineer' },
-  { label: 'Document Controller', value: 'Document Controller' },
-  { label: 'Viewer', value: 'Viewer' },
+  { label: 'Administrator', value: 'Administrator', labelKey: 'administration.userRole.administrator' },
+  { label: 'Project Manager', value: 'Project Manager', labelKey: 'administration.userRole.projectManager' },
+  { label: 'Engineer', value: 'Engineer', labelKey: 'administration.userRole.engineer' },
+  { label: 'Document Controller', value: 'Document Controller', labelKey: 'administration.userRole.documentController' },
+  { label: 'Viewer', value: 'Viewer', labelKey: 'administration.userRole.viewer' },
 ]
 
 const props = defineProps<{
@@ -29,6 +30,8 @@ const emit = defineEmits<{
   save: [user: AppUser]
 }>()
 
+const { t } = useI18n()
+
 const name = ref('')
 const designation = ref('')
 const email = ref('')
@@ -39,7 +42,9 @@ const nameError = ref<string>()
 const emailError = ref<string>()
 
 const isEditMode = computed(() => Boolean(props.user))
-const dialogTitle = computed(() => (isEditMode.value ? 'Edit User' : 'Add User'))
+const dialogTitle = computed(() =>
+  isEditMode.value ? t('administration.userDialog.editTitle') : t('administration.userDialog.addTitle'),
+)
 
 function resetForm(): void {
   const source = props.user
@@ -100,24 +105,50 @@ function submitForm(): void {
 <template>
   <BaseDialog :model-value="modelValue" :title="dialogTitle" size="md" :closable="!saving" @update:model-value="closeDialog">
     <div class="flex flex-col gap-4">
-      <TextInput v-model="name" label="Full Name" placeholder="e.g. Sara Abdullah" required :error="nameError" />
-      <TextInput v-model="designation" label="Designation" placeholder="e.g. Document Controller" />
-      <TextInput v-model="email" type="email" label="Email" placeholder="name@almailam.ae" required :error="emailError" />
-      <TextInput v-model="mobile" type="tel" label="Mobile" placeholder="+965 5XXX XXXX" />
+      <TextInput
+        v-model="name"
+        :label="t('administration.userDialog.fullName')"
+        :placeholder="t('administration.userDialog.fullNamePlaceholder')"
+        required
+        :error="nameError"
+      />
+      <TextInput
+        v-model="designation"
+        :label="t('administration.userDialog.designation')"
+        :placeholder="t('administration.userDialog.designationPlaceholder')"
+      />
+      <TextInput
+        v-model="email"
+        type="email"
+        :label="t('administration.userDialog.email')"
+        :placeholder="t('administration.userDialog.emailPlaceholder')"
+        required
+        :error="emailError"
+      />
+      <TextInput
+        v-model="mobile"
+        type="tel"
+        :label="t('administration.userDialog.mobile')"
+        :placeholder="t('administration.userDialog.mobilePlaceholder')"
+      />
       <SelectBox
         :model-value="role"
-        label="Role"
-        placeholder="Select role"
+        :label="t('administration.userDialog.role')"
+        :placeholder="t('administration.userDialog.rolePlaceholder')"
         :options="ROLE_OPTIONS"
         required
         @update:model-value="role = $event as UserRole"
       />
-      <ToggleSwitch v-model="isActive" label="Active" hint="Inactive users cannot sign in." />
+      <ToggleSwitch
+        v-model="isActive"
+        :label="t('administration.userDialog.active')"
+        :hint="t('administration.userDialog.activeHint')"
+      />
     </div>
 
     <template #footer>
       <FormActionBar
-        :submit-label="isEditMode ? 'Save Changes' : 'Add User'"
+        :submit-label="isEditMode ? t('administration.userDialog.saveChanges') : t('administration.userDialog.addUser')"
         :loading="saving"
         @submit="submitForm"
         @cancel="closeDialog"

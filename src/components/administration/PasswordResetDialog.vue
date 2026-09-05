@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, Copy, KeyRound } from '@lucide/vue'
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -19,9 +20,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Password Reset',
+  title: undefined,
   heading: undefined,
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -45,23 +48,23 @@ async function copyPassword(): Promise<void> {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="title"
+    :title="title ?? t('administration.passwordResetDialog.title')"
     size="sm"
     :closable="false"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="flex flex-col items-center gap-3 py-2 text-center">
       <KeyRound class="h-12 w-12 shrink-0 text-success-500" />
-      <h2 class="text-lg font-semibold text-text-primary">{{ heading ?? `Password reset for ${userName}` }}</h2>
+      <h2 class="text-lg font-semibold text-text-primary">{{ heading ?? t('administration.passwordResetDialog.heading', { name: userName }) }}</h2>
       <p class="text-sm text-text-secondary">
-        Share this new password with the user securely. It will not be shown again.
+        {{ t('administration.passwordResetDialog.shareNotice') }}
       </p>
 
       <div class="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-border-default bg-bg-card px-4 py-3">
         <span class="select-all font-mono text-base tracking-wide text-text-primary">{{ password }}</span>
         <IconButton
           :icon="copied ? Check : Copy"
-          :label="copied ? 'Copied' : 'Copy password'"
+          :label="copied ? t('administration.passwordResetDialog.copied') : t('administration.passwordResetDialog.copyPassword')"
           size="sm"
           @click="copyPassword"
         />
@@ -69,7 +72,7 @@ async function copyPassword(): Promise<void> {
     </div>
 
     <template #footer>
-      <BaseButton class="w-full" @click="emit('update:modelValue', false)">Done</BaseButton>
+      <BaseButton class="w-full" @click="emit('update:modelValue', false)">{{ t('common.done') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>
