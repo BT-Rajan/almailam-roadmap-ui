@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Pencil } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -30,14 +31,16 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
   'in-progress': 'border-info-500 bg-bg-card text-info-600',
   upcoming: 'border-border-default bg-bg-card text-text-muted',
 }
+
+const { t } = useI18n()
 </script>
 
 <template>
   <Card>
     <EmptyState
       v-if="events.length === 0"
-      title="No timeline activity"
-      description="Activity for this project will appear here as it happens."
+      :title="t('project.timeline.emptyTitle')"
+      :description="t('project.timeline.emptyDescription')"
     />
     <ol v-else class="flex flex-col">
       <li v-for="(event, index) in events" :key="event.id" class="group flex gap-4">
@@ -61,7 +64,7 @@ const DOT_STATUS_CLASSES: Record<TimelineEventStatus, string> = {
             <IconButton
               v-if="editable"
               :icon="Pencil"
-              :label="`Edit update: ${event.title}`"
+              :label="t('project.timeline.editUpdate', { title: event.title })"
               size="sm"
               class="opacity-0 transition-opacity duration-fast no-print group-hover:opacity-100 group-focus-within:opacity-100"
               @click="$emit('edit', event)"

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import Alert from '@/components/common/Alert.vue'
 import type { ClientDuplicateMatch } from '@/types/Client'
 import { getClientDisplayName } from '@/utils/clientHelpers'
@@ -10,14 +12,16 @@ defineProps<{
 defineEmits<{
   view: [clientId: string]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <div v-if="matches.length > 0" class="flex flex-col gap-2">
     <Alert
       variant="warning"
-      title="Possible existing client found"
-      :description="`This client may already exist in the system. Review the matches below before creating a new profile.`"
+      :title="t('client.duplicateAlert.title')"
+      :description="t('client.duplicateAlert.description')"
     />
     <ul class="flex flex-col gap-2">
       <li
@@ -27,15 +31,15 @@ defineEmits<{
       >
         <div class="flex flex-col">
           <span class="text-sm font-medium text-text-primary">{{ getClientDisplayName(match.client) }}</span>
-          <span class="text-xs text-text-muted">Matched on {{ match.matchedOn.join(', ') }} · {{ match.client.code }}</span>
+          <span class="text-xs text-text-muted">{{ t('client.duplicateAlert.matchedOn', { fields: match.matchedOn.join(', '), code: match.client.code }) }}</span>
         </div>
         <button
           type="button"
-          :aria-label="`View profile for ${getClientDisplayName(match.client)}`"
+          :aria-label="t('client.duplicateAlert.viewProfileFor', { name: getClientDisplayName(match.client) })"
           class="rounded text-xs font-medium text-primary-600 hover:text-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           @click="$emit('view', match.client.id)"
         >
-          View Profile
+          {{ t('client.duplicateAlert.viewProfile') }}
         </button>
       </li>
     </ul>

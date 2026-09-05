@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -40,11 +41,12 @@ const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
-const LANGUAGE_OPTIONS: SelectOption[] = [
-  { label: 'English', value: 'English' },
-  { label: 'Arabic', value: 'Arabic' },
-]
+const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('governmentFormOptions.language.english'), value: 'English' },
+  { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
+])
 // Which of the two per-type default templates (English/Arabic) Print/
 // Download/Email use -- seeded from the company-wide default language
 // once it loads, but overridable per document afterward without
@@ -248,7 +250,7 @@ function handleAdvanceToPaymentPlan(): void {
 
 <template>
   <div class="flex items-center justify-between">
-    <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">New Quotation</BaseButton>
+    <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <BaseButton
         v-if="
@@ -260,7 +262,7 @@ function handleAdvanceToPaymentPlan(): void {
         :icon="ArrowRight"
         @click="handleAdvanceToPaymentPlan"
       >
-        Advance to Payment Plan
+        {{ t('project.quotationTab.advanceToPaymentPlan') }}
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation && hasStatusOptions"
@@ -269,7 +271,7 @@ function handleAdvanceToPaymentPlan(): void {
         :icon="ArrowLeftRight"
         @click="isStatusDialogOpen = true"
       >
-        Change Status
+        {{ t('project.quotationTab.changeStatus') }}
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation?.status === 'Draft'"
@@ -279,7 +281,7 @@ function handleAdvanceToPaymentPlan(): void {
         :loading="isFinalizing"
         @click="handleFinalizeToggle"
       >
-        {{ quotationStore.selectedQuotation.finalizedAt ? 'Reopen for Editing' : 'Save as Final' }}
+        {{ quotationStore.selectedQuotation.finalizedAt ? t('project.quotationTab.reopenForEditing') : t('project.quotationTab.saveAsFinal') }}
       </BaseButton>
       <SelectBox v-if="quotationStore.selectedQuotation" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
       <BaseButton
@@ -290,7 +292,7 @@ function handleAdvanceToPaymentPlan(): void {
         :loading="isPrinting"
         @click="handlePrint"
       >
-        Print Quotation
+        {{ t('project.quotationTab.printQuotation') }}
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation"
@@ -300,7 +302,7 @@ function handleAdvanceToPaymentPlan(): void {
         :loading="isDownloadingDocument"
         @click="handleDownloadDocument"
       >
-        Download Document
+        {{ t('project.quotationTab.downloadDocument') }}
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation"
@@ -309,7 +311,7 @@ function handleAdvanceToPaymentPlan(): void {
         :icon="Mail"
         @click="openEmailDialog"
       >
-        Email Quotation
+        {{ t('project.quotationTab.emailQuotation') }}
       </BaseButton>
     </div>
   </div>
@@ -326,9 +328,9 @@ function handleAdvanceToPaymentPlan(): void {
     <div class="laptop:col-span-2 print:col-span-3">
       <EmptyState
         v-if="!quotationStore.selectedQuotation"
-        title="No quotation selected"
-        description="Select a quotation from the list to preview it, or create a new one."
-        action-label="New Quotation"
+        :title="t('project.quotationTab.noQuotationSelectedTitle')"
+        :description="t('project.quotationTab.noQuotationSelectedDescription')"
+        :action-label="t('project.quotationTab.newQuotation')"
         @action="isCreateDialogOpen = true"
       />
       <QuotationPreview

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -17,6 +18,7 @@ import type { SmartTableColumn } from '@/types/Table'
 
 const router = useRouter()
 const store = usePaymentStore()
+const { t } = useI18n()
 
 interface AgreementTableRow {
   [key: string]: unknown
@@ -34,18 +36,18 @@ interface AgreementTableRow {
   nextPaymentStatus: string
 }
 
-const COLUMNS: SmartTableColumn<AgreementTableRow>[] = [
-  { key: 'projectName', label: 'Project', sortable: true },
-  { key: 'stream', label: 'Stream', sortable: true },
-  { key: 'clientName', label: 'Client', sortable: true },
-  { key: 'contractAmount', label: 'Contract Value', align: 'right', sortable: true },
-  { key: 'totalReceived', label: 'Received', align: 'right', sortable: true },
-  { key: 'totalPending', label: 'Pending', align: 'right', sortable: true },
-  { key: 'totalOverdue', label: 'Overdue', align: 'right', sortable: true },
-  { key: 'nextPaymentAmount', label: 'Next Payment', align: 'right' },
-  { key: 'nextPaymentDate', label: 'Next Payment Date' },
-  { key: 'nextPaymentStatus', label: 'Status' },
-]
+const COLUMNS = computed<SmartTableColumn<AgreementTableRow>[]>(() => [
+  { key: 'projectName', label: t('payment.paymentsPage.columns.project'), sortable: true },
+  { key: 'stream', label: t('payment.paymentsPage.columns.stream'), sortable: true },
+  { key: 'clientName', label: t('payment.paymentsPage.columns.client'), sortable: true },
+  { key: 'contractAmount', label: t('payment.paymentsPage.columns.contractValue'), align: 'right', sortable: true },
+  { key: 'totalReceived', label: t('payment.paymentsPage.columns.received'), align: 'right', sortable: true },
+  { key: 'totalPending', label: t('payment.paymentsPage.columns.pending'), align: 'right', sortable: true },
+  { key: 'totalOverdue', label: t('payment.paymentsPage.columns.overdue'), align: 'right', sortable: true },
+  { key: 'nextPaymentAmount', label: t('payment.paymentsPage.columns.nextPayment'), align: 'right' },
+  { key: 'nextPaymentDate', label: t('payment.paymentsPage.columns.nextPaymentDate') },
+  { key: 'nextPaymentStatus', label: t('payment.paymentsPage.columns.status') },
+])
 
 const rows = computed<AgreementTableRow[]>(() =>
   store.filteredAgreementRows.map(({ agreement, project, client, summary }) => {
@@ -53,9 +55,9 @@ const rows = computed<AgreementTableRow[]>(() =>
     return {
       id: agreement.id,
       projectId: agreement.projectId,
-      projectName: project?.projectName ?? 'Unknown Project',
+      projectName: project?.projectName ?? t('project.unknownProject'),
       stream: agreement.stream,
-      clientName: client?.companyName ?? 'Unknown Client',
+      clientName: client?.companyName ?? t('project.unknownClient'),
       contractAmount: summary.contractAmount,
       totalReceived: summary.totalReceived,
       totalPending: summary.totalPending,
@@ -80,18 +82,40 @@ function loadData(): void {
   void store.loadAll()
 }
 
+const AGREEMENT_STREAM_LABEL_KEYS: Record<string, string> = {
+  Design: 'payment.agreementStream.design',
+  Supervision: 'payment.agreementStream.supervision',
+}
+function streamLabel(stream: string): string {
+  return t(AGREEMENT_STREAM_LABEL_KEYS[stream] ?? stream)
+}
+
+const OBLIGATION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Scheduled: 'payment.obligationStatus.scheduled',
+  Due: 'payment.obligationStatus.due',
+  'Partially Paid': 'payment.obligationStatus.partiallyPaid',
+  Paid: 'payment.obligationStatus.paid',
+  Overdue: 'payment.obligationStatus.overdue',
+  'Partially Overdue': 'payment.obligationStatus.partiallyOverdue',
+  Cancelled: 'payment.obligationStatus.cancelled',
+  Waived: 'payment.obligationStatus.waived',
+}
+function obligationStatusLabel(status: string): string {
+  return t(OBLIGATION_STATUS_LABEL_KEYS[status] ?? status)
+}
+
 onMounted(loadData)
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader title="Payments" subtitle="Contract values, collections, and outstanding balances across every project." />
+    <PageHeader :title="t('payment.paymentsPage.title')" :subtitle="t('payment.paymentsPage.subtitle')" />
 
     <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
-      <InfoPanel label="Total Contract Value" :value="formatCurrency(store.portfolioSummary.contractAmount, 'KWD')" color="primary" />
-      <InfoPanel label="Total Received" :value="formatCurrency(store.portfolioSummary.totalReceived, 'KWD')" color="success" />
-      <InfoPanel label="Total Pending" :value="formatCurrency(store.portfolioSummary.totalPending, 'KWD')" color="warning" />
-      <InfoPanel label="Total Overdue" :value="formatCurrency(store.portfolioSummary.totalOverdue, 'KWD')" :color="store.portfolioSummary.totalOverdue > 0 ? 'danger' : 'neutral'" />
+      <InfoPanel :label="t('payment.paymentsPage.totalContractValue')" :value="formatCurrency(store.portfolioSummary.contractAmount, 'KWD')" color="primary" />
+      <InfoPanel :label="t('payment.paymentsPage.totalReceived')" :value="formatCurrency(store.portfolioSummary.totalReceived, 'KWD')" color="success" />
+      <InfoPanel :label="t('payment.paymentsPage.totalPending')" :value="formatCurrency(store.portfolioSummary.totalPending, 'KWD')" color="warning" />
+      <InfoPanel :label="t('payment.paymentsPage.totalOverdue')" :value="formatCurrency(store.portfolioSummary.totalOverdue, 'KWD')" :color="store.portfolioSummary.totalOverdue > 0 ? 'danger' : 'neutral'" />
     </div>
 
     <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
@@ -103,12 +127,12 @@ onMounted(loadData)
       row-key="id"
       :loading="store.isLoading"
       :searchable="false"
-      empty-title="No financial agreements yet"
-      empty-description="Financial agreements created from a project's Payment Plan step will appear here."
+      :empty-title="t('payment.paymentsPage.emptyTitle')"
+      :empty-description="t('payment.paymentsPage.emptyDescription')"
       @row-click="goToProjectPayments"
     >
       <template #cell-stream="{ value }">
-        <StatusBadge :label="value as string" :variant="(value as string) === 'Supervision' ? 'info' : 'neutral'" />
+        <StatusBadge :label="streamLabel(value as string)" :variant="(value as string) === 'Supervision' ? 'info' : 'neutral'" />
       </template>
       <template #cell-contractAmount="{ row, value }">
         {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
@@ -135,7 +159,7 @@ onMounted(loadData)
         </span>
       </template>
       <template #cell-nextPaymentStatus="{ value }">
-        <StatusBadge :label="value as string" :variant="getObligationStatusVariant(value as ObligationStatus)" />
+        <StatusBadge :label="obligationStatusLabel(value as string)" :variant="getObligationStatusVariant(value as ObligationStatus)" />
       </template>
     </SmartTable>
   </div>

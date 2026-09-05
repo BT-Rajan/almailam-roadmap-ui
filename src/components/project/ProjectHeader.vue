@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Building2, Pencil, Plus, RefreshCw, Trash2, User, Workflow } from '@lucide/vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -14,7 +16,7 @@ interface Props {
   client?: Client
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   client: undefined,
 })
 
@@ -25,6 +27,33 @@ defineEmits<{
   'add-service': []
   delete: []
 }>()
+
+const { t } = useI18n()
+
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+const stageLabel = computed(() => t(STAGE_LABEL_KEYS[props.project.currentStage] ?? getWorkflowStageLabel(props.project.currentStage)))
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'project.status.active',
+  'On Hold': 'project.status.onHold',
+  Cancelled: 'project.status.cancelled',
+}
+const statusLabel = computed(() => t(STATUS_LABEL_KEYS[props.project.status] ?? props.project.status))
+
+const PRIORITY_BADGE_LABEL_KEYS: Record<string, string> = {
+  High: 'project.priorityBadge.high',
+  Medium: 'project.priorityBadge.medium',
+  Low: 'project.priorityBadge.low',
+}
+const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.project.priority] ?? props.project.priority))
 </script>
 
 <template>
@@ -46,19 +75,19 @@ defineEmits<{
       </div>
 
       <div class="flex shrink-0 flex-wrap items-center gap-2">
-        <StatusBadge :label="getWorkflowStageLabel(project.currentStage)" variant="info" />
-        <StatusBadge :label="project.status" :variant="getProjectStatusVariant(project.status)" />
-        <StatusBadge :label="`${project.priority} Priority`" :variant="getProjectPriorityVariant(project.priority)" />
-        <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">Stage</BaseButton>
-        <BaseButton variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">Status</BaseButton>
-        <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">Add Service</BaseButton>
-        <IconButton :icon="Pencil" label="Edit project" size="sm" class="no-print" @click="$emit('edit')" />
-        <IconButton :icon="Trash2" label="Delete project" size="sm" class="no-print" @click="$emit('delete')" />
+        <StatusBadge :label="stageLabel" variant="info" />
+        <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" />
+        <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
+        <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton>
+        <BaseButton variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton>
+        <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton>
+        <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
+        <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />
       </div>
     </div>
 
     <div class="flex items-center gap-3">
-      <span class="w-24 shrink-0 text-xs font-medium text-text-muted">Progress</span>
+      <span class="w-24 shrink-0 text-xs font-medium text-text-muted">{{ t('project.header.progress') }}</span>
       <div class="max-w-md flex-1">
         <ProgressBar :value="project.progress" show-label />
       </div>

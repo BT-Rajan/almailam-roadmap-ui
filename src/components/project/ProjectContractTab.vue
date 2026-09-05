@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -37,11 +38,12 @@ const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
-const LANGUAGE_OPTIONS: SelectOption[] = [
-  { label: 'English', value: 'English' },
-  { label: 'Arabic', value: 'Arabic' },
-]
+const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
+  { label: t('governmentFormOptions.language.english'), value: 'English' },
+  { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
+])
 // See ProjectQuotationTab.vue's documentLanguage for why this is seeded
 // once from the company default and then left alone.
 const documentLanguage = ref<AppLanguage>(companyStore.settings?.defaultLanguage ?? 'English')
@@ -275,7 +277,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
 
 <template>
   <div class="flex items-center justify-between no-print">
-    <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">New Contract</BaseButton>
+    <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
     <div class="flex items-center gap-2">
       <BaseButton
         v-if="contractStore.selectedContract && hasStatusOptions"
@@ -284,7 +286,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :icon="ArrowLeftRight"
         @click="isStatusDialogOpen = true"
       >
-        Change Status
+        {{ t('project.contractTab.changeStatus') }}
       </BaseButton>
       <BaseButton
         v-if="contractStore.selectedContract?.status === 'Draft'"
@@ -294,7 +296,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :loading="isFinalizing"
         @click="handleFinalizeToggle"
       >
-        {{ contractStore.selectedContract.finalizedAt ? 'Reopen for Editing' : 'Save as Final' }}
+        {{ contractStore.selectedContract.finalizedAt ? t('project.contractTab.reopenForEditing') : t('project.contractTab.saveAsFinal') }}
       </BaseButton>
       <SelectBox v-if="contractStore.selectedContract" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
       <BaseButton
@@ -305,7 +307,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :loading="isPrinting"
         @click="handlePrint"
       >
-        Print Contract
+        {{ t('project.contractTab.printContract') }}
       </BaseButton>
       <BaseButton
         v-if="contractStore.selectedContract"
@@ -315,7 +317,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :loading="isDownloadingDocument"
         @click="handleDownloadDocument"
       >
-        Download Document
+        {{ t('project.contractTab.downloadDocument') }}
       </BaseButton>
       <BaseButton
         v-if="contractStore.selectedContract"
@@ -324,7 +326,7 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :icon="Mail"
         @click="openEmailDialog"
       >
-        Email Contract
+        {{ t('project.contractTab.emailContract') }}
       </BaseButton>
     </div>
   </div>
@@ -339,9 +341,9 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
 
   <EmptyState
     v-if="!contractStore.selectedContract"
-    title="No contract selected"
-    :description="contractStore.contracts.length === 0 ? 'Create the first contract for this project.' : 'Select a contract from the list to preview it.'"
-    :action-label="contractStore.contracts.length === 0 ? 'New Contract' : undefined"
+    :title="t('project.contractTab.noContractSelectedTitle')"
+    :description="contractStore.contracts.length === 0 ? t('project.contractTab.createFirstContract') : t('project.contractTab.selectFromList')"
+    :action-label="contractStore.contracts.length === 0 ? t('project.contractTab.newContract') : undefined"
     @action="openCreateDialog"
   />
 

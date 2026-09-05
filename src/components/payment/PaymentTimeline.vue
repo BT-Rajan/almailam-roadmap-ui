@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   waive: [obligation: PaymentObligation]
 }>()
 
+const { t } = useI18n()
+
 interface ObligationRow {
   [key: string]: unknown
   id: string
@@ -36,15 +39,29 @@ interface ObligationRow {
   status: string
 }
 
-const COLUMNS: SmartTableColumn<ObligationRow>[] = [
-  { key: 'sequenceNumber', label: '#', width: '48px' },
-  { key: 'description', label: 'Payment' },
-  { key: 'dueDate', label: 'Due Date' },
-  { key: 'amountDue', label: 'Amount', align: 'right' },
-  { key: 'amountReceived', label: 'Received', align: 'right' },
-  { key: 'amountPending', label: 'Pending', align: 'right' },
-  { key: 'status', label: 'Status' },
-]
+const COLUMNS = computed<SmartTableColumn<ObligationRow>[]>(() => [
+  { key: 'sequenceNumber', label: t('payment.timeline.columns.number'), width: '48px' },
+  { key: 'description', label: t('payment.timeline.columns.payment') },
+  { key: 'dueDate', label: t('payment.timeline.columns.dueDate') },
+  { key: 'amountDue', label: t('payment.timeline.columns.amount'), align: 'right' },
+  { key: 'amountReceived', label: t('payment.timeline.columns.received'), align: 'right' },
+  { key: 'amountPending', label: t('payment.timeline.columns.pending'), align: 'right' },
+  { key: 'status', label: t('payment.timeline.columns.status') },
+])
+
+const OBLIGATION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Scheduled: 'payment.obligationStatus.scheduled',
+  Due: 'payment.obligationStatus.due',
+  'Partially Paid': 'payment.obligationStatus.partiallyPaid',
+  Paid: 'payment.obligationStatus.paid',
+  Overdue: 'payment.obligationStatus.overdue',
+  'Partially Overdue': 'payment.obligationStatus.partiallyOverdue',
+  Cancelled: 'payment.obligationStatus.cancelled',
+  Waived: 'payment.obligationStatus.waived',
+}
+function obligationStatusLabel(status: string): string {
+  return t(OBLIGATION_STATUS_LABEL_KEYS[status] ?? status)
+}
 
 const rows = computed<ObligationRow[]>(() =>
   props.obligations.map((obligation) => ({
@@ -75,7 +92,7 @@ function isOverdueRow(status: string): boolean {
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">Payment Timeline</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('payment.timeline.title') }}</h3>
     </template>
 
     <SmartTable :columns="COLUMNS" :rows="rows" row-key="id" :searchable="false">
@@ -94,13 +111,13 @@ function isOverdueRow(status: string): boolean {
         </span>
       </template>
       <template #cell-status="{ value }">
-        <StatusBadge :label="value as string" :variant="getObligationStatusVariant(value as ObligationStatus)" />
+        <StatusBadge :label="obligationStatusLabel(value as string)" :variant="getObligationStatusVariant(value as ObligationStatus)" />
       </template>
       <template #row-actions="{ row }">
         <div v-if="!isSettled((row as ObligationRow).status)" class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="emit('recordPayment', getObligation(row as ObligationRow)!)">Record Payment</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click="emit('waive', getObligation(row as ObligationRow)!)">Waive</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click="emit('cancel', getObligation(row as ObligationRow)!)">Cancel</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="emit('recordPayment', getObligation(row as ObligationRow)!)">{{ t('payment.timeline.recordPayment') }}</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="emit('waive', getObligation(row as ObligationRow)!)">{{ t('payment.timeline.waive') }}</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="emit('cancel', getObligation(row as ObligationRow)!)">{{ t('payment.timeline.cancel') }}</BaseButton>
         </div>
       </template>
     </SmartTable>

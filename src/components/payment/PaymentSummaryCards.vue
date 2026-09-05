@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, Banknote, CalendarClock, CheckCircle2, FileSpreadsheet, Wallet } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import InfoPanel from '@/components/common/InfoPanel.vue'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -14,19 +15,21 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { t } = useI18n()
+
 const nextPaymentValue = computed(() => {
-  if (!props.summary.nextPaymentObligation) return 'Fully settled'
+  if (!props.summary.nextPaymentObligation) return t('payment.summaryCards.fullySettled')
   return formatCurrency(props.summary.nextPaymentObligation.amountDue - props.summary.nextPaymentObligation.amountReceived, props.currency)
 })
 
 const nextPaymentDateLabel = computed(() => {
-  if (!props.summary.nextPaymentObligation) return 'No outstanding obligations'
+  if (!props.summary.nextPaymentObligation) return t('payment.summaryCards.noOutstandingObligations')
   const dueLabel = formatDate(props.summary.nextPaymentObligation.dueDate)
   if (props.summary.nextPaymentIsOverdue) {
     const daysOverdue = Math.abs(props.summary.nextPaymentDaysUntilDue ?? 0)
-    return `OVERDUE — ${dueLabel} (${daysOverdue} day${daysOverdue === 1 ? '' : 's'} overdue)`
+    return t('payment.summaryCards.overdueBy', { date: dueLabel, days: daysOverdue }, daysOverdue)
   }
-  return `Due ${dueLabel}`
+  return t('payment.summaryCards.due', { date: dueLabel })
 })
 
 // Waived/cancelled obligations and adjustment drift are excluded from
@@ -42,20 +45,20 @@ const hasScheduleVariance = computed(() => Math.abs(props.summary.scheduleVarian
   <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3 desktop:grid-cols-6">
     <InfoPanel
       v-if="summary.estimateAmount !== null"
-      label="Estimate Amount"
+      :label="t('payment.summaryCards.estimateAmount')"
       :value="formatCurrency(summary.estimateAmount, currency)"
       :icon="FileSpreadsheet"
       color="neutral"
     />
-    <InfoPanel label="Contract Value" :value="formatCurrency(summary.contractAmount, currency)" :icon="Wallet" color="primary" />
-    <InfoPanel label="Total Received" :value="formatCurrency(summary.totalReceived, currency)" :icon="CheckCircle2" color="success" />
-    <InfoPanel label="Total Pending" :value="formatCurrency(summary.totalPending, currency)" :icon="Banknote" color="warning" />
-    <InfoPanel label="Total Overdue" :value="formatCurrency(summary.totalOverdue, currency)" :icon="AlertTriangle" :color="summary.totalOverdue > 0 ? 'danger' : 'neutral'" />
-    <InfoPanel label="Next Payment" :value="nextPaymentValue" :icon="CalendarClock" :color="summary.nextPaymentIsOverdue ? 'danger' : 'info'" />
+    <InfoPanel :label="t('payment.summaryCards.contractValue')" :value="formatCurrency(summary.contractAmount, currency)" :icon="Wallet" color="primary" />
+    <InfoPanel :label="t('payment.summaryCards.totalReceived')" :value="formatCurrency(summary.totalReceived, currency)" :icon="CheckCircle2" color="success" />
+    <InfoPanel :label="t('payment.summaryCards.totalPending')" :value="formatCurrency(summary.totalPending, currency)" :icon="Banknote" color="warning" />
+    <InfoPanel :label="t('payment.summaryCards.totalOverdue')" :value="formatCurrency(summary.totalOverdue, currency)" :icon="AlertTriangle" :color="summary.totalOverdue > 0 ? 'danger' : 'neutral'" />
+    <InfoPanel :label="t('payment.summaryCards.nextPayment')" :value="nextPaymentValue" :icon="CalendarClock" :color="summary.nextPaymentIsOverdue ? 'danger' : 'info'" />
   </div>
   <p v-if="summary.nextPaymentObligation" class="mt-2 text-xs" :class="summary.nextPaymentIsOverdue ? 'font-medium text-danger-600' : 'text-text-muted'">
     {{ nextPaymentDateLabel }}
   </p>
-  <p v-if="totalForgiven > 0" class="mt-1 text-xs text-text-muted">{{ formatCurrency(totalForgiven, currency) }} waived/cancelled — excluded from Pending.</p>
-  <p v-if="hasScheduleVariance" class="mt-1 text-xs text-text-muted">Schedule differs from Contract Value by {{ formatCurrency(Math.abs(summary.scheduleVariance), currency) }} due to adjustments.</p>
+  <p v-if="totalForgiven > 0" class="mt-1 text-xs text-text-muted">{{ t('payment.summaryCards.waivedCancelledExcluded', { amount: formatCurrency(totalForgiven, currency) }) }}</p>
+  <p v-if="hasScheduleVariance" class="mt-1 text-xs text-text-muted">{{ t('payment.summaryCards.scheduleVarianceNote', { amount: formatCurrency(Math.abs(summary.scheduleVariance), currency) }) }}</p>
 </template>

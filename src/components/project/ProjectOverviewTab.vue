@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -55,6 +56,7 @@ const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 // Scope, Project Details, and Client Details are only useful while the
 // project is still being set up -- once it's past Quotation, staff are
@@ -62,23 +64,45 @@ const toastStore = useToastStore()
 // same block on every stage's Overview was reported as noise.
 const showScopeAndDetails = computed(() => props.stageContext === 'Requirement' || props.stageContext === 'Quotation')
 
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+function stageLabel(stage: string): string {
+  return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
+}
+
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  High: 'project.priority.high',
+  Medium: 'project.priority.medium',
+  Low: 'project.priority.low',
+}
+function priorityLabel(priority: string): string {
+  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
+}
+
 const projectDetailItems = computed(() => [
-  { label: 'Service', value: props.project.service },
-  { label: 'Field Engineer', value: props.project.engineer },
-  { label: 'Start Date', value: formatDate(props.project.startDate) },
-  { label: 'Target Completion Date', value: formatDate(props.project.targetDate) },
-  { label: 'Current Stage', value: getWorkflowStageLabel(props.project.currentStage) },
-  { label: 'Priority', value: props.project.priority },
+  { label: t('project.overviewTab.fields.service'), value: props.project.service },
+  { label: t('project.overviewTab.fields.fieldEngineer'), value: props.project.engineer },
+  { label: t('project.overviewTab.fields.startDate'), value: formatDate(props.project.startDate) },
+  { label: t('project.overviewTab.fields.targetCompletionDate'), value: formatDate(props.project.targetDate) },
+  { label: t('project.overviewTab.fields.currentStage'), value: stageLabel(props.project.currentStage) },
+  { label: t('project.overviewTab.fields.priority'), value: priorityLabel(props.project.priority) },
 ])
 
 const clientDetailItems = computed(() => {
   if (!props.client) return []
   return [
-    { label: 'Company Name', value: props.client.companyName },
-    { label: 'Contact Person', value: props.client.contactPerson },
-    { label: 'Mobile', value: props.client.mobile },
-    { label: 'Email', value: props.client.email },
-    { label: 'City', value: props.client.city },
+    { label: t('project.overviewTab.fields.companyName'), value: props.client.companyName },
+    { label: t('project.overviewTab.fields.contactPerson'), value: props.client.contactPerson },
+    { label: t('project.overviewTab.fields.mobile'), value: props.client.mobile },
+    { label: t('project.overviewTab.fields.email'), value: props.client.email },
+    { label: t('project.overviewTab.fields.city'), value: props.client.city },
   ]
 })
 
@@ -207,18 +231,76 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
   if (dates.length === 0) return undefined
   return dates.reduce((latest, current) => (new Date(current) > new Date(latest) ? current : latest))
 }
+
+const SCOPE_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'project.scopeStatus.draft',
+  Approved: 'project.scopeStatus.approved',
+}
+function scopeStatusLabel(status: string): string {
+  return t(SCOPE_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'project.quotationStatus.draft',
+  Approved: 'project.quotationStatus.approved',
+  Rejected: 'project.quotationStatus.rejected',
+  Expired: 'project.quotationStatus.expired',
+}
+function quotationStatusLabel(status: string): string {
+  return t(QUOTATION_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const AGREEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'project.agreementStatus.draft',
+  Approved: 'project.agreementStatus.approved',
+}
+function agreementStatusLabel(status: string): string {
+  return t(AGREEMENT_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const DOCUMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'project.documentStatus.draft',
+  'Under Review': 'project.documentStatus.underReview',
+  Approved: 'project.documentStatus.approved',
+  Rejected: 'project.documentStatus.rejected',
+}
+function documentStatusLabel(status: string): string {
+  return t(DOCUMENT_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const SUBMISSION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Draft: 'project.submissionStatus.draft',
+  Submitted: 'project.submissionStatus.submitted',
+  'Under Review': 'project.submissionStatus.underReview',
+  'Comments Received': 'project.submissionStatus.commentsReceived',
+  Approved: 'project.submissionStatus.approved',
+  Rejected: 'project.submissionStatus.rejected',
+  Withdrawn: 'project.submissionStatus.withdrawn',
+}
+function submissionStatusLabel(status: string): string {
+  return t(SUBMISSION_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const VERIFICATION_RESULT_LABEL_KEYS: Record<string, string> = {
+  Verified: 'clientOptions.verificationResult.verified',
+  Rejected: 'clientOptions.verificationResult.rejected',
+  Pending: 'clientOptions.verificationResult.pending',
+}
+function verificationResultLabel(result: string): string {
+  return t(VERIFICATION_RESULT_LABEL_KEYS[result] ?? result)
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
     <Card v-if="hasScope && showScopeAndDetails">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Scope</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.scopeTitle') }}</h3>
       </template>
       <p v-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
 
       <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Services</p>
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.servicesLabel') }}</p>
         <ul class="flex flex-col gap-1">
           <li
             v-for="item in project.selectedActivities"
@@ -232,10 +314,10 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
       </div>
 
       <div v-if="project.selectedSupervisionActivities && project.selectedSupervisionActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">Supervision (Monthly)</p>
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.supervisionMonthlyLabel') }}</p>
         <p class="mb-1.5 text-xs text-text-muted">
-          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : 'Not set' }} –
-          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : 'Ongoing' }}
+          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : t('project.overviewTab.notSet') }} –
+          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : t('project.overviewTab.ongoing') }}
         </p>
         <ul class="flex flex-col gap-1">
           <li
@@ -243,7 +325,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             :key="item.activityId"
             class="flex items-center justify-between gap-3 text-sm text-text-secondary"
           >
-            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ item.endDate ? formatDate(item.endDate) : 'Ongoing' }})</span>
+            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ item.endDate ? formatDate(item.endDate) : t('project.overviewTab.ongoing') }})</span>
             <span class="shrink-0 text-text-muted">{{ formatCurrency(item.monthlyRate) }}/mo</span>
           </li>
         </ul>
@@ -253,24 +335,24 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Requirement'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Requirement</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requirementTitle') }}</h3>
           <div class="flex items-center gap-2 no-print">
             <BaseButton
               v-if="project.scopeStatus === 'Approved' && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
               size="sm"
               @click="emit('navigate-tab', 'quotation')"
             >
-              Advance to Quotation
+              {{ t('project.overviewTab.advanceToQuotation') }}
             </BaseButton>
-            <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">Go to Requirement</BaseButton>
+            <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">{{ t('project.overviewTab.goToRequirement') }}</BaseButton>
           </div>
         </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm text-text-secondary">Scope of Work Status</span>
+          <span class="text-sm text-text-secondary">{{ t('project.overviewTab.scopeOfWorkStatus') }}</span>
           <StatusBadge
-            :label="project.scopeStatus"
+            :label="scopeStatusLabel(project.scopeStatus)"
             :variant="project.scopeStatus === 'Approved' ? 'success' : 'neutral'"
           />
         </div>
@@ -280,7 +362,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
           class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700"
         >
           <AlertTriangle class="h-4 w-4 shrink-0" />
-          <span>The client has no identification document on file yet -- required before moving on to Quotation.</span>
+          <span>{{ t('project.overviewTab.noClientIdWarning') }}</span>
         </div>
       </div>
     </Card>
@@ -288,34 +370,34 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Quotation'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Quotation</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">Go to Quotation</BaseButton>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.quotationTitle') }}</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">{{ t('project.overviewTab.goToQuotation') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm text-text-secondary">Quotation Status</span>
+          <span class="text-sm text-text-secondary">{{ t('project.overviewTab.quotationStatusLabel') }}</span>
           <StatusBadge
             v-if="latestQuotation"
-            :label="latestQuotation.status"
+            :label="quotationStatusLabel(latestQuotation.status)"
             :variant="latestQuotation.status === 'Approved' ? 'success' : latestQuotation.status === 'Rejected' ? 'danger' : 'neutral'"
           />
-          <span v-else class="text-sm text-text-muted">No quotation yet</span>
+          <span v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noQuotationYet') }}</span>
         </div>
 
         <div class="flex flex-col items-start justify-between gap-3 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 tablet:flex-row tablet:items-center">
           <div class="flex items-center gap-2 text-sm text-warning-700">
             <AlertTriangle class="h-4 w-4 shrink-0" />
-            <span>Civil ID verification is a must</span>
+            <span>{{ t('project.overviewTab.civilIdMustLabel') }}</span>
             <StatusBadge
               v-if="civilIdDocument"
-              :label="civilIdDocument.verificationStatus"
+              :label="verificationResultLabel(civilIdDocument.verificationStatus)"
               :variant="getClientVerificationVariant(civilIdDocument.verificationStatus)"
             />
-            <span v-else class="text-warning-700">-- not uploaded yet</span>
+            <span v-else class="text-warning-700">{{ t('project.overviewTab.notUploadedYet') }}</span>
           </div>
           <BaseButton v-if="civilIdDocument" variant="ghost" size="sm" class="no-print" @click="viewCivilIdDocument">
-            View Civil ID Attachment
+            {{ t('project.overviewTab.viewCivilId') }}
           </BaseButton>
         </div>
       </div>
@@ -324,22 +406,22 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Payment Plan'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Payment Plan</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.paymentPlanTitle') }}</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div>
-            <p class="text-xs text-text-muted">Quotation Number</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationNumber') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation?.quotationNo ?? '—' }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-muted">Quotation Date</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationDate') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation ? formatDate(paymentPlanQuotation.issueDate) : '—' }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-muted">Quotation Amount</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationAmount') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ paymentPlanQuotation ? formatCurrency(paymentPlanQuotation.amount) : '—' }}</p>
           </div>
         </div>
@@ -353,20 +435,18 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             <span class="text-sm text-text-secondary">{{ getAgreementStreamLabel(row.stream) }}</span>
             <StatusBadge
               v-if="row.agreement"
-              :label="row.agreement.status"
+              :label="agreementStatusLabel(row.agreement.status)"
               :variant="row.agreement.status === 'Approved' ? 'success' : 'warning'"
             />
-            <span v-else class="text-sm text-text-muted">Not created yet</span>
+            <span v-else class="text-sm text-text-muted">{{ t('project.overviewTab.notCreatedYet') }}</span>
           </div>
         </div>
         <p v-else class="text-sm text-text-muted">
-          This project has no Design or Supervision work selected yet, so there's no payment plan to create. Use
-          "Add Service" on the project header to select the work this quotation covers.
+          {{ t('project.overviewTab.noBillableWorkYet') }}
         </p>
 
         <p v-if="paymentPlanAgreements.length > 0" class="text-xs text-text-muted">
-          Design &amp; Permit is billed once, in up to 5 configurable installments; Supervision is billed monthly and
-          prorated automatically. Every part this project includes has to be approved here before it can move to Contract.
+          {{ t('project.overviewTab.paymentPlanNote') }}
         </p>
       </div>
     </Card>
@@ -374,7 +454,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Contract'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Contract</h3>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.contractTitle') }}</h3>
           <BaseButton
             v-if="contractQuotation"
             variant="secondary"
@@ -382,35 +462,35 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             class="no-print"
             @click="emit('navigate-tab', 'quotation')"
           >
-            View Approved Quotation
+            {{ t('project.overviewTab.viewApprovedQuotation') }}
           </BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div>
-            <p class="text-xs text-text-muted">Quotation Number</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationNumber') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ contractQuotation?.quotationNo ?? '—' }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-muted">Quotation Date</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationDate') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ contractQuotation ? formatDate(contractQuotation.issueDate) : '—' }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-muted">Quotation Amount</p>
+            <p class="text-xs text-text-muted">{{ t('project.overviewTab.quotationAmount') }}</p>
             <p class="text-sm font-medium text-text-primary">{{ contractQuotation ? formatCurrency(contractQuotation.amount) : '—' }}</p>
           </div>
         </div>
 
         <div class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           <AlertTriangle class="h-4 w-4 shrink-0" />
-          <span>Quotation approval is a must</span>
+          <span>{{ t('project.overviewTab.quotationApprovalMustLabel') }}</span>
           <StatusBadge
             v-if="contractQuotation"
-            :label="contractQuotation.status"
+            :label="quotationStatusLabel(contractQuotation.status)"
             :variant="contractQuotation.status === 'Approved' ? 'success' : contractQuotation.status === 'Rejected' ? 'danger' : 'neutral'"
           />
-          <span v-else class="text-warning-700">-- no quotation linked</span>
+          <span v-else class="text-warning-700">{{ t('project.overviewTab.noQuotationLinked') }}</span>
         </div>
       </div>
     </Card>
@@ -418,8 +498,8 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Design'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Design</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'design')">Go to Documents</BaseButton>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.designTitle') }}</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'design')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
@@ -430,24 +510,24 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
           >
             <span class="truncate text-sm text-text-secondary">{{ document.title }}</span>
-            <StatusBadge :label="document.status" :variant="getDocumentStatusVariant(document.status)" />
+            <StatusBadge :label="documentStatusLabel(document.status)" :variant="getDocumentStatusVariant(document.status)" />
           </div>
         </div>
-        <p v-else class="text-sm text-text-muted">No design documents delivered yet.</p>
+        <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignDocumentsYet') }}</p>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Supervision'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Supervision</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">Go to Payment Plan</BaseButton>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.supervisionTitle') }}</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
         <p class="text-sm text-text-secondary">
-          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : 'Not set' }} –
-          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : 'Ongoing' }}
+          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : t('project.overviewTab.notSet') }} –
+          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : t('project.overviewTab.ongoing') }}
         </p>
 
         <div v-if="project.selectedSupervisionActivities && project.selectedSupervisionActivities.length > 0" class="flex flex-col gap-2">
@@ -459,24 +539,23 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             <div class="flex flex-col gap-0.5 truncate">
               <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
               <span class="text-xs text-text-muted">
-                {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : 'Ongoing' }}
+                {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.overviewTab.ongoing') }}
               </span>
             </div>
             <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
           </div>
         </div>
-        <p v-else class="text-sm text-text-muted">No Supervision activities selected.</p>
+        <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noSupervisionActivities') }}</p>
 
         <p class="text-xs text-text-muted">
-          Billed monthly and prorated by day for partial months -- see the Supervision Financial Agreement on the
-          Payment Plan step for the actual billed schedule.
+          {{ t('project.overviewTab.supervisionBillingNote') }}
         </p>
       </div>
     </Card>
 
     <Card v-if="stageContext === 'Government Submission'">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">Required Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requiredDocumentsTitle') }}</h3>
       </template>
       <div class="flex flex-col gap-4">
         <div v-if="requiredForms.length > 0" class="flex flex-col gap-2">
@@ -491,16 +570,16 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             </div>
             <template v-if="filledDocumentFor(form)">
               <BaseButton variant="ghost" size="sm" class="no-print shrink-0" @click="viewFilledDocument(filledDocumentFor(form)!.id)">
-                View
+                {{ t('project.overviewTab.viewForm') }}
               </BaseButton>
             </template>
             <BaseButton v-else variant="secondary" size="sm" class="no-print shrink-0" @click="openFillDialog(form)">
-              Fill Form
+              {{ t('project.overviewTab.fillForm') }}
             </BaseButton>
           </div>
         </div>
         <p v-else class="text-sm text-text-muted">
-          No fillable forms are mapped to this project's service yet -- see Administration &gt; Service Document Map.
+          {{ t('project.overviewTab.noFillableFormsYet') }}
         </p>
       </div>
     </Card>
@@ -508,8 +587,8 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
     <Card v-if="stageContext === 'Government Submission'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">Approvals &amp; Permits</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'government')">Go to Documents</BaseButton>
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.approvalsPermitsTitle') }}</h3>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'government')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
@@ -525,20 +604,20 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
               </span>
               <span class="text-xs text-text-muted">
                 {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? '—' }}
-                &middot; Last worked on {{ lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }}
+                &middot; {{ t('project.overviewTab.lastWorkedOn', { date: lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }) }}
               </span>
             </div>
-            <StatusBadge :label="submission.status" :variant="getSubmissionStatusVariant(submission.status)" />
+            <StatusBadge :label="submissionStatusLabel(submission.status)" :variant="getSubmissionStatusVariant(submission.status)" />
           </div>
         </div>
-        <p v-else class="text-sm text-text-muted">No approvals or permits filed yet.</p>
+        <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noApprovalsFiledYet') }}</p>
       </div>
     </Card>
 
     <div v-if="showScopeAndDetails" class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
-      <DetailPanel title="Project Details" :items="projectDetailItems" />
+      <DetailPanel :title="t('project.overviewTab.projectDetailsTitle')" :items="projectDetailItems" />
       <div class="flex flex-col gap-3">
-        <DetailPanel title="Client Details" :items="clientDetailItems" />
+        <DetailPanel :title="t('project.overviewTab.clientDetailsTitle')" :items="clientDetailItems" />
         <div class="flex gap-2 no-print">
           <BaseButton
             v-if="client"
@@ -547,7 +626,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             :icon="MessageSquare"
             @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
           >
-            Message Client
+            {{ t('project.overviewTab.messageClient') }}
           </BaseButton>
           <BaseButton
             v-if="client"
@@ -555,7 +634,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
             size="sm"
             @click="router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } })"
           >
-            View Full Profile
+            {{ t('project.overviewTab.viewFullProfile') }}
           </BaseButton>
         </div>
       </div>

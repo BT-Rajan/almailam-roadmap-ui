@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LayoutGrid, Plus, TableProperties } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -43,20 +44,21 @@ interface ClientTableRow {
 
 const router = useRouter()
 const clientStore = useClientStore()
+const { t } = useI18n()
 
-const TYPE_OPTIONS: SelectOption[] = [{ label: 'All Types', value: 'All' }, ...CLIENT_TYPE_OPTIONS]
+const TYPE_OPTIONS = computed<SelectOption[]>(() => [{ label: t('client.clientsPage.allTypes'), value: 'All' }, ...CLIENT_TYPE_OPTIONS])
 
-const TABLE_COLUMNS: SmartTableColumn<ClientTableRow>[] = [
-  { key: 'code', label: 'Code', sortable: true, width: '110px' },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'clientType', label: 'Type', sortable: true },
-  { key: 'mobile', label: 'Mobile', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'city', label: 'City', sortable: true },
-  { key: 'accountManager', label: 'Account Manager', sortable: false },
-  { key: 'onboardingState', label: 'Onboarding', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-]
+const TABLE_COLUMNS = computed<SmartTableColumn<ClientTableRow>[]>(() => [
+  { key: 'code', label: t('client.clientsPage.columns.code'), sortable: true, width: '110px' },
+  { key: 'name', label: t('client.clientsPage.columns.name'), sortable: true },
+  { key: 'clientType', label: t('client.clientsPage.columns.type'), sortable: true },
+  { key: 'mobile', label: t('client.clientsPage.columns.mobile'), sortable: true },
+  { key: 'email', label: t('client.clientsPage.columns.email'), sortable: true },
+  { key: 'city', label: t('client.clientsPage.columns.city'), sortable: true },
+  { key: 'accountManager', label: t('client.clientsPage.columns.accountManager'), sortable: false },
+  { key: 'onboardingState', label: t('client.clientsPage.columns.onboarding'), sortable: true },
+  { key: 'status', label: t('client.clientsPage.columns.status'), sortable: true },
+])
 
 const tableRows = computed<ClientTableRow[]>(() =>
   clientStore.pageItems.map((client) => ({
@@ -86,16 +88,47 @@ function openClient(clientId: string): void {
 function createClient(): void {
   router.push({ name: ROUTE_NAMES.CLIENT_NEW })
 }
+
+const CLIENT_TYPE_LABEL_KEYS: Record<string, string> = {
+  Individual: 'clientOptions.type.individual',
+  Company: 'clientOptions.type.company',
+  Organisation: 'clientOptions.type.organisation',
+  'Government Entity': 'clientOptions.type.governmentEntity',
+  Other: 'clientOptions.type.other',
+}
+function clientTypeLabel(clientType: string): string {
+  return t(CLIENT_TYPE_LABEL_KEYS[clientType] ?? clientType)
+}
+
+const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
+  'Information Required': 'clientOptions.onboardingState.informationRequired',
+  'Documents Required': 'clientOptions.onboardingState.documentsRequired',
+  'Under Review': 'clientOptions.onboardingState.underReview',
+  Ready: 'clientOptions.onboardingState.ready',
+  Rejected: 'clientOptions.onboardingState.rejected',
+  Suspended: 'clientOptions.onboardingState.suspended',
+}
+function onboardingStateLabel(state: string): string {
+  return t(ONBOARDING_STATE_LABEL_KEYS[state] ?? state)
+}
+
+const CLIENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'clientOptions.status.active',
+  Inactive: 'clientOptions.status.inactive',
+}
+function clientStatusLabel(status: string): string {
+  return t(CLIENT_STATUS_LABEL_KEYS[status] ?? status)
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader
-      title="Clients"
-      subtitle="Onboard, verify and reuse individual and organisation client profiles across every project."
+      :title="t('client.clientsPage.title')"
+      :subtitle="t('client.clientsPage.subtitle')"
     >
       <template #actions>
-        <BaseButton :icon="Plus" @click="createClient">New Client</BaseButton>
+        <BaseButton :icon="Plus" @click="createClient">{{ t('client.clientsPage.newClient') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -107,7 +140,7 @@ function createClient(): void {
       <template #filters>
         <div class="w-44">
           <SelectBox
-            label="Client Type"
+            :label="t('client.clientsPage.clientType')"
             :model-value="clientStore.typeFilter"
             :options="TYPE_OPTIONS"
             @update:model-value="clientStore.setTypeFilter($event as ClientType | 'All')"
@@ -115,7 +148,7 @@ function createClient(): void {
         </div>
         <div class="w-44">
           <SelectBox
-            label="Status"
+            :label="t('client.clientsPage.status')"
             :model-value="clientStore.statusFilter"
             :options="CLIENT_STATUS_OPTIONS"
             @update:model-value="clientStore.setStatusFilter($event as ClientStatus | 'All')"
@@ -123,7 +156,7 @@ function createClient(): void {
         </div>
         <div class="w-52">
           <SelectBox
-            label="Onboarding State"
+            :label="t('client.clientsPage.onboardingState')"
             :model-value="clientStore.onboardingFilter"
             :options="CLIENT_ONBOARDING_STATE_OPTIONS"
             @update:model-value="clientStore.setOnboardingFilter($event as ClientOnboardingState | 'All')"
@@ -135,14 +168,14 @@ function createClient(): void {
           :aria-pressed="clientStore.myClientsOnly"
           @click="clientStore.setMyClientsOnly(!clientStore.myClientsOnly)"
         >
-          My Clients
+          {{ t('client.clientsPage.myClients') }}
         </BaseButton>
       </template>
       <template #actions>
-        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" aria-label="Client list layout">
+        <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" :aria-label="t('client.clientsPage.layoutAria')">
           <IconButton
             :icon="LayoutGrid"
-            label="Grid view"
+            :label="t('client.clientsPage.gridView')"
             size="sm"
             :variant="clientStore.viewMode === 'grid' ? 'primary' : 'ghost'"
             :aria-pressed="clientStore.viewMode === 'grid'"
@@ -150,7 +183,7 @@ function createClient(): void {
           />
           <IconButton
             :icon="TableProperties"
-            label="Table view"
+            :label="t('client.clientsPage.tableView')"
             size="sm"
             :variant="clientStore.viewMode === 'table' ? 'primary' : 'ghost'"
             :aria-pressed="clientStore.viewMode === 'table'"
@@ -171,13 +204,13 @@ function createClient(): void {
 
       <EmptyState
         v-else-if="clientStore.pageItems.length === 0"
-        :title="clientStore.myClientsOnly ? 'No clients assigned to you yet' : 'No clients found'"
+        :title="clientStore.myClientsOnly ? t('client.clientsPage.noClientsAssignedTitle') : t('client.clientsPage.noClientsFoundTitle')"
         :description="
           clientStore.myClientsOnly
-            ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone, or assign yourself via Edit Client.'
-            : 'Try adjusting your filters, or onboard a new client.'
+            ? t('client.clientsPage.noClientsAssignedDescription')
+            : t('client.clientsPage.noClientsFoundDescription')
         "
-        action-label="New Client"
+        :action-label="t('client.clientsPage.newClient')"
         @action="createClient"
       />
 
@@ -209,22 +242,25 @@ function createClient(): void {
         :loading="clientStore.isPageLoading"
         :searchable="false"
         :paginated="false"
-        :empty-title="clientStore.myClientsOnly ? 'No clients assigned to you yet' : 'No clients found'"
+        :empty-title="clientStore.myClientsOnly ? t('client.clientsPage.noClientsAssignedTitle') : t('client.clientsPage.noClientsFoundTitle')"
         :empty-description="
           clientStore.myClientsOnly
-            ? 'You have no clients assigned as their account manager. Turn off \'My Clients\' to see everyone.'
-            : 'Try adjusting your filters, or onboard a new client.'
+            ? t('client.clientsPage.noClientsAssignedDescriptionTable')
+            : t('client.clientsPage.noClientsFoundDescription')
         "
         @row-click="openClient($event.id)"
       >
+        <template #cell-clientType="{ value }">
+          {{ clientTypeLabel(value as string) }}
+        </template>
         <template #cell-onboardingState="{ value }">
           <StatusBadge
-            :label="value as string"
+            :label="onboardingStateLabel(value as string)"
             :variant="getClientOnboardingStateVariant(value as ClientOnboardingState)"
           />
         </template>
         <template #cell-status="{ value }">
-          <StatusBadge :label="value as string" :variant="getClientStatusVariant(value as ClientStatus)" show-dot />
+          <StatusBadge :label="clientStatusLabel(value as string)" :variant="getClientStatusVariant(value as ClientStatus)" show-dot />
         </template>
       </SmartTable>
       <div class="rounded-xl border border-border-light bg-bg-card">

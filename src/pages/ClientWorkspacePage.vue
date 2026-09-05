@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FilePlus, MessageSquare, Plus, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -59,6 +60,7 @@ const router = useRouter()
 const clientStore = useClientStore()
 const projectStore = useProjectStore()
 const resultDialogStore = useResultDialogStore()
+const { t } = useI18n()
 
 const clientId = computed(() => route.params.clientId as string)
 const activeTab = ref<ClientWorkspaceTabKey>('overview')
@@ -103,13 +105,13 @@ const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
 const deleteTarget = ref<{ type: DeletableRecordType; id: string; label: string } | null>(null)
 
-const TABS: ClientWorkspaceTab[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'contacts', label: 'Contacts' },
-  { key: 'identification', label: 'Identification' },
-  { key: 'documents', label: 'Documents' },
-  { key: 'projects', label: 'Projects' },
-]
+const TABS = computed<ClientWorkspaceTab[]>(() => [
+  { key: 'overview', label: t('client.workspaceTabs.overview') },
+  { key: 'contacts', label: t('client.workspaceTabs.contacts') },
+  { key: 'identification', label: t('client.workspaceTabs.identification') },
+  { key: 'documents', label: t('client.workspaceTabs.documents') },
+  { key: 'projects', label: t('client.workspaceTabs.projects') },
+])
 
 const client = computed(() => clientStore.getClientById(clientId.value))
 const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
@@ -129,21 +131,21 @@ const profileDetailItems = computed(() => {
   if (client.value.clientType === 'Individual' && client.value.individualProfile) {
     const profile = client.value.individualProfile
     return [
-      { label: 'Full Legal Name', value: profile.fullLegalName },
-      { label: 'Preferred Name', value: profile.preferredName || '—' },
-      { label: 'Nationality', value: profile.nationality },
-      { label: 'Date of Birth', value: profile.dateOfBirth ? formatDate(profile.dateOfBirth) : '—' },
-      { label: 'Country of Residence', value: profile.countryOfResidence },
+      { label: t('client.workspacePage.fields.fullLegalName'), value: profile.fullLegalName },
+      { label: t('client.workspacePage.fields.preferredName'), value: profile.preferredName || '—' },
+      { label: t('client.workspacePage.fields.nationality'), value: profile.nationality },
+      { label: t('client.workspacePage.fields.dateOfBirth'), value: profile.dateOfBirth ? formatDate(profile.dateOfBirth) : '—' },
+      { label: t('client.workspacePage.fields.countryOfResidence'), value: profile.countryOfResidence },
     ]
   }
   if (client.value.organisationProfile) {
     const profile = client.value.organisationProfile
     return [
-      { label: 'Legal Name', value: profile.legalName },
-      { label: 'Trade Name', value: profile.tradeName || '—' },
-      { label: 'Registration Number', value: profile.registrationNumber },
-      { label: 'Trade Licence Number', value: profile.tradeLicenceNumber || '—' },
-      { label: 'Country of Registration', value: profile.countryOfRegistration },
+      { label: t('client.workspacePage.fields.legalName'), value: profile.legalName },
+      { label: t('client.workspacePage.fields.tradeName'), value: profile.tradeName || '—' },
+      { label: t('client.workspacePage.fields.registrationNumber'), value: profile.registrationNumber },
+      { label: t('client.workspacePage.fields.tradeLicenceNumber'), value: profile.tradeLicenceNumber || '—' },
+      { label: t('client.workspacePage.fields.countryOfRegistration'), value: profile.countryOfRegistration },
     ]
   }
   return []
@@ -152,12 +154,12 @@ const profileDetailItems = computed(() => {
 const contactDetailItems = computed(() => {
   if (!client.value) return []
   return [
-    { label: 'Contact Person', value: client.value.contactPerson },
-    { label: 'Mobile', value: client.value.mobile },
-    { label: 'Email', value: client.value.email },
-    { label: 'City', value: client.value.city },
-    { label: 'Preferred Channel', value: client.value.communicationPreference.preferredChannel },
-    { label: 'Account Manager', value: client.value.accountManagerName ?? 'Unassigned' },
+    { label: t('client.workspacePage.fields.contactPerson'), value: client.value.contactPerson },
+    { label: t('client.workspacePage.fields.mobile'), value: client.value.mobile },
+    { label: t('client.workspacePage.fields.email'), value: client.value.email },
+    { label: t('client.workspacePage.fields.city'), value: client.value.city },
+    { label: t('client.workspacePage.fields.preferredChannel'), value: client.value.communicationPreference.preferredChannel },
+    { label: t('client.workspacePage.fields.accountManager'), value: client.value.accountManagerName ?? t('client.unassigned') },
   ]
 })
 
@@ -624,8 +626,8 @@ function createProjectForClient(): void {
 
     <EmptyState
       v-else-if="!client"
-      title="Client not found"
-      description="This client may have been removed or the link is incorrect."
+      :title="t('client.workspacePage.notFoundTitle')"
+      :description="t('client.workspacePage.notFoundDescription')"
     />
 
     <template v-else>
@@ -642,11 +644,11 @@ function createProjectForClient(): void {
           v-for="match in identificationDuplicates"
           :key="match.client.id"
           variant="warning"
-          title="Possible duplicate client found"
-          :description="`This client shares the same ${match.matchedOn.join(', ')} as ${getClientDisplayName(match.client)} (${match.client.code}). If this is genuinely the same person or organisation, merge the two records.`"
+          :title="t('client.workspacePage.duplicateTitle')"
+          :description="t('client.workspacePage.duplicateDescription', { fields: match.matchedOn.join(', '), name: getClientDisplayName(match.client), code: match.client.code })"
         >
           <template #action>
-            <BaseButton size="sm" variant="secondary" @click="openMergeDialog(match)">Review & Merge</BaseButton>
+            <BaseButton size="sm" variant="secondary" @click="openMergeDialog(match)">{{ t('client.workspacePage.reviewAndMerge') }}</BaseButton>
           </template>
         </Alert>
       </div>
@@ -661,15 +663,15 @@ function createProjectForClient(): void {
           tabindex="0"
           class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
         >
-          <DetailPanel title="Profile Information" :items="profileDetailItems" />
+          <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
           <div class="flex flex-col gap-3">
-            <DetailPanel title="Contact Details" :items="contactDetailItems" />
+            <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
             <Card>
               <template #header>
-                <h3 class="text-sm font-semibold text-text-primary">Internal Notes</h3>
+                <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.internalNotes') }}</h3>
               </template>
               <p class="whitespace-pre-wrap text-sm text-text-secondary">
-                {{ client.notes || 'No internal notes have been added yet.' }}
+                {{ client.notes || t('client.workspacePage.noInternalNotes') }}
               </p>
             </Card>
             <BaseButton
@@ -679,7 +681,7 @@ function createProjectForClient(): void {
               class="no-print self-start"
               @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
             >
-              Message Client
+              {{ t('client.workspacePage.messageClient') }}
             </BaseButton>
           </div>
           <ClientOnboardingProgress
@@ -702,8 +704,8 @@ function createProjectForClient(): void {
           />
           <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-semibold text-text-primary">Addresses</h3>
-              <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">Add Address</BaseButton>
+              <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.addresses') }}</h3>
+              <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">{{ t('client.workspacePage.addAddress') }}</BaseButton>
             </div>
             <ClientAddressCard
               v-for="address in clientStore.addresses"
@@ -714,8 +716,8 @@ function createProjectForClient(): void {
             />
             <EmptyState
               v-if="clientStore.addresses.length === 0"
-              title="No address on file"
-              description="Add an address to complete this client's profile."
+              :title="t('client.workspacePage.noAddressTitle')"
+              :description="t('client.workspacePage.noAddressDescription')"
             />
           </div>
         </div>
@@ -730,7 +732,7 @@ function createProjectForClient(): void {
         class="flex flex-col gap-6"
       >
         <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">Add Contact</BaseButton>
+          <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">{{ t('client.workspacePage.addContact') }}</BaseButton>
         </div>
         <ClientContactList
           :contacts="clientStore.contacts"
@@ -748,7 +750,7 @@ function createProjectForClient(): void {
         class="flex flex-col gap-6"
       >
         <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">Add Identification</BaseButton>
+          <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">{{ t('client.workspacePage.addIdentification') }}</BaseButton>
         </div>
         <ClientIdentificationList
           :identifications="clientStore.identifications"
@@ -768,13 +770,13 @@ function createProjectForClient(): void {
         class="flex flex-col gap-6"
       >
         <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="FilePlus" @click="isUploadDialogOpen = true">Add Document</BaseButton>
+          <BaseButton size="sm" :icon="FilePlus" @click="isUploadDialogOpen = true">{{ t('client.workspacePage.addDocument') }}</BaseButton>
         </div>
         <EmptyState
           v-if="clientStore.documents.length === 0"
-          title="No documents on file"
-          description="Upload identity, registration or authorisation documents for this client."
-          action-label="Add Document"
+          :title="t('client.workspacePage.noDocumentsTitle')"
+          :description="t('client.workspacePage.noDocumentsDescription')"
+          :action-label="t('client.workspacePage.addDocument')"
           @action="isUploadDialogOpen = true"
         />
         <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
@@ -814,17 +816,17 @@ function createProjectForClient(): void {
             :disabled="!clientEligibleForNewProject"
             @click="createProjectForClient"
           >
-            New Project
+            {{ t('client.workspacePage.newProject') }}
           </BaseButton>
           <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
-            Onboarding must be Ready and the client Active before a project can be created.
+            {{ t('client.workspacePage.onboardingMustBeReady') }}
           </p>
         </div>
         <EmptyState
           v-if="clientProjects.length === 0"
-          title="No projects yet"
-          description="Projects created for this client will appear here."
-          :action-label="clientEligibleForNewProject ? 'New Project' : undefined"
+          :title="t('client.workspacePage.noProjectsTitle')"
+          :description="t('client.workspacePage.noProjectsDescription')"
+          :action-label="clientEligibleForNewProject ? t('client.workspacePage.newProject') : undefined"
           @action="createProjectForClient"
         />
         <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">

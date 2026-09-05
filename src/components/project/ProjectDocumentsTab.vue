@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, CheckCircle2, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -38,6 +39,7 @@ const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const isDesignDialogOpen = ref(false)
 const isDesignSaving = ref(false)
@@ -158,12 +160,12 @@ interface DesignDocumentRow {
   raw: ProjectDocument
 }
 
-const DESIGN_TABLE_COLUMNS: SmartTableColumn<DesignDocumentRow>[] = [
-  { key: 'title', label: 'Document', sortable: true },
-  { key: 'fileName', label: 'File Name', sortable: true },
-  { key: 'date', label: 'Date', sortable: true, width: '140px' },
-  { key: 'link', label: 'Link', width: '120px' },
-]
+const DESIGN_TABLE_COLUMNS = computed<SmartTableColumn<DesignDocumentRow>[]>(() => [
+  { key: 'title', label: t('project.documentsTab.columns.document'), sortable: true },
+  { key: 'fileName', label: t('project.documentsTab.columns.fileName'), sortable: true },
+  { key: 'date', label: t('project.documentsTab.columns.date'), sortable: true, width: '140px' },
+  { key: 'link', label: t('project.documentsTab.columns.link'), width: '120px' },
+])
 
 const designTableRows = computed<DesignDocumentRow[]>(() =>
   visibleDocuments.value.map((document) => ({
@@ -266,7 +268,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
   <template v-if="mode === 'design'">
     <div class="flex items-center justify-end">
       <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDesignDialog">
-        Add Document
+        {{ t('project.documentsTab.addDocument') }}
       </BaseButton>
     </div>
 
@@ -279,8 +281,8 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       row-key="id"
       :loading="documentStore.isLoading"
       :searchable="false"
-      empty-title="No documents yet"
-      empty-description="Design drawings and links added for this project will appear here."
+      :empty-title="t('project.documentsTab.emptyTitle')"
+      :empty-description="t('project.documentsTab.emptyDescription')"
     >
       <template #cell-fileName="{ row }">
         <button
@@ -306,14 +308,14 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
           @click.stop
         >
           <ExternalLink class="h-3.5 w-3.5" />
-          Open
+          {{ t('project.documentsTab.open') }}
         </a>
         <span v-else class="text-text-muted">—</span>
       </template>
       <template #row-actions="{ row }">
         <div class="flex items-center justify-end gap-1" @click.stop>
-          <IconButton :icon="Pencil" :label="`Edit document ${row.raw.title}`" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
-          <IconButton :icon="Trash2" :label="`Delete document ${row.raw.title}`" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
+          <IconButton :icon="Pencil" :label="t('project.documentsTab.editDocument', { title: row.raw.title })" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
+          <IconButton :icon="Trash2" :label="t('project.documentsTab.deleteDocument', { title: row.raw.title })" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
         </div>
       </template>
     </SmartTable>
@@ -353,11 +355,10 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
   <div v-else class="flex flex-col gap-8">
     <!-- 0. Required Permit Documents -->
     <section v-if="permitChecklist.length > 0" class="flex flex-col gap-4">
-      <h3 class="text-sm font-semibold text-text-primary">Required Permit Documents</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.requiredPermitsTitle') }}</h3>
       <div class="rounded-xl border border-border-light bg-bg-card p-4">
         <p class="mb-3 text-xs text-text-muted">
-          Confirmed during project setup as permits the client already holds -- each must be added under Government
-          Documents below.
+          {{ t('project.documentsTab.requiredPermitsDescription') }}
         </p>
         <ul class="flex flex-col gap-2">
           <li
@@ -372,9 +373,9 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
               <span :class="permit.satisfied ? 'text-text-secondary' : 'text-text-primary font-medium'">{{ permit.name }}</span>
             </span>
             <BaseButton v-if="!permit.satisfied" variant="secondary" size="sm" class="no-print" @click="openPermitDialog(permit.name)">
-              Add Document
+              {{ t('project.documentsTab.addDocument') }}
             </BaseButton>
-            <span v-else class="text-xs font-medium text-success-700">Added</span>
+            <span v-else class="text-xs font-medium text-success-700">{{ t('project.documentsTab.added') }}</span>
           </li>
         </ul>
       </div>
@@ -383,7 +384,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-text-primary">Customer ID Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.customerIdTitle') }}</h3>
       </div>
 
       <div v-if="clientStore.isDetailLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -392,8 +393,8 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       <ErrorState v-else-if="clientStore.detailError" :description="clientStore.detailError" />
       <EmptyState
         v-else-if="customerIdDocuments.length === 0"
-        title="No identification documents"
-        description="Documents captured during customer onboarding will appear here."
+        :title="t('project.documentsTab.noIdentificationDocumentsTitle')"
+        :description="t('project.documentsTab.noIdentificationDocumentsDescription')"
       />
       <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <CustomerIdDocumentCard
@@ -409,16 +410,16 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 2. Property Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-text-primary">Property Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.propertyDocumentsTitle') }}</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Property')">
-          Add Document
+          {{ t('project.documentsTab.addDocument') }}
         </BaseButton>
       </div>
 
       <EmptyState
         v-if="linkDocumentsFor('Property').length === 0"
-        title="No property documents yet"
-        description="Add a link to a property document stored elsewhere."
+        :title="t('project.documentsTab.noPropertyDocumentsTitle')"
+        :description="t('project.documentsTab.noPropertyDocumentsDescription')"
       />
       <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <LinkDocumentCard
@@ -433,9 +434,9 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 3. Government Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-text-primary">Government Documents</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.governmentDocumentsTitle') }}</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Government')">
-          Add Document
+          {{ t('project.documentsTab.addDocument') }}
         </BaseButton>
       </div>
 
@@ -447,8 +448,8 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
            suggestion guessed here from service tags. -->
       <EmptyState
         v-if="linkDocumentsFor('Government').length === 0"
-        title="No government documents yet"
-        description="Add a link to a government document stored elsewhere."
+        :title="t('project.documentsTab.noGovernmentDocumentsTitle')"
+        :description="t('project.documentsTab.noGovernmentDocumentsDescription')"
       />
       <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <LinkDocumentCard
@@ -463,16 +464,16 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     <!-- 4. Others -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-text-primary">Others</h3>
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.othersTitle') }}</h3>
         <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDialog('Others')">
-          Add Document
+          {{ t('project.documentsTab.addDocument') }}
         </BaseButton>
       </div>
 
       <EmptyState
         v-if="linkDocumentsFor('Others').length === 0"
-        title="No other documents yet"
-        description="Add a link to any other supporting document."
+        :title="t('project.documentsTab.noOtherDocumentsTitle')"
+        :description="t('project.documentsTab.noOtherDocumentsDescription')"
       />
       <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
         <LinkDocumentCard

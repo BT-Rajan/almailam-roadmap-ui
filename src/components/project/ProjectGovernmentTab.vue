@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -14,6 +15,7 @@ const props = defineProps<{
 
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectFormStore = useProjectFormStore()
+const { t } = useI18n()
 
 // One tab per authority admin has configured (Administration >
 // Government Forms) -- add MEW, KFD, Baladia, or any other authority
@@ -59,8 +61,7 @@ watch(() => props.projectId, loadData)
 
     <template v-else-if="orderedAuthorities.length === 0">
       <p class="text-sm text-text-muted">
-        No authorities configured yet -- add one under Administration &gt; Documents &gt; Government Forms to start
-        filing forms here.
+        {{ t('project.governmentTab.noAuthoritiesConfigured') }}
       </p>
     </template>
 

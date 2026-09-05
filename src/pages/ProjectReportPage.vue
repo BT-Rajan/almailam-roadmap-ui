@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportSection from '@/components/reports/ReportSection.vue'
@@ -24,6 +25,7 @@ const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -79,6 +81,28 @@ const statusVariant = (status: string) => {
   return variants[status] || 'neutral'
 }
 
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'project.status.active',
+  'On Hold': 'project.status.onHold',
+  Cancelled: 'project.status.cancelled',
+}
+function statusLabel(status: string): string {
+  return t(STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+function stageLabel(stage: string): string {
+  return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
+}
+
 const handleExport = () => {
   toastStore.show('info', 'Export not available yet', 'PDF export for this report is coming soon.')
 }
@@ -91,7 +115,7 @@ const goBack = () => {
 <template>
   <div class="max-w-6xl mx-auto space-y-8 pb-12">
     <div class="flex items-center justify-between">
-      <BaseButton variant="ghost" size="sm" @click="goBack"> ← Back </BaseButton>
+      <BaseButton variant="ghost" size="sm" @click="goBack"> ← {{ t('project.reportPage.back') }} </BaseButton>
     </div>
 
     <ErrorState v-if="error" :description="error" @retry="loadReport" />
@@ -114,32 +138,32 @@ const goBack = () => {
       <Card>
         <div class="grid grid-cols-1 tablet:grid-cols-4 gap-4">
           <div>
-            <p class="text-xs text-text-secondary uppercase font-medium">Status</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">{{ t('project.reportPage.status') }}</p>
             <div class="mt-2">
-              <StatusBadge :label="project.status" :variant="statusVariant(project.status)" />
+              <StatusBadge :label="statusLabel(project.status)" :variant="statusVariant(project.status)" />
             </div>
           </div>
           <div>
-            <p class="text-xs text-text-secondary uppercase font-medium">Duration</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">{{ t('project.reportPage.duration') }}</p>
             <p class="text-sm font-medium text-text-primary mt-2">
               {{ formatDate(project.startDate) }} – {{ formatDate(project.targetDate) }}
             </p>
           </div>
           <div>
-            <p class="text-xs text-text-secondary uppercase font-medium">Current Stage</p>
-            <p class="text-sm font-medium text-text-primary mt-2">{{ getWorkflowStageLabel(project.currentStage) }}</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">{{ t('project.reportPage.currentStage') }}</p>
+            <p class="text-sm font-medium text-text-primary mt-2">{{ stageLabel(project.currentStage) }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-secondary uppercase font-medium">Field Engineer</p>
+            <p class="text-xs text-text-secondary uppercase font-medium">{{ t('project.reportPage.fieldEngineer') }}</p>
             <p class="text-sm font-medium text-text-primary mt-2">{{ project.engineer }}</p>
           </div>
         </div>
       </Card>
 
       <!-- Overall Progress -->
-      <ReportSection title="Overall Progress" fullWidth>
+      <ReportSection :title="t('project.reportPage.overallProgress')" fullWidth>
         <div class="grid grid-cols-1 tablet:grid-cols-3 gap-8 justify-items-center">
-          <ProgressChart :value="project.progress" label="Overall Completion" color="#3B82F6" size="md" />
+          <ProgressChart :value="project.progress" :label="t('project.reportPage.overallCompletion')" color="#3B82F6" size="md" />
         </div>
       </ReportSection>
 
@@ -167,8 +191,8 @@ const goBack = () => {
 
     <!-- Report Footer -->
     <div v-if="project" class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
-      <p>Project Report for {{ project.projectName }}</p>
-      <p class="mt-1">Generated on {{ reportDate }}</p>
+      <p>{{ t('project.reportPage.footerFor', { name: project.projectName }) }}</p>
+      <p class="mt-1">{{ t('project.reportPage.generatedOn', { date: reportDate }) }}</p>
     </div>
   </div>
 </template>

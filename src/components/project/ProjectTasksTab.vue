@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -29,6 +30,7 @@ const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const clientStore = useClientStore()
+const { t } = useI18n()
 onMounted(() => {
   if (clientStore.clients.length === 0) clientStore.loadClients()
 })
@@ -158,9 +160,9 @@ async function handleReassign(assignee: string): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between no-print">
-    <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">New Task</BaseButton>
+    <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('project.tasksTab.newTask') }}</BaseButton>
     <BaseButton variant="ghost" size="sm" @click="router.push({ name: ROUTE_NAMES.TASKS })">
-      View Task Board
+      {{ t('project.tasksTab.viewTaskBoard') }}
     </BaseButton>
   </div>
 

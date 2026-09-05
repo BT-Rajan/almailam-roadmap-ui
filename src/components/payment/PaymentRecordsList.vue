@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Download } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -18,12 +19,27 @@ defineProps<Props>()
 defineEmits<{
   download: [payment: Payment]
 }>()
+
+const { t } = useI18n()
+
+const PAYMENT_MODE_LABEL_KEYS: Record<string, string> = {
+  Cash: 'payment.paymentMode.cash',
+  'Bank Transfer': 'payment.paymentMode.bankTransfer',
+  'Credit Card': 'payment.paymentMode.creditCard',
+  'Debit Card': 'payment.paymentMode.debitCard',
+  'Online Payment': 'payment.paymentMode.onlinePayment',
+  Cheque: 'payment.paymentMode.cheque',
+  Other: 'payment.paymentMode.other',
+}
+function paymentModeLabel(mode: string): string {
+  return t(PAYMENT_MODE_LABEL_KEYS[mode] ?? mode)
+}
 </script>
 
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">Recorded Payments</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('payment.recordsList.title') }}</h3>
     </template>
 
     <!--
@@ -35,15 +51,15 @@ defineEmits<{
       the fact is the one addition still allowed, from the Record
       Payment dialog at the time it's created.
     -->
-    <EmptyState v-if="payments.length === 0" title="No payments recorded yet" description="Payments recorded against this plan will appear here and can never be edited or removed." />
+    <EmptyState v-if="payments.length === 0" :title="t('payment.recordsList.emptyTitle')" :description="t('payment.recordsList.emptyDescription')" />
 
     <ul v-else class="divide-y divide-border-light">
       <li v-for="payment in payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div class="flex flex-col gap-0.5">
-          <p class="text-sm font-medium text-text-primary">{{ formatCurrency(payment.amountReceived, currency) }} &middot; {{ payment.paymentMode }}</p>
+          <p class="text-sm font-medium text-text-primary">{{ formatCurrency(payment.amountReceived, currency) }} &middot; {{ paymentModeLabel(payment.paymentMode) }}</p>
           <p class="text-xs text-text-muted">
-            {{ formatDate(payment.paymentDate) }} &middot; Payer: {{ payment.payer }}
-            <span v-if="payment.referenceNumber"> &middot; Ref: {{ payment.referenceNumber }}</span>
+            {{ formatDate(payment.paymentDate) }} &middot; {{ t('payment.recordsList.payer', { payer: payment.payer }) }}
+            <span v-if="payment.referenceNumber"> &middot; {{ t('payment.recordsList.reference', { reference: payment.referenceNumber }) }}</span>
           </p>
         </div>
 
@@ -54,11 +70,11 @@ defineEmits<{
           <IconButton
             v-if="payment.proofFileName"
             :icon="Download"
-            label="Download payment proof"
+            :label="t('payment.recordsList.downloadProof')"
             size="sm"
             @click="$emit('download', payment)"
           />
-          <span v-else class="text-xs text-text-muted">No proof attached</span>
+          <span v-else class="text-xs text-text-muted">{{ t('payment.recordsList.noProofAttached') }}</span>
         </div>
       </li>
     </ul>
