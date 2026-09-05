@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -25,10 +26,12 @@ const emit = defineEmits<{
   save: [event: TimelineEvent]
 }>()
 
+const { t } = useI18n()
+
 const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'Upcoming', value: 'upcoming' },
-  { label: 'In Progress', value: 'in-progress' },
-  { label: 'Completed', value: 'completed' },
+  { label: 'Upcoming', value: 'upcoming', labelKey: 'project.timelineEntryDialog.statusUpcoming' },
+  { label: 'In Progress', value: 'in-progress', labelKey: 'project.timelineEntryDialog.statusInProgress' },
+  { label: 'Completed', value: 'completed', labelKey: 'project.timelineEntryDialog.statusCompleted' },
 ]
 
 const title = ref('')
@@ -83,29 +86,29 @@ function submit(): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="isEditMode ? 'Update Status' : 'Add Timeline Update'"
+    :title="isEditMode ? t('project.timelineEntryDialog.updateStatusTitle') : t('project.timelineEntryDialog.addUpdateTitle')"
     size="md"
     @update:model-value="closeDialog"
   >
     <div class="flex flex-col gap-4">
-      <TextInput v-model="title" label="Title" placeholder="e.g. Site inspection completed" required :error="titleError" />
+      <TextInput v-model="title" :label="t('project.timelineEntryDialog.title')" :placeholder="t('project.timelineEntryDialog.titlePlaceholder')" required :error="titleError" />
 
       <SelectBox
         :model-value="status"
         :options="STATUS_OPTIONS"
-        label="Status"
+        :label="t('project.timelineEntryDialog.status')"
         required
         @update:model-value="status = $event as TimelineEventStatus"
       />
 
-      <DatePicker v-model="date" label="Date" required />
+      <DatePicker v-model="date" :label="t('project.timelineEntryDialog.date')" required />
 
-      <TextArea v-model="comment" label="Comment" placeholder="Add any notes about this update" :rows="3" />
+      <TextArea v-model="comment" :label="t('project.timelineEntryDialog.comment')" :placeholder="t('project.timelineEntryDialog.commentPlaceholder')" :rows="3" />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton @click="submit">{{ isEditMode ? 'Save Changes' : 'Add Update' }}</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton @click="submit">{{ isEditMode ? t('common.saveChanges') : t('project.timelineEntryDialog.addUpdate') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

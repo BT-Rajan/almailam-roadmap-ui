@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Minus, Plus, X } from '@lucide/vue'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -41,6 +42,8 @@ const emit = defineEmits<{
 // Supervision service is rendered as its own section below with its
 // activities' own start/end dates, since it's billed monthly rather than
 // as a one-time fee. There's normally exactly one Supervision-branch item.
+const { t } = useI18n()
+
 const designServices = computed(() => props.services.filter((service) => service.branch === 'Design'))
 const supervisionService = computed(() => props.services.find((service) => service.branch === 'Supervision'))
 
@@ -244,19 +247,19 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Select Services" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('project.servicePickerDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-6">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-12">
         <!-- Column 1: Design service tree -->
         <div class="flex flex-col rounded-lg border border-border-light tablet:col-span-5">
-          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">Design Services</div>
+          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.servicePickerDialog.designServicesColumn') }}</div>
           <div class="max-h-96 overflow-y-auto p-2">
-            <p v-if="designServices.length === 0" class="p-2 text-sm text-text-muted">No Design services in the catalog yet.</p>
+            <p v-if="designServices.length === 0" class="p-2 text-sm text-text-muted">{{ t('project.servicePickerDialog.noDesignServices') }}</p>
             <div v-for="service in designServices" :key="service.id" class="mb-1">
               <div class="flex items-center gap-1.5 rounded-md px-1 py-1.5 hover:bg-bg-hover">
                 <IconButton
                   :icon="isExpanded(service.id) ? Minus : Plus"
-                  :label="isExpanded(service.id) ? `Collapse ${service.name}` : `Expand ${service.name}`"
+                  :label="isExpanded(service.id) ? t('project.servicePickerDialog.collapseService', { name: service.name }) : t('project.servicePickerDialog.expandService', { name: service.name })"
                   size="sm"
                   :disabled="service.activities.length === 0"
                   @click="toggleExpanded(service.id)"
@@ -269,7 +272,7 @@ function handleConfirm(): void {
                 />
               </div>
               <div v-if="isExpanded(service.id)" class="ml-9 flex flex-col gap-0.5 border-l border-border-light pl-3">
-                <p v-if="service.activities.length === 0" class="py-1 text-xs text-text-muted">No activities under this service.</p>
+                <p v-if="service.activities.length === 0" class="py-1 text-xs text-text-muted">{{ t('project.servicePickerDialog.noActivitiesUnderService') }}</p>
                 <div v-for="activity in service.activities" :key="activity.id" class="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-bg-hover">
                   <Checkbox
                     :model-value="isActivitySelected(activity.id)"
@@ -285,23 +288,23 @@ function handleConfirm(): void {
 
         <!-- Column 2: selected Design activities -->
         <div class="flex flex-col rounded-lg border border-border-light tablet:col-span-4">
-          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">Selected</div>
+          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.servicePickerDialog.selectedColumn') }}</div>
           <div class="max-h-96 overflow-y-auto p-2">
-            <p v-if="selectedDesignItems.length === 0" class="p-2 text-sm text-text-muted">Nothing selected yet -- check items on the left.</p>
+            <p v-if="selectedDesignItems.length === 0" class="p-2 text-sm text-text-muted">{{ t('project.servicePickerDialog.nothingSelectedYet') }}</p>
             <div v-for="item in selectedDesignItems" :key="item.activityId" class="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-bg-hover">
               <div class="min-w-0">
                 <p class="truncate text-sm text-text-primary">{{ item.activityName }}</p>
                 <p v-if="item.activityId !== item.serviceId" class="truncate text-xs text-text-muted">{{ item.serviceName }}</p>
-                <p v-else class="truncate text-xs text-text-muted">Whole service</p>
+                <p v-else class="truncate text-xs text-text-muted">{{ t('project.servicePickerDialog.wholeService') }}</p>
               </div>
-              <IconButton :icon="X" :label="`Remove ${item.activityName}`" size="sm" @click="removeDesignItem(item)" />
+              <IconButton :icon="X" :label="t('project.servicePickerDialog.removeItem', { name: item.activityName })" size="sm" @click="removeDesignItem(item)" />
             </div>
           </div>
         </div>
 
         <!-- Column 3: price -->
         <div class="flex flex-col rounded-lg border border-border-light tablet:col-span-3">
-          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">Price</div>
+          <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.servicePickerDialog.priceColumn') }}</div>
           <div class="max-h-96 overflow-y-auto p-2">
             <p v-if="selectedDesignItems.length === 0" class="p-2 text-sm text-text-muted">--</p>
             <div v-for="item in selectedDesignItems" :key="item.activityId" class="rounded-md px-2 py-1.5 text-right text-sm text-text-primary">
@@ -314,15 +317,15 @@ function handleConfirm(): void {
       <!-- Supervision -- monthly, day-prorated activities with their own dates -->
       <div v-if="supervisionService" class="flex flex-col rounded-lg border border-border-light">
         <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-          Supervision (Monthly)
+          {{ t('project.servicePickerDialog.supervisionMonthly') }}
         </div>
         <div class="flex flex-col gap-3 p-3">
-          <p v-if="supervisionService.activities.length === 0" class="text-sm text-text-muted">No Supervision activities in the catalog yet.</p>
+          <p v-if="supervisionService.activities.length === 0" class="text-sm text-text-muted">{{ t('project.servicePickerDialog.noSupervisionActivities') }}</p>
 
           <template v-else>
             <div v-if="hasSupervisionPicks" class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
-              <DatePicker v-model="supervisionWindowStart" label="Supervision Period Start" required />
-              <DatePicker v-model="supervisionWindowEnd" label="Supervision Period End (optional)" />
+              <DatePicker v-model="supervisionWindowStart" :label="t('project.servicePickerDialog.supervisionPeriodStart')" required />
+              <DatePicker v-model="supervisionWindowEnd" :label="t('project.servicePickerDialog.supervisionPeriodEnd')" />
             </div>
 
             <div class="flex flex-col gap-2">
@@ -336,18 +339,17 @@ function handleConfirm(): void {
                   <span class="shrink-0 text-xs text-text-muted">{{ formatCurrency(activity.fixedCost, currency) }}/mo</span>
                 </div>
                 <div v-if="isSupervisionSelected(activity.id)" class="mt-2 ml-7 grid grid-cols-1 gap-2 tablet:grid-cols-2">
-                  <DatePicker v-model="supervisionRows[activity.id].startDate" label="Start Date" required />
-                  <DatePicker v-model="supervisionRows[activity.id].endDate" label="End Date (optional)" />
+                  <DatePicker v-model="supervisionRows[activity.id].startDate" :label="t('project.servicePickerDialog.startDate')" required />
+                  <DatePicker v-model="supervisionRows[activity.id].endDate" :label="t('project.servicePickerDialog.endDate')" />
                 </div>
               </div>
             </div>
 
             <p v-if="supervisionDatesMissing" class="text-xs text-danger-600">
-              Every checked Supervision activity needs its own start date.
+              {{ t('project.servicePickerDialog.supervisionDatesMissing') }}
             </p>
             <p v-else class="text-xs text-text-muted">
-              Charged monthly and prorated by day for partial months -- e.g. starting on the 11th only charges for the
-              rest of that calendar month.
+              {{ t('project.servicePickerDialog.supervisionProrationNote') }}
             </p>
           </template>
         </div>
@@ -357,22 +359,22 @@ function handleConfirm(): void {
     <template #footer>
       <div class="flex w-full items-center justify-between gap-3">
         <p class="text-sm font-medium text-text-secondary">
-          <span v-if="selectedDesignItems.length === 0 && !hasSupervisionPicks" class="text-text-muted">Nothing selected</span>
+          <span v-if="selectedDesignItems.length === 0 && !hasSupervisionPicks" class="text-text-muted">{{ t('project.servicePickerDialog.nothingSelected') }}</span>
           <span v-else class="flex flex-col items-start gap-0.5">
             <span v-if="selectedDesignItems.length > 0">
-              {{ distinctServiceCount }} design service{{ distinctServiceCount === 1 ? '' : 's' }} ·
-              {{ selectedDesignItems.length }} activit{{ selectedDesignItems.length === 1 ? 'y' : 'ies' }} ·
+              {{ t('project.servicePickerDialog.designServicesCount', distinctServiceCount) }} ·
+              {{ t('project.servicePickerDialog.activitiesCount', selectedDesignItems.length) }} ·
               <span class="text-primary-700">{{ formatCurrency(designTotal, currency) }}</span>
             </span>
             <span v-if="hasSupervisionPicks">
-              {{ selectedSupervisionItems.length }} supervision activit{{ selectedSupervisionItems.length === 1 ? 'y' : 'ies' }} ·
+              {{ t('project.servicePickerDialog.supervisionActivitiesCount', selectedSupervisionItems.length) }} ·
               <span class="text-primary-700">{{ formatCurrency(supervisionMonthlyTotal, currency) }}/mo</span>
             </span>
           </span>
         </p>
         <div class="flex gap-3">
-          <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-          <BaseButton :disabled="!canConfirm" @click="handleConfirm">Save Selections</BaseButton>
+          <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+          <BaseButton :disabled="!canConfirm" @click="handleConfirm">{{ t('project.servicePickerDialog.saveSelections') }}</BaseButton>
         </div>
       </div>
     </template>

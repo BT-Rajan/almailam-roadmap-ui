@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -21,6 +22,8 @@ const emit = defineEmits<{
 // "Add Permits" is clicked, so closing the dialog (Escape, backdrop
 // click, Cancel) without confirming leaves the wizard's actual
 // selection alone. Same pattern as ServicePickerDialog.
+const { t } = useI18n()
+
 const draftIds = ref<string[]>([])
 
 // Re-seed the draft from whatever the caller already has selected every
@@ -55,11 +58,11 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Select Permits" size="md" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('project.permitPickerDialog.title')" size="md" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col rounded-lg border border-border-light">
-      <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">Permits</div>
+      <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.permitPickerDialog.permits') }}</div>
       <div class="max-h-96 overflow-y-auto p-2">
-        <p v-if="permits.length === 0" class="p-2 text-sm text-text-muted">No permits in the catalog yet.</p>
+        <p v-if="permits.length === 0" class="p-2 text-sm text-text-muted">{{ t('project.permitPickerDialog.noPermitsYet') }}</p>
         <div
           v-for="permit in permits"
           :key="permit.id"
@@ -73,12 +76,12 @@ function handleConfirm(): void {
     <template #footer>
       <div class="flex w-full items-center justify-between gap-3">
         <p class="text-sm font-medium text-text-secondary">
-          <span v-if="draftIds.length === 0" class="text-text-muted">No permits selected</span>
-          <span v-else>{{ draftIds.length }} permit{{ draftIds.length === 1 ? '' : 's' }} selected</span>
+          <span v-if="draftIds.length === 0" class="text-text-muted">{{ t('project.permitPickerDialog.noPermitsSelected') }}</span>
+          <span v-else>{{ t('project.permitPickerDialog.permitsSelected', draftIds.length) }}</span>
         </p>
         <div class="flex gap-3">
-          <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-          <BaseButton :disabled="draftIds.length === 0" @click="handleConfirm">Add Permits</BaseButton>
+          <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+          <BaseButton :disabled="draftIds.length === 0" @click="handleConfirm">{{ t('project.permitPickerDialog.addPermits') }}</BaseButton>
         </div>
       </div>
     </template>

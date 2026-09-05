@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -33,6 +34,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: QuotationCreateInput]
 }>()
+
+const { t } = useI18n()
 
 const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'KWD', value: 'KWD' },
@@ -171,17 +174,17 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="New Quotation" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('project.newQuotationDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <DatePicker v-model="form.validity" label="Valid Until" required :error="errors.validity" />
-        <SelectBox v-model="form.currency" label="Currency" :options="CURRENCY_OPTIONS" />
+        <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :error="errors.validity" />
+        <SelectBox v-model="form.currency" :label="t('project.newQuotationDialog.currency')" :options="CURRENCY_OPTIONS" />
       </div>
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-text-secondary">Line Items</label>
-          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addLineItem">Add Line Item</BaseButton>
+          <label class="text-sm font-medium text-text-secondary">{{ t('project.newQuotationDialog.lineItems') }}</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addLineItem">{{ t('project.newQuotationDialog.addLineItem') }}</BaseButton>
         </div>
 
         <div class="overflow-x-auto rounded-lg border border-border-light">
@@ -189,16 +192,16 @@ function handleConfirm(): void {
             <thead>
               <tr class="border-b border-border-light bg-bg-secondary">
                 <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Line Item
+                  {{ t('project.newQuotationDialog.columnLineItem') }}
                 </th>
                 <th class="w-24 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Qty
+                  {{ t('project.newQuotationDialog.columnQty') }}
                 </th>
                 <th class="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Rate
+                  {{ t('project.newQuotationDialog.columnRate') }}
                 </th>
                 <th class="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Amount
+                  {{ t('project.newQuotationDialog.columnAmount') }}
                 </th>
                 <th class="w-10 px-2 py-2.5"></th>
               </tr>
@@ -206,7 +209,7 @@ function handleConfirm(): void {
             <tbody>
               <tr v-for="(item, index) in form.lineItems" :key="index" class="border-b border-border-light last:border-0">
                 <td class="px-3 py-2 align-top">
-                  <TextInput v-model="item.description" placeholder="Description" :error="lineItemErrors[index]" />
+                  <TextInput v-model="item.description" :placeholder="t('project.newQuotationDialog.descriptionPlaceholder')" :error="lineItemErrors[index]" />
                 </td>
                 <td class="px-3 py-2 align-top">
                   <NumberInput
@@ -232,7 +235,7 @@ function handleConfirm(): void {
                 <td class="px-2 py-2 text-right align-top">
                   <IconButton
                     :icon="Trash2"
-                    :label="`Remove line item ${index + 1}`"
+                    :label="t('project.newQuotationDialog.removeLineItem', { number: index + 1 })"
                     size="sm"
                     :disabled="form.lineItems.length === 1"
                     @click="removeLineItem(index)"
@@ -246,32 +249,32 @@ function handleConfirm(): void {
 
       <NumberInput
         :model-value="form.discountAmount"
-        label="Discount Amount"
+        :label="t('project.newQuotationDialog.discountAmount')"
         :min="0"
         step="0.01"
         @update:model-value="form.discountAmount = Number($event)"
       />
 
-      <TextArea v-model="form.notes" label="Notes" placeholder="Optional notes for this quotation" :rows="2" />
+      <TextArea v-model="form.notes" :label="t('project.newQuotationDialog.notes')" :placeholder="t('project.newQuotationDialog.notesPlaceholder')" :rows="2" />
       <TextArea
         v-model="form.scopePhasesText"
-        label="Scope Phases"
-        placeholder="One phase per line, e.g. Phase 1 (Design): architectural design, approvals..."
-        hint="Each line becomes one phase in the document template's phased-scope section."
+        :label="t('project.newQuotationDialog.scopePhases')"
+        :placeholder="t('project.newQuotationDialog.scopePhasesPlaceholder')"
+        :hint="t('project.newQuotationDialog.scopePhasesHint')"
         :rows="3"
       />
       <TextArea
         v-model="form.paymentTermsText"
-        label="Payment Terms"
-        placeholder="One installment per line, e.g. First payment 25% upon signing the contract"
-        hint="Each line becomes one row in the document template's payment breakdown."
+        :label="t('project.newQuotationDialog.paymentTerms')"
+        :placeholder="t('project.newQuotationDialog.paymentTermsPlaceholder')"
+        :hint="t('project.newQuotationDialog.paymentTermsHint')"
         :rows="3"
       />
       <TextArea
         v-model="form.termsText"
-        label="Terms &amp; Conditions"
-        placeholder="One term per line"
-        hint="Each line becomes a separate term."
+        :label="t('project.newQuotationDialog.termsAndConditions')"
+        :placeholder="t('project.newQuotationDialog.termsPlaceholder')"
+        :hint="t('project.newQuotationDialog.termsHint')"
         :rows="3"
       />
 
@@ -279,24 +282,24 @@ function handleConfirm(): void {
 
       <div class="flex flex-col gap-2 text-sm">
         <div class="flex items-center justify-between text-text-secondary">
-          <span>Subtotal</span>
+          <span>{{ t('project.newQuotationDialog.subtotal') }}</span>
           <span class="font-medium text-text-primary">{{ formatCurrency(subtotal, form.currency) }}</span>
         </div>
         <div v-if="form.discountAmount > 0" class="flex items-center justify-between text-text-secondary">
-          <span>Discount</span>
+          <span>{{ t('project.newQuotationDialog.discount') }}</span>
           <span class="font-medium text-danger-700">-{{ formatCurrency(form.discountAmount, form.currency) }}</span>
         </div>
         <Divider />
         <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-text-primary">Total</span>
+          <span class="text-sm font-semibold text-text-primary">{{ t('project.newQuotationDialog.total') }}</span>
           <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, form.currency) }}</span>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Create Quotation</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('project.newQuotationDialog.createQuotation') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

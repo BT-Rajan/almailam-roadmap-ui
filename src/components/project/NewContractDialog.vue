@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -40,6 +41,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: ContractCreateInput]
 }>()
+
+const { t } = useI18n()
 
 const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'KWD', value: 'KWD' },
@@ -160,39 +163,38 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="New Contract" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('project.newContractDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
       <p v-if="quotation" class="text-xs text-text-muted">
-        Prefilled from quotation {{ quotation.quotationNo }} -- currency, value, and scope below all carry over
-        from it and can still be changed.
+        {{ t('project.newContractDialog.prefilledFromQuotation', { number: quotation.quotationNo }) }}
       </p>
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
-        <SelectBox v-model="form.currency" label="Currency" :options="CURRENCY_OPTIONS" />
+        <SelectBox v-model="form.currency" :label="t('project.newContractDialog.currency')" :options="CURRENCY_OPTIONS" />
         <NumberInput
           :model-value="form.contractValue"
-          label="Contract Value"
+          :label="t('project.newContractDialog.contractValue')"
           :min="0.01"
           step="0.01"
           required
           :error="errors.contractValue"
           @update:model-value="form.contractValue = Number($event)"
         />
-        <DatePicker v-model="form.expiryDate" label="Expiry Date" required :error="errors.expiryDate" />
+        <DatePicker v-model="form.expiryDate" :label="t('project.newContractDialog.expiryDate')" required :error="errors.expiryDate" />
       </div>
 
       <TextInput
         v-model="form.clientRepresentative"
-        label="Client Representative"
-        placeholder="Name of the person signing for the client"
+        :label="t('project.newContractDialog.clientRepresentative')"
+        :placeholder="t('project.newContractDialog.clientRepresentativePlaceholder')"
         required
         :error="errors.clientRepresentative"
       />
 
       <TextArea
         v-model="form.scopeSummary"
-        label="Scope Summary"
-        placeholder="Describe the scope of work covered by this contract"
+        :label="t('project.newContractDialog.scopeSummary')"
+        :placeholder="t('project.newContractDialog.scopeSummaryPlaceholder')"
         :rows="3"
         required
         :error="errors.scopeSummary"
@@ -200,25 +202,25 @@ function handleConfirm(): void {
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-text-secondary">Clauses (optional)</label>
-          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addClause">Add Clause</BaseButton>
+          <label class="text-sm font-medium text-text-secondary">{{ t('project.newContractDialog.clausesOptional') }}</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addClause">{{ t('project.newContractDialog.addClause') }}</BaseButton>
         </div>
 
         <div v-for="(clause, index) in form.clauses" :key="index" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
           <div class="flex items-start gap-2">
             <div class="flex-1">
-              <TextInput v-model="clause.title" placeholder="Clause title" :error="clauseErrors[index]" />
+              <TextInput v-model="clause.title" :placeholder="t('project.newContractDialog.clauseTitlePlaceholder')" :error="clauseErrors[index]" />
             </div>
-            <IconButton :icon="Trash2" :label="`Remove clause ${index + 1}`" size="sm" @click="removeClause(index)" />
+            <IconButton :icon="Trash2" :label="t('project.newContractDialog.removeClause', { number: index + 1 })" size="sm" @click="removeClause(index)" />
           </div>
-          <TextArea v-model="clause.content" placeholder="Clause content" :rows="2" />
+          <TextArea v-model="clause.content" :placeholder="t('project.newContractDialog.clauseContentPlaceholder')" :rows="2" />
         </div>
       </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Create Contract</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('project.newContractDialog.createContract') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

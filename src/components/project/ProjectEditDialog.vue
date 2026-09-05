@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -26,10 +27,12 @@ const emit = defineEmits<{
   confirm: [payload: ProjectUpdateInput]
 }>()
 
+const { t } = useI18n()
+
 const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
+  { label: 'High', value: 'High', labelKey: 'project.priority.high' },
+  { label: 'Medium', value: 'Medium', labelKey: 'project.priority.medium' },
+  { label: 'Low', value: 'Low', labelKey: 'project.priority.low' },
 ]
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
@@ -133,24 +136,24 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" title="Edit Project" size="lg" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog :model-value="modelValue" :title="t('project.editDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
-      <TextInput v-model="form.projectName" label="Project Name" required :error="errors.projectName" />
-      <TextArea v-model="form.description" label="Scope of Work" placeholder="Describe the scope of this engagement" :rows="3" />
-      <TextInput v-model="form.siteAddress" label="Project/Site Address" placeholder="e.g. Plot 572, Parcel 4, Second Suburb, Al Mutlaa" />
+      <TextInput v-model="form.projectName" :label="t('project.editDialog.projectName')" required :error="errors.projectName" />
+      <TextArea v-model="form.description" :label="t('project.editDialog.scopeOfWork')" :placeholder="t('project.editDialog.scopeOfWorkPlaceholder')" :rows="3" />
+      <TextInput v-model="form.siteAddress" :label="t('project.editDialog.siteAddress')" :placeholder="t('project.editDialog.siteAddressPlaceholder')" />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.service" label="Service" :options="serviceOptions" required :error="errors.service" />
-        <SelectBox v-model="form.priority" label="Priority" :options="PRIORITY_OPTIONS" />
+        <SelectBox v-model="form.service" :label="t('project.editDialog.service')" :options="serviceOptions" required :error="errors.service" />
+        <SelectBox v-model="form.priority" :label="t('project.editDialog.priority')" :options="PRIORITY_OPTIONS" />
         <SelectBox
           v-model="form.engineerId"
-          label="Reassign Engineer"
-          placeholder="Select an engineer"
+          :label="t('project.editDialog.reassignEngineer')"
+          :placeholder="t('project.editDialog.reassignEngineerPlaceholder')"
           :options="engineerOptions"
           required
           :error="errors.engineerId"
         />
-        <DatePicker v-model="form.targetDate" label="Target Completion Date" required :error="errors.targetDate" />
+        <DatePicker v-model="form.targetDate" :label="t('project.editDialog.targetCompletionDate')" required :error="errors.targetDate" />
       </div>
 
       <!-- Progress is no longer editable here -- it's computed from the
@@ -158,8 +161,8 @@ function handleConfirm(): void {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Save Changes</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.saveChanges') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -39,8 +40,26 @@ const emit = defineEmits<{
   confirm: [payload: { value: string; reason?: string }]
 }>()
 
-const title = computed(() => (props.kind === 'stage' ? 'Change Workflow Stage' : 'Change Project Status'))
-const fieldLabel = computed(() => (props.kind === 'stage' ? 'New Stage' : 'New Status'))
+const { t } = useI18n()
+
+const title = computed(() => (props.kind === 'stage' ? t('project.transitionDialog.changeWorkflowStage') : t('project.transitionDialog.changeProjectStatus')))
+const fieldLabel = computed(() => (props.kind === 'stage' ? t('project.transitionDialog.newStage') : t('project.transitionDialog.newStatus')))
+
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Active: 'project.status.active',
+  'On Hold': 'project.status.onHold',
+  Cancelled: 'project.status.cancelled',
+}
 
 // One real backend check per structurally-possible stage (see
 // project_service.get_stage_eligibility) -- lets this dialog disable,
@@ -62,6 +81,7 @@ const baseOptions = computed(() => {
   return targets.map((value) => ({
     label: props.kind === 'stage' ? getWorkflowStageLabel(value) : value,
     value,
+    labelKey: props.kind === 'stage' ? STAGE_LABEL_KEYS[value] : STATUS_LABEL_KEYS[value],
   }))
 })
 
@@ -137,22 +157,22 @@ function handleConfirm(): void {
       </p>
       <TextArea
         v-model="form.reason"
-        label="Reason"
+        :label="t('project.transitionDialog.reason')"
         :required="reasonRequired"
         :error="errors.reason"
-        :hint="reasonRequired ? 'Required for this change' : 'Optional'"
+        :hint="reasonRequired ? t('project.transitionDialog.reasonRequiredHint') : t('common.optional')"
         :rows="3"
       />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
       <BaseButton
         :loading="loading || isLoadingEligibility"
         :disabled="Boolean(selectedEligibility && !selectedEligibility.eligible)"
         @click="handleConfirm"
       >
-        Confirm
+        {{ t('common.confirm') }}
       </BaseButton>
     </template>
   </BaseDialog>

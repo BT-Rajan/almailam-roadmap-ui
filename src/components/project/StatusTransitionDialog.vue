@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [payload: { value: string; reason?: string }]
 }>()
+
+const { t } = useI18n()
 
 const options = computed(() => (props.allowedTransitions[props.currentValue] ?? []).map((value) => ({ label: value, value })))
 
@@ -54,20 +57,20 @@ function handleConfirm(): void {
 <template>
   <BaseDialog :model-value="modelValue" :title="title" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-4">
-      <SelectBox v-model="form.value" label="New Status" required :options="options" :error="errors.value" />
+      <SelectBox v-model="form.value" :label="t('project.transitionDialog.newStatus')" required :options="options" :error="errors.value" />
       <TextArea
         v-model="form.reason"
-        label="Reason"
+        :label="t('project.transitionDialog.reason')"
         :required="reasonRequired"
         :error="errors.reason"
-        :hint="reasonRequired ? 'Required for this change' : 'Optional'"
+        :hint="reasonRequired ? t('project.transitionDialog.reasonRequiredHint') : t('common.optional')"
         :rows="3"
       />
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">Cancel</BaseButton>
-      <BaseButton :loading="loading" @click="handleConfirm">Confirm</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="loading" @click="handleConfirm">{{ t('common.confirm') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>
