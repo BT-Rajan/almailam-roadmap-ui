@@ -84,6 +84,7 @@ export default {
   selectAllRowsOnPage: 'تحديد جميع الصفوف في هذه الصفحة',
   selectRow: 'تحديد الصف {id}',
   dismissAlert: 'إغلاق التنبيه',
+  dismissNotification: 'إغلاق الإشعار',
   goToStep: 'الانتقال إلى الخطوة {step}: {label}',
   selectDate: 'اختر تاريخاً',
   selectOption: 'اختر خياراً',

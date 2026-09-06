@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LogOut } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -8,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 async function handleLogout(): Promise<void> {
   await authStore.logout()
@@ -30,8 +32,8 @@ const isLoginPage = () => route.name === ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
             SO
           </div>
           <div class="text-start">
-            <p class="text-sm font-semibold text-text-primary">Customer Portal</p>
-            <p class="hidden text-xs text-text-muted tablet:block">Almailam Engineering Consultants</p>
+            <p class="text-sm font-semibold text-text-primary">{{ t('customer.portalLayout.title') }}</p>
+            <p class="hidden text-xs text-text-muted tablet:block">{{ t('common.companyName') }}</p>
           </div>
         </div>
         <button
@@ -41,7 +43,7 @@ const isLoginPage = () => route.name === ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
           @click="handleLogout"
         >
           <LogOut class="h-4 w-4" />
-          Log Out
+          {{ t('auth.logout') }}
         </button>
       </div>
     </header>

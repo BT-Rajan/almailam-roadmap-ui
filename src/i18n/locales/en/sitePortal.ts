@@ -1,4 +1,8 @@
 export default {
+  portalLayout: {
+    title: 'Site Engineer Portal',
+  },
+
   loginPage: {
     title: 'Site Engineer Sign In',
     subtitle: 'File your daily status report and view your report history.',

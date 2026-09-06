@@ -307,6 +307,7 @@ export default {
     repeatingAt: 'Repeating at {label}',
     repeatsForEach: 'Repeats for each: {label}',
     repeats: 'Repeats: {label}',
+    clearRepeatingField: 'Clear repeating field',
     searchPlaceholder: 'Find text in the document...',
     emptyLine: '(empty line)',
     saveMapping: 'Save Mapping',

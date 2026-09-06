@@ -301,6 +301,7 @@ export default {
     repeatingAt: 'يتكرر عند {label}',
     repeatsForEach: 'يتكرر لكل: {label}',
     repeats: 'يتكرر: {label}',
+    clearRepeatingField: 'إزالة الحقل المتكرر',
     searchPlaceholder: 'ابحث عن نص في المستند...',
     emptyLine: '(سطر فارغ)',
     saveMapping: 'حفظ الربط',

@@ -416,7 +416,12 @@ function handleClose(): void {
             <div v-if="block.repeatingField" class="flex items-center gap-1 text-[11px] text-accent-600">
               <Repeat class="h-3 w-3" />
               <span>{{ t('administration.templateFieldMapperDialog.repeatsForEach', { label: fieldLabel(block.repeatingField) }) }}</span>
-              <button type="button" class="hover:text-accent-700" @click="clearParagraphRepeating(block, block.repeatingField)">
+              <button
+                type="button"
+                class="hover:text-accent-700"
+                :aria-label="t('administration.templateFieldMapperDialog.clearRepeatingField')"
+                @click="clearParagraphRepeating(block, block.repeatingField)"
+              >
                 <X class="h-3 w-3" />
               </button>
             </div>
@@ -450,6 +455,7 @@ function handleClose(): void {
                       <button
                         type="button"
                         class="hover:text-accent-700"
+                        :aria-label="t('administration.templateFieldMapperDialog.clearRepeatingField')"
                         @click="clearRowRepeating(row, row.repeatingField)"
                       >
                         <X class="h-3 w-3" />

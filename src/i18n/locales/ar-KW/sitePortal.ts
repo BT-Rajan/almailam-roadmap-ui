@@ -1,4 +1,8 @@
 export default {
+  portalLayout: {
+    title: 'بوابة مهندس الموقع',
+  },
+
   loginPage: {
     title: 'تسجيل دخول مهندس الموقع',
     subtitle: 'قدّم تقرير حالتك اليومي واطّلع على سجل تقاريرك.',

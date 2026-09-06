@@ -82,6 +82,7 @@ export default {
   selectAllRowsOnPage: 'Select all rows on this page',
   selectRow: 'Select row {id}',
   dismissAlert: 'Dismiss alert',
+  dismissNotification: 'Dismiss notification',
   goToStep: 'Go to step {step}: {label}',
   selectDate: 'Select a date',
   selectOption: 'Select an option',

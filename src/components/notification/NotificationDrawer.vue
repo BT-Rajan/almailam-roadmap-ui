@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BellOff, CheckCheck } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -12,6 +13,7 @@ import type { AppNotification } from '@/types/Notification'
 
 const notificationStore = useNotificationStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const handleSelect = async (notification: AppNotification): Promise<void> => {
   await notificationStore.markAsRead(notification.id)
@@ -25,7 +27,7 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
 <template>
   <BaseDrawer
     :model-value="notificationStore.isDrawerOpen"
-    title="Notifications"
+    :title="t('navigation.notificationDrawer.title')"
     width="md"
     @update:model-value="notificationStore.closeDrawer"
   >
@@ -36,11 +38,11 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
         @click="notificationStore.markAllAsRead"
       >
         <CheckCheck :size="16" />
-        Mark all as read
+        {{ t('navigation.notificationDrawer.markAllAsRead') }}
       </button>
     </template>
 
-    <Loader v-if="notificationStore.isLoading" label="Loading notifications..." />
+    <Loader v-if="notificationStore.isLoading" :label="t('navigation.notificationDrawer.loadingNotifications')" />
 
     <ErrorState
       v-else-if="notificationStore.error"
@@ -51,8 +53,8 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
     <EmptyState
       v-else-if="notificationStore.notifications.length === 0"
       :icon="BellOff"
-      title="No notifications yet"
-      description="You're all caught up. New updates will show up here."
+      :title="t('navigation.notificationDrawer.noNotificationsYetTitle')"
+      :description="t('navigation.notificationDrawer.noNotificationsYetDescription')"
     />
 
     <div v-else class="flex flex-col gap-4">
