@@ -317,6 +317,9 @@ export default {
     clientReadyNotice: 'The client is Ready and can be selected on a new project right away.',
     viewClientWorkspace: 'View Client Workspace',
     failedToOnboardClient: 'Failed to onboard client',
+    pleaseFixHighlightedFields: 'Please fix the highlighted fields',
+    fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
+    fieldsNeedAttentionBeforeOnboarding: 'Some fields under "{step}" need attention before this client can be onboarded.',
   },
 
   addressEditDialog: {

@@ -116,10 +116,10 @@ const isCreateDialogOpen = ref(false)
 async function handleCreateTask(input: TaskInput): Promise<void> {
   try {
     const task = await taskStore.createTask(input)
-    toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+    toastStore.show('success', t('project.tasksTab.taskCreatedTitle'), t('project.tasksTab.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create task', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToCreateTask'), detail)
   }
 }
 
@@ -132,8 +132,8 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   try {
     await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateStatus'), detail)
   }
 }
 
@@ -142,8 +142,8 @@ async function handlePriorityChange(priority: TaskPriority): Promise<void> {
   try {
     await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update priority', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdatePriority'), detail)
   }
 }
 
@@ -152,8 +152,8 @@ async function handleReassign(assignee: string): Promise<void> {
   try {
     await taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to reassign task', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToReassignTask'), detail)
   }
 }
 </script>

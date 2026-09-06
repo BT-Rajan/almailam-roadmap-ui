@@ -141,7 +141,7 @@ function entryById(entryId: string): ProjectFormEntry | undefined {
 async function handleStatusChange(entryId: string, status: string): Promise<void> {
   await projectFormStore.setEntryStatus(props.projectId, entryId, status as ProjectFormEntryStatus)
   if (projectFormStore.mutationError) {
-    toastStore.show('error', 'Could not change status', projectFormStore.mutationError)
+    toastStore.show('error', t('government.authorityFormsPanel.couldNotChangeStatus'), projectFormStore.mutationError)
   }
 }
 
@@ -178,7 +178,7 @@ async function downloadDocument(entry: ProjectFormEntry): Promise<void> {
     const blob = await documentService.downloadDocument(entry.documentId)
     triggerBlobDownload(blob, `${entry.formTitle}.pdf`)
   } catch (error) {
-    toastStore.show('error', 'Download failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -188,7 +188,7 @@ async function printDocument(entry: ProjectFormEntry): Promise<void> {
     const blob = await documentService.downloadDocument(entry.documentId)
     window.open(URL.createObjectURL(blob), '_blank')
   } catch (error) {
-    toastStore.show('error', 'Could not open document', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('government.authorityFormsPanel.couldNotOpenDocument'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -205,9 +205,9 @@ async function confirmDelete(): Promise<void> {
   try {
     await projectFormStore.deleteEntry(props.projectId, deleteTarget.value.id)
     if (projectFormStore.mutationError) {
-      toastStore.show('error', 'Could not remove form', projectFormStore.mutationError)
+      toastStore.show('error', t('government.authorityFormsPanel.couldNotRemoveForm'), projectFormStore.mutationError)
     } else {
-      toastStore.show('info', 'Form removed', `${deleteTarget.value.formTitle} was removed. It can be added again.`)
+      toastStore.show('info', t('government.authorityFormsPanel.formRemovedTitle'), t('government.authorityFormsPanel.formRemovedDescription', { title: deleteTarget.value.formTitle }))
     }
     deleteTarget.value = undefined
   } finally {

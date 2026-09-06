@@ -26,6 +26,10 @@ export default {
     newCount: '{count} new',
     updatedCount: '{count} updated',
     delayedCount: '{count} delayed',
+    failedToLoadFilterOptions: 'Failed to load filter options',
+    failedToLoadActivities: 'Failed to load activities',
+    activitiesExportedSuccessfully: 'Activities exported successfully',
+    failedToExportActivities: 'Failed to export activities',
   },
 
   knowledgeBasePage: {
@@ -50,6 +54,10 @@ export default {
     noQuestionsAskedYet: 'No questions asked yet',
     noQuestionsAskedYetDescription: 'Ask a question about one of your uploaded documents, or all active documents at once.',
     cached: 'Cached',
+    unableToUpdateDocument: 'Unable to update document',
+    documentDeletedTitle: 'Document deleted',
+    documentDeletedDescription: '{title} was removed from the knowledge base.',
+    unableToDeleteDocument: 'Unable to delete document',
   },
 
   knowledgeUploadDialog: {
@@ -93,5 +101,9 @@ export default {
     send: 'Send {channel}',
     unknownCustomer: 'Unknown Customer',
     customMessage: 'Custom message',
+    messageSentTitle: 'Message sent',
+    messageSentDescription: '{channel} sent to {name}.',
+    couldNotSendMessageTitle: 'Could not send message',
+    unknownCustomerFallback: 'customer',
   },
 }

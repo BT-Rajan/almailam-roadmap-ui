@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -10,6 +11,7 @@ import { useToastStore } from '@/stores/toastStore'
 
 const permitCatalogStore = usePermitCatalogStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 function loadData(): void {
   permitCatalogStore.loadPermits()
@@ -25,7 +27,7 @@ onMounted(() => {
 function reportIfFailed(action: Promise<void>): void {
   action.then(() => {
     if (permitCatalogStore.mutationError) {
-      toastStore.show('error', 'Change not saved', permitCatalogStore.mutationError)
+      toastStore.show('error', t('common.changeNotSaved'), permitCatalogStore.mutationError)
     }
   })
 }

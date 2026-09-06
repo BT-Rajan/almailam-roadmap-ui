@@ -225,7 +225,7 @@ onMounted(async () => {
   // a real load failure (permissions, network) is never silently
   // indistinguishable from an empty catalog.
   if (serviceCatalogStore.error) {
-    toastStore.show('error', 'Could not load the service catalog', serviceCatalogStore.error)
+    toastStore.show('error', t('project.newWizard.couldNotLoadServiceCatalog'), serviceCatalogStore.error)
   }
 })
 
@@ -253,8 +253,8 @@ function goNext(): void {
     // working" rather than "something needs fixing here."
     toastStore.show(
       'error',
-      'Please fix the highlighted fields',
-      `Some fields under "${WIZARD_STEPS.value[currentStep.value].label}" need attention before continuing.`,
+      t('project.newWizard.pleaseFixHighlightedFields'),
+      t('project.newWizard.fieldsNeedAttentionUnderStep', { step: WIZARD_STEPS.value[currentStep.value].label }),
     )
     return
   }
@@ -299,8 +299,8 @@ async function submitWizard(): Promise<void> {
   if (!validateStep(0) || !validateStep(1)) {
     toastStore.show(
       'error',
-      'Please fix the highlighted fields',
-      "Some earlier fields need attention before this project can be created.",
+      t('project.newWizard.pleaseFixHighlightedFields'),
+      t('project.newWizard.earlierFieldsNeedAttention'),
     )
     currentStep.value = 0
     return
@@ -330,7 +330,7 @@ async function submitWizard(): Promise<void> {
       supervisionEndDate: form.supervisionEndDate || undefined,
     })
 
-    toastStore.show('success', 'Project created', `${project.projectName} was added to the pipeline.`)
+    toastStore.show('success', t('project.newWizard.projectCreatedTitle'), t('project.newWizard.addedToPipelineDescription', { name: project.projectName }))
     createdProject.value = project
     showConfirmation.value = true
   } catch (error) {

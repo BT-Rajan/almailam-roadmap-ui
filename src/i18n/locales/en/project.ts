@@ -139,6 +139,17 @@ export default {
     othersTitle: 'Others',
     noOtherDocumentsTitle: 'No other documents yet',
     noOtherDocumentsDescription: 'Add a link to any other supporting document.',
+    documentUpdatedTitle: 'Document updated',
+    documentUpdatedDescription: '{title} was updated successfully.',
+    failedToUpdateDocument: 'Failed to update document',
+    failedToAddDocumentDetail: 'Failed to add document',
+    documentDeletedTitle: 'Document deleted',
+    wasRemoved: '{title} was removed.',
+    failedToDeleteDocument: 'Failed to delete document',
+    failedToOpenDocument: 'Failed to open document',
+    failedToDownloadDocument: 'Failed to download document',
+    documentRemovedTitle: 'Document removed',
+    failedToRemoveDocument: 'Failed to remove document',
   },
 
   overviewTab: {
@@ -235,6 +246,14 @@ export default {
       email: 'Email',
       city: 'City',
     },
+    scopeSavedTitle: 'Scope of work saved',
+    scopeSavedDescription: 'A new revision was recorded.',
+    couldNotSaveScope: 'Could not save scope of work',
+    scopeApprovedTitle: 'Scope of work approved',
+    movedToQuotationDescription: 'The project moved on to Quotation.',
+    internalApprovalPendingIdDescription: "Internal approval recorded, but the project stays at Requirement until the client's identification document is on file too.",
+    internalApprovalRecordedDescription: 'Internal approval recorded.',
+    couldNotApproveScope: 'Could not approve scope of work',
   },
 
   quotationTab: {
@@ -357,6 +376,12 @@ export default {
   tasksTab: {
     newTask: 'New Task',
     viewTaskBoard: 'View Task Board',
+    taskCreatedTitle: 'Task created',
+    taskCreatedDescription: '"{title}" was assigned to {assignee}.',
+    failedToCreateTask: 'Failed to create task',
+    failedToUpdateStatus: 'Failed to update status',
+    failedToUpdatePriority: 'Failed to update priority',
+    failedToReassignTask: 'Failed to reassign task',
   },
 
   reportPage: {
@@ -478,6 +503,11 @@ export default {
     projectCreatedMessagePart2: 'for',
     viewProjectWorkspace: 'View Project Workspace',
     failedToCreateProject: 'Failed to create project',
+    couldNotLoadServiceCatalog: 'Could not load the service catalog',
+    pleaseFixHighlightedFields: 'Please fix the highlighted fields',
+    fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
+    earlierFieldsNeedAttention: 'Some earlier fields need attention before this project can be created.',
+    addedToPipelineDescription: '{name} was added to the pipeline.',
   },
 
   newContractDialog: {

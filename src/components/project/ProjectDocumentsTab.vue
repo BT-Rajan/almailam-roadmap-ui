@@ -93,7 +93,7 @@ async function handleSaveDesignDocument(payload: {
       if (payload.file) {
         await documentStore.attachFile(target.id, payload.file)
       }
-      toastStore.show('success', 'Document updated', `${payload.title} was updated successfully.`)
+      toastStore.show('success', t('project.documentsTab.documentUpdatedTitle'), t('project.documentsTab.documentUpdatedDescription', { title: payload.title }))
     } else {
       const created = await documentStore.uploadDocument(
         payload.file,
@@ -116,8 +116,8 @@ async function handleSaveDesignDocument(payload: {
     await projectStore.refreshProject(props.project.id)
     isDesignDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', designDialogTarget.value ? 'Failed to update document' : 'Failed to add document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', designDialogTarget.value ? t('project.documentsTab.failedToUpdateDocument') : t('project.documentsTab.failedToAddDocumentDetail'), detail)
   } finally {
     isDesignSaving.value = false
   }
@@ -133,11 +133,11 @@ async function handleConfirmDelete(): Promise<void> {
   isDeleteSaving.value = true
   try {
     await documentStore.deleteDocument(deleteTarget.value.id)
-    toastStore.show('success', 'Document deleted', `${deleteTarget.value.title} was removed.`)
+    toastStore.show('success', t('project.documentsTab.documentDeletedTitle'), t('project.documentsTab.wasRemoved', { title: deleteTarget.value.title }))
     isDeleteDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to delete document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.documentsTab.failedToDeleteDocument'), detail)
   } finally {
     isDeleteSaving.value = false
   }
@@ -189,13 +189,13 @@ const customerIdDocuments = computed<ClientDocument[]>(() => clientStore.documen
 
 function viewCustomerDocument(document: ClientDocument): void {
   clientStore.viewDocument(clientId.value, document.id).catch(() => {
-    toastStore.show('error', 'Failed to open document', 'Please try again.')
+    toastStore.show('error', t('project.documentsTab.failedToOpenDocument'), t('common.pleaseTryAgain'))
   })
 }
 
 function downloadCustomerDocument(document: ClientDocument): void {
   clientStore.downloadDocument(clientId.value, document.id, document.originalFilename).catch(() => {
-    toastStore.show('error', 'Failed to download document', 'Please try again.')
+    toastStore.show('error', t('project.documentsTab.failedToDownloadDocument'), t('common.pleaseTryAgain'))
   })
 }
 
@@ -241,11 +241,11 @@ async function handleConfirmLinkDelete(): Promise<void> {
   isLinkDeleteSaving.value = true
   try {
     await linkDocumentStore.deleteDocument(props.project.id, linkDeleteTarget.value.id)
-    toastStore.show('success', 'Document removed', `${linkDeleteTarget.value.name} was removed.`)
+    toastStore.show('success', t('project.documentsTab.documentRemovedTitle'), t('project.documentsTab.wasRemoved', { title: linkDeleteTarget.value.name }))
     isLinkDeleteDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to remove document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.documentsTab.failedToRemoveDocument'), detail)
   } finally {
     isLinkDeleteSaving.value = false
   }

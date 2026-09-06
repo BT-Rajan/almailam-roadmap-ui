@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { ProjectMilestone } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { isPastDate } from '@/utils/dateFormatter'
+import { formatDate, isPastDate } from '@/utils/dateFormatter'
 
 interface Props {
   milestones: ProjectMilestone[]
@@ -42,12 +42,6 @@ const getStatusColor = (status: string) => {
   return 'text-text-muted'
 }
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 
 const isOverdue = (dueDate: string, status: string) => {
   // Server already renders "delayed" as its own status pill for the

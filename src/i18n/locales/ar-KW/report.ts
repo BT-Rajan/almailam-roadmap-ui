@@ -107,5 +107,10 @@ export default {
     noSpecificTask: 'لا توجد مهمة محددة',
     notes: 'ملاحظات',
     notesPlaceholder: 'ملاحظة موجزة للجدول الزمني للمشروع...',
+    notesRequiredTitle: 'الملاحظات مطلوبة',
+    notesRequiredDescription: 'يرجى إضافة ملاحظة موجزة قبل إرفاق هذا التقرير.',
+    reportAttachedTitle: 'تم إرفاق التقرير',
+    reportAttachedDescription: 'تمت إضافة {reportNo} إلى الجدول الزمني لـ {projectName}.',
+    failedToAttachReport: 'فشل إرفاق التقرير',
   },
 }

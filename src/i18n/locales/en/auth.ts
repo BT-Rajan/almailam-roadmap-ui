@@ -41,5 +41,7 @@ export default {
     newPasswordPlaceholder: 'At least 8 characters',
     confirmNewPassword: 'Confirm New Password',
     confirmNewPasswordPlaceholder: 'Re-enter new password',
+    passwordChangedTitle: 'Password changed',
+    passwordChangedDescription: 'Please log in again with your new password.',
   },
 }

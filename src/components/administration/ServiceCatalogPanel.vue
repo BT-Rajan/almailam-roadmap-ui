@@ -55,7 +55,7 @@ onMounted(() => {
 function reportIfFailed(action: Promise<void>): void {
   action.then(() => {
     if (serviceCatalogStore.mutationError) {
-      toastStore.show('error', 'Change not saved', serviceCatalogStore.mutationError)
+      toastStore.show('error', t('common.changeNotSaved'), serviceCatalogStore.mutationError)
     }
   })
 }

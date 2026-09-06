@@ -20,6 +20,7 @@ import type { BadgeVariant } from '@/types/Ui'
 import type { SmartTableColumn } from '@/types/Table'
 import type { MessageChannel } from '@/types/Message'
 import type { SelectOption } from '@/types/Ui'
+import { formatDateTime } from '@/utils/dateFormatter'
 
 interface ClientTableRow {
   [key: string]: unknown
@@ -109,7 +110,7 @@ const logRows = computed<LogTableRow[]>(() =>
     templateName: store.templates.find((template) => template.id === entry.templateId)?.name ?? t('workspace.messageCentrePage.customMessage'),
     projectName: entry.projectId ? (store.getProjectById(entry.projectId)?.projectName ?? '—') : '—',
     status: entry.status,
-    sentAt: new Date(entry.sentAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
+    sentAt: formatDateTime(entry.sentAt),
   })),
 )
 
@@ -176,10 +177,16 @@ async function handleSend(): Promise<void> {
       body: messageBody.value.trim(),
       projectId: projectId.value || undefined,
     })
-    toast.success('Message sent', `${channel.value} sent to ${store.selectedClient?.contactPerson ?? 'customer'}.`)
+    toast.success(
+      t('workspace.messageCentrePage.messageSentTitle'),
+      t('workspace.messageCentrePage.messageSentDescription', {
+        channel: channel.value,
+        name: store.selectedClient?.contactPerson ?? t('workspace.messageCentrePage.unknownCustomerFallback'),
+      }),
+    )
     closeCompose()
   } catch {
-    toast.error('Could not send message', 'Please try again.')
+    toast.error(t('workspace.messageCentrePage.couldNotSendMessageTitle'), t('common.pleaseTryAgain'))
   }
 }
 

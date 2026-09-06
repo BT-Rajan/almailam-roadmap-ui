@@ -4,6 +4,7 @@ import { Bell, Bot, FolderKanban, Landmark, ListChecks, Wallet } from '@lucide/v
 import type { Component } from 'vue'
 
 import type { AppNotification, NotificationCategory } from '@/types/Notification'
+import { formatTime } from '@/utils/dateFormatter'
 
 interface Props {
   notification: AppNotification
@@ -36,10 +37,7 @@ const CATEGORY_CLASSES: Record<NotificationCategory, string> = {
 const icon = computed(() => CATEGORY_ICONS[props.notification.category])
 const iconClasses = computed(() => CATEGORY_CLASSES[props.notification.category])
 
-const timeLabel = computed(() => {
-  const date = new Date(props.notification.date)
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-})
+const timeLabel = computed(() => formatTime(new Date(props.notification.date)))
 </script>
 
 <template>

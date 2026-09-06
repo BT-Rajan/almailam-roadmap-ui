@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import type { FinancialAuditEvent } from '@/types/Payment'
+import { formatDateTime } from '@/utils/dateFormatter'
 
 interface Props {
   events: FinancialAuditEvent[]
@@ -16,9 +17,7 @@ const { t } = useI18n()
 
 const sortedEvents = computed(() => [...props.events].sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
 
-function formatTimestamp(timestamp: string): string {
-  return new Date(timestamp).toLocaleString('en-AE', { dateStyle: 'medium', timeStyle: 'short' })
-}
+const formatTimestamp = formatDateTime
 </script>
 
 <template>

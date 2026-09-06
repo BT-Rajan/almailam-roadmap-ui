@@ -144,12 +144,12 @@ async function handleSave(user: AppUser): Promise<void> {
   try {
     if (editingUser.value) {
       await userStore.saveUser(user)
-      toastStore.show('success', 'User updated', `${user.name} was updated successfully.`)
+      toastStore.show('success', t('administration.userManagementPage.userUpdatedTitle'), t('administration.userManagementPage.userUpdatedDescription', { name: user.name }))
     } else {
       const created = await userStore.addUser(user)
-      toastStore.show('success', 'User added', `${created.name} was added to the firm.`)
+      toastStore.show('success', t('administration.userManagementPage.userAddedTitle'), t('administration.userManagementPage.userAddedDescription', { name: created.name }))
       passwordDialogUserName.value = created.name
-      passwordDialogHeading.value = `Login created for ${created.name}`
+      passwordDialogHeading.value = t('administration.userManagementPage.loginCreatedFor', { name: created.name })
       resetPasswordResult.value = created.temporaryPassword
       isPasswordResultOpen.value = true
     }
@@ -157,8 +157,8 @@ async function handleSave(user: AppUser): Promise<void> {
   } catch (error) {
     toastStore.show(
       'error',
-      editingUser.value ? 'Failed to update user' : 'Failed to add user',
-      error instanceof Error ? error.message : 'Please try again.',
+      editingUser.value ? t('administration.userManagementPage.failedToUpdateUser') : t('administration.userManagementPage.failedToAddUser'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
     )
   } finally {
     isSavingUser.value = false
@@ -169,7 +169,11 @@ async function handleToggleStatus(user: AppUser): Promise<void> {
   const name = user.name
   const nextStatus = await userStore.toggleUserStatus(user.id)
   if (!nextStatus) return
-  toastStore.show('info', `User ${nextStatus.toLowerCase()}`, `${name} is now ${nextStatus.toLowerCase()}.`)
+  toastStore.show(
+    'info',
+    nextStatus === 'Active' ? t('administration.userManagementPage.userActivatedTitle') : t('administration.userManagementPage.userDeactivatedTitle'),
+    nextStatus === 'Active' ? t('administration.userManagementPage.userIsNowActive', { name }) : t('administration.userManagementPage.userIsNowInactive', { name }),
+  )
 }
 
 async function handleResetPassword(): Promise<void> {
@@ -182,7 +186,7 @@ async function handleResetPassword(): Promise<void> {
     isResetConfirmOpen.value = false
     isPasswordResultOpen.value = true
   } catch (error) {
-    toastStore.show('error', 'Password reset failed', error instanceof Error ? error.message : undefined)
+    toastStore.show('error', t('administration.userManagementPage.passwordResetFailed'), error instanceof Error ? error.message : undefined)
   } finally {
     isResettingPassword.value = false
   }
@@ -194,11 +198,11 @@ async function handleDeleteUser(): Promise<void> {
   try {
     const name = selectedUser.value.name
     await userStore.deleteUser(selectedUser.value.id)
-    toastStore.show('success', 'User deleted', `${name} was removed from the firm.`)
+    toastStore.show('success', t('administration.userManagementPage.userDeletedTitle'), t('administration.userManagementPage.userDeletedDescription', { name }))
     isDeleteConfirmOpen.value = false
     isProfileDialogOpen.value = false
   } catch (error) {
-    toastStore.show('error', 'Failed to delete user', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.userManagementPage.failedToDeleteUser'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isDeletingUser.value = false
   }

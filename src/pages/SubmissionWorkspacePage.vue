@@ -126,9 +126,9 @@ async function handleDocumentUpload(documentId: number, file: File): Promise<voi
   const success = await submissionStore.uploadDocument(submissionNo.value, documentId, file)
   uploadingDocumentId.value = undefined
   if (success) {
-    toastStore.show('success', 'Document uploaded', 'The required document has been attached.')
+    toastStore.show('success', t('government.workspacePage.documentUploadedTitle'), t('government.workspacePage.documentUploadedDescription'))
   } else {
-    toastStore.show('error', 'Upload failed', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('common.uploadFailed'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -138,7 +138,7 @@ async function handleDocumentDownload(documentId: number): Promise<void> {
     const doc = submission.value?.documents.find((d) => d.id === documentId)
     triggerBlobDownload(blob, doc?.originalFilename ?? 'document')
   } catch {
-    toastStore.show('error', 'Download failed', 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -162,9 +162,9 @@ async function handleProofOfSubmissionUpload(event: Event): Promise<void> {
   isUploadingProofOfSubmission.value = false
   ;(event.target as HTMLInputElement).value = ''
   if (success) {
-    toastStore.show('success', 'Submission recorded', `${submissionNo.value} has been marked as Submitted.`)
+    toastStore.show('success', t('government.workspacePage.submissionRecordedTitle'), t('government.workspacePage.submissionRecordedDescription', { submissionNo: submissionNo.value }))
   } else {
-    toastStore.show('error', 'Upload failed', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('common.uploadFailed'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -173,7 +173,7 @@ async function downloadProofOfSubmission(): Promise<void> {
     const blob = await governmentSubmissionService.downloadProofOfSubmission(submissionNo.value)
     triggerBlobDownload(blob, submission.value?.proofOfSubmission?.originalFilename ?? 'proof-of-submission')
   } catch {
-    toastStore.show('error', 'Download failed', 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -207,9 +207,9 @@ async function confirmFollowup(): Promise<void> {
   })
   if (success) {
     isFollowupDialogOpen.value = false
-    toastStore.show('success', 'Follow-up recorded', 'The follow-up has been logged.')
+    toastStore.show('success', t('government.workspacePage.followUpRecordedTitle'), t('government.workspacePage.followUpRecordedDescription'))
   } else {
-    toastStore.show('error', 'Unable to record follow-up', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('government.workspacePage.unableToRecordFollowUp'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -276,9 +276,9 @@ async function confirmProofOfResponse(): Promise<void> {
   )
   if (success) {
     isProofOfResponseDialogOpen.value = false
-    toastStore.show('success', 'Response recorded', "The government's response has been logged.")
+    toastStore.show('success', t('government.workspacePage.responseRecordedTitle'), t('government.workspacePage.responseRecordedDescription'))
   } else {
-    toastStore.show('error', 'Upload failed', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('common.uploadFailed'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -287,7 +287,7 @@ async function downloadProofOfResponse(): Promise<void> {
     const blob = await governmentSubmissionService.downloadProofOfResponse(submissionNo.value)
     triggerBlobDownload(blob, submission.value?.proofOfResponse?.originalFilename ?? 'proof-of-response')
   } catch {
-    toastStore.show('error', 'Download failed', 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -304,7 +304,7 @@ async function handleMarkComplete(): Promise<void> {
   const projectId = submission.value?.projectId
   const success = await submissionStore.markComplete(submissionNo.value)
   if (success) {
-    toastStore.show('success', 'Submission complete', `${submissionNo.value} has been marked Approved.`)
+    toastStore.show('success', t('government.workspacePage.submissionCompleteTitle'), t('government.workspacePage.submissionCompleteDescription', { submissionNo: submissionNo.value }))
     // A tagged submission's approval can close a project approval-process
     // gate and auto-advance the project's own stage server-side (see
     // submission_service.set_status) -- refresh so the project's cached
@@ -312,7 +312,7 @@ async function handleMarkComplete(): Promise<void> {
     // left stale, same pattern as the other stage-advancing actions.
     if (projectId) await projectStore.refreshProject(projectId)
   } else {
-    toastStore.show('error', 'Unable to mark complete', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('government.workspacePage.unableToMarkComplete'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -347,9 +347,9 @@ async function confirmWithdraw(): Promise<void> {
   )
   if (success) {
     isWithdrawDialogOpen.value = false
-    toastStore.show('success', 'Submission withdrawn', `${submissionNo.value} has been withdrawn.`)
+    toastStore.show('success', t('government.workspacePage.submissionWithdrawnTitle'), t('government.workspacePage.submissionWithdrawnDescription', { submissionNo: submissionNo.value }))
   } else {
-    toastStore.show('error', 'Unable to withdraw', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('government.workspacePage.unableToWithdraw'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -360,9 +360,9 @@ const canMoveToDraft = computed(() => submission.value?.status === 'Rejected')
 async function handleMoveToDraft(): Promise<void> {
   const success = await submissionStore.setSubmissionStatus(submissionNo.value, 'Draft')
   if (success) {
-    toastStore.show('success', 'Moved to Draft', `${submissionNo.value} can now have its documents updated.`)
+    toastStore.show('success', t('government.workspacePage.movedToDraftTitle'), t('government.workspacePage.movedToDraftDescription', { submissionNo: submissionNo.value }))
   } else {
-    toastStore.show('error', 'Unable to move to Draft', submissionStore.mutationError ?? 'Please try again.')
+    toastStore.show('error', t('government.workspacePage.unableToMoveToDraft'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
   }
 }
 </script>

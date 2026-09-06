@@ -54,5 +54,9 @@ export default {
     reportSubmittedTitle: 'Report submitted',
     reportSubmittedDescription: "Today's status report has been submitted. You can keep editing and re-submitting it until 11:59 PM Kuwait time.",
     failedToSaveReport: 'Failed to save report',
+    projectRequiredTitle: 'Project is required',
+    projectRequiredDescription: 'Please select which project this report is for.',
+    notesRequiredTitle: 'Notes are required',
+    notesRequiredDescription: "Please describe today's supervision activity.",
   },
 }

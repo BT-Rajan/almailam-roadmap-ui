@@ -144,9 +144,9 @@ async function handleSave(): Promise<void> {
     )
     summaryDraft.value = ''
     selectedFile.value = undefined
-    toastStore.show('success', 'Scope of work saved', 'A new revision was recorded.')
+    toastStore.show('success', t('project.requirementTab.scopeSavedTitle'), t('project.requirementTab.scopeSavedDescription'))
   } catch (err) {
-    toastStore.show('error', 'Could not save scope of work', err instanceof Error ? err.message : 'Please try again.')
+    toastStore.show('error', t('project.requirementTab.couldNotSaveScope'), err instanceof Error ? err.message : t('common.pleaseTryAgain'))
   } finally {
     isSaving.value = false
   }
@@ -165,19 +165,19 @@ async function handleApprove(): Promise<void> {
     // than one of the store's own mutating actions.
     await projectStore.refreshProject(props.project.id)
     if (updated.currentStage === 'Quotation') {
-      toastStore.show('success', 'Scope of work approved', 'The project moved on to Quotation.')
+      toastStore.show('success', t('project.requirementTab.scopeApprovedTitle'), t('project.requirementTab.movedToQuotationDescription'))
       emit('navigate-tab', 'quotation')
     } else if (!hasClientIdentification.value) {
       toastStore.show(
         'success',
-        'Scope of work approved',
-        "Internal approval recorded, but the project stays at Requirement until the client's identification document is on file too.",
+        t('project.requirementTab.scopeApprovedTitle'),
+        t('project.requirementTab.internalApprovalPendingIdDescription'),
       )
     } else {
-      toastStore.show('success', 'Scope of work approved', 'Internal approval recorded.')
+      toastStore.show('success', t('project.requirementTab.scopeApprovedTitle'), t('project.requirementTab.internalApprovalRecordedDescription'))
     }
   } catch (err) {
-    toastStore.show('error', 'Could not approve scope of work', err instanceof Error ? err.message : 'Please try again.')
+    toastStore.show('error', t('project.requirementTab.couldNotApproveScope'), err instanceof Error ? err.message : t('common.pleaseTryAgain'))
   } finally {
     isApproving.value = false
   }
@@ -188,7 +188,7 @@ async function handleDownloadRevision(revision: ScopeRevision): Promise<void> {
     const blob = await projectService.downloadScopeRevisionDocument(props.project.id, revision.id)
     triggerBlobDownload(blob, revision.documentName ?? `${revision.revision}.pdf`)
   } catch (err) {
-    toastStore.show('error', 'Download failed', err instanceof Error ? err.message : 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), err instanceof Error ? err.message : t('common.pleaseTryAgain'))
   }
 }
 

@@ -131,14 +131,14 @@ async function saveAuthority(input: AuthorityInput): Promise<void> {
   try {
     if (editingAuthority.value) {
       await store.updateAuthority(editingAuthority.value.id, input)
-      toastStore.show('success', 'Authority updated', `${input.name} has been saved.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.authorityUpdatedTitle'), t('administration.governmentFormsPanel.authorityUpdatedDescription', { name: input.name }))
     } else {
       await store.createAuthority(input)
-      toastStore.show('success', 'Authority added', `${input.name} is now available for forms.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.authorityAddedTitle'), t('administration.governmentFormsPanel.authorityAddedDescription', { name: input.name }))
     }
     isAuthorityDialogOpen.value = false
   } catch {
-    toastStore.show('error', 'Unable to save authority', 'Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToSaveAuthority'), t('common.pleaseTryAgain'))
   } finally {
     isSavingAuthority.value = false
   }
@@ -159,14 +159,14 @@ async function saveForm(input: FormInput): Promise<void> {
   try {
     if (editingForm.value) {
       await store.updateForm(editingForm.value.id, input)
-      toastStore.show('success', 'Form updated', `${input.title} has been saved.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.formUpdatedTitle'), t('administration.governmentFormsPanel.formUpdatedDescription', { title: input.title }))
     } else {
       await store.createForm(input)
-      toastStore.show('success', 'Form added', `${input.title} has been added to the library.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.formAddedTitle'), t('administration.governmentFormsPanel.formAddedDescription', { title: input.title }))
     }
     isFormDialogOpen.value = false
   } catch {
-    toastStore.show('error', 'Unable to save form', 'Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToSaveForm'), t('common.pleaseTryAgain'))
   } finally {
     isSavingForm.value = false
   }
@@ -187,14 +187,14 @@ async function confirmDelete(): Promise<void> {
     if (deleteTarget.value.type === 'authority') {
       await store.deleteAuthority(deleteTarget.value.id)
       if (selectedAuthorityId.value === deleteTarget.value.id) selectedAuthorityId.value = 'All'
-      toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
+      toastStore.show('info', t('administration.governmentFormsPanel.authorityRemovedTitle'), t('administration.governmentFormsPanel.authorityRemovedDescription', { label: deleteTarget.value.label }))
     } else {
       await store.deleteForm(deleteTarget.value.id)
-      toastStore.show('info', 'Form removed', `${deleteTarget.value.label} was removed from the library.`)
+      toastStore.show('info', t('administration.governmentFormsPanel.formRemovedTitle'), t('administration.governmentFormsPanel.formRemovedDescription', { label: deleteTarget.value.label }))
     }
     deleteTarget.value = undefined
   } catch {
-    toastStore.show('error', 'Unable to delete', 'Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToDelete'), t('common.pleaseTryAgain'))
   } finally {
     isDeleting.value = false
   }
@@ -212,13 +212,13 @@ async function toggleFormStatus(form: GovernmentForm): Promise<void> {
   try {
     if (form.status === 'Active') {
       await store.archiveForm(form.id)
-      toastStore.show('info', 'Form disabled', `${form.title} is now archived and hidden from projects.`)
+      toastStore.show('info', t('administration.governmentFormsPanel.formDisabledTitle'), t('administration.governmentFormsPanel.formDisabledDescription', { title: form.title }))
     } else {
       await store.restoreForm(form.id)
-      toastStore.show('success', 'Form enabled', `${form.title} is active again.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.formEnabledTitle'), t('administration.governmentFormsPanel.formEnabledDescription', { title: form.title }))
     }
   } catch {
-    toastStore.show('error', 'Unable to update status', 'Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToUpdateStatus'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -243,10 +243,16 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
         fields: [],
       })
     }
-    toastStore.show('success', 'Standard forms added', `${seeds.length} form${seeds.length === 1 ? '' : 's'} added to the library.`)
+    toastStore.show(
+      'success',
+      t('administration.governmentFormsPanel.standardFormsAddedTitle'),
+      seeds.length === 1
+        ? t('administration.governmentFormsPanel.standardFormsAddedDescriptionOne')
+        : t('administration.governmentFormsPanel.standardFormsAddedDescription', { count: seeds.length }),
+    )
     isImportDialogOpen.value = false
   } catch {
-    toastStore.show('error', 'Unable to import forms', 'Some forms may not have been added. Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToImportForms'), t('administration.governmentFormsPanel.unableToImportFormsDescription'))
   } finally {
     isImporting.value = false
   }

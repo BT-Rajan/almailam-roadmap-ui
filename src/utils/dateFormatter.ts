@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n'
+
 const DISPLAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: '2-digit',
   month: 'short',
@@ -8,6 +10,17 @@ const DISPLAY_FORMAT_WITH_TIME: Intl.DateTimeFormatOptions = {
   ...DISPLAY_FORMAT,
   hour: '2-digit',
   minute: '2-digit',
+}
+
+const SHORT_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+}
+
+const TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
 }
 
 export function formatDate(isoDate: string): string {
@@ -29,6 +42,25 @@ export function formatDateNumeric(isoDate: string): string {
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
 }
 
+/** Compact "5 Jan" style, for widgets too narrow for the full year (dashboard cards, due-date chips). */
+export function formatShortDate(isoDate: string): string {
+  const date = new Date(isoDate)
+  if (Number.isNaN(date.getTime())) return isoDate
+  return date.toLocaleDateString('en-GB', SHORT_DATE_FORMAT)
+}
+
+/** "5 Jan, 14:30" -- the formatShortDate() style with a time appended. */
+export function formatShortDateTime(isoDateTime: string): string {
+  const date = new Date(isoDateTime)
+  if (Number.isNaN(date.getTime())) return isoDateTime
+  return date.toLocaleString('en-GB', { ...SHORT_DATE_FORMAT, ...TIME_FORMAT })
+}
+
+/** 24-hour "14:30", from an already-parsed Date (e.g. a calendar grid cell). */
+export function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-GB', TIME_FORMAT)
+}
+
 /** "Today" / "Yesterday" / "N days ago" for a date-only ISO string,
  * falling back to a plain short date for anything further back OR in
  * the future. Deliberately does NOT extend the relative phrasing to
@@ -40,10 +72,10 @@ export function formatRelativeDate(isoDate: string): string {
   if (Number.isNaN(date.getTime())) return isoDate
   const todayUTC = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())
   const diffDays = Math.floor((todayUTC - date.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (diffDays === 0) return i18n.global.t('common.today')
+  if (diffDays === 1) return i18n.global.t('common.yesterday')
+  if (diffDays > 1 && diffDays < 7) return i18n.global.t('common.daysAgo', { count: diffDays })
+  return formatShortDate(isoDate)
 }
 
 /** Whether a date-only ISO string ("YYYY-MM-DD") is strictly before

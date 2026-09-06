@@ -204,14 +204,18 @@ function stepHasErrors(step: number): boolean {
   return false
 }
 
-const STEP_LABELS = ['Client Type', 'Contacts & Address', 'Identification']
+const STEP_LABELS = computed(() => [
+  t('client.newWizard.steps.clientType'),
+  t('client.newWizard.steps.contactsAddress'),
+  t('client.newWizard.steps.identification'),
+])
 
 function goNext(): void {
   if (stepHasErrors(currentStep.value)) {
     toastStore.show(
       'error',
-      'Please fix the highlighted fields',
-      `Some fields under "${STEP_LABELS[currentStep.value]}" need attention before continuing.`,
+      t('client.newWizard.pleaseFixHighlightedFields'),
+      t('client.newWizard.fieldsNeedAttentionUnderStep', { step: STEP_LABELS.value[currentStep.value] }),
     )
     return
   }
@@ -264,8 +268,8 @@ async function submitWizard(): Promise<void> {
   if (invalidStep !== undefined) {
     toastStore.show(
       'error',
-      'Please fix the highlighted fields',
-      `Some fields under "${STEP_LABELS[invalidStep]}" need attention before this client can be onboarded.`,
+      t('client.newWizard.pleaseFixHighlightedFields'),
+      t('client.newWizard.fieldsNeedAttentionBeforeOnboarding', { step: STEP_LABELS.value[invalidStep] }),
     )
     currentStep.value = invalidStep
     return

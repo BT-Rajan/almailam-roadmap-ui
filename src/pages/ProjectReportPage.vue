@@ -105,7 +105,7 @@ function stageLabel(stage: string): string {
 }
 
 const handleExport = () => {
-  toastStore.show('info', 'Export not available yet', 'PDF export for this report is coming soon.')
+  toastStore.show('info', t('common.exportNotAvailableYetTitle'), t('common.exportNotAvailableYetDescription'))
 }
 
 const goBack = () => {

@@ -63,7 +63,7 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
       fields: form.fields,
     })
   } catch (error) {
-    toastStore.show('error', 'Failed to update', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.serviceDocumentMap.failedToUpdate'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 </script>

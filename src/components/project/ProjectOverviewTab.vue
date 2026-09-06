@@ -152,7 +152,7 @@ const hasClientIdentification = computed(() => clientStore.identifications.lengt
 function viewCivilIdDocument(): void {
   if (!props.client || !civilIdDocument.value) return
   clientStore.viewDocument(props.client.id, civilIdDocument.value.id).catch(() => {
-    toastStore.show('error', 'Failed to open document', 'Please try again.')
+    toastStore.show('error', t('project.documentsTab.failedToOpenDocument'), t('common.pleaseTryAgain'))
   })
 }
 

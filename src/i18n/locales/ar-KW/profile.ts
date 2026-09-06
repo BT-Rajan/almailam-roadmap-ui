@@ -13,4 +13,6 @@ export default {
   email: 'البريد الإلكتروني',
   role: 'الدور',
   saveChanges: 'حفظ التغييرات',
+  profileUpdatedTitle: 'تم تحديث الملف الشخصي',
+  profileUpdatedDescription: 'تم حفظ تغييراتك.',
 }

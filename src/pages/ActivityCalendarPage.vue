@@ -15,6 +15,7 @@ import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { useRbac } from '@/composables/useRbac'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { formatTime } from '@/utils/dateFormatter'
 import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType, EntityType } from '@/services/activityCalendarService'
 import type { TaskInput } from '@/services/taskService'
 import { projectService } from '@/services/projectService'
@@ -37,12 +38,11 @@ const { can } = useRbac()
 // non-Administrator callers regardless of what this page sends.
 const canViewAll = computed(() => can('activity.viewAll'))
 
-// This page needs a couple of specific date formats (month/year title,
-// yyyy-MM-dd date keys, HH:mm timestamps) that the shared formatDate()
-// utility (src/utils/dateFormatter.ts) doesn't support -- it only takes
-// an ISO string and always returns one fixed display format. Small local
-// helpers here rather than changing that shared utility's contract for
-// every other page that uses it.
+// This page also needs a month/year title and yyyy-MM-dd date keys that
+// the shared formatters (src/utils/dateFormatter.ts) don't support -- they
+// only take an ISO string and return one fixed display format each.
+// (HH:mm timestamps use the shared formatTime() above -- same rendering
+// NotificationItem.vue needs, so no reason for a second implementation.)
 function formatMonthTitle(date: Date): string {
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 }
@@ -51,9 +51,6 @@ function formatDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 // View modes
@@ -127,7 +124,7 @@ async function loadFilterOptions() {
     }
   } catch (error) {
     console.error('Failed to load filter options:', error)
-    toastStore.show('error', 'Failed to load filter options')
+    toastStore.show('error', t('workspace.activityCalendarPage.failedToLoadFilterOptions'))
   }
 }
 
@@ -143,7 +140,7 @@ async function loadMonthActivities() {
     })
   } catch (error) {
     console.error('Failed to load month activities:', error)
-    toastStore.show('error', 'Failed to load activities')
+    toastStore.show('error', t('workspace.activityCalendarPage.failedToLoadActivities'))
   } finally {
     isLoading.value = false
   }
@@ -245,10 +242,10 @@ async function exportToCSV() {
     link.click()
     URL.revokeObjectURL(url)
 
-    toastStore.show('success', 'Activities exported successfully')
+    toastStore.show('success', t('workspace.activityCalendarPage.activitiesExportedSuccessfully'))
   } catch (error) {
     console.error('Failed to export activities:', error)
-    toastStore.show('error', 'Failed to export activities')
+    toastStore.show('error', t('workspace.activityCalendarPage.failedToExportActivities'))
   }
 }
 
@@ -320,7 +317,7 @@ function handleReassign(assignee: string): void {
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
   const task = await taskStore.createTask(input)
-  toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+  toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
 }
 </script>
 

@@ -13,4 +13,6 @@ export default {
   email: 'Email',
   role: 'Role',
   saveChanges: 'Save Changes',
+  profileUpdatedTitle: 'Profile updated',
+  profileUpdatedDescription: 'Your changes have been saved.',
 }

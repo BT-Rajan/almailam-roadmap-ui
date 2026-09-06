@@ -40,5 +40,7 @@ export default {
     newPasswordPlaceholder: '8 أحرف على الأقل',
     confirmNewPassword: 'تأكيد كلمة المرور الجديدة',
     confirmNewPasswordPlaceholder: 'أعد إدخال كلمة المرور الجديدة',
+    passwordChangedTitle: 'تم تغيير كلمة المرور',
+    passwordChangedDescription: 'يرجى تسجيل الدخول مرة أخرى بكلمة المرور الجديدة.',
   },
 }

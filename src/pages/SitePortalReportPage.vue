@@ -116,11 +116,11 @@ async function handleSubmit(): Promise<void> {
   if (isSaving.value) return
 
   if (!form.projectId) {
-    toastStore.show('error', 'Project is required', 'Please select which project this report is for.')
+    toastStore.show('error', t('sitePortal.reportPage.projectRequiredTitle'), t('sitePortal.reportPage.projectRequiredDescription'))
     return
   }
   if (!form.notes.trim()) {
-    toastStore.show('error', 'Notes are required', 'Please describe today\'s supervision activity.')
+    toastStore.show('error', t('sitePortal.reportPage.notesRequiredTitle'), t('sitePortal.reportPage.notesRequiredDescription'))
     return
   }
 

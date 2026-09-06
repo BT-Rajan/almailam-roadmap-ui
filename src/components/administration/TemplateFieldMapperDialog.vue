@@ -230,7 +230,7 @@ function stripColumnTokens(text: string, loopVar: string): string {
 function insertToken(token: string, markRepeatingField?: string): void {
   const target = activeEditor.value
   if (!target) {
-    toastStore.show('info', 'Click into the document first', 'Click a line or table cell below, then click a field to insert it there.')
+    toastStore.show('info', t('administration.templateFieldMapperDialog.clickIntoDocumentFirstTitle'), t('administration.templateFieldMapperDialog.clickIntoDocumentFirstDescription'))
     return
   }
   const block = blocks.value.find((b) => b.blockIndex === target.blockIndex)
@@ -290,11 +290,11 @@ async function handleSave(): Promise<void> {
   isSaving.value = true
   try {
     await documentTemplateService.saveTemplateMapping(props.template.id, blocks.value)
-    toastStore.show('success', 'Fields mapped', `${props.template.originalFilename} was updated.`)
+    toastStore.show('success', t('administration.templateFieldMapperDialog.fieldsMappedTitle'), t('administration.templateFieldMapperDialog.fieldsMappedDescription', { filename: props.template.originalFilename }))
     emit('saved')
     emit('update:modelValue', false)
   } catch (error) {
-    toastStore.show('error', 'Could not save mapping', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.templateFieldMapperDialog.couldNotSaveMapping'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSaving.value = false
   }

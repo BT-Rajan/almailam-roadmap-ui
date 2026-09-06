@@ -26,6 +26,10 @@ export default {
     newCount: '{count} جديد',
     updatedCount: '{count} محدَّث',
     delayedCount: '{count} متأخر',
+    failedToLoadFilterOptions: 'فشل تحميل خيارات التصفية',
+    failedToLoadActivities: 'فشل تحميل الأنشطة',
+    activitiesExportedSuccessfully: 'تم تصدير الأنشطة بنجاح',
+    failedToExportActivities: 'فشل تصدير الأنشطة',
   },
 
   knowledgeBasePage: {
@@ -49,6 +53,10 @@ export default {
     noQuestionsAskedYet: 'لم تُطرح أي أسئلة بعد',
     noQuestionsAskedYetDescription: 'اطرح سؤالاً حول أحد مستنداتك المرفوعة، أو جميع المستندات النشطة في آن واحد.',
     cached: 'مخزَّن مؤقتًا',
+    unableToUpdateDocument: 'تعذّر تحديث المستند',
+    documentDeletedTitle: 'تم حذف المستند',
+    documentDeletedDescription: 'تمت إزالة {title} من قاعدة المعرفة.',
+    unableToDeleteDocument: 'تعذّر حذف المستند',
   },
 
   knowledgeUploadDialog: {
@@ -92,5 +100,9 @@ export default {
     send: 'إرسال {channel}',
     unknownCustomer: 'عميل غير معروف',
     customMessage: 'رسالة مخصصة',
+    messageSentTitle: 'تم إرسال الرسالة',
+    messageSentDescription: 'تم إرسال {channel} إلى {name}.',
+    couldNotSendMessageTitle: 'تعذّر إرسال الرسالة',
+    unknownCustomerFallback: 'العميل',
   },
 }

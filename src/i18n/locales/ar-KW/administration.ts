@@ -69,6 +69,14 @@ export default {
     connected: 'متصل',
     error: 'خطأ',
     notConfigured: 'غير مُهيّأ',
+    assistantEnabledTitle: 'تم تفعيل مساعد قاعدة المعرفة',
+    assistantDisabledTitle: 'تم إيقاف مساعد قاعدة المعرفة',
+    takesEffectImmediately: 'يسري هذا فورًا.',
+    unableToSave: 'تعذّر الحفظ',
+    aiConfigurationSavedTitle: 'تم حفظ إعدادات الذكاء الاصطناعي',
+    aiConfigurationSavedDescription: 'تم تطبيق تغييراتك.',
+    connectionSuccessfulTitle: 'نجح الاتصال',
+    connectionFailedTitle: 'فشل الاتصال',
   },
 
   auditLogPage: {
@@ -100,6 +108,8 @@ export default {
     entityCompanySettings: 'إعدادات الشركة',
     entityAiConfiguration: 'إعدادات الذكاء الاصطناعي',
     entityProjectTimeline: 'الجدول الزمني للمشروع',
+    exportFailedTitle: 'فشل التصدير',
+    exportFailedDescription: 'تعذّر تصدير سجل التدقيق. يرجى المحاولة مرة أخرى.',
   },
 
   catalogsPage: {
@@ -175,6 +185,13 @@ export default {
     saveChanges: 'حفظ التغييرات',
     languageEnglish: 'الإنجليزية',
     languageArabic: 'العربية',
+    logoUpdatedTitle: 'تم تحديث الشعار',
+    logoUpdatedDescription: 'أصبح شعار الشركة متاحًا الآن لإدراجه في قوالب المستندات.',
+    failedToUploadLogo: 'فشل رفع الشعار',
+    logoRemovedTitle: 'تمت إزالة الشعار',
+    failedToRemoveLogo: 'فشلت إزالة الشعار',
+    companySettingsSavedTitle: 'تم حفظ إعدادات الشركة',
+    companySettingsSavedDescription: 'تم تطبيق تغييراتك.',
   },
 
   passwordResetDialog: {
@@ -258,6 +275,8 @@ export default {
     noServicesTitle: 'لا توجد خدمات في الكتالوج بعد',
     noServicesDescription: 'أضف خدمات ضمن الإدارة > الكتالوجات > كتالوج الخدمات لوسم هذا النموذج.',
     saveForm: 'حفظ النموذج',
+    sampleUploadedTitle: 'تم رفع ملف العينة',
+    sampleUploadedDescription: 'تم إرفاق {name} بهذا النموذج.',
   },
 
   loadStandardFormsDialog: {
@@ -285,6 +304,11 @@ export default {
     searchPlaceholder: 'ابحث عن نص في المستند...',
     emptyLine: '(سطر فارغ)',
     saveMapping: 'حفظ الربط',
+    clickIntoDocumentFirstTitle: 'انقر داخل المستند أولاً',
+    clickIntoDocumentFirstDescription: 'انقر على سطر أو خلية جدول أدناه، ثم انقر على حقل لإدراجه هناك.',
+    fieldsMappedTitle: 'تم ربط الحقول',
+    fieldsMappedDescription: 'تم تحديث {filename}.',
+    couldNotSaveMapping: 'تعذّر حفظ الربط',
   },
 
   userManagementPage: {
@@ -307,6 +331,21 @@ export default {
     editUser: 'تعديل المستخدم',
     resetPassword: 'إعادة تعيين كلمة المرور',
     deleteUser: 'حذف المستخدم',
+    userUpdatedTitle: 'تم تحديث المستخدم',
+    userUpdatedDescription: 'تم تحديث {name} بنجاح.',
+    userAddedTitle: 'تمت إضافة المستخدم',
+    userAddedDescription: 'تمت إضافة {name} إلى المكتب.',
+    loginCreatedFor: 'تم إنشاء تسجيل دخول لـ {name}',
+    failedToUpdateUser: 'فشل تحديث المستخدم',
+    failedToAddUser: 'فشل إضافة المستخدم',
+    userActivatedTitle: 'تم تفعيل المستخدم',
+    userDeactivatedTitle: 'تم إلغاء تفعيل المستخدم',
+    userIsNowActive: 'أصبح {name} نشطًا الآن.',
+    userIsNowInactive: 'أصبح {name} غير نشط الآن.',
+    passwordResetFailed: 'فشلت إعادة تعيين كلمة المرور',
+    userDeletedTitle: 'تم حذف المستخدم',
+    userDeletedDescription: 'تمت إزالة {name} من المكتب.',
+    failedToDeleteUser: 'فشل حذف المستخدم',
   },
 
   governmentFormsPanel: {
@@ -335,6 +374,31 @@ export default {
     deleteForm: 'حذف النموذج',
     allAuthoritiesCount: 'جميع الجهات ({count})',
     authorityWithCount: '{name} ({count})',
+    authorityUpdatedTitle: 'تم تحديث الجهة',
+    authorityUpdatedDescription: 'تم حفظ {name}.',
+    authorityAddedTitle: 'تمت إضافة الجهة',
+    authorityAddedDescription: 'أصبح {name} متاحًا للنماذج الآن.',
+    unableToSaveAuthority: 'تعذّر حفظ الجهة',
+    formUpdatedTitle: 'تم تحديث النموذج',
+    formUpdatedDescription: 'تم حفظ {title}.',
+    formAddedTitle: 'تمت إضافة النموذج',
+    formAddedDescription: 'تمت إضافة {title} إلى المكتبة.',
+    unableToSaveForm: 'تعذّر حفظ النموذج',
+    authorityRemovedTitle: 'تمت إزالة الجهة',
+    authorityRemovedDescription: 'تمت إزالة {label} ونماذجه.',
+    formRemovedTitle: 'تمت إزالة النموذج',
+    formRemovedDescription: 'تمت إزالة {label} من المكتبة.',
+    unableToDelete: 'تعذّر الحذف',
+    formDisabledTitle: 'تم تعطيل النموذج',
+    formDisabledDescription: 'أصبح {title} مؤرشفًا ومخفيًا عن المشاريع الآن.',
+    formEnabledTitle: 'تم تفعيل النموذج',
+    formEnabledDescription: 'أصبح {title} نشطًا مجددًا.',
+    unableToUpdateStatus: 'تعذّر تحديث الحالة',
+    standardFormsAddedTitle: 'تمت إضافة النماذج القياسية',
+    standardFormsAddedDescription: 'تمت إضافة {count} نماذج إلى المكتبة.',
+    standardFormsAddedDescriptionOne: 'تمت إضافة نموذج واحد إلى المكتبة.',
+    unableToImportForms: 'تعذّر استيراد النماذج',
+    unableToImportFormsDescription: 'قد لا تكون بعض النماذج قد أُضيفت. يرجى المحاولة مرة أخرى.',
   },
 
   permissionMatrix: {
@@ -350,6 +414,9 @@ export default {
     usersCount: '{count} مستخدمين',
     editPermissions: 'تعديل الصلاحيات',
     saveChanges: 'حفظ التغييرات',
+    permissionsUpdatedTitle: 'تم تحديث الصلاحيات',
+    permissionsUpdatedDescription: 'تم حفظ صلاحيات {role}.',
+    updateFailed: 'فشل التحديث',
   },
 
   permitCatalog: {
@@ -400,6 +467,14 @@ export default {
     mapFields: 'ربط الحقول',
     downloadTemplate: 'تنزيل القالب',
     deleteTemplate: 'حذف القالب',
+    templateUploadedTitle: 'تم رفع القالب',
+    templateUploadedDescription: 'تم رفع {filename}.',
+    defaultUpdatedTitle: 'تم تحديث القالب الافتراضي',
+    defaultUpdatedDescription: 'أصبح {filename} هو قالب {type} الافتراضي الآن.',
+    couldNotSetDefault: 'تعذّر التعيين كافتراضي',
+    templateDeletedTitle: 'تم حذف القالب',
+    templateDeletedDescription: 'تم حذف {filename}.',
+    deleteFailed: 'فشل الحذف',
   },
 
   serviceDocumentMap: {
@@ -408,5 +483,6 @@ export default {
     noFillableFormsYet: 'لا توجد نماذج قابلة للتعبئة بعد',
     noFillableFormsYetDescription:
       'أضف محتوى قالب لنموذج ضمن الإدارة > المستندات > النماذج الحكومية لجعله قابلاً للتخصيص هنا.',
+    failedToUpdate: 'فشل التحديث',
   },
 }

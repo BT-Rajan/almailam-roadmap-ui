@@ -72,6 +72,14 @@ export default {
     connected: 'Connected',
     error: 'Error',
     notConfigured: 'Not Configured',
+    assistantEnabledTitle: 'Knowledgebase assistant enabled',
+    assistantDisabledTitle: 'Knowledgebase assistant disabled',
+    takesEffectImmediately: 'This takes effect immediately.',
+    unableToSave: 'Unable to save',
+    aiConfigurationSavedTitle: 'AI configuration saved',
+    aiConfigurationSavedDescription: 'Your changes have been applied.',
+    connectionSuccessfulTitle: 'Connection successful',
+    connectionFailedTitle: 'Connection failed',
   },
 
   auditLogPage: {
@@ -103,6 +111,8 @@ export default {
     entityCompanySettings: 'Company Settings',
     entityAiConfiguration: 'AI Configuration',
     entityProjectTimeline: 'Project Timeline',
+    exportFailedTitle: 'Export failed',
+    exportFailedDescription: 'Unable to export the audit log. Please try again.',
   },
 
   catalogsPage: {
@@ -181,6 +191,13 @@ export default {
     saveChanges: 'Save Changes',
     languageEnglish: 'English',
     languageArabic: 'Arabic',
+    logoUpdatedTitle: 'Logo updated',
+    logoUpdatedDescription: 'The company logo is now available to insert in document templates.',
+    failedToUploadLogo: 'Failed to upload logo',
+    logoRemovedTitle: 'Logo removed',
+    failedToRemoveLogo: 'Failed to remove logo',
+    companySettingsSavedTitle: 'Company settings saved',
+    companySettingsSavedDescription: 'Your changes have been applied.',
   },
 
   passwordResetDialog: {
@@ -264,6 +281,8 @@ export default {
     noServicesTitle: 'No services in the catalog yet',
     noServicesDescription: 'Add services under Administration > Catalogs > Service Catalog to tag this form.',
     saveForm: 'Save Form',
+    sampleUploadedTitle: 'Sample file uploaded',
+    sampleUploadedDescription: '{name} was attached to this form.',
   },
 
   loadStandardFormsDialog: {
@@ -291,6 +310,11 @@ export default {
     searchPlaceholder: 'Find text in the document...',
     emptyLine: '(empty line)',
     saveMapping: 'Save Mapping',
+    clickIntoDocumentFirstTitle: 'Click into the document first',
+    clickIntoDocumentFirstDescription: 'Click a line or table cell below, then click a field to insert it there.',
+    fieldsMappedTitle: 'Fields mapped',
+    fieldsMappedDescription: '{filename} was updated.',
+    couldNotSaveMapping: 'Could not save mapping',
   },
 
   userManagementPage: {
@@ -313,6 +337,21 @@ export default {
     editUser: 'Edit User',
     resetPassword: 'Reset Password',
     deleteUser: 'Delete User',
+    userUpdatedTitle: 'User updated',
+    userUpdatedDescription: '{name} was updated successfully.',
+    userAddedTitle: 'User added',
+    userAddedDescription: '{name} was added to the firm.',
+    loginCreatedFor: 'Login created for {name}',
+    failedToUpdateUser: 'Failed to update user',
+    failedToAddUser: 'Failed to add user',
+    userActivatedTitle: 'User activated',
+    userDeactivatedTitle: 'User deactivated',
+    userIsNowActive: '{name} is now active.',
+    userIsNowInactive: '{name} is now inactive.',
+    passwordResetFailed: 'Password reset failed',
+    userDeletedTitle: 'User deleted',
+    userDeletedDescription: '{name} was removed from the firm.',
+    failedToDeleteUser: 'Failed to delete user',
   },
 
   governmentFormsPanel: {
@@ -341,6 +380,31 @@ export default {
     deleteForm: 'Delete form',
     allAuthoritiesCount: 'All Authorities ({count})',
     authorityWithCount: '{name} ({count})',
+    authorityUpdatedTitle: 'Authority updated',
+    authorityUpdatedDescription: '{name} has been saved.',
+    authorityAddedTitle: 'Authority added',
+    authorityAddedDescription: '{name} is now available for forms.',
+    unableToSaveAuthority: 'Unable to save authority',
+    formUpdatedTitle: 'Form updated',
+    formUpdatedDescription: '{title} has been saved.',
+    formAddedTitle: 'Form added',
+    formAddedDescription: '{title} has been added to the library.',
+    unableToSaveForm: 'Unable to save form',
+    authorityRemovedTitle: 'Authority removed',
+    authorityRemovedDescription: '{label} and its forms were removed.',
+    formRemovedTitle: 'Form removed',
+    formRemovedDescription: '{label} was removed from the library.',
+    unableToDelete: 'Unable to delete',
+    formDisabledTitle: 'Form disabled',
+    formDisabledDescription: '{title} is now archived and hidden from projects.',
+    formEnabledTitle: 'Form enabled',
+    formEnabledDescription: '{title} is active again.',
+    unableToUpdateStatus: 'Unable to update status',
+    standardFormsAddedTitle: 'Standard forms added',
+    standardFormsAddedDescription: '{count} forms added to the library.',
+    standardFormsAddedDescriptionOne: '1 form added to the library.',
+    unableToImportForms: 'Unable to import forms',
+    unableToImportFormsDescription: 'Some forms may not have been added. Please try again.',
   },
 
   permissionMatrix: {
@@ -356,6 +420,9 @@ export default {
     usersCount: '{count} users',
     editPermissions: 'Edit permissions',
     saveChanges: 'Save Changes',
+    permissionsUpdatedTitle: 'Permissions updated',
+    permissionsUpdatedDescription: '{role} permissions were saved.',
+    updateFailed: 'Update failed',
   },
 
   permitCatalog: {
@@ -408,6 +475,14 @@ export default {
     mapFields: 'Map fields',
     downloadTemplate: 'Download template',
     deleteTemplate: 'Delete template',
+    templateUploadedTitle: 'Template uploaded',
+    templateUploadedDescription: '{filename} was uploaded.',
+    defaultUpdatedTitle: 'Default template updated',
+    defaultUpdatedDescription: '{filename} is now the default {type} template.',
+    couldNotSetDefault: 'Could not set default',
+    templateDeletedTitle: 'Template deleted',
+    templateDeletedDescription: '{filename} was deleted.',
+    deleteFailed: 'Delete failed',
   },
 
   serviceDocumentMap: {
@@ -416,5 +491,6 @@ export default {
     noFillableFormsYet: 'No fillable forms yet',
     noFillableFormsYetDescription:
       'Add Template Content to a form under Administration > Documents > Government Forms to make it assignable here.',
+    failedToUpdate: 'Failed to update',
   },
 }

@@ -317,6 +317,9 @@ export default {
     clientReadyNotice: 'حالة العميل جاهز، ويمكن اختياره في مشروع جديد على الفور.',
     viewClientWorkspace: 'عرض مساحة عمل العميل',
     failedToOnboardClient: 'فشلت تهيئة العميل',
+    pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
+    fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
+    fieldsNeedAttentionBeforeOnboarding: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل تهيئة هذا العميل.',
   },
 
   addressEditDialog: {

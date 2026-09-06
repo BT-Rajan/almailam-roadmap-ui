@@ -86,14 +86,14 @@ async function submitAdd(): Promise<void> {
       name.value.trim(),
       path.value.trim(),
     )
-    toastStore.show('success', 'Document added', `${document.name} was added.`)
+    toastStore.show('success', t('document.addLinkDialog.documentAddedTitle'), t('document.addLinkDialog.documentAddedDescription', { name: document.name }))
     emit('add', document)
     closeDialog()
   } catch (error) {
     toastStore.show(
       'error',
-      'Failed to add document',
-      error instanceof Error && error.message ? error.message : 'Please try again.',
+      t('document.addLinkDialog.failedToAddDocument'),
+      error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain'),
     )
   } finally {
     isSaving.value = false

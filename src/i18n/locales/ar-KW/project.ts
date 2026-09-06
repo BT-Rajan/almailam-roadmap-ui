@@ -139,6 +139,17 @@ export default {
     othersTitle: 'أخرى',
     noOtherDocumentsTitle: 'لا توجد مستندات أخرى بعد',
     noOtherDocumentsDescription: 'أضف رابطاً لأي مستند داعم آخر.',
+    documentUpdatedTitle: 'تم تحديث المستند',
+    documentUpdatedDescription: 'تم تحديث {title} بنجاح.',
+    failedToUpdateDocument: 'فشل تحديث المستند',
+    failedToAddDocumentDetail: 'فشل إضافة المستند',
+    documentDeletedTitle: 'تم حذف المستند',
+    wasRemoved: 'تمت إزالة {title}.',
+    failedToDeleteDocument: 'فشل حذف المستند',
+    failedToOpenDocument: 'فشل فتح المستند',
+    failedToDownloadDocument: 'فشل تنزيل المستند',
+    documentRemovedTitle: 'تمت إزالة المستند',
+    failedToRemoveDocument: 'فشلت إزالة المستند',
   },
 
   overviewTab: {
@@ -235,6 +246,14 @@ export default {
       email: 'البريد الإلكتروني',
       city: 'المدينة',
     },
+    scopeSavedTitle: 'تم حفظ نطاق العمل',
+    scopeSavedDescription: 'تم تسجيل مراجعة جديدة.',
+    couldNotSaveScope: 'تعذّر حفظ نطاق العمل',
+    scopeApprovedTitle: 'تم اعتماد نطاق العمل',
+    movedToQuotationDescription: 'انتقل المشروع إلى عرض السعر.',
+    internalApprovalPendingIdDescription: 'تم تسجيل الاعتماد الداخلي، لكن المشروع سيبقى في مرحلة المتطلبات إلى أن تُضاف وثيقة هوية العميل أيضاً.',
+    internalApprovalRecordedDescription: 'تم تسجيل الاعتماد الداخلي.',
+    couldNotApproveScope: 'تعذّر اعتماد نطاق العمل',
   },
 
   quotationTab: {
@@ -357,6 +376,12 @@ export default {
   tasksTab: {
     newTask: 'مهمة جديدة',
     viewTaskBoard: 'عرض لوحة المهام',
+    taskCreatedTitle: 'تم إنشاء المهمة',
+    taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
+    failedToCreateTask: 'فشل إنشاء المهمة',
+    failedToUpdateStatus: 'فشل تحديث الحالة',
+    failedToUpdatePriority: 'فشل تحديث الأولوية',
+    failedToReassignTask: 'فشل إعادة إسناد المهمة',
   },
 
   reportPage: {
@@ -478,6 +503,11 @@ export default {
     projectCreatedMessagePart2: 'للعميل',
     viewProjectWorkspace: 'عرض مساحة عمل المشروع',
     failedToCreateProject: 'فشل إنشاء المشروع',
+    couldNotLoadServiceCatalog: 'تعذّر تحميل كتالوج الخدمات',
+    pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
+    fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
+    earlierFieldsNeedAttention: 'بعض الحقول السابقة تحتاج إلى مراجعة قبل إنشاء هذا المشروع.',
+    addedToPipelineDescription: 'تمت إضافة {name} إلى قائمة المشاريع.',
   },
 
   newContractDialog: {

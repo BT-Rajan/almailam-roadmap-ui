@@ -107,9 +107,9 @@ async function handleSampleFileSelected(event: Event): Promise<void> {
   try {
     await governmentFormStore.uploadSampleFile(props.form.id, file)
     uploadedSampleFileName.value = file.name
-    toastStore.show('success', 'Sample file uploaded', `${file.name} was attached to this form.`)
+    toastStore.show('success', t('administration.governmentFormDialog.sampleUploadedTitle'), t('administration.governmentFormDialog.sampleUploadedDescription', { name: file.name }))
   } catch (error) {
-    toastStore.show('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('common.uploadFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isUploadingSample.value = false
     ;(event.target as HTMLInputElement).value = ''

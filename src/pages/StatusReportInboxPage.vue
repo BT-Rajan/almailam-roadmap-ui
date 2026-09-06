@@ -53,7 +53,7 @@ async function openAttachDialog(report: StatusReport): Promise<void> {
 async function handleAttach(): Promise<void> {
   if (!selectedReport.value) return
   if (!attachNotes.value.trim()) {
-    toastStore.show('error', 'Notes are required', 'Please add a brief note before attaching this report.')
+    toastStore.show('error', t('report.inboxPage.notesRequiredTitle'), t('report.inboxPage.notesRequiredDescription'))
     return
   }
 
@@ -63,11 +63,15 @@ async function handleAttach(): Promise<void> {
       taskId: attachTaskId.value || undefined,
       notes: attachNotes.value.trim(),
     })
-    toastStore.show('success', 'Report attached', `${selectedReport.value.reportNo} has been added to ${selectedReport.value.projectName}'s timeline.`)
+    toastStore.show(
+      'success',
+      t('report.inboxPage.reportAttachedTitle'),
+      t('report.inboxPage.reportAttachedDescription', { reportNo: selectedReport.value.reportNo, projectName: selectedReport.value.projectName }),
+    )
     isAttachDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to attach report', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('report.inboxPage.failedToAttachReport'), detail)
   } finally {
     isSaving.value = false
   }

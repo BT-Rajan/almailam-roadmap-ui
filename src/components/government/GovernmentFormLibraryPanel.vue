@@ -126,14 +126,14 @@ async function saveForm(input: FormInput): Promise<void> {
   try {
     if (editingForm.value) {
       await store.updateForm(editingForm.value.id, input)
-      toastStore.show('success', 'Form updated', `${input.title} has been saved.`)
+      toastStore.show('success', t('government.formLibraryPanel.formUpdatedTitle'), t('government.formLibraryPanel.formUpdatedDescription', { title: input.title }))
     } else {
       await store.createForm(input)
-      toastStore.show('success', 'Form added', `${input.title} has been added to the library.`)
+      toastStore.show('success', t('government.formLibraryPanel.formAddedTitle'), t('government.formLibraryPanel.formAddedDescription', { title: input.title }))
     }
     isFormDialogOpen.value = false
   } catch {
-    toastStore.show('error', 'Unable to save form', 'Please try again.')
+    toastStore.show('error', t('government.formLibraryPanel.unableToSaveForm'), t('common.pleaseTryAgain'))
   } finally {
     isSavingForm.value = false
   }
@@ -148,11 +148,11 @@ async function confirmArchiveForm(): Promise<void> {
   isArchiving.value = true
   try {
     await store.archiveForm(archiveTarget.value.id)
-    toastStore.show('info', 'Form archived', `${archiveTarget.value.title} was moved to archived forms.`)
+    toastStore.show('info', t('government.formLibraryPanel.formArchivedTitle'), t('government.formLibraryPanel.formArchivedDescription', { title: archiveTarget.value.title }))
     isDetailDrawerOpen.value = false
     archiveTarget.value = undefined
   } catch {
-    toastStore.show('error', 'Unable to archive form', 'Please try again.')
+    toastStore.show('error', t('government.formLibraryPanel.unableToArchiveForm'), t('common.pleaseTryAgain'))
   } finally {
     isArchiving.value = false
   }
@@ -161,9 +161,9 @@ async function confirmArchiveForm(): Promise<void> {
 async function restoreForm(form: GovernmentForm): Promise<void> {
   try {
     await store.restoreForm(form.id)
-    toastStore.show('success', 'Form restored', `${form.title} is active again.`)
+    toastStore.show('success', t('government.formLibraryPanel.formRestoredTitle'), t('government.formLibraryPanel.formRestoredDescription', { title: form.title }))
   } catch {
-    toastStore.show('error', 'Unable to restore form', 'Please try again.')
+    toastStore.show('error', t('government.formLibraryPanel.unableToRestoreForm'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -175,8 +175,8 @@ function viewForm(form: GovernmentForm): void {
 function handleAiHelp(form: GovernmentForm): void {
   toastStore.show(
     'info',
-    'AI Guidance',
-    `Ensure all Required Documents for "${form.title}" are certified copies before submitting to ${props.authority.name}.`,
+    t('government.formLibraryPanel.aiGuidanceTitle'),
+    t('government.formLibraryPanel.aiGuidanceDescription', { title: form.title, authority: props.authority.name }),
   )
 }
 
