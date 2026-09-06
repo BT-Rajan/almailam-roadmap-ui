@@ -10,7 +10,6 @@ export interface CompanySettings {
   address: string
   city: string
   country: string
-  brandColor: string
   defaultLanguage: AppLanguage
   timezone: string
   dateFormat: string

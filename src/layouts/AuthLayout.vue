@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Compass } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
+import BrandLogo from '@/components/common/BrandLogo.vue'
 
 const { t } = useI18n()
 </script>
@@ -19,12 +19,8 @@ const { t } = useI18n()
          single mobile column instead. -->
     <div class="relative z-10 hidden flex-1 flex-col justify-between px-16 py-16 laptop:flex">
       <div class="flex items-center gap-3">
-        <div
-          class="gradient-luxe-accent flex h-10 w-10 items-center justify-center rounded-lg shadow-glass-sm"
-        >
-          <Compass class="h-5 w-5 text-white" :stroke-width="1.75" />
-        </div>
-        <span class="text-lg font-semibold tracking-wide text-[var(--color-text-primary)]">ServiceOS</span>
+        <BrandLogo size="lg" />
+        <span class="text-lg font-semibold tracking-wide text-[var(--color-text-primary)]">{{ t('common.companyName') }}</span>
       </div>
 
       <div>
@@ -49,12 +45,8 @@ const { t } = useI18n()
     <div class="relative z-10 flex flex-1 items-center justify-center px-4 py-12 laptop:px-16">
       <div class="w-full max-w-md">
         <div class="mb-8 flex items-center justify-center gap-2 laptop:hidden">
-          <div
-            class="gradient-luxe-accent flex h-10 w-10 items-center justify-center rounded-lg shadow-glass-sm"
-          >
-            <Compass class="h-5 w-5 text-white" :stroke-width="1.75" />
-          </div>
-          <span class="text-lg font-semibold text-[var(--color-text-primary)]">ServiceOS</span>
+          <BrandLogo size="lg" />
+          <span class="text-lg font-semibold text-[var(--color-text-primary)]">{{ t('common.companyName') }}</span>
         </div>
 
         <div

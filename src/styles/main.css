@@ -17,7 +17,23 @@
     --color-bg-sidebar: rgb(255 255 255 / 0.55);
     --color-bg-header: rgb(255 255 255 / 0.55);
     --color-bg-hover: rgb(23 23 26 / 0.05);
-    --color-bg-selected: rgb(38 143 106 / 0.12);
+    --color-bg-selected: rgb(24 45 82 / 0.12);
+
+    /* Corporate brand color -- fixed, not user-configurable (see
+       Administration > Company > Branding). Light theme anchors the
+       500 shade on #182d52 exactly; the rest of the 50-900 ramp is
+       generated around it (same hue/saturation, varying lightness) for
+       coherent hover/tint/badge shades. */
+    --color-accent-50: #f3f6fc;
+    --color-accent-100: #b7c9ea;
+    --color-accent-200: #7b9dd8;
+    --color-accent-300: #3f70c7;
+    --color-accent-400: #2a4e8e;
+    --color-accent-500: #182d52;
+    --color-accent-600: #152747;
+    --color-accent-700: #12213d;
+    --color-accent-800: #0f1b32;
+    --color-accent-900: #0c1627;
 
     --color-text-primary: theme('colors.neutral.800');
     --color-text-secondary: theme('colors.neutral.500');
@@ -45,7 +61,7 @@
     --shadow-elevated: 0 12px 24px -4px rgb(23 23 26 / 0.14), 0 4px 8px -2px rgb(23 23 26 / 0.08);
     --shadow-glass: 0 8px 32px 0 rgb(23 23 26 / 0.10), inset 0 1px 0 0 rgb(255 255 255 / 0.5);
     --shadow-glass-sm: 0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.4);
-    --shadow-glow-accent: 0 0 0 1px rgb(38 143 106 / 0.25), 0 6px 18px -4px rgb(38 143 106 / 0.35);
+    --shadow-glow-accent: 0 0 0 1px rgb(24 45 82 / 0.25), 0 6px 18px -4px rgb(24 45 82 / 0.35);
 
     /* Categorical chart palette (reports). A single source of truth so
        every chart component/page reads the same series colors instead of
@@ -70,7 +86,20 @@
     --color-bg-sidebar: rgb(9 9 11 / 0.72);
     --color-bg-header: rgb(9 9 11 / 0.72);
     --color-bg-hover: rgb(255 255 255 / 0.06);
-    --color-bg-selected: rgb(38 143 106 / 0.16);
+    --color-bg-selected: rgb(57 149 188 / 0.16);
+
+    /* Dark theme anchors the 500 shade on #3995bc exactly, same ramp
+       generation approach as :root above. */
+    --color-accent-50: #f3f9fb;
+    --color-accent-100: #cde5f0;
+    --color-accent-200: #a7d2e4;
+    --color-accent-300: #80bed9;
+    --color-accent-400: #5aabcd;
+    --color-accent-500: #3995bc;
+    --color-accent-600: #2f7a9a;
+    --color-accent-700: #245f78;
+    --color-accent-800: #1a4556;
+    --color-accent-900: #102a35;
 
     --color-text-primary: theme('colors.neutral.100');
     --color-text-secondary: theme('colors.neutral.400');
@@ -101,7 +130,7 @@
       0 8px 24px -4px rgb(0 0 0 / 0.5),
       inset 0 1px 0 0 rgb(255 255 255 / 0.1);
     --shadow-glass-sm: 0 2px 14px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 0 rgb(255 255 255 / 0.08);
-    --shadow-glow-accent: 0 0 0 1px rgb(67 171 134 / 0.35), 0 0 20px -2px rgb(38 143 106 / 0.45), 0 6px 18px -4px rgb(0 0 0 / 0.6);
+    --shadow-glow-accent: 0 0 0 1px rgb(90 171 205 / 0.35), 0 0 20px -2px rgb(57 149 188 / 0.45), 0 6px 18px -4px rgb(0 0 0 / 0.6);
   }
 
   html {
@@ -123,9 +152,9 @@
     color: var(--color-text-primary);
     background-color: #f2f2f4;
     background-image:
-      radial-gradient(at 15% 0%, rgb(38 143 106 / 0.07) 0px, transparent 55%),
+      radial-gradient(at 15% 0%, rgb(24 45 82 / 0.07) 0px, transparent 55%),
       radial-gradient(at 85% 0%, rgb(23 23 26 / 0.06) 0px, transparent 55%),
-      radial-gradient(at 0% 55%, rgb(38 143 106 / 0.05) 0px, transparent 50%),
+      radial-gradient(at 0% 55%, rgb(24 45 82 / 0.05) 0px, transparent 50%),
       radial-gradient(at 90% 90%, rgb(23 23 26 / 0.05) 0px, transparent 50%);
     background-attachment: fixed;
     background-size: cover;
@@ -135,9 +164,9 @@
   .dark body {
     background-color: #050506;
     background-image:
-      radial-gradient(at 15% 0%, rgb(38 143 106 / 0.13) 0px, transparent 55%),
+      radial-gradient(at 15% 0%, rgb(57 149 188 / 0.13) 0px, transparent 55%),
       radial-gradient(at 85% 0%, rgb(255 255 255 / 0.035) 0px, transparent 55%),
-      radial-gradient(at 0% 55%, rgb(38 143 106 / 0.08) 0px, transparent 50%),
+      radial-gradient(at 0% 55%, rgb(57 149 188 / 0.08) 0px, transparent 50%),
       radial-gradient(at 90% 90%, rgb(255 255 255 / 0.025) 0px, transparent 50%),
       radial-gradient(at 50% 50%, transparent 0%, rgb(0 0 0 / 0.5) 85%);
   }

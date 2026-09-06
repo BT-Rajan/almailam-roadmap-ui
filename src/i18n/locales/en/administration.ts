@@ -157,7 +157,7 @@ export default {
     country: 'Country',
     branding: 'Branding',
     brandingDescription: 'Applied to report headers, portals and printable documents.',
-    brandColor: 'Brand Color',
+    brandColorFixedNotice: 'The corporate brand color is fixed and applies automatically across the app and all documents — it is not user-configurable.',
     companyLogo: 'Company Logo',
     companyLogoDescription:
       'Insertable into any Quotation/Contract document template via its Company Logo merge field. Applies immediately — not part of "Save Changes" below.',

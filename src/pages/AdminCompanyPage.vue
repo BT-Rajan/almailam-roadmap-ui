@@ -201,18 +201,9 @@ function handleCancel(): void {
 
         <FormSection :title="t('administration.companyPage.branding')" :description="t('administration.companyPage.brandingDescription')">
           <div class="flex items-center gap-3">
-            <input
-              type="color"
-              :value="companyStore.settings.brandColor"
-              class="h-10 w-14 cursor-pointer rounded-md border border-border-default"
-              @input="companyStore.updateField('brandColor', ($event.target as HTMLInputElement).value)"
-            />
-            <TextInput
-              :model-value="companyStore.settings.brandColor"
-              :label="t('administration.companyPage.brandColor')"
-              class="flex-1"
-              @update:model-value="companyStore.updateField('brandColor', $event)"
-            />
+            <span class="h-8 w-8 shrink-0 rounded-md border border-border-light" :style="{ backgroundColor: '#182d52' }" />
+            <span class="h-8 w-8 shrink-0 rounded-md border border-border-light" :style="{ backgroundColor: '#3995bc' }" />
+            <p class="text-xs text-text-muted">{{ t('administration.companyPage.brandColorFixedNotice') }}</p>
           </div>
 
           <div class="flex flex-col gap-2">

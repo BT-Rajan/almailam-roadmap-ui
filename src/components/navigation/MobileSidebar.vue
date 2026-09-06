@@ -3,6 +3,7 @@ import { X } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { useAuth } from '@/composables/useAuthComposable'
 import { useLocale } from '@/composables/useLocale'
@@ -35,12 +36,8 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
     >
       <div class="flex h-16 items-center justify-between border-b border-[var(--color-border-default)] px-4">
         <div class="flex items-center gap-2">
-          <div
-            class="gradient-luxe-accent flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
-          >
-            SO
-          </div>
-          <span class="text-base font-semibold text-[var(--color-text-primary)]">{{ t('common.appName') }}</span>
+          <BrandLogo size="md" />
+          <span class="text-base font-semibold text-[var(--color-text-primary)]">{{ t('common.companyName') }}</span>
         </div>
         <button
           type="button"

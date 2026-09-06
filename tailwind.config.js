@@ -41,23 +41,23 @@ export default {
           800: '#292930',
           900: '#17171a',
         },
-        // Deep emerald/jade accent -- deliberately a different premium hue
-        // family from JDK's champagne-gold (this repo's old accent scale
-        // was itself a near-identical gold, which is why the two apps'
-        // login screens read as the same product reskinned). Jade keeps
-        // the "engineering consultancy" association (precision, growth,
-        // trust) while giving Almailam its own visual identity.
+        // Almailam's corporate brand color -- fixed per Administration
+        // requirements, not user-configurable. Read from CSS custom
+        // properties (like bg/border/text below) so accent-500 resolves to
+        // the light-theme navy (#182d52) under :root and the dark-theme
+        // blue (#3995bc) under .dark, with the rest of the 50-900 ramp
+        // generated around each anchor for hover/tint/badge shades.
         accent: {
-          50: '#eefaf5',
-          100: '#d3f0e3',
-          200: '#a6e0c7',
-          300: '#72c9a8',
-          400: '#43ab86',
-          500: '#268f6a',
-          600: '#1c7355',
-          700: '#165a43',
-          800: '#124635',
-          900: '#0d3628',
+          50: 'var(--color-accent-50)',
+          100: 'var(--color-accent-100)',
+          200: 'var(--color-accent-200)',
+          300: 'var(--color-accent-300)',
+          400: 'var(--color-accent-400)',
+          500: 'var(--color-accent-500)',
+          600: 'var(--color-accent-600)',
+          700: 'var(--color-accent-700)',
+          800: 'var(--color-accent-800)',
+          900: 'var(--color-accent-900)',
         },
         success: {
           50: '#f0fdf4',

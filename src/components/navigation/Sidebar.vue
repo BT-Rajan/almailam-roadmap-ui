@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import { useAuth } from '@/composables/useAuthComposable'
 import { useLocale } from '@/composables/useLocale'
@@ -35,16 +36,12 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
     :class="navigationStore.isSidebarCollapsed ? 'w-18' : 'w-70'"
   >
     <div class="flex h-16 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
-      <div
-        class="gradient-luxe-accent flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm"
-      >
-        SO
-      </div>
+      <BrandLogo size="md" />
       <span
         v-if="!navigationStore.isSidebarCollapsed"
         class="truncate text-base font-semibold text-[var(--color-text-primary)]"
       >
-        {{ t('common.appName') }}
+        {{ t('common.companyName') }}
       </span>
     </div>
 

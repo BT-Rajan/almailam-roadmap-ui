@@ -51,6 +51,23 @@ def get_logo(db: Session = Depends(get_db), _=Depends(can_view)):
     return Response(content=resolve_path(settings.logo_storage_key).read_bytes(), media_type=content_type)
 
 
+# Deliberately unauthenticated: the corporate logo drives the app's brand
+# chrome everywhere -- the sign-in screen (no session yet), the customer
+# and site-engineer portals (roles with no Administration permission), and
+# the main app sidebar for every internal role, not just Administrators.
+# It's already embedded in externally-shared quotation/contract documents
+# via the same {{ logo }} merge field, so it isn't sensitive data -- gating
+# it behind auth would just make most of the app show the placeholder mark
+# instead of the real brand.
+@router.get("/logo/public")
+def get_logo_public(db: Session = Depends(get_db)):
+    settings = company_service.get_settings(db)
+    if not settings.logo_storage_key:
+        raise NotFoundError("Company logo")
+    content_type = mimetypes.guess_type(settings.logo_original_filename or "")[0] or "application/octet-stream"
+    return Response(content=resolve_path(settings.logo_storage_key).read_bytes(), media_type=content_type)
+
+
 @router.delete("/logo", response_model=CompanySettingsOut)
 def delete_logo(db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     settings = company_service.delete_logo(db, current_user.id)

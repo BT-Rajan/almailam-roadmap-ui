@@ -92,10 +92,22 @@ async function getLogoBlob(): Promise<Blob> {
   return await response.blob()
 }
 
+/** The company logo via the unauthenticated /logo/public endpoint -- used
+ * to render the brand mark across the app shell (sidebar, login screen,
+ * customer/site portals), which all need it before a session exists or
+ * for roles without Administration permission. Unlike getLogoBlob, no
+ * Authorization header is sent or needed. */
+async function getPublicLogoBlob(): Promise<Blob> {
+  const response = await fetch('/api/company/logo/public')
+  if (!response.ok) throw new Error('Failed to load company logo')
+  return await response.blob()
+}
+
 export const companyService = {
   getCompanySettings,
   saveCompanySettings,
   uploadLogo,
   deleteLogo,
   getLogoBlob,
+  getPublicLogoBlob,
 }
