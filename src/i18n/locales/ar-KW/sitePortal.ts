@@ -51,5 +51,8 @@ export default {
     updateResubmit: 'تحديث وإعادة التقديم',
     submitReport: 'تقديم التقرير',
     filedAndReviewed: 'تم التقديم والمراجعة',
+    reportSubmittedTitle: 'تم تقديم التقرير',
+    reportSubmittedDescription: 'تم تقديم تقرير الحالة لليوم. يمكنك الاستمرار في تعديله وإعادة تقديمه حتى الساعة 11:59 مساءً بتوقيت الكويت.',
+    failedToSaveReport: 'فشل حفظ التقرير',
   },
 }

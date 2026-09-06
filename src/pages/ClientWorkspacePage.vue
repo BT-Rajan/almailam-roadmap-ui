@@ -195,10 +195,13 @@ async function handleDocumentUpload(payload: { category: ClientDocumentCategory;
       title: payload.title,
       file: payload.file,
     })
-    resultDialogStore.showSuccess('Document added', `${payload.title} was uploaded successfully.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.documentAddedTitle'),
+      t('client.workspacePage.resultDialog.uploadedSuccessfully', { title: payload.title }),
+    )
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to upload document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUploadDocument'), detail)
   }
 }
 
@@ -207,8 +210,8 @@ async function handleDocumentDownload(document: ClientDocument): Promise<void> {
   try {
     await clientStore.downloadDocument(client.value.id, document.id, document.originalFilename)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to download document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToDownloadDocument'), detail)
   }
 }
 
@@ -217,8 +220,8 @@ async function handleViewIdentificationDocument(document: ClientDocument): Promi
   try {
     await clientStore.viewDocument(client.value.id, document.id)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to open document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToOpenDocument'), detail)
   }
 }
 
@@ -226,10 +229,13 @@ async function handleReplaceDocumentFile(document: ClientDocument, file: File): 
   if (!client.value) return
   try {
     await clientStore.replaceDocumentFile(client.value.id, document.id, file)
-    resultDialogStore.showSuccess('File replaced', `${document.title} was updated to a new version.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.fileReplacedTitle'),
+      t('client.workspacePage.resultDialog.updatedToNewVersion', { title: document.title }),
+    )
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to replace file', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToReplaceFile'), detail)
   }
 }
 
@@ -245,8 +251,8 @@ async function openVersionHistory(document: ClientDocument): Promise<void> {
   try {
     await clientStore.loadDocumentVersions(client.value.id, document.id)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to load version history', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToLoadVersionHistory'), detail)
   } finally {
     isVersionHistoryLoading.value = false
   }
@@ -257,8 +263,8 @@ async function handleDownloadVersion(version: ClientDocumentVersion): Promise<vo
   try {
     await clientStore.downloadDocumentVersion(client.value.id, versionHistoryDocument.value.id, version.id, version.originalFilename)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to download version', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToDownloadVersion'), detail)
   }
 }
 
@@ -267,11 +273,14 @@ async function applyOnboardingState(nextState: ClientOnboardingState, reason?: s
   isOnboardingStateSaving.value = true
   try {
     await clientStore.setOnboardingState(client.value.id, nextState, reason)
-    resultDialogStore.showSuccess('Onboarding status updated', `Status changed to "${nextState}".`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.onboardingStatusUpdatedTitle'),
+      t('client.workspacePage.resultDialog.statusChangedTo', { status: nextState }),
+    )
     isStatusDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update onboarding status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateOnboardingStatus'), detail)
   } finally {
     isOnboardingStateSaving.value = false
   }
@@ -284,14 +293,14 @@ async function handleAutoAdvanceOnboarding(): Promise<void> {
     const before = client.value.onboardingState
     const updated = await clientStore.autoAdvanceOnboarding(client.value.id)
     resultDialogStore.showSuccess(
-      'Onboarding status updated',
+      t('client.workspacePage.resultDialog.onboardingStatusUpdatedTitle'),
       updated.onboardingState === before
-        ? 'This client is already at a status that needs a manual decision -- use Change Status.'
-        : `Status advanced from "${before}" to "${updated.onboardingState}".`,
+        ? t('client.workspacePage.resultDialog.needsManualDecision')
+        : t('client.workspacePage.resultDialog.statusAdvancedFrom', { before, after: updated.onboardingState }),
     )
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to advance onboarding status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToAdvanceOnboardingStatus'), detail)
   } finally {
     isOnboardingStateSaving.value = false
   }
@@ -316,11 +325,14 @@ async function handleConfirmVerification(payload: {
   isVerificationSaving.value = true
   try {
     await clientStore.createVerification(client.value.id, payload)
-    resultDialogStore.showSuccess('Verification recorded', `"${payload.item}" marked as ${payload.result}.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.verificationRecordedTitle'),
+      t('client.workspacePage.resultDialog.markedAsResult', { item: payload.item, result: payload.result }),
+    )
     isVerificationDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to record verification', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToRecordVerification'), detail)
   } finally {
     isVerificationSaving.value = false
   }
@@ -365,11 +377,14 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
           }
         : undefined,
     })
-    resultDialogStore.showSuccess('Client updated', 'Changes were saved successfully.')
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.clientUpdatedTitle'),
+      t('client.workspacePage.resultDialog.changesSavedSuccessfully'),
+    )
     isEditDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update client', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateClient'), detail)
   } finally {
     isEditSaving.value = false
   }
@@ -381,10 +396,13 @@ async function handleToggleStatus(): Promise<void> {
   isStatusToggleSaving.value = true
   try {
     await clientStore.setClientStatus(client.value.id, nextStatus)
-    resultDialogStore.showSuccess('Status updated', `Client marked as ${nextStatus}.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.statusUpdatedTitle'),
+      t('client.workspacePage.resultDialog.clientMarkedAs', { status: nextStatus }),
+    )
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateStatus'), detail)
   } finally {
     isStatusToggleSaving.value = false
   }
@@ -395,12 +413,15 @@ async function handleConfirmDeleteClient(): Promise<void> {
   isDeleteClientSaving.value = true
   try {
     await clientStore.deleteClient(client.value.id)
-    resultDialogStore.showSuccess('Client deleted', `${client.value.companyName} was removed.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.clientDeletedTitle'),
+      t('client.workspacePage.resultDialog.wasRemoved', { name: client.value.companyName }),
+    )
     isDeleteClientDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.CLIENTS })
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to delete client', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToDeleteClient'), detail)
   } finally {
     isDeleteClientSaving.value = false
   }
@@ -420,7 +441,10 @@ async function handleConfirmMerge(direction: 'keep-current' | 'keep-other'): Pro
   isMergeSaving.value = true
   try {
     await clientStore.mergeClients(targetId, sourceId)
-    resultDialogStore.showSuccess('Clients merged', `Merged into ${keptName}.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.clientsMergedTitle'),
+      t('client.workspacePage.resultDialog.mergedInto', { name: keptName }),
+    )
     isMergeDialogOpen.value = false
     if (targetId !== client.value.id) {
       // The record being VIEWED was the one merged away -- navigate to
@@ -428,8 +452,8 @@ async function handleConfirmMerge(direction: 'keep-current' | 'keep-other'): Pro
       router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: targetId } })
     }
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to merge clients', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToMergeClients'), detail)
   } finally {
     isMergeSaving.value = false
   }
@@ -454,15 +478,26 @@ async function handleConfirmContact(payload: {
   try {
     if (contactDialogTarget.value) {
       await clientStore.updateContact(client.value.id, contactDialogTarget.value.id, payload)
-      resultDialogStore.showSuccess('Contact updated', `${payload.name} was updated.`)
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.contactUpdatedTitle'),
+        t('client.workspacePage.resultDialog.wasUpdated', { name: payload.name }),
+      )
     } else {
       await clientStore.createContact(client.value.id, payload)
-      resultDialogStore.showSuccess('Contact added', `${payload.name} was added.`)
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.contactAddedTitle'),
+        t('client.workspacePage.resultDialog.wasAdded', { name: payload.name }),
+      )
     }
     isContactDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError(contactDialogTarget.value ? 'Failed to update contact' : 'Failed to add contact', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(
+      contactDialogTarget.value
+        ? t('client.workspacePage.resultDialog.failedToUpdateContact')
+        : t('client.workspacePage.resultDialog.failedToAddContact'),
+      detail,
+    )
   } finally {
     isContactSaving.value = false
   }
@@ -495,15 +530,26 @@ async function handleConfirmAddress(payload: {
     }
     if (addressDialogTarget.value) {
       await clientStore.updateAddress(client.value.id, addressDialogTarget.value.id, normalised)
-      resultDialogStore.showSuccess('Address updated', 'The address was updated.')
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.addressUpdatedTitle'),
+        t('client.workspacePage.resultDialog.addressUpdatedDescription'),
+      )
     } else {
       await clientStore.createAddress(client.value.id, normalised)
-      resultDialogStore.showSuccess('Address added', 'The address was added.')
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.addressAddedTitle'),
+        t('client.workspacePage.resultDialog.addressAddedDescription'),
+      )
     }
     isAddressDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError(addressDialogTarget.value ? 'Failed to update address' : 'Failed to add address', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(
+      addressDialogTarget.value
+        ? t('client.workspacePage.resultDialog.failedToUpdateAddress')
+        : t('client.workspacePage.resultDialog.failedToAddAddress'),
+      detail,
+    )
   } finally {
     isAddressSaving.value = false
   }
@@ -528,15 +574,26 @@ async function handleConfirmIdentification(payload: {
   try {
     if (identificationDialogTarget.value) {
       await clientStore.updateIdentification(client.value.id, identificationDialogTarget.value.id, payload)
-      resultDialogStore.showSuccess('Identification updated', `${payload.documentType} was updated.`)
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.identificationUpdatedTitle'),
+        t('client.workspacePage.resultDialog.wasUpdated', { name: payload.documentType }),
+      )
     } else {
       await clientStore.createIdentification(client.value.id, payload)
-      resultDialogStore.showSuccess('Identification added', `${payload.documentType} was added.`)
+      resultDialogStore.showSuccess(
+        t('client.workspacePage.resultDialog.identificationAddedTitle'),
+        t('client.workspacePage.resultDialog.wasAdded', { name: payload.documentType }),
+      )
     }
     isIdentificationDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError(identificationDialogTarget.value ? 'Failed to update identification' : 'Failed to add identification', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(
+      identificationDialogTarget.value
+        ? t('client.workspacePage.resultDialog.failedToUpdateIdentification')
+        : t('client.workspacePage.resultDialog.failedToAddIdentification'),
+      detail,
+    )
   } finally {
     isIdentificationSaving.value = false
   }
@@ -566,11 +623,14 @@ async function handleConfirmDocumentEdit(payload: {
       expiryDate: payload.expiryDate || undefined,
       issuingAuthority: payload.issuingAuthority || undefined,
     })
-    resultDialogStore.showSuccess('Document updated', `${payload.title} was updated.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.documentUpdatedTitle'),
+      t('client.workspacePage.resultDialog.wasUpdated', { name: payload.title }),
+    )
     isDocumentEditDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateDocument'), detail)
   } finally {
     isDocumentEditSaving.value = false
   }
@@ -592,11 +652,14 @@ async function handleConfirmDelete(): Promise<void> {
     else if (type === 'address') await clientStore.deleteAddress(client.value.id, id)
     else if (type === 'identification') await clientStore.deleteIdentification(client.value.id, id)
     else await clientStore.deleteDocument(client.value.id, id)
-    resultDialogStore.showSuccess('Removed', `${label} was removed.`)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.removedTitle'),
+      t('client.workspacePage.resultDialog.wasRemoved', { name: label }),
+    )
     isDeleteDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to remove', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToRemove'), detail)
   } finally {
     isDeleteSaving.value = false
   }
@@ -887,9 +950,9 @@ function createProjectForClient(): void {
       />
       <ConfirmationDialog
         v-model="isDeleteDialogOpen"
-        title="Remove record"
-        :message="deleteTarget ? `Remove ${deleteTarget.label}? This cannot be undone from the app.` : ''"
-        confirm-label="Remove"
+        :title="t('client.workspacePage.deleteRecordDialog.title')"
+        :message="deleteTarget ? t('client.workspacePage.deleteRecordDialog.message', { label: deleteTarget.label }) : ''"
+        :confirm-label="t('client.workspacePage.deleteRecordDialog.confirmLabel')"
         confirm-variant="danger"
         :loading="isDeleteSaving"
         @confirm="handleConfirmDelete"
@@ -897,9 +960,9 @@ function createProjectForClient(): void {
       <ConfirmationDialog
         v-if="client"
         v-model="isDeleteClientDialogOpen"
-        title="Delete client"
-        :message="`Delete ${client.companyName}? This cannot be undone from the app, and is blocked if the client has any projects on file.`"
-        confirm-label="Delete"
+        :title="t('client.header.deleteClient')"
+        :message="t('client.workspacePage.deleteClientDialog.message', { name: client.companyName })"
+        :confirm-label="t('common.delete')"
         confirm-variant="danger"
         :loading="isDeleteClientSaving"
         @confirm="handleConfirmDeleteClient"

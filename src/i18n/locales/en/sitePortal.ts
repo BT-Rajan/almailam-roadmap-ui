@@ -51,5 +51,8 @@ export default {
     updateResubmit: 'Update & Re-submit',
     submitReport: 'Submit Report',
     filedAndReviewed: 'Filed and reviewed',
+    reportSubmittedTitle: 'Report submitted',
+    reportSubmittedDescription: "Today's status report has been submitted. You can keep editing and re-submitting it until 11:59 PM Kuwait time.",
+    failedToSaveReport: 'Failed to save report',
   },
 }

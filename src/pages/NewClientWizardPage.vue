@@ -394,8 +394,8 @@ async function submitWizard(): Promise<void> {
     clearDraft()
     showConfirmation.value = true
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
-    resultDialogStore.showError('Failed to onboard client', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
+    resultDialogStore.showError(t('client.newWizard.failedToOnboardClient'), detail)
   } finally {
     isSubmitting.value = false
   }

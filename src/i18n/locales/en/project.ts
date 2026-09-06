@@ -250,6 +250,11 @@ export default {
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
     recipientEmail: 'Recipient Email',
     send: 'Send',
+    quotationEmailedTitle: 'Quotation emailed',
+    failedToCreateQuotation: 'Failed to create quotation',
+    quotationCreatedTitle: 'Quotation created',
+    failedToUpdateQuotation: 'Failed to update quotation',
+    failedToFinalizeQuotation: 'Failed to finalize quotation',
   },
 
   revisionHistory: {
@@ -339,6 +344,14 @@ export default {
     selectFromList: 'Select a contract from the list to preview it.',
     recipientEmail: 'Recipient Email',
     send: 'Send',
+    contractEmailedTitle: 'Contract emailed',
+    contractCreatedTitle: 'Contract created',
+    failedToCreateContract: 'Failed to create contract',
+    failedToUpdateContract: 'Failed to update contract',
+    failedToFinalizeContract: 'Failed to finalize contract',
+    noEligibleQuotationTitle: 'No eligible quotation',
+    noEligibleQuotationDescriptionShort: 'A contract can only be generated from a quotation that has been Approved and saved as Final.',
+    noEligibleQuotationDescriptionLong: 'A contract can only be generated from a quotation that has been Approved and saved as Final. Finalize and approve a quotation on the Quotation tab first.',
   },
 
   tasksTab: {
@@ -396,6 +409,20 @@ export default {
     client: 'Client',
     fieldEngineer: 'Field Engineer',
     timeline: 'Timeline',
+    servicesAddedTitle: 'Services added',
+    servicesAddedDescription: 'Cover the new work with a quotation, payment plan, and contract the same way as the rest of this project.',
+    failedToAddServices: 'Failed to add services',
+    projectUpdatedTitle: 'Project updated',
+    changesSavedSuccessfully: 'Changes were saved successfully.',
+    failedToUpdateProject: 'Failed to update project',
+    stageUpdatedTitle: 'Stage updated',
+    projectMovedTo: 'Project moved to {value}.',
+    failedToChangeStage: 'Failed to change stage',
+    statusUpdatedTitle: 'Status updated',
+    projectMarkedAs: 'Project marked as {value}.',
+    projectDeletedTitle: 'Project deleted',
+    wasRemoved: '{name} was removed.',
+    failedToDeleteProject: 'Failed to delete project',
   },
 
   newWizard: {
@@ -450,6 +477,7 @@ export default {
     projectCreatedMessagePart1: 'was successfully created as project',
     projectCreatedMessagePart2: 'for',
     viewProjectWorkspace: 'View Project Workspace',
+    failedToCreateProject: 'Failed to create project',
   },
 
   newContractDialog: {

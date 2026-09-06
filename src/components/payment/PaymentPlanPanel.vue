@@ -168,9 +168,9 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
   try {
     await store.approveAgreement(agreement.id)
     await projectStore.refreshProject(props.projectId)
-    resultDialogStore.showSuccess(`${getAgreementStreamLabel(agreement.stream)} payment plan approved`, 'The payment plan is now approved.')
+    resultDialogStore.showSuccess(t('payment.planPanel.streamPlanApprovedTitle', { stream: agreementStreamLabel(agreement.stream) }), t('payment.planPanel.planApprovedDescription'))
   } catch (error) {
-    resultDialogStore.showError('Could not approve payment plan', error instanceof Error ? error.message : 'Please try again.')
+    resultDialogStore.showError(t('payment.planPanel.couldNotApprove'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isApprovingStream.value = undefined
   }
@@ -192,14 +192,14 @@ async function handleSubmitAgreement(input: CreateAgreementInput): Promise<void>
   try {
     if (agreementFormMode.value === 'edit' && agreementBeingEdited.value) {
       await store.updateAgreement(agreementBeingEdited.value.id, input)
-      resultDialogStore.showSuccess('Payment plan updated', 'The installment schedule has been regenerated.')
+      resultDialogStore.showSuccess(t('payment.planPanel.planUpdatedTitle'), t('payment.planPanel.planUpdatedDescription'))
     } else {
       await store.createAgreement(input, 'Rajan Kumar')
-      resultDialogStore.showSuccess('Payment plan created', 'Review the schedule, then approve it to continue.')
+      resultDialogStore.showSuccess(t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
     }
     isAgreementFormOpen.value = false
   } catch (error) {
-    resultDialogStore.showError('Could not save payment plan', error instanceof Error ? error.message : 'Please try again.')
+    resultDialogStore.showError(t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -213,10 +213,10 @@ async function handleConfirmDelete(): Promise<void> {
   isDeleting.value = true
   try {
     await store.deleteAgreement(agreementPendingDelete.value.id)
-    resultDialogStore.showSuccess('Payment plan deleted')
+    resultDialogStore.showSuccess(t('payment.planPanel.planDeletedTitle'))
     isDeleteConfirmOpen.value = false
   } catch (error) {
-    resultDialogStore.showError('Could not delete payment plan', error instanceof Error ? error.message : 'Please try again.')
+    resultDialogStore.showError(t('payment.planPanel.couldNotDelete'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isDeleting.value = false
   }

@@ -85,9 +85,8 @@ const eligibleQuotation = () => {
 function openCreateDialog(): void {
   if (!eligibleQuotation()) {
     resultDialogStore.showError(
-      'No eligible quotation',
-      'A contract can only be generated from a quotation that has been Approved and saved as Final. ' +
-        'Finalize and approve a quotation on the Quotation tab first.',
+      t('project.contractTab.noEligibleQuotationTitle'),
+      t('project.contractTab.noEligibleQuotationDescriptionLong'),
     )
     return
   }
@@ -109,8 +108,8 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
   const quotation = eligibleQuotation()
   if (!quotation) {
     resultDialogStore.showError(
-      'No eligible quotation',
-      'A contract can only be generated from a quotation that has been Approved and saved as Final.',
+      t('project.contractTab.noEligibleQuotationTitle'),
+      t('project.contractTab.noEligibleQuotationDescriptionShort'),
     )
     return
   }
@@ -127,11 +126,11 @@ async function handleCreateContract(payload: ContractCreateInput): Promise<void>
     // badge and Workflow Progress stepper read, and creating a contract
     // through contractStore never touches it on its own.
     await projectStore.refreshProject(props.project.id)
-    resultDialogStore.showSuccess('Contract created', `${contract.contractNo} was created successfully.`)
+    resultDialogStore.showSuccess(t('project.contractTab.contractCreatedTitle'), t('common.createdSuccessfully', { no: contract.contractNo }))
     isCreateDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to create contract', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.failedToCreateContract'), detail)
   } finally {
     isCreating.value = false
   }
@@ -151,8 +150,8 @@ async function handlePrint(): Promise<void> {
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to generate document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
   } finally {
     isPrinting.value = false
   }
@@ -168,8 +167,8 @@ async function handleDownloadDocument(): Promise<void> {
     const blob = await documentTemplateService.downloadContractDocument(contract.id, documentLanguage.value)
     triggerBlobDownload(blob, `${contract.id}.docx`)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to generate document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
   } finally {
     isDownloadingDocument.value = false
   }
@@ -190,11 +189,11 @@ async function handleSendEmail(): Promise<void> {
   isSendingEmail.value = true
   try {
     await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim(), documentLanguage.value)
-    resultDialogStore.showSuccess('Contract emailed', `Sent to ${emailTo.value.trim()}.`)
+    resultDialogStore.showSuccess(t('project.contractTab.contractEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to send email', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToSendEmail'), detail)
   } finally {
     isSendingEmail.value = false
   }
@@ -206,8 +205,8 @@ async function handlePatch(patch: Partial<Contract>): Promise<void> {
   try {
     await contractStore.updateContract(contract.id, patch)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to save changes', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToSaveChanges'), detail)
   }
 }
 
@@ -222,8 +221,8 @@ async function handleFinalizeToggle(): Promise<void> {
       await contractStore.finalizeContract(contract.id)
     }
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update contract', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.failedToUpdateContract'), detail)
   } finally {
     isFinalizing.value = false
   }
@@ -240,8 +239,8 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
     await contractStore.updateContract(contract.id, patch)
     await contractStore.finalizeContract(contract.id)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to finalize contract', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.failedToFinalizeContract'), detail)
   } finally {
     isFinalizing.value = false
   }
@@ -267,8 +266,8 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
       await projectStore.refreshProject(props.project.id)
     }
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to change status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToChangeStatus'), detail)
   } finally {
     isStatusSaving.value = false
   }

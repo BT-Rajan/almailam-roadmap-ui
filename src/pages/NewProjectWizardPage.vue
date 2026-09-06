@@ -340,8 +340,8 @@ async function submitWizard(): Promise<void> {
     // a failure here could come and go while attention was on the form
     // (or the confirmation that never appeared), reading as "nothing
     // happened" rather than "this needs a fix."
-    const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
-    resultDialogStore.showError('Failed to create project', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
+    resultDialogStore.showError(t('project.newWizard.failedToCreateProject'), detail)
   } finally {
     isSubmitting.value = false
   }
