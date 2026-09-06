@@ -58,11 +58,28 @@ class EmailSettingsIn(BaseModel):
     @field_validator("smtpHost", "username", "fromEmail", "fromName", mode="before")
     @classmethod
     def _strip_strings(cls, v):
-        # Prone to being copy-pasted -- an app password or host copied
-        # from somewhere that displays it with spacing, or a trailing
+        # Prone to being copy-pasted -- a host or address copied from
+        # somewhere that displays it with spacing, or a trailing
         # newline, would otherwise be saved verbatim and silently break
         # the connection with no validation error.
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("password", mode="before")
+    @classmethod
+    def _normalize_password(cls, v):
+        # Every major provider's app-password screen (Gmail, Yahoo,
+        # iCloud) displays the password in space-separated groups of 4
+        # purely for readability -- those spaces are never part of the
+        # actual credential. A password pasted with them intact, or
+        # with a trailing space/newline from a password manager, looks
+        # identical to the correct one but fails SMTP auth outright, in
+        # a way that reads as "the password doesn't work" rather than a
+        # formatting mistake. Empty string ("clear the password") is
+        # left as an empty string, not turned into whitespace-stripped
+        # nothing extra.
+        if not isinstance(v, str):
+            return v
+        return "".join(v.split())
 
 
 class EmailSettingsTestResult(BaseModel):

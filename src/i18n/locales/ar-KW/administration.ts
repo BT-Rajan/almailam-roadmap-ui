@@ -191,6 +191,7 @@ export default {
     smtpPort: 'منفذ SMTP',
     useTls: 'استخدام TLS (STARTTLS)',
     useTlsHint: 'اترك هذا الخيار مفعَّلًا ما لم يتطلب مزوِّدك اتصالًا غير مشفَّر صراحةً.',
+    useTlsLockedHint: 'هذا الإعداد ثابت لهذا المزوِّد. اختر "مخصص / آخر" لتحديد مضيف أو منفذ أو تشفير مختلف.',
     username: 'اسم المستخدم',
     usernamePlaceholder: 'عادةً نفس عنوان "من"',
     password: 'كلمة المرور',

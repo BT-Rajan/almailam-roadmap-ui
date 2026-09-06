@@ -78,10 +78,26 @@ def update(db: Session, data: dict, user_id: int) -> EmailSettings:
         db, ENTITY_TYPE, row.id, "Email settings updated", user_id,
         previous_value=row.smtp_host, new_value=data["smtp_host"],
     )
-    row.provider = data["provider"]
-    row.smtp_host = data["smtp_host"]
-    row.smtp_port = data["smtp_port"]
-    row.smtp_use_tls = data["smtp_use_tls"]
+
+    provider = data["provider"]
+    preset = PROVIDER_PRESETS.get(provider)
+    # For a known provider (anything but "custom"), host/port/encryption
+    # are fixed published values, not something the admin form should be
+    # able to drift away from -- enforced here too, not just disabled in
+    # the UI, since a stale saved row (or any other caller of this
+    # function) could otherwise carry the wrong host/port for the
+    # provider it claims to be, which shows up as "the password doesn't
+    # work" when the real problem is a wrong host or port.
+    if preset and provider != "custom":
+        row.smtp_host = preset["smtp_host"]
+        row.smtp_port = preset["smtp_port"]
+        row.smtp_use_tls = preset["smtp_use_tls"]
+    else:
+        row.smtp_host = data["smtp_host"]
+        row.smtp_port = data["smtp_port"]
+        row.smtp_use_tls = data["smtp_use_tls"]
+
+    row.provider = provider
     row.username = data["username"]
     row.from_email = data["from_email"]
     row.from_name = data["from_name"]
@@ -160,6 +176,19 @@ def test_connection(db: Session) -> dict:
             f"SMTP failed: {exc} Check that Encryption is set to STARTTLS "
             "(or SSL/TLS, matching the port), not None.",
         )
+    except smtplib.SMTPAuthenticationError as exc:
+        # The password is rejected, not the connection -- host/port/TLS
+        # all worked. By far the most common cause for Gmail/Yahoo/
+        # iCloud is using the normal account password instead of a
+        # provider-issued app password (these providers reject regular
+        # passwords for SMTP outright once 2-factor auth is on, even
+        # though the same password logs into webmail fine).
+        hint = (
+            " Gmail, Yahoo, and iCloud all require a separate app password for SMTP -- "
+            "your regular account password will be rejected here even if it's correct."
+            if row.provider in ("gmail", "yahoo", "icloud") else ""
+        )
+        return _record_test(db, row, False, f"Authentication failed: {exc.smtp_error.decode(errors='replace')}{hint}")
     except (smtplib.SMTPException, OSError, TimeoutError) as exc:
         return _record_test(db, row, False, f"SMTP connection failed: {exc}")
 

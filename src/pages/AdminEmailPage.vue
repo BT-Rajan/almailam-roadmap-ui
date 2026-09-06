@@ -33,6 +33,12 @@ const providerNote = computed(() => {
   return emailSettingsStore.presets[emailSettingsStore.settings.provider]?.note ?? ''
 })
 
+// Gmail/Outlook/Yahoo/iCloud's host, port, and encryption are fixed,
+// published values -- letting them drift from the real setting (a typo,
+// an accidental edit) is a common cause of "the password is right but
+// it still won't connect". Only "custom" leaves them editable.
+const isCustomProvider = computed(() => emailSettingsStore.settings?.provider === 'custom')
+
 function loadData(): void {
   emailSettingsStore.loadSettings()
 }
@@ -102,6 +108,7 @@ async function handleTest(): Promise<void> {
           <TextInput
             :model-value="emailSettingsStore.settings.smtpHost"
             :label="t('administration.emailPage.smtpHost')"
+            :disabled="!isCustomProvider"
             @update:model-value="emailSettingsStore.updateField('smtpHost', $event)"
           />
           <NumberInput
@@ -109,6 +116,7 @@ async function handleTest(): Promise<void> {
             :label="t('administration.emailPage.smtpPort')"
             :min="1"
             :max="65535"
+            :disabled="!isCustomProvider"
             @update:model-value="emailSettingsStore.updateField('smtpPort', Number($event))"
           />
         </div>
@@ -116,7 +124,8 @@ async function handleTest(): Promise<void> {
         <ToggleSwitch
           :model-value="emailSettingsStore.settings.smtpUseTls"
           :label="t('administration.emailPage.useTls')"
-          :hint="t('administration.emailPage.useTlsHint')"
+          :hint="isCustomProvider ? t('administration.emailPage.useTlsHint') : t('administration.emailPage.useTlsLockedHint')"
+          :disabled="!isCustomProvider"
           @update:model-value="emailSettingsStore.updateField('smtpUseTls', $event)"
         />
 
@@ -130,6 +139,7 @@ async function handleTest(): Promise<void> {
           <TextInput
             :model-value="emailSettingsStore.settings.password ?? ''"
             type="password"
+            show-password-toggle
             :label="emailSettingsStore.settings.hasPassword ? t('administration.emailPage.passwordSaved') : t('administration.emailPage.password')"
             :placeholder="t('administration.emailPage.passwordPlaceholder')"
             @update:model-value="emailSettingsStore.updatePassword($event)"

@@ -107,6 +107,15 @@ def send_document_email(
                 "set to \"None\" -- set it to STARTTLS (or SSL/TLS, matching the port) under "
                 "Administration -> Email and save."
             ) from exc
+        except smtplib.SMTPAuthenticationError as exc:
+            hint = (
+                " Gmail, Yahoo, and iCloud all require a separate app password for SMTP -- "
+                "your regular account password will be rejected here even if it's correct."
+                if config.get("from_email", "").split("@")[-1] in ("gmail.com", "yahoo.com", "icloud.com", "me.com") else ""
+            )
+            raise ValidationAppError(
+                f"Failed to send email: authentication failed -- {exc.smtp_error.decode(errors='replace')}{hint}"
+            ) from exc
         except (OSError, smtplib.SMTPException) as exc:
             raise ValidationAppError(f"Failed to send email: {exc}") from exc
     finally:

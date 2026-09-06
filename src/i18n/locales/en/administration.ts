@@ -198,6 +198,7 @@ export default {
     smtpPort: 'SMTP Port',
     useTls: 'Use TLS (STARTTLS)',
     useTlsHint: 'Leave on unless your provider explicitly requires an unencrypted connection.',
+    useTlsLockedHint: 'Fixed for this provider. Choose "Custom / other" to set a different host, port, or encryption.',
     username: 'Username',
     usernamePlaceholder: 'Usually the same as the From address',
     password: 'Password',
