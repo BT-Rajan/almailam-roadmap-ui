@@ -61,6 +61,17 @@ function handleCancel(): void {
 }
 
 async function handleTest(): Promise<void> {
+  // Test Connection validates whatever is saved in the database, not
+  // whatever happens to be typed in the form right now -- so without
+  // saving first, a password (or any other field) just typed in looks
+  // identical to nothing being set at all, which reads as a confusing
+  // false failure. Save immediately before testing so the two can
+  // never disagree.
+  const saved = await emailSettingsStore.saveSettings()
+  if (!saved) {
+    toastStore.show('error', t('administration.emailPage.unableToSave'), emailSettingsStore.error ?? t('administration.emailPage.pleaseTryAgain'))
+    return
+  }
   const result = await emailSettingsStore.testConnection()
   toastStore.show(
     result.ok ? 'success' : 'error',
@@ -174,7 +185,13 @@ async function handleTest(): Promise<void> {
               {{ t('administration.emailPage.lastTested', { time: formatDateTime(emailSettingsStore.settings.lastTestedAt) }) }}
             </span>
           </div>
-          <BaseButton variant="ghost" size="sm" :icon="Plug" :loading="emailSettingsStore.isTesting" @click="handleTest">
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            :icon="Plug"
+            :loading="emailSettingsStore.isSaving || emailSettingsStore.isTesting"
+            @click="handleTest"
+          >
             {{ t('administration.emailPage.testConnection') }}
           </BaseButton>
         </div>
