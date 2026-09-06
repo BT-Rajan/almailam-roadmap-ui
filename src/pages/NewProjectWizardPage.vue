@@ -569,16 +569,16 @@ function goToCreatedProject(): void {
       @confirm="handleServicesConfirmed"
     />
 
-    <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
+    <BaseDialog :model-value="showConfirmation" :title="t('project.newWizard.projectCreatedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
         <strong>{{ createdProject?.projectName }}</strong>
-        was successfully created as project
+        {{ t('project.newWizard.projectCreatedMessagePart1') }}
         <strong>{{ createdProject?.projectNo }}</strong>
-        for <strong>{{ selectedClientName() }}</strong>.
+        {{ t('project.newWizard.projectCreatedMessagePart2') }} <strong>{{ selectedClientName() }}</strong>.
       </p>
 
       <template #footer>
-        <BaseButton variant="primary" @click="goToCreatedProject">View Project Workspace</BaseButton>
+        <BaseButton variant="primary" @click="goToCreatedProject">{{ t('project.newWizard.viewProjectWorkspace') }}</BaseButton>
       </template>
     </BaseDialog>
   </div>

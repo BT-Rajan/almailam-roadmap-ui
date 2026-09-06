@@ -305,6 +305,8 @@ export default {
     deactivate: 'إلغاء التفعيل',
     activate: 'تفعيل',
     editUser: 'تعديل المستخدم',
+    resetPassword: 'إعادة تعيين كلمة المرور',
+    deleteUser: 'حذف المستخدم',
   },
 
   governmentFormsPanel: {

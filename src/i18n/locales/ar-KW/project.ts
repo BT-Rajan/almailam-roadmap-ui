@@ -114,7 +114,9 @@ export default {
     editDocument: 'تعديل المستند {title}',
     deleteDocument: 'حذف المستند {title}',
     deleteDialogTitle: 'حذف المستند',
+    deleteDialogMessage: 'حذف {title}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
     documentAddedTitle: 'تمت إضافة المستند',
+    documentAddedMessage: 'أُضيف مع رابط إلى:',
     ok: 'موافق',
     columns: {
       document: 'المستند',
@@ -246,6 +248,8 @@ export default {
     emailQuotation: 'إرسال عرض السعر بالبريد',
     noQuotationSelectedTitle: 'لم يتم تحديد عرض سعر',
     noQuotationSelectedDescription: 'اختر عرض سعر من القائمة لمعاينته، أو أنشئ واحداً جديداً.',
+    recipientEmail: 'بريد المستلم الإلكتروني',
+    send: 'إرسال',
   },
 
   revisionHistory: {
@@ -333,6 +337,8 @@ export default {
     noContractSelectedTitle: 'لم يتم تحديد عقد',
     createFirstContract: 'أنشئ أول عقد لهذا المشروع.',
     selectFromList: 'اختر عقداً من القائمة لمعاينته.',
+    recipientEmail: 'بريد المستلم الإلكتروني',
+    send: 'إرسال',
   },
 
   tasksTab: {
@@ -440,6 +446,10 @@ export default {
     back: 'رجوع',
     next: 'التالي',
     createProject: 'إنشاء المشروع',
+    projectCreatedTitle: 'تم إنشاء المشروع',
+    projectCreatedMessagePart1: 'تم إنشاؤه بنجاح كمشروع',
+    projectCreatedMessagePart2: 'للعميل',
+    viewProjectWorkspace: 'عرض مساحة عمل المشروع',
   },
 
   newContractDialog: {

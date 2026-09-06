@@ -247,6 +247,14 @@ export default {
     back: 'Back',
     next: 'Next',
     addClient: 'Add Client',
+    resumeDraftTitle: 'Resume unsaved draft?',
+    resumeDraftMessage: 'You have an unfinished client onboarding form saved from earlier. Resume where you left off, or start fresh.',
+    startFresh: 'Start Fresh',
+    resumeDraft: 'Resume Draft',
+    clientSubmittedTitle: 'Client Submitted',
+    clientSubmittedMessagePart1: 'was successfully created as client',
+    clientReadyNotice: 'The client is Ready and can be selected on a new project right away.',
+    viewClientWorkspace: 'View Client Workspace',
   },
 
   addressEditDialog: {

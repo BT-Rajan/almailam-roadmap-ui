@@ -412,13 +412,13 @@ function goToCreatedClient(): void {
   <div class="flex flex-col gap-6 p-6">
     <PageHeader :title="t('client.newWizard.title')" :subtitle="t('client.newWizard.subtitle')" />
 
-    <BaseDialog :model-value="draftAvailable" title="Resume unsaved draft?" size="sm" :closable="false">
+    <BaseDialog :model-value="draftAvailable" :title="t('client.newWizard.resumeDraftTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
-        You have an unfinished client onboarding form saved from earlier. Resume where you left off, or start fresh.
+        {{ t('client.newWizard.resumeDraftMessage') }}
       </p>
       <template #footer>
-        <BaseButton variant="secondary" @click="discardDraft">Start Fresh</BaseButton>
-        <BaseButton @click="restoreDraft">Resume Draft</BaseButton>
+        <BaseButton variant="secondary" @click="discardDraft">{{ t('client.newWizard.startFresh') }}</BaseButton>
+        <BaseButton @click="restoreDraft">{{ t('client.newWizard.resumeDraft') }}</BaseButton>
       </template>
     </BaseDialog>
 
@@ -457,19 +457,19 @@ function goToCreatedClient(): void {
       </div>
     </div>
 
-    <BaseDialog :model-value="showConfirmation" title="Client Submitted" size="sm" :closable="false">
+    <BaseDialog :model-value="showConfirmation" :title="t('client.newWizard.clientSubmittedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
         <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
-        was successfully created as client
+        {{ t('client.newWizard.clientSubmittedMessagePart1') }}
         <strong>{{ createdClient?.code }}</strong>.
         <span v-if="confirmationNote"> {{ confirmationNote }}</span>
       </p>
       <p class="mt-2 text-sm text-text-secondary">
-        The client is Ready and can be selected on a new project right away.
+        {{ t('client.newWizard.clientReadyNotice') }}
       </p>
 
       <template #footer>
-        <BaseButton variant="primary" @click="goToCreatedClient">View Client Workspace</BaseButton>
+        <BaseButton variant="primary" @click="goToCreatedClient">{{ t('client.newWizard.viewClientWorkspace') }}</BaseButton>
       </template>
     </BaseDialog>
   </div>

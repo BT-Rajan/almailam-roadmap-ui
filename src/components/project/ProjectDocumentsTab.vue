@@ -328,16 +328,16 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"
-      title="Delete document"
-      :message="deleteTarget ? `Delete ${deleteTarget.title}? This cannot be undone from the app.` : ''"
-      confirm-label="Delete"
+      :title="t('project.documentsTab.deleteDialogTitle')"
+      :message="deleteTarget ? t('project.documentsTab.deleteDialogMessage', { title: deleteTarget.title }) : ''"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleteSaving"
       @confirm="handleConfirmDelete"
     />
-    <BaseDialog :model-value="isDocumentAddedDialogOpen" title="Document Added" size="sm" :closable="false">
+    <BaseDialog :model-value="isDocumentAddedDialogOpen" :title="t('project.documentsTab.documentAddedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
-        <strong>{{ addedDocumentTitle }}</strong> was added with a link to:
+        <strong>{{ addedDocumentTitle }}</strong> {{ t('project.documentsTab.documentAddedMessage') }}
       </p>
       <p class="mt-1 truncate text-sm">
         <a :href="addedDocumentLink" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline">
@@ -346,7 +346,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       </p>
 
       <template #footer>
-        <BaseButton variant="primary" @click="closeDocumentAddedDialog">OK</BaseButton>
+        <BaseButton variant="primary" @click="closeDocumentAddedDialog">{{ t('project.documentsTab.ok') }}</BaseButton>
       </template>
     </BaseDialog>
   </template>

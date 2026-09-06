@@ -247,6 +247,14 @@ export default {
     back: 'رجوع',
     next: 'التالي',
     addClient: 'إضافة عميل',
+    resumeDraftTitle: 'استئناف مسودة غير محفوظة؟',
+    resumeDraftMessage: 'لديك نموذج تهيئة عميل غير مكتمل محفوظ من وقت سابق. استأنف من حيث توقفت، أو ابدأ من جديد.',
+    startFresh: 'البدء من جديد',
+    resumeDraft: 'استئناف المسودة',
+    clientSubmittedTitle: 'تم إرسال العميل',
+    clientSubmittedMessagePart1: 'تم إنشاؤه بنجاح كعميل',
+    clientReadyNotice: 'حالة العميل جاهز، ويمكن اختياره في مشروع جديد على الفور.',
+    viewClientWorkspace: 'عرض مساحة عمل العميل',
   },
 
   addressEditDialog: {

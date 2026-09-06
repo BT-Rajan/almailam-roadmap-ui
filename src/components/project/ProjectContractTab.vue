@@ -331,11 +331,11 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
     </div>
   </div>
 
-  <BaseDialog v-model="isEmailDialogOpen" title="Email Contract" size="sm">
-    <TextInput v-model="emailTo" label="Recipient Email" type="email" required placeholder="client@example.com" />
+  <BaseDialog v-model="isEmailDialogOpen" :title="t('project.contractTab.emailContract')" size="sm">
+    <TextInput v-model="emailTo" :label="t('project.contractTab.recipientEmail')" type="email" required placeholder="client@example.com" />
     <template #footer>
-      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">Cancel</BaseButton>
-      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">Send</BaseButton>
+      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">{{ t('project.contractTab.send') }}</BaseButton>
     </template>
   </BaseDialog>
 

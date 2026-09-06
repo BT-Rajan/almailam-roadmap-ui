@@ -114,7 +114,9 @@ export default {
     editDocument: 'Edit document {title}',
     deleteDocument: 'Delete document {title}',
     deleteDialogTitle: 'Delete document',
+    deleteDialogMessage: 'Delete {title}? This cannot be undone from the app.',
     documentAddedTitle: 'Document Added',
+    documentAddedMessage: 'was added with a link to:',
     ok: 'OK',
     columns: {
       document: 'Document',
@@ -246,6 +248,8 @@ export default {
     emailQuotation: 'Email Quotation',
     noQuotationSelectedTitle: 'No quotation selected',
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
+    recipientEmail: 'Recipient Email',
+    send: 'Send',
   },
 
   revisionHistory: {
@@ -333,6 +337,8 @@ export default {
     noContractSelectedTitle: 'No contract selected',
     createFirstContract: 'Create the first contract for this project.',
     selectFromList: 'Select a contract from the list to preview it.',
+    recipientEmail: 'Recipient Email',
+    send: 'Send',
   },
 
   tasksTab: {
@@ -440,6 +446,10 @@ export default {
     back: 'Back',
     next: 'Next',
     createProject: 'Create Project',
+    projectCreatedTitle: 'Project Created',
+    projectCreatedMessagePart1: 'was successfully created as project',
+    projectCreatedMessagePart2: 'for',
+    viewProjectWorkspace: 'View Project Workspace',
   },
 
   newContractDialog: {
