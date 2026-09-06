@@ -1,4 +1,8 @@
 export default {
+  portalLayout: {
+    title: 'بوابة مهندس الموقع',
+  },
+
   loginPage: {
     title: 'تسجيل دخول مهندس الموقع',
     subtitle: 'قدّم تقرير حالتك اليومي واطّلع على سجل تقاريرك.',
@@ -8,7 +12,7 @@ export default {
 
   calendarPage: {
     myReports: 'تقاريري',
-    viewOnlyNotice: 'للعرض فقط -- اضغط على تاريخ لعرض تقرير (تقارير) ذلك اليوم.',
+    viewOnlyNotice: 'للعرض فقط — اضغط على تاريخ لعرض تقرير (تقارير) ذلك اليوم.',
     previousMonth: 'الشهر السابق',
     nextMonth: 'الشهر التالي',
     noReportsThisMonth: 'لا توجد تقارير لهذا الشهر',
@@ -34,7 +38,7 @@ export default {
     filingWindowClosedDefaultDescription: 'لم يعد بالإمكان تقديم تقارير لهذا المشروع.',
     editableTitle: 'قابل للتعديل حتى الساعة 11:59 مساءً بتوقيت الكويت',
     editableDescription:
-      'يمكنك حفظ تقرير اليوم وإعادة تقديمه بقدر ما تحتاج، حتى نهاية اليوم بتوقيت الكويت -- أينما كنت تقدّمه.',
+      'يمكنك حفظ تقرير اليوم وإعادة تقديمه بقدر ما تحتاج، حتى نهاية اليوم بتوقيت الكويت — أينما كنت تقدّمه.',
     project: 'المشروع',
     selectProject: 'اختر مشروعًا',
     windowClosedSuffix: ' (النافذة مغلقة)',
@@ -54,5 +58,9 @@ export default {
     reportSubmittedTitle: 'تم تقديم التقرير',
     reportSubmittedDescription: 'تم تقديم تقرير الحالة لليوم. يمكنك الاستمرار في تعديله وإعادة تقديمه حتى الساعة 11:59 مساءً بتوقيت الكويت.',
     failedToSaveReport: 'فشل حفظ التقرير',
+    projectRequiredTitle: 'المشروع مطلوب',
+    projectRequiredDescription: 'يرجى اختيار المشروع الذي يخص هذا التقرير.',
+    notesRequiredTitle: 'الملاحظات مطلوبة',
+    notesRequiredDescription: 'يرجى وصف نشاط الإشراف اليوم.',
   },
 }

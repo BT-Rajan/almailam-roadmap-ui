@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import GovernmentAuthorityFormDialog from '@/components/administration/GovernmentAuthorityFormDialog.vue'
@@ -12,6 +13,7 @@ import type { GovernmentAuthority } from '@/types/Government'
 
 const store = useGovernmentFormStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const selectedAuthority = ref<GovernmentAuthority | undefined>(undefined)
 
@@ -51,14 +53,14 @@ async function saveAuthority(input: AuthorityInput): Promise<void> {
   try {
     if (editingAuthority.value) {
       await store.updateAuthority(editingAuthority.value.id, input)
-      toastStore.show('success', 'Authority updated', `${input.name} has been saved.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.authorityUpdatedTitle'), t('administration.governmentFormsPanel.authorityUpdatedDescription', { name: input.name }))
     } else {
       await store.createAuthority(input)
-      toastStore.show('success', 'Authority added', `${input.name} is now available for forms.`)
+      toastStore.show('success', t('administration.governmentFormsPanel.authorityAddedTitle'), t('administration.governmentFormsPanel.authorityAddedDescription', { name: input.name }))
     }
     isAuthorityDialogOpen.value = false
   } catch {
-    toastStore.show('error', 'Unable to save authority', 'Please try again.')
+    toastStore.show('error', t('administration.governmentFormsPanel.unableToSaveAuthority'), t('common.pleaseTryAgain'))
   } finally {
     isSavingAuthority.value = false
   }
@@ -74,10 +76,10 @@ async function confirmDeleteAuthority(): Promise<void> {
   try {
     await store.deleteAuthority(deleteTarget.value.id)
     if (selectedAuthority.value?.id === deleteTarget.value.id) selectedAuthority.value = undefined
-    toastStore.show('info', 'Authority removed', `${deleteTarget.value.label} and its forms were removed.`)
+    toastStore.show('info', t('administration.governmentFormsPanel.authorityRemovedTitle'), t('administration.governmentFormsPanel.authorityRemovedDescription', { label: deleteTarget.value.label }))
     deleteTarget.value = undefined
   } catch {
-    toastStore.show('error', 'Unable to delete authority', 'Please try again.')
+    toastStore.show('error', t('government.authorityBrowser.unableToDeleteAuthority'), t('common.pleaseTryAgain'))
   } finally {
     isDeleting.value = false
   }
@@ -111,9 +113,9 @@ async function confirmDeleteAuthority(): Promise<void> {
 
     <ConfirmationDialog
       :model-value="!!deleteTarget"
-      title="Confirm Deletion"
-      :message="`Are you sure you want to delete '${deleteTarget?.label}'? This cannot be undone.`"
-      confirm-label="Delete"
+      :title="t('administration.governmentFormsPanel.confirmDeletionTitle')"
+      :message="t('administration.governmentFormsPanel.confirmDeletionMessage', { label: deleteTarget?.label })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"

@@ -9,8 +9,10 @@ export default {
   mobile: 'الجوال',
   mobilePlaceholder: 'مثال: 971 50 000 0000+',
   account: 'الحساب',
-  accountDescription: 'يديره أحد المسؤولين -- تواصل معه لتغيير هذه البيانات.',
+  accountDescription: 'يديره أحد المسؤولين — تواصل معه لتغيير هذه البيانات.',
   email: 'البريد الإلكتروني',
   role: 'الدور',
   saveChanges: 'حفظ التغييرات',
+  profileUpdatedTitle: 'تم تحديث الملف الشخصي',
+  profileUpdatedDescription: 'تم حفظ تغييراتك.',
 }

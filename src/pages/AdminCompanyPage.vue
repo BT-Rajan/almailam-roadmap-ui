@@ -58,9 +58,9 @@ async function handleLogoSelect(file: File | undefined): Promise<void> {
   isUploadingLogo.value = true
   try {
     await companyStore.uploadLogo(file)
-    toastStore.show('success', 'Logo updated', 'The company logo is now available to insert in document templates.')
+    toastStore.show('success', t('administration.companyPage.logoUpdatedTitle'), t('administration.companyPage.logoUpdatedDescription'))
   } catch (error) {
-    toastStore.show('error', 'Failed to upload logo', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.companyPage.failedToUploadLogo'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isUploadingLogo.value = false
   }
@@ -70,9 +70,9 @@ async function handleLogoRemove(): Promise<void> {
   isRemovingLogo.value = true
   try {
     await companyStore.deleteLogo()
-    toastStore.show('info', 'Logo removed')
+    toastStore.show('info', t('administration.companyPage.logoRemovedTitle'))
   } catch (error) {
-    toastStore.show('error', 'Failed to remove logo', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.companyPage.failedToRemoveLogo'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isRemovingLogo.value = false
   }
@@ -112,7 +112,7 @@ onMounted(() => {
 async function handleSave(): Promise<void> {
   const success = await companyStore.saveSettings()
   if (success) {
-    toastStore.show('success', 'Company settings saved', 'Your changes have been applied.')
+    toastStore.show('success', t('administration.companyPage.companySettingsSavedTitle'), t('administration.companyPage.companySettingsSavedDescription'))
   }
 }
 

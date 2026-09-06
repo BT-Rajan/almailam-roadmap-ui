@@ -112,14 +112,14 @@ async function submitUpload(): Promise<void> {
   try {
     const filename = uploadFile.value.name
     await store.uploadTemplate(uploadTarget.value, uploadLanguage.value, uploadFile.value)
-    toastStore.show('success', 'Template uploaded', `${filename} was uploaded.`)
+    toastStore.show('success', t('administration.documentTemplates.templateUploadedTitle'), t('administration.documentTemplates.templateUploadedDescription', { filename }))
     // Not closeUpload() -- it deliberately no-ops while isUploading is
     // true (so a backdrop click or Cancel can't dismiss mid-upload), and
     // isUploading is still true here; the finally below hasn't run yet.
     uploadTarget.value = undefined
     uploadFile.value = undefined
   } catch (error) {
-    toastStore.show('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('common.uploadFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isUploading.value = false
   }
@@ -129,9 +129,13 @@ async function handleSetDefault(template: DocumentTemplate): Promise<void> {
   isSettingDefaultId.value = template.id
   try {
     await store.setDefaultTemplate(template.id)
-    toastStore.show('success', 'Default template updated', `${template.originalFilename} is now the default ${template.documentType} template.`)
+    toastStore.show(
+      'success',
+      t('administration.documentTemplates.defaultUpdatedTitle'),
+      t('administration.documentTemplates.defaultUpdatedDescription', { filename: template.originalFilename, type: template.documentType }),
+    )
   } catch (error) {
-    toastStore.show('error', 'Could not set default', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.documentTemplates.couldNotSetDefault'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSettingDefaultId.value = undefined
   }
@@ -142,7 +146,7 @@ async function handleDownload(template: DocumentTemplate): Promise<void> {
   try {
     await store.downloadTemplate(template)
   } catch (error) {
-    toastStore.show('error', 'Download failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('common.downloadFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isDownloadingId.value = undefined
   }
@@ -153,10 +157,10 @@ async function confirmDelete(): Promise<void> {
   isDeleting.value = true
   try {
     await store.deleteTemplate(deleteTarget.value.id)
-    toastStore.show('info', 'Template deleted', `${deleteTarget.value.originalFilename} was deleted.`)
+    toastStore.show('info', t('administration.documentTemplates.templateDeletedTitle'), t('administration.documentTemplates.templateDeletedDescription', { filename: deleteTarget.value.originalFilename }))
     deleteTarget.value = undefined
   } catch (error) {
-    toastStore.show('error', 'Delete failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.documentTemplates.deleteFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isDeleting.value = false
   }
@@ -266,9 +270,9 @@ async function confirmDelete(): Promise<void> {
 
     <ConfirmationDialog
       :model-value="Boolean(deleteTarget)"
-      title="Delete Template"
-      :message="`Delete '${deleteTarget?.originalFilename}'? This can't be undone.`"
-      confirm-label="Delete"
+      :title="t('administration.documentTemplates.deleteTemplateConfirmTitle')"
+      :message="t('administration.documentTemplates.deleteTemplateConfirmMessage', { filename: deleteTarget?.originalFilename })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"

@@ -46,7 +46,7 @@ async function toggleActive(documentId: string, isActive: boolean): Promise<void
   try {
     await knowledgeStore.setDocumentActive(documentId, isActive)
   } catch (error) {
-    toastStore.show('error', 'Unable to update document', error instanceof Error && error.message ? error.message : 'Please try again.')
+    toastStore.show('error', t('workspace.knowledgeBasePage.unableToUpdateDocument'), error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -54,9 +54,9 @@ async function removeDocument(documentId: string, title: string): Promise<void> 
   try {
     await knowledgeStore.deleteDocument(documentId)
     if (scopeDocumentId.value === documentId) scopeDocumentId.value = ''
-    toastStore.show('success', 'Document deleted', `${title} was removed from the knowledge base.`)
+    toastStore.show('success', t('workspace.knowledgeBasePage.documentDeletedTitle'), t('workspace.knowledgeBasePage.documentDeletedDescription', { title }))
   } catch (error) {
-    toastStore.show('error', 'Unable to delete document', error instanceof Error && error.message ? error.message : 'Please try again.')
+    toastStore.show('error', t('workspace.knowledgeBasePage.unableToDeleteDocument'), error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain'))
   }
 }
 

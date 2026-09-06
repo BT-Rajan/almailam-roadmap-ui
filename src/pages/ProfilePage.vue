@@ -89,7 +89,7 @@ async function handleSave(): Promise<void> {
       designation: form.designation.trim() || null,
       mobile: form.mobile.trim() || null,
     })
-    toastStore.show('success', 'Profile updated', 'Your changes have been saved.')
+    toastStore.show('success', t('profile.profileUpdatedTitle'), t('profile.profileUpdatedDescription'))
   } catch (error) {
     formError.value = error instanceof Error && error.message ? error.message : 'Failed to update profile.'
   } finally {

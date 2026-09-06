@@ -65,6 +65,16 @@ export default {
     allAssignees: 'جميع المكلّفين',
   },
 
+  taskActions: {
+    failedToUpdateStatus: 'فشل تحديث الحالة',
+    failedToUpdatePriority: 'فشل تحديث الأولوية',
+    failedToUpdateSeverity: 'فشل تحديث الخطورة',
+    failedToReassignTask: 'فشل إعادة إسناد المهمة',
+    taskCreatedTitle: 'تم إنشاء المهمة',
+    taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
+    failedToCreateTask: 'فشل إنشاء المهمة',
+  },
+
   formDialog: {
     title: 'إنشاء مهمة',
     taskTitle: 'عنوان المهمة',

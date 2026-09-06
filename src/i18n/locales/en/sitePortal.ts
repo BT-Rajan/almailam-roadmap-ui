@@ -1,4 +1,8 @@
 export default {
+  portalLayout: {
+    title: 'Site Engineer Portal',
+  },
+
   loginPage: {
     title: 'Site Engineer Sign In',
     subtitle: 'File your daily status report and view your report history.',
@@ -8,7 +12,7 @@ export default {
 
   calendarPage: {
     myReports: 'My Reports',
-    viewOnlyNotice: "View-only -- tap a date to see that day's report(s).",
+    viewOnlyNotice: "View-only — tap a date to see that day's report(s).",
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
     noReportsThisMonth: 'No reports this month',
@@ -34,7 +38,7 @@ export default {
     filingWindowClosedDefaultDescription: 'Reports can no longer be filed for this project.',
     editableTitle: 'Editable until 11:59 PM Kuwait time',
     editableDescription:
-      "You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait -- wherever you're filing from.",
+      "You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait — wherever you're filing from.",
     project: 'Project',
     selectProject: 'Select project',
     windowClosedSuffix: ' (window closed)',
@@ -54,5 +58,9 @@ export default {
     reportSubmittedTitle: 'Report submitted',
     reportSubmittedDescription: "Today's status report has been submitted. You can keep editing and re-submitting it until 11:59 PM Kuwait time.",
     failedToSaveReport: 'Failed to save report',
+    projectRequiredTitle: 'Project is required',
+    projectRequiredDescription: 'Please select which project this report is for.',
+    notesRequiredTitle: 'Notes are required',
+    notesRequiredDescription: "Please describe today's supervision activity.",
   },
 }

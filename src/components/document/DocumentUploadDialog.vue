@@ -104,8 +104,8 @@ async function submitUpload(): Promise<void> {
   } catch (error) {
     toastStore.show(
       'error',
-      'Upload failed',
-      error instanceof Error && error.message ? error.message : 'Please try again.',
+      t('common.uploadFailed'),
+      error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain'),
     )
   } finally {
     isUploading.value = false

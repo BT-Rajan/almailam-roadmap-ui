@@ -65,6 +65,16 @@ export default {
     allAssignees: 'All Assignees',
   },
 
+  taskActions: {
+    failedToUpdateStatus: 'Failed to update status',
+    failedToUpdatePriority: 'Failed to update priority',
+    failedToUpdateSeverity: 'Failed to update severity',
+    failedToReassignTask: 'Failed to reassign task',
+    taskCreatedTitle: 'Task created',
+    taskCreatedDescription: '"{title}" was assigned to {assignee}.',
+    failedToCreateTask: 'Failed to create task',
+  },
+
   formDialog: {
     title: 'Create Task',
     taskTitle: 'Task Title',

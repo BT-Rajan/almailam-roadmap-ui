@@ -72,7 +72,7 @@ async function submit(): Promise<void> {
   try {
     await changePassword(currentPassword.value, newPassword.value)
     emit('update:modelValue', false)
-    toastStore.show('success', 'Password changed', 'Please log in again with your new password.')
+    toastStore.show('success', t('auth.changePasswordDialog.passwordChangedTitle'), t('auth.changePasswordDialog.passwordChangedDescription'))
     router.push({ name: ROUTE_NAMES.LOGIN })
   } catch (error) {
     formError.value = error instanceof Error && error.message ? error.message : 'Failed to change password.'

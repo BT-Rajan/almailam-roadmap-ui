@@ -5,6 +5,7 @@ import type { CustomerProjectStatus } from '@/types/CustomerPortal'
 import type { BadgeVariant } from '@/types/Ui'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { formatDate } from '@/utils/dateFormatter'
 
 interface Props {
   project: CustomerProjectStatus
@@ -58,12 +59,6 @@ const daysRemaining = computed(() => {
 const isActiveTimeline = computed(() => props.project.status !== 'completed' && props.project.status !== 'cancelled')
 const showOverdueWarning = computed(() => isActiveTimeline.value && daysRemaining.value <= 0)
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
 </script>
 
 <template>

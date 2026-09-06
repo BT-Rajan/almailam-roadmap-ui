@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from '@lucide/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Component } from 'vue'
 
 import type { ToastMessage, ToastVariant } from '@/types/Toast'
@@ -10,6 +11,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 defineEmits<{
   dismiss: [id: string]
@@ -44,7 +46,7 @@ const icon = computed(() => variantIcons[props.toast.variant])
     </div>
     <button
       type="button"
-      aria-label="Dismiss notification"
+      :aria-label="t('common.dismissNotification')"
       class="text-text-muted hover:text-text-secondary"
       @click="$emit('dismiss', toast.id)"
     >

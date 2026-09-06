@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { DEFAULT_CHART_COLOR } from '@/constants/chartColors'
 
 interface Props {
   value: number
@@ -14,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
   max: 100,
   label: undefined,
   showPercentage: true,
-  color: '#3B82F6',
+  color: DEFAULT_CHART_COLOR,
   size: 'md',
 })
 

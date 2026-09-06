@@ -109,7 +109,7 @@ async function handleExport(): Promise<void> {
   try {
     await auditLogStore.exportCsv()
   } catch {
-    toastStore.show('error', 'Export failed', 'Unable to export the audit log. Please try again.')
+    toastStore.show('error', t('administration.auditLogPage.exportFailedTitle'), t('administration.auditLogPage.exportFailedDescription'))
   }
 }
 </script>

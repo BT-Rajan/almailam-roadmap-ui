@@ -139,7 +139,7 @@ export default {
       onboardingStatusUpdatedTitle: 'تم تحديث حالة التهيئة',
       statusChangedTo: 'تم تغيير الحالة إلى "{status}".',
       failedToUpdateOnboardingStatus: 'فشل تحديث حالة التهيئة',
-      needsManualDecision: 'هذا العميل في حالة تتطلب قراراً يدوياً بالفعل -- استخدم تغيير الحالة.',
+      needsManualDecision: 'هذا العميل في حالة تتطلب قراراً يدوياً بالفعل — استخدم تغيير الحالة.',
       statusAdvancedFrom: 'تم تقديم الحالة من "{before}" إلى "{after}".',
       failedToAdvanceOnboardingStatus: 'فشل تقديم حالة التهيئة',
       verificationRecordedTitle: 'تم تسجيل التحقق',
@@ -317,6 +317,9 @@ export default {
     clientReadyNotice: 'حالة العميل جاهز، ويمكن اختياره في مشروع جديد على الفور.',
     viewClientWorkspace: 'عرض مساحة عمل العميل',
     failedToOnboardClient: 'فشلت تهيئة العميل',
+    pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
+    fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
+    fieldsNeedAttentionBeforeOnboarding: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل تهيئة هذا العميل.',
   },
 
   addressEditDialog: {
@@ -383,7 +386,7 @@ export default {
     relationship: 'العلاقة',
     accountManager: 'مدير الحساب',
     internalNotes: 'ملاحظات داخلية',
-    internalNotesHint: 'التفضيلات، إشارات المخاطر، أو تعليمات التعامل -- تظهر للموظفين فقط.',
+    internalNotesHint: 'التفضيلات، إشارات المخاطر، أو تعليمات التعامل — تظهر للموظفين فقط.',
     personalInformation: 'المعلومات الشخصية',
     fullLegalName: 'الاسم القانوني الكامل',
     preferredName: 'الاسم المفضل',

@@ -139,7 +139,7 @@ export default {
       onboardingStatusUpdatedTitle: 'Onboarding status updated',
       statusChangedTo: 'Status changed to "{status}".',
       failedToUpdateOnboardingStatus: 'Failed to update onboarding status',
-      needsManualDecision: 'This client is already at a status that needs a manual decision -- use Change Status.',
+      needsManualDecision: 'This client is already at a status that needs a manual decision — use Change Status.',
       statusAdvancedFrom: 'Status advanced from "{before}" to "{after}".',
       failedToAdvanceOnboardingStatus: 'Failed to advance onboarding status',
       verificationRecordedTitle: 'Verification recorded',
@@ -317,6 +317,9 @@ export default {
     clientReadyNotice: 'The client is Ready and can be selected on a new project right away.',
     viewClientWorkspace: 'View Client Workspace',
     failedToOnboardClient: 'Failed to onboard client',
+    pleaseFixHighlightedFields: 'Please fix the highlighted fields',
+    fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
+    fieldsNeedAttentionBeforeOnboarding: 'Some fields under "{step}" need attention before this client can be onboarded.',
   },
 
   addressEditDialog: {
@@ -383,7 +386,7 @@ export default {
     relationship: 'Relationship',
     accountManager: 'Account Manager',
     internalNotes: 'Internal Notes',
-    internalNotesHint: 'Preferences, risk flags, or handling instructions -- visible to staff only.',
+    internalNotesHint: 'Preferences, risk flags, or handling instructions — visible to staff only.',
     personalInformation: 'Personal Information',
     fullLegalName: 'Full Legal Name',
     preferredName: 'Preferred Name',

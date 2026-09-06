@@ -49,8 +49,8 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   try {
     await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateStatus'), detail)
   }
 }
 
@@ -59,8 +59,8 @@ async function handlePriorityChange(priority: TaskPriority): Promise<void> {
   try {
     await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update priority', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdatePriority'), detail)
   }
 }
 
@@ -69,8 +69,8 @@ async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
   try {
     await taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update severity', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateSeverity'), detail)
   }
 }
 
@@ -79,18 +79,18 @@ async function handleReassign(assignee: string): Promise<void> {
   try {
     await taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to reassign task', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToReassignTask'), detail)
   }
 }
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
   try {
     const task = await taskStore.createTask(input)
-    toastStore.show('success', 'Task created', `"${task.title}" was assigned to ${task.assignedTo}.`)
+    toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to create task', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToCreateTask'), detail)
   }
 }
 </script>

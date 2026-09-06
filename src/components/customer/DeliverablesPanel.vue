@@ -6,6 +6,7 @@ import type { ProjectDeliverable } from '@/types/CustomerPortal'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import { formatShortDate } from '@/utils/dateFormatter'
 
 interface Props {
   deliverables: ProjectDeliverable[]
@@ -55,12 +56,7 @@ const getStatusBadgeColor = (status: string) => {
 // download (the backend enforces this too, this just avoids offering a
 // button that would only ever fail).
 const isDownloadable = (status: string) => status !== 'pending'
-
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
+const formatDate = formatShortDate
 
 const completedCount = computed(() => props.deliverables.filter(d => d.status === 'approved').length)
 

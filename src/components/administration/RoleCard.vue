@@ -62,11 +62,11 @@ async function confirmSave(): Promise<void> {
   isSaving.value = true
   try {
     await userStore.updateRoleDefinition(props.definition.role, draft.value)
-    toastStore.show('success', 'Permissions updated', `${props.definition.role} permissions were saved.`)
+    toastStore.show('success', t('administration.roleCard.permissionsUpdatedTitle'), t('administration.roleCard.permissionsUpdatedDescription', { role: props.definition.role }))
     isEditing.value = false
     isConfirmOpen.value = false
   } catch (error) {
-    toastStore.show('error', 'Update failed', error instanceof Error ? error.message : 'Please try again.')
+    toastStore.show('error', t('administration.roleCard.updateFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSaving.value = false
   }
@@ -110,9 +110,9 @@ async function confirmSave(): Promise<void> {
 
   <ConfirmationDialog
     v-model="isConfirmOpen"
-    title="Update role permissions"
-    :message="`This changes access for every user assigned the ${definition.role} role. Continue?`"
-    confirm-label="Save Changes"
+    :title="t('administration.roleCard.updateRolePermissionsTitle')"
+    :message="t('administration.roleCard.updateRolePermissionsMessage', { role: definition.role })"
+    :confirm-label="t('administration.roleCard.saveChanges')"
     :loading="isSaving"
     @confirm="confirmSave"
   />

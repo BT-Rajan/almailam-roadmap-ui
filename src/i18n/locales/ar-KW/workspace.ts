@@ -18,7 +18,7 @@ export default {
     today: 'اليوم',
     next: 'التالي →',
     comingSoon: 'قريبًا',
-    comingSoonDescription: 'عرض {view} غير متاح بعد -- انتقل إلى العرض الشهري.',
+    comingSoonDescription: 'عرض {view} غير متاح بعد — انتقل إلى العرض الشهري.',
     noActivitiesOnThisDay: 'لا توجد أنشطة في هذا اليوم',
     byUser: 'بواسطة {name}',
     viewTaskDetails: 'عرض تفاصيل المهمة',
@@ -26,11 +26,15 @@ export default {
     newCount: '{count} جديد',
     updatedCount: '{count} محدَّث',
     delayedCount: '{count} متأخر',
+    failedToLoadFilterOptions: 'فشل تحميل خيارات التصفية',
+    failedToLoadActivities: 'فشل تحميل الأنشطة',
+    activitiesExportedSuccessfully: 'تم تصدير الأنشطة بنجاح',
+    failedToExportActivities: 'فشل تصدير الأنشطة',
   },
 
   knowledgeBasePage: {
     pageTitle: 'قاعدة المعرفة',
-    pageSubtitle: 'ارفع مستندًا واطرح أسئلة بالعربية أو الإنجليزية أو مزيج منهما -- تُبنى الإجابات حصريًا على ما ترفعه.',
+    pageSubtitle: 'ارفع مستندًا واطرح أسئلة بالعربية أو الإنجليزية أو مزيج منهما — تُبنى الإجابات حصريًا على ما ترفعه.',
     uploadDocument: 'رفع مستند',
     documents: 'المستندات',
     noDocumentsYet: 'لا توجد مستندات بعد',
@@ -49,12 +53,16 @@ export default {
     noQuestionsAskedYet: 'لم تُطرح أي أسئلة بعد',
     noQuestionsAskedYetDescription: 'اطرح سؤالاً حول أحد مستنداتك المرفوعة، أو جميع المستندات النشطة في آن واحد.',
     cached: 'مخزَّن مؤقتًا',
+    unableToUpdateDocument: 'تعذّر تحديث المستند',
+    documentDeletedTitle: 'تم حذف المستند',
+    documentDeletedDescription: 'تمت إزالة {title} من قاعدة المعرفة.',
+    unableToDeleteDocument: 'تعذّر حذف المستند',
   },
 
   knowledgeUploadDialog: {
     title: 'رفع مستند لقاعدة المعرفة',
     description:
-      'يُستخرج نص المستند ويُستخدم لتأسيس الإجابات في صفحة قاعدة المعرفة. يُستخدم فقط محتوى طبقة النص في الملف -- لا يمكن الإجابة من ملف PDF ممسوح ضوئياً بدون نص قابل للتحديد.',
+      'يُستخرج نص المستند ويُستخدم لتأسيس الإجابات في صفحة قاعدة المعرفة. يُستخدم فقط محتوى طبقة النص في الملف — لا يمكن الإجابة من ملف PDF ممسوح ضوئياً بدون نص قابل للتحديد.',
     titleLabel: 'العنوان (اختياري)',
     titlePlaceholder: 'يُستخدم اسم الملف افتراضياً',
     fileHint: 'ملفات PDF أو Word ‏(.docx) أو نص عادي ‏(.txt)',
@@ -63,7 +71,7 @@ export default {
 
   messageCentrePage: {
     pageTitle: 'مركز الرسائل',
-    pageSubtitle: 'تواصل عبر البريد الإلكتروني والرسائل النصية والواتساب مع عملائك -- من قوالب جاهزة أو بكلماتك الخاصة.',
+    pageSubtitle: 'تواصل عبر البريد الإلكتروني والرسائل النصية والواتساب مع عملائك — من قوالب جاهزة أو بكلماتك الخاصة.',
     noCustomersFound: 'لا يوجد عملاء',
     noCustomersFoundDescription: 'حاول تعديل البحث.',
     columnCompany: 'الشركة',
@@ -92,5 +100,9 @@ export default {
     send: 'إرسال {channel}',
     unknownCustomer: 'عميل غير معروف',
     customMessage: 'رسالة مخصصة',
+    messageSentTitle: 'تم إرسال الرسالة',
+    messageSentDescription: 'تم إرسال {channel} إلى {name}.',
+    couldNotSendMessageTitle: 'تعذّر إرسال الرسالة',
+    unknownCustomerFallback: 'العميل',
   },
 }

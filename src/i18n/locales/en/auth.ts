@@ -25,6 +25,15 @@ export default {
     idPlaceholder: 'Enter your user ID',
   },
 
+  authLayout: {
+    heroTitlePart1: 'Precision in',
+    heroTitlePart2: 'every project.',
+    heroSubtitle:
+      'Projects, clients, quotations, contracts, and government submissions in one connected workspace — built for the engineering consultants who deliver with confidence.',
+    trustedWorkflows: 'Trusted workflows',
+    realTimeInsights: 'Real-time insights',
+  },
+
   changePasswordDialog: {
     currentPassword: 'Current Password',
     currentPasswordPlaceholder: 'Enter current password',
@@ -32,5 +41,7 @@ export default {
     newPasswordPlaceholder: 'At least 8 characters',
     confirmNewPassword: 'Confirm New Password',
     confirmNewPasswordPlaceholder: 'Re-enter new password',
+    passwordChangedTitle: 'Password changed',
+    passwordChangedDescription: 'Please log in again with your new password.',
   },
 }

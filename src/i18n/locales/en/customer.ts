@@ -1,4 +1,8 @@
 export default {
+  portalLayout: {
+    title: 'Customer Portal',
+  },
+
   projectProgress: 'Project Progress',
 
   projectStatus: {

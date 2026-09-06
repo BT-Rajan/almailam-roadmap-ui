@@ -61,11 +61,11 @@ async function handleToggleEnabled(value: boolean): Promise<void> {
     knowledgeStore.setEnabledLocally(value)
     toastStore.show(
       'success',
-      value ? 'Knowledgebase assistant enabled' : 'Knowledgebase assistant disabled',
-      'This takes effect immediately.',
+      value ? t('administration.aiPage.assistantEnabledTitle') : t('administration.aiPage.assistantDisabledTitle'),
+      t('administration.aiPage.takesEffectImmediately'),
     )
   } else {
-    toastStore.show('error', 'Unable to save', aiConfigStore.error ?? 'Please try again.')
+    toastStore.show('error', t('administration.aiPage.unableToSave'), aiConfigStore.error ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -73,13 +73,13 @@ async function handleSave(): Promise<void> {
   const success = await aiConfigStore.saveConfiguration()
   if (success) {
     if (aiConfigStore.config) knowledgeStore.setEnabledLocally(aiConfigStore.config.isEnabled)
-    toastStore.show('success', 'AI configuration saved', 'Your changes have been applied.')
+    toastStore.show('success', t('administration.aiPage.aiConfigurationSavedTitle'), t('administration.aiPage.aiConfigurationSavedDescription'))
   } else {
     // Previously silent on failure -- a failed save (permission error,
     // network issue, bad value) looked identical to a successful no-op,
     // which is exactly why "toggling AI on/off doesn't seem to work" was
     // impossible to tell apart from an actual bug.
-    toastStore.show('error', 'Unable to save', aiConfigStore.error ?? 'Please try again.')
+    toastStore.show('error', t('administration.aiPage.unableToSave'), aiConfigStore.error ?? t('common.pleaseTryAgain'))
   }
 }
 
@@ -94,7 +94,11 @@ function handleCancel(): void {
 
 async function handleTest(providerId: AIProviderId): Promise<void> {
   const result = await aiConfigStore.testConnection(providerId)
-  toastStore.show(result.success ? 'success' : 'error', result.success ? 'Connection successful' : 'Connection failed', result.message)
+  toastStore.show(
+    result.success ? 'success' : 'error',
+    result.success ? t('administration.aiPage.connectionSuccessfulTitle') : t('administration.aiPage.connectionFailedTitle'),
+    result.message,
+  )
 }
 </script>
 

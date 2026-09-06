@@ -5,6 +5,7 @@ import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Task } from '@/types/Dashboard'
 import type { BadgeVariant } from '@/types/Ui'
+import { formatShortDate } from '@/utils/dateFormatter'
 
 interface Props {
   tasks: Task[]
@@ -58,7 +59,7 @@ const priorityColor = (priority: string): BadgeVariant => {
 
 const isOverdue = (dueDate: string) => new Date(dueDate) < new Date()
 
-const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+const formatDate = formatShortDate
 </script>
 
 <template>

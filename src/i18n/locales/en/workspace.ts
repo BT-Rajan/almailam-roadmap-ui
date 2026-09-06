@@ -18,7 +18,7 @@ export default {
     today: 'Today',
     next: 'Next →',
     comingSoon: 'Coming soon',
-    comingSoonDescription: "The {view} view isn't available yet -- switch to Monthly.",
+    comingSoonDescription: "The {view} view isn't available yet — switch to Monthly.",
     noActivitiesOnThisDay: 'No activities on this day',
     byUser: 'By {name}',
     viewTaskDetails: 'View task details',
@@ -26,12 +26,16 @@ export default {
     newCount: '{count} new',
     updatedCount: '{count} updated',
     delayedCount: '{count} delayed',
+    failedToLoadFilterOptions: 'Failed to load filter options',
+    failedToLoadActivities: 'Failed to load activities',
+    activitiesExportedSuccessfully: 'Activities exported successfully',
+    failedToExportActivities: 'Failed to export activities',
   },
 
   knowledgeBasePage: {
     pageTitle: 'Knowledge Base',
     pageSubtitle:
-      'Upload a document and ask questions in Arabic, English, or a mix -- answers are grounded strictly in what you upload.',
+      'Upload a document and ask questions in Arabic, English, or a mix — answers are grounded strictly in what you upload.',
     uploadDocument: 'Upload Document',
     documents: 'Documents',
     noDocumentsYet: 'No documents yet',
@@ -50,12 +54,16 @@ export default {
     noQuestionsAskedYet: 'No questions asked yet',
     noQuestionsAskedYetDescription: 'Ask a question about one of your uploaded documents, or all active documents at once.',
     cached: 'Cached',
+    unableToUpdateDocument: 'Unable to update document',
+    documentDeletedTitle: 'Document deleted',
+    documentDeletedDescription: '{title} was removed from the knowledge base.',
+    unableToDeleteDocument: 'Unable to delete document',
   },
 
   knowledgeUploadDialog: {
     title: 'Upload Knowledgebase Document',
     description:
-      "The document's text is extracted and used to ground answers on the Knowledge Base page. Only the text-layer content of the file is used -- a scanned/image-only PDF with no selectable text can't be answered from.",
+      "The document's text is extracted and used to ground answers on the Knowledge Base page. Only the text-layer content of the file is used — a scanned/image-only PDF with no selectable text can't be answered from.",
     titleLabel: 'Title (optional)',
     titlePlaceholder: 'Defaults to the file name',
     fileHint: 'PDF, Word (.docx), or plain text (.txt)',
@@ -93,5 +101,9 @@ export default {
     send: 'Send {channel}',
     unknownCustomer: 'Unknown Customer',
     customMessage: 'Custom message',
+    messageSentTitle: 'Message sent',
+    messageSentDescription: '{channel} sent to {name}.',
+    couldNotSendMessageTitle: 'Could not send message',
+    unknownCustomerFallback: 'customer',
   },
 }

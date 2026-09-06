@@ -45,8 +45,8 @@ async function handleDownload(): Promise<void> {
   try {
     await documentStore.downloadCurrentDocument()
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to download document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('document.viewerPage.failedToDownloadDocument'), detail)
   }
 }
 
@@ -54,8 +54,8 @@ async function handleDownloadVersion(version: DocumentVersion): Promise<void> {
   try {
     await documentStore.downloadVersion(version.id, version.originalFilename)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to download version', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('document.viewerPage.failedToDownloadVersion'), detail)
   }
 }
 
@@ -66,11 +66,11 @@ async function handleStatusConfirm(payload: { status: DocumentStatus; reason?: s
   isStatusSaving.value = true
   try {
     await documentStore.setCurrentDocumentStatus(payload.status, payload.reason)
-    toastStore.show('success', 'Status updated', `Document marked as ${payload.status}.`)
+    toastStore.show('success', t('document.viewerPage.statusUpdatedTitle'), t('document.viewerPage.statusUpdatedDescription', { status: payload.status }))
     isStatusDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to update status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('document.viewerPage.failedToUpdateStatus'), detail)
   } finally {
     isStatusSaving.value = false
   }
@@ -83,11 +83,11 @@ async function handleAddVersion(payload: { file: File; notes?: string }): Promis
   isAddingVersion.value = true
   try {
     await documentStore.addCurrentDocumentVersion(payload.file, payload.notes)
-    toastStore.show('success', 'New version added', 'The document was updated to a new revision.')
+    toastStore.show('success', t('document.viewerPage.newVersionAddedTitle'), t('document.viewerPage.newVersionAddedDescription'))
     isAddVersionOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to add new version', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('document.viewerPage.failedToAddNewVersion'), detail)
   } finally {
     isAddingVersion.value = false
   }
@@ -100,11 +100,11 @@ async function handleDelete(): Promise<void> {
   isDeleting.value = true
   try {
     await documentStore.deleteCurrentDocument()
-    toastStore.show('success', 'Document deleted', 'The document was removed.')
+    toastStore.show('success', t('document.viewerPage.documentDeletedTitle'), t('document.viewerPage.documentDeletedDescription'))
     router.push({ name: ROUTE_NAMES.DOCUMENTS })
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    toastStore.show('error', 'Failed to delete document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('document.viewerPage.failedToDeleteDocument'), detail)
   } finally {
     isDeleting.value = false
     isDeleteDialogOpen.value = false
@@ -180,9 +180,9 @@ async function handleDelete(): Promise<void> {
     <AddVersionDialog v-model="isAddVersionOpen" :loading="isAddingVersion" @confirm="handleAddVersion" />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"
-      title="Delete document"
-      :message="`Delete ${documentStore.currentDocument?.title}? This cannot be undone from the app.`"
-      confirm-label="Delete"
+      :title="t('document.viewerPage.deleteDocument')"
+      :message="t('document.viewerPage.deleteDocumentConfirmMessage', { title: documentStore.currentDocument?.title })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @confirm="handleDelete"

@@ -9,10 +9,13 @@ import BarChart from '@/components/reports/BarChart.vue'
 import ProgressChart from '@/components/reports/ProgressChart.vue'
 import Card from '@/components/common/Card.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import { CHART_COLORS, DEFAULT_CHART_COLOR, STATUS_CHART_COLORS } from '@/constants/chartColors'
+import { useToastStore } from '@/stores/toastStore'
 import type { ChartDataPoint } from '@/types/Report'
 
 const router = useRouter()
 const { t } = useI18n()
+const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -53,9 +56,9 @@ const teamMetrics = computed(() => [
 
 // Workload by Discipline
 const workloadByDept = computed<ChartDataPoint[]>(() => [
-  { label: t('report.workloadPage.disciplineStructural'), value: 2, color: '#8B5CF6' },
-  { label: t('report.workloadPage.disciplineMep'), value: 2, color: '#06B6D4' },
-  { label: t('report.workloadPage.disciplineFireSafety'), value: 1, color: '#F59E0B' },
+  { label: t('report.workloadPage.disciplineStructural'), value: 2, color: CHART_COLORS.purple },
+  { label: t('report.workloadPage.disciplineMep'), value: 2, color: CHART_COLORS.cyan },
+  { label: t('report.workloadPage.disciplineFireSafety'), value: 1, color: CHART_COLORS.amber },
 ])
 
 // Team Member Allocation
@@ -91,13 +94,13 @@ const teamMembers = computed(() => [
 
 // Discipline Utilization
 const deptUtilization = computed<ChartDataPoint[]>(() => [
-  { label: t('report.workloadPage.disciplineStructural'), value: 90, color: '#8B5CF6' },
-  { label: t('report.workloadPage.disciplineMep'), value: 88, color: '#06B6D4' },
-  { label: t('report.workloadPage.disciplineFireSafety'), value: 68, color: '#F59E0B' },
+  { label: t('report.workloadPage.disciplineStructural'), value: 90, color: CHART_COLORS.purple },
+  { label: t('report.workloadPage.disciplineMep'), value: 88, color: CHART_COLORS.cyan },
+  { label: t('report.workloadPage.disciplineFireSafety'), value: 68, color: CHART_COLORS.amber },
 ])
 
 const handleExport = () => {
-  console.log('Export would trigger here - PDF generation needs html2pdf library')
+  toastStore.show('info', t('common.exportNotAvailableYetTitle'), t('common.exportNotAvailableYetDescription'))
 }
 
 const goBack = () => {
@@ -111,9 +114,9 @@ const getRowColor = (member: (typeof teamMembers.value)[number]) => {
 }
 
 const getAllocationColor = (allocation: number) => {
-  if (allocation > 100) return '#EF4444'
-  if (allocation >= 90) return '#F59E0B'
-  return '#10B981'
+  if (allocation > 100) return STATUS_CHART_COLORS.danger
+  if (allocation >= 90) return STATUS_CHART_COLORS.warning
+  return STATUS_CHART_COLORS.success
 }
 </script>
 
@@ -133,8 +136,8 @@ const getAllocationColor = (allocation: number) => {
     <!-- Overall Team Health -->
     <ReportSection :title="t('report.workloadPage.teamCapacityStatusTitle')" fullWidth>
       <div class="grid grid-cols-1 tablet:grid-cols-2 gap-8 justify-items-center">
-        <ProgressChart :value="82" :label="t('report.workloadPage.averageUtilization')" color="#3B82F6" size="md" />
-        <ProgressChart :value="18" :label="t('report.workloadPage.capacityAvailable')" color="#10B981" size="md" />
+        <ProgressChart :value="82" :label="t('report.workloadPage.averageUtilization')" :color="DEFAULT_CHART_COLOR" size="md" />
+        <ProgressChart :value="18" :label="t('report.workloadPage.capacityAvailable')" :color="STATUS_CHART_COLORS.success" size="md" />
       </div>
     </ReportSection>
 

@@ -72,6 +72,8 @@ export default {
     columnUploadedBy: 'رفعه',
     columnUploadDate: 'تاريخ الرفع',
     columnStatus: 'الحالة',
+    documentUploadedTitle: 'تم رفع المستند',
+    documentUploadedDescription: 'تمت إضافة {title} إلى الأرشيف.',
   },
 
   viewerPage: {
@@ -85,6 +87,18 @@ export default {
     noCommentsYetDescription: 'ستظهر سلاسل التعليقات لهذا المستند هنا.',
     documentNotFound: 'المستند غير موجود',
     documentNotFoundDescription: 'ربما تمت إزالة هذا المستند أو أن الرابط غير صحيح.',
+    failedToDownloadDocument: 'فشل تنزيل المستند',
+    failedToDownloadVersion: 'فشل تنزيل الإصدار',
+    statusUpdatedTitle: 'تم تحديث الحالة',
+    statusUpdatedDescription: 'تم وضع علامة على المستند بـ {status}.',
+    failedToUpdateStatus: 'فشل تحديث الحالة',
+    newVersionAddedTitle: 'تمت إضافة إصدار جديد',
+    newVersionAddedDescription: 'تم تحديث المستند إلى مراجعة جديدة.',
+    failedToAddNewVersion: 'فشل إضافة إصدار جديد',
+    documentDeletedTitle: 'تم حذف المستند',
+    documentDeletedDescription: 'تمت إزالة المستند.',
+    failedToDeleteDocument: 'فشل حذف المستند',
+    deleteDocumentConfirmMessage: 'حذف {title}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
   },
 
   addLinkDialog: {
@@ -100,6 +114,9 @@ export default {
     documentPathLink: 'مسار المستند / الرابط',
     documentPathLinkPlaceholder: 'مثال: https://drive.example.com/... أو \\\\server\\share\\file.pdf',
     addDocument: 'إضافة مستند',
+    documentAddedTitle: 'تمت إضافة المستند',
+    documentAddedDescription: 'تمت إضافة {name}.',
+    failedToAddDocument: 'فشل إضافة المستند',
   },
 
   addVersionDialog: {

@@ -114,5 +114,10 @@ export default {
     noSpecificTask: 'No specific task',
     notes: 'Notes',
     notesPlaceholder: 'Brief note for the project timeline...',
+    notesRequiredTitle: 'Notes are required',
+    notesRequiredDescription: 'Please add a brief note before attaching this report.',
+    reportAttachedTitle: 'Report attached',
+    reportAttachedDescription: "{reportNo} has been added to {projectName}'s timeline.",
+    failedToAttachReport: 'Failed to attach report',
   },
 }

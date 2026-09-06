@@ -5,6 +5,7 @@ import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { ProjectSummary } from '@/types/Dashboard'
 import type { BadgeVariant } from '@/types/Ui'
+import { formatDate } from '@/utils/dateFormatter'
 
 interface Props {
   project: ProjectSummary
@@ -71,7 +72,7 @@ const statusLabel = computed(() => {
     </div>
 
     <div class="text-xs text-text-muted">
-      {{ t('dashboard.due', { date: new Date(project.dueDate).toLocaleDateString() }) }}
+      {{ t('dashboard.due', { date: formatDate(project.dueDate) }) }}
     </div>
   </Card>
 </template>

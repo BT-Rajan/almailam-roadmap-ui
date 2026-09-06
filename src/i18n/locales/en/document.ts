@@ -72,6 +72,8 @@ export default {
     columnUploadedBy: 'Uploaded By',
     columnUploadDate: 'Upload Date',
     columnStatus: 'Status',
+    documentUploadedTitle: 'Document uploaded',
+    documentUploadedDescription: '{title} was added to the repository.',
   },
 
   viewerPage: {
@@ -85,6 +87,18 @@ export default {
     noCommentsYetDescription: 'Comment threads for this document will appear here.',
     documentNotFound: 'Document not found',
     documentNotFoundDescription: 'This document may have been removed or the link is incorrect.',
+    failedToDownloadDocument: 'Failed to download document',
+    failedToDownloadVersion: 'Failed to download version',
+    statusUpdatedTitle: 'Status updated',
+    statusUpdatedDescription: 'Document marked as {status}.',
+    failedToUpdateStatus: 'Failed to update status',
+    newVersionAddedTitle: 'New version added',
+    newVersionAddedDescription: 'The document was updated to a new revision.',
+    failedToAddNewVersion: 'Failed to add new version',
+    documentDeletedTitle: 'Document deleted',
+    documentDeletedDescription: 'The document was removed.',
+    failedToDeleteDocument: 'Failed to delete document',
+    deleteDocumentConfirmMessage: 'Delete {title}? This cannot be undone from the app.',
   },
 
   addLinkDialog: {
@@ -100,6 +114,9 @@ export default {
     documentPathLink: 'Document Path / Link',
     documentPathLinkPlaceholder: 'e.g. https://drive.example.com/... or \\\\server\\share\\file.pdf',
     addDocument: 'Add Document',
+    documentAddedTitle: 'Document added',
+    documentAddedDescription: '{name} was added.',
+    failedToAddDocument: 'Failed to add document',
   },
 
   addVersionDialog: {
@@ -143,3 +160,4 @@ export default {
     uploadDocument: 'Upload Document',
   },
 }
+

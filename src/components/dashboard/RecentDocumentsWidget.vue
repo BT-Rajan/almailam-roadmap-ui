@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { DocumentItem } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
+import { formatShortDateTime } from '@/utils/dateFormatter'
 
 interface Props {
   documents: DocumentItem[]
@@ -30,10 +31,7 @@ const displayedDocuments = computed(() =>
 
 const formatSize = (size: string | null) => size ?? t('dashboard.noFile')
 
-const formatDate = (date: string) => {
-  const d = new Date(date)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
+const formatDate = formatShortDateTime
 </script>
 
 <template>
