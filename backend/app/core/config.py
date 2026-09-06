@@ -77,8 +77,12 @@ class Settings(BaseSettings):
     # SMTP credentials for emailing a generated Quotation/Contract
     # document (see app/services/email_service.py). Same "empty by
     # default, feature honestly reports itself unavailable until
-    # configured" pattern as the LLM keys above -- there is no in-app
-    # admin screen for these, only infrastructure-level .env config.
+    # configured" pattern as the LLM keys above. Takes priority over
+    # the in-app mailbox configured under Administration -> Email (see
+    # app.models.email_settings / app.services.email_settings_service)
+    # when SMTP_HOST is set here -- useful for a deploy that wants
+    # credentials fixed at the infrastructure level instead of editable
+    # from the app.
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""

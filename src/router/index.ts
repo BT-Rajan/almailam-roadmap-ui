@@ -420,6 +420,21 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/email',
+      name: ROUTE_NAMES.ADMIN_EMAIL,
+      component: () => import('@/pages/AdminEmailPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.email' },
+        ],
+      },
+    },
+    {
       path: '/admin/audit-log',
       name: ROUTE_NAMES.ADMIN_AUDIT_LOG,
       component: () => import('@/pages/AdminAuditLogPage.vue'),

@@ -42,6 +42,10 @@ export default {
       label: 'Company Settings',
       description: 'Update company profile, branding, and application preferences.',
     },
+    emailSettings: {
+      label: 'Email Settings',
+      description: 'Configure the SMTP mailbox used to send Quotation and Contract emails.',
+    },
     auditLog: {
       label: 'Audit Log',
       description: 'Review every tracked change across the system, who made it, and when.',

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Eye, EyeOff } from '@lucide/vue'
 import { computed, ref, useId } from 'vue'
 import type { Component } from 'vue'
 
@@ -14,6 +15,12 @@ interface Props {
   error?: string
   disabled?: boolean
   required?: boolean
+  // Only meaningful when type="password" -- adds an eye/eye-off button
+  // that toggles the field between masked and plain text, since a
+  // password field with no way to check what was actually typed makes
+  // paste/typo mistakes (stray trailing space, wrong case) invisible
+  // until a save or test fails against it.
+  showPasswordToggle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -27,6 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
   error: undefined,
   disabled: false,
   required: false,
+  showPasswordToggle: false,
 })
 
 defineEmits<{
@@ -36,10 +44,14 @@ defineEmits<{
 
 const inputId = useId()
 const inputRef = ref<HTMLInputElement>()
+const isRevealed = ref(false)
 
 defineExpose({
   focus: (options?: FocusOptions) => inputRef.value?.focus(options),
 })
+
+const isPasswordToggle = computed(() => props.type === 'password' && props.showPasswordToggle)
+const resolvedType = computed(() => (isPasswordToggle.value && isRevealed.value ? 'text' : props.type))
 
 const inputClasses = computed(() => [
   'h-10 w-full rounded-lg border bg-bg-card text-sm text-text-primary',
@@ -47,6 +59,7 @@ const inputClasses = computed(() => [
   'transition-colors duration-fast',
   'focus:outline-none focus:ring-2 focus:ring-accent-500/30',
   props.icon ? 'ps-10 pe-3' : 'px-3',
+  isPasswordToggle.value ? 'pe-10' : '',
   props.error ? 'border-danger-500' : 'border-border-default focus:border-accent-500',
   props.disabled ? 'cursor-not-allowed bg-bg-secondary text-text-muted' : '',
 ])
@@ -67,7 +80,7 @@ const inputClasses = computed(() => [
       <input
         :id="inputId"
         ref="inputRef"
-        :type="type"
+        :type="resolvedType"
         :inputmode="inputmode"
         :autocomplete="autocomplete"
         :value="modelValue"
@@ -80,8 +93,19 @@ const inputClasses = computed(() => [
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
         @blur="$emit('blur', ($event.target as HTMLInputElement).value)"
       />
+      <button
+        v-if="isPasswordToggle"
+        type="button"
+        tabindex="-1"
+        class="absolute end-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+        :aria-label="isRevealed ? 'Hide password' : 'Show password'"
+        @click="isRevealed = !isRevealed"
+      >
+        <component :is="isRevealed ? EyeOff : Eye" class="h-4 w-4" />
+      </button>
     </div>
     <p v-if="error" :id="`${inputId}-error`" class="text-xs text-danger-500">{{ error }}</p>
     <p v-else-if="hint" :id="`${inputId}-hint`" class="text-xs text-text-muted">{{ hint }}</p>
   </div>
 </template>
+
