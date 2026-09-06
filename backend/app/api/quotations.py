@@ -144,6 +144,7 @@ def email_document(
         attachment_bytes=content,
         attachment_filename=filename,
         attachment_mimetype="application/pdf",
+        db=db,
     )
 
 

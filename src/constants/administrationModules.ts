@@ -89,6 +89,14 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         icon: 'Building2',
         routeName: ROUTE_NAMES.ADMIN_COMPANY,
       },
+      {
+        label: 'Email Settings',
+        labelKey: 'administrationModules.modules.emailSettings.label',
+        description: 'Configure the SMTP mailbox used to send Quotation and Contract emails.',
+        descriptionKey: 'administrationModules.modules.emailSettings.description',
+        icon: 'Mail',
+        routeName: ROUTE_NAMES.ADMIN_EMAIL,
+      },
     ],
   },
   {

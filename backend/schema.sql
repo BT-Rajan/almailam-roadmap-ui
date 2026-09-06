@@ -1134,4 +1134,27 @@ CREATE TABLE IF NOT EXISTS ai_provider_configs (
     api_key_hint        VARCHAR(4) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- migration 0065 -- admin-configurable SMTP mailbox for sending
+-- Quotation/Contract emails (see app.services.email_service). The
+-- SMTP_* environment variables remain a fallback override that takes
+-- priority over this row when set.
+CREATE TABLE IF NOT EXISTS email_settings (
+    id                  INT PRIMARY KEY DEFAULT 1,
+    provider            VARCHAR(20)  NOT NULL DEFAULT 'gmail',
+    smtp_host           VARCHAR(255) NOT NULL DEFAULT 'smtp.gmail.com',
+    smtp_port           INT UNSIGNED NOT NULL DEFAULT 587,
+    smtp_use_tls        TINYINT(1)   NOT NULL DEFAULT 1,
+    username            VARCHAR(255) NOT NULL DEFAULT '',
+    password_encrypted  TEXT NULL,
+    from_email          VARCHAR(255) NOT NULL DEFAULT '',
+    from_name           VARCHAR(255) NOT NULL DEFAULT '',
+    is_active           TINYINT(1)   NOT NULL DEFAULT 0,
+    last_tested_at      DATETIME NULL,
+    last_test_ok        TINYINT(1)   NULL,
+    last_test_error     VARCHAR(500) NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_email_settings_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;

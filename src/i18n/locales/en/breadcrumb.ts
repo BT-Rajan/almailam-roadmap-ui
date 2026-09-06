@@ -26,6 +26,7 @@ export default {
   catalogs: 'Catalogs',
   ai: 'AI',
   company: 'Company',
+  email: 'Email',
   auditLog: 'Audit Log',
   activityCalendar: 'Activity Calendar',
   myProfile: 'My Profile',

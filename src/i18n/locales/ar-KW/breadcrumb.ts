@@ -26,6 +26,7 @@ export default {
   catalogs: 'الكتالوجات',
   ai: 'الذكاء الاصطناعي',
   company: 'الشركة',
+  email: 'البريد الإلكتروني',
   auditLog: 'سجل التدقيق',
   activityCalendar: 'تقويم الأنشطة',
   myProfile: 'ملفي الشخصي',

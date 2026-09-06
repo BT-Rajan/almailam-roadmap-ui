@@ -39,6 +39,7 @@ const ENTITY_TYPE_OPTIONS = computed<SelectOption[]>(() => [
   { label: 'Workflow Templates', value: 'WORKFLOW_TEMPLATE', labelKey: 'administration.auditLogPage.entityWorkflowTemplates' },
   { label: 'Company Settings', value: 'COMPANY_SETTINGS', labelKey: 'administration.auditLogPage.entityCompanySettings' },
   { label: 'AI Configuration', value: 'AI_CONFIGURATION', labelKey: 'administration.auditLogPage.entityAiConfiguration' },
+  { label: 'Email Settings', value: 'EMAIL_SETTINGS', labelKey: 'administration.auditLogPage.entityEmailSettings' },
   { label: 'Project Timeline', value: 'PROJECT_TIMELINE_EVENT', labelKey: 'administration.auditLogPage.entityProjectTimeline' },
 ])
 
@@ -77,6 +78,7 @@ const ENTITY_TYPE_LABEL_KEYS: Record<string, string> = {
   WORKFLOW_TEMPLATE: 'administration.auditLogPage.entityWorkflowTemplates',
   COMPANY_SETTINGS: 'administration.auditLogPage.entityCompanySettings',
   AI_CONFIGURATION: 'administration.auditLogPage.entityAiConfiguration',
+  EMAIL_SETTINGS: 'administration.auditLogPage.entityEmailSettings',
   PROJECT_TIMELINE_EVENT: 'administration.auditLogPage.entityProjectTimeline',
 }
 
