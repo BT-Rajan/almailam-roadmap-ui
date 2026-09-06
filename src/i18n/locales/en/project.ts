@@ -150,6 +150,8 @@ export default {
     failedToDownloadDocument: 'Failed to download document',
     documentRemovedTitle: 'Document removed',
     failedToRemoveDocument: 'Failed to remove document',
+    removeDocumentConfirmTitle: 'Remove document',
+    removeDocumentConfirmMessage: 'Remove {name}? This cannot be undone from the app.',
   },
 
   overviewTab: {
@@ -382,6 +384,13 @@ export default {
     failedToUpdateStatus: 'Failed to update status',
     failedToUpdatePriority: 'Failed to update priority',
     failedToReassignTask: 'Failed to reassign task',
+    changeStatusTitle: 'Change status',
+    changePriorityTitle: 'Change priority',
+    reassignTaskTitle: 'Reassign task',
+    changeStatusMessage: 'Change "{title}" from {from} to {to}?',
+    changePriorityMessage: 'Change the priority of "{title}" from {from} to {to}?',
+    reassignTaskMessage: 'Reassign "{title}" from {from} to {to}?',
+    thisUser: 'this user',
   },
 
   reportPage: {
@@ -448,6 +457,7 @@ export default {
     projectDeletedTitle: 'Project deleted',
     wasRemoved: '{name} was removed.',
     failedToDeleteProject: 'Failed to delete project',
+    deleteProjectConfirmMessage: 'Delete {name}? This cannot be undone from the app.',
   },
 
   newWizard: {

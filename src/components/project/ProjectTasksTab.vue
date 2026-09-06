@@ -39,7 +39,7 @@ const projectTasks = computed(() => taskStore.tasksByProject(props.project.id))
 // Every task on this tab belongs to this one project, so its client is
 // fixed too -- no need to resolve per-task like the cross-project Task
 // Board/My Tasks views do.
-const clientName = computed(() => clientStore.getClientById(props.project.clientId)?.companyName ?? 'Unknown Client')
+const clientName = computed(() => clientStore.getClientById(props.project.clientId)?.companyName ?? t('project.unknownClient'))
 
 type PendingChange =
   | { kind: 'status'; value: TaskStatus }
@@ -52,7 +52,11 @@ const pendingChange = ref<PendingChange | null>(null)
 
 const confirmDialogTitle = computed(() => {
   if (!pendingChange.value) return ''
-  return { status: 'Change status', priority: 'Change priority', reassign: 'Reassign task' }[pendingChange.value.kind]
+  return {
+    status: t('project.tasksTab.changeStatusTitle'),
+    priority: t('project.tasksTab.changePriorityTitle'),
+    reassign: t('project.tasksTab.reassignTaskTitle'),
+  }[pendingChange.value.kind]
 })
 
 const confirmDialogMessage = computed(() => {
@@ -60,12 +64,12 @@ const confirmDialogMessage = computed(() => {
   const task = taskStore.selectedTask
   switch (pendingChange.value.kind) {
     case 'status':
-      return `Change "${task.title}" from ${task.status} to ${pendingChange.value.value}?`
+      return t('project.tasksTab.changeStatusMessage', { title: task.title, from: task.status, to: pendingChange.value.value })
     case 'priority':
-      return `Change the priority of "${task.title}" from ${task.priority} to ${pendingChange.value.value}?`
+      return t('project.tasksTab.changePriorityMessage', { title: task.title, from: task.priority, to: pendingChange.value.value })
     case 'reassign': {
-      const nextAssignee = userStore.users.find((user) => user.id === pendingChange.value?.value)?.name ?? 'this user'
-      return `Reassign "${task.title}" from ${task.assignedTo} to ${nextAssignee}?`
+      const nextAssignee = userStore.users.find((user) => user.id === pendingChange.value?.value)?.name ?? t('project.tasksTab.thisUser')
+      return t('project.tasksTab.reassignTaskMessage', { title: task.title, from: task.assignedTo, to: nextAssignee })
     }
     default:
       return ''

@@ -411,9 +411,9 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
 
     <ConfirmationDialog
       :model-value="!!deleteTarget"
-      title="Confirm Deletion"
-      :message="`Are you sure you want to delete '${deleteTarget?.label}'? This cannot be undone.`"
-      confirm-label="Delete"
+      :title="t('administration.governmentFormsPanel.confirmDeletionTitle')"
+      :message="t('administration.governmentFormsPanel.confirmDeletionMessage', { label: deleteTarget?.label })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"

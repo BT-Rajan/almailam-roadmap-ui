@@ -361,9 +361,9 @@ async function handleConfirmDelete(): Promise<void> {
 
     <ConfirmationDialog
       v-model="isDeleteConfirmOpen"
-      title="Delete payment plan"
-      :message="`Delete the ${agreementPendingDelete ? getAgreementStreamLabel(agreementPendingDelete.stream) : ''} payment plan? This removes its installment schedule too. This can't be undone.`"
-      confirm-label="Delete"
+      :title="t('payment.planPanel.deletePaymentPlanConfirmTitle')"
+      :message="t('payment.planPanel.deletePaymentPlanConfirmMessage', { stream: agreementPendingDelete ? agreementStreamLabel(agreementPendingDelete.stream) : '' })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @confirm="handleConfirmDelete"

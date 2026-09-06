@@ -323,9 +323,9 @@ async function handleDeleteUser(): Promise<void> {
 
     <ConfirmationDialog
       v-model="isResetConfirmOpen"
-      title="Reset Password"
-      :message="`Generate a new random password for ${selectedUser?.name}? Their current password will stop working immediately.`"
-      confirm-label="Reset Password"
+      :title="t('administration.userManagementPage.resetPassword')"
+      :message="t('administration.userManagementPage.resetPasswordConfirmMessage', { name: selectedUser?.name })"
+      :confirm-label="t('administration.userManagementPage.resetPassword')"
       :loading="isResettingPassword"
       @confirm="handleResetPassword"
     />
@@ -339,9 +339,9 @@ async function handleDeleteUser(): Promise<void> {
 
     <ConfirmationDialog
       v-model="isDeleteConfirmOpen"
-      title="Delete User"
-      :message="`Permanently remove ${selectedUser?.name} from the firm? They will immediately lose access and this cannot be undone.`"
-      confirm-label="Delete User"
+      :title="t('administration.userManagementPage.deleteUser')"
+      :message="t('administration.userManagementPage.deleteUserConfirmMessage', { name: selectedUser?.name })"
+      :confirm-label="t('administration.userManagementPage.deleteUser')"
       confirm-variant="danger"
       :loading="isDeletingUser"
       @confirm="handleDeleteUser"

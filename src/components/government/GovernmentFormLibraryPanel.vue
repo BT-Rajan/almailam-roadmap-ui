@@ -279,18 +279,18 @@ function printForm(form: GovernmentForm): void {
 
   <ConfirmationDialog
     :model-value="isEditWarningOpen"
-    title="Edit Master Form"
-    message="You're about to edit the master copy of this form. Changes will apply everywhere this form is referenced. Continue?"
-    confirm-label="Continue to Edit"
+    :title="t('government.formLibraryPanel.editMasterFormTitle')"
+    :message="t('government.formLibraryPanel.editMasterFormMessage')"
+    :confirm-label="t('government.formLibraryPanel.continueToEdit')"
     @update:model-value="isEditWarningOpen = $event"
     @confirm="confirmEditWarning"
   />
 
   <ConfirmationDialog
     :model-value="!!archiveTarget"
-    title="Archive Form"
-    :message="`Archive '${archiveTarget?.title}'? It will be hidden from the library but can be restored later.`"
-    confirm-label="Archive"
+    :title="t('government.formLibraryPanel.archiveFormConfirmTitle')"
+    :message="t('government.formLibraryPanel.archiveFormConfirmMessage', { title: archiveTarget?.title })"
+    :confirm-label="t('government.formLibraryPanel.archiveFormConfirmLabel')"
     confirm-variant="danger"
     :loading="isArchiving"
     @update:model-value="archiveTarget = undefined"

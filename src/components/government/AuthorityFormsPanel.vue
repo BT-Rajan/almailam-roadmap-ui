@@ -284,9 +284,9 @@ async function confirmDelete(): Promise<void> {
 
     <ConfirmationDialog
       :model-value="!!deleteTarget"
-      title="Remove filed form"
-      :message="deleteTarget ? `Remove '${deleteTarget.formTitle}' from this project? The generated PDF stays available from the Documents tab. This form can be added again afterward.` : ''"
-      confirm-label="Remove"
+      :title="t('government.authorityFormsPanel.removeFiledFormTitle')"
+      :message="deleteTarget ? t('government.authorityFormsPanel.removeFiledFormMessage', { title: deleteTarget.formTitle }) : ''"
+      :confirm-label="t('common.remove')"
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"

@@ -270,9 +270,9 @@ async function confirmDelete(): Promise<void> {
 
     <ConfirmationDialog
       :model-value="Boolean(deleteTarget)"
-      title="Delete Template"
-      :message="`Delete '${deleteTarget?.originalFilename}'? This can't be undone.`"
-      confirm-label="Delete"
+      :title="t('administration.documentTemplates.deleteTemplateConfirmTitle')"
+      :message="t('administration.documentTemplates.deleteTemplateConfirmMessage', { filename: deleteTarget?.originalFilename })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @update:model-value="deleteTarget = undefined"

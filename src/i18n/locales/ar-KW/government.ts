@@ -61,6 +61,8 @@ export default {
     couldNotRemoveForm: 'تعذّرت إزالة النموذج',
     formRemovedTitle: 'تمت إزالة النموذج',
     formRemovedDescription: 'تمت إزالة {title}. يمكن إضافته مرة أخرى.',
+    removeFiledFormTitle: 'إزالة النموذج المُقدَّم',
+    removeFiledFormMessage: 'إزالة "{title}" من هذا المشروع؟ يبقى ملف PDF المُنشأ متاحًا من تبويب المستندات. يمكن إضافة هذا النموذج مرة أخرى لاحقًا.',
   },
 
   authorityCard: {
@@ -111,6 +113,12 @@ export default {
     formRestoredTitle: 'تمت استعادة النموذج',
     formRestoredDescription: 'أصبح {title} نشطًا مجددًا.',
     unableToRestoreForm: 'تعذّرت استعادة النموذج',
+    editMasterFormTitle: 'تعديل النموذج الرئيسي',
+    editMasterFormMessage: 'أنت على وشك تعديل النسخة الرئيسية من هذا النموذج. ستُطبَّق التغييرات في كل مكان يُستخدم فيه هذا النموذج. متابعة؟',
+    continueToEdit: 'المتابعة إلى التعديل',
+    archiveFormConfirmTitle: 'أرشفة النموذج',
+    archiveFormConfirmMessage: 'أرشفة "{title}"؟ سيتم إخفاؤه من المكتبة، لكن يمكن استعادته لاحقًا.',
+    archiveFormConfirmLabel: 'أرشفة',
     aiGuidanceTitle: 'إرشادات الذكاء الاصطناعي',
     aiGuidanceDescription: 'تأكد من أن جميع المستندات المطلوبة لـ "{title}" نسخ مصدَّقة قبل تقديمها إلى {authority}.',
   },

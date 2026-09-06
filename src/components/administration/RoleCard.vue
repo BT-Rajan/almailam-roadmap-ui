@@ -110,9 +110,9 @@ async function confirmSave(): Promise<void> {
 
   <ConfirmationDialog
     v-model="isConfirmOpen"
-    title="Update role permissions"
-    :message="`This changes access for every user assigned the ${definition.role} role. Continue?`"
-    confirm-label="Save Changes"
+    :title="t('administration.roleCard.updateRolePermissionsTitle')"
+    :message="t('administration.roleCard.updateRolePermissionsMessage', { role: definition.role })"
+    :confirm-label="t('administration.roleCard.saveChanges')"
     :loading="isSaving"
     @confirm="confirmSave"
   />

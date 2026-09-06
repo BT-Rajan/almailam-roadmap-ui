@@ -98,6 +98,7 @@ export default {
     documentDeletedTitle: 'Document deleted',
     documentDeletedDescription: 'The document was removed.',
     failedToDeleteDocument: 'Failed to delete document',
+    deleteDocumentConfirmMessage: 'Delete {title}? This cannot be undone from the app.',
   },
 
   addLinkDialog: {

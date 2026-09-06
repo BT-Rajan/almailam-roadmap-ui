@@ -150,6 +150,8 @@ export default {
     failedToDownloadDocument: 'فشل تنزيل المستند',
     documentRemovedTitle: 'تمت إزالة المستند',
     failedToRemoveDocument: 'فشلت إزالة المستند',
+    removeDocumentConfirmTitle: 'إزالة المستند',
+    removeDocumentConfirmMessage: 'إزالة {name}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
   },
 
   overviewTab: {
@@ -382,6 +384,13 @@ export default {
     failedToUpdateStatus: 'فشل تحديث الحالة',
     failedToUpdatePriority: 'فشل تحديث الأولوية',
     failedToReassignTask: 'فشل إعادة إسناد المهمة',
+    changeStatusTitle: 'تغيير الحالة',
+    changePriorityTitle: 'تغيير الأولوية',
+    reassignTaskTitle: 'إعادة إسناد المهمة',
+    changeStatusMessage: 'تغيير حالة "{title}" من {from} إلى {to}؟',
+    changePriorityMessage: 'تغيير أولوية "{title}" من {from} إلى {to}؟',
+    reassignTaskMessage: 'إعادة إسناد "{title}" من {from} إلى {to}؟',
+    thisUser: 'هذا المستخدم',
   },
 
   reportPage: {
@@ -448,6 +457,7 @@ export default {
     projectDeletedTitle: 'تم حذف المشروع',
     wasRemoved: 'تمت إزالة {name}.',
     failedToDeleteProject: 'فشل حذف المشروع',
+    deleteProjectConfirmMessage: 'حذف {name}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
   },
 
   newWizard: {

@@ -352,6 +352,8 @@ export default {
     userDeletedTitle: 'User deleted',
     userDeletedDescription: '{name} was removed from the firm.',
     failedToDeleteUser: 'Failed to delete user',
+    resetPasswordConfirmMessage: "Generate a new random password for {name}? Their current password will stop working immediately.",
+    deleteUserConfirmMessage: 'Permanently remove {name} from the firm? They will immediately lose access and this cannot be undone.',
   },
 
   governmentFormsPanel: {
@@ -405,6 +407,8 @@ export default {
     standardFormsAddedDescriptionOne: '1 form added to the library.',
     unableToImportForms: 'Unable to import forms',
     unableToImportFormsDescription: 'Some forms may not have been added. Please try again.',
+    confirmDeletionTitle: 'Confirm Deletion',
+    confirmDeletionMessage: "Are you sure you want to delete '{label}'? This cannot be undone.",
   },
 
   permissionMatrix: {
@@ -423,6 +427,8 @@ export default {
     permissionsUpdatedTitle: 'Permissions updated',
     permissionsUpdatedDescription: '{role} permissions were saved.',
     updateFailed: 'Update failed',
+    updateRolePermissionsTitle: 'Update role permissions',
+    updateRolePermissionsMessage: 'This changes access for every user assigned the {role} role. Continue?',
   },
 
   permitCatalog: {
@@ -483,6 +489,8 @@ export default {
     templateDeletedTitle: 'Template deleted',
     templateDeletedDescription: '{filename} was deleted.',
     deleteFailed: 'Delete failed',
+    deleteTemplateConfirmTitle: 'Delete Template',
+    deleteTemplateConfirmMessage: "Delete '{filename}'? This can't be undone.",
   },
 
   serviceDocumentMap: {

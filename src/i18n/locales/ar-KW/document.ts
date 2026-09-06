@@ -98,6 +98,7 @@ export default {
     documentDeletedTitle: 'تم حذف المستند',
     documentDeletedDescription: 'تمت إزالة المستند.',
     failedToDeleteDocument: 'فشل حذف المستند',
+    deleteDocumentConfirmMessage: 'حذف {title}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
   },
 
   addLinkDialog: {

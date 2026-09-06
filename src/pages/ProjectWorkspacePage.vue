@@ -484,9 +484,9 @@ async function handleConfirmDelete(): Promise<void> {
       />
       <ConfirmationDialog
         v-model="isDeleteDialogOpen"
-        title="Delete project"
-        :message="`Delete ${project.projectName}? This cannot be undone from the app.`"
-        confirm-label="Delete"
+        :title="t('project.header.deleteProject')"
+        :message="t('project.workspacePage.deleteProjectConfirmMessage', { name: project.projectName })"
+        :confirm-label="t('common.delete')"
         confirm-variant="danger"
         :loading="isDeleteSaving"
         @confirm="handleConfirmDelete"

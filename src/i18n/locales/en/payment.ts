@@ -119,6 +119,8 @@ export default {
     couldNotSave: 'Could not save payment plan',
     planDeletedTitle: 'Payment plan deleted',
     couldNotDelete: 'Could not delete payment plan',
+    deletePaymentPlanConfirmTitle: 'Delete payment plan',
+    deletePaymentPlanConfirmMessage: "Delete the {stream} payment plan? This removes its installment schedule too. This can't be undone.",
   },
 
   statusPanel: {

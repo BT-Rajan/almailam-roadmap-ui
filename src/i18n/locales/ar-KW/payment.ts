@@ -119,6 +119,8 @@ export default {
     couldNotSave: 'تعذّر حفظ خطة الدفع',
     planDeletedTitle: 'تم حذف خطة الدفع',
     couldNotDelete: 'تعذّر حذف خطة الدفع',
+    deletePaymentPlanConfirmTitle: 'حذف خطة الدفع',
+    deletePaymentPlanConfirmMessage: 'حذف خطة دفع {stream}؟ هذا يزيل جدول الدفعات المرتبط بها أيضًا. لا يمكن التراجع عن هذا.',
   },
 
   statusPanel: {

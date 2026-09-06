@@ -180,9 +180,9 @@ async function handleDelete(): Promise<void> {
     <AddVersionDialog v-model="isAddVersionOpen" :loading="isAddingVersion" @confirm="handleAddVersion" />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"
-      title="Delete document"
-      :message="`Delete ${documentStore.currentDocument?.title}? This cannot be undone from the app.`"
-      confirm-label="Delete"
+      :title="t('document.viewerPage.deleteDocument')"
+      :message="t('document.viewerPage.deleteDocumentConfirmMessage', { title: documentStore.currentDocument?.title })"
+      :confirm-label="t('common.delete')"
       confirm-variant="danger"
       :loading="isDeleting"
       @confirm="handleDelete"

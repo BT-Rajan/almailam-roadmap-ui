@@ -493,9 +493,9 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
     />
     <ConfirmationDialog
       v-model="isLinkDeleteDialogOpen"
-      title="Remove document"
-      :message="linkDeleteTarget ? `Remove ${linkDeleteTarget.name}? This cannot be undone from the app.` : ''"
-      confirm-label="Remove"
+      :title="t('project.documentsTab.removeDocumentConfirmTitle')"
+      :message="linkDeleteTarget ? t('project.documentsTab.removeDocumentConfirmMessage', { name: linkDeleteTarget.name }) : ''"
+      :confirm-label="t('common.remove')"
       confirm-variant="danger"
       :loading="isLinkDeleteSaving"
       @confirm="handleConfirmLinkDelete"

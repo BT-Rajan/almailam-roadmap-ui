@@ -61,6 +61,9 @@ export default {
     couldNotRemoveForm: 'Could not remove form',
     formRemovedTitle: 'Form removed',
     formRemovedDescription: '{title} was removed. It can be added again.',
+    removeFiledFormTitle: 'Remove filed form',
+    removeFiledFormMessage:
+      "Remove '{title}' from this project? The generated PDF stays available from the Documents tab. This form can be added again afterward.",
   },
 
   authorityCard: {
@@ -111,6 +114,12 @@ export default {
     formRestoredTitle: 'Form restored',
     formRestoredDescription: '{title} is active again.',
     unableToRestoreForm: 'Unable to restore form',
+    editMasterFormTitle: 'Edit Master Form',
+    editMasterFormMessage: "You're about to edit the master copy of this form. Changes will apply everywhere this form is referenced. Continue?",
+    continueToEdit: 'Continue to Edit',
+    archiveFormConfirmTitle: 'Archive Form',
+    archiveFormConfirmMessage: "Archive '{title}'? It will be hidden from the library but can be restored later.",
+    archiveFormConfirmLabel: 'Archive',
     aiGuidanceTitle: 'AI Guidance',
     aiGuidanceDescription: 'Ensure all Required Documents for "{title}" are certified copies before submitting to {authority}.',
   },

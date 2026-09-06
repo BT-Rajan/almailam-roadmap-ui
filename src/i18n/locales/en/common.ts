@@ -22,6 +22,7 @@ export default {
   closeDialog: 'Close dialog',
   edit: 'Edit',
   delete: 'Delete',
+  remove: 'Remove',
   view: 'View',
   add: 'Add',
   create: 'Create',

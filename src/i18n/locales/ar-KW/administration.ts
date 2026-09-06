@@ -346,6 +346,8 @@ export default {
     userDeletedTitle: 'تم حذف المستخدم',
     userDeletedDescription: 'تمت إزالة {name} من المكتب.',
     failedToDeleteUser: 'فشل حذف المستخدم',
+    resetPasswordConfirmMessage: 'إنشاء كلمة مرور عشوائية جديدة لـ {name}؟ ستتوقف كلمة مروره الحالية عن العمل فورًا.',
+    deleteUserConfirmMessage: 'إزالة {name} نهائيًا من المكتب؟ سيفقد الوصول فورًا ولا يمكن التراجع عن هذا.',
   },
 
   governmentFormsPanel: {
@@ -399,6 +401,8 @@ export default {
     standardFormsAddedDescriptionOne: 'تمت إضافة نموذج واحد إلى المكتبة.',
     unableToImportForms: 'تعذّر استيراد النماذج',
     unableToImportFormsDescription: 'قد لا تكون بعض النماذج قد أُضيفت. يرجى المحاولة مرة أخرى.',
+    confirmDeletionTitle: 'تأكيد الحذف',
+    confirmDeletionMessage: 'هل أنت متأكد من حذف "{label}"؟ لا يمكن التراجع عن هذا.',
   },
 
   permissionMatrix: {
@@ -417,6 +421,8 @@ export default {
     permissionsUpdatedTitle: 'تم تحديث الصلاحيات',
     permissionsUpdatedDescription: 'تم حفظ صلاحيات {role}.',
     updateFailed: 'فشل التحديث',
+    updateRolePermissionsTitle: 'تحديث صلاحيات الدور',
+    updateRolePermissionsMessage: 'هذا يغيّر الوصول لكل مستخدم مُسند إليه دور {role}. متابعة؟',
   },
 
   permitCatalog: {
@@ -475,6 +481,8 @@ export default {
     templateDeletedTitle: 'تم حذف القالب',
     templateDeletedDescription: 'تم حذف {filename}.',
     deleteFailed: 'فشل الحذف',
+    deleteTemplateConfirmTitle: 'حذف القالب',
+    deleteTemplateConfirmMessage: 'حذف "{filename}"؟ لا يمكن التراجع عن هذا.',
   },
 
   serviceDocumentMap: {

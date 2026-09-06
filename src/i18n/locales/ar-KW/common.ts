@@ -24,6 +24,7 @@ export default {
   closeDialog: 'إغلاق النافذة',
   edit: 'تعديل',
   delete: 'حذف',
+  remove: 'إزالة',
   view: 'عرض',
   add: 'إضافة',
   create: 'إنشاء',
