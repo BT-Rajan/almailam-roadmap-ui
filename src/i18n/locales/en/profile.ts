@@ -9,7 +9,7 @@ export default {
   mobile: 'Mobile',
   mobilePlaceholder: 'e.g. +971 50 000 0000',
   account: 'Account',
-  accountDescription: 'Managed by an administrator -- contact one to change these.',
+  accountDescription: 'Managed by an administrator — contact one to change these.',
   email: 'Email',
   role: 'Role',
   saveChanges: 'Save Changes',

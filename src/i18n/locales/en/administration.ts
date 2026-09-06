@@ -22,7 +22,7 @@ export default {
       'The knowledgebase Q&A tool is the only AI-backed feature besides the client ID check. All other workflows are unaffected if this is disabled.',
     enableAssistant: 'Enable Knowledgebase Assistant',
     enableAssistantHint:
-      "Takes effect immediately -- hides the sparkle icon/chat drawer and the Ask panel, and disables the ask endpoint, when off.",
+      "Takes effect immediately — hides the sparkle icon/chat drawer and the Ask panel, and disables the ask endpoint, when off.",
     providerSelection: 'Provider Selection',
     providerSelectionDescription: 'Choose the default provider and the fallback priority order.',
     defaultProvider: 'Default Provider',
@@ -67,7 +67,7 @@ export default {
     apiKey: 'API Key',
     apiKeyPlaceholder: 'Enter new API key to update',
     updateKey: 'Update Key',
-    stagedNotice: 'Staged -- click Save Changes below to store it (encrypted) and make it live. No restart needed.',
+    stagedNotice: 'Staged — click Save Changes below to store it (encrypted) and make it live. No restart needed.',
     testConnection: 'Test Connection',
     connected: 'Connected',
     error: 'Error',
@@ -124,7 +124,7 @@ export default {
     serviceMapTab: 'Service Document Map',
     formsSubtitle: 'Maintain authorities, forms and their document requirements.',
     serviceMapSubtitle:
-      "For each service, which fillable government forms/agreements a project needs. Staff fill these in from the project itself (Approvals & Permits) -- this only controls which ones are offered there.",
+      "For each service, which fillable government forms/agreements a project needs. Staff fill these in from the project itself (Approvals & Permits) — this only controls which ones are offered there.",
     templatesTab: 'Quotation & Contract Templates',
     templatesSubtitle: 'Upload the .docx templates used to generate Quotation and Contract documents, and choose the default for each.',
     tabsAriaLabel: 'Document sections',
@@ -150,7 +150,7 @@ export default {
     brandColor: 'Brand Color',
     companyLogo: 'Company Logo',
     companyLogoDescription:
-      'Insertable into any Quotation/Contract document template via its Company Logo merge field. Applies immediately -- not part of "Save Changes" below.',
+      'Insertable into any Quotation/Contract document template via its Company Logo merge field. Applies immediately — not part of "Save Changes" below.',
     uploading: 'Uploading…',
     uploadDifferentLogo: 'Upload a different logo to replace it',
     pngOrJpeg: 'PNG or JPEG',
@@ -242,7 +242,7 @@ export default {
       'Written with {{token}} merge fields, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}. Used to preview and print this form filled in.',
     fieldsSectionTitle: 'Fields',
     fieldsHintPrefix:
-      'Give a merge-field token from the template above a dropdown or radio group instead of a plain text box when a project fills this form in -- match the "token" here to the name used in the template (e.g.',
+      'Give a merge-field token from the template above a dropdown or radio group instead of a plain text box when a project fills this form in — match the "token" here to the name used in the template (e.g.',
     fieldsHintSuffix: 'in the template needs "plotArea" as its token). A token not listed here just gets a plain text box.',
     fieldType: {
       text: 'Text',
@@ -255,7 +255,7 @@ export default {
     fieldLabelPlaceholder: 'Field label',
     fieldOptionsPlaceholder: 'One option per line',
     sampleFormTitle: 'Sample Form',
-    sampleFormHint: 'Upload a reference copy of the real government form (e.g. the blank official PDF) to check the template and fields above against. Not parsed -- just an attachment.',
+    sampleFormHint: 'Upload a reference copy of the real government form (e.g. the blank official PDF) to check the template and fields above against. Not parsed — just an attachment.',
     currentlyAttached: 'Currently attached: {name}',
     uploading: 'Uploading…',
     uploadSample: 'Upload Sample',
@@ -269,7 +269,7 @@ export default {
   loadStandardFormsDialog: {
     title: 'Load Standard Forms',
     description:
-      "Adds any of the office's standard design/licensing agreements and undertakings to the form library. Each is created as an editable form -- adjust its template, tagged services, and status afterwards like any other.",
+      "Adds any of the office's standard design/licensing agreements and undertakings to the form library. Each is created as an editable form — adjust its template, tagged services, and status afterwards like any other.",
     noAuthorityTitle: 'Add an authority first',
     noAuthorityDescription:
       "These forms need to be filed under an authority (e.g. an 'Internal' authority for the engineering office itself) before they can be imported.",
@@ -280,11 +280,11 @@ export default {
   },
 
   templateFieldMapperDialog: {
-    mapFieldsTitle: 'Map Fields -- {filename}',
+    mapFieldsTitle: 'Map Fields — {filename}',
     intro:
-      "Click into a line of the document below, then click a field to insert it at that spot -- it'll appear as a small tag, not as code. For a repeating table (e.g. line items), click into the row that should repeat, then click each column into its cell.",
-    tableColumnsHint: '{label} columns -- click into a table cell first:',
-    listFieldHint: '{label} -- click into the line that should repeat first:',
+      "Click into a line of the document below, then click a field to insert it at that spot — it'll appear as a small tag, not as code. For a repeating table (e.g. line items), click into the row that should repeat, then click each column into its cell.",
+    tableColumnsHint: '{label} columns — click into a table cell first:',
+    listFieldHint: '{label} — click into the line that should repeat first:',
     repeatingAt: 'Repeating at {label}',
     repeatsForEach: 'Repeats for each: {label}',
     repeats: 'Repeats: {label}',
@@ -323,7 +323,7 @@ export default {
     editAuthority: 'Edit authority',
     deleteAuthority: 'Delete authority',
     status: 'Status',
-    noAuthoritiesYet: 'No authorities yet -- add one to start filing forms under it.',
+    noAuthoritiesYet: 'No authorities yet — add one to start filing forms under it.',
     searchPlaceholder: 'Search forms by title or code',
     noFormsFound: 'No forms found',
     noFormsFoundDescription: 'Add a government form to build out the library.',
@@ -361,7 +361,7 @@ export default {
   permitCatalog: {
     permitName: 'Permit name',
     removePermit: 'Remove permit',
-    noPermitsYet: 'No permits yet -- add one below.',
+    noPermitsYet: 'No permits yet — add one below.',
     addPermit: 'Add Permit',
     add: 'Add',
   },
@@ -377,7 +377,7 @@ export default {
     activityName: 'Activity name',
     fixedCost: 'Fixed cost',
     removeActivity: 'Remove activity',
-    noActivitiesYet: 'No activities yet -- add one below.',
+    noActivitiesYet: 'No activities yet — add one below.',
     addActivity: 'Add Activity',
     add: 'Add',
     addService: 'Add Service',

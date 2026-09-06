@@ -1,6 +1,6 @@
 export default {
   appName: 'سيرفس أو إس',
-  // Registered legal entity name -- kept in its registered form rather
+  // Registered legal entity name — kept in its registered form rather
   // than a guessed/transliterated Arabic rendering.
   companyName: 'Almailam Engineering Consultants',
   skipToMainContent: 'تخطَّ إلى المحتوى الرئيسي',

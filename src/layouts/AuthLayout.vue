@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Compass } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -26,21 +29,19 @@ import AmbientBackground from '@/components/common/AmbientBackground.vue'
 
       <div>
         <h1 class="font-display text-5xl leading-[1.15] text-[var(--color-text-primary)]">
-          Precision in <span class="text-gradient-accent">every project.</span>
+          {{ t('auth.authLayout.heroTitlePart1') }} <span class="text-gradient-accent">{{ t('auth.authLayout.heroTitlePart2') }}</span>
         </h1>
         <p class="mt-6 max-w-md text-base text-[var(--color-text-secondary)]">
-          Projects, clients, quotations, contracts, and government submissions
-          in one connected workspace -- built for the engineering consultants
-          who deliver with confidence.
+          {{ t('auth.authLayout.heroSubtitle') }}
         </p>
       </div>
 
       <div
         class="flex items-center gap-3 text-xs font-medium uppercase tracking-widest text-[var(--color-text-muted)]"
       >
-        <span>Trusted workflows</span>
+        <span>{{ t('auth.authLayout.trustedWorkflows') }}</span>
         <span class="h-1 w-1 rounded-full bg-accent-500" />
-        <span>Real-time insights</span>
+        <span>{{ t('auth.authLayout.realTimeInsights') }}</span>
       </div>
     </div>
 

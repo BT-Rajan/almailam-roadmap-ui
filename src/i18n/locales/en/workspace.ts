@@ -18,7 +18,7 @@ export default {
     today: 'Today',
     next: 'Next →',
     comingSoon: 'Coming soon',
-    comingSoonDescription: "The {view} view isn't available yet -- switch to Monthly.",
+    comingSoonDescription: "The {view} view isn't available yet — switch to Monthly.",
     noActivitiesOnThisDay: 'No activities on this day',
     byUser: 'By {name}',
     viewTaskDetails: 'View task details',
@@ -31,7 +31,7 @@ export default {
   knowledgeBasePage: {
     pageTitle: 'Knowledge Base',
     pageSubtitle:
-      'Upload a document and ask questions in Arabic, English, or a mix -- answers are grounded strictly in what you upload.',
+      'Upload a document and ask questions in Arabic, English, or a mix — answers are grounded strictly in what you upload.',
     uploadDocument: 'Upload Document',
     documents: 'Documents',
     noDocumentsYet: 'No documents yet',
@@ -55,7 +55,7 @@ export default {
   knowledgeUploadDialog: {
     title: 'Upload Knowledgebase Document',
     description:
-      "The document's text is extracted and used to ground answers on the Knowledge Base page. Only the text-layer content of the file is used -- a scanned/image-only PDF with no selectable text can't be answered from.",
+      "The document's text is extracted and used to ground answers on the Knowledge Base page. Only the text-layer content of the file is used — a scanned/image-only PDF with no selectable text can't be answered from.",
     titleLabel: 'Title (optional)',
     titlePlaceholder: 'Defaults to the file name',
     fileHint: 'PDF, Word (.docx), or plain text (.txt)',

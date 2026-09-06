@@ -8,7 +8,7 @@ export default {
 
   calendarPage: {
     myReports: 'My Reports',
-    viewOnlyNotice: "View-only -- tap a date to see that day's report(s).",
+    viewOnlyNotice: "View-only — tap a date to see that day's report(s).",
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
     noReportsThisMonth: 'No reports this month',
@@ -34,7 +34,7 @@ export default {
     filingWindowClosedDefaultDescription: 'Reports can no longer be filed for this project.',
     editableTitle: 'Editable until 11:59 PM Kuwait time',
     editableDescription:
-      "You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait -- wherever you're filing from.",
+      "You can save and re-submit today's report as many times as you need, right up until the end of the calendar day in Kuwait — wherever you're filing from.",
     project: 'Project',
     selectProject: 'Select project',
     windowClosedSuffix: ' (window closed)',

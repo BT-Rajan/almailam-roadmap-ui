@@ -11,6 +11,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import { DEFAULT_CHART_COLOR } from '@/constants/chartColors'
 import { reportService } from '@/services/reportService'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -163,7 +164,7 @@ const goBack = () => {
       <!-- Overall Progress -->
       <ReportSection :title="t('project.reportPage.overallProgress')" fullWidth>
         <div class="grid grid-cols-1 tablet:grid-cols-3 gap-8 justify-items-center">
-          <ProgressChart :value="project.progress" :label="t('project.reportPage.overallCompletion')" color="#3B82F6" size="md" />
+          <ProgressChart :value="project.progress" :label="t('project.reportPage.overallCompletion')" :color="DEFAULT_CHART_COLOR" size="md" />
         </div>
       </ReportSection>
 

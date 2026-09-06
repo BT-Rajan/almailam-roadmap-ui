@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { DEFAULT_CHART_COLOR } from '@/constants/chartColors'
 import type { LineChartData } from '@/types/Report'
 
 interface Props {
@@ -78,13 +79,13 @@ const getYPosition = (value: number) => padding.top + chartHeight.value - ((valu
       <line :x1="padding.left" :y1="padding.top + chartHeight" :x2="800 - padding.right" :y2="padding.top + chartHeight" class="stroke-neutral-400 stroke-[1]" />
 
       <!-- Line -->
-      <path :d="pathData" fill="none" stroke="#3B82F6" stroke-width="2" class="drop-shadow-sm" />
+      <path :d="pathData" fill="none" :stroke="DEFAULT_CHART_COLOR" stroke-width="2" class="drop-shadow-sm" />
 
       <!-- Area under line -->
       <defs>
         <linearGradient id="lineAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color: #3B82F6; stop-opacity: 0.1" />
-          <stop offset="100%" style="stop-color: #3B82F6; stop-opacity: 0" />
+          <stop offset="0%" :style="`stop-color: ${DEFAULT_CHART_COLOR}; stop-opacity: 0.1`" />
+          <stop offset="100%" :style="`stop-color: ${DEFAULT_CHART_COLOR}; stop-opacity: 0`" />
         </linearGradient>
       </defs>
       <path

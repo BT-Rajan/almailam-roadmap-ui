@@ -46,6 +46,17 @@
     --shadow-glass: 0 8px 32px 0 rgb(23 23 26 / 0.10), inset 0 1px 0 0 rgb(255 255 255 / 0.5);
     --shadow-glass-sm: 0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.4);
     --shadow-glow-accent: 0 0 0 1px rgb(38 143 106 / 0.25), 0 6px 18px -4px rgb(38 143 106 / 0.35);
+
+    /* Categorical chart palette (reports). A single source of truth so
+       every chart component/page reads the same series colors instead of
+       each hardcoding its own hex literals -- see src/constants/chartColors.ts. */
+    --chart-blue: #3b82f6;
+    --chart-purple: #8b5cf6;
+    --chart-cyan: #06b6d4;
+    --chart-amber: #f59e0b;
+    --chart-danger: theme('colors.danger.500');
+    --chart-warning: theme('colors.warning.500');
+    --chart-success: theme('colors.success.500');
   }
 
   .dark {

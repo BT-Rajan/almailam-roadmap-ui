@@ -28,11 +28,11 @@ export default {
     },
     catalogs: {
       label: 'Catalogs',
-      description: 'Configure the Services catalog (Design and Supervision branches) and the permit catalog -- each in its own tab.',
+      description: 'Configure the Services catalog (Design and Supervision branches) and the permit catalog — each in its own tab.',
     },
     documents: {
       label: 'Documents',
-      description: 'Manage government forms and authorities, and the service document map -- each in its own tab.',
+      description: 'Manage government forms and authorities, and the service document map — each in its own tab.',
     },
     knowledgebaseAi: {
       label: 'Knowledgebase AI',

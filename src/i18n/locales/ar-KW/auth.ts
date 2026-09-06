@@ -24,6 +24,15 @@ export default {
     idPlaceholder: 'أدخل رقم المستخدم',
   },
 
+  authLayout: {
+    heroTitlePart1: 'الدقة',
+    heroTitlePart2: 'في كل مشروع.',
+    heroSubtitle:
+      'المشاريع والعملاء وعروض الأسعار والعقود والتقديمات الحكومية في مساحة عمل واحدة متصلة — مصمّمة للاستشاريين الهندسيين الذين يعملون بثقة.',
+    trustedWorkflows: 'إجراءات عمل موثوقة',
+    realTimeInsights: 'رؤى فورية',
+  },
+
   changePasswordDialog: {
     currentPassword: 'كلمة المرور الحالية',
     currentPasswordPlaceholder: 'أدخل كلمة المرور الحالية',
