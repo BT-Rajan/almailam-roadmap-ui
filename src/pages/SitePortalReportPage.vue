@@ -132,10 +132,13 @@ async function handleSubmit(): Promise<void> {
       supervisionType: form.supervisionType,
       notes: form.notes.trim(),
     })
-    resultDialogStore.showSuccess('Report submitted', "Today's status report has been submitted. You can keep editing and re-submitting it until 11:59 PM Kuwait time.")
+    resultDialogStore.showSuccess(
+      t('sitePortal.reportPage.reportSubmittedTitle'),
+      t('sitePortal.reportPage.reportSubmittedDescription'),
+    )
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to save report', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('sitePortal.reportPage.failedToSaveReport'), detail)
   } finally {
     isSaving.value = false
   }

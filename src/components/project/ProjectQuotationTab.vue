@@ -104,8 +104,8 @@ async function handlePrint(): Promise<void> {
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to generate document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
   } finally {
     isPrinting.value = false
   }
@@ -121,8 +121,8 @@ async function handleDownloadDocument(): Promise<void> {
     const blob = await documentTemplateService.downloadQuotationDocument(quotation.id, documentLanguage.value)
     triggerBlobDownload(blob, `${quotation.id}.docx`)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to generate document', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
   } finally {
     isDownloadingDocument.value = false
   }
@@ -143,11 +143,11 @@ async function handleSendEmail(): Promise<void> {
   isSendingEmail.value = true
   try {
     await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim(), documentLanguage.value)
-    resultDialogStore.showSuccess('Quotation emailed', `Sent to ${emailTo.value.trim()}.`)
+    resultDialogStore.showSuccess(t('project.quotationTab.quotationEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to send email', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToSendEmail'), detail)
   } finally {
     isSendingEmail.value = false
   }
@@ -157,11 +157,11 @@ async function handleCreateQuotation(payload: QuotationCreateInput): Promise<voi
   isCreating.value = true
   try {
     const quotation = await quotationStore.createQuotation({ ...payload, projectId: props.project.id })
-    resultDialogStore.showSuccess('Quotation created', `${quotation.quotationNo} was created successfully.`)
+    resultDialogStore.showSuccess(t('project.quotationTab.quotationCreatedTitle'), t('common.createdSuccessfully', { no: quotation.quotationNo }))
     isCreateDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to create quotation', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.quotationTab.failedToCreateQuotation'), detail)
   } finally {
     isCreating.value = false
   }
@@ -173,8 +173,8 @@ async function handlePatch(patch: Partial<Quotation>): Promise<void> {
   try {
     await quotationStore.updateQuotation(quotation.id, patch)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to save changes', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToSaveChanges'), detail)
   }
 }
 
@@ -189,8 +189,8 @@ async function handleFinalizeToggle(): Promise<void> {
       await quotationStore.finalizeQuotation(quotation.id)
     }
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update quotation', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.quotationTab.failedToUpdateQuotation'), detail)
   } finally {
     isFinalizing.value = false
   }
@@ -207,8 +207,8 @@ async function handleSaveAsFinal(patch: Partial<Quotation>): Promise<void> {
     await quotationStore.updateQuotation(quotation.id, patch)
     await quotationStore.finalizeQuotation(quotation.id)
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to finalize quotation', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.quotationTab.failedToFinalizeQuotation'), detail)
   } finally {
     isFinalizing.value = false
   }
@@ -232,8 +232,8 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
     if (payload.value === 'Approved') await projectStore.refreshProject(props.project.id)
     isStatusDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to change status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToChangeStatus'), detail)
   } finally {
     isStatusSaving.value = false
   }
@@ -322,11 +322,11 @@ function handleAdvanceToPaymentPlan(): void {
     </div>
   </div>
 
-  <BaseDialog v-model="isEmailDialogOpen" title="Email Quotation" size="sm">
-    <TextInput v-model="emailTo" label="Recipient Email" type="email" required placeholder="client@example.com" />
+  <BaseDialog v-model="isEmailDialogOpen" :title="t('project.quotationTab.emailQuotation')" size="sm">
+    <TextInput v-model="emailTo" :label="t('project.quotationTab.recipientEmail')" type="email" required placeholder="client@example.com" />
     <template #footer>
-      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">Cancel</BaseButton>
-      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">Send</BaseButton>
+      <BaseButton variant="secondary" @click="isEmailDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">{{ t('project.quotationTab.send') }}</BaseButton>
     </template>
   </BaseDialog>
 

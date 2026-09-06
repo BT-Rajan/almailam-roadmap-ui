@@ -116,12 +116,15 @@ async function handleGenerate(): Promise<void> {
       title: titleOverride.value.trim() || undefined,
     })
     documentStore.addDocument(document)
-    resultDialogStore.showSuccess('Form filled and saved', `${document.title} was saved as a document on this project.`)
+    resultDialogStore.showSuccess(
+      t('government.fillFormDialog.formFilledTitle'),
+      t('government.fillFormDialog.formFilledDescription', { title: document.title }),
+    )
     closeDialog()
   } catch (error) {
     resultDialogStore.showError(
-      'Failed to generate document',
-      error instanceof Error ? error.message : 'Please try again.',
+      t('common.failedToGenerateDocument'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
     )
   } finally {
     isSaving.value = false

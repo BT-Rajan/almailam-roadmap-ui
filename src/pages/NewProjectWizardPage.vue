@@ -340,8 +340,8 @@ async function submitWizard(): Promise<void> {
     // a failure here could come and go while attention was on the form
     // (or the confirmation that never appeared), reading as "nothing
     // happened" rather than "this needs a fix."
-    const detail = error instanceof Error && error.message ? error.message : 'Please check the form and try again.'
-    resultDialogStore.showError('Failed to create project', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
+    resultDialogStore.showError(t('project.newWizard.failedToCreateProject'), detail)
   } finally {
     isSubmitting.value = false
   }
@@ -569,16 +569,16 @@ function goToCreatedProject(): void {
       @confirm="handleServicesConfirmed"
     />
 
-    <BaseDialog :model-value="showConfirmation" title="Project Created" size="sm" :closable="false">
+    <BaseDialog :model-value="showConfirmation" :title="t('project.newWizard.projectCreatedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
         <strong>{{ createdProject?.projectName }}</strong>
-        was successfully created as project
+        {{ t('project.newWizard.projectCreatedMessagePart1') }}
         <strong>{{ createdProject?.projectNo }}</strong>
-        for <strong>{{ selectedClientName() }}</strong>.
+        {{ t('project.newWizard.projectCreatedMessagePart2') }} <strong>{{ selectedClientName() }}</strong>.
       </p>
 
       <template #footer>
-        <BaseButton variant="primary" @click="goToCreatedProject">View Project Workspace</BaseButton>
+        <BaseButton variant="primary" @click="goToCreatedProject">{{ t('project.newWizard.viewProjectWorkspace') }}</BaseButton>
       </template>
     </BaseDialog>
   </div>

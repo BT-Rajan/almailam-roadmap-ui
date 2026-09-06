@@ -107,10 +107,10 @@ async function handleRecordPayment(input: RecordPaymentInput, proofFile: File | 
     // Keeps the shared project store's cached data (e.g. amounts shown
     // elsewhere in the workspace) in sync with what was just recorded.
     await projectStore.refreshProject(props.projectId)
-    resultDialogStore.showSuccess('Payment recorded', 'The payment schedule has been updated.')
+    resultDialogStore.showSuccess(t('payment.statusPanel.paymentRecordedTitle'), t('payment.statusPanel.paymentRecordedDescription'))
     isRecordPaymentOpen.value = false
   } catch (error) {
-    resultDialogStore.showError('Could not record payment', error instanceof Error ? error.message : 'Please try again.')
+    resultDialogStore.showError(t('payment.statusPanel.couldNotRecordPayment'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -119,7 +119,7 @@ async function handleDownloadProof(payment: Payment): Promise<void> {
   try {
     await store.downloadPaymentProof(payment.id, payment.proofFileName)
   } catch (error) {
-    resultDialogStore.showError('Could not download proof', error instanceof Error ? error.message : 'Please try again.')
+    resultDialogStore.showError(t('payment.statusPanel.couldNotDownloadProof'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }
 
@@ -127,10 +127,10 @@ async function handleRefund(input: { obligationId: string; refundAmount: number;
   if (!activeAgreement.value) return
   try {
     await store.recordRefund({ ...input, agreementId: activeAgreement.value.id })
-    resultDialogStore.showSuccess('Refund recorded', 'The obligation balance has been updated.')
+    resultDialogStore.showSuccess(t('payment.statusPanel.refundRecordedTitle'), t('payment.statusPanel.refundRecordedDescription'))
     isFinancialActionOpen.value = false
   } catch {
-    resultDialogStore.showError('Could not record refund', 'Please try again.')
+    resultDialogStore.showError(t('payment.statusPanel.couldNotRecordRefund'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -138,10 +138,10 @@ async function handleAdjustment(input: { obligationId: string; type: AdjustmentT
   if (!activeAgreement.value) return
   try {
     await store.recordAdjustment({ ...input, agreementId: activeAgreement.value.id })
-    resultDialogStore.showSuccess('Adjustment applied', 'The obligation amount has been updated.')
+    resultDialogStore.showSuccess(t('payment.statusPanel.adjustmentAppliedTitle'), t('payment.statusPanel.adjustmentAppliedDescription'))
     isFinancialActionOpen.value = false
   } catch {
-    resultDialogStore.showError('Could not apply adjustment', 'Please try again.')
+    resultDialogStore.showError(t('payment.statusPanel.couldNotApplyAdjustment'), t('common.pleaseTryAgain'))
   }
 }
 
@@ -150,14 +150,14 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
   try {
     if (obligationActionMode.value === 'cancel') {
       await store.cancelObligation(targetObligation.value.id, activeAgreement.value.id, reason, 'Rajan Kumar')
-      resultDialogStore.showSuccess('Obligation cancelled')
+      resultDialogStore.showSuccess(t('payment.statusPanel.obligationCancelledTitle'))
     } else {
       await store.waiveObligation(targetObligation.value.id, activeAgreement.value.id, reason, 'Rajan Kumar')
-      resultDialogStore.showSuccess('Obligation waived')
+      resultDialogStore.showSuccess(t('payment.statusPanel.obligationWaivedTitle'))
     }
     isObligationActionOpen.value = false
   } catch {
-    resultDialogStore.showError('Could not complete this action', 'Please try again.')
+    resultDialogStore.showError(t('payment.statusPanel.couldNotCompleteAction'), t('common.pleaseTryAgain'))
   }
 }
 </script>

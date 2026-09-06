@@ -287,13 +287,13 @@ async function handleAddServices(payload: ServicePickerConfirmPayload): Promise<
     }
     await projectStore.addServices(project.value.id, input)
     resultDialogStore.showSuccess(
-      'Services added',
-      'Cover the new work with a quotation, payment plan, and contract the same way as the rest of this project.',
+      t('project.workspacePage.servicesAddedTitle'),
+      t('project.workspacePage.servicesAddedDescription'),
     )
     isAddServiceDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to add services', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.workspacePage.failedToAddServices'), detail)
   } finally {
     isAddServiceSaving.value = false
   }
@@ -304,11 +304,14 @@ async function handleConfirmEdit(payload: ProjectUpdateInput): Promise<void> {
   isEditSaving.value = true
   try {
     await projectStore.updateProject(project.value.id, payload)
-    resultDialogStore.showSuccess('Project updated', 'Changes were saved successfully.')
+    resultDialogStore.showSuccess(
+      t('project.workspacePage.projectUpdatedTitle'),
+      t('project.workspacePage.changesSavedSuccessfully'),
+    )
     isEditDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to update project', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.workspacePage.failedToUpdateProject'), detail)
   } finally {
     isEditSaving.value = false
   }
@@ -319,11 +322,14 @@ async function handleConfirmStage(payload: { value: string; reason?: string }): 
   isStageSaving.value = true
   try {
     await projectStore.setStage(project.value.id, payload.value, payload.reason)
-    resultDialogStore.showSuccess('Stage updated', `Project moved to ${payload.value}.`)
+    resultDialogStore.showSuccess(
+      t('project.workspacePage.stageUpdatedTitle'),
+      t('project.workspacePage.projectMovedTo', { value: payload.value }),
+    )
     isStageDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to change stage', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.workspacePage.failedToChangeStage'), detail)
   } finally {
     isStageSaving.value = false
   }
@@ -334,11 +340,14 @@ async function handleConfirmStatus(payload: { value: string; reason?: string }):
   isStatusSaving.value = true
   try {
     await projectStore.setStatus(project.value.id, payload.value, payload.reason)
-    resultDialogStore.showSuccess('Status updated', `Project marked as ${payload.value}.`)
+    resultDialogStore.showSuccess(
+      t('project.workspacePage.statusUpdatedTitle'),
+      t('project.workspacePage.projectMarkedAs', { value: payload.value }),
+    )
     isStatusDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to change status', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('common.failedToChangeStatus'), detail)
   } finally {
     isStatusSaving.value = false
   }
@@ -349,12 +358,15 @@ async function handleConfirmDelete(): Promise<void> {
   isDeleteSaving.value = true
   try {
     await projectStore.deleteProject(project.value.id)
-    resultDialogStore.showSuccess('Project deleted', `${project.value.projectName} was removed.`)
+    resultDialogStore.showSuccess(
+      t('project.workspacePage.projectDeletedTitle'),
+      t('project.workspacePage.wasRemoved', { name: project.value.projectName }),
+    )
     isDeleteDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.PROJECTS })
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to delete project', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.workspacePage.failedToDeleteProject'), detail)
   } finally {
     isDeleteSaving.value = false
   }

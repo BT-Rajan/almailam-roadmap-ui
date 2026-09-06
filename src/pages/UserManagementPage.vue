@@ -289,7 +289,7 @@ async function handleDeleteUser(): Promise<void> {
       />
     </div>
 
-    <BaseDialog v-model="isProfileDialogOpen" title="User Profile" size="md">
+    <BaseDialog v-model="isProfileDialogOpen" :title="t('administration.userManagementPage.userProfile')" size="md">
       <div v-if="selectedUser" class="flex flex-col gap-4">
         <UserCard :user="selectedUser" />
         <div class="flex justify-end gap-3">
@@ -298,19 +298,19 @@ async function handleDeleteUser(): Promise<void> {
             variant="secondary"
             @click="isResetConfirmOpen = true"
           >
-            Reset Password
+            {{ t('administration.userManagementPage.resetPassword') }}
           </BaseButton>
           <BaseButton variant="secondary" @click="handleToggleStatus(selectedUser)">
-            {{ selectedUser.status === 'Active' ? 'Deactivate' : 'Activate' }}
+            {{ selectedUser.status === 'Active' ? t('administration.userManagementPage.deactivate') : t('administration.userManagementPage.activate') }}
           </BaseButton>
           <BaseButton
             v-if="selectedUser.id !== authStore.user?.id"
             variant="danger"
             @click="isDeleteConfirmOpen = true"
           >
-            Delete User
+            {{ t('administration.userManagementPage.deleteUser') }}
           </BaseButton>
-          <BaseButton @click="openEditDialog(selectedUser)">Edit User</BaseButton>
+          <BaseButton @click="openEditDialog(selectedUser)">{{ t('administration.userManagementPage.editUser') }}</BaseButton>
         </div>
       </div>
     </BaseDialog>

@@ -46,11 +46,14 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   isCreating.value = true
   try {
     const submission = await submissionStore.createSubmission(payload)
-    resultDialogStore.showSuccess('Submission created', `${submission.submissionNo} was created successfully.`)
+    resultDialogStore.showSuccess(
+      t('government.submissionsPage.submissionCreatedTitle'),
+      t('common.createdSuccessfully', { no: submission.submissionNo }),
+    )
     isCreateDialogOpen.value = false
   } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : 'Please try again.'
-    resultDialogStore.showError('Failed to create submission', detail)
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('government.submissionsPage.failedToCreateSubmission'), detail)
   } finally {
     isCreating.value = false
   }

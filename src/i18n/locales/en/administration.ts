@@ -350,6 +350,8 @@ export default {
     deactivate: 'Deactivate',
     activate: 'Activate',
     editUser: 'Edit User',
+    resetPassword: 'Reset Password',
+    deleteUser: 'Delete User',
   },
 
   governmentFormsPanel: {

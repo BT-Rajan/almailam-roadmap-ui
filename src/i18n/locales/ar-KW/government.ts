@@ -118,6 +118,8 @@ export default {
     pageTitle: 'مساحة عمل التقديمات الحكومية',
     pageSubtitle: 'تتبّع كل تقديم حكومي من المسودة حتى الاعتماد.',
     newSubmission: 'تقديم جديد',
+    submissionCreatedTitle: 'تم إنشاء التقديم',
+    failedToCreateSubmission: 'فشل إنشاء التقديم',
     allAuthorities: 'جميع الجهات',
     noSubmissionsFound: 'لا توجد تقديمات',
     noSubmissionsFoundDescription: 'حاول تعديل البحث أو عوامل التصفية.',
@@ -198,6 +200,8 @@ export default {
     fillInTheDetails: 'تعبئة التفاصيل',
     preview: 'معاينة',
     generateAndSavePdf: 'إنشاء وحفظ PDF',
+    formFilledTitle: 'تمت تعبئة النموذج وحفظه',
+    formFilledDescription: 'تم حفظ {title} كمستند في هذا المشروع.',
   },
 
   formPreviewDialog: {

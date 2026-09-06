@@ -118,6 +118,8 @@ export default {
     pageTitle: 'Government Submission Workspace',
     pageSubtitle: 'Track every government submission from draft through approval.',
     newSubmission: 'New Submission',
+    submissionCreatedTitle: 'Submission created',
+    failedToCreateSubmission: 'Failed to create submission',
     allAuthorities: 'All Authorities',
     noSubmissionsFound: 'No submissions found',
     noSubmissionsFoundDescription: 'Try adjusting your search or filters.',
@@ -198,6 +200,8 @@ export default {
     fillInTheDetails: 'Fill in the details',
     preview: 'Preview',
     generateAndSavePdf: 'Generate & Save PDF',
+    formFilledTitle: 'Form filled and saved',
+    formFilledDescription: '{title} was saved as a document on this project.',
   },
 
   formPreviewDialog: {
