@@ -382,6 +382,7 @@ export default {
     printContract: 'طباعة العقد',
     downloadDocument: 'تنزيل المستند',
     emailContract: 'إرسال العقد بالبريد',
+    sendVerificationCode: 'إرسال رمز التحقق',
     noContractSelectedTitle: 'لم يتم تحديد عقد',
     createFirstContract: 'أنشئ أول عقد لهذا المشروع.',
     selectFromList: 'اختر عقداً من القائمة لمعاينته.',
@@ -395,6 +396,14 @@ export default {
     noEligibleQuotationTitle: 'لا يوجد عرض سعر مؤهل',
     noEligibleQuotationDescriptionShort: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي.',
     noEligibleQuotationDescriptionLong: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي. اعتمد عرض السعر كنهائي ووافق عليه من تبويب عرض السعر أولاً.',
+    otpDialog: {
+      title: 'توقيع العقد',
+      sendStepDescription: 'أرسل رمز تحقق لمرة واحدة إلى {email}. اطلب من العميل قراءة الرمز لك بعد مراجعة العقد وقبوله.',
+      failedToSend: 'فشل إرسال رمز التحقق',
+      failedToVerify: 'فشل التحقق من الرمز',
+      signedTitle: 'تم توقيع العقد',
+      signedDescription: 'تم تسجيل توقيع العميل. تم إرسال نسخة من العقد الموقّع إليه عبر البريد الإلكتروني.',
+    },
   },
 
   tasksTab: {

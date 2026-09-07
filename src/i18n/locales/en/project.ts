@@ -382,6 +382,7 @@ export default {
     printContract: 'Print Contract',
     downloadDocument: 'Download Document',
     emailContract: 'Email Contract',
+    sendVerificationCode: 'Send Verification Code',
     noContractSelectedTitle: 'No contract selected',
     createFirstContract: 'Create the first contract for this project.',
     selectFromList: 'Select a contract from the list to preview it.',
@@ -395,6 +396,14 @@ export default {
     noEligibleQuotationTitle: 'No eligible quotation',
     noEligibleQuotationDescriptionShort: 'A contract can only be generated from a quotation that has been Approved and saved as Final.',
     noEligibleQuotationDescriptionLong: 'A contract can only be generated from a quotation that has been Approved and saved as Final. Finalize and approve a quotation on the Quotation tab first.',
+    otpDialog: {
+      title: 'Sign Contract',
+      sendStepDescription: "Send a one-time verification code to {email}. Ask the client to read it back to you once they've reviewed and accepted the contract.",
+      failedToSend: 'Failed to send verification code',
+      failedToVerify: 'Failed to verify code',
+      signedTitle: 'Contract signed',
+      signedDescription: "The client's signature was recorded. A copy of the signed contract was emailed to them.",
+    },
   },
 
   tasksTab: {

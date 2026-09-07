@@ -114,6 +114,25 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "This is an informational message -- no action is needed."
         ),
     },
+    "contract_otp": {
+        "subject": "Your signing code for Contract {{ contract_no }}",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "Your verification code is {{ code }}.\n\n"
+            "Share this code with the staff member handling Contract {{ contract_no }} "
+            "to confirm you accept and sign it. It expires in {{ validity_label }}.\n\n"
+            "If you didn't request this, you can safely ignore this email."
+        ),
+    },
+    "contract_signed": {
+        "subject": "Contract {{ contract_no }} signed",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "Thank you for confirming Contract {{ contract_no }}. Please find a copy attached.\n\n"
+            "Contract summary:\n{{ summary }}\n\n"
+            "This is an informational message -- no action is needed."
+        ),
+    },
 }
 
 # What the admin UI's reference panel offers per template -- computed
@@ -174,6 +193,17 @@ MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
         {"key": "breakdown", "label": "Quotation Line-Item Breakdown"},
         {"key": "scope_change_section", "label": "Scope Change Section (blank unless scope was reconfirmed)"},
         {"key": "payment_plan_section", "label": "Payment Plan Section (blank if no plan exists yet)"},
+    ],
+    "contract_otp": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "code", "label": "Verification Code"},
+        {"key": "contract_no", "label": "Contract No."},
+        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
+    ],
+    "contract_signed": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "contract_no", "label": "Contract No."},
+        {"key": "summary", "label": "Contract Summary (value, representative, expiry, clauses)"},
     ],
 }
 

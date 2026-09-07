@@ -37,4 +37,8 @@ export interface Contract {
   revisions: ContractRevision[]
   // undefined while an editable draft; set once finalized.
   finalizedAt?: string
+  // Non-null while a signing code is outstanding -- lets the Contract
+  // tab reopen the OTP dialog straight to "enter code" instead of
+  // "send" when one's already on its way.
+  otpSentAt?: string | null
 }

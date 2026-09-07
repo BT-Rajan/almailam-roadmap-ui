@@ -283,6 +283,14 @@ export default {
         label: 'Quotation: Approved',
         description: 'Sent once the client approves a quotation -- includes a copy and the payment plan.',
       },
+      contractOtp: {
+        label: 'Contract: Verification Code',
+        description: 'Sent when staff ask the client to sign a finalized contract.',
+      },
+      contractSigned: {
+        label: 'Contract: Signed',
+        description: 'Sent once the client signs a contract -- includes a copy and its summary.',
+      },
     },
   },
 

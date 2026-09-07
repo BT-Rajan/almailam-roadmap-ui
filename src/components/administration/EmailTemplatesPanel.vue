@@ -38,6 +38,8 @@ const TEMPLATE_INFO: { key: EmailTemplateKey; labelKey: string; descriptionKey: 
   { key: 'requirement_confirmed', labelKey: 'administration.emailTemplates.keys.requirementConfirmed.label', descriptionKey: 'administration.emailTemplates.keys.requirementConfirmed.description' },
   { key: 'quotation_otp', labelKey: 'administration.emailTemplates.keys.quotationOtp.label', descriptionKey: 'administration.emailTemplates.keys.quotationOtp.description' },
   { key: 'quotation_approved', labelKey: 'administration.emailTemplates.keys.quotationApproved.label', descriptionKey: 'administration.emailTemplates.keys.quotationApproved.description' },
+  { key: 'contract_otp', labelKey: 'administration.emailTemplates.keys.contractOtp.label', descriptionKey: 'administration.emailTemplates.keys.contractOtp.description' },
+  { key: 'contract_signed', labelKey: 'administration.emailTemplates.keys.contractSigned.label', descriptionKey: 'administration.emailTemplates.keys.contractSigned.description' },
 ]
 
 const selectedKey = ref<EmailTemplateKey>()
@@ -108,7 +110,7 @@ function handleCancel(): void {
 <template>
   <div class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
     <div class="flex flex-col gap-2 laptop:col-span-1">
-      <SkeletonLoader v-if="emailTemplateStore.isLoading" :rows="7" />
+      <SkeletonLoader v-if="emailTemplateStore.isLoading" :rows="TEMPLATE_INFO.length" />
       <button
         v-for="info in TEMPLATE_INFO"
         :key="info.key"

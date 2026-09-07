@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer, ShieldCheck } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import ContractList from '@/components/project/ContractList.vue'
@@ -178,6 +179,57 @@ const isEmailDialogOpen = ref(false)
 const isSendingEmail = ref(false)
 const emailTo = ref('')
 
+const isOtpDialogOpen = ref(false)
+const isOtpSaving = ref(false)
+const otpStep = ref<'send' | 'enter-code'>('send')
+
+// Draft + finalized -- content locked, ready for a decision -- mirrors
+// hasStatusOptions' own "must be finalized" gate.
+const canSendOtp = computed(
+  () => contractStore.selectedContract?.status === 'Draft' && Boolean(contractStore.selectedContract?.finalizedAt),
+)
+
+function handleOpenOtpDialog(): void {
+  otpStep.value = contractStore.selectedContract?.otpSentAt ? 'enter-code' : 'send'
+  isOtpDialogOpen.value = true
+}
+
+async function handleSendOtp(): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  isOtpSaving.value = true
+  try {
+    await contractStore.sendContractOtp(contract.id)
+    otpStep.value = 'enter-code'
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.otpDialog.failedToSend'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
+async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+  const contract = contractStore.selectedContract
+  if (!contract) return
+  isOtpSaving.value = true
+  try {
+    await contractStore.verifyContractOtp(contract.id, payload.code)
+    // verifyContractOtp can move current_stage server-side (see
+    // contract_service.set_status -> try_auto_advance_stage) -- same
+    // "sync the shared store's cached copy" reasoning as
+    // handleStatusConfirm below.
+    await projectStore.refreshProject(props.project.id)
+    isOtpDialogOpen.value = false
+    resultDialogStore.showSuccess(t('project.contractTab.otpDialog.signedTitle'), t('project.contractTab.otpDialog.signedDescription'))
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.otpDialog.failedToVerify'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
 function openEmailDialog(): void {
   emailTo.value = props.client?.email ?? ''
   isEmailDialogOpen.value = true
@@ -246,10 +298,10 @@ async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
   }
 }
 
-// Draft -> Signed -> Active -> Expired/Terminated, and back to Draft
-// from Expired. The backend refuses moving out of Draft unless the
-// contract is already saved as Final (see contract_service.
-// set_status).
+// Signed -> Active -> Expired/Terminated, and back to Draft from
+// Expired. "Signed" is deliberately not offered here (see
+// CONTRACT_ALLOWED_TRANSITIONS' own comment) -- the only path to it is
+// a confirmed client email OTP, handled by handleConfirmOtp above.
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
@@ -257,14 +309,6 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   try {
     await contractStore.setContractStatus(contract.id, payload.value, payload.reason)
     isStatusDialogOpen.value = false
-    if (payload.value === 'Signed') {
-      // Marking a contract Signed can itself be the last thing "Contract"
-      // -> "Design" was waiting on (the financial agreement was already
-      // created and approved back at the Payment Plan stage) -- refresh
-      // the shared project store so the header/stepper reflect it
-      // immediately rather than only on next reload.
-      await projectStore.refreshProject(props.project.id)
-    }
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToChangeStatus'), detail)
@@ -278,6 +322,15 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
   <div class="flex items-center justify-between no-print">
     <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
     <div class="flex items-center gap-2">
+      <BaseButton
+        v-if="canSendOtp"
+        size="sm"
+        :icon="ShieldCheck"
+        :loading="isOtpSaving"
+        @click="handleOpenOtpDialog"
+      >
+        {{ t('project.contractTab.sendVerificationCode') }}
+      </BaseButton>
       <BaseButton
         v-if="contractStore.selectedContract && hasStatusOptions"
         variant="secondary"
@@ -337,6 +390,18 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
       <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">{{ t('project.contractTab.send') }}</BaseButton>
     </template>
   </BaseDialog>
+
+  <OtpVerificationDialog
+    v-if="client"
+    v-model="isOtpDialogOpen"
+    :email="client.email"
+    :step="otpStep"
+    :loading="isOtpSaving"
+    :title="t('project.contractTab.otpDialog.title')"
+    :send-step-description="t('project.contractTab.otpDialog.sendStepDescription', { email: client.email })"
+    @send="handleSendOtp"
+    @confirm="handleConfirmOtp"
+  />
 
   <EmptyState
     v-if="!contractStore.selectedContract"

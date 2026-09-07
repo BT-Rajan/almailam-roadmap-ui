@@ -31,8 +31,14 @@ export function isQuotationReasonRequired(newStatus: string): boolean {
   return QUOTATION_STATUSES_REQUIRING_REASON.has(newStatus)
 }
 
+// "Signed" is deliberately NOT offered here as a manual "Change Status"
+// target even though the backend's own table allows it --
+// contract_service.set_status still accepts it (that's what
+// verify_contract_otp calls), but the only way to actually reach it is
+// a confirmed client email OTP (see ProjectContractTab.vue's
+// OtpVerificationDialog), same treatment as Quotation's "Approved".
 export const CONTRACT_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Draft: ['Signed'],
+  Draft: [],
   Signed: ['Active'],
   Active: ['Expired', 'Terminated'],
   Expired: ['Draft'],

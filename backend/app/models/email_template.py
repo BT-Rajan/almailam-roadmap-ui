@@ -9,6 +9,7 @@ from app.models.user import BigPK
 # codebase (see email_template_service.DEFAULT_TEMPLATES for the map).
 # Unlike DocumentTemplate, these aren't admin-creatable/deletable --
 # there is always exactly one row per key, seeded by migration 0069
+# (contract_otp/contract_signed seeded separately by migration 0071)
 # with the app's original hardcoded copy so behavior is unchanged until
 # an admin edits one.
 EMAIL_TEMPLATE_KEYS = (
@@ -19,6 +20,8 @@ EMAIL_TEMPLATE_KEYS = (
     "requirement_confirmed",
     "quotation_otp",
     "quotation_approved",
+    "contract_otp",
+    "contract_signed",
 )
 
 

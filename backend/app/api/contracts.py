@@ -8,6 +8,7 @@ from app.core.exceptions import ValidationAppError
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.common import OtpVerifyRequest
 from app.schemas.contract import (
     ContractCreate,
     ContractOut,
@@ -102,6 +103,23 @@ def set_status(
     contract = contract_service.set_status(
         db, contract_no, payload.status, payload.reason, current_user.id
     )
+    return _to_out(db, contract)
+
+
+@router.post("/{contract_no}/send-otp", response_model=ContractOut)
+def send_contract_otp(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    contract = contract_service.send_contract_otp(db, contract_no, current_user.id)
+    return _to_out(db, contract)
+
+
+@router.post("/{contract_no}/verify-otp", response_model=ContractOut)
+def verify_contract_otp(
+    contract_no: str,
+    payload: OtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    contract = contract_service.verify_contract_otp(db, contract_no, payload.code, current_user.id)
     return _to_out(db, contract)
 
 

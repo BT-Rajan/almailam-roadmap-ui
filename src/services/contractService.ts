@@ -130,6 +130,34 @@ async function reopenContract(contractId: string): Promise<Contract> {
   }
 }
 
+/**
+ * Sends (or resends) the email OTP that gets the client's signature on
+ * a finalized contract -- see backend contract_service.send_contract_otp.
+ */
+async function sendContractOtp(contractId: string): Promise<Contract> {
+  try {
+    return await apiClient.post<Contract>(`/api/contracts/${contractId}/send-otp`, {})
+  } catch (error) {
+    console.error(`Failed to send signing code for contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+  }
+}
+
+/**
+ * Confirms the code the client read back to staff. On success the
+ * backend moves the contract to Signed (which auto-advances the
+ * project's stage) and emails the client a copy of the signed contract.
+ * See backend contract_service.verify_contract_otp.
+ */
+async function verifyContractOtp(contractId: string, code: string): Promise<Contract> {
+  try {
+    return await apiClient.post<Contract>(`/api/contracts/${contractId}/verify-otp`, { code })
+  } catch (error) {
+    console.error(`Failed to verify signing code for contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+  }
+}
+
 export const contractService = {
   getContractsByProject,
   getContractById,
@@ -140,4 +168,6 @@ export const contractService = {
   deleteContract,
   finalizeContract,
   reopenContract,
+  sendContractOtp,
+  verifyContractOtp,
 }

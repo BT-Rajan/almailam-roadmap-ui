@@ -4,13 +4,13 @@ from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.mixins import SoftDeleteMixin, TimestampMixin
+from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 CONTRACT_STATUSES = ("Draft", "Signed", "Active", "Expired", "Terminated")
 
 
-class Contract(Base, TimestampMixin, SoftDeleteMixin):
+class Contract(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "contracts"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -45,6 +45,10 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin):
     # A contract can't leave Draft status until this is set (see
     # contract_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Email OTP approval -- otp_code_hash/otp_expires_at/otp_attempts/
+    # otp_sent_at come from EmailOtpMixin; see contract_service.
+    # send_contract_otp/verify_contract_otp. Confirming the code is the
+    # only path to status == "Signed".
 
 
 class ContractClause(Base):

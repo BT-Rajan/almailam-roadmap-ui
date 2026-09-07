@@ -2,17 +2,19 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.status_transitions import (
     CONTRACT_ALLOWED_TRANSITIONS,
     CONTRACT_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.client import Client
 from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service, project_service, timeline_service
+from app.services import audit_service, document_template_service, email_service, email_template_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -327,6 +329,127 @@ def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
     audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract reopened for editing", user_id)
     db.commit()
     db.refresh(contract)
+    return contract
+
+
+def send_contract_otp(db: Session, contract_no: str, user_id: int) -> Contract:
+    """Sends (or resends) the email OTP that gates a contract into
+    "Signed" -- the client-facing counterpart to staff finalizing and
+    emailing it (see api/contracts.py's document/email route, unchanged).
+    Requires Draft + finalized (the same "content has to be locked
+    before a decision is recorded on it" rule set_status already
+    enforces) so an OTP is never sent against still-editable content.
+    Reuses app/core/otp.py's generation/hashing, shared with client
+    onboarding, Requirement confirmation, and Quotation approval."""
+    contract = get_contract(db, contract_no)
+    if contract.status != "Draft" or contract.finalized_at is None:
+        raise ValidationAppError(
+            "Save the contract as Final before sending it to the client for signing."
+        )
+
+    code = otp.generate_code()
+    contract.otp_code_hash = otp.hash_code(code)
+    contract.otp_expires_at = otp.new_expiry()
+    contract.otp_attempts = 0
+    contract.otp_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Signing OTP sent", user_id)
+    db.commit()
+    db.refresh(contract)
+
+    project = db.query(Project).filter(Project.id == contract.project_id).first()
+    client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
+    if client is None:
+        raise ValidationAppError("This contract's project/client record is missing.")
+
+    subject, body = email_template_service.render(
+        db,
+        "contract_otp",
+        {
+            "contact_person": client.contact_person,
+            "code": code,
+            "contract_no": contract.contract_no,
+            "validity_label": otp.validity_label(),
+        },
+    )
+    email_service.send_email(client.email, subject, body, db=db)
+    return contract
+
+
+def _contract_summary_text(contract: Contract, clauses: list[ContractClause]) -> str:
+    lines = [
+        f"Contract Value: {contract.contract_value:.2f} {contract.currency}",
+        f"Client Representative: {contract.client_representative}",
+        f"Expiry Date: {contract.expiry_date.isoformat()}",
+    ]
+    if clauses:
+        lines.append("")
+        lines.append("Clauses:")
+        lines.extend(f"  - {clause.title}: {clause.content}" for clause in clauses)
+    return "\n".join(lines)
+
+
+def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) -> Contract:
+    """Confirms the code the client read back to staff -- the client's
+    signature on the contract. Success is what actually moves the
+    contract to "Signed" (reuses set_status, which already handles
+    signed_date and project_service.try_auto_advance_stage -- not
+    reimplemented here). The client is always emailed a copy of the
+    signed contract (PDF attached) once confirmed."""
+    contract = get_contract(db, contract_no)
+    if contract.status != "Draft" or contract.finalized_at is None:
+        raise ValidationAppError("This contract isn't awaiting signature.")
+    if not contract.otp_code_hash or not contract.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if otp.is_expired(contract.otp_expires_at):
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if contract.otp_attempts >= otp.MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+
+    if not otp.code_matches(code, contract.otp_code_hash):
+        contract.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    contract.otp_code_hash = None
+    contract.otp_expires_at = None
+    contract.otp_attempts = 0
+    contract.otp_sent_at = None
+    db.commit()
+
+    contract = set_status(db, contract_no, "Signed", None, user_id)
+
+    project = db.query(Project).filter(Project.id == contract.project_id).first()
+    if project is None:
+        return contract
+
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
+        return contract
+
+    try:
+        clauses = get_clauses(db, contract.id)
+        subject, body = email_template_service.render(
+            db,
+            "contract_signed",
+            {
+                "contact_person": client.contact_person,
+                "contract_no": contract.contract_no,
+                "summary": _contract_summary_text(contract, clauses),
+            },
+        )
+
+        content, filename = document_template_service.render_contract_pdf(db, contract, None)
+        email_service.send_document_email(
+            to_email=client.email,
+            subject=subject,
+            body_text=body,
+            attachment_bytes=content,
+            attachment_filename=filename,
+            attachment_mimetype="application/pdf",
+            db=db,
+        )
+    except ValidationAppError:
+        pass
     return contract
 
 

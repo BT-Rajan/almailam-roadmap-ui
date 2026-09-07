@@ -40,6 +40,15 @@ QUOTATION_STATUSES_REQUIRING_REASON = {"Rejected"}
 # their one pre-signing correction path (Sent -> Draft) as a result --
 # accepted, since nothing was ever attached to "Sent" for it to have
 # been guarding.
+#
+# "Signed" is deliberately still listed here as a Draft transition --
+# contract_service.set_status still accepts it (that's what
+# verify_contract_otp calls) -- but the only way to actually reach it is
+# a confirmed client email OTP (see ProjectContractTab.vue's
+# OtpVerificationDialog), same treatment as Quotation's "Approved". The
+# frontend's own mirror of this table (CONTRACT_ALLOWED_TRANSITIONS in
+# src/constants/quotationContractOptions.ts) omits it from Draft's
+# manual "Change Status" options for that reason.
 CONTRACT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Draft": {"Signed"},
     "Signed": {"Active"},

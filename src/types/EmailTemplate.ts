@@ -8,6 +8,8 @@ export type EmailTemplateKey =
   | 'requirement_confirmed'
   | 'quotation_otp'
   | 'quotation_approved'
+  | 'contract_otp'
+  | 'contract_signed'
 
 export interface EmailTemplate {
   key: EmailTemplateKey
