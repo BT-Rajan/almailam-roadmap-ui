@@ -8,6 +8,7 @@ from app.core.exceptions import ValidationAppError
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.common import OtpVerifyRequest
 from app.schemas.document_template import DocumentEmailRequest
 from app.schemas.quotation import (
     QuotationCreate,
@@ -95,6 +96,23 @@ def set_status(
     quotation = quotation_service.set_status(
         db, quotation_no, payload.status, payload.reason, current_user.id
     )
+    return _to_out(db, quotation)
+
+
+@router.post("/{quotation_no}/send-otp", response_model=QuotationOut)
+def send_quotation_otp(quotation_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    quotation = quotation_service.send_quotation_otp(db, quotation_no, current_user.id)
+    return _to_out(db, quotation)
+
+
+@router.post("/{quotation_no}/verify-otp", response_model=QuotationOut)
+def verify_quotation_otp(
+    quotation_no: str,
+    payload: OtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    quotation = quotation_service.verify_quotation_otp(db, quotation_no, payload.code, current_user.id)
     return _to_out(db, quotation)
 
 

@@ -1,17 +1,25 @@
 // Mirrors backend/app/core/status_transitions.py's QUOTATION_ALLOWED_
-// TRANSITIONS and CONTRACT_ALLOWED_TRANSITIONS exactly -- kept in sync
-// by hand, same as PROJECT_STAGE_ALLOWED_TRANSITIONS in
-// constants/projectOptions.ts. The backend is still the source of
-// truth and re-validates independently; this only drives which
-// options the UI offers.
+// TRANSITIONS and CONTRACT_ALLOWED_TRANSITIONS -- kept in sync by hand,
+// same as PROJECT_STAGE_ALLOWED_TRANSITIONS in constants/
+// projectOptions.ts. The backend is still the source of truth and
+// re-validates independently; this only drives which options the UI
+// offers.
 //
 // Both quotations and contracts share one extra rule the backend
 // enforces that isn't a transition-table entry: a document can't move
 // out of Draft status until it's been saved as Final (finalized_at
 // set). See ProjectQuotationTab.vue / ProjectContractTab.vue, which
 // only offer "Change Status" once that's true.
+//
+// "Approved" is deliberately NOT offered here as a manual "Change
+// Status" target even though the backend's own table allows it --
+// quotation_service.set_status still accepts it (that's what
+// verify_quotation_otp calls), but the only way to actually reach it is
+// a confirmed client email OTP (see ProjectQuotationTab.vue's
+// OtpVerificationDialog), same treatment as Client's "Ready" and the
+// Requirement stage's own scope confirmation.
 export const QUOTATION_ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  Draft: ['Approved', 'Rejected', 'Expired'],
+  Draft: ['Rejected', 'Expired'],
   Approved: [],
   Rejected: ['Draft'],
   Expired: ['Draft'],

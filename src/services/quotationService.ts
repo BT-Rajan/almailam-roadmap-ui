@@ -129,6 +129,34 @@ async function reopenQuotation(quotationId: string): Promise<Quotation> {
   }
 }
 
+/**
+ * Sends (or resends) the email OTP that gets the client's approval of
+ * a finalized quotation -- see backend quotation_service.send_quotation_otp.
+ */
+async function sendQuotationOtp(quotationId: string): Promise<Quotation> {
+  try {
+    return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/send-otp`, {})
+  } catch (error) {
+    console.error(`Failed to send approval code for quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+  }
+}
+
+/**
+ * Confirms the code the client read back to staff. On success the
+ * backend moves the quotation to Approved (which auto-advances the
+ * project's stage) and emails the client a copy of the accepted
+ * quotation. See backend quotation_service.verify_quotation_otp.
+ */
+async function verifyQuotationOtp(quotationId: string, code: string): Promise<Quotation> {
+  try {
+    return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/verify-otp`, { code })
+  } catch (error) {
+    console.error(`Failed to verify approval code for quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+  }
+}
+
 export const quotationService = {
   getQuotationsByProject,
   getQuotationById,
@@ -139,4 +167,6 @@ export const quotationService = {
   deleteQuotation,
   finalizeQuotation,
   reopenQuotation,
+  sendQuotationOtp,
+  verifyQuotationOtp,
 }

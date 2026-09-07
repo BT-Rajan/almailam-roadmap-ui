@@ -179,13 +179,13 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
       :title="t('payment.statusPanel.noPlanDefinedTitle')"
       :description="t('payment.statusPanel.noPlanDefinedDescription')"
       :action-label="t('payment.statusPanel.goToPaymentPlan')"
-      @action="emit('navigate-tab', 'payment-plan')"
+      @action="emit('navigate-tab', 'quotation')"
     />
 
     <template v-else>
       <p v-if="streamsMissingAgreement().length > 0" class="text-sm text-text-muted">
         {{ t('payment.statusPanel.missingPlanNotice', { streams: streamsMissingAgreement().map((s) => agreementStreamLabel(s)).join(' and ') }) }}
-        <button type="button" class="text-accent-600 underline" @click="emit('navigate-tab', 'payment-plan')">{{ t('payment.statusPanel.missingPlanLink') }}</button>.
+        <button type="button" class="text-accent-600 underline" @click="emit('navigate-tab', 'quotation')">{{ t('payment.statusPanel.missingPlanLink') }}</button>.
       </p>
 
       <div v-for="stream in streamsWithAgreement()" :key="stream" class="flex flex-col gap-4">

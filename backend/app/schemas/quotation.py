@@ -73,6 +73,11 @@ class QuotationOut(BaseModel):
     lineItems: list[QuotationLineItemOut]
     amount: float
     finalizedAt: datetime | None
+    # Non-null while an approval code is outstanding -- see
+    # quotation_service.send_quotation_otp/verify_quotation_otp. Lets
+    # the frontend reopen the OTP dialog straight to "enter code" when
+    # one's already on its way, same idea as ScopeOfWorkOut.otpSentAt.
+    otpSentAt: datetime | None = None
     revisions: list[QuotationRevisionOut]
 
     @staticmethod
@@ -95,6 +100,7 @@ class QuotationOut(BaseModel):
             lineItems=[QuotationLineItemOut.from_model(i) for i in line_items],
             amount=float(quotation.amount),
             finalizedAt=quotation.finalized_at,
+            otpSentAt=quotation.otp_sent_at,
             revisions=[QuotationRevisionOut.from_model(r, name) for r, name in revisions],
         )
 

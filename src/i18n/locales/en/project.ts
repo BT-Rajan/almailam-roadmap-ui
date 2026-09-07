@@ -273,13 +273,13 @@ export default {
 
   quotationTab: {
     newQuotation: 'New Quotation',
-    advanceToPaymentPlan: 'Advance to Payment Plan',
     changeStatus: 'Change Status',
     reopenForEditing: 'Reopen for Editing',
     saveAsFinal: 'Save as Final',
     printQuotation: 'Print Quotation',
     downloadDocument: 'Download Document',
     emailQuotation: 'Email Quotation',
+    sendVerificationCode: 'Send Verification Code',
     noQuotationSelectedTitle: 'No quotation selected',
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
     recipientEmail: 'Recipient Email',
@@ -289,6 +289,15 @@ export default {
     quotationCreatedTitle: 'Quotation created',
     failedToUpdateQuotation: 'Failed to update quotation',
     failedToFinalizeQuotation: 'Failed to finalize quotation',
+    paymentPlanTitle: 'Payment Plan',
+    otpDialog: {
+      title: 'Approve Quotation',
+      sendStepDescription: "Send a one-time verification code to {email}. Ask the client to read it back to you once they've reviewed and accepted the quotation.",
+      failedToSend: 'Failed to send verification code',
+      failedToVerify: 'Failed to verify code',
+      approvedTitle: 'Quotation approved',
+      approvedDescription: "The client's approval was recorded. A copy of the accepted quotation was emailed to them.",
+    },
   },
 
   revisionHistory: {

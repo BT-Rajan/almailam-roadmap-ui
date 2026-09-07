@@ -77,10 +77,17 @@ export function getWorkflowStageLabelKey(stage: WorkflowStage): string {
 // previously only defined inline as WorkflowProgress.vue's own
 // STAGE_TABS. Pulled out here for the same reason as the label keys
 // above.
+//
+// "Payment Plan" points at 'quotation', not a dedicated tab of its own
+// -- the Payment Plan agreement/approval UI (PaymentPlanPanel.vue) now
+// lives embedded inside the Quotation tab (see ProjectQuotationTab.vue),
+// since staff work through it as part of the same quotation-negotiation
+// conversation with the client. Payment Status (ongoing collections
+// tracking, a different and longer-lived concern) keeps its own tab.
 const WORKFLOW_STAGE_TAB_KEYS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Requirement: 'requirement',
   Quotation: 'quotation',
-  'Payment Plan': 'payment-plan',
+  'Payment Plan': 'quotation',
   Contract: 'contract',
   Design: 'design',
   Supervision: 'supervision',

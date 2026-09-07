@@ -26,7 +26,6 @@ const ProjectContractTab = defineAsyncComponent(() => import('@/components/proje
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
-const PaymentPlanPanel = defineAsyncComponent(() => import('@/components/payment/PaymentPlanPanel.vue'))
 const PaymentStatusPanel = defineAsyncComponent(() => import('@/components/payment/PaymentStatusPanel.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
@@ -57,7 +56,7 @@ const { t } = useI18n()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-plan', 'payment-status', 'contract', 'design', 'supervision', 'government', 'tasks']
+const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-status', 'contract', 'design', 'supervision', 'government', 'tasks']
 const queryTab = route.query.tab
 const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
 const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
@@ -97,7 +96,6 @@ const stageContext = ref<WorkflowStage>('Requirement')
 const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   requirement: 'Requirement',
   quotation: 'Quotation',
-  'payment-plan': 'Payment Plan',
   'payment-status': 'Payment Plan',
   contract: 'Contract',
   design: 'Design',
@@ -139,16 +137,16 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Payment Plan':
-      // Unlike Quotation/Contract/Design/Government, Payment Plan and
-      // Payment Status are real top-bar tabs here rather than only
-      // stepper-driven -- this is the one stage where staff are actively
-      // working the payment plan itself (define/edit/approve it, then
-      // track what's actually been collected against it), so both
-      // deserve their own tab rather than being buried behind the
-      // stepper the way a stage staff mostly just glance at doesn't.
+      // No Payment Plan tab here anymore -- the agreement/approval UI
+      // (PaymentPlanPanel.vue) now lives embedded inside the Quotation
+      // tab (see ProjectQuotationTab.vue and WORKFLOW_STAGE_TAB_KEYS in
+      // utils/projectHelpers.ts, which is why the stepper's own Payment
+      // Plan step lands there too). Payment Status stays a real top-bar
+      // tab -- unlike the plan itself, tracking what's actually been
+      // collected is an ongoing concern staff return to long after
+      // Quotation is done, not something to bury behind the stepper.
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
-        { key: 'payment-plan', label: t('project.workspaceTabs.paymentPlan') },
         { key: 'payment-status', label: t('project.workspaceTabs.paymentStatus') },
         { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
@@ -212,7 +210,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payment-plan', 'payment-status', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payment-status', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -425,7 +423,13 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
       <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
-      <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
+      <ProjectQuotationTab
+        v-else-if="activeTab === 'quotation'"
+        :project="project"
+        :client="client"
+        @navigate-tab="activeTab = $event"
+        @add-service="openAddServiceDialog"
+      />
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
       <div
         v-else-if="activeTab === 'documents' || activeTab === 'design'"
@@ -442,9 +446,6 @@ async function handleConfirmDelete(): Promise<void> {
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">
         <ProjectTasksTab :project="project" />
-      </div>
-      <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
-        <PaymentPlanPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
       </div>
       <div v-else-if="activeTab === 'payment-status'" id="project-tabpanel-payment-status" role="tabpanel" aria-labelledby="project-tab-payment-status" tabindex="0">
         <PaymentStatusPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />

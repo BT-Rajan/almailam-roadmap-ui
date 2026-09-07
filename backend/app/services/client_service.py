@@ -413,7 +413,7 @@ def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Cli
         "Your Al Mailam verification code",
         f"Your verification code is {code}.\n\n"
         f"Share this code with the staff member handling your onboarding to confirm your "
-        f"email address. It expires in {otp.VALIDITY_MINUTES} minutes.\n\n"
+        f"email address. It expires in {otp.validity_label()}.\n\n"
         "If you didn't request this, you can safely ignore this email.",
         db=db,
     )

@@ -916,23 +916,27 @@ def get_scope_revisions_with_names(db: Session, project_id: int) -> list[tuple[P
 
 
 def _assert_requirement_editable(db: Session, project: Project) -> None:
-    """Once a quotation has been finalized (locked content, see
-    quotation_service's finalize rule), the Requirement stage's own
-    scope-of-work text is frozen too -- the quotation was built against
-    that exact scope, so editing it afterward would silently invalidate
-    a document staff already treat as final. Checked here rather than
-    only on the frontend so a direct API call can't bypass it either,
-    same convention as every other lock in this app (Quotation/Contract
-    content, Draft-only Payment Plan edits)."""
-    has_finalized_quotation = (
+    """The Requirement stage's own scope-of-work text stays editable all
+    the way through quotation negotiation -- finalizing and even sending
+    a quotation doesn't lock it, since the client may still come back
+    asking for scope changes before they accept. It only freezes once a
+    quotation has actually been Approved (see quotation_service.
+    verify_quotation_otp, the only path to that status): at that point
+    the client has accepted both the scope and what it costs, and
+    editing the scope afterward would silently invalidate what they
+    just signed off on. Checked here rather than only on the frontend so
+    a direct API call can't bypass it either, same convention as every
+    other lock in this app (Quotation/Contract content, Draft-only
+    Payment Plan edits)."""
+    has_approved_quotation = (
         db.query(Quotation)
-        .filter(Quotation.project_id == project.id, Quotation.finalized_at.isnot(None), Quotation.deleted_at.is_(None))
+        .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
         .first()
         is not None
     )
-    if has_finalized_quotation:
+    if has_approved_quotation:
         raise ValidationAppError(
-            "The scope of work is locked -- this project's quotation has already been finalized against it."
+            "The scope of work is locked -- this project's quotation has already been approved."
         )
 
 
@@ -1069,7 +1073,7 @@ def send_requirement_otp(db: Session, project_no: str, user_id: int) -> Project:
         f"Your verification code is {code}.\n\n"
         f"Share this code with the staff member handling project {project.project_name} "
         f"({project.project_no}) to confirm you accept the scope of work as written. "
-        f"It expires in {otp.VALIDITY_MINUTES} minutes.\n\n"
+        f"It expires in {otp.validity_label()}.\n\n"
         "If you didn't request this, you can safely ignore this email.",
         db=db,
     )

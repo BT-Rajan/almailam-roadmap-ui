@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.status_transitions import (
     QUOTATION_ALLOWED_TRANSITIONS,
@@ -10,10 +11,11 @@ from app.core.status_transitions import (
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import Client
-from app.models.project import Project
+from app.models.payment import AGREEMENT_STREAMS
+from app.models.project import Project, ProjectScopeRevision
 from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
 from app.models.user import User
-from app.services import audit_service, project_service, timeline_service
+from app.services import audit_service, document_template_service, email_service, payment_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -326,6 +328,181 @@ def reopen_quotation(db: Session, quotation_no: str, user_id: int) -> Quotation:
     audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation reopened for editing", user_id)
     db.commit()
     db.refresh(quotation)
+    return quotation
+
+
+def send_quotation_otp(db: Session, quotation_no: str, user_id: int) -> Quotation:
+    """Sends (or resends) the email OTP that gates a quotation into
+    "Approved" -- the client-facing counterpart to staff finalizing and
+    emailing it (see api/quotations.py's document/email route, unchanged).
+    Requires Draft + finalized (the same "content has to be locked
+    before a decision is recorded on it" rule set_status already
+    enforces) so an OTP is never sent against still-editable content.
+    Reuses app/core/otp.py's generation/hashing, shared with client
+    onboarding and Requirement confirmation."""
+    quotation = get_quotation(db, quotation_no)
+    if quotation.status != "Draft" or quotation.finalized_at is None:
+        raise ValidationAppError(
+            "Save the quotation as Final before sending it to the client for approval."
+        )
+
+    code = otp.generate_code()
+    quotation.otp_code_hash = otp.hash_code(code)
+    quotation.otp_expires_at = otp.new_expiry()
+    quotation.otp_attempts = 0
+    quotation.otp_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Approval OTP sent", user_id)
+    db.commit()
+    db.refresh(quotation)
+
+    project = db.query(Project).filter(Project.id == quotation.project_id).first()
+    client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
+    if client is None:
+        raise ValidationAppError("This quotation's project/client record is missing.")
+
+    email_service.send_email(
+        client.email,
+        f"Your approval code for Quotation {quotation.quotation_no}",
+        f"Dear {client.contact_person},\n\n"
+        f"Your verification code is {code}.\n\n"
+        f"Share this code with the staff member handling Quotation {quotation.quotation_no} "
+        f"to confirm you accept it. It expires in {otp.validity_label()}.\n\n"
+        "If you didn't request this, you can safely ignore this email.",
+        db=db,
+    )
+    return quotation
+
+
+def _quotation_breakdown_text(quotation: Quotation, line_items: list[QuotationLineItem]) -> str:
+    lines = [f"{item.description}: {item.quantity} x {item.unit_price:.2f} {quotation.currency} "
+             f"= {(Decimal(str(item.quantity)) * Decimal(str(item.unit_price))):.2f} {quotation.currency}"
+             for item in line_items]
+    lines.append(f"Discount: {quotation.discount_amount:.2f} {quotation.currency}")
+    lines.append(f"Total: {quotation.amount:.2f} {quotation.currency}")
+    return "\n".join(lines)
+
+
+def _payment_plan_summary_text(db: Session, project: Project) -> str:
+    sections: list[str] = []
+    for stream in AGREEMENT_STREAMS:
+        agreement = payment_service.get_agreement_by_project(db, project.project_no, stream)
+        if agreement is None:
+            continue
+        obligations = payment_service.get_obligations(db, agreement.id)
+        lines = [
+            f"{stream} -- {agreement.contract_amount:.2f} {agreement.currency}, "
+            f"{agreement.payment_frequency}, status: {agreement.status}",
+        ]
+        lines.extend(
+            f"  - {o.description}: {o.amount_due:.2f} {agreement.currency} due {o.due_date.isoformat()}"
+            for o in obligations
+        )
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
+
+
+def verify_quotation_otp(db: Session, quotation_no: str, code: str, user_id: int) -> Quotation:
+    """Confirms the code the client read back to staff -- the client's
+    acceptance of the quotation. Success is what actually moves the
+    quotation to "Approved" (reuses set_status, which already triggers
+    project_service.try_auto_advance_stage -- not reimplemented here).
+
+    If the project's scope of work hasn't been reconfirmed by the client
+    since it was last edited (project.scope_client_confirmed_at is None
+    -- see project_service.save_scope_of_work, which clears it on every
+    edit), this same code also serves as that reconfirmation: one OTP
+    covers a scope change made mid-negotiation instead of requiring a
+    separate round through the Requirement stage's own OTP. Either way,
+    the client is emailed a copy of the accepted quotation (PDF
+    attached), always with its breakdown and a Payment Plan summary
+    when one exists, and with a "what changed in the scope" section
+    only when this call also just reconfirmed it.
+    """
+    quotation = get_quotation(db, quotation_no)
+    if quotation.status != "Draft" or quotation.finalized_at is None:
+        raise ValidationAppError("This quotation isn't awaiting approval.")
+    if not quotation.otp_code_hash or not quotation.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if otp.is_expired(quotation.otp_expires_at):
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if quotation.otp_attempts >= otp.MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+
+    if not otp.code_matches(code, quotation.otp_code_hash):
+        quotation.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    quotation.otp_code_hash = None
+    quotation.otp_expires_at = None
+    quotation.otp_attempts = 0
+    quotation.otp_sent_at = None
+    db.commit()
+
+    quotation = set_status(db, quotation_no, "Approved", None, user_id)
+
+    project = db.query(Project).filter(Project.id == quotation.project_id).first()
+    scope_was_reconfirmed = project is not None and project.scope_client_confirmed_at is None
+    if project is not None and scope_was_reconfirmed:
+        project.scope_client_confirmed_at = datetime.now(timezone.utc)
+        project.otp_code_hash = None
+        project.otp_expires_at = None
+        project.otp_attempts = 0
+        project.otp_sent_at = None
+        audit_service.log_event(
+            db, "PROJECT", project.id, "Scope of work confirmed via quotation OTP", user_id
+        )
+        timeline_service.create_system_event(
+            db, project.id, "note", title="Scope of work confirmed by client", description=project.description, actor_id=user_id,
+        )
+        db.flush()
+        project_service.try_auto_advance_stage(db, project, user_id)
+        db.commit()
+        db.refresh(project)
+
+    if project is None:
+        return quotation
+
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
+        return quotation
+
+    try:
+        line_items = get_line_items(db, quotation.id)
+        body = (
+            f"Dear {client.contact_person},\n\n"
+            f"Thank you for confirming Quotation {quotation.quotation_no}. Please find a copy attached.\n\n"
+            "Quotation breakdown:\n" + _quotation_breakdown_text(quotation, line_items) + "\n\n"
+        )
+        if scope_was_reconfirmed:
+            latest_revision = (
+                db.query(ProjectScopeRevision)
+                .filter(ProjectScopeRevision.project_id == project.id)
+                .order_by(ProjectScopeRevision.id.desc())
+                .first()
+            )
+            body += (
+                "The scope of work was also updated as part of this approval"
+                + (f" ({latest_revision.summary})" if latest_revision else "")
+                + f":\n{project.description}\n\n"
+            )
+        payment_plan_text = _payment_plan_summary_text(db, project)
+        if payment_plan_text:
+            body += "Payment plan:\n" + payment_plan_text + "\n\n"
+        body += "This is an informational message -- no action is needed."
+
+        content, filename = document_template_service.render_quotation_pdf(db, quotation, None)
+        email_service.send_document_email(
+            to_email=client.email,
+            subject=f"Quotation {quotation.quotation_no} confirmed",
+            body_text=body,
+            attachment_bytes=content,
+            attachment_filename=filename,
+            attachment_mimetype="application/pdf",
+            db=db,
+        )
+    except ValidationAppError:
+        pass
     return quotation
 
 

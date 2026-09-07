@@ -100,5 +100,17 @@ export const useQuotationStore = defineStore('quotation', {
       this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
       return updated
     },
+
+    async sendQuotationOtp(quotationId: string): Promise<Quotation> {
+      const updated = await quotationService.sendQuotationOtp(quotationId)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
+
+    async verifyQuotationOtp(quotationId: string, code: string): Promise<Quotation> {
+      const updated = await quotationService.verifyQuotationOtp(quotationId, code)
+      this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
+      return updated
+    },
   },
 })

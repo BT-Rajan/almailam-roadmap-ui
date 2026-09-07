@@ -407,7 +407,7 @@ function verificationResultLabel(result: string): string {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.paymentPlanTitle') }}</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
@@ -521,7 +521,7 @@ function verificationResultLabel(result: string): string {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.supervisionTitle') }}</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
+          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'quotation')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">

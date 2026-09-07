@@ -4,13 +4,13 @@ from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, Numeric, String, 
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.mixins import SoftDeleteMixin, TimestampMixin
+from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 QUOTATION_STATUSES = ("Draft", "Approved", "Rejected", "Expired")
 
 
-class Quotation(Base, TimestampMixin, SoftDeleteMixin):
+class Quotation(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "quotations"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -45,6 +45,10 @@ class Quotation(Base, TimestampMixin, SoftDeleteMixin):
     # ready to print. A quotation can't leave Draft status until this
     # is set (see quotation_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Email OTP approval -- otp_code_hash/otp_expires_at/otp_attempts/
+    # otp_sent_at come from EmailOtpMixin; see quotation_service.
+    # send_quotation_otp/verify_quotation_otp. Confirming the code is
+    # the only path to status == "Approved".
 
 
 class QuotationRevision(Base):

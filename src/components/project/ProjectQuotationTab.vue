@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowLeftRight, ArrowRight, Download, Lock, LockOpen, Mail, Plus, Printer } from '@lucide/vue'
+import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer, ShieldCheck } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
@@ -13,7 +14,7 @@ import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
-import { useLocale } from '@/composables/useLocale'
+import PaymentPlanPanel from '@/components/payment/PaymentPlanPanel.vue'
 import { QUOTATION_ALLOWED_TRANSITIONS, isQuotationReasonRequired } from '@/constants/quotationContractOptions'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import type { QuotationCreateInput } from '@/services/quotationService'
@@ -27,7 +28,6 @@ import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
-import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -36,6 +36,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'navigate-tab': [tab: ProjectWorkspaceTabKey]
+  'add-service': []
 }>()
 
 const quotationStore = useQuotationStore()
@@ -43,11 +44,6 @@ const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
-const { isRtl } = useLocale()
-
-// Points the way this action advances the project, which flips with
-// reading direction.
-const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
@@ -132,6 +128,17 @@ const isEmailDialogOpen = ref(false)
 const isSendingEmail = ref(false)
 const emailTo = ref('')
 
+const isOtpDialogOpen = ref(false)
+const isOtpSaving = ref(false)
+const otpStep = ref<'send' | 'enter-code'>('send')
+
+// Draft + finalized -- content locked, ready for a decision -- and not
+// already awaiting a status the OTP path doesn't apply to. Mirrors
+// hasStatusOptions' own "must be finalized" gate.
+const canSendOtp = computed(
+  () => quotationStore.selectedQuotation?.status === 'Draft' && Boolean(quotationStore.selectedQuotation?.finalizedAt),
+)
+
 function openEmailDialog(): void {
   emailTo.value = props.client?.email ?? ''
   isEmailDialogOpen.value = true
@@ -150,6 +157,47 @@ async function handleSendEmail(): Promise<void> {
     resultDialogStore.showError(t('common.failedToSendEmail'), detail)
   } finally {
     isSendingEmail.value = false
+  }
+}
+
+function handleOpenOtpDialog(): void {
+  otpStep.value = quotationStore.selectedQuotation?.otpSentAt ? 'enter-code' : 'send'
+  isOtpDialogOpen.value = true
+}
+
+async function handleSendOtp(): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  isOtpSaving.value = true
+  try {
+    await quotationStore.sendQuotationOtp(quotation.id)
+    otpStep.value = 'enter-code'
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.quotationTab.otpDialog.failedToSend'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
+async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+  const quotation = quotationStore.selectedQuotation
+  if (!quotation) return
+  isOtpSaving.value = true
+  try {
+    await quotationStore.verifyQuotationOtp(quotation.id, payload.code)
+    // verifyQuotationOtp can move current_stage server-side (see
+    // quotation_service.set_status -> try_auto_advance_stage) -- same
+    // "sync the shared store's cached copy" reasoning as handleStatusConfirm
+    // below.
+    await projectStore.refreshProject(props.project.id)
+    isOtpDialogOpen.value = false
+    resultDialogStore.showSuccess(t('project.quotationTab.otpDialog.approvedTitle'), t('project.quotationTab.otpDialog.approvedDescription'))
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.quotationTab.otpDialog.failedToVerify'), detail)
+  } finally {
+    isOtpSaving.value = false
   }
 }
 
@@ -214,22 +262,16 @@ async function handleSaveAsFinal(patch: Partial<Quotation>): Promise<void> {
   }
 }
 
-// Draft -> Approved/Rejected/Expired, and back to Draft from either of
-// the latter two. The backend refuses moving out of Draft unless the
-// quotation is already saved as Final (see quotation_service.
-// set_status), so this is the only path to "Approved" -- there's no
-// separate approve action, moving status IS the approval.
+// Draft -> Rejected/Expired, and back to Draft from either. "Approved"
+// is deliberately not offered here (see QUOTATION_ALLOWED_TRANSITIONS'
+// own comment) -- the only path to it is a confirmed client email OTP,
+// handled by handleConfirmOtp above.
 async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return
   isStatusSaving.value = true
   try {
     await quotationStore.setQuotationStatus(quotation.id, payload.value, payload.reason)
-    // Approving a quotation is the sole thing "Quotation" -> "Contract"
-    // waits on (project_service._assert_stage_exit_criteria) -- refresh
-    // the shared project store so the header badge and Workflow
-    // Progress stepper reflect an auto-advance immediately.
-    if (payload.value === 'Approved') await projectStore.refreshProject(props.project.id)
     isStatusDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
@@ -238,20 +280,6 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
     isStatusSaving.value = false
   }
 }
-
-// Only an Approved, Final quotation can move on -- mirrors the backend
-// check in project_service._assert_stage_exit_criteria's Payment Plan
-// entry criterion. The project's stage has already auto-advanced to
-// "Payment Plan" the moment the quotation was approved (see
-// try_auto_advance_stage); this is just the UI convenience of jumping
-// straight to that tab instead of leaving staff to find it via the
-// stepper themselves. No hand-off queue needed here the way Payment
-// Plan -> Contract uses one (quotationStore.requestAdvanceToContract) --
-// the Payment Plan tab reads the project's one Approved quotation
-// directly (see PaymentPlanPanel.vue's approvedQuotation).
-function handleAdvanceToPaymentPlan(): void {
-  emit('navigate-tab', 'payment-plan')
-}
 </script>
 
 <template>
@@ -259,16 +287,13 @@ function handleAdvanceToPaymentPlan(): void {
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <BaseButton
-        v-if="
-          !hasProjectPassedStage(project.currentStage, 'Payment Plan') &&
-          quotationStore.selectedQuotation?.status === 'Approved' &&
-          quotationStore.selectedQuotation?.finalizedAt
-        "
+        v-if="canSendOtp"
         size="sm"
-        :icon="advanceIcon"
-        @click="handleAdvanceToPaymentPlan"
+        :icon="ShieldCheck"
+        :loading="isOtpSaving"
+        @click="handleOpenOtpDialog"
       >
-        {{ t('project.quotationTab.advanceToPaymentPlan') }}
+        {{ t('project.quotationTab.sendVerificationCode') }}
       </BaseButton>
       <BaseButton
         v-if="quotationStore.selectedQuotation && hasStatusOptions"
@@ -330,6 +355,18 @@ function handleAdvanceToPaymentPlan(): void {
     </template>
   </BaseDialog>
 
+  <OtpVerificationDialog
+    v-if="client"
+    v-model="isOtpDialogOpen"
+    :email="client.email"
+    :step="otpStep"
+    :loading="isOtpSaving"
+    :title="t('project.quotationTab.otpDialog.title')"
+    :send-step-description="t('project.quotationTab.otpDialog.sendStepDescription', { email: client.email })"
+    @send="handleSendOtp"
+    @confirm="handleConfirmOtp"
+  />
+
   <div class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
     <div class="laptop:col-span-2 print:col-span-3">
       <EmptyState
@@ -370,5 +407,15 @@ function handleAdvanceToPaymentPlan(): void {
     :loading="isStatusSaving"
     @confirm="handleStatusConfirm"
   />
+
+  <div class="no-print">
+    <h3 class="mb-4 text-sm font-semibold text-text-primary">{{ t('project.quotationTab.paymentPlanTitle') }}</h3>
+    <PaymentPlanPanel
+      :project-id="project.id"
+      :project="project"
+      @navigate-tab="emit('navigate-tab', $event)"
+      @add-service="emit('add-service')"
+    />
+  </div>
 </template>
 

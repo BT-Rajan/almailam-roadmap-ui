@@ -273,13 +273,13 @@ export default {
 
   quotationTab: {
     newQuotation: 'عرض سعر جديد',
-    advanceToPaymentPlan: 'التقدم إلى خطة الدفع',
     changeStatus: 'تغيير الحالة',
     reopenForEditing: 'إعادة الفتح للتعديل',
     saveAsFinal: 'حفظ كنهائي',
     printQuotation: 'طباعة عرض السعر',
     downloadDocument: 'تنزيل المستند',
     emailQuotation: 'إرسال عرض السعر بالبريد',
+    sendVerificationCode: 'إرسال رمز التحقق',
     noQuotationSelectedTitle: 'لم يتم تحديد عرض سعر',
     noQuotationSelectedDescription: 'اختر عرض سعر من القائمة لمعاينته، أو أنشئ واحداً جديداً.',
     recipientEmail: 'بريد المستلم الإلكتروني',
@@ -289,6 +289,15 @@ export default {
     quotationCreatedTitle: 'تم إنشاء عرض السعر',
     failedToUpdateQuotation: 'فشل تحديث عرض السعر',
     failedToFinalizeQuotation: 'فشل اعتماد عرض السعر كنهائي',
+    paymentPlanTitle: 'خطة الدفع',
+    otpDialog: {
+      title: 'اعتماد عرض السعر',
+      sendStepDescription: 'أرسل رمز تحقق لمرة واحدة إلى {email}. اطلب من العميل قراءة الرمز لك بعد مراجعة عرض السعر وقبوله.',
+      failedToSend: 'فشل إرسال رمز التحقق',
+      failedToVerify: 'فشل التحقق من الرمز',
+      approvedTitle: 'تم اعتماد عرض السعر',
+      approvedDescription: 'تم تسجيل موافقة العميل. تم إرسال نسخة من عرض السعر المعتمد إليه عبر البريد الإلكتروني.',
+    },
   },
 
   revisionHistory: {
