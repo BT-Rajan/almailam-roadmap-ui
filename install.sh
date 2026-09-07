@@ -398,6 +398,37 @@ log "Database connection successful"
 #    database, never touches existing rows)
 # ----------------------------------------------------------------------------
 
+# --no-defaults MUST come first (the client requires it as the very
+# first option) and makes the client ignore every option file
+# (~/.my.cnf, /etc/mysql/my.cnf, etc.) entirely. This isn't
+# precautionary: verified live against this exact client that a
+# [client] `force` setting in ~/.my.cnf -- invisible to and
+# uncontrollable by this script -- makes it exit 0 even after a
+# statement fails, and any later statements in the same file still
+# silently run, so the migration "succeeds" while part of it never
+# happened. --no-defaults removes the setting from consideration
+# altogether rather than trying to detect its effects afterward, which
+# doesn't reliably work: the schema_migrations INSERT is a separate,
+# unaffected db_run call, so a filename can end up recorded as applied
+# even though the file's own statements partly failed. Every
+# connection parameter this script needs is already passed explicitly
+# on the command line, so no option file was ever required here.
+db_run() {
+    "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME"
+}
+
+db_query() {
+    "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -N -s "$DB_NAME"
+}
+
+MIGRATIONS_APPLIED_THIS_RUN=0
+MIGRATIONS_SKIPPED_ALREADY_APPLIED=0
+# Declared upfront (rather than only inside the branch below) so the
+# final summary can always reference ${#MIGRATIONS[@]} even when there
+# is no migrations directory at all -- set -u would otherwise treat an
+# array that was never assigned in that branch as an unbound variable.
+MIGRATIONS=()
+
 if [[ -d "$BACKEND_DIR/migrations" ]]; then
 
     mapfile -t MIGRATIONS < <(
@@ -411,7 +442,7 @@ if [[ -d "$BACKEND_DIR/migrations" ]]; then
 
     if (( ${#MIGRATIONS[@]} > 0 )); then
 
-        log "Applying database migrations"
+        log "Applying database migrations (${#MIGRATIONS[@]} file(s) on disk)"
 
         # Tracks which migration files have already been run against this
         # database, so re-running install.sh skips them instead of
@@ -420,59 +451,98 @@ if [[ -d "$BACKEND_DIR/migrations" ]]; then
         # (information_schema-guarded ADD COLUMN, etc.) -- this table is a
         # second, cheaper line of defense: skip the whole file rather than
         # rely on every statement inside it tolerating a second run.
-        "$DB_CLIENT" \
-            --protocol=tcp \
-            -h "$DB_HOST" \
-            -P "$DB_PORT" \
-            -u "$DB_USER" \
-            "$DB_NAME" <<< "
+        if ! echo "
                 CREATE TABLE IF NOT EXISTS schema_migrations (
                     filename VARCHAR(255) NOT NULL PRIMARY KEY,
                     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
-            "
+            " | db_run; then
+            die "Could not create/verify the schema_migrations table. See the database error above."
+        fi
 
         for migration in "${MIGRATIONS[@]}"; do
 
             migration_name="$(basename "$migration")"
 
             already_applied="$(
-                "$DB_CLIENT" \
-                    --protocol=tcp \
-                    -h "$DB_HOST" \
-                    -P "$DB_PORT" \
-                    -u "$DB_USER" \
-                    -N -s \
-                    "$DB_NAME" <<< "
-                        SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';
-                    "
+                echo "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';" |
+                    db_query
             )"
 
             if [[ "$already_applied" != "0" ]]; then
                 log "Migration: $migration_name (already applied, skipping)"
+                MIGRATIONS_SKIPPED_ALREADY_APPLIED=$((MIGRATIONS_SKIPPED_ALREADY_APPLIED + 1))
                 continue
             fi
 
             log "Migration: $migration_name"
 
-            "$DB_CLIENT" \
-                --protocol=tcp \
-                -h "$DB_HOST" \
-                -P "$DB_PORT" \
-                -u "$DB_USER" \
-                "$DB_NAME" < "$migration"
+            # Explicit if/die instead of relying on bare `set -e` to abort
+            # the script here: this way a failure names the exact file
+            # that broke and says plainly that nothing after it ran,
+            # instead of the operator having to infer that from wherever
+            # the script happened to stop. schema_migrations is only
+            # written to on success (below), so a failed file is never
+            # recorded as applied -- re-running install.sh after fixing
+            # the underlying issue retries it and everything after it,
+            # not just the one file.
+            if ! db_run < "$migration"; then
+                die "Migration '$migration_name' failed (see the database error above). No later migrations were applied. Fix the issue and re-run this installer -- already-applied migrations are skipped automatically, so it's safe to re-run from here."
+            fi
 
-            "$DB_CLIENT" \
-                --protocol=tcp \
-                -h "$DB_HOST" \
-                -P "$DB_PORT" \
-                -u "$DB_USER" \
-                "$DB_NAME" <<< "
-                    INSERT INTO schema_migrations (filename) VALUES ('$migration_name');
-                "
+            if ! echo "INSERT INTO schema_migrations (filename) VALUES ('$migration_name');" | db_run; then
+                die "Migration '$migration_name' ran but recording it in schema_migrations failed. Re-running this installer would re-apply it -- check that the migration file is safe to run twice before doing so, or insert the schema_migrations row manually."
+            fi
+
+            MIGRATIONS_APPLIED_THIS_RUN=$((MIGRATIONS_APPLIED_THIS_RUN + 1))
         done
 
-        log "All migrations completed"
+        log "All migrations completed ($MIGRATIONS_APPLIED_THIS_RUN applied this run, $MIGRATIONS_SKIPPED_ALREADY_APPLIED already applied)"
+
+        # Reconciliation, independent of every exit code checked above:
+        # ask the database itself which of the .sql files on disk it has
+        # no record of, rather than trusting that "the loop completed" or
+        # "the client returned 0" actually means every file's statements
+        # landed. db_run's --no-defaults already closes the specific
+        # ~/.my.cnf `force` risk this was originally added to catch (see
+        # the comment on db_run above), but this stays as a second,
+        # independent line of defense -- e.g. a process killed between a
+        # migration's own db_run and the schema_migrations INSERT that
+        # records it, or any future change to this script that
+        # reintroduces a path where a file's statements could land
+        # without ever getting recorded. Cheap, and checks something
+        # neither of those exit codes alone can guarantee: that the
+        # database's own bookkeeping actually matches disk.
+        # Captured via a plain command substitution, not
+        # `mapfile ... < <(...)` -- a failing query inside process
+        # substitution doesn't propagate its exit code back to this
+        # script even under `set -e`, so a transient failure here would
+        # silently read as "recorded nothing", which would then make
+        # every migration look falsely missing below. $(...) surfaces
+        # that failure directly instead.
+        if ! RECORDED_MIGRATIONS_RAW="$(echo "SELECT filename FROM schema_migrations;" | db_query)"; then
+            die "Could not read back schema_migrations to verify which migrations actually applied. See the database error above."
+        fi
+        mapfile -t RECORDED_MIGRATIONS <<< "$RECORDED_MIGRATIONS_RAW"
+
+        MISSING_MIGRATIONS=()
+        for migration in "${MIGRATIONS[@]}"; do
+            migration_name="$(basename "$migration")"
+            found=false
+            for recorded in "${RECORDED_MIGRATIONS[@]}"; do
+                if [[ "$recorded" == "$migration_name" ]]; then
+                    found=true
+                    break
+                fi
+            done
+            [[ "$found" == true ]] || MISSING_MIGRATIONS+=("$migration_name")
+        done
+
+        if (( ${#MISSING_MIGRATIONS[@]} > 0 )); then
+            die "Migrations exist on disk but are NOT recorded as applied in schema_migrations, even though the loop above reported success: ${MISSING_MIGRATIONS[*]}. This means the database silently didn't run what this script asked it to (a ~/.my.cnf 'force' setting is the most likely cause) -- investigate before continuing; the app is not safe to serve in this state."
+        fi
+
+        log "Verified: all ${#MIGRATIONS[@]} migration file(s) on disk are recorded as applied in schema_migrations"
 
     else
         log "No migrations found"
@@ -530,6 +600,18 @@ npm install
 if [[ "$PM2_MODE" == "single" ]]; then
     log "Building frontend"
     npm run build
+
+    # npm run build exiting 0 is not, by itself, proof the site is
+    # actually servable -- a plugin/build step that fails partway
+    # through without propagating a non-zero exit is rare but has
+    # happened in this ecosystem, and it's cheap to rule out here
+    # rather than have it surface later as "the page is blank" with no
+    # clue why. The backend's own catch-all route (see app/main.py)
+    # serves dist/index.html for every non-API path, so its absence is
+    # exactly what would make the whole site 404/500.
+    if [[ ! -f "$INSTANCE_DIR/dist/index.html" ]]; then
+        die "npm run build reported success but $INSTANCE_DIR/dist/index.html is missing. The frontend build did not actually produce a servable site -- check the build output above."
+    fi
 fi
 
 # ----------------------------------------------------------------------------
@@ -737,6 +819,9 @@ Directory:
 Deployed commit:
   ${DEPLOYED_COMMIT}
 
+Migrations:
+  ${MIGRATIONS_APPLIED_THIS_RUN} applied this run, ${MIGRATIONS_SKIPPED_ALREADY_APPLIED} already applied, ${#MIGRATIONS[@]} total on disk -- verified against schema_migrations
+
 URL:
   http://localhost:${BACKEND_PORT}
 
@@ -771,6 +856,9 @@ Directory:
 
 Deployed commit:
   ${DEPLOYED_COMMIT}
+
+Migrations:
+  ${MIGRATIONS_APPLIED_THIS_RUN} applied this run, ${MIGRATIONS_SKIPPED_ALREADY_APPLIED} already applied, ${#MIGRATIONS[@]} total on disk -- verified against schema_migrations
 
 Frontend: http://localhost:${FRONTEND_PORT}
 Backend:  http://localhost:${BACKEND_PORT}
