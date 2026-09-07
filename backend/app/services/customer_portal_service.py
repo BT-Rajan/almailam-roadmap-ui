@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, PermissionDeniedError
+from app.core.exceptions import AuthError, NotFoundError, PermissionDeniedError
 from app.core.file_storage import resolve_path
 from app.models.client import Client
 from app.models.document import ProjectDocument
