@@ -15,7 +15,7 @@ from app.models.payment import AGREEMENT_STREAMS
 from app.models.project import Project, ProjectScopeRevision
 from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
 from app.models.user import User
-from app.services import audit_service, document_template_service, email_service, payment_service, project_service, timeline_service
+from app.services import audit_service, document_template_service, email_service, email_template_service, payment_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -360,16 +360,17 @@ def send_quotation_otp(db: Session, quotation_no: str, user_id: int) -> Quotatio
     if client is None:
         raise ValidationAppError("This quotation's project/client record is missing.")
 
-    email_service.send_email(
-        client.email,
-        f"Your approval code for Quotation {quotation.quotation_no}",
-        f"Dear {client.contact_person},\n\n"
-        f"Your verification code is {code}.\n\n"
-        f"Share this code with the staff member handling Quotation {quotation.quotation_no} "
-        f"to confirm you accept it. It expires in {otp.validity_label()}.\n\n"
-        "If you didn't request this, you can safely ignore this email.",
-        db=db,
+    subject, body = email_template_service.render(
+        db,
+        "quotation_otp",
+        {
+            "contact_person": client.contact_person,
+            "code": code,
+            "quotation_no": quotation.quotation_no,
+            "validity_label": otp.validity_label(),
+        },
     )
+    email_service.send_email(client.email, subject, body, db=db)
     return quotation
 
 
@@ -469,11 +470,8 @@ def verify_quotation_otp(db: Session, quotation_no: str, code: str, user_id: int
 
     try:
         line_items = get_line_items(db, quotation.id)
-        body = (
-            f"Dear {client.contact_person},\n\n"
-            f"Thank you for confirming Quotation {quotation.quotation_no}. Please find a copy attached.\n\n"
-            "Quotation breakdown:\n" + _quotation_breakdown_text(quotation, line_items) + "\n\n"
-        )
+
+        scope_change_section = ""
         if scope_was_reconfirmed:
             latest_revision = (
                 db.query(ProjectScopeRevision)
@@ -481,20 +479,31 @@ def verify_quotation_otp(db: Session, quotation_no: str, code: str, user_id: int
                 .order_by(ProjectScopeRevision.id.desc())
                 .first()
             )
-            body += (
+            scope_change_section = (
                 "The scope of work was also updated as part of this approval"
                 + (f" ({latest_revision.summary})" if latest_revision else "")
                 + f":\n{project.description}\n\n"
             )
+
         payment_plan_text = _payment_plan_summary_text(db, project)
-        if payment_plan_text:
-            body += "Payment plan:\n" + payment_plan_text + "\n\n"
-        body += "This is an informational message -- no action is needed."
+        payment_plan_section = f"Payment plan:\n{payment_plan_text}\n\n" if payment_plan_text else ""
+
+        subject, body = email_template_service.render(
+            db,
+            "quotation_approved",
+            {
+                "contact_person": client.contact_person,
+                "quotation_no": quotation.quotation_no,
+                "breakdown": _quotation_breakdown_text(quotation, line_items),
+                "scope_change_section": scope_change_section,
+                "payment_plan_section": payment_plan_section,
+            },
+        )
 
         content, filename = document_template_service.render_quotation_pdf(db, quotation, None)
         email_service.send_document_email(
             to_email=client.email,
-            subject=f"Quotation {quotation.quotation_no} confirmed",
+            subject=subject,
             body_text=body,
             attachment_bytes=content,
             attachment_filename=filename,

@@ -28,7 +28,7 @@ from app.models.project import (
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, email_service, notification_service, payment_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, email_service, email_template_service, notification_service, payment_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -391,22 +391,22 @@ def _send_project_created_email(db: Session, client: Client, project: Project, e
     if not client.email_consent:
         return
     try:
-        email_service.send_email(
-            client.email,
-            f"New project created: {project.project_name} ({project.project_no})",
-            f"Dear {client.contact_person},\n\n"
-            f"A new project has been created for {client.company_name}:\n\n"
-            f"Project: {project.project_name} ({project.project_no})\n"
-            f"Service: {project.service}\n"
-            + (f"Site address: {project.site_address}\n" if project.site_address else "")
-            + f"Start date: {project.start_date.isoformat()}\n"
-            f"Target date: {project.target_date.isoformat()}\n"
-            f"Assigned engineer: {engineer.full_name}\n\n"
-            "We'll keep you updated as work progresses. You can also track this project's "
-            "status anytime through the Client Portal.\n\n"
-            "This is an informational message -- no action is needed.",
-            db=db,
+        subject, body = email_template_service.render(
+            db,
+            "project_created",
+            {
+                "contact_person": client.contact_person,
+                "company_name": client.company_name,
+                "project_name": project.project_name,
+                "project_no": project.project_no,
+                "service": project.service,
+                "site_address_line": f"Site address: {project.site_address}\n" if project.site_address else "",
+                "start_date": project.start_date.isoformat(),
+                "target_date": project.target_date.isoformat(),
+                "engineer_name": engineer.full_name,
+            },
         )
+        email_service.send_email(client.email, subject, body, db=db)
     except ValidationAppError:
         pass
 
@@ -1066,17 +1066,18 @@ def send_requirement_otp(db: Session, project_no: str, user_id: int) -> Project:
     db.refresh(project)
 
     client = client_service.get_client(db, project.client_id)
-    email_service.send_email(
-        client.email,
-        f"Confirm the scope of work for {project.project_name}",
-        f"Dear {client.contact_person},\n\n"
-        f"Your verification code is {code}.\n\n"
-        f"Share this code with the staff member handling project {project.project_name} "
-        f"({project.project_no}) to confirm you accept the scope of work as written. "
-        f"It expires in {otp.validity_label()}.\n\n"
-        "If you didn't request this, you can safely ignore this email.",
-        db=db,
+    subject, body = email_template_service.render(
+        db,
+        "requirement_otp",
+        {
+            "contact_person": client.contact_person,
+            "code": code,
+            "project_name": project.project_name,
+            "project_no": project.project_no,
+            "validity_label": otp.validity_label(),
+        },
     )
+    email_service.send_email(client.email, subject, body, db=db)
     return project
 
 
@@ -1120,15 +1121,17 @@ def verify_requirement_otp(db: Session, project_no: str, code: str, user_id: int
     client = client_service.get_client(db, project.client_id)
     if client.email_consent:
         try:
-            email_service.send_email(
-                client.email,
-                f"Scope of work confirmed for {project.project_name}",
-                f"Dear {client.contact_person},\n\n"
-                f"Thank you for confirming the scope of work for {project.project_name} "
-                f"({project.project_no}):\n\n{project.description}\n\n"
-                "This is an informational message -- no action is needed.",
-                db=db,
+            subject, body = email_template_service.render(
+                db,
+                "requirement_confirmed",
+                {
+                    "contact_person": client.contact_person,
+                    "project_name": project.project_name,
+                    "project_no": project.project_no,
+                    "scope_text": project.description or "",
+                },
             )
+            email_service.send_email(client.email, subject, body, db=db)
         except ValidationAppError:
             pass
     return project

@@ -28,7 +28,7 @@ from app.models.client import (
     ClientIdentification,
     ClientVerification,
 )
-from app.services import audit_service, company_service, email_service, notification_service, user_service
+from app.services import audit_service, company_service, email_service, email_template_service, notification_service, user_service
 
 ENTITY_TYPE = "CLIENT"
 
@@ -408,15 +408,10 @@ def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Cli
     audit_service.log_event(db, ENTITY_TYPE, client.id, "Verification OTP sent", user_id)
     db.commit()
 
-    email_service.send_email(
-        client.email,
-        "Your Al Mailam verification code",
-        f"Your verification code is {code}.\n\n"
-        f"Share this code with the staff member handling your onboarding to confirm your "
-        f"email address. It expires in {otp.validity_label()}.\n\n"
-        "If you didn't request this, you can safely ignore this email.",
-        db=db,
+    subject, body = email_template_service.render(
+        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
     )
+    email_service.send_email(client.email, subject, body, db=db)
     return client
 
 
@@ -461,26 +456,23 @@ def verify_onboarding_otp(db: Session, client_id: int, code: str, user_id: int |
 
 
 def _send_welcome_email(db: Session, client: Client, portal_user: User, temporary_password: str) -> None:
-    profile_lines = [
-        f"Client type: {client.client_type}",
-        f"Name: {client.company_name}",
-        f"Contact person: {client.contact_person}",
-        f"Mobile: {client.mobile}",
-        f"Email: {client.email}",
-        f"City: {client.city}",
-        f"Preferred language: {client.preferred_language}",
-        f"Preferred contact channel: {client.preferred_channel}",
-    ]
-    body = (
-        f"Dear {client.contact_person},\n\n"
-        "Welcome to Al Mailam! Your email has been verified and your onboarding is complete.\n\n"
-        "Here are the details we have on file for you:\n" + "\n".join(profile_lines) + "\n\n"
-        "You can now sign in to the Client Portal to track your projects:\n"
-        f"Customer ID: {portal_user.customer_id}\n"
-        f"Temporary password: {temporary_password}\n\n"
-        "For your security, please sign in and change this password as soon as possible."
+    subject, body = email_template_service.render(
+        db,
+        "client_welcome",
+        {
+            "contact_person": client.contact_person,
+            "client_type": client.client_type,
+            "company_name": client.company_name,
+            "mobile": client.mobile,
+            "email": client.email,
+            "city": client.city,
+            "preferred_language": client.preferred_language,
+            "preferred_channel": client.preferred_channel,
+            "customer_id": portal_user.customer_id,
+            "temporary_password": temporary_password,
+        },
     )
-    email_service.send_email(client.email, "Welcome to Al Mailam -- your account is ready", body, db=db)
+    email_service.send_email(client.email, subject, body, db=db)
 
 
 def check_and_notify_stale_onboarding(db: Session) -> int:

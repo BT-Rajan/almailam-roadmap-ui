@@ -44,7 +44,7 @@ export default {
     },
     emailSettings: {
       label: 'Email Settings',
-      description: 'Configure the SMTP mailbox used to send Quotation and Contract emails.',
+      description: 'Configure the SMTP mailbox, and edit the subject/body of every automated email.',
     },
     auditLog: {
       label: 'Audit Log',

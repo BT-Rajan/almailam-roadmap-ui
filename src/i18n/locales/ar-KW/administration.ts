@@ -198,6 +198,10 @@ export default {
   emailPage: {
     pageTitle: 'إعدادات البريد الإلكتروني',
     pageSubtitle: 'تهيئة صندوق SMTP المستخدَم لإرسال رسائل عروض الأسعار والعقود عبر البريد الإلكتروني.',
+    tabsAriaLabel: 'أقسام إعدادات البريد الإلكتروني',
+    settingsTab: 'الإعدادات',
+    templatesTab: 'القوالب',
+    templatesSubtitle: 'تحرير عنوان ونص كل رسالة بريد إلكتروني تلقائية يرسلها التطبيق.',
     envOverrideNotice: 'تم تعيين SMTP_HOST على مستوى الخادم في البيئة، وله الأولوية على هذه الإعدادات إلى أن تتم إزالته.',
     mailbox: 'صندوق البريد',
     mailboxDescription: 'صندوق البريد الذي تُرسَل منه الرسائل عند إرسال عرض سعر أو عقد إلى عميل.',
@@ -230,6 +234,49 @@ export default {
     settingsSavedHint: 'تم تطبيق تغييراتك.',
     unableToSave: 'تعذر الحفظ',
     pleaseTryAgain: 'يرجى المحاولة مرة أخرى.',
+  },
+
+  emailTemplates: {
+    emptyTitle: 'لم يتم اختيار قالب',
+    emptyDescription: 'اختر قالبًا من القائمة لتحرير عنوانه ونصه.',
+    subjectLabel: 'الموضوع',
+    bodyLabel: 'النص',
+    availableFields: 'الحقول المتاحة -- انقر للنسخ',
+    lastUpdated: 'آخر تحديث بواسطة {by} بتاريخ {at}',
+    tokenCopiedTitle: 'تم النسخ إلى الحافظة',
+    savedTitle: 'تم حفظ القالب',
+    savedDescription: 'ستستخدم الرسالة هذه الصياغة من الآن فصاعداً.',
+    failedToSave: 'فشل حفظ القالب',
+    keys: {
+      clientOnboardingOtp: {
+        label: 'تهيئة العميل: رمز التحقق',
+        description: 'تُرسل عندما يطلب الموظفون رمز تحقق عبر البريد لتأكيد العميل أثناء التهيئة.',
+      },
+      clientWelcome: {
+        label: 'تهيئة العميل: الترحيب',
+        description: 'تُرسل بمجرد تأكيد العميل لرمز التحقق -- وتتضمن بيانات دخول بوابة العميل.',
+      },
+      projectCreated: {
+        label: 'إنشاء مشروع',
+        description: 'تُرسل إلى العميل عند إنشاء مشروع جديد له.',
+      },
+      requirementOtp: {
+        label: 'المتطلبات: رمز التحقق',
+        description: 'تُرسل عندما يطلب الموظفون من العميل تأكيد نطاق العمل.',
+      },
+      requirementConfirmed: {
+        label: 'المتطلبات: تم تأكيد النطاق',
+        description: 'تُرسل بمجرد تأكيد العميل لنطاق العمل.',
+      },
+      quotationOtp: {
+        label: 'عرض السعر: رمز التحقق',
+        description: 'تُرسل عندما يطلب الموظفون من العميل اعتماد عرض سعر نهائي.',
+      },
+      quotationApproved: {
+        label: 'عرض السعر: تم الاعتماد',
+        description: 'تُرسل بمجرد اعتماد العميل لعرض السعر -- وتتضمن نسخة منه وخطة الدفع.',
+      },
+    },
   },
 
   passwordResetDialog: {

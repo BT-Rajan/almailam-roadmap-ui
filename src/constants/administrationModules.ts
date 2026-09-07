@@ -92,7 +92,7 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
       {
         label: 'Email Settings',
         labelKey: 'administrationModules.modules.emailSettings.label',
-        description: 'Configure the SMTP mailbox used to send Quotation and Contract emails.',
+        description: 'Configure the SMTP mailbox, and edit the subject/body of every automated email.',
         descriptionKey: 'administrationModules.modules.emailSettings.description',
         icon: 'Mail',
         routeName: ROUTE_NAMES.ADMIN_EMAIL,

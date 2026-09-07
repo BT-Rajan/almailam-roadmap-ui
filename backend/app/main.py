@@ -21,6 +21,7 @@ from app.api.customer_portal import router as customer_portal_router
 from app.api.document_templates import router as document_templates_router
 from app.api.documents import router as documents_router
 from app.api.email import router as email_router
+from app.api.email_templates import router as email_templates_router
 from app.api.government import router as government_router
 from app.api.knowledge import router as knowledge_router
 from app.api.messages import router as messages_router
@@ -145,6 +146,7 @@ app.include_router(customer_portal_router)
 app.include_router(payments_router)
 app.include_router(documents_router)
 app.include_router(email_router)
+app.include_router(email_templates_router)
 app.include_router(document_templates_router)
 app.include_router(project_link_documents_router)
 app.include_router(project_forms_router)

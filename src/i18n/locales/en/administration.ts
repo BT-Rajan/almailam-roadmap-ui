@@ -204,6 +204,10 @@ export default {
   emailPage: {
     pageTitle: 'Email Settings',
     pageSubtitle: 'Configure the SMTP mailbox used to send Quotation and Contract emails.',
+    tabsAriaLabel: 'Email settings sections',
+    settingsTab: 'Settings',
+    templatesTab: 'Templates',
+    templatesSubtitle: 'Edit the subject and body of every automated email the app sends.',
     envOverrideNotice:
       'A server-level SMTP_HOST is set in the environment, which takes priority over these settings until it is removed.',
     mailbox: 'Mailbox',
@@ -237,6 +241,49 @@ export default {
     settingsSavedHint: 'Your changes have been applied.',
     unableToSave: 'Unable to save',
     pleaseTryAgain: 'Please try again.',
+  },
+
+  emailTemplates: {
+    emptyTitle: 'No template selected',
+    emptyDescription: 'Choose a template from the list to edit its subject and body.',
+    subjectLabel: 'Subject',
+    bodyLabel: 'Body',
+    availableFields: 'Available fields -- click to copy',
+    lastUpdated: 'Last updated by {by} on {at}',
+    tokenCopiedTitle: 'Copied to clipboard',
+    savedTitle: 'Template saved',
+    savedDescription: 'The email will use this wording from now on.',
+    failedToSave: 'Failed to save template',
+    keys: {
+      clientOnboardingOtp: {
+        label: 'Client Onboarding: Verification Code',
+        description: 'Sent when staff request an email OTP to confirm a client during onboarding.',
+      },
+      clientWelcome: {
+        label: 'Client Onboarding: Welcome',
+        description: 'Sent once a client confirms their OTP -- includes their Client Portal login.',
+      },
+      projectCreated: {
+        label: 'Project Created',
+        description: 'Sent to the client when a new project is created for them.',
+      },
+      requirementOtp: {
+        label: 'Requirement: Verification Code',
+        description: 'Sent when staff ask the client to confirm the scope of work.',
+      },
+      requirementConfirmed: {
+        label: 'Requirement: Scope Confirmed',
+        description: 'Sent once the client confirms the scope of work.',
+      },
+      quotationOtp: {
+        label: 'Quotation: Verification Code',
+        description: 'Sent when staff ask the client to approve a finalized quotation.',
+      },
+      quotationApproved: {
+        label: 'Quotation: Approved',
+        description: 'Sent once the client approves a quotation -- includes a copy and the payment plan.',
+      },
+    },
   },
 
   passwordResetDialog: {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, Plug, XCircle } from '@lucide/vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ErrorState from '@/components/common/ErrorState.vue'
@@ -14,6 +14,9 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
+import EmailTabs from '@/components/administration/EmailTabs.vue'
+import type { EmailTab, EmailTabKey } from '@/components/administration/EmailTabs.vue'
+import EmailTemplatesPanel from '@/components/administration/EmailTemplatesPanel.vue'
 import { useEmailSettingsStore } from '@/stores/emailSettingsStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { EmailProviderId } from '@/types/EmailSettings'
@@ -23,6 +26,16 @@ import { formatDateTime } from '@/utils/dateFormatter'
 const { t } = useI18n()
 const emailSettingsStore = useEmailSettingsStore()
 const toastStore = useToastStore()
+
+const TABS = computed<EmailTab[]>(() => [
+  { key: 'settings', label: t('administration.emailPage.settingsTab') },
+  { key: 'templates', label: t('administration.emailPage.templatesTab') },
+])
+const SUBTITLES = computed<Record<EmailTabKey, string>>(() => ({
+  settings: t('administration.emailPage.pageSubtitle'),
+  templates: t('administration.emailPage.templatesSubtitle'),
+}))
+const activeTab = ref<EmailTabKey>('settings')
 
 const providerOptions = computed<SelectOption[]>(() =>
   Object.entries(emailSettingsStore.presets ?? {}).map(([id, preset]) => ({ label: preset.label, value: id })),
@@ -83,8 +96,15 @@ async function handleTest(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader :title="t('administration.emailPage.pageTitle')" :subtitle="t('administration.emailPage.pageSubtitle')" />
+    <PageHeader :title="t('administration.emailPage.pageTitle')" :subtitle="SUBTITLES[activeTab]" />
 
+    <EmailTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
+
+    <div v-if="activeTab === 'templates'" id="email-tabpanel-templates" role="tabpanel" aria-labelledby="email-tab-templates">
+      <EmailTemplatesPanel />
+    </div>
+
+    <div v-else id="email-tabpanel-settings" role="tabpanel" aria-labelledby="email-tab-settings">
     <ErrorState v-if="emailSettingsStore.error && !emailSettingsStore.settings" :description="emailSettingsStore.error" @retry="loadData" />
 
     <div v-else-if="emailSettingsStore.isLoading || !emailSettingsStore.settings" class="rounded-xl border border-border-light bg-bg-card p-6">
@@ -209,6 +229,7 @@ async function handleTest(): Promise<void> {
       </FormSection>
 
       <FormActionBar :submit-label="t('administration.emailPage.saveChanges')" :loading="emailSettingsStore.isSaving" @submit="handleSave" @cancel="handleCancel" />
+    </div>
     </div>
   </div>
 </template>
