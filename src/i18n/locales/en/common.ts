@@ -110,5 +110,7 @@ export default {
     codeLabel: 'Verification Code',
     codePlaceholder: 'Enter the 6-digit code',
     confirm: 'Confirm',
+    sendingNotice: 'Sending the verification email -- this can take a few seconds.',
+    confirmingNotice: 'Verifying the code and sending the confirmation email -- this can take a few seconds.',
   },
 }

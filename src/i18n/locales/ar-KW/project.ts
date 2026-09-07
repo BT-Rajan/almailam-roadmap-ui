@@ -539,6 +539,7 @@ export default {
     back: 'رجوع',
     next: 'التالي',
     createProject: 'إنشاء المشروع',
+    submittingNotice: 'جارٍ إنشاء المشروع وإرسال بريد الإشعار -- قد يستغرق هذا بضع ثوانٍ.',
     projectCreatedTitle: 'تم إنشاء المشروع',
     projectCreatedMessagePart1: 'تم إنشاؤه بنجاح كمشروع',
     projectCreatedMessagePart2: 'للعميل',

@@ -539,6 +539,7 @@ export default {
     back: 'Back',
     next: 'Next',
     createProject: 'Create Project',
+    submittingNotice: 'Creating the project and sending the notification email -- this can take a few seconds.',
     projectCreatedTitle: 'Project Created',
     projectCreatedMessagePart1: 'was successfully created as project',
     projectCreatedMessagePart2: 'for',

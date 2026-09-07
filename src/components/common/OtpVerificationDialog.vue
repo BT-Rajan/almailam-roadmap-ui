@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -35,6 +35,12 @@ const { t } = useI18n()
 
 const form = reactive({ code: '' })
 const errors = reactive({ code: '' })
+// Which action is behind the current `loading` -- send/resend (an email
+// is going out) vs confirm (the code is verified, then a copy/welcome
+// email may also go out, see the parent callers). Tracked locally since
+// the parent only exposes one shared boolean; this drives which of the
+// two "an email is being sent" notices below shows while loading.
+const lastAction = ref<'send' | 'confirm'>('send')
 
 watch(
   () => props.modelValue,
@@ -58,12 +64,14 @@ function closeDialog(): void {
 }
 
 function handleSend(): void {
+  lastAction.value = 'send'
   emit('send')
 }
 
 function handleConfirm(): void {
   errors.code = form.code.trim() ? '' : 'Please enter the code'
   if (errors.code) return
+  lastAction.value = 'confirm'
   emit('confirm', { code: form.code.trim() })
 }
 </script>
@@ -98,6 +106,10 @@ function handleConfirm(): void {
         {{ t('common.otpVerificationDialog.resendCode') }}
       </BaseButton>
     </div>
+
+    <p v-if="loading" class="mt-3 text-xs text-text-muted">
+      {{ lastAction === 'confirm' ? t('common.otpVerificationDialog.confirmingNotice') : t('common.otpVerificationDialog.sendingNotice') }}
+    </p>
 
     <template #footer>
       <BaseButton variant="secondary" :disabled="loading" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>

@@ -532,29 +532,37 @@ function goToCreatedProject(): void {
         </FormSection>
       </div>
 
-      <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
-        <FormActionBar
-          v-if="currentStep === 0"
-          :cancel-label="t('project.newWizard.cancel')"
-          :submit-label="t('project.newWizard.next')"
-          @cancel="cancelWizard"
-          @submit="goNext"
-        />
-        <FormActionBar
-          v-else-if="currentStep < WIZARD_STEPS.length - 1"
-          :cancel-label="t('project.newWizard.back')"
-          :submit-label="t('project.newWizard.next')"
-          @cancel="goBack"
-          @submit="goNext"
-        />
-        <FormActionBar
-          v-else
-          :cancel-label="t('project.newWizard.back')"
-          :submit-label="t('project.newWizard.createProject')"
-          :loading="isSubmitting"
-          @cancel="goBack"
-          @submit="submitWizard"
-        />
+      <div class="mt-8 flex flex-col gap-2 border-t border-border-light pt-4">
+        <div class="flex items-center justify-between">
+          <FormActionBar
+            v-if="currentStep === 0"
+            :cancel-label="t('project.newWizard.cancel')"
+            :submit-label="t('project.newWizard.next')"
+            @cancel="cancelWizard"
+            @submit="goNext"
+          />
+          <FormActionBar
+            v-else-if="currentStep < WIZARD_STEPS.length - 1"
+            :cancel-label="t('project.newWizard.back')"
+            :submit-label="t('project.newWizard.next')"
+            @cancel="goBack"
+            @submit="goNext"
+          />
+          <FormActionBar
+            v-else
+            :cancel-label="t('project.newWizard.back')"
+            :submit-label="t('project.newWizard.createProject')"
+            :loading="isSubmitting"
+            @cancel="goBack"
+            @submit="submitWizard"
+          />
+        </div>
+        <!-- Creating the project also sends the client an informational
+             "project created" email in the same request -- a bare
+             spinner with no explanation read as stuck during that wait. -->
+        <p v-if="isSubmitting" class="text-end text-xs text-text-muted">
+          {{ t('project.newWizard.submittingNotice') }}
+        </p>
       </div>
     </div>
 
