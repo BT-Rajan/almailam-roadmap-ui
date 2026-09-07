@@ -50,7 +50,14 @@ export function useIdleLogout(): void {
           : ROUTE_NAMES.LOGIN
 
     await authStore.logout()
-    await router.push({ name: loginRoute, query: { reason: 'You were signed out after 30 minutes of inactivity.' } })
+    // Carried via authStore.logoutReason (in-memory), not a ?reason=
+    // query param -- see that field's own doc comment for why: a query
+    // string surviving into a reopened/reloaded tab at this exact URL
+    // was landing some users on a login page that silently refused to
+    // submit until they manually stripped it. The login route now
+    // always stays the bare path.
+    authStore.logoutReason = 'You were signed out after 30 minutes of inactivity.'
+    await router.push({ name: loginRoute })
   }
 
   function reset(): void {

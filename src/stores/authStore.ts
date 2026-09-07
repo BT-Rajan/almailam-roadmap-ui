@@ -15,6 +15,19 @@ interface AuthState {
    * caller await the same request instead of firing their own.
    */
   refreshPromise: Promise<boolean> | null
+  /**
+   * One-shot message for the login page to show after a forced logout
+   * (e.g. "You were signed out after 30 minutes of inactivity" -- see
+   * useIdleLogout). Carried in memory rather than a ?reason= query
+   * param: a query string surviving into a later hard reload/reopened
+   * tab at that exact URL was landing some users on a login page that
+   * silently refused to submit, and stripping the query was the
+   * reported fix -- so the login route now always stays the bare
+   * /login, and this in-memory field is read once by LoginPage.vue and
+   * cleared, the same "nothing survives a reload" convention already
+   * used for the session itself.
+   */
+  logoutReason: string | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -22,6 +35,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null,
     user: null,
     refreshPromise: null,
+    logoutReason: null,
   }),
 
   getters: {
@@ -42,6 +56,16 @@ export const useAuthStore = defineStore('auth', {
         // Best-effort server-side revoke; clear local state regardless.
       }
       this._clearToken()
+    },
+
+    /** Reads and clears the one-shot post-logout message -- see
+     * logoutReason's own doc comment above. Consuming it (rather than
+     * just reading) means it only ever shows once, even if the login
+     * page instance survives multiple internal navigations. */
+    consumeLogoutReason(): string | null {
+      const reason = this.logoutReason
+      this.logoutReason = null
+      return reason
     },
 
     // Updates the caller's own profile (name/designation/mobile) and

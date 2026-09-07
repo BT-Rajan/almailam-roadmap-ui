@@ -13,7 +13,10 @@ const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const initialMessage = typeof route.query.reason === 'string' ? route.query.reason : undefined
+// See LoginPage.vue's own comment: read from authStore (in-memory,
+// one-shot), not a ?reason= query param, so this route always stays
+// the bare customer-portal login path.
+const initialMessage = authStore.consumeLogoutReason() ?? undefined
 
 async function handleSuccess(): Promise<void> {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
