@@ -6,7 +6,6 @@ import { useI18n } from 'vue-i18n'
 import Alert from '@/components/common/Alert.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import Checkbox from '@/components/common/Checkbox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { ApiError } from '@/services/httpClient'
@@ -18,10 +17,9 @@ interface Props {
   idPlaceholder: string
   idAutocomplete?: string
   submitLabel?: string
-  // Staff (application) login shows these; the Site Engineer Portal login
-  // keeps things to just ID + password, so both stay opt-in rather than
+  // Staff (application) login shows this; the Site Engineer Portal login
+  // keeps things to just ID + password, so it stays opt-in rather than
   // baked into the shared form.
-  showRememberMe?: boolean
   showForgotPassword?: boolean
   showClear?: boolean
   // Shown once, on mount -- e.g. "You were signed out after 30 minutes of
@@ -39,7 +37,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   idAutocomplete: 'username',
   submitLabel: undefined,
-  showRememberMe: false,
   showForgotPassword: false,
   showClear: false,
   initialMessage: undefined,
@@ -55,7 +52,6 @@ const resolvedSubmitLabel = computed(() => props.submitLabel ?? t('auth.signIn')
 
 const id = ref('')
 const password = ref('')
-const rememberMe = ref(false)
 const authError = ref<string>()
 const infoMessage = ref<string>()
 const isForgotPasswordOpen = ref(false)
@@ -97,7 +93,6 @@ async function signIn(): Promise<void> {
 function clearLogin(): void {
   id.value = ''
   password.value = ''
-  rememberMe.value = false
   authError.value = undefined
 }
 </script>
@@ -124,10 +119,8 @@ function clearLogin(): void {
       :error="errors.password"
     />
 
-    <div v-if="showRememberMe || showForgotPassword" class="flex items-center justify-between">
-      <Checkbox v-if="showRememberMe" v-model="rememberMe" :label="t('auth.rememberMe')" />
+    <div v-if="showForgotPassword" class="flex items-center justify-end">
       <button
-        v-if="showForgotPassword"
         type="button"
         class="text-sm font-medium text-text-link transition-colors duration-fast hover:opacity-80"
         @click="isForgotPasswordOpen = true"
