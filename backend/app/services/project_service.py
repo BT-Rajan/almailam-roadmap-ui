@@ -14,7 +14,7 @@ from app.core.status_transitions import (
     PROJECT_STATUS_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
-from app.models.client import ClientIdentification
+from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract, ContractRevision
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
@@ -27,7 +27,7 @@ from app.models.project import (
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, notification_service, payment_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, email_service, notification_service, payment_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -373,7 +373,41 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()
     db.refresh(project)
+
+    _send_project_created_email(db, client, project, engineer)
     return project
+
+
+def _send_project_created_email(db: Session, client: Client, project: Project, engineer: User) -> None:
+    """Purely informational -- unlike onboarding's OTP email, nothing
+    about project creation depends on the client ever seeing this, so a
+    failed/unconfigured send must never fail project creation itself
+    (same "degrade gracefully" idea as ai_service's identification
+    check). Only sent when the client has actually consented to email
+    (see client_service.create_consent's comment on email_consent being
+    the one flag every messaging feature should check before writing to
+    a client)."""
+    if not client.email_consent:
+        return
+    try:
+        email_service.send_email(
+            client.email,
+            f"New project created: {project.project_name} ({project.project_no})",
+            f"Dear {client.contact_person},\n\n"
+            f"A new project has been created for {client.company_name}:\n\n"
+            f"Project: {project.project_name} ({project.project_no})\n"
+            f"Service: {project.service}\n"
+            + (f"Site address: {project.site_address}\n" if project.site_address else "")
+            + f"Start date: {project.start_date.isoformat()}\n"
+            f"Target date: {project.target_date.isoformat()}\n"
+            f"Assigned engineer: {engineer.full_name}\n\n"
+            "We'll keep you updated as work progresses. You can also track this project's "
+            "status anytime through the Client Portal.\n\n"
+            "This is an informational message -- no action is needed.",
+            db=db,
+        )
+    except ValidationAppError:
+        pass
 
 
 def update_project(db: Session, project_no: str, payload, user_id: int | None) -> Project:
