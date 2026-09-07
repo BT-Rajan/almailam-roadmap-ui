@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { PermitCatalogItem } from '@/types/PermitCatalog'
+import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
 
 /**
  * Fetch all permits from the backend API
@@ -50,9 +50,45 @@ async function removePermit(permitId: string): Promise<void> {
   }
 }
 
+/**
+ * Fetch a permit's Design-activity prerequisites via backend API --
+ * see PermitPrerequisite / project_service._recompute_permit_eligibility.
+ */
+async function getPrerequisites(permitId: string): Promise<PermitPrerequisite[]> {
+  try {
+    return await apiClient.get<PermitPrerequisite[]>(`/api/permit-catalog/permits/${permitId}/prerequisites`)
+  } catch (error) {
+    console.error(`Failed to fetch prerequisites for permit ${permitId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch permit prerequisites')
+  }
+}
+
+async function addPrerequisite(permitId: string, designActivityId: string): Promise<PermitPrerequisite> {
+  try {
+    return await apiClient.post<PermitPrerequisite>(`/api/permit-catalog/permits/${permitId}/prerequisites`, {
+      designActivityId,
+    })
+  } catch (error) {
+    console.error(`Failed to add prerequisite to permit ${permitId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add permit prerequisite')
+  }
+}
+
+async function removePrerequisite(prerequisiteId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/permit-catalog/prerequisites/${prerequisiteId}`)
+  } catch (error) {
+    console.error(`Failed to remove prerequisite ${prerequisiteId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to remove permit prerequisite')
+  }
+}
+
 export const permitCatalogService = {
   getPermits,
   createPermit,
   renamePermit,
   removePermit,
+  getPrerequisites,
+  addPrerequisite,
+  removePrerequisite,
 }

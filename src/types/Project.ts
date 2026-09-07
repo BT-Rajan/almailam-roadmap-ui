@@ -72,6 +72,24 @@ export interface SelectedSupervisionActivity {
   endDate?: string | null
 }
 
+// A Permit picked at project setup (PermitPickerDialog) -- the missing
+// counterpart to SelectedServiceActivity/SelectedSupervisionActivity
+// that Permits never had before. status starts 'Planned' and becomes
+// 'Eligible' once its admin-defined prerequisite Design activities are
+// all Complete (see PermitPrerequisite, Administration > Permits);
+// 'In Progress'/'Complete'/'Cancelled' are set directly by the user --
+// Permits have no sub-tasks, unlike Design.
+export type SelectedPermitStatus = 'Planned' | 'Eligible' | 'In Progress' | 'Complete' | 'Cancelled'
+
+export interface SelectedPermit {
+  id: string
+  permitId?: string | null
+  permitName: string
+  status: SelectedPermitStatus
+  eligibilityMetAt?: string | null
+  closedAt?: string | null
+}
+
 // Internal approval of a project's scope-of-work text -- see
 // ScopeOfWork below. Not client-facing.
 export type ScopeStatus = 'Draft' | 'Approved'
@@ -128,6 +146,11 @@ export interface Project {
   // because most existing projects predate the permits step and because a
   // backend that hasn't been extended to persist this yet can just ignore it.
   requiredPermitDocuments?: string[]
+  // Permits this project needs to apply for, each with its own
+  // eligibility/closure lifecycle -- distinct from
+  // requiredPermitDocuments above, which is about permits the client
+  // already holds. See SelectedPermit.
+  selectedPermits?: SelectedPermit[]
 }
 
 export type ProjectViewMode = 'grid' | 'table'

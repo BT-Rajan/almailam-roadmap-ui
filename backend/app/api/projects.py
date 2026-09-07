@@ -18,6 +18,8 @@ from app.schemas.project import (
     ScopeOfWorkOut,
     ScopeRevisionOut,
     SelectedActivityOut,
+    SelectedPermitOut,
+    SetPermitStatusRequest,
     StageEligibilityOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
@@ -34,8 +36,9 @@ def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
     activities = project_service.get_selected_activities(db, project.id)
     supervision_activities = project_service.get_selected_supervision_activities(db, project.id)
     includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
+    permits = project_service.get_selected_permits(db, project.id)
     return ProjectOut.from_model(
-        project, engineer_name, activities, supervision_activities, includes_design, includes_supervision,
+        project, engineer_name, activities, supervision_activities, includes_design, includes_supervision, permits,
     )
 
 
@@ -170,6 +173,18 @@ def reopen_design_activity(
 ):
     activity = project_service.reopen_design_activity(db, project_no, activity_id, current_user.id)
     return SelectedActivityOut.from_model(activity)
+
+
+@router.post("/{project_no}/permits/{permit_id}/status", response_model=SelectedPermitOut)
+def set_permit_status(
+    project_no: str,
+    permit_id: int,
+    payload: SetPermitStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    permit = project_service.set_permit_status(db, project_no, permit_id, payload.status, current_user.id)
+    return SelectedPermitOut.from_model(permit)
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)

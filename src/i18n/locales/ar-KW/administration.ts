@@ -525,6 +525,14 @@ export default {
     noPermitsYet: 'لا توجد تصاريح بعد — أضف واحدًا أدناه.',
     addPermit: 'إضافة تصريح',
     add: 'إضافة',
+    prerequisites: 'المتطلبات المسبقة',
+    prerequisitesDescription: 'يصبح هذا التصريح جاهزًا للتقديم على مشروع فقط بعد اكتمال كل نشاط تصميم مذكور هنا.',
+    noPrerequisitesYet: 'لا توجد متطلبات مسبقة — هذا التصريح جاهز فور اختياره في مشروع.',
+    addPrerequisitePlaceholder: 'اختر نشاط تصميم',
+    removePrerequisite: 'إزالة المتطلب المسبق',
+    failedToLoadPrerequisites: 'فشل تحميل المتطلبات المسبقة',
+    failedToAddPrerequisite: 'فشلت إضافة المتطلب المسبق',
+    failedToRemovePrerequisite: 'فشلت إزالة المتطلب المسبق',
   },
 
   serviceCatalog: {

@@ -86,6 +86,40 @@ class SelectedSupervisionActivityIn(BaseModel):
         return value
 
 
+class SelectedPermitOut(BaseModel):
+    """A Permit picked for a project at setup (migration 0073) -- the
+    missing counterpart to SelectedActivityOut/
+    SelectedSupervisionActivityOut that Permits never had before (see
+    ProjectSelectedPermit). id is this row's own identity, same
+    convention as SelectedActivityOut.id."""
+
+    id: str
+    # The catalog's own display id -- None if the catalog item was
+    # later removed (permit_catalog_item_id is ON DELETE SET NULL);
+    # permitName still shows what was originally picked either way.
+    permitId: str | None = None
+    permitName: str
+    status: str
+    eligibilityMetAt: datetime | None = None
+    closedAt: datetime | None = None
+
+    @staticmethod
+    def from_model(permit) -> "SelectedPermitOut":
+        return SelectedPermitOut(
+            id=str(permit.id),
+            permitId=f"PER-{permit.permit_catalog_item_id:03d}" if permit.permit_catalog_item_id else None,
+            permitName=permit.permit_name,
+            status=permit.status,
+            eligibilityMetAt=permit.eligibility_met_at,
+            closedAt=permit.closed_at,
+        )
+
+
+class SelectedPermitIn(BaseModel):
+    permitId: str = Field(min_length=1, max_length=20)
+    permitName: str = Field(min_length=1, max_length=150)
+
+
 class ProjectOut(BaseModel):
     id: str
     projectNo: str
@@ -123,6 +157,12 @@ class ProjectOut(BaseModel):
     supervisionMonthlyTotal: float | None = None
     supervisionStartDate: date | None = None
     supervisionEndDate: date | None = None
+    # Permits picked at project setup, each with its own eligibility/
+    # closure lifecycle (migration 0073) -- see ProjectSelectedPermit.
+    # The Permit track becomes "ready" per-item (see
+    # project_service._recompute_permit_eligibility), independent of
+    # Design/Supervision.
+    selectedPermits: list[SelectedPermitOut] = Field(default_factory=list)
     # Whether this project's workflow includes a Design and/or
     # Supervision stage -- see project_service.compute_stage_flags for
     # how these are derived. Drives which of the Design/Supervision
@@ -143,6 +183,7 @@ class ProjectOut(BaseModel):
         project, engineer_name: str, selected_activities: list | None = None,
         selected_supervision_activities: list | None = None,
         includes_design: bool = False, includes_supervision: bool = False,
+        selected_permits: list | None = None,
     ) -> "ProjectOut":
         return ProjectOut(
             id=project.project_no,
@@ -174,6 +215,7 @@ class ProjectOut(BaseModel):
             includesSupervision=includes_supervision,
             requiredPermitDocuments=list(project.required_permit_documents or []),
             siteAddress=project.site_address,
+            selectedPermits=[SelectedPermitOut.from_model(p) for p in (selected_permits or [])],
         )
 
 
@@ -241,6 +283,12 @@ class ProjectCreate(BaseModel):
     selectedSupervisionActivities: list[SelectedSupervisionActivityIn] | None = None
     supervisionStartDate: date | None = None
     supervisionEndDate: date | None = None
+    # Permits this project needs to apply for (migration 0073, picked
+    # via PermitPickerDialog) -- becomes the Permit track's own
+    # trackable ProjectSelectedPermit rows. Distinct from
+    # requiredPermitDocuments below, which is about permits the client
+    # already holds.
+    selectedPermits: list[SelectedPermitIn] | None = None
     # Permits the client confirmed they already hold -- each becomes a
     # mandatory upload requirement on the Documents tab. Permits the
     # client doesn't have yet aren't sent here at all; the wizard turns
@@ -355,6 +403,22 @@ class CloseDesignActivityRequest(BaseModel):
     def check_status(cls, value: str) -> str:
         if value not in ("Complete", "Cancelled"):
             raise ValueError("status must be 'Complete' or 'Cancelled'")
+        return value
+
+
+class SetPermitStatusRequest(BaseModel):
+    """Permits have no sub-tasks -- the user sets this directly at
+    their own discretion (migration 0073), unlike Design's auto-close.
+    'Eligible' isn't settable here: it's computed
+    (project_service._recompute_permit_eligibility)."""
+
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str) -> str:
+        if value not in ("In Progress", "Complete", "Cancelled"):
+            raise ValueError("status must be 'In Progress', 'Complete', or 'Cancelled'")
         return value
 
 

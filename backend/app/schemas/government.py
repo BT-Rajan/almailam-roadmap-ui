@@ -290,6 +290,10 @@ class SubmissionOut(BaseModel):
     proofOfSubmission: ProofOfFileOut | None = None
     proofOfResponse: ProofOfFileOut | None = None
     responseOutcome: str | None = None
+    # The planned permit (migration 0073, ProjectSelectedPermit) this
+    # application is fulfilling, if any -- optional, a submission can
+    # still be filed ad hoc with no permit selection behind it.
+    selectedPermitId: str | None = None
 
     @staticmethod
     def from_model(
@@ -343,6 +347,9 @@ class SubmissionOut(BaseModel):
             proofOfSubmission=proof_of_submission,
             proofOfResponse=proof_of_response,
             responseOutcome=submission.response_outcome,
+            selectedPermitId=(
+                str(submission.project_selected_permit_id) if submission.project_selected_permit_id else None
+            ),
         )
 
 
@@ -352,6 +359,10 @@ class SubmissionCreate(BaseModel):
     formId: str
     expectedDecisionDate: date | None = None
     notes: str | None = None
+    # Optional -- links this application to one of the project's own
+    # planned permits (ProjectSelectedPermit.id, as a string). Omitted
+    # for an ad hoc submission with no such link.
+    selectedPermitId: str | None = None
 
 
 class SubmissionUpdate(BaseModel):

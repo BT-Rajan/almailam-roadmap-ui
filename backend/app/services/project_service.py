@@ -19,6 +19,8 @@ from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
+from app.models.permit_selection import ProjectSelectedPermit
+from app.models.prerequisite import PermitPrerequisite
 from app.models.project import (
     Project,
     ProjectScopeRevision,
@@ -28,7 +30,7 @@ from app.models.project import (
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, email_service, email_template_service, notification_service, payment_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, email_service, email_template_service, notification_service, payment_service, permit_catalog_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -170,6 +172,32 @@ def get_selected_supervision_activities_batch(
     return result
 
 
+def get_selected_permits(db: Session, project_id: int) -> list[ProjectSelectedPermit]:
+    return (
+        db.query(ProjectSelectedPermit)
+        .filter(ProjectSelectedPermit.project_id == project_id)
+        .order_by(ProjectSelectedPermit.id.asc())
+        .all()
+    )
+
+
+def get_selected_permits_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedPermit]]:
+    """Batch version of get_selected_permits, same reasoning as
+    get_selected_activities_batch above."""
+    if not project_ids:
+        return {}
+    result: dict[int, list[ProjectSelectedPermit]] = {pid: [] for pid in project_ids}
+    rows = (
+        db.query(ProjectSelectedPermit)
+        .filter(ProjectSelectedPermit.project_id.in_(project_ids))
+        .order_by(ProjectSelectedPermit.id.asc())
+        .all()
+    )
+    for row in rows:
+        result[row.project_id].append(row)
+    return result
+
+
 def get_selected_activity(db: Session, project_id: int, activity_id: int) -> ProjectSelectedActivity:
     """A single Design activity row, scoped to a specific project so a
     caller can't operate on another project's row just by knowing its
@@ -196,6 +224,62 @@ def _set_design_activity_status(
         "Design activity auto-closed (all linked tasks completed)" if auto else "Design activity closed",
         user_id, previous_value=previous, new_value=new_status,
     )
+    if new_status == "Complete":
+        project = db.query(Project).filter(Project.id == activity.project_id).first()
+        if project is not None:
+            _recompute_permit_eligibility(db, project)
+
+
+def _recompute_permit_eligibility(db: Session, project: Project) -> None:
+    """Whenever a Design activity on this project closes to Complete,
+    check every still-"Planned" permit's PermitPrerequisite rows and
+    flip it to "Eligible" once all of them are satisfied -- notifying
+    every Administrator once (guarded by eligibility_notified_at) so
+    the "ready to apply" moment is actually visible to someone, not
+    just a silent status flip. A permit with no prerequisites at all is
+    eligible immediately (also called once from create_project for
+    exactly that case, since it would otherwise never fire for a
+    project with no Design activities to close).
+
+    Deliberately one-directional: only ever promotes Planned ->
+    Eligible, never demotes an already-Eligible/In Progress/Complete
+    permit back down just because some *other* Design activity was
+    later reopened -- once staff was told it's fine to start, walking
+    that back would be more disruptive than useful. Does not commit --
+    callers already do."""
+    planned_permits = (
+        db.query(ProjectSelectedPermit)
+        .filter(ProjectSelectedPermit.project_id == project.id, ProjectSelectedPermit.status == "Planned")
+        .all()
+    )
+    if not planned_permits:
+        return
+    complete_activity_ids = {
+        a.activity_id for a in get_selected_activities(db, project.id) if a.status == "Complete"
+    }
+    for permit in planned_permits:
+        if permit.permit_catalog_item_id is None:
+            continue
+        required_activity_ids = {
+            f"ACT-{p.design_activity_id:03d}"
+            for p in db.query(PermitPrerequisite)
+            .filter(PermitPrerequisite.permit_catalog_item_id == permit.permit_catalog_item_id)
+            .all()
+        }
+        if not required_activity_ids.issubset(complete_activity_ids):
+            continue
+        permit.status = "Eligible"
+        permit.eligibility_met_at = datetime.now(timezone.utc)
+        if permit.eligibility_notified_at is None:
+            notification_service.notify_role(
+                db, "Administrator",
+                "Permit ready for application",
+                f"{permit.permit_name} is now eligible to apply for on project {project.project_no} "
+                "-- its required Design work is complete.",
+                "System",
+                link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            )
+            permit.eligibility_notified_at = datetime.now(timezone.utc)
 
 
 def close_design_activity(
@@ -258,6 +342,48 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     _set_design_activity_status(db, activity, "Complete", user_id, auto=True)
 
 
+def get_selected_permit(db: Session, project_id: int, permit_id: int) -> ProjectSelectedPermit:
+    """A single Permit row, scoped to a specific project so a caller
+    can't operate on another project's row just by knowing its raw
+    id -- same reasoning as get_selected_activity above."""
+    permit = (
+        db.query(ProjectSelectedPermit)
+        .filter(ProjectSelectedPermit.id == permit_id, ProjectSelectedPermit.project_id == project_id)
+        .first()
+    )
+    if permit is None:
+        raise NotFoundError("Selected permit")
+    return permit
+
+
+def set_permit_status(
+    db: Session, project_no: str, permit_id: int, new_status: str, user_id: int
+) -> ProjectSelectedPermit:
+    """Permits have no sub-tasks -- the user sets this directly at
+    their own discretion ("permit stage completion updated by the user
+    directly"), unlike Design's task-driven auto-close. new_status is
+    'In Progress', 'Complete', or 'Cancelled' (enforced by
+    SetPermitStatusRequest) -- 'Eligible' is computed, not settable
+    here (see _recompute_permit_eligibility)."""
+    project = get_project(db, project_no)
+    permit = get_selected_permit(db, project.id, permit_id)
+    previous = permit.status
+    permit.status = new_status
+    if new_status in ("Complete", "Cancelled"):
+        permit.closed_at = datetime.now(timezone.utc)
+        permit.closed_by = user_id
+    else:
+        permit.closed_at = None
+        permit.closed_by = None
+    audit_service.log_event(
+        db, ENTITY_TYPE, project.id, "Permit status changed", user_id,
+        previous_value=previous, new_value=new_status,
+    )
+    db.commit()
+    db.refresh(permit)
+    return permit
+
+
 def _persist_supervision_selection(
     db: Session,
     project_id: int,
@@ -299,6 +425,26 @@ def _persist_supervision_selection(
         )
 
     return sum(float(a.monthlyRate) for a in selection)
+
+
+def _persist_permit_selection(db: Session, project_id: int, selection: list) -> None:
+    """Inserts one ProjectSelectedPermit row per picked permit
+    (PermitPickerDialog, New Project Wizard's Permits step) --
+    permitId is the catalog's display id ("PER-003"), resolved to the
+    real catalog row so eligibility checks
+    (_recompute_permit_eligibility) can join against
+    PermitPrerequisite; permit_name is still captured as an immutable
+    snapshot for display, same as ProjectSelectedActivity/
+    ProjectSelectedSupervisionActivity."""
+    for permit in selection:
+        catalog_item = permit_catalog_service.get_permit(db, permit.permitId)
+        db.add(
+            ProjectSelectedPermit(
+                project_id=project_id,
+                permit_catalog_item_id=catalog_item.id,
+                permit_name=permit.permitName,
+            )
+        )
 
 
 def add_selected_services(
@@ -458,6 +604,14 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     project.supervision_monthly_total = _persist_supervision_selection(
         db, project.id, selected_supervision_activities, payload.supervisionStartDate, payload.supervisionEndDate,
     )
+
+    _persist_permit_selection(db, project.id, payload.selectedPermits or [])
+    db.flush()
+    # Picks up any permit with no prerequisites at all (immediately
+    # eligible) -- this is the only call site that fires for a project
+    # with no Design activities to ever close and trigger the recompute
+    # from _set_design_activity_status instead.
+    _recompute_permit_eligibility(db, project)
 
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()

@@ -30,7 +30,7 @@ import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
-import { getSelectedActivityStatusVariant, getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
+import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -89,6 +89,23 @@ async function reopenDesignActivity(activityId: string): Promise<void> {
     toastStore.show('error', t('project.overviewTab.failedToReopenActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     activityActionPendingId.value = undefined
+  }
+}
+
+// Permits have no sub-tasks -- the user sets their status directly at
+// their own discretion (see project_service.set_permit_status).
+const permitActionPendingId = ref<string>()
+
+async function setPermitStatus(permitId: string, status: 'In Progress' | 'Complete' | 'Cancelled'): Promise<void> {
+  permitActionPendingId.value = permitId
+  try {
+    await projectService.setPermitStatus(props.project.id, permitId, status)
+    await projectStore.refreshProject(props.project.id)
+    toastStore.show('success', t('project.overviewTab.activityClosed'))
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    permitActionPendingId.value = undefined
   }
 }
 
@@ -664,6 +681,48 @@ function verificationResultLabel(result: string): string {
         </div>
       </template>
       <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</span>
+          <div v-if="project.selectedPermits && project.selectedPermits.length > 0" class="flex flex-col gap-2">
+            <div
+              v-for="permit in project.selectedPermits"
+              :key="permit.id"
+              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            >
+              <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
+              <div class="flex items-center gap-2">
+                <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
+                <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
+                  <BaseButton
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="permitActionPendingId === permit.id"
+                    @click="setPermitStatus(permit.id, 'In Progress')"
+                  >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                </template>
+                <template v-else>
+                  <BaseButton
+                    v-if="permit.status !== 'In Progress'"
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="permitActionPendingId === permit.id"
+                    @click="setPermitStatus(permit.id, 'In Progress')"
+                  >{{ t('project.overviewTab.startApplication') }}</BaseButton>
+                  <BaseButton
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="permitActionPendingId === permit.id"
+                    @click="setPermitStatus(permit.id, 'Cancelled')"
+                  >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                  <BaseButton
+                    variant="primary" size="sm" class="no-print"
+                    :loading="permitActionPendingId === permit.id"
+                    @click="setPermitStatus(permit.id, 'Complete')"
+                  >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                </template>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noPermitsSelectedYet') }}</p>
+        </div>
+
         <div v-if="governmentSubmissions.length > 0" class="flex flex-col gap-2">
           <div
             v-for="submission in governmentSubmissions"

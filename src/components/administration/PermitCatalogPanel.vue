@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
@@ -7,18 +7,37 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import PermitCatalogListEditor from '@/components/administration/PermitCatalogListEditor.vue'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
+import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { SelectOption } from '@/types/Ui'
 
 const permitCatalogStore = usePermitCatalogStore()
+const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
+// Every Design-branch activity, flat, for the "eligible once these are
+// Complete" prerequisite picker (see PermitPrerequisite) -- Permits
+// only ever gate on Design work, never Supervision.
+const designActivityOptions = computed<SelectOption[]>(() =>
+  serviceCatalogStore.services
+    .filter((service) => service.branch === 'Design')
+    .flatMap((service) =>
+      service.activities.map((activity) => ({
+        label: `${service.name} — ${activity.name}`,
+        value: activity.id,
+      })),
+    ),
+)
+
 function loadData(): void {
   permitCatalogStore.loadPermits()
+  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
 }
 
 onMounted(() => {
   if (permitCatalogStore.permits.length === 0) loadData()
+  else if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
 })
 
 // New-permit edits and mutations save immediately as they're made (see
@@ -55,6 +74,7 @@ function handleRemovePermit(permitId: string): void {
   <Card v-else class="max-w-2xl">
     <PermitCatalogListEditor
       :permits="permitCatalogStore.permits"
+      :design-activity-options="designActivityOptions"
       @add="handleAddPermit"
       @update="handleUpdatePermit"
       @remove="handleRemovePermit"

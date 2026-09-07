@@ -1,7 +1,8 @@
 from sqlalchemy import ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.service_catalog import ServiceCatalogActivity
 from app.models.user import BigPK
 
 
@@ -28,6 +29,10 @@ class PermitPrerequisite(Base):
     design_activity_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("service_catalog_activities.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Read-only convenience for PermitPrerequisiteOut.from_model -- no
+    # back_populates, ServiceCatalogActivity doesn't need to know about
+    # prerequisite rows that reference it.
+    design_activity: Mapped[ServiceCatalogActivity] = relationship(foreign_keys=[design_activity_id])
 
 
 class SupervisionPrerequisite(Base):

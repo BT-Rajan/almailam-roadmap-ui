@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { Plus, Trash2 } from '@lucide/vue'
-import { ref } from 'vue'
+import { ChevronDown, ChevronUp, Plus, Trash2, X } from '@lucide/vue'
+import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import type { PermitCatalogItem } from '@/types/PermitCatalog'
+import { permitCatalogService } from '@/services/permitCatalogService'
+import { useToastStore } from '@/stores/toastStore'
+import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
+import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
+const toastStore = useToastStore()
 
 defineProps<{
   permits: PermitCatalogItem[]
+  // Every Design-branch activity, for the "eligible once these are
+  // Complete" prerequisite picker -- see PermitCatalogPanel.vue.
+  designActivityOptions: SelectOption[]
 }>()
 
 const emit = defineEmits<{
@@ -19,6 +28,59 @@ const emit = defineEmits<{
   remove: [permitId: string]
   add: [name: string]
 }>()
+
+// Prerequisites are fetched lazily, per permit, only once its row is
+// expanded -- most admin sessions never touch this, so there's no
+// reason to fetch every permit's prerequisites up front.
+const expandedPermitId = ref<string>()
+const prerequisitesByPermit = reactive<Record<string, PermitPrerequisite[]>>({})
+const isLoadingPrerequisites = ref<string>()
+const newPrerequisiteActivityId = reactive<Record<string, string>>({})
+const isMutatingPrerequisite = ref<string>()
+
+async function toggleExpanded(permit: PermitCatalogItem): Promise<void> {
+  if (expandedPermitId.value === permit.id) {
+    expandedPermitId.value = undefined
+    return
+  }
+  expandedPermitId.value = permit.id
+  if (prerequisitesByPermit[permit.id]) return
+  isLoadingPrerequisites.value = permit.id
+  try {
+    prerequisitesByPermit[permit.id] = await permitCatalogService.getPrerequisites(permit.id)
+  } catch (error) {
+    toastStore.show('error', t('administration.permitCatalog.failedToLoadPrerequisites'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isLoadingPrerequisites.value = undefined
+  }
+}
+
+async function addPrerequisite(permit: PermitCatalogItem): Promise<void> {
+  const designActivityId = newPrerequisiteActivityId[permit.id]
+  if (!designActivityId) return
+  isMutatingPrerequisite.value = permit.id
+  try {
+    const created = await permitCatalogService.addPrerequisite(permit.id, designActivityId)
+    prerequisitesByPermit[permit.id] = [...(prerequisitesByPermit[permit.id] ?? []), created]
+    newPrerequisiteActivityId[permit.id] = ''
+  } catch (error) {
+    toastStore.show('error', t('administration.permitCatalog.failedToAddPrerequisite'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isMutatingPrerequisite.value = undefined
+  }
+}
+
+async function removePrerequisite(permit: PermitCatalogItem, prerequisite: PermitPrerequisite): Promise<void> {
+  isMutatingPrerequisite.value = permit.id
+  try {
+    await permitCatalogService.removePrerequisite(prerequisite.id)
+    prerequisitesByPermit[permit.id] = (prerequisitesByPermit[permit.id] ?? []).filter((p) => p.id !== prerequisite.id)
+  } catch (error) {
+    toastStore.show('error', t('administration.permitCatalog.failedToRemovePrerequisite'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isMutatingPrerequisite.value = undefined
+  }
+}
 
 const newPermitName = ref('')
 
@@ -47,16 +109,64 @@ function commitName(permit: PermitCatalogItem, value: string): void {
       <li
         v-for="permit in permits"
         :key="permit.id"
-        class="flex items-center gap-3 rounded-lg border border-border-light bg-bg-card p-4"
+        class="flex flex-col gap-3 rounded-lg border border-border-light bg-bg-card p-4"
       >
-        <TextInput
-          :model-value="nameDrafts[permit.id] ?? permit.name"
-          :placeholder="t('administration.permitCatalog.permitName')"
-          class="flex-1"
-          @update:model-value="nameDrafts[permit.id] = $event"
-          @blur="commitName(permit, $event)"
-        />
-        <IconButton :icon="Trash2" :label="t('administration.permitCatalog.removePermit')" size="sm" variant="danger" @click="emit('remove', permit.id)" />
+        <div class="flex items-center gap-3">
+          <TextInput
+            :model-value="nameDrafts[permit.id] ?? permit.name"
+            :placeholder="t('administration.permitCatalog.permitName')"
+            class="flex-1"
+            @update:model-value="nameDrafts[permit.id] = $event"
+            @blur="commitName(permit, $event)"
+          />
+          <IconButton
+            :icon="expandedPermitId === permit.id ? ChevronUp : ChevronDown"
+            :label="t('administration.permitCatalog.prerequisites')"
+            size="sm" variant="ghost"
+            @click="toggleExpanded(permit)"
+          />
+          <IconButton :icon="Trash2" :label="t('administration.permitCatalog.removePermit')" size="sm" variant="danger" @click="emit('remove', permit.id)" />
+        </div>
+
+        <div v-if="expandedPermitId === permit.id" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-hover p-3">
+          <p class="text-xs font-medium text-text-secondary">{{ t('administration.permitCatalog.prerequisitesDescription') }}</p>
+          <SkeletonLoader v-if="isLoadingPrerequisites === permit.id" :rows="2" />
+          <template v-else>
+            <p v-if="(prerequisitesByPermit[permit.id] ?? []).length === 0" class="text-xs text-text-muted">
+              {{ t('administration.permitCatalog.noPrerequisitesYet') }}
+            </p>
+            <div v-else class="flex flex-wrap gap-2">
+              <span
+                v-for="prerequisite in prerequisitesByPermit[permit.id]"
+                :key="prerequisite.id"
+                class="inline-flex items-center gap-1 rounded-full border border-accent-300 bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700"
+              >
+                {{ prerequisite.serviceName }} — {{ prerequisite.designActivityName }}
+                <button
+                  type="button"
+                  :aria-label="t('administration.permitCatalog.removePrerequisite')"
+                  :disabled="isMutatingPrerequisite === permit.id"
+                  @click="removePrerequisite(permit, prerequisite)"
+                >
+                  <X class="h-3 w-3" />
+                </button>
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <SelectBox
+                v-model="newPrerequisiteActivityId[permit.id]"
+                :placeholder="t('administration.permitCatalog.addPrerequisitePlaceholder')"
+                :options="designActivityOptions"
+                class="flex-1"
+              />
+              <BaseButton
+                variant="secondary" size="sm"
+                :disabled="!newPrerequisiteActivityId[permit.id] || isMutatingPrerequisite === permit.id"
+                @click="addPrerequisite(permit)"
+              >{{ t('administration.permitCatalog.add') }}</BaseButton>
+            </div>
+          </template>
+        </div>
       </li>
     </ol>
     <p v-else class="text-sm text-text-muted">{{ t('administration.permitCatalog.noPermitsYet') }}</p>

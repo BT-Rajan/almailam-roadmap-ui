@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { AddServicesInput, Project, ProjectPriority, ScopeOfWork, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
+import type { AddServicesInput, Project, ProjectPriority, ScopeOfWork, SelectedPermit, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -104,6 +104,11 @@ export interface ProjectCreateInput {
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.
   requiredPermitDocuments?: string[]
+  // Permits this project needs to apply for (PermitPickerDialog) --
+  // becomes the Permit track's own trackable rows. Distinct from
+  // requiredPermitDocuments above, which is about permits the client
+  // already holds.
+  selectedPermits?: { permitId: string; permitName: string }[]
 }
 
 /**
@@ -219,6 +224,23 @@ async function reopenDesignActivity(projectId: string, activityId: string): Prom
   } catch (error) {
     console.error(`Failed to reopen design activity ${activityId} on project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to reopen design activity')
+  }
+}
+
+/**
+ * Directly sets a Permit's status -- Permits have no sub-tasks, so
+ * (unlike Design activities) this is the only way any of a permit's
+ * status transitions happen; 'Eligible' isn't settable this way, it's
+ * computed once its prerequisite Design activities are all Complete.
+ */
+async function setPermitStatus(
+  projectId: string, permitId: string, status: 'In Progress' | 'Complete' | 'Cancelled',
+): Promise<SelectedPermit> {
+  try {
+    return await apiClient.post<SelectedPermit>(`/api/projects/${projectId}/permits/${permitId}/status`, { status })
+  } catch (error) {
+    console.error(`Failed to set status for permit ${permitId} on project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update permit status')
   }
 }
 
@@ -389,6 +411,7 @@ export const projectService = {
   getStageEligibility,
   closeDesignActivity,
   reopenDesignActivity,
+  setPermitStatus,
   addServices,
   setStatus,
   deleteProject,

@@ -78,12 +78,23 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
     government_service.get_authority(db, authority_id)  # 404 if unknown
     form = government_service.get_form(db, form_id)
 
+    selected_permit_id = None
+    if getattr(payload, "selectedPermitId", None):
+        if not payload.selectedPermitId.isdigit():
+            raise ValidationAppError("selectedPermitId must be a valid id.")
+        # Scoped to this same project -- 404s rather than silently
+        # linking to another project's planned permit.
+        selected_permit_id = project_service.get_selected_permit(
+            db, project.id, int(payload.selectedPermitId)
+        ).id
+
     submission_no = next_number(db, "GOVERNMENT_SUBMISSION")
     submission = GovernmentSubmission(
         submission_no=submission_no,
         project_id=project.id,
         authority_id=authority_id,
         form_id=form_id,
+        project_selected_permit_id=selected_permit_id,
         expected_decision_date=payload.expectedDecisionDate,
         notes=payload.notes,
     )

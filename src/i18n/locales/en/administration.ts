@@ -532,6 +532,14 @@ export default {
     noPermitsYet: 'No permits yet — add one below.',
     addPermit: 'Add Permit',
     add: 'Add',
+    prerequisites: 'Prerequisites',
+    prerequisitesDescription: 'This permit becomes eligible to apply for on a project only once every Design activity listed here is Complete.',
+    noPrerequisitesYet: 'No prerequisites — this permit is eligible as soon as it’s selected on a project.',
+    addPrerequisitePlaceholder: 'Select a Design activity',
+    removePrerequisite: 'Remove prerequisite',
+    failedToLoadPrerequisites: 'Failed to load prerequisites',
+    failedToAddPrerequisite: 'Failed to add prerequisite',
+    failedToRemovePrerequisite: 'Failed to remove prerequisite',
   },
 
   serviceCatalog: {

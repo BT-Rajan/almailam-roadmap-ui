@@ -11,6 +11,7 @@ import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -19,12 +20,14 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Project, ProjectPriority, SelectedSupervisionActivity } from '@/types/Project'
+import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -39,6 +42,7 @@ const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
+const permitCatalogStore = usePermitCatalogStore()
 const { t } = useI18n()
 
 const WIZARD_STEPS = computed(() => [
@@ -67,6 +71,7 @@ const isSubmitting = ref(false)
 const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
+const isPermitPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -90,6 +95,10 @@ const form = reactive({
   selectedSupervisionActivities: [] as SelectedSupervisionActivity[],
   supervisionStartDate: '' as string | null,
   supervisionEndDate: '' as string | null,
+  // Permits this project needs to apply for (PermitPickerDialog) --
+  // optional, distinct from the client-already-holds permits step
+  // this wizard doesn't have.
+  selectedPermits: [] as PermitCatalogItem[],
 })
 
 const supervisionMonthlyTotal = computed(() =>
@@ -166,6 +175,10 @@ function handleServicesConfirmed(payload: ServicePickerConfirmPayload): void {
   form.service = [...names].join(', ')
 }
 
+function handlePermitsConfirmed(permits: PermitCatalogItem[]): void {
+  form.selectedPermits = permits
+}
+
 const clientOptions = ref<SelectOption[]>([])
 const hasIneligibleClients = ref(false)
 const engineerOptions = ref<SelectOption[]>([])
@@ -188,6 +201,7 @@ onMounted(async () => {
   // dialog directly, so anything added there shows up here without a code
   // change. Fetched fresh for the same reason as the client list above.
   await serviceCatalogStore.loadServices()
+  if (permitCatalogStore.permits.length === 0) await permitCatalogStore.loadPermits()
   // Only clients that have completed onboarding AND are still Active can
   // have a project created for them (enforced server-side too, in
   // project_service.create_project) -- a project needs a real, currently
@@ -328,6 +342,10 @@ async function submitWizard(): Promise<void> {
         form.selectedSupervisionActivities.length > 0 ? form.selectedSupervisionActivities : undefined,
       supervisionStartDate: form.supervisionStartDate || undefined,
       supervisionEndDate: form.supervisionEndDate || undefined,
+      selectedPermits:
+        form.selectedPermits.length > 0
+          ? form.selectedPermits.map((permit) => ({ permitId: permit.id, permitName: permit.name }))
+          : undefined,
     })
 
     toastStore.show('success', t('project.newWizard.projectCreatedTitle'), t('project.newWizard.addedToPipelineDescription', { name: project.projectName }))
@@ -415,6 +433,23 @@ function goToCreatedProject(): void {
               </button>
               <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
               <p v-else-if="form.service" class="truncate text-xs text-text-muted">{{ form.service }}</p>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label id="permit-picker-label" class="text-sm font-medium text-text-secondary">{{ t('project.newWizard.permitsToApplyFor') }}</label>
+              <button
+                id="permit-picker-button"
+                type="button"
+                aria-labelledby="permit-picker-label permit-picker-button"
+                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-start text-sm transition-colors duration-fast hover:bg-bg-hover"
+                @click="isPermitPickerOpen = true"
+              >
+                <span v-if="form.selectedPermits.length === 0" class="text-text-muted">{{ t('project.newWizard.selectPermits') }}</span>
+                <span v-else class="text-text-primary">{{ t('project.newWizard.permitCount', form.selectedPermits.length) }}</span>
+                <span class="text-xs font-medium text-primary-600">
+                  {{ form.selectedPermits.length === 0 ? t('project.newWizard.choose') : t('project.newWizard.edit') }}
+                </span>
+              </button>
+              <p v-if="form.selectedPermits.length > 0" class="truncate text-xs text-text-muted">{{ form.selectedPermits.map((p) => p.name).join(', ') }}</p>
             </div>
             <SelectBox
               v-model="form.engineer"
@@ -575,6 +610,13 @@ function goToCreatedProject(): void {
       :supervision-end-date="form.supervisionEndDate"
       currency="KWD"
       @confirm="handleServicesConfirmed"
+    />
+
+    <PermitPickerDialog
+      v-model="isPermitPickerOpen"
+      :permits="permitCatalogStore.permits"
+      :selected-ids="form.selectedPermits.map((p) => p.id)"
+      @confirm="handlePermitsConfirmed"
     />
 
     <BaseDialog :model-value="showConfirmation" :title="t('project.newWizard.projectCreatedTitle')" size="sm" :closable="false">
