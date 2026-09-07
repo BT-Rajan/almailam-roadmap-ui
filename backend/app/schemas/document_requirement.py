@@ -39,13 +39,22 @@ class DocumentRequirementLinkOut(BaseModel):
 
     @staticmethod
     def from_model(link, requirement) -> "DocumentRequirementLinkOut":
+        # target_catalog_id is stored as the target's own raw integer PK
+        # (see document_requirement_service._resolve_target_catalog_id) --
+        # re-formatted back into the same "ACT-004"/"PER-003" display id
+        # every other reference to these two catalogs uses (service_
+        # catalog_service's activities, permit_catalog_service's permits),
+        # not the bare integer, so the frontend's own targetOptions (built
+        # from those same display ids) can actually match this link back
+        # to a friendly label instead of falling back to a raw "Design: 8".
+        prefix = "PER" if link.target_type == "Permit" else "ACT"
         return DocumentRequirementLinkOut(
             id=str(link.id),
             requirementId=str(requirement.id),
             requirementName=requirement.name,
             requirementDescription=requirement.description,
             targetType=link.target_type,
-            targetCatalogId=str(link.target_catalog_id),
+            targetCatalogId=f"{prefix}-{link.target_catalog_id:03d}",
         )
 
 

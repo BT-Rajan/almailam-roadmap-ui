@@ -392,8 +392,18 @@ export default {
     requiredDocuments: 'Required Documents',
     requiredDocumentsHint: 'One document per line.',
     templateContent: 'Template Content',
-    templateContentHint:
-      'Written with {{token}} merge fields, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}. Used to preview and print this form filled in.',
+    // {tokens} is a plain named interpolation carrying the literal
+    // "{{token}}, e.g. {{clientName}}, ..." example text (see
+    // GovernmentFormFormDialog.vue's own call site) -- NOT written
+    // inline here. vue-i18n's message compiler treats literal double
+    // curly braces in the *template string itself* as an (invalid)
+    // nested placeholder and throws "Not allowed nest placeholder",
+    // which silently crashed this dialog's Add/Edit render entirely.
+    // Same reasoning as fieldsHintPrefix/fieldsHintSuffix just below,
+    // which route their own {{plotArea}} example around a <code v-pre>
+    // instead -- not an option here since TextArea's hint is a plain
+    // string prop, not a slot.
+    templateContentHint: 'Written with {tokens} merge fields. Used to preview and print this form filled in.',
     fieldsSectionTitle: 'Fields',
     fieldsHintPrefix:
       'Give a merge-field token from the template above a dropdown or radio group instead of a plain text box when a project fills this form in — match the "token" here to the name used in the template (e.g.',

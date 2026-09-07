@@ -385,8 +385,7 @@ export default {
     requiredDocuments: 'المستندات المطلوبة',
     requiredDocumentsHint: 'مستند واحد في كل سطر.',
     templateContent: 'محتوى القالب',
-    templateContentHint:
-      'يُكتب باستخدام حقول الدمج {{token}}، مثل {{clientName}}، {{projectName}}، {{projectAddress}}، {{companyName}}، {{engineerName}}، {{date}}. يُستخدم لمعاينة هذا النموذج وطباعته معبأً.',
+    templateContentHint: 'يُكتب باستخدام حقول الدمج {tokens}. يُستخدم لمعاينة هذا النموذج وطباعته معبأً.',
     fieldsSectionTitle: 'الحقول',
     fieldsHintPrefix:
       'أعطِ رمز حقل دمج من القالب أعلاه قائمة منسدلة أو مجموعة اختيار بدلاً من مربع نص عادي عند تعبئة المشروع لهذا النموذج — طابق "الرمز" هنا مع الاسم المستخدم في القالب (مثال:',

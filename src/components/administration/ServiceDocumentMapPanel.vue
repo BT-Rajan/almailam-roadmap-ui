@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
@@ -36,17 +36,38 @@ function fillableForms(): GovernmentForm[] {
   return governmentFormStore.forms.filter((form) => form.status === 'Active' && Boolean(form.template))
 }
 
+// One form is tagged to several services at once, and checking several
+// of its checkboxes in a normal, quick clicking pace is the expected
+// workflow here -- but each toggle used to read form.serviceTags fresh
+// from the store and PATCH a whole new array, with no serialization.
+// Two toggles fired before either request resolved would both compute
+// their new array from the SAME starting point, so whichever PATCH
+// landed last silently discarded the other's change (confirmed live:
+// checking two boxes for one form in quick succession only ever kept
+// one). pendingTagsByFormId is the synchronous, always-current draft
+// every checkbox reads/writes; saveChainByFormId serializes the actual
+// network calls per form so a later save always starts from the
+// latest draft rather than a stale snapshot, and out-of-order in-flight
+// requests can't stomp each other's results either.
+const pendingTagsByFormId = reactive<Record<string, string[]>>({})
+const saveChainByFormId: Record<string, Promise<unknown>> = {}
+
+function currentTags(form: GovernmentForm): string[] {
+  return pendingTagsByFormId[form.id] ?? form.serviceTags ?? []
+}
+
 function isTagged(form: GovernmentForm, serviceName: string): boolean {
-  return (form.serviceTags ?? []).includes(serviceName)
+  return currentTags(form).includes(serviceName)
 }
 
 async function toggle(form: GovernmentForm, serviceName: string): Promise<void> {
-  const serviceTags = isTagged(form, serviceName)
-    ? (form.serviceTags ?? []).filter((tag) => tag !== serviceName)
-    : [...new Set([...(form.serviceTags ?? []), serviceName])]
+  const tags = currentTags(form)
+  const nextTags = tags.includes(serviceName) ? tags.filter((tag) => tag !== serviceName) : [...tags, serviceName]
+  pendingTagsByFormId[form.id] = nextTags
 
-  try {
-    await governmentFormStore.updateForm(form.id, {
+  const previousSave = saveChainByFormId[form.id] ?? Promise.resolve()
+  const thisSave = previousSave.catch(() => undefined).then(() =>
+    governmentFormStore.updateForm(form.id, {
       authorityId: form.authorityId,
       formCode: form.formCode,
       title: form.title,
@@ -59,10 +80,23 @@ async function toggle(form: GovernmentForm, serviceName: string): Promise<void> 
       status: form.status,
       previewUrl: form.previewUrl,
       template: form.template,
-      serviceTags,
+      // Read at execution time, not capture time -- picks up every
+      // click queued ahead of it, including ones that landed after
+      // this toggle() call returned.
+      serviceTags: pendingTagsByFormId[form.id] ?? nextTags,
       fields: form.fields,
-    })
+    }),
+  )
+  saveChainByFormId[form.id] = thisSave
+
+  try {
+    await thisSave
+    // The store's own form.serviceTags now matches what was just saved
+    // -- safe to drop the local override so future reads (including a
+    // reload of this list) go back to the single source of truth.
+    if (pendingTagsByFormId[form.id] === nextTags) delete pendingTagsByFormId[form.id]
   } catch (error) {
+    delete pendingTagsByFormId[form.id]
     toastStore.show('error', t('administration.serviceDocumentMap.failedToUpdate'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   }
 }

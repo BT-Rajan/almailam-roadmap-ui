@@ -61,19 +61,18 @@ export function extractTemplateTokens(template: string): string[] {
 }
 
 // A project's `service` field is a comma-joined summary of the Service
-// Catalog services picked for it (see Project.service). A form matches
-// a project when either it has no serviceTags at all -- untagged means
-// unrestricted, so a freshly-created or freshly-imported form (e.g. via
-// Government Forms admin's "Load Standard Forms", which seeds every
-// form with serviceTags: []) is usable right away instead of silently
-// invisible everywhere until an admin visits Service Document Map -- or
-// when one of its tagged services appears in that summary
-// (case-insensitive, since the two are typed/edited in different admin
-// screens). Tagging a form is how an admin *narrows* it to specific
-// services, not how they make it appear at all.
+// Catalog services picked for it (see Project.service). Opt-in: a form
+// only matches a project once an admin has explicitly tagged it to one
+// of the project's services via Administration > Documents > Service
+// Document Map -- an untagged form (including a freshly-imported one
+// via Government Forms admin's "Load Standard Forms", which seeds
+// every form with serviceTags: []) matches nothing yet. This is what
+// keeps "which documents are required" accurate: only what an admin
+// has actually curated shows up as needed, never every form that
+// happens to exist regardless of whether it applies to this project.
 export function formMatchesProjectService(form: GovernmentForm, projectService: string): boolean {
   const serviceTags = form.serviceTags ?? []
-  if (serviceTags.length === 0) return true
+  if (serviceTags.length === 0) return false
   const pickedServices = projectService
     .split(',')
     .map((name) => name.trim().toLowerCase())

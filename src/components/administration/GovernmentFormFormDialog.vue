@@ -69,6 +69,10 @@ function emptyDraft(): FormDraft {
   }
 }
 
+// Passed as a named i18n param (never written directly inside a
+// translated string) -- see templateContentHint's own comment for why.
+const TEMPLATE_TOKEN_EXAMPLES = '{{token}}, e.g. {{clientName}}, {{projectName}}, {{projectAddress}}, {{companyName}}, {{engineerName}}, {{date}}'
+
 const FIELD_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Text', value: 'text', labelKey: 'administration.governmentFormDialog.fieldType.text' },
   { label: 'Dropdown', value: 'select', labelKey: 'administration.governmentFormDialog.fieldType.dropdown' },
@@ -234,7 +238,7 @@ function handleSave(): void {
       <TextArea
         v-model="draft.template"
         :label="t('administration.governmentFormDialog.templateContent')"
-        :hint="t('administration.governmentFormDialog.templateContentHint')"
+        :hint="t('administration.governmentFormDialog.templateContentHint', { tokens: TEMPLATE_TOKEN_EXAMPLES })"
         :rows="8"
       />
 
