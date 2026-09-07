@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -62,15 +63,24 @@ async function selectTemplate(key: EmailTemplateKey): Promise<void> {
   isLoadingFields.value = true
   try {
     mergeFields.value = await emailTemplateService.getMergeFields(key)
+  } catch {
+    // Called directly from a template @click with no .catch of its own --
+    // if the backend that just failed to load the template list also
+    // can't serve merge fields, leaving this unhandled would surface as
+    // a console rejection with no visible effect, which is worse than
+    // just leaving the reference list empty.
+    mergeFields.value = []
   } finally {
     isLoadingFields.value = false
   }
 }
 
-onMounted(async () => {
+async function loadData(): Promise<void> {
   await emailTemplateStore.loadTemplates()
   if (emailTemplateStore.templates.length > 0) void selectTemplate(emailTemplateStore.templates[0].key)
-})
+}
+
+onMounted(loadData)
 
 // Re-seeds the form if the underlying store data changes out from under
 // the currently-open template (e.g. a save from elsewhere) -- doesn't
@@ -129,8 +139,13 @@ function handleCancel(): void {
     </div>
 
     <div class="laptop:col-span-2">
+      <ErrorState
+        v-if="emailTemplateStore.error && emailTemplateStore.templates.length === 0"
+        :description="emailTemplateStore.error"
+        @retry="loadData"
+      />
       <EmptyState
-        v-if="!selectedTemplate && !emailTemplateStore.isLoading"
+        v-else-if="!selectedTemplate && !emailTemplateStore.isLoading"
         :icon="Mail"
         :title="t('administration.emailTemplates.emptyTitle')"
         :description="t('administration.emailTemplates.emptyDescription')"

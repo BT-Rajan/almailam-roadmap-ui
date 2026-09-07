@@ -35,8 +35,11 @@ export const useEmailSettingsStore = defineStore('emailSettings', {
         ])
         this.settings = settings
         this.presets = presets
-      } catch {
-        this.error = 'Unable to load email settings. Please try again.'
+      } catch (error) {
+        // Surfaces the real backend message (permission error, a genuine
+        // server fault, etc.) instead of a fixed generic string that
+        // gave no way to tell what actually went wrong.
+        this.error = error instanceof Error && error.message ? error.message : 'Unable to load email settings. Please try again.'
       } finally {
         this.isLoading = false
       }
@@ -77,8 +80,8 @@ export const useEmailSettingsStore = defineStore('emailSettings', {
         this.settings = await emailSettingsService.saveSettings(this.settings)
         this.testResult = undefined
         return true
-      } catch {
-        this.error = 'Unable to save email settings. Please try again.'
+      } catch (error) {
+        this.error = error instanceof Error && error.message ? error.message : 'Unable to save email settings. Please try again.'
         return false
       } finally {
         this.isSaving = false
