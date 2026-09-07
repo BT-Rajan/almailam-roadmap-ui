@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
+from app.models.user import User
 from app.services.number_series_service import next_number
 
 
@@ -33,6 +34,29 @@ def create_notification(
     )
     db.add(notification)
     return notification
+
+
+def notify_role(
+    db: Session,
+    role: str,
+    title: str,
+    message: str,
+    category: str,
+    link_route_name: str | None = None,
+    link_params: dict[str, str] | None = None,
+) -> int:
+    """Broadcasts one notification to every active user with the given
+    role -- e.g. every Administrator, when client_service.
+    verify_onboarding_request_otp creates a new client. Mirrors the
+    one-notification-per-recipient pattern client_service.
+    check_and_notify_stale_onboarding already uses for a single account
+    manager, generalized to "every user with this role". Does not
+    commit, same convention create_notification already documents --
+    the caller's transaction covers these rows too."""
+    recipients = db.query(User).filter(User.role == role, User.is_active.is_(True)).all()
+    for recipient in recipients:
+        create_notification(db, recipient.id, title, message, category, link_route_name, link_params)
+    return len(recipients)
 
 
 def list_for_user(db: Session, user_id: int, unread_only: bool = False) -> list[Notification]:

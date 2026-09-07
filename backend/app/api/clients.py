@@ -1,4 +1,5 @@
 import base64
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -38,6 +39,8 @@ from app.schemas.client import (
     ClientUpdate,
     ClientVerificationCreate,
     ClientVerificationOut,
+    PendingClientOnboardingCreate,
+    PendingClientOnboardingOut,
 )
 from app.services import ai_service, client_service
 
@@ -119,6 +122,49 @@ def merge_clients(
     )
     names = _account_manager_names(db, [merged])
     return _client_out(merged, names)
+
+
+@router.post("/onboarding-requests", response_model=PendingClientOnboardingOut, status_code=201)
+def create_onboarding_request(
+    payload: str = Form(...),
+    documentCategory: str | None = Form(default=None),
+    documentTitle: str | None = Form(default=None),
+    identificationFile: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    """Stages a New Client wizard submission and immediately emails the
+    onboarding OTP -- see client_service.create_onboarding_request. No
+    Client row (or any of its Contact/Address/Identification/Document
+    sub-records) exists until POST .../{id}/verify-otp below succeeds.
+    `payload` is a JSON string (not a plain Form field per part) since it
+    nests a variable-length list of contacts alongside the client/
+    address/identification objects -- parsed here, then validated the
+    same way any other request body would be.
+    """
+    parsed = PendingClientOnboardingCreate.model_validate(json.loads(payload))
+    pending = client_service.create_onboarding_request(
+        db, parsed, identificationFile, documentCategory, documentTitle, current_user.id
+    )
+    return PendingClientOnboardingOut.from_model(pending)
+
+
+@router.post("/onboarding-requests/{pending_id}/send-otp", response_model=PendingClientOnboardingOut)
+def resend_onboarding_request_otp(pending_id: int, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    pending = client_service.resend_onboarding_request_otp(db, pending_id, current_user.id)
+    return PendingClientOnboardingOut.from_model(pending)
+
+
+@router.post("/onboarding-requests/{pending_id}/verify-otp", response_model=ClientOut)
+def verify_onboarding_request_otp(
+    pending_id: int,
+    payload: OtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    client = client_service.verify_onboarding_request_otp(db, pending_id, payload.code, current_user.id)
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
 
 
 # Constraints specific to the identification-document upload in the New

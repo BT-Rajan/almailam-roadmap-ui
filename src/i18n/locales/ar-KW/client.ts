@@ -317,12 +317,17 @@ export default {
     resumeDraft: 'استئناف المسودة',
     clientSubmittedTitle: 'تم إرسال العميل',
     clientSubmittedMessagePart1: 'تم إنشاؤه بنجاح كعميل',
-    clientReadyNotice: 'بعد ذلك، أرسل للعميل رمز تحقق عبر البريد الإلكتروني من صفحة العميل. بعد تأكيد الرمز، تصبح حالته "جاهز" ويمكن اختياره في مشروع، وسيصله بريد يحتوي على بيانات دخول بوابة العميل.',
+    clientReadyNotice: 'حالة العميل الآن "جاهز" ويمكن اختياره في مشروع. تم إرسال بيانات دخول بوابة العميل إليه عبر البريد الإلكتروني.',
     viewClientWorkspace: 'عرض مساحة عمل العميل',
     failedToOnboardClient: 'فشلت تهيئة العميل',
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
     fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
     fieldsNeedAttentionBeforeOnboarding: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل تهيئة هذا العميل.',
+    verifyEmailDialog: {
+      title: 'التحقق من بريد العميل الإلكتروني',
+      failedToSend: 'فشل إرسال رمز التحقق',
+      failedToVerify: 'فشل التحقق من الرمز',
+    },
   },
 
   addressEditDialog: {

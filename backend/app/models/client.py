@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -258,3 +258,27 @@ class ClientVerification(Base):
     )
     verified_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+
+class PendingClientOnboarding(Base, EmailOtpMixin):
+    """A New Client wizard submission staged behind email verification --
+    see client_service.create_onboarding_request/verify_onboarding_request_otp.
+    No Client (or any of its Contact/Address/Identification/Document rows)
+    exists until the client confirms this OTP; an abandoned or
+    never-verified wizard submission never leaves a half-onboarded Client
+    record behind. `payload` holds the already-validated ClientCreate +
+    sub-record payloads as plain JSON (re-validated through the same
+    Pydantic schemas again at verification time); `document` holds the
+    identification file's already-saved storage_key plus the
+    ClientDocument fields it needs -- the file itself is written to its
+    permanent location (the same "client_documents" bucket
+    client_service.create_document uses) the moment this row is created,
+    so verification never has to move anything, only decide whether the
+    ClientDocument row gets written."""
+
+    __tablename__ = "pending_client_onboardings"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    document: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

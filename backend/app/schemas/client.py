@@ -651,3 +651,31 @@ class IdentificationVerificationOut(BaseModel):
     checked: bool
     matches: bool | None = None
     reasoning: str | None = None
+
+
+class PendingClientOnboardingCreate(BaseModel):
+    """The whole New Client wizard submission, staged behind email
+    verification -- see client_service.create_onboarding_request. Nests
+    the exact same schemas ClientCreate/ClientContactCreate/
+    ClientAddressCreate/ClientIdentificationCreate already validate a
+    live create with, so every field-level rule they carry (phone
+    format, enum checks, date ordering) applies here unchanged."""
+
+    client: ClientCreate
+    contacts: list[ClientContactCreate] = Field(default_factory=list)
+    address: ClientAddressCreate | None = None
+    identification: ClientIdentificationCreate | None = None
+
+
+class PendingClientOnboardingOut(BaseModel):
+    id: str
+    email: str
+    otpSentAt: datetime | None = None
+
+    @staticmethod
+    def from_model(pending) -> "PendingClientOnboardingOut":
+        return PendingClientOnboardingOut(
+            id=str(pending.id),
+            email=pending.payload["client"]["email"],
+            otpSentAt=pending.otp_sent_at,
+        )

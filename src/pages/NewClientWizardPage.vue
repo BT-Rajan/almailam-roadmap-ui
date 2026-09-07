@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
+import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Stepper from '@/components/common/Stepper.vue'
 
@@ -16,6 +17,7 @@ const ClientIdentificationStep = defineAsyncComponent(() => import('@/components
 const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
 import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { clientService } from '@/services/clientService'
 import { useClientStore } from '@/stores/clientStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -135,7 +137,16 @@ watch(currentStep, saveDraft)
 // can be missed while the page is already navigating away.
 const showConfirmation = ref(false)
 const createdClient = ref<Client | null>(null)
-const confirmationNote = ref('')
+
+// Review & Confirm no longer creates the client directly -- it stages
+// the submission and sends the OTP immediately (see submitWizard
+// below); the client (and every sub-record) is only created once
+// handleConfirmOtp succeeds. pendingOnboardingId/pendingEmail identify
+// that staged submission for the resend/verify calls.
+const isOtpDialogOpen = ref(false)
+const isOtpSaving = ref(false)
+const pendingOnboardingId = ref('')
+const pendingEmail = ref('')
 
 async function checkForDuplicates(): Promise<void> {
   const name = form.value.clientType === 'Individual' ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
@@ -280,128 +291,125 @@ async function submitWizard(): Promise<void> {
   try {
     const isIndividual = form.value.clientType === 'Individual'
     const primaryContact = form.value.contacts.find(isContactTouched)
-
-    // Create the client first -- everything below depends on the real,
-    // backend-assigned client id (previously this whole wizard generated
-    // a fake id client-side and never called the backend at all, so
-    // nothing survived a page refresh).
-    const client = await clientStore.createClient({
-      clientType: form.value.clientType,
-      companyName: isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
-      contactPerson: primaryContact?.name || (isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName),
-      mobile: form.value.mobile,
-      email: form.value.email,
-      city: form.value.address.city,
-      individualProfile: isIndividual ? { ...form.value.individualProfile } : undefined,
-      organisationProfile: !isIndividual ? { ...form.value.organisationProfile } : undefined,
-      communicationPreference: { ...form.value.communicationPreference },
-      accountManagerId: form.value.accountManagerId || undefined,
-    })
-
-    const subRecordRequests: Promise<unknown>[] = []
+    const displayName = isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
 
     const touchedContacts = form.value.contacts.filter(isContactTouched)
-
-    if (touchedContacts.length > 0) {
-      for (const contact of touchedContacts) {
-        subRecordRequests.push(
-          clientStore.createContact(client.id, {
+    const contacts =
+      touchedContacts.length > 0
+        ? touchedContacts.map((contact) => ({
             name: contact.name,
             contactType: contact.contactType,
             mobile: contact.mobile,
             email: contact.email,
             isAuthorisedRepresentative: contact.isAuthorisedRepresentative,
-          }),
-        )
-      }
-    } else if (form.value.mobile.trim() && form.value.email.trim()) {
-      // No row was added on the Contacts & Address step (that step no
-      // longer pre-fills or requires one -- see git history), but Client
-      // Type already collected a mobile/email/name and saved them onto
-      // the client record itself as contactPerson/mobile/email. Without
-      // this, that same information silently never becomes an actual
-      // Contact row, so the client's Contacts tab shows "No contacts on
-      // file" despite the user having entered a contact's details.
-      subRecordRequests.push(
-        clientStore.createContact(client.id, {
-          name: isIndividual ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName,
-          contactType: 'Primary Contact',
+          }))
+        : // No row was added on the Contacts & Address step (that step no
+          // longer pre-fills or requires one -- see git history), but Client
+          // Type already collected a mobile/email/name. Without this, that
+          // same information silently never becomes an actual Contact row,
+          // so the client's Contacts tab shows "No contacts on file"
+          // despite the user having entered a contact's details.
+          form.value.mobile.trim() && form.value.email.trim()
+          ? [
+              {
+                name: displayName,
+                contactType: 'Primary Contact' as const,
+                mobile: form.value.mobile,
+                email: form.value.email,
+                isAuthorisedRepresentative: true,
+              },
+            ]
+          : []
+
+    const address =
+      form.value.address.city.trim().length > 0
+        ? {
+            addressType: form.value.address.addressType,
+            country: form.value.address.country,
+            state: form.value.address.state,
+            city: form.value.address.city,
+            area: form.value.address.area || undefined,
+            street: form.value.address.street || undefined,
+            building: form.value.address.building || undefined,
+          }
+        : undefined
+
+    const identification =
+      form.value.identification.documentNumber.trim().length > 0
+        ? {
+            documentType: form.value.identification.documentType,
+            documentNumber: form.value.identification.documentNumber,
+            issueDate: form.value.identification.issueDate,
+            expiryDate: form.value.identification.expiryDate,
+            issuingCountry: form.value.identification.issuingCountry,
+          }
+        : undefined
+
+    const pending = await clientService.createOnboardingRequest(
+      {
+        client: {
+          clientType: form.value.clientType,
+          companyName: displayName,
+          contactPerson: primaryContact?.name || displayName,
           mobile: form.value.mobile,
           email: form.value.email,
-          isAuthorisedRepresentative: true,
-        }),
-      )
-    }
-
-    if (form.value.address.city.trim().length > 0) {
-      subRecordRequests.push(
-        clientStore.createAddress(client.id, {
-          addressType: form.value.address.addressType,
-          country: form.value.address.country,
-          state: form.value.address.state,
           city: form.value.address.city,
-          area: form.value.address.area || undefined,
-          street: form.value.address.street || undefined,
-          building: form.value.address.building || undefined,
-        }),
-      )
-    }
+          individualProfile: isIndividual ? { ...form.value.individualProfile } : undefined,
+          organisationProfile: !isIndividual ? { ...form.value.organisationProfile } : undefined,
+          communicationPreference: { ...form.value.communicationPreference },
+          accountManagerId: form.value.accountManagerId || undefined,
+        },
+        contacts,
+        address,
+        identification,
+      },
+      form.value.identificationFile,
+      // Was hardcoded to 'Identity Document' regardless of what was
+      // actually selected -- an entity client uploading its Trade
+      // Licence here was filed under the wrong category and never
+      // satisfied the "Trade licence" onboarding requirement (see
+      // ORGANISATION_REQUIREMENTS in clientOptions.ts).
+      form.value.identificationFile ? getDocumentCategoryForIdentificationType(form.value.identification.documentType) : undefined,
+      form.value.identificationFile ? `${form.value.identification.documentType} - ${displayName}` : undefined,
+    )
 
-    if (form.value.identification.documentNumber.trim().length > 0) {
-      subRecordRequests.push(
-        clientStore.createIdentification(client.id, {
-          documentType: form.value.identification.documentType,
-          documentNumber: form.value.identification.documentNumber,
-          issueDate: form.value.identification.issueDate,
-          expiryDate: form.value.identification.expiryDate,
-          issuingCountry: form.value.identification.issuingCountry,
-        }),
-      )
-    }
-
-    if (form.value.identificationFile) {
-      subRecordRequests.push(
-        clientStore.createDocument(client.id, {
-          // Was hardcoded to 'Identity Document' regardless of what was
-          // actually selected -- an entity client uploading its Trade
-          // Licence here was filed under the wrong category and never
-          // satisfied the "Trade licence" onboarding requirement (see
-          // ORGANISATION_REQUIREMENTS in clientOptions.ts).
-          category: getDocumentCategoryForIdentificationType(form.value.identification.documentType),
-          title: `${form.value.identification.documentType} - ${getClientDisplayName(client)}`,
-          issueDate: form.value.identification.issueDate || undefined,
-          expiryDate: form.value.identification.expiryDate || undefined,
-          issuingAuthority: form.value.identification.issuingCountry,
-          file: form.value.identificationFile,
-        }),
-      )
-    }
-
-    // Sub-records are independent of one another, so run them concurrently
-    // once the client itself exists. A failure here is surfaced but
-    // doesn't roll back the client -- it already exists in the system and
-    // is visible/editable from its workspace page.
-    const results = await Promise.allSettled(subRecordRequests)
-    const failures = results.filter((result) => result.status === 'rejected').length
-
-    if (failures > 0) {
-      confirmationNote.value = `but ${failures} supporting record${failures === 1 ? '' : 's'} failed to save. You can add them from the client's workspace.`
-    } else {
-      confirmationNote.value = ''
-    }
-
-    // The dedicated "Client Submitted" dialog below (showConfirmation)
-    // already covers the success case -- including the partial-failure
-    // note inline -- so no separate pop-up here would just be a second,
-    // redundant confirmation for the same one action.
-    createdClient.value = client
-    clearDraft()
-    showConfirmation.value = true
+    pendingOnboardingId.value = pending.id
+    pendingEmail.value = pending.email
+    isOtpDialogOpen.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
     resultDialogStore.showError(t('client.newWizard.failedToOnboardClient'), detail)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function handleResendOtp(): Promise<void> {
+  isOtpSaving.value = true
+  try {
+    const pending = await clientService.resendOnboardingRequestOtp(pendingOnboardingId.value)
+    pendingEmail.value = pending.email
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.newWizard.verifyEmailDialog.failedToSend'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
+async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+  isOtpSaving.value = true
+  try {
+    const client = await clientService.verifyOnboardingRequestOtp(pendingOnboardingId.value, payload.code)
+    createdClient.value = client
+    clearDraft()
+    isOtpDialogOpen.value = false
+    showConfirmation.value = true
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.newWizard.verifyEmailDialog.failedToVerify'), detail)
+  } finally {
+    isOtpSaving.value = false
   }
 }
 
@@ -461,12 +469,21 @@ function goToCreatedClient(): void {
       </div>
     </div>
 
+    <OtpVerificationDialog
+      v-model="isOtpDialogOpen"
+      :email="pendingEmail"
+      step="enter-code"
+      :loading="isOtpSaving"
+      :title="t('client.newWizard.verifyEmailDialog.title')"
+      @send="handleResendOtp"
+      @confirm="handleConfirmOtp"
+    />
+
     <BaseDialog :model-value="showConfirmation" :title="t('client.newWizard.clientSubmittedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
         <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
         {{ t('client.newWizard.clientSubmittedMessagePart1') }}
         <strong>{{ createdClient?.code }}</strong>.
-        <span v-if="confirmationNote"> {{ confirmationNote }}</span>
       </p>
       <p class="mt-2 text-sm text-text-secondary">
         {{ t('client.newWizard.clientReadyNotice') }}

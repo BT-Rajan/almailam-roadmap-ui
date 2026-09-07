@@ -27,6 +27,14 @@ from app.models.client import (
     ClientDocumentVersion,
     ClientIdentification,
     ClientVerification,
+    PendingClientOnboarding,
+)
+from app.schemas.client import (
+    ClientAddressCreate,
+    ClientContactCreate,
+    ClientCreate,
+    ClientIdentificationCreate,
+    PendingClientOnboardingCreate,
 )
 from app.services import audit_service, company_service, email_service, email_template_service, notification_service, user_service
 
@@ -473,6 +481,163 @@ def _send_welcome_email(db: Session, client: Client, portal_user: User, temporar
         },
     )
     email_service.send_email(client.email, subject, body, db=db)
+
+
+def get_pending_onboarding(db: Session, pending_id: int) -> PendingClientOnboarding:
+    pending = db.query(PendingClientOnboarding).filter(PendingClientOnboarding.id == pending_id).first()
+    if pending is None:
+        raise NotFoundError("Client onboarding request")
+    return pending
+
+
+def create_onboarding_request(
+    db: Session,
+    payload: PendingClientOnboardingCreate,
+    identification_file: UploadFile | None,
+    document_category: str | None,
+    document_title: str | None,
+    user_id: int | None,
+) -> PendingClientOnboarding:
+    """Stages a whole New Client wizard submission and immediately sends
+    the onboarding OTP -- no Client (or any of its Contact/Address/
+    Identification/Document rows) is created until the client confirms
+    the code (see verify_onboarding_request_otp). The identification
+    file, if any, is written to its permanent location right away (same
+    "client_documents" bucket create_document already uses) since
+    save_upload doesn't need a client id to do that -- only the
+    ClientDocument row referencing it is deferred. document_category/
+    document_title are computed by the frontend exactly as they already
+    are for a live create_document call (see clientOptions.ts's
+    getDocumentCategoryForIdentificationType) -- the wizard has
+    everything needed for that mapping before a client id ever exists,
+    so there's nothing to duplicate here.
+    """
+    document: dict | None = None
+    if identification_file is not None:
+        storage_key, original_filename, size_bytes = save_upload(identification_file, "client_documents")
+        identification = payload.identification
+        if not document_category or not document_title:
+            raise ValidationAppError("documentCategory and documentTitle are required with an identification file.")
+        document = {
+            "category": document_category,
+            "title": document_title,
+            "issueDate": identification.issueDate.isoformat() if identification and identification.issueDate else None,
+            "expiryDate": identification.expiryDate.isoformat() if identification and identification.expiryDate else None,
+            "issuingAuthority": identification.issuingCountry if identification else None,
+            "storageKey": storage_key,
+            "originalFilename": original_filename,
+            "sizeBytes": size_bytes,
+        }
+
+    pending = PendingClientOnboarding(
+        payload=payload.model_dump(mode="json"),
+        document=document,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(pending)
+    db.flush()
+
+    code = otp.generate_code()
+    pending.otp_code_hash = otp.hash_code(code)
+    pending.otp_expires_at = otp.new_expiry()
+    pending.otp_attempts = 0
+    pending.otp_sent_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(pending)
+
+    subject, body = email_template_service.render(
+        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
+    )
+    email_service.send_email(payload.client.email, subject, body, db=db)
+    return pending
+
+
+def resend_onboarding_request_otp(db: Session, pending_id: int, user_id: int | None) -> PendingClientOnboarding:
+    pending = get_pending_onboarding(db, pending_id)
+
+    code = otp.generate_code()
+    pending.otp_code_hash = otp.hash_code(code)
+    pending.otp_expires_at = otp.new_expiry()
+    pending.otp_attempts = 0
+    pending.otp_sent_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(pending)
+
+    subject, body = email_template_service.render(
+        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
+    )
+    email_service.send_email(pending.payload["client"]["email"], subject, body, db=db)
+    return pending
+
+
+def verify_onboarding_request_otp(db: Session, pending_id: int, code: str, user_id: int | None) -> Client:
+    """Confirms the code the client read back to staff -- success is
+    what actually creates the Client (and every staged sub-record) for
+    the first time. Reuses create_client/create_contact/create_address/
+    create_identification/_create_document_row completely unchanged, so
+    the materialized client is byte-for-byte what the old
+    create-then-verify flow used to produce -- just built inside one
+    transaction instead of several separate API calls. onboarding_state
+    goes straight to "Ready" (skipping the old "Pending Verification"
+    hop) since verification already happened before this row existed.
+    """
+    pending = get_pending_onboarding(db, pending_id)
+    if not pending.otp_code_hash or not pending.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if otp.is_expired(pending.otp_expires_at):
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if pending.otp_attempts >= otp.MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+
+    if not otp.code_matches(code, pending.otp_code_hash):
+        pending.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    client_payload = ClientCreate(**pending.payload["client"])
+    client = create_client(db, client_payload, user_id)
+
+    for contact_dict in pending.payload.get("contacts") or []:
+        create_contact(db, client.id, ClientContactCreate(**contact_dict), user_id)
+
+    if pending.payload.get("address"):
+        create_address(db, client.id, ClientAddressCreate(**pending.payload["address"]), user_id)
+
+    if pending.payload.get("identification"):
+        create_identification(db, client.id, ClientIdentificationCreate(**pending.payload["identification"]), user_id)
+
+    if pending.document:
+        doc = pending.document
+        _create_document_row(
+            db, client.id, doc["category"], doc["title"],
+            date.fromisoformat(doc["issueDate"]) if doc.get("issueDate") else None,
+            date.fromisoformat(doc["expiryDate"]) if doc.get("expiryDate") else None,
+            doc.get("issuingAuthority"),
+            doc["storageKey"], doc["originalFilename"], doc["sizeBytes"],
+            user_id,
+        )
+
+    client.onboarding_state = "Ready"
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via OTP", user_id)
+    db.commit()
+    db.refresh(client)
+
+    portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
+    _send_welcome_email(db, client, portal_user, temporary_password)
+
+    notification_service.notify_role(
+        db, "Administrator",
+        "New client created",
+        f"{client.company_name} was onboarded and verified.",
+        "System",
+        link_route_name="client-workspace",
+        link_params={"clientId": f"CLT-{client.id:03d}"},
+    )
+    db.commit()
+
+    db.delete(pending)
+    db.commit()
+    return client
 
 
 def check_and_notify_stale_onboarding(db: Session) -> int:
@@ -1144,12 +1309,38 @@ def create_document(
 
     storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
 
+    return _create_document_row(
+        db, client_id, category, title, parsed_issue_date, parsed_expiry_date, issuing_authority,
+        storage_key, original_filename, size_bytes, uploaded_by,
+    )
+
+
+def _create_document_row(
+    db: Session,
+    client_id: int,
+    category: str,
+    title: str,
+    issue_date: date | None,
+    expiry_date: date | None,
+    issuing_authority: str | None,
+    storage_key: str,
+    original_filename: str,
+    size_bytes: int,
+    uploaded_by: int,
+) -> ClientDocument:
+    """The row-creation tail of create_document, extracted so
+    verify_onboarding_request_otp can write the same ClientDocument +
+    ClientDocumentVersion rows from a file that was already saved to
+    permanent storage at onboarding-request time (see
+    create_onboarding_request) -- there's no fresh UploadFile to read at
+    verification time, only the storage_key/filename/size save_upload
+    already returned earlier."""
     document = ClientDocument(
         client_id=client_id,
         category=category,
         title=title,
-        issue_date=parsed_issue_date,
-        expiry_date=parsed_expiry_date,
+        issue_date=issue_date,
+        expiry_date=expiry_date,
         issuing_authority=issuing_authority.strip() if issuing_authority else None,
         version=1,
         verification_status="Pending",

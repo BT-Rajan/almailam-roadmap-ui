@@ -317,12 +317,17 @@ export default {
     resumeDraft: 'Resume Draft',
     clientSubmittedTitle: 'Client Submitted',
     clientSubmittedMessagePart1: 'was successfully created as client',
-    clientReadyNotice: 'Next, send the client an email verification code from their workspace. Once confirmed, they\'ll be Ready to select on a project and will receive their Client Portal login.',
+    clientReadyNotice: 'The client is Ready and can now be selected on a project. Their Client Portal login has been emailed to them.',
     viewClientWorkspace: 'View Client Workspace',
     failedToOnboardClient: 'Failed to onboard client',
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
     fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
     fieldsNeedAttentionBeforeOnboarding: 'Some fields under "{step}" need attention before this client can be onboarded.',
+    verifyEmailDialog: {
+      title: 'Verify Client Email',
+      failedToSend: 'Failed to send verification code',
+      failedToVerify: 'Failed to verify code',
+    },
   },
 
   addressEditDialog: {

@@ -654,6 +654,100 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
   }
 }
 
+export interface OnboardingRequestPayload {
+  client: Partial<Client>
+  contacts: ClientContactInput[]
+  address?: ClientAddressInput
+  identification?: ClientIdentificationInput
+}
+
+export interface PendingOnboardingRequest {
+  id: string
+  email: string
+  otpSentAt: string | null
+}
+
+/**
+ * Stages a New Client wizard submission and immediately emails the
+ * onboarding OTP -- no Client (or any of its Contact/Address/
+ * Identification/Document rows) is created until
+ * verifyOnboardingRequestOtp below succeeds. Sends the identification
+ * file as multipart/form-data alongside a single JSON-stringified
+ * `payload` field (it nests a variable-length contacts list, so it
+ * can't be flattened into individual Form fields the way createDocument
+ * above does) -- same raw-fetch-with-401-retry pattern as createDocument.
+ */
+async function createOnboardingRequest(
+  payload: OnboardingRequestPayload,
+  identificationFile: File | null,
+  documentCategory?: string,
+  documentTitle?: string,
+): Promise<PendingOnboardingRequest> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('payload', JSON.stringify(payload))
+  if (documentCategory) formData.append('documentCategory', documentCategory)
+  if (documentTitle) formData.append('documentTitle', documentTitle)
+  if (identificationFile) formData.append('identificationFile', identificationFile)
+
+  const doRequest = () =>
+    fetch('/api/clients/onboarding-requests', {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  try {
+    let response = await doRequest()
+
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) {
+        response = await doRequest()
+      }
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Request failed with status ${response.status}`)
+    }
+
+    return (await response.json()) as PendingOnboardingRequest
+  } catch (error) {
+    console.error('Failed to submit client onboarding request:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to submit onboarding request')
+  }
+}
+
+/**
+ * Resends the verification code for a staged (not-yet-created) client --
+ * see backend client_service.resend_onboarding_request_otp.
+ */
+async function resendOnboardingRequestOtp(pendingId: string): Promise<PendingOnboardingRequest> {
+  try {
+    return await apiClient.post<PendingOnboardingRequest>(`/api/clients/onboarding-requests/${pendingId}/send-otp`, {})
+  } catch (error) {
+    console.error(`Failed to resend onboarding code for request ${pendingId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+  }
+}
+
+/**
+ * Confirms the code the client read back to staff. On success the
+ * backend creates the real Client (and every staged sub-record) for the
+ * first time, already at onboarding_state "Ready" -- see backend
+ * client_service.verify_onboarding_request_otp.
+ */
+async function verifyOnboardingRequestOtp(pendingId: string, code: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/onboarding-requests/${pendingId}/verify-otp`, { code })
+  } catch (error) {
+    console.error(`Failed to verify onboarding code for request ${pendingId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+  }
+}
+
 /**
  * Toggle a client's Active/Inactive status via backend API.
  */
@@ -744,6 +838,9 @@ export const clientService = {
   findIdentificationDuplicates,
   mergeClients,
   createClient,
+  createOnboardingRequest,
+  resendOnboardingRequestOtp,
+  verifyOnboardingRequestOtp,
   updateClient,
   setStatus,
   deleteClient,
