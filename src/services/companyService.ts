@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
-import type { CompanySettings } from '@/types/CompanySettings'
+import type { CompanyBranding, CompanySettings } from '@/types/CompanySettings'
 
 /**
  * Fetch company settings from backend API
@@ -11,6 +11,20 @@ async function getCompanySettings(): Promise<CompanySettings> {
   } catch (error) {
     console.error('Failed to fetch company settings:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch settings')
+  }
+}
+
+/**
+ * The narrow branding subset (brand color, name, logo flag) any logged-in
+ * role can fetch, regardless of Administration permissions -- see
+ * GET /api/company/branding. Used to theme the app on boot.
+ */
+async function getBranding(): Promise<CompanyBranding> {
+  try {
+    return await apiClient.get<CompanyBranding>('/api/company/branding')
+  } catch (error) {
+    console.error('Failed to fetch company branding:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch branding')
   }
 }
 
@@ -94,6 +108,7 @@ async function getLogoBlob(): Promise<Blob> {
 
 export const companyService = {
   getCompanySettings,
+  getBranding,
   saveCompanySettings,
   uploadLogo,
   deleteLogo,

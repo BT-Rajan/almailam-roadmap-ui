@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_permission
+from app.api.deps import get_current_user, require_permission
 from app.core.database import get_db
 from app.core.exceptions import NotFoundError
 from app.core.file_storage import resolve_path
 from app.models.user import User
-from app.schemas.company import CompanySettingsIn, CompanySettingsOut
+from app.schemas.company import CompanyBrandingOut, CompanySettingsIn, CompanySettingsOut
 from app.services import company_service
 
 router = APIRouter(prefix="/api/company", tags=["company"])
@@ -24,6 +24,17 @@ can_edit = require_permission("Administration", "edit")
 @router.get("/settings", response_model=CompanySettingsOut)
 def get_settings(db: Session = Depends(get_db), _=Depends(can_view)):
     return CompanySettingsOut.from_model(company_service.get_settings(db))
+
+
+@router.get("/branding", response_model=CompanyBrandingOut)
+def get_branding(db: Session = Depends(get_db), _=Depends(get_current_user)):
+    """Unlike /settings above, gated only on being logged in, not on
+    Administration:view -- every role (Customer/Site portal included)
+    needs the brand color and logo to theme its own UI consistently
+    with whatever an admin has configured. See CompanyBrandingOut's own
+    docstring for why this is a separate, narrower endpoint rather than
+    just loosening /settings."""
+    return CompanyBrandingOut.from_model(company_service.get_settings(db))
 
 
 @router.post("/settings", response_model=CompanySettingsOut)

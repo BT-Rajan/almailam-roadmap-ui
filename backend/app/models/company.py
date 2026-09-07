@@ -21,7 +21,7 @@ class CompanySettings(Base, TimestampMixin):
     address: Mapped[str] = mapped_column(String(250), nullable=False, default="")
     city: Mapped[str] = mapped_column(String(80), nullable=False, default="")
     country: Mapped[str] = mapped_column(String(80), nullable=False, default="")
-    brand_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#1D4ED8")
+    brand_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#3995BE")
     default_language: Mapped[str] = mapped_column(String(20), nullable=False, default="English")
     timezone: Mapped[str] = mapped_column(String(60), nullable=False, default="Asia/Dubai")
     date_format: Mapped[str] = mapped_column(String(20), nullable=False, default="DD/MM/YYYY")

@@ -51,6 +51,27 @@ class CompanySettingsOut(BaseModel):
         )
 
 
+class CompanyBrandingOut(BaseModel):
+    """The subset of CompanySettings every logged-in role (Customer/Site
+    portal included, not just staff with Administration:view) needs to
+    theme its own UI consistently -- see GET /api/company/branding.
+    Deliberately excludes every other field on CompanySettingsOut (trade
+    license, address, alert thresholds, etc.), which stay behind the
+    Administration permission gate."""
+
+    companyName: str
+    brandColor: str
+    hasLogo: bool = False
+
+    @staticmethod
+    def from_model(settings) -> "CompanyBrandingOut":
+        return CompanyBrandingOut(
+            companyName=settings.company_name,
+            brandColor=settings.brand_color,
+            hasLogo=bool(settings.logo_storage_key),
+        )
+
+
 class CompanySettingsIn(BaseModel):
     companyName: str = Field(min_length=1, max_length=150)
     tagline: str = Field(default="", max_length=200)
@@ -61,7 +82,7 @@ class CompanySettingsIn(BaseModel):
     address: str = Field(default="", max_length=250)
     city: str = Field(default="", max_length=80)
     country: str = Field(default="", max_length=80)
-    brandColor: str = Field(default="#1D4ED8", max_length=20)
+    brandColor: str = Field(default="#3995BE", max_length=20)
     defaultLanguage: str = Field(default="English")
     timezone: str = Field(default="Asia/Dubai", max_length=60)
     dateFormat: str = Field(default="DD/MM/YYYY", max_length=20)

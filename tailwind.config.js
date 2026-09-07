@@ -41,23 +41,29 @@ export default {
           800: '#292930',
           900: '#17171a',
         },
-        // Deep emerald/jade accent -- deliberately a different premium hue
-        // family from JDK's champagne-gold (this repo's old accent scale
-        // was itself a near-identical gold, which is why the two apps'
-        // login screens read as the same product reskinned). Jade keeps
-        // the "engineering consultancy" association (precision, growth,
-        // trust) while giving Almailam its own visual identity.
+        // Brand accent -- admin-configurable (Administration > Company >
+        // Branding), not a fixed hue. Each shade resolves through a CSS
+        // custom property (--color-accent-N, defined in src/styles/
+        // main.css's :root with a #3995be default and overridden at
+        // runtime by src/utils/colorScale.ts's applyBrandColor) rather
+        // than a static hex, so the whole 50-900 ramp -- and everywhere
+        // it's used, buttons/badges/links/focus rings included -- follows
+        // whatever color an admin picks, without a rebuild. The rgb(...
+        // / <alpha-value>) wrapper is Tailwind's documented pattern for
+        // CSS-variable colors that still support opacity modifiers like
+        // bg-accent-500/10 -- the variable itself holds a plain "R G B"
+        // triplet, not a full color, so <alpha-value> can be spliced in.
         accent: {
-          50: '#eefaf5',
-          100: '#d3f0e3',
-          200: '#a6e0c7',
-          300: '#72c9a8',
-          400: '#43ab86',
-          500: '#268f6a',
-          600: '#1c7355',
-          700: '#165a43',
-          800: '#124635',
-          900: '#0d3628',
+          50: 'rgb(var(--color-accent-50) / <alpha-value>)',
+          100: 'rgb(var(--color-accent-100) / <alpha-value>)',
+          200: 'rgb(var(--color-accent-200) / <alpha-value>)',
+          300: 'rgb(var(--color-accent-300) / <alpha-value>)',
+          400: 'rgb(var(--color-accent-400) / <alpha-value>)',
+          500: 'rgb(var(--color-accent-500) / <alpha-value>)',
+          600: 'rgb(var(--color-accent-600) / <alpha-value>)',
+          700: 'rgb(var(--color-accent-700) / <alpha-value>)',
+          800: 'rgb(var(--color-accent-800) / <alpha-value>)',
+          900: 'rgb(var(--color-accent-900) / <alpha-value>)',
         },
         success: {
           50: '#f0fdf4',

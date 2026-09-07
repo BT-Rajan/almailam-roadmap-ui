@@ -28,3 +28,13 @@ export interface CompanySettings {
   hasLogo: boolean
   logoFilename?: string | null
 }
+
+// The subset of CompanySettings every logged-in role needs for its own
+// theming (see GET /api/company/branding) -- unlike CompanySettings
+// itself, fetching this doesn't require Administration:view, so the
+// Customer/Site portals can apply the same brand color as the staff app.
+export interface CompanyBranding {
+  companyName: string
+  brandColor: string
+  hasLogo: boolean
+}
