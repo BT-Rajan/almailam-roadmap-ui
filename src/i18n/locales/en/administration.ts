@@ -126,7 +126,30 @@ export default {
     activitiesSubtitle:
       "Configure the engagement type categories (Design, Supervision, etc) offered at project creation, and each category's checklist of priced additional activities.",
     permitsSubtitle: 'Configure the permits that can be attached to a project during setup.',
+    documentsTab: 'Document Requirements',
+    documentsSubtitle: "Define documents typically needed for Design/Permit/Supervision activities, and reuse one across several. Informational only -- shown as a reference checklist on a project's tabs, never enforced.",
     tabsAriaLabel: 'Catalog sections',
+  },
+
+  documentRequirements: {
+    description: "Define documents typically needed for Design, Permit, or Supervision activities -- one document can be linked to several. Informational only: this never blocks closing a task or activity, it just shows as a reference checklist on a project's tabs.",
+    name: 'Document name',
+    descriptionPlaceholder: 'Description (optional)',
+    remove: 'Remove',
+    linkedTo: 'Linked activities/permits',
+    linkedToDescription: 'Which Design activities, Permits, or Supervision activities this document is typically needed for.',
+    noLinksYet: 'Not linked to anything yet.',
+    linkPlaceholder: 'Select an activity or permit',
+    link: 'Link',
+    unlink: 'Remove link',
+    noRequirementsYet: 'No document requirements yet -- add one below.',
+    addRequirement: 'Add Document Requirement',
+    add: 'Add',
+    failedToAdd: 'Failed to add document requirement',
+    failedToRemove: 'Failed to remove document requirement',
+    failedToLoadLinks: 'Failed to load linked activities/permits',
+    failedToLink: 'Failed to link document requirement',
+    failedToUnlink: 'Failed to remove link',
   },
 
   adminDocumentsPage: {

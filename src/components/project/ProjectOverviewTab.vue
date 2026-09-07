@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { AlertTriangle, MessageSquare } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -18,7 +19,9 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
+import { documentRequirementService } from '@/services/documentRequirementService'
 import { projectService } from '@/services/projectService'
+import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
 import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
@@ -123,6 +126,35 @@ async function setSupervisionStatus(activityId: string, status: 'In Progress' | 
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     supervisionActionPendingId.value = undefined
+  }
+}
+
+// Read-only reference checklist ("what documents are typically needed
+// for this") on each Design/Permit/Supervision row -- admin-defined,
+// informational only, never blocks closing anything. Fetched lazily,
+// per row, only once expanded -- same pattern as the admin catalog
+// panels' own prerequisites/links disclosures. Keyed by
+// "targetType:targetCatalogId" since all three tracks share this one
+// disclosure state.
+const expandedReferenceDocsKey = ref<string>()
+const referenceDocsByKey = reactive<Record<string, DocumentRequirementLink[]>>({})
+const isLoadingReferenceDocs = ref<string>()
+
+async function toggleReferenceDocs(targetType: DocumentRequirementTargetType, targetCatalogId: string): Promise<void> {
+  const key = `${targetType}:${targetCatalogId}`
+  if (expandedReferenceDocsKey.value === key) {
+    expandedReferenceDocsKey.value = undefined
+    return
+  }
+  expandedReferenceDocsKey.value = key
+  if (referenceDocsByKey[key]) return
+  isLoadingReferenceDocs.value = key
+  try {
+    referenceDocsByKey[key] = await documentRequirementService.getLinksForTarget(targetType, targetCatalogId)
+  } catch {
+    referenceDocsByKey[key] = []
+  } finally {
+    isLoadingReferenceDocs.value = undefined
   }
 }
 
@@ -577,32 +609,48 @@ function verificationResultLabel(result: string): string {
             <div
               v-for="activity in project.selectedActivities"
               :key="activity.id ?? activity.activityId"
-              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+              class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
-              <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
-              <div class="flex items-center gap-2">
-                <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
-                <template v-if="activity.id">
-                  <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
-                    <BaseButton
-                      variant="secondary" size="sm" class="no-print"
-                      :loading="activityActionPendingId === activity.id"
-                      @click="reopenDesignActivity(activity.id)"
-                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+                <div class="flex items-center gap-2">
+                  <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
+                  <template v-if="activity.id">
+                    <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
+                      <BaseButton
+                        variant="secondary" size="sm" class="no-print"
+                        :loading="activityActionPendingId === activity.id"
+                        @click="reopenDesignActivity(activity.id)"
+                      >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                    </template>
+                    <template v-else>
+                      <BaseButton
+                        variant="secondary" size="sm" class="no-print"
+                        :loading="activityActionPendingId === activity.id"
+                        @click="closeDesignActivity(activity.id, 'Cancelled')"
+                      >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                      <BaseButton
+                        variant="primary" size="sm" class="no-print"
+                        :loading="activityActionPendingId === activity.id"
+                        @click="closeDesignActivity(activity.id, 'Complete')"
+                      >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                    </template>
                   </template>
-                  <template v-else>
-                    <BaseButton
-                      variant="secondary" size="sm" class="no-print"
-                      :loading="activityActionPendingId === activity.id"
-                      @click="closeDesignActivity(activity.id, 'Cancelled')"
-                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
-                    <BaseButton
-                      variant="primary" size="sm" class="no-print"
-                      :loading="activityActionPendingId === activity.id"
-                      @click="closeDesignActivity(activity.id, 'Complete')"
-                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                  </template>
-                </template>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
+                @click="toggleReferenceDocs('Design', activity.activityId)"
+              >{{ t('project.overviewTab.referenceDocuments') }}</button>
+              <div v-if="expandedReferenceDocsKey === `Design:${activity.activityId}`" class="flex flex-col gap-1">
+                <SkeletonLoader v-if="isLoadingReferenceDocs === `Design:${activity.activityId}`" :rows="1" />
+                <p v-else-if="(referenceDocsByKey[`Design:${activity.activityId}`] ?? []).length === 0" class="text-xs text-text-muted">
+                  {{ t('project.overviewTab.noReferenceDocuments') }}
+                </p>
+                <ul v-else class="list-inside list-disc text-xs text-text-muted">
+                  <li v-for="link in referenceDocsByKey[`Design:${activity.activityId}`]" :key="link.id">{{ link.requirementName }}</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -640,44 +688,60 @@ function verificationResultLabel(result: string): string {
           <div
             v-for="activity in project.selectedSupervisionActivities"
             :key="activity.activityId"
-            class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
           >
-            <div class="flex flex-col gap-0.5 truncate">
-              <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
-              <span class="text-xs text-text-muted">
-                {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.overviewTab.ongoing') }}
-              </span>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-col gap-0.5 truncate">
+                <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+                <span class="text-xs text-text-muted">
+                  {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.overviewTab.ongoing') }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
+                <StatusBadge v-if="activity.status" :label="activity.status" :variant="getSelectedPermitStatusVariant(activity.status)" />
+                <template v-if="activity.id">
+                  <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="supervisionActionPendingId === activity.id"
+                      @click="setSupervisionStatus(activity.id, 'In Progress')"
+                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                  </template>
+                  <template v-else>
+                    <BaseButton
+                      v-if="activity.status !== 'In Progress'"
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="supervisionActionPendingId === activity.id"
+                      @click="setSupervisionStatus(activity.id, 'In Progress')"
+                    >{{ t('project.overviewTab.startApplication') }}</BaseButton>
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="supervisionActionPendingId === activity.id"
+                      @click="setSupervisionStatus(activity.id, 'Cancelled')"
+                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                    <BaseButton
+                      variant="primary" size="sm" class="no-print"
+                      :loading="supervisionActionPendingId === activity.id"
+                      @click="setSupervisionStatus(activity.id, 'Complete')"
+                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                  </template>
+                </template>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
-              <StatusBadge v-if="activity.status" :label="activity.status" :variant="getSelectedPermitStatusVariant(activity.status)" />
-              <template v-if="activity.id">
-                <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
-                  <BaseButton
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="supervisionActionPendingId === activity.id"
-                    @click="setSupervisionStatus(activity.id, 'In Progress')"
-                  >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
-                </template>
-                <template v-else>
-                  <BaseButton
-                    v-if="activity.status !== 'In Progress'"
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="supervisionActionPendingId === activity.id"
-                    @click="setSupervisionStatus(activity.id, 'In Progress')"
-                  >{{ t('project.overviewTab.startApplication') }}</BaseButton>
-                  <BaseButton
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="supervisionActionPendingId === activity.id"
-                    @click="setSupervisionStatus(activity.id, 'Cancelled')"
-                  >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
-                  <BaseButton
-                    variant="primary" size="sm" class="no-print"
-                    :loading="supervisionActionPendingId === activity.id"
-                    @click="setSupervisionStatus(activity.id, 'Complete')"
-                  >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                </template>
-              </template>
+            <button
+              type="button"
+              class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
+              @click="toggleReferenceDocs('Supervision', activity.activityId)"
+            >{{ t('project.overviewTab.referenceDocuments') }}</button>
+            <div v-if="expandedReferenceDocsKey === `Supervision:${activity.activityId}`" class="flex flex-col gap-1">
+              <SkeletonLoader v-if="isLoadingReferenceDocs === `Supervision:${activity.activityId}`" :rows="1" />
+              <p v-else-if="(referenceDocsByKey[`Supervision:${activity.activityId}`] ?? []).length === 0" class="text-xs text-text-muted">
+                {{ t('project.overviewTab.noReferenceDocuments') }}
+              </p>
+              <ul v-else class="list-inside list-disc text-xs text-text-muted">
+                <li v-for="link in referenceDocsByKey[`Supervision:${activity.activityId}`]" :key="link.id">{{ link.requirementName }}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -734,36 +798,53 @@ function verificationResultLabel(result: string): string {
             <div
               v-for="permit in project.selectedPermits"
               :key="permit.id"
-              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+              class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
-              <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
-              <div class="flex items-center gap-2">
-                <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
-                <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
-                  <BaseButton
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="permitActionPendingId === permit.id"
-                    @click="setPermitStatus(permit.id, 'In Progress')"
-                  >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
-                </template>
-                <template v-else>
-                  <BaseButton
-                    v-if="permit.status !== 'In Progress'"
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="permitActionPendingId === permit.id"
-                    @click="setPermitStatus(permit.id, 'In Progress')"
-                  >{{ t('project.overviewTab.startApplication') }}</BaseButton>
-                  <BaseButton
-                    variant="secondary" size="sm" class="no-print"
-                    :loading="permitActionPendingId === permit.id"
-                    @click="setPermitStatus(permit.id, 'Cancelled')"
-                  >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
-                  <BaseButton
-                    variant="primary" size="sm" class="no-print"
-                    :loading="permitActionPendingId === permit.id"
-                    @click="setPermitStatus(permit.id, 'Complete')"
-                  >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                </template>
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
+                <div class="flex items-center gap-2">
+                  <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
+                  <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'In Progress')"
+                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                  </template>
+                  <template v-else>
+                    <BaseButton
+                      v-if="permit.status !== 'In Progress'"
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'In Progress')"
+                    >{{ t('project.overviewTab.startApplication') }}</BaseButton>
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'Cancelled')"
+                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                    <BaseButton
+                      variant="primary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'Complete')"
+                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                  </template>
+                </div>
+              </div>
+              <button
+                v-if="permit.permitId"
+                type="button"
+                class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
+                @click="toggleReferenceDocs('Permit', permit.permitId)"
+              >{{ t('project.overviewTab.referenceDocuments') }}</button>
+              <div v-if="permit.permitId && expandedReferenceDocsKey === `Permit:${permit.permitId}`" class="flex flex-col gap-1">
+                <SkeletonLoader v-if="isLoadingReferenceDocs === `Permit:${permit.permitId}`" :rows="1" />
+                <p v-else-if="(referenceDocsByKey[`Permit:${permit.permitId}`] ?? []).length === 0" class="text-xs text-text-muted">
+                  {{ t('project.overviewTab.noReferenceDocuments') }}
+                </p>
+                <ul v-else class="list-inside list-disc text-xs text-text-muted">
+                  <li v-for="link in referenceDocsByKey[`Permit:${permit.permitId}`]" :key="link.id">{{ link.requirementName }}</li>
+                </ul>
               </div>
             </div>
           </div>

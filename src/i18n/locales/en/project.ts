@@ -207,6 +207,8 @@ export default {
     permitsTitle: 'Permits',
     noPermitsSelectedYet: 'No permits selected for this project.',
     startApplication: 'Start Application',
+    referenceDocuments: 'Reference documents',
+    noReferenceDocuments: 'No documents defined for this yet.',
     lastWorkedOn: 'Last worked on {date}',
     noApprovalsFiledYet: 'No approvals or permits filed yet.',
     projectDetailsTitle: 'Project Details',

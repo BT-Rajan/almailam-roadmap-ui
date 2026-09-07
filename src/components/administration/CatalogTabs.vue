@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useLocale } from '@/composables/useLocale'
 
-export type CatalogTabKey = 'services' | 'permits'
+export type CatalogTabKey = 'services' | 'permits' | 'documents'
 
 export interface CatalogTab {
   key: CatalogTabKey

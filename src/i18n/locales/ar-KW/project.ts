@@ -207,6 +207,8 @@ export default {
     permitsTitle: 'التراخيص',
     noPermitsSelectedYet: 'لم يتم اختيار تراخيص لهذا المشروع.',
     startApplication: 'بدء الطلب',
+    referenceDocuments: 'مستندات مرجعية',
+    noReferenceDocuments: 'لم يتم تحديد مستندات لهذا بعد.',
     lastWorkedOn: 'آخر تحديث في {date}',
     noApprovalsFiledYet: 'لم يتم تقديم أي موافقات أو تراخيص بعد.',
     projectDetailsTitle: 'تفاصيل المشروع',
