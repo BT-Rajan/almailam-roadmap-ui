@@ -3,6 +3,7 @@ import { LogOut } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import BrandMark from '@/components/common/BrandMark.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -24,9 +25,7 @@ const isLoginPage = () => route.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
     <header class="sticky top-0 z-sticky border-b border-border-light bg-bg-header shadow-glass-sm backdrop-blur-xl">
       <div class="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
         <div class="flex items-center gap-2">
-          <div class="gradient-luxe-accent flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white shadow-glass-sm">
-            SO
-          </div>
+          <BrandMark size-class="h-10 w-10" />
           <div class="text-start">
             <p class="text-sm font-semibold text-text-primary">{{ t('sitePortal.portalLayout.title') }}</p>
             <p class="hidden text-xs text-text-muted tablet:block">{{ t('common.companyName') }}</p>

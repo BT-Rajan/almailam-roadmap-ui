@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -9,7 +9,6 @@ import KnowledgeChatDrawer from '@/components/knowledge/KnowledgeChatDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
 import { useIdleLogout } from '@/composables/useIdleLogout'
-import { useAuthStore } from '@/stores/authStore'
 import { useCompanyStore } from '@/stores/companyStore'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -18,23 +17,17 @@ import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 
 const route = useRoute()
 const { t } = useI18n()
-const authStore = useAuthStore()
 const companyStore = useCompanyStore()
 
 useIdleLogout()
 
-// Applies whatever brand color Administration > Company has configured
-// app-wide (every role, every layout -- not just the admin page itself),
-// the moment a session becomes authenticated -- including a page refresh
-// that silently restores a session via tryRefresh, not just a fresh
-// login. See src/utils/colorScale.ts's applyBrandColor.
-watch(
-  () => authStore.isAuthenticated,
-  (isAuthed) => {
-    if (isAuthed) companyStore.loadBranding()
-  },
-  { immediate: true },
-)
+// Applies whatever brand color/logo Administration > Company has
+// configured app-wide -- every role, every layout, AND the sign-in
+// screen itself, since GET /api/company/branding is fully public (no
+// session needed). Loaded once at boot, not gated on auth state --
+// there's no "wait for login" case to handle. See
+// src/utils/colorScale.ts's applyBrandColor.
+onMounted(() => companyStore.loadBranding())
 
 const layout = computed(() => {
   if (route.meta.layout === 'customer-portal') return CustomerPortalLayout

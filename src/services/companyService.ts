@@ -106,6 +106,18 @@ async function getLogoBlob(): Promise<Blob> {
   return await response.blob()
 }
 
+/**
+ * The company logo, fully public (no auth header needed) -- safe to
+ * use directly as a plain <img src>, unlike getLogoBlob() above which
+ * exists specifically because the *authenticated* /api/company/logo
+ * endpoint can't be pointed at directly. Every app shell (sign-in
+ * screen included, before any session exists) uses this one. 404s if
+ * no logo has been uploaded -- callers should gate on
+ * CompanyBranding.hasLogo (or handle the <img>'s error event) rather
+ * than always rendering it.
+ */
+export const PUBLIC_LOGO_URL = '/api/company/branding/logo'
+
 export const companyService = {
   getCompanySettings,
   getBranding,
