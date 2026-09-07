@@ -13,10 +13,16 @@ const props = defineProps<{
   // the "Send Verification Code" step. 'enter-code': a code is on its
   // way -- show the code input, with a resend link. Controlled by the
   // parent page, which is also what actually calls the send/verify API
-  // (see ClientWorkspacePage.vue), same "dumb dialog" pattern as every
-  // other onboarding dialog in this folder.
+  // (see ClientWorkspacePage.vue and ProjectRequirementTab.vue, its two
+  // callers), same "dumb dialog" pattern as every other confirmation
+  // dialog in this app.
   step: 'send' | 'enter-code'
   loading?: boolean
+  // Both default to the generic "verify with the client by email" copy
+  // -- override when the thing being confirmed needs saying (e.g.
+  // "Confirm Scope of Work" instead of "Verify Client Email").
+  title?: string
+  sendStepDescription?: string
 }>()
 
 const emit = defineEmits<{
@@ -63,21 +69,25 @@ function handleConfirm(): void {
 </script>
 
 <template>
-  <BaseDialog :model-value="modelValue" :title="t('client.otpVerificationDialog.title')" @update:model-value="emit('update:modelValue', $event)">
+  <BaseDialog
+    :model-value="modelValue"
+    :title="title ?? t('common.otpVerificationDialog.title')"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <div v-if="step === 'send'" class="flex flex-col gap-4">
       <p class="text-sm text-text-secondary">
-        {{ t('client.otpVerificationDialog.sendStepDescription', { email }) }}
+        {{ sendStepDescription ?? t('common.otpVerificationDialog.sendStepDescription', { email }) }}
       </p>
     </div>
 
     <div v-else class="flex flex-col gap-4">
       <p class="text-sm text-text-secondary">
-        {{ t('client.otpVerificationDialog.codeSentTo', { email }) }}
+        {{ t('common.otpVerificationDialog.codeSentTo', { email }) }}
       </p>
       <TextInput
         v-model="form.code"
-        :label="t('client.otpVerificationDialog.codeLabel')"
-        :placeholder="t('client.otpVerificationDialog.codePlaceholder')"
+        :label="t('common.otpVerificationDialog.codeLabel')"
+        :placeholder="t('common.otpVerificationDialog.codePlaceholder')"
         inputmode="numeric"
         autocomplete="one-time-code"
         required
@@ -85,17 +95,17 @@ function handleConfirm(): void {
         :disabled="loading"
       />
       <BaseButton variant="ghost" size="sm" :disabled="loading" @click="handleSend">
-        {{ t('client.otpVerificationDialog.resendCode') }}
+        {{ t('common.otpVerificationDialog.resendCode') }}
       </BaseButton>
     </div>
 
     <template #footer>
       <BaseButton variant="secondary" :disabled="loading" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
       <BaseButton v-if="step === 'send'" :loading="loading" @click="handleSend">
-        {{ t('client.otpVerificationDialog.sendCode') }}
+        {{ t('common.otpVerificationDialog.sendCode') }}
       </BaseButton>
       <BaseButton v-else :loading="loading" @click="handleConfirm">
-        {{ t('client.otpVerificationDialog.confirm') }}
+        {{ t('common.otpVerificationDialog.confirm') }}
       </BaseButton>
     </template>
   </BaseDialog>

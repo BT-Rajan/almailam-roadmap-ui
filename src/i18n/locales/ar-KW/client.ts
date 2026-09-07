@@ -443,15 +443,7 @@ export default {
     reasonRequiredHint: 'مطلوب لهذا التغيير في الحالة',
   },
 
-  otpVerificationDialog: {
-    title: 'التحقق من بريد العميل',
-    sendStepDescription: 'أرسل رمز تحقق لمرة واحدة إلى {email}. اطلب من العميل قراءة الرمز لك بعد استلامه.',
-    sendCode: 'إرسال رمز التحقق',
-    resendCode: 'إعادة إرسال الرمز',
-    codeSentTo: 'تم إرسال رمز تحقق إلى {email}.',
-    codeLabel: 'رمز التحقق',
-    codePlaceholder: 'أدخل الرمز المكوّن من 6 أرقام',
-    confirm: 'تأكيد',
+  emailVerification: {
     failedToSend: 'فشل إرسال رمز التحقق',
     failedToVerify: 'فشل التحقق من الرمز',
   },

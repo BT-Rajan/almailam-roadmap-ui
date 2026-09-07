@@ -4,6 +4,7 @@ from fastapi import UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
@@ -543,6 +544,13 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # text sitting in Draft.
         if project.scope_status != "Approved":
             problems.append("the scope of work approved")
+        # Internal approval alone is explicitly "not a client-facing
+        # sign-off" (see approve_scope_of_work) -- the client also has to
+        # have confirmed the scope by reading an email OTP back to staff
+        # (see send_requirement_otp/verify_requirement_otp) before real
+        # commercial work starts against it.
+        if project.scope_client_confirmed_at is None:
+            problems.append("the scope of work confirmed by the client (send and verify the email code)")
 
     elif new_stage == "Payment Plan":
         # Moved here from Contract's own former entry criterion --
@@ -941,7 +949,9 @@ def save_scope_of_work(
     scope had already been approved, reopens it back to "Draft" -- an
     approval is a sign-off on specific text, not a status that should
     silently keep covering whatever the text becomes after further
-    edits."""
+    edits. Same reasoning clears any client confirmation (and cancels
+    an outstanding OTP, if one was sent against the old text) --
+    see send_requirement_otp/verify_requirement_otp."""
     project = get_project(db, project_no)
     _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
@@ -976,6 +986,11 @@ def save_scope_of_work(
         project.scope_status = "Draft"
         project.scope_approved_at = None
         project.scope_approved_by = None
+    project.scope_client_confirmed_at = None
+    project.otp_code_hash = None
+    project.otp_expires_at = None
+    project.otp_attempts = 0
+    project.otp_sent_at = None
 
     audit_service.log_field_changes(
         db, ENTITY_TYPE, project.id, {"description": (previous_description, scope_text)}, user_id
@@ -987,8 +1002,10 @@ def save_scope_of_work(
 
 def approve_scope_of_work(db: Session, project_no: str, user_id: int) -> Project:
     """Internal approval of the Requirement stage's scope of work --
-    "it is internal approval", not a client-facing sign-off. Once
-    approved, try_auto_advance_stage picks it up (alongside the client-
+    "it is internal approval", not a client-facing sign-off (that's what
+    send_requirement_otp/verify_requirement_otp below are for). Once
+    approved (and the client has separately confirmed via OTP),
+    try_auto_advance_stage picks both up (alongside the client-
     identification check already in _assert_stage_exit_criteria) and
     moves the project straight to "Quotation" without a separate manual
     click."""
@@ -1016,6 +1033,100 @@ def approve_scope_of_work(db: Session, project_no: str, user_id: int) -> Project
 
     db.commit()
     db.refresh(project)
+    return project
+
+
+def send_requirement_otp(db: Session, project_no: str, user_id: int) -> Project:
+    """Sends (or resends) the email OTP that gets the client's own
+    sign-off on the Requirement stage's scope of work -- the client-
+    facing counterpart approve_scope_of_work explicitly isn't. Reuses
+    the exact same generation/hashing/expiry logic as client_service.
+    send_onboarding_otp (see app/core/otp.py), stored on this project's
+    own otp_* columns (see EmailOtpMixin) rather than the client's --
+    scope confirmation is a per-project fact, not a per-client one, and
+    a client with several projects needs to confirm each independently.
+    """
+    project = get_project(db, project_no)
+    if project.scope_status != "Approved":
+        raise ValidationAppError(
+            "Approve the scope of work internally before sending it to the client for confirmation."
+        )
+
+    code = otp.generate_code()
+    project.otp_code_hash = otp.hash_code(code)
+    project.otp_expires_at = otp.new_expiry()
+    project.otp_attempts = 0
+    project.otp_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Requirement confirmation OTP sent", user_id)
+    db.commit()
+    db.refresh(project)
+
+    client = client_service.get_client(db, project.client_id)
+    email_service.send_email(
+        client.email,
+        f"Confirm the scope of work for {project.project_name}",
+        f"Dear {client.contact_person},\n\n"
+        f"Your verification code is {code}.\n\n"
+        f"Share this code with the staff member handling project {project.project_name} "
+        f"({project.project_no}) to confirm you accept the scope of work as written. "
+        f"It expires in {otp.VALIDITY_MINUTES} minutes.\n\n"
+        "If you didn't request this, you can safely ignore this email.",
+        db=db,
+    )
+    return project
+
+
+def verify_requirement_otp(db: Session, project_no: str, code: str, user_id: int) -> Project:
+    """Confirms the code the client read back to staff -- the client-
+    facing sign-off on the scope of work. Success is what lets the
+    project actually leave Requirement (see _assert_stage_exit_criteria's
+    scope_client_confirmed_at check); also emails the client the
+    confirmed scope of work for their own records, purely informational
+    (same idea as project_service._send_project_created_email -- no
+    further action needed from them)."""
+    project = get_project(db, project_no)
+    if project.scope_status != "Approved":
+        raise ValidationAppError("The scope of work isn't approved yet.")
+    if not project.otp_code_hash or not project.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if otp.is_expired(project.otp_expires_at):
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if project.otp_attempts >= otp.MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+
+    if not otp.code_matches(code, project.otp_code_hash):
+        project.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    project.otp_code_hash = None
+    project.otp_expires_at = None
+    project.otp_attempts = 0
+    project.otp_sent_at = None
+    project.scope_client_confirmed_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work confirmed by client via OTP", user_id)
+    timeline_service.create_system_event(
+        db, project.id, "note", title="Scope of work confirmed by client", description=project.description, actor_id=user_id
+    )
+    db.flush()
+    try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(project)
+
+    client = client_service.get_client(db, project.client_id)
+    if client.email_consent:
+        try:
+            email_service.send_email(
+                client.email,
+                f"Scope of work confirmed for {project.project_name}",
+                f"Dear {client.contact_person},\n\n"
+                f"Thank you for confirming the scope of work for {project.project_name} "
+                f"({project.project_no}):\n\n{project.description}\n\n"
+                "This is an informational message -- no action is needed.",
+                db=db,
+            )
+        except ValidationAppError:
+            pass
     return project
 
 

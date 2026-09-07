@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, CheckCircle2, MessageSquare } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, CheckCircle2, Mail, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -8,6 +8,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -64,6 +65,10 @@ const summaryDraft = ref('')
 const selectedFile = ref<File>()
 const isSaving = ref(false)
 const isApproving = ref(false)
+
+const isOtpDialogOpen = ref(false)
+const isOtpSaving = ref(false)
+const otpStep = ref<'send' | 'enter-code'>('send')
 
 async function load(): Promise<void> {
   isLoading.value = true
@@ -125,12 +130,74 @@ const canApprove = computed(
 const canAdvanceToQuotation = computed(
   () =>
     scopeOfWork.value?.scopeStatus === 'Approved' &&
+    Boolean(scopeOfWork.value?.scopeClientConfirmedAt) &&
     hasClientIdentification.value &&
     !hasProjectPassedStage(props.project.currentStage, 'Quotation'),
 )
 
+// Internal approval (canApprove/handleApprove above) is explicitly "not
+// a client-facing sign-off" -- this is that sign-off, gated on internal
+// approval having happened first (see project_service.
+// send_requirement_otp) and hidden again once the client has already
+// confirmed, so the button doesn't linger uselessly after its job is done.
+const canConfirmWithClient = computed(
+  () =>
+    !isRequirementLocked.value &&
+    scopeOfWork.value?.scopeStatus === 'Approved' &&
+    !scopeOfWork.value?.scopeClientConfirmedAt,
+)
+
 function handleAdvanceToQuotation(): void {
   emit('navigate-tab', 'quotation')
+}
+
+function handleOpenOtpDialog(): void {
+  otpStep.value = scopeOfWork.value?.otpSentAt ? 'enter-code' : 'send'
+  isOtpDialogOpen.value = true
+}
+
+async function handleSendOtp(): Promise<void> {
+  isOtpSaving.value = true
+  try {
+    scopeOfWork.value = await projectService.sendRequirementOtp(props.project.id)
+    otpStep.value = 'enter-code'
+  } catch (err) {
+    toastStore.show(
+      'error',
+      t('project.requirementTab.otpDialog.failedToSend'),
+      err instanceof Error ? err.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
+async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+  isOtpSaving.value = true
+  try {
+    scopeOfWork.value = await projectService.verifyRequirementOtp(props.project.id, payload.code)
+    // verifyRequirementOtp can move current_stage server-side (see
+    // project_service.try_auto_advance_stage) -- same "sync the shared
+    // store's cached copy" reasoning as handleApprove above, since this
+    // call goes straight through projectService rather than one of the
+    // store's own mutating actions.
+    await projectStore.refreshProject(props.project.id)
+    isOtpDialogOpen.value = false
+    if (props.project.currentStage === 'Quotation') {
+      toastStore.show('success', t('project.requirementTab.otpDialog.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
+      emit('navigate-tab', 'quotation')
+    } else {
+      toastStore.show('success', t('project.requirementTab.otpDialog.confirmedTitle'), t('project.requirementTab.otpDialog.confirmedDescription'))
+    }
+  } catch (err) {
+    toastStore.show(
+      'error',
+      t('project.requirementTab.otpDialog.failedToVerify'),
+      err instanceof Error ? err.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    isOtpSaving.value = false
+  }
 }
 
 async function handleSave(): Promise<void> {
@@ -259,6 +326,11 @@ const clientDetailItems = computed(() => {
               :label="scopeOfWork.scopeStatus === 'Approved' ? t('project.scopeStatus.approved') : t('project.scopeStatus.draft')"
               :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
             />
+            <StatusBadge
+              v-if="scopeOfWork?.scopeClientConfirmedAt"
+              :label="t('project.requirementTab.clientConfirmed')"
+              variant="success"
+            />
             <span
               v-if="isRequirementLocked"
               class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
@@ -275,6 +347,9 @@ const clientDetailItems = computed(() => {
               <BaseButton size="sm" :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
                 {{ t('project.requirementTab.approve') }}
               </BaseButton>
+              <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isOtpSaving" @click="handleOpenOtpDialog">
+                {{ t('project.requirementTab.confirmWithClient') }}
+              </BaseButton>
             </template>
             <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="advanceIcon" @click="handleAdvanceToQuotation">
               {{ t('project.requirementTab.advanceToQuotation') }}
@@ -290,14 +365,26 @@ const clientDetailItems = computed(() => {
         <p v-if="isRequirementLocked" class="text-sm text-text-secondary">
           {{ t('project.requirementTab.lockedNotice') }}
         </p>
-        <p v-else-if="scopeOfWork?.scopeStatus === 'Approved'" class="text-sm text-text-secondary">
-          {{
-            t('project.requirementTab.approvedByOn', {
-              by: scopeOfWork.scopeApprovedBy ? t('project.requirementTab.approvedByFragment', { name: scopeOfWork.scopeApprovedBy }) : '',
-              on: scopeOfWork.scopeApprovedAt ? t('project.requirementTab.approvedOnFragment', { date: formatDateTime(scopeOfWork.scopeApprovedAt) }) : '',
-            })
-          }}
-        </p>
+        <template v-else-if="scopeOfWork?.scopeStatus === 'Approved'">
+          <p class="text-sm text-text-secondary">
+            {{
+              t('project.requirementTab.approvedByOn', {
+                by: scopeOfWork.scopeApprovedBy ? t('project.requirementTab.approvedByFragment', { name: scopeOfWork.scopeApprovedBy }) : '',
+                on: scopeOfWork.scopeApprovedAt ? t('project.requirementTab.approvedOnFragment', { date: formatDateTime(scopeOfWork.scopeApprovedAt) }) : '',
+              })
+            }}
+          </p>
+          <p v-if="scopeOfWork.scopeClientConfirmedAt" class="text-sm text-text-secondary">
+            {{
+              t('project.requirementTab.clientConfirmedOn', {
+                on: t('project.requirementTab.clientConfirmedOnFragment', { date: formatDateTime(scopeOfWork.scopeClientConfirmedAt) }),
+              })
+            }}
+          </p>
+          <p v-else class="text-xs text-warning-600">
+            {{ t('project.requirementTab.awaitingClientConfirmationNotice') }}
+          </p>
+        </template>
 
         <TextArea
           v-model="scopeDraft"
@@ -325,5 +412,17 @@ const clientDetailItems = computed(() => {
     </Card>
 
     <ScopeRevisionHistory v-if="scopeOfWork" :revisions="scopeOfWork.revisions" @download="handleDownloadRevision" />
+
+    <OtpVerificationDialog
+      v-if="client"
+      v-model="isOtpDialogOpen"
+      :email="client.email"
+      :step="otpStep"
+      :loading="isOtpSaving"
+      :title="t('project.requirementTab.otpDialog.title')"
+      :send-step-description="t('project.requirementTab.otpDialog.sendStepDescription', { email: client.email })"
+      @send="handleSendOtp"
+      @confirm="handleConfirmOtp"
+    />
   </div>
 </template>

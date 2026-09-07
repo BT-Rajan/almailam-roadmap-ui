@@ -192,6 +192,19 @@ class ScopeOfWorkOut(BaseModel):
     scopeStatus: str
     scopeApprovedAt: datetime | None
     scopeApprovedBy: str | None
+    # The client-facing counterpart to scopeApprovedAt -- set once the
+    # client has confirmed this scope via email OTP (see
+    # project_service.verify_requirement_otp), distinct from staff's own
+    # internal approval above. Both are required to leave the
+    # Requirement stage.
+    scopeClientConfirmedAt: datetime | None = None
+    # Non-null while a verification code is outstanding (sent but not
+    # yet confirmed or replaced by a resend) -- cleared the moment
+    # verification succeeds, same as scopeClientConfirmedAt being set.
+    # Lets the frontend open the OTP dialog straight to the "enter code"
+    # step when one's already on its way, instead of always defaulting
+    # to "send".
+    otpSentAt: datetime | None = None
     revisions: list[ScopeRevisionOut] = Field(default_factory=list)
 
 

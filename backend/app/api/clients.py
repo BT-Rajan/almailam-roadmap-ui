@@ -11,7 +11,7 @@ from app.core.exceptions import ValidationAppError
 from app.core.file_storage import format_file_size, matches_signature
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
-from app.schemas.common import PagedResponse
+from app.schemas.common import OtpVerifyRequest, PagedResponse
 from app.schemas.client import (
     ClientAddressCreate,
     ClientAddressOut,
@@ -33,7 +33,6 @@ from app.schemas.client import (
     ClientIdentificationUpdate,
     ClientMergeRequest,
     ClientOnboardingStateUpdate,
-    ClientOtpVerifyRequest,
     ClientOut,
     ClientStatusUpdate,
     ClientUpdate,
@@ -272,7 +271,7 @@ def send_onboarding_otp(
 @router.post("/{client_id}/onboarding-state/verify-otp", response_model=ClientOut)
 def verify_onboarding_otp(
     client_id: str,
-    payload: ClientOtpVerifyRequest,
+    payload: OtpVerifyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):

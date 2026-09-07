@@ -443,15 +443,7 @@ export default {
     reasonRequiredHint: 'Required for this status change',
   },
 
-  otpVerificationDialog: {
-    title: 'Verify Client Email',
-    sendStepDescription: "Send a one-time verification code to {email}. Ask the client to read it back to you once they've received it.",
-    sendCode: 'Send Verification Code',
-    resendCode: 'Resend code',
-    codeSentTo: 'A verification code was sent to {email}.',
-    codeLabel: 'Verification Code',
-    codePlaceholder: 'Enter the 6-digit code',
-    confirm: 'Confirm',
+  emailVerification: {
     failedToSend: 'Failed to send verification code',
     failedToVerify: 'Failed to verify code',
   },

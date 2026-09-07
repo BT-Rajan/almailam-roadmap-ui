@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.mixins import SoftDeleteMixin, TimestampMixin
+from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 CLIENT_TYPES = ("Individual", "Company", "Organisation", "Government Entity", "Other")
@@ -35,7 +35,7 @@ CONSENT_TYPES = (
 PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")
 
 
-class Client(Base, TimestampMixin, SoftDeleteMixin):
+class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -61,16 +61,10 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     # stalls again later at a different step.
     onboarding_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # -- email OTP verification (replaces the old manual "Under Review" step) --
-    # otp_code_hash is bcrypt-hashed the same way as User.password_hash (see
-    # app.core.security.hash_password/verify_password) -- never stored in
-    # plaintext. All four are cleared the moment verification succeeds (see
-    # client_service.verify_onboarding_otp), so a non-null otp_code_hash
-    # always means "a code is currently outstanding".
-    otp_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    otp_attempts: Mapped[int] = mapped_column(nullable=False, default=0)
-    otp_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Email OTP verification (replaces the old manual "Under Review"
+    # step) -- otp_code_hash/otp_expires_at/otp_attempts/otp_sent_at come
+    # from EmailOtpMixin; see client_service.send_onboarding_otp/
+    # verify_onboarding_otp.
 
     # -- individualProfile (only populated when client_type == 'Individual') --
     ind_full_legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)

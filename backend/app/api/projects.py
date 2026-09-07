@@ -6,7 +6,7 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
-from app.schemas.common import PagedResponse
+from app.schemas.common import OtpVerifyRequest, PagedResponse
 from app.schemas.project import (
     AddServicesInput,
     ProjectCreate,
@@ -47,6 +47,8 @@ def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
         scopeStatus=project.scope_status,
         scopeApprovedAt=project.scope_approved_at,
         scopeApprovedBy=approved_by_name,
+        scopeClientConfirmedAt=project.scope_client_confirmed_at,
+        otpSentAt=project.otp_sent_at,
         revisions=[ScopeRevisionOut.from_model(revision, name) for revision, name in revisions],
     )
 
@@ -181,6 +183,23 @@ def save_scope_of_work(
 def approve_scope_of_work(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     project = project_service.approve_scope_of_work(db, project_no, current_user.id)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.post("/{project_no}/requirement/send-otp", response_model=ScopeOfWorkOut)
+def send_requirement_otp(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.send_requirement_otp(db, project_no, current_user.id)
+    return _scope_of_work_out(db, project)
+
+
+@router.post("/{project_no}/requirement/verify-otp", response_model=ScopeOfWorkOut)
+def verify_requirement_otp(
+    project_no: str,
+    payload: OtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.verify_requirement_otp(db, project_no, payload.code, current_user.id)
+    return _scope_of_work_out(db, project)
 
 
 @router.get("/{project_no}/scope-of-work/{revision_id}/document")

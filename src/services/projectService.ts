@@ -295,6 +295,36 @@ async function approveScopeOfWork(projectId: string): Promise<Project> {
 }
 
 /**
+ * Sends (or resends) the email OTP that gets the client's own sign-off
+ * on the Requirement stage's scope of work -- distinct from (and
+ * required in addition to) approveScopeOfWork's internal approval. See
+ * project_service.send_requirement_otp.
+ */
+async function sendRequirementOtp(projectId: string): Promise<ScopeOfWork> {
+  try {
+    return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/send-otp`, {})
+  } catch (error) {
+    console.error(`Failed to send requirement verification code for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+  }
+}
+
+/**
+ * Confirms the code the client read back to staff. On success the
+ * backend records the client's confirmation and, once every other exit
+ * criterion is also met, automatically advances the project to
+ * Quotation. See project_service.verify_requirement_otp.
+ */
+async function verifyRequirementOtp(projectId: string, code: string): Promise<ScopeOfWork> {
+  try {
+    return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/verify-otp`, { code })
+  } catch (error) {
+    console.error(`Failed to verify requirement code for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+  }
+}
+
+/**
  * Download the document attached to one scope-of-work revision.
  */
 async function downloadScopeRevisionDocument(projectId: string, revisionId: string): Promise<Blob> {
@@ -332,5 +362,7 @@ export const projectService = {
   getScopeOfWork,
   saveScopeOfWork,
   approveScopeOfWork,
+  sendRequirementOtp,
+  verifyRequirementOtp,
   downloadScopeRevisionDocument,
 }

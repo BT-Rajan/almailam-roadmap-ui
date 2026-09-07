@@ -1,15 +1,14 @@
 import re
-import secrets
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
-from app.core.security import hash_password, verify_password
 from app.core.status_transitions import (
     CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
     CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON,
@@ -32,9 +31,6 @@ from app.models.client import (
 from app.services import audit_service, company_service, email_service, notification_service, user_service
 
 ENTITY_TYPE = "CLIENT"
-OTP_LENGTH = 6
-OTP_VALIDITY_MINUTES = 10
-OTP_MAX_ATTEMPTS = 5
 
 
 def parse_client_id(raw: str) -> int:
@@ -382,10 +378,6 @@ def auto_advance_onboarding(db: Session, client_id: int, user_id: int | None) ->
     return client
 
 
-def _generate_otp_code() -> str:
-    return "".join(str(secrets.randbelow(10)) for _ in range(OTP_LENGTH))
-
-
 def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Client:
     """Sends (or resends) the email OTP that gates onboarding into
     "Ready". Moves "Documents Required" -> "Pending Verification" on the
@@ -393,15 +385,17 @@ def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Cli
     same-state no-op as far as the state machine is concerned (assert_
     transition_allowed treats current == new as always legal) -- it just
     regenerates the code and restarts the attempt counter and expiry.
+    See app/core/otp.py for the generation/hashing logic, shared with
+    project_service.send_requirement_otp.
     """
     client = get_client(db, client_id)
     assert_transition_allowed(
         CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, client.onboarding_state, "Pending Verification", "client"
     )
 
-    code = _generate_otp_code()
-    client.otp_code_hash = hash_password(code)
-    client.otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_VALIDITY_MINUTES)
+    code = otp.generate_code()
+    client.otp_code_hash = otp.hash_code(code)
+    client.otp_expires_at = otp.new_expiry()
     client.otp_attempts = 0
     client.otp_sent_at = datetime.now(timezone.utc)
 
@@ -419,7 +413,7 @@ def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Cli
         "Your Al Mailam verification code",
         f"Your verification code is {code}.\n\n"
         f"Share this code with the staff member handling your onboarding to confirm your "
-        f"email address. It expires in {OTP_VALIDITY_MINUTES} minutes.\n\n"
+        f"email address. It expires in {otp.VALIDITY_MINUTES} minutes.\n\n"
         "If you didn't request this, you can safely ignore this email.",
         db=db,
     )
@@ -441,12 +435,12 @@ def verify_onboarding_otp(db: Session, client_id: int, code: str, user_id: int |
         raise ValidationAppError("This client isn't awaiting email verification.")
     if not client.otp_code_hash or not client.otp_expires_at:
         raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if datetime.now(timezone.utc).replace(tzinfo=None) > client.otp_expires_at:
+    if otp.is_expired(client.otp_expires_at):
         raise ValidationAppError("This code has expired. Send a new one.")
-    if client.otp_attempts >= OTP_MAX_ATTEMPTS:
+    if client.otp_attempts >= otp.MAX_ATTEMPTS:
         raise ValidationAppError("Too many incorrect attempts. Send a new code.")
 
-    if not verify_password(code.strip(), client.otp_code_hash):
+    if not otp.code_matches(code, client.otp_code_hash):
         client.otp_attempts += 1
         db.commit()
         raise ValidationAppError("Incorrect code. Please check with the client and try again.")

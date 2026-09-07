@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 from app.core.database import Base
-from app.models.mixins import SoftDeleteMixin, TimestampMixin
+from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
@@ -63,7 +63,7 @@ PROJECT_PRIORITIES = ("High", "Medium", "Low")
 PROJECT_SCOPE_STATUSES = ("Draft", "Approved")
 
 
-class Project(Base, TimestampMixin, SoftDeleteMixin):
+class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -86,6 +86,16 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     scope_approved_by: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # The client-facing counterpart to scope_status/scope_approved_at
+    # above -- set once the client has confirmed the scope of work via
+    # email OTP (see project_service.send_requirement_otp/
+    # verify_requirement_otp), which is what internal approval alone was
+    # explicitly documented as NOT being. Required, alongside internal
+    # approval, to leave the Requirement stage (see
+    # _assert_stage_exit_criteria). Cleared whenever the scope text
+    # changes again (save_scope_of_work), same as scope_approved_at --
+    # a confirmation is a sign-off on specific text.
+    scope_client_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True
     )

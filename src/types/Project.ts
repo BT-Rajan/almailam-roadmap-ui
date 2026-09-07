@@ -168,5 +168,15 @@ export interface ScopeOfWork {
   scopeStatus: ScopeStatus
   scopeApprovedAt?: string | null
   scopeApprovedBy?: string | null
+  // The client-facing counterpart to scopeApprovedAt -- set once the
+  // client has confirmed this scope via email OTP (see
+  // ProjectRequirementTab.vue's OtpVerificationDialog). Both this and
+  // scopeApprovedAt are required before the project can leave the
+  // Requirement stage.
+  scopeClientConfirmedAt?: string | null
+  // Non-null while a verification code is outstanding -- lets the
+  // Requirement tab reopen the OTP dialog straight to "enter code"
+  // instead of "send" when one's already on its way.
+  otpSentAt?: string | null
   revisions: ScopeRevision[]
 }

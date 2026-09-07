@@ -298,10 +298,6 @@ class ClientOnboardingStateUpdate(BaseModel):
     )
 
 
-class ClientOtpVerifyRequest(BaseModel):
-    code: str = Field(min_length=1, max_length=12)
-
-
 class ClientDuplicateMatchOut(BaseModel):
     client: ClientOut
     matchedOn: list[str]
