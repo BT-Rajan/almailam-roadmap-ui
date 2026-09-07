@@ -24,9 +24,8 @@ from app.models.client import Client
 from app.models.contract import Contract
 from app.models.project import Project
 from app.models.quotation import Quotation
-from app.services import notification_service
 from app.models.user import User
-from app.services import audit_service
+from app.services import audit_service, email_service, email_template_service, notification_service
 
 ENTITY_TYPE = "FINANCIAL_AGREEMENT"
 
@@ -626,7 +625,50 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
 
     db.commit()
     db.refresh(payment)
+
+    _send_payment_received_email(db, agreement, payment)
+
     return payment
+
+
+def _send_payment_received_email(db: Session, agreement: FinancialAgreement, payment: Payment) -> None:
+    """Informational-only receipt to the client for the payment just
+    recorded -- every payment, not only ones that fully settle an
+    obligation (that's _notify_installments_settled's own, separate,
+    internal-staff notification). Same "for your information" category,
+    consent gate, and post-commit try/except-then-notify-Administrators
+    shape as quotation_approved/contract_signed."""
+    project = db.query(Project).filter(Project.id == agreement.project_id).first()
+    if project is None:
+        return
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
+        return
+
+    try:
+        subject, body = email_template_service.render(
+            db, "payment_received",
+            {
+                "contact_person": client.contact_person,
+                "project_name": project.project_name,
+                "project_no": project.project_no,
+                "amount": f"{payment.amount_received:.2f}",
+                "currency": agreement.currency,
+                "payment_date": payment.payment_date.isoformat(),
+                "reference_number": payment.reference_number or "",
+            },
+        )
+        email_service.send_email(client.email, subject, body, db=db)
+    except ValidationAppError as error:
+        notification_service.notify_role(
+            db, "Administrator",
+            "Payment receipt email not sent",
+            f"A payment was recorded for {project.project_no}, but the receipt email to the client "
+            f"could not be sent: {error}",
+            "System",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+        db.commit()
 
 
 # --- refunds -----------------------------------------------------------
@@ -781,6 +823,48 @@ _REMINDER_POINTS = (
 )
 
 
+def _send_payment_reminder_email(
+    db: Session, agreement: FinancialAgreement, project: Project, obligation: PaymentObligation
+) -> bool:
+    """The client-facing counterpart to the -2-day point in
+    check_and_notify_payment_reminders' engineer-facing loop below --
+    applies uniformly to every obligation regardless of stream, since
+    due_date already encodes the right schedule for both (Design's
+    one-time/milestone dates and Supervision's 1st-of-the-month dates
+    from generate_prorated_monthly_schedule). Same consent gate and
+    post-send try/except-then-notify-Administrators shape as
+    _send_payment_received_email. Returns whether an attempt was made
+    (i.e. there was a consenting client to email), not whether delivery
+    actually succeeded -- the caller only uses this to count attempts."""
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
+        return False
+
+    try:
+        subject, body = email_template_service.render(
+            db, "payment_reminder",
+            {
+                "contact_person": client.contact_person,
+                "project_name": project.project_name,
+                "project_no": project.project_no,
+                "description": obligation.description,
+                "amount": f"{obligation.amount_due:.2f}",
+                "currency": agreement.currency,
+                "due_date": obligation.due_date.isoformat(),
+            },
+        )
+        email_service.send_email(client.email, subject, body, db=db)
+    except ValidationAppError as error:
+        notification_service.notify_role(
+            db, "Administrator",
+            "Payment reminder email not sent",
+            f"A payment reminder for {project.project_no} could not be emailed to the client: {error}",
+            "System",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+    return True
+
+
 def check_and_notify_payment_reminders(db: Session, today: date | None = None) -> int:
     """Finds payment obligations due_date +/- 2 days from today and not
     yet settled, and notifies the project's engineer once per reminder
@@ -817,24 +901,38 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
         for offset_days, guard_column, title, tense in _REMINDER_POINTS:
             if obligation.due_date != today - timedelta(days=offset_days):
                 continue
-            if getattr(obligation, guard_column) is not None:
-                continue
 
             agreement = get_agreement(db, obligation.agreement_id)
             project = db.query(Project).filter(Project.id == agreement.project_id).first()
-            if project is None or project.engineer_id is None:
-                continue
 
-            notification_service.create_notification(
-                db, project.engineer_id,
-                title,
-                f"Payment of {obligation.amount_due} {agreement.currency} for {project.project_name} "
-                f"({project.project_no}) {tense} {obligation.due_date.isoformat()}.",
-                "Payment",
-                link_route_name="payments",
-            )
-            setattr(obligation, guard_column, datetime.now(timezone.utc))
-            notified_count += 1
+            # The internal Engineer notification (unchanged from before --
+            # still needs a project with an Engineer assigned, still
+            # guarded per-point by its own reminder_*_sent_at column).
+            if (
+                project is not None
+                and project.engineer_id is not None
+                and getattr(obligation, guard_column) is None
+            ):
+                notification_service.create_notification(
+                    db, project.engineer_id,
+                    title,
+                    f"Payment of {obligation.amount_due} {agreement.currency} for {project.project_name} "
+                    f"({project.project_no}) {tense} {obligation.due_date.isoformat()}.",
+                    "Payment",
+                    link_route_name="payments",
+                )
+                setattr(obligation, guard_column, datetime.now(timezone.utc))
+                notified_count += 1
+
+            # The client-facing email -- only at the "2 days before" point
+            # ("Reminder mails should auto generate and send 2 days
+            # before the payment schedule date"), guarded by its own
+            # column so it fires on schedule regardless of whether this
+            # project even has an Engineer assigned.
+            if offset_days == -2 and project is not None and obligation.client_reminder_sent_at is None:
+                if _send_payment_reminder_email(db, agreement, project, obligation):
+                    notified_count += 1
+                obligation.client_reminder_sent_at = datetime.now(timezone.utc)
 
     db.commit()
     return notified_count

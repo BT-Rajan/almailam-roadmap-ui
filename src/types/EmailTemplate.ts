@@ -10,6 +10,11 @@ export type EmailTemplateKey =
   | 'quotation_approved'
   | 'contract_otp'
   | 'contract_signed'
+  | 'handover_otp'
+  | 'permit_application_submitted'
+  | 'permit_response_received'
+  | 'payment_received'
+  | 'payment_reminder'
 
 export interface EmailTemplate {
   key: EmailTemplateKey

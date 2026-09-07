@@ -10,10 +10,19 @@ from app.core.status_transitions import (
     SUBMISSION_STATUSES_REQUIRING_REASON,
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.models.client import Client
 from app.models.government import GovernmentSubmission, SubmissionDocument, SubmissionFollowup
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, government_service, project_service, timeline_service
+from app.services import (
+    audit_service,
+    email_service,
+    email_template_service,
+    government_service,
+    notification_service,
+    project_service,
+    timeline_service,
+)
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
@@ -173,10 +182,18 @@ def set_status(
     submission.status = new_status
     # Realistic side effects matching how the dates actually get populated:
     # the submission date is set the first time it's actually submitted,
-    # and the decision date when the authority hands down a decision.
-    if new_status == "Submitted" and submission.submitted_date is None:
+    # and the decision date when the authority hands down a decision. The
+    # "was still None" checks double as the FYI-email guard below -- a
+    # resubmission (e.g. Comments Received -> Submitted again) doesn't
+    # re-send "application submitted" since submitted_date is already
+    # set, and similarly for a second real decision after a Rejected ->
+    # Draft -> resubmit cycle -- same idempotency the date fields
+    # themselves already rely on, not a new guard column.
+    is_first_submission = new_status == "Submitted" and submission.submitted_date is None
+    is_first_decision = new_status in ("Approved", "Rejected") and submission.decision_date is None
+    if is_first_submission:
         submission.submitted_date = date.today()
-    if new_status in ("Approved", "Rejected") and submission.decision_date is None:
+    if is_first_decision:
         submission.decision_date = date.today()
 
     # An Approved submission is exactly what project_service's Government
@@ -193,7 +210,61 @@ def set_status(
 
     db.commit()
     db.refresh(submission)
+
+    if is_first_submission:
+        _send_permit_fyi_email(db, submission, "permit_application_submitted", {})
+    if is_first_decision:
+        _send_permit_fyi_email(db, submission, "permit_response_received", {"decision": new_status})
+
     return submission
+
+
+def _send_permit_fyi_email(
+    db: Session, submission: GovernmentSubmission, template_key: str, extra_context: dict[str, str]
+) -> None:
+    """Informational-only email to the client for a permit application
+    milestone (filed / decision received) -- never OTP-gated, same
+    "for your information" category as quotation_approved/
+    contract_signed, gated the same way on client.email_consent. Runs
+    after set_status's own commit, in its own try/except, so a delivery
+    failure only notifies Administrators (same pattern as those two)
+    rather than unwinding the status change that already succeeded."""
+    project = db.query(Project).filter(Project.id == submission.project_id).first()
+    if project is None:
+        return
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
+        return
+
+    authority = government_service.get_authority(db, submission.authority_id)
+    form = government_service.get_form(db, submission.form_id)
+
+    try:
+        subject, body = email_template_service.render(
+            db, template_key,
+            {
+                "contact_person": client.contact_person,
+                "form_title": form.title,
+                "authority_name": authority.name,
+                "project_name": project.project_name,
+                "project_no": project.project_no,
+                "submission_no": submission.submission_no,
+                "submitted_date": submission.submitted_date.isoformat() if submission.submitted_date else "",
+                "decision_date": submission.decision_date.isoformat() if submission.decision_date else "",
+                **extra_context,
+            },
+        )
+        email_service.send_email(client.email, subject, body, db=db)
+    except ValidationAppError as error:
+        notification_service.notify_role(
+            db, "Administrator",
+            "Permit notification email not sent",
+            f"Submission {submission.submission_no} for {project.project_no} reached '{submission.status}', "
+            f"but the notification email to the client could not be sent: {error}",
+            "System",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+        db.commit()
 
 
 def set_document_status(

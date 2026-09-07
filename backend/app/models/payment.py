@@ -85,6 +85,13 @@ class PaymentObligation(Base):
     reminder_before_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reminder_due_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reminder_after_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # A separate guard from reminder_before_sent_at above -- that one
+    # gates the internal Engineer notification (fires whether or not a
+    # client email actually goes out, e.g. no consent), this one gates
+    # the client-facing "payment due in 2 days" email (see
+    # payment_service.check_and_notify_payment_reminders) so neither
+    # audience's delivery state depends on the other's.
+    client_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Payment(Base):

@@ -660,6 +660,7 @@ CREATE TABLE IF NOT EXISTS payment_obligations (
     reminder_before_sent_at DATETIME NULL,
     reminder_due_sent_at    DATETIME NULL,
     reminder_after_sent_at  DATETIME NULL,
+    client_reminder_sent_at DATETIME NULL,
     CONSTRAINT fk_payment_obligations_agreement FOREIGN KEY (agreement_id) REFERENCES financial_agreements(id) ON DELETE CASCADE,
     UNIQUE KEY uq_payment_obligations_agreement_sequence (agreement_id, sequence_number),
     INDEX idx_payment_obligations_agreement (agreement_id)

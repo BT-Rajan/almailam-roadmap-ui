@@ -145,6 +145,52 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "If you didn't request this, you can safely ignore this email."
         ),
     },
+    "permit_application_submitted": {
+        "subject": "Your {{ form_title }} application has been submitted",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "We have submitted your {{ form_title }} application to {{ authority_name }} for project "
+            "{{ project_name }} ({{ project_no }}).\n\n"
+            "Submission reference: {{ submission_no }}\n"
+            "Submitted on: {{ submitted_date }}\n\n"
+            "This is an informational message -- no action is needed. We'll notify you as soon as we "
+            "receive a response."
+        ),
+    },
+    "permit_response_received": {
+        "subject": "Update on your {{ form_title }} application: {{ decision }}",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "{{ authority_name }} has responded to your {{ form_title }} application for project "
+            "{{ project_name }} ({{ project_no }}).\n\n"
+            "Submission reference: {{ submission_no }}\n"
+            "Decision: {{ decision }}\n"
+            "Decision date: {{ decision_date }}\n\n"
+            "This is an informational message -- no action is needed."
+        ),
+    },
+    "payment_received": {
+        "subject": "Payment received for {{ project_name }} ({{ project_no }})",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "We confirm receipt of your payment for project {{ project_name }} ({{ project_no }}).\n\n"
+            "Amount received: {{ amount }} {{ currency }}\n"
+            "Payment date: {{ payment_date }}\n"
+            "Reference: {{ reference_number }}\n\n"
+            "This is an informational message -- no action is needed. Thank you."
+        ),
+    },
+    "payment_reminder": {
+        "subject": "Payment reminder: {{ amount }} {{ currency }} due {{ due_date }} for {{ project_name }}",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "This is a reminder that a payment for project {{ project_name }} ({{ project_no }}) is due "
+            "in 2 days, on {{ due_date }}.\n\n"
+            "Description: {{ description }}\n"
+            "Amount due: {{ amount }} {{ currency }}\n\n"
+            "This is an informational message -- no action is needed if payment is already arranged."
+        ),
+    },
 }
 
 # What the admin UI's reference panel offers per template -- computed
@@ -223,6 +269,43 @@ MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
         {"key": "checklist", "label": "Hand-over Checklist (completed Design/Permit/Supervision items)"},
         {"key": "code", "label": "Verification Code"},
         {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
+    ],
+    "permit_application_submitted": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "form_title", "label": "Form/Application Title"},
+        {"key": "authority_name", "label": "Authority Name"},
+        {"key": "project_name", "label": "Project Name"},
+        {"key": "project_no", "label": "Project No."},
+        {"key": "submission_no", "label": "Submission No."},
+        {"key": "submitted_date", "label": "Submitted Date"},
+    ],
+    "permit_response_received": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "form_title", "label": "Form/Application Title"},
+        {"key": "authority_name", "label": "Authority Name"},
+        {"key": "decision", "label": "Decision (Approved/Rejected)"},
+        {"key": "project_name", "label": "Project Name"},
+        {"key": "project_no", "label": "Project No."},
+        {"key": "submission_no", "label": "Submission No."},
+        {"key": "decision_date", "label": "Decision Date"},
+    ],
+    "payment_received": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "project_name", "label": "Project Name"},
+        {"key": "project_no", "label": "Project No."},
+        {"key": "amount", "label": "Amount Received"},
+        {"key": "currency", "label": "Currency"},
+        {"key": "payment_date", "label": "Payment Date"},
+        {"key": "reference_number", "label": "Reference Number"},
+    ],
+    "payment_reminder": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "project_name", "label": "Project Name"},
+        {"key": "project_no", "label": "Project No."},
+        {"key": "description", "label": "Obligation Description"},
+        {"key": "amount", "label": "Amount Due"},
+        {"key": "currency", "label": "Currency"},
+        {"key": "due_date", "label": "Due Date"},
     ],
 }
 

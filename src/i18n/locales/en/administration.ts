@@ -314,6 +314,26 @@ export default {
         label: 'Contract: Signed',
         description: 'Sent once the client signs a contract -- includes a copy and its summary.',
       },
+      handoverOtp: {
+        label: 'Hand-over: Verification Code',
+        description: 'Sent once a project is complete and fully paid -- includes the hand-over checklist and code.',
+      },
+      permitApplicationSubmitted: {
+        label: 'Permit: Application Submitted',
+        description: 'Sent to the client when a permit application is filed with the authority.',
+      },
+      permitResponseReceived: {
+        label: 'Permit: Response Received',
+        description: 'Sent to the client when the authority approves or rejects a permit application.',
+      },
+      paymentReceived: {
+        label: 'Payment: Receipt',
+        description: 'Sent to the client confirming receipt of a payment.',
+      },
+      paymentReminder: {
+        label: 'Payment: Reminder',
+        description: 'Sent to the client 2 days before a payment is due.',
+      },
     },
   },
 

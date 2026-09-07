@@ -28,7 +28,7 @@ const { t } = useI18n()
 const emailTemplateStore = useEmailTemplateStore()
 const toastStore = useToastStore()
 
-// Fixed display order/copy for the 7 keys -- purely presentational
+// Fixed display order/copy for every key -- purely presentational
 // (friendly name + "when this sends"), not a second source of truth
 // for which keys exist (that's EMAIL_TEMPLATE_KEYS on the backend).
 const TEMPLATE_INFO: { key: EmailTemplateKey; labelKey: string; descriptionKey: string }[] = [
@@ -41,6 +41,11 @@ const TEMPLATE_INFO: { key: EmailTemplateKey; labelKey: string; descriptionKey: 
   { key: 'quotation_approved', labelKey: 'administration.emailTemplates.keys.quotationApproved.label', descriptionKey: 'administration.emailTemplates.keys.quotationApproved.description' },
   { key: 'contract_otp', labelKey: 'administration.emailTemplates.keys.contractOtp.label', descriptionKey: 'administration.emailTemplates.keys.contractOtp.description' },
   { key: 'contract_signed', labelKey: 'administration.emailTemplates.keys.contractSigned.label', descriptionKey: 'administration.emailTemplates.keys.contractSigned.description' },
+  { key: 'handover_otp', labelKey: 'administration.emailTemplates.keys.handoverOtp.label', descriptionKey: 'administration.emailTemplates.keys.handoverOtp.description' },
+  { key: 'permit_application_submitted', labelKey: 'administration.emailTemplates.keys.permitApplicationSubmitted.label', descriptionKey: 'administration.emailTemplates.keys.permitApplicationSubmitted.description' },
+  { key: 'permit_response_received', labelKey: 'administration.emailTemplates.keys.permitResponseReceived.label', descriptionKey: 'administration.emailTemplates.keys.permitResponseReceived.description' },
+  { key: 'payment_received', labelKey: 'administration.emailTemplates.keys.paymentReceived.label', descriptionKey: 'administration.emailTemplates.keys.paymentReceived.description' },
+  { key: 'payment_reminder', labelKey: 'administration.emailTemplates.keys.paymentReminder.label', descriptionKey: 'administration.emailTemplates.keys.paymentReminder.description' },
 ]
 
 const selectedKey = ref<EmailTemplateKey>()
