@@ -238,7 +238,12 @@ fi
 
 log "Found: git, python3, curl, openssl"
 
-NODE_VERSION=20
+# vue-i18n/@intlify (added with the bilingual i18n work) require Node
+# >= 22 -- an older pin here installs a Node that satisfies nothing
+# but this check, and every `npm install` then prints EBADENGINE
+# warnings for every @intlify package. Track whatever the current
+# dependencies actually need, not a version chosen when they didn't.
+NODE_VERSION=22
 
 if ! require_cmd node || \
    [[ "$(node -v | sed 's/^v//' | cut -d. -f1)" -lt "$NODE_VERSION" ]]; then
