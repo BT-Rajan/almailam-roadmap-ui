@@ -101,6 +101,15 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     form_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("government_forms.id", ondelete="RESTRICT"), nullable=False
     )
+    # Which planned permit (migration 0073) this application is
+    # fulfilling -- optional, since a submission can still be created
+    # ad hoc against an authority/form with no ProjectSelectedPermit
+    # behind it, same as today. When set, this is what
+    # project_service.close_permit_activity's caller uses to find the
+    # submission(s) filed against a given planned permit.
+    project_selected_permit_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("project_selected_permits.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(
         Enum(*SUBMISSION_STATUSES, name="government_submission_status"), nullable=False, default="Draft"
     )

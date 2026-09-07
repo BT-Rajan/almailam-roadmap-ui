@@ -8,7 +8,7 @@ from app.core.database import Base
 from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
+PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
 # "Correction" used to be its own stage (Review <-> Correction, looping
 # back and forth for what's really one review cycle). Merged into
 # Review -- see migration 0019 -- since a stage transition wasn't
@@ -28,6 +28,17 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled")
 # approval-process gates, and the whole notion of a project reaching a
 # terminal "Completed" workflow stage/status went with them. Government
 # Submission is now the last stage.
+#
+# "Completed" comes back as a PROJECT_STATUS (not a WORKFLOW_STAGE --
+# migration 0073) once Design/Government Submission/Supervision stop
+# being a strict linear chain and become independent parallel tracks
+# (see compute_stage_flags, ProjectSelectedActivity.status,
+# ProjectSelectedPermit, ProjectSelectedSupervisionActivity.status
+# below, and project_service.try_complete_project). This time it's
+# real gating: every planned Design/Permit/Supervision item Complete
+# or Cancelled, the project's current total value fully paid, and the
+# client having acknowledged a handover email -- not the removed
+# execution checklist coming back.
 #
 # "Supervision" (migration 0056) is an independent add-on stage -- a
 # project can include Design, Supervision, both, or neither, depending
@@ -55,6 +66,15 @@ WORKFLOW_STAGES = (
     "Supervision",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
+# Status of one selected Design/Supervision activity instance on a
+# project (migration 0073) -- "Not Started"/"In Progress" are
+# informational only (nothing currently distinguishes them beyond
+# staff's own judgment); "Complete" is what
+# project_service.try_complete_project waits on, and "Cancelled" lets
+# a descoped activity stop blocking that check without pretending it
+# was actually done. See ProjectSelectedActivity.status and
+# ProjectSelectedSupervisionActivity.status below.
+SELECTED_ACTIVITY_STATUSES = ("Not Started", "In Progress", "Complete", "Cancelled")
 # Internal approval of the project's scope-of-work text (the
 # `description` field below) -- set by the Requirement stage's Approve
 # action, which is what gates the automatic move to "Quotation" (see
@@ -152,6 +172,31 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # confirmation that the two shouldn't be conflated.
     supervision_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     supervision_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Handover / project-completion (migration 0073) -- set by
+    # project_service.try_complete_project once every planned Design/
+    # Permit/Supervision item is Complete/Cancelled and the project's
+    # current total value is fully paid. handover_sent_at/
+    # handover_acknowledged_at track the outbound email and the
+    # client's confirmation of it; the OTP itself reuses this model's
+    # own EmailOtpMixin columns below (send_handover_otp/
+    # verify_handover_otp), the same "reused across stages, cleared
+    # after each confirmation" pattern already used for the
+    # Requirement stage's scope_client_confirmed_at. status only
+    # becomes "Completed" once handover_acknowledged_at is set -- an
+    # email that fails to send never blocks this internally, it only
+    # notifies Administrators (see notify_role) so someone can resend.
+    handover_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    handover_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Notification guards for the two new periodic checks in
+    # project_service (mirrors stale_notified_at's pattern above): a
+    # project whose planned activities are all done but isn't yet
+    # fully paid, and a project past its target_date. Neither is
+    # cleared by set_stage() (unlike stale_notified_at) since track
+    # completion/payment isn't tied to workflow_stage changes --
+    # cleared explicitly wherever the underlying condition resolves
+    # (payment completes / target_date is pushed out).
+    unpaid_completion_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    overdue_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ProjectScopeRevision(Base):
@@ -204,6 +249,17 @@ class ProjectSelectedActivity(Base):
     activity_id: Mapped[str] = mapped_column(String(20), nullable=False)
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    # Task-driven completion (migration 0073) -- see Task.
+    # selected_activity_id and project_service.
+    # _maybe_auto_close_design_activity: closing every Task linked to
+    # this row auto-sets status to "Complete", but the user always has
+    # a direct manual override (close_design_activity/
+    # reopen_design_activity) regardless of task state.
+    status: Mapped[str] = mapped_column(
+        Enum(*SELECTED_ACTIVITY_STATUSES, name="design_activity_status"), nullable=False, default="Not Started"
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    closed_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 
 class ProjectSelectedSupervisionActivity(Base):
@@ -236,3 +292,12 @@ class ProjectSelectedSupervisionActivity(Base):
     monthly_rate: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Direct user-driven completion (migration 0073) -- unlike Design,
+    # Supervision has no sub-tasks: the user closes this whenever they
+    # judge it done (based on site-engineer input), never auto-derived.
+    # See project_service.close_supervision_activity.
+    status: Mapped[str] = mapped_column(
+        Enum(*SELECTED_ACTIVITY_STATUSES, name="supervision_activity_status"), nullable=False, default="Not Started"
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    closed_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

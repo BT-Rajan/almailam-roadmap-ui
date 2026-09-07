@@ -20,6 +20,17 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    # Optional link to the Design activity this task belongs to
+    # (migration 0073) -- only Design uses this; Permit/Supervision
+    # tracks have no sub-tasks (see ProjectSelectedPermit/
+    # ProjectSelectedSupervisionActivity, both closed directly by the
+    # user). A task with no link here is just a generic to-do, same as
+    # every task before this column existed. See project_service.
+    # _maybe_auto_close_design_activity for what closing the last
+    # linked task does.
+    selected_activity_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("project_selected_activities.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     assigned_to: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     priority: Mapped[str] = mapped_column(
