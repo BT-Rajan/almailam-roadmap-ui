@@ -82,6 +82,8 @@ export default {
     project: 'Project',
     projectPlaceholder: 'Select project',
     client: 'Client: {name}',
+    designActivity: 'Design Activity (optional)',
+    designActivityPlaceholder: 'Not linked to a specific activity',
     assignTo: 'Assign To',
     assigneeMe: '{name} (Me)',
     priority: 'Priority',

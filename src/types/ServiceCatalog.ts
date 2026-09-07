@@ -22,10 +22,21 @@ export interface ServiceCatalogItem {
 // prefill, contract scope) wants to iterate picks, not re-walk a tree.
 // Design branch only -- see SelectedSupervisionActivity (Project.ts) for
 // the Supervision equivalent, which also carries its own start/end dates.
+export type SelectedActivityStatus = 'Not Started' | 'In Progress' | 'Complete' | 'Cancelled'
+
 export interface SelectedServiceActivity {
   serviceId: string
   serviceName: string
   activityId: string
   activityName: string
   fixedCost: number
+  // Present once this pick has actually been persisted to a project
+  // (ProjectOut.selectedActivities) -- absent while it's still just a
+  // fresh selection in ServicePickerDialog before the project is
+  // created. id is this row's own identity (not activityId, the
+  // catalog's display id) -- what Task.selectedActivityId and the
+  // close/reopen actions operate on.
+  id?: string
+  status?: SelectedActivityStatus
+  closedAt?: string
 }

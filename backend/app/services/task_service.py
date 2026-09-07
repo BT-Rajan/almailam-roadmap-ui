@@ -38,6 +38,17 @@ def _resolve_assignee(db: Session, raw_user_id: str) -> int:
     return user_id
 
 
+def _resolve_selected_activity(db: Session, project_id: int, raw_activity_id: str) -> int:
+    """Resolves and validates selectedActivityId against the task's own
+    project -- reuses project_service.get_selected_activity, which
+    already scopes the lookup to project_id, so a task can't be linked
+    to another project's activity by guessing its raw id."""
+    if not raw_activity_id.isdigit():
+        raise ValidationAppError("selectedActivityId must be a valid id.")
+    activity = project_service.get_selected_activity(db, project_id, int(raw_activity_id))
+    return activity.id
+
+
 TASK_SORTABLE_FIELDS = {
     "title": Task.title,
     "status": Task.status,
@@ -89,10 +100,16 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     project = _project_by_no(db, payload.projectId)
     project_service.assert_project_open_for_new_work(project)
     assignee_id = _resolve_assignee(db, payload.assignedTo)
+    selected_activity_id = (
+        _resolve_selected_activity(db, project.id, payload.selectedActivityId)
+        if payload.selectedActivityId is not None
+        else None
+    )
 
     task = Task(
         task_no=next_number(db, "TASK"),
         project_id=project.id,
+        selected_activity_id=selected_activity_id,
         title=payload.title,
         assigned_to=assignee_id,
         priority=payload.priority,
@@ -146,6 +163,12 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
                 link_route_name="tasks",
             )
 
+    if payload.selectedActivityId is not None:
+        new_activity_id = _resolve_selected_activity(db, task.project_id, payload.selectedActivityId)
+        if new_activity_id != task.selected_activity_id:
+            changes["selected_activity_id"] = (task.selected_activity_id, new_activity_id)
+            task.selected_activity_id = new_activity_id
+
     audit_service.log_field_changes(db, ENTITY_TYPE, task.id, changes, user_id)
     db.commit()
     db.refresh(task)
@@ -167,6 +190,13 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
         previous_value=task.status, new_value=new_status, reason=reason,
     )
     task.status = new_status
+    if new_status == "Completed" and task.selected_activity_id is not None:
+        # Closing the last task linked to a Design activity auto-closes
+        # the activity itself -- see project_service.
+        # maybe_auto_close_design_activity, which no-ops if other linked
+        # tasks are still open or the activity was already closed by
+        # hand.
+        project_service.maybe_auto_close_design_activity(db, task.selected_activity_id, user_id)
     db.commit()
     db.refresh(task)
     return task

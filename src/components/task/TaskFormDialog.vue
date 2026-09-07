@@ -63,12 +63,30 @@ const priority = ref<TaskPriority>('Medium')
 const severity = ref<TaskSeverity>('Minor')
 const dueDate = ref('')
 const dueTime = ref('17:00')
+// Optional -- links this task to one of the chosen project's own
+// Design activities, so closing every task linked to it can auto-close
+// the activity (see project_service.maybe_auto_close_design_activity).
+// Reset whenever the project changes so a stale link from a
+// previously-selected project can't carry over.
+const selectedActivityId = ref('')
 const titleError = ref<string>()
 const dueDateError = ref<string>()
 
 const projectOptions = computed<SelectOption[]>(() =>
   props.projects.map((project) => ({ label: project.projectName, value: project.id })),
 )
+
+const selectedProject = computed(() => props.projects.find((project) => project.id === projectId.value))
+
+const designActivityOptions = computed<SelectOption[]>(
+  () => (selectedProject.value?.selectedActivities ?? [])
+    .filter((activity) => activity.id)
+    .map((activity) => ({ label: activity.activityName, value: activity.id as string })),
+)
+
+watch(projectId, () => {
+  selectedActivityId.value = ''
+})
 
 // Every task must belong to exactly one project, and through it, one
 // client -- resolving and showing the client here (read-only) as soon
@@ -117,6 +135,7 @@ function resetForm(): void {
   severity.value = 'Minor'
   dueDate.value = ''
   dueTime.value = '17:00'
+  selectedActivityId.value = ''
   titleError.value = undefined
   dueDateError.value = undefined
 }
@@ -140,6 +159,7 @@ function submitTask(): void {
     dueDate: dueDate.value,
     dueTime: dueTime.value,
     status: 'Pending',
+    selectedActivityId: selectedActivityId.value || undefined,
   })
   closeDialog()
 }
@@ -158,6 +178,14 @@ function submitTask(): void {
 
       <SelectBox v-model="projectId" :label="t('task.formDialog.project')" :placeholder="t('task.formDialog.projectPlaceholder')" :options="projectOptions" required />
       <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">{{ t('task.formDialog.client', { name: selectedClientName }) }}</p>
+
+      <SelectBox
+        v-if="designActivityOptions.length > 0"
+        v-model="selectedActivityId"
+        :label="t('task.formDialog.designActivity')"
+        :placeholder="t('task.formDialog.designActivityPlaceholder')"
+        :options="designActivityOptions"
+      />
 
       <SelectBox
         :model-value="assignedTo"

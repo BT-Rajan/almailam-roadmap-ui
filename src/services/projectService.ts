@@ -192,6 +192,37 @@ async function getStageEligibility(projectId: string): Promise<StageEligibility[
 }
 
 /**
+ * Directly closes a Design activity (Complete or Cancelled) regardless
+ * of its linked tasks' state -- the user always has full manual
+ * control, on top of the auto-close that happens when every linked
+ * task is completed (see taskService.setTaskStatus).
+ */
+async function closeDesignActivity(
+  projectId: string, activityId: string, status: 'Complete' | 'Cancelled',
+): Promise<SelectedServiceActivity> {
+  try {
+    return await apiClient.post<SelectedServiceActivity>(
+      `/api/projects/${projectId}/design-activities/${activityId}/close`, { status },
+    )
+  } catch (error) {
+    console.error(`Failed to close design activity ${activityId} on project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to close design activity')
+  }
+}
+
+/** Undoes a close (manual or auto-derived) regardless of linked task state. */
+async function reopenDesignActivity(projectId: string, activityId: string): Promise<SelectedServiceActivity> {
+  try {
+    return await apiClient.post<SelectedServiceActivity>(
+      `/api/projects/${projectId}/design-activities/${activityId}/reopen`, {},
+    )
+  } catch (error) {
+    console.error(`Failed to reopen design activity ${activityId} on project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to reopen design activity')
+  }
+}
+
+/**
  * Change a project's operational status (Active/On Hold/Cancelled).
  * `reason` is required for some transitions (On Hold, Cancelled, and
  * reopening a Cancelled project) -- enforced server-side.
@@ -356,6 +387,8 @@ export const projectService = {
   updateProject,
   setStage,
   getStageEligibility,
+  closeDesignActivity,
+  reopenDesignActivity,
   addServices,
   setStatus,
   deleteProject,

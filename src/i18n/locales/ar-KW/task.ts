@@ -82,6 +82,8 @@ export default {
     project: 'المشروع',
     projectPlaceholder: 'اختر المشروع',
     client: 'العميل: {name}',
+    designActivity: 'نشاط التصميم (اختياري)',
+    designActivityPlaceholder: 'غير مرتبط بنشاط محدد',
     assignTo: 'إسناد إلى',
     assigneeMe: '{name} (أنا)',
     priority: 'الأولوية',

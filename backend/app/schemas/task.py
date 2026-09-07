@@ -24,6 +24,10 @@ class TaskOut(BaseModel):
     dueDate: date
     dueTime: str
     status: str
+    # The Design activity this task belongs to, if any (migration
+    # 0073) -- None for the common case of a plain to-do. Matches
+    # SelectedActivityOut.id (str(ProjectSelectedActivity.id)).
+    selectedActivityId: str | None = None
 
     @staticmethod
     def from_model(task, project_no: str, assigned_to_name: str) -> "TaskOut":
@@ -37,6 +41,7 @@ class TaskOut(BaseModel):
             dueDate=task.due_date,
             dueTime=task.due_time.strftime("%H:%M"),
             status=task.status,
+            selectedActivityId=str(task.selected_activity_id) if task.selected_activity_id else None,
         )
 
 
@@ -48,6 +53,12 @@ class TaskCreate(BaseModel):
     severity: str = "Minor"
     dueDate: date
     dueTime: time
+    # Optional: links this task to one of the project's own Design
+    # activities (ProjectSelectedActivity.id, as a string) so closing
+    # every task linked to it can auto-close the activity (see
+    # project_service.maybe_auto_close_design_activity). Omitted/None
+    # for a plain, unlinked to-do -- the vast majority of tasks.
+    selectedActivityId: str | None = None
 
     _check_priority = field_validator("priority")(_enum_validator(TASK_PRIORITIES, "priority"))
     _check_severity = field_validator("severity")(_enum_validator(TASK_SEVERITIES, "severity"))
@@ -62,6 +73,7 @@ class TaskUpdate(BaseModel):
     dueTime: time | None = None
     status: str | None = None
     reason: str | None = None
+    selectedActivityId: str | None = None
 
     @field_validator("priority")
     @classmethod

@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.common import OtpVerifyRequest, PagedResponse
 from app.schemas.project import (
     AddServicesInput,
+    CloseDesignActivityRequest,
     ProjectCreate,
     ProjectOut,
     ProjectStageUpdate,
@@ -16,6 +17,7 @@ from app.schemas.project import (
     ProjectUpdate,
     ScopeOfWorkOut,
     ScopeRevisionOut,
+    SelectedActivityOut,
     StageEligibilityOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
@@ -145,6 +147,29 @@ def add_services(
 @router.get("/{project_no}/stage-eligibility", response_model=list[StageEligibilityOut])
 def get_stage_eligibility(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return project_service.get_stage_eligibility(db, project_no)
+
+
+@router.post("/{project_no}/design-activities/{activity_id}/close", response_model=SelectedActivityOut)
+def close_design_activity(
+    project_no: str,
+    activity_id: int,
+    payload: CloseDesignActivityRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    activity = project_service.close_design_activity(db, project_no, activity_id, payload.status, current_user.id)
+    return SelectedActivityOut.from_model(activity)
+
+
+@router.post("/{project_no}/design-activities/{activity_id}/reopen", response_model=SelectedActivityOut)
+def reopen_design_activity(
+    project_no: str,
+    activity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    activity = project_service.reopen_design_activity(db, project_no, activity_id, current_user.id)
+    return SelectedActivityOut.from_model(activity)
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)

@@ -170,6 +170,94 @@ def get_selected_supervision_activities_batch(
     return result
 
 
+def get_selected_activity(db: Session, project_id: int, activity_id: int) -> ProjectSelectedActivity:
+    """A single Design activity row, scoped to a specific project so a
+    caller can't operate on another project's row just by knowing its
+    raw id."""
+    activity = (
+        db.query(ProjectSelectedActivity)
+        .filter(ProjectSelectedActivity.id == activity_id, ProjectSelectedActivity.project_id == project_id)
+        .first()
+    )
+    if activity is None:
+        raise NotFoundError("Selected activity")
+    return activity
+
+
+def _set_design_activity_status(
+    db: Session, activity: ProjectSelectedActivity, new_status: str, user_id: int | None, auto: bool
+) -> None:
+    previous = activity.status
+    activity.status = new_status
+    activity.closed_at = datetime.now(timezone.utc)
+    activity.closed_by = user_id
+    audit_service.log_event(
+        db, ENTITY_TYPE, activity.project_id,
+        "Design activity auto-closed (all linked tasks completed)" if auto else "Design activity closed",
+        user_id, previous_value=previous, new_value=new_status,
+    )
+
+
+def close_design_activity(
+    db: Session, project_no: str, activity_id: int, new_status: str, user_id: int
+) -> ProjectSelectedActivity:
+    """Direct user action -- closes a Design activity regardless of its
+    linked tasks' state ("user has full control", independent of the
+    task-driven auto-close below). new_status is 'Complete' or
+    'Cancelled' -- the latter for a descoped activity that was never
+    going to be finished, so it stops blocking project completion
+    without pretending it was actually done."""
+    if new_status not in ("Complete", "Cancelled"):
+        raise ValidationAppError("new_status must be 'Complete' or 'Cancelled'.")
+    project = get_project(db, project_no)
+    activity = get_selected_activity(db, project.id, activity_id)
+    _set_design_activity_status(db, activity, new_status, user_id, auto=False)
+    db.commit()
+    db.refresh(activity)
+    return activity
+
+
+def reopen_design_activity(db: Session, project_no: str, activity_id: int, user_id: int) -> ProjectSelectedActivity:
+    """The other half of "user has full control" -- undoes a close
+    (manual or auto-derived) regardless of what its linked tasks say."""
+    project = get_project(db, project_no)
+    activity = get_selected_activity(db, project.id, activity_id)
+    if activity.status not in ("Complete", "Cancelled"):
+        raise ValidationAppError("This activity isn't closed.")
+    previous = activity.status
+    activity.status = "In Progress"
+    activity.closed_at = None
+    activity.closed_by = None
+    audit_service.log_event(
+        db, ENTITY_TYPE, project.id, "Design activity reopened", user_id,
+        previous_value=previous, new_value=activity.status,
+    )
+    db.commit()
+    db.refresh(activity)
+    return activity
+
+
+def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int) -> None:
+    """Called by task_service.set_status whenever a task linked to a
+    Design activity is marked Completed -- if every one of that
+    activity's linked tasks (there must be at least one) is now
+    Completed, closes the activity automatically. Does not commit --
+    the caller's own status-change transaction covers this too. Never
+    overrides a status already set by hand (Complete/Cancelled), and is
+    a no-op for the common case of a task with no linked activity."""
+    activity = db.query(ProjectSelectedActivity).filter(ProjectSelectedActivity.id == activity_id).first()
+    if activity is None or activity.status in ("Complete", "Cancelled"):
+        return
+    linked_tasks = (
+        db.query(Task)
+        .filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None))
+        .all()
+    )
+    if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
+        return
+    _set_design_activity_status(db, activity, "Complete", user_id, auto=True)
+
+
 def _persist_supervision_selection(
     db: Session,
     project_id: int,
@@ -617,29 +705,25 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             problems.append("a signed contract")
 
     elif previous_stage == "Design":
-        # Gates leaving Design into Government Submission -- Design
-        # itself has to have something in it -- at least one drawing
-        # link saved (see DesignDocumentDialog.vue, which requires a
-        # link on every 'Drawing'-type document it creates) -- before
-        # there's anything to have approved in the first place.
-        has_design_link = (
-            db.query(ProjectDocument)
-            .filter(
-                ProjectDocument.project_id == project.id,
-                ProjectDocument.type == "Drawing",
-                ProjectDocument.external_link.isnot(None),
-                ProjectDocument.deleted_at.is_(None),
+        # Gates leaving Design into Government Submission -- used to
+        # require just one saved drawing link for the whole project
+        # (see DesignDocumentDialog.vue); now that each selected Design
+        # activity has its own real status (migration 0073,
+        # close_design_activity/maybe_auto_close_design_activity above),
+        # this checks the thing that actually matters: every planned
+        # Design activity is Complete or Cancelled, not merely "one
+        # document exists somewhere." (Design/Government Submission stop
+        # being gated on each other at all once the parallel-tracks work
+        # lands in full -- see docs/PROJECT_WORKFLOW_MAP -- this is an
+        # interim tightening, not the final shape.)
+        unfinished_activities = [
+            a for a in get_selected_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
+        ]
+        if unfinished_activities:
+            problems.append(
+                f"every selected Design activity closed ({len(unfinished_activities)} still open: "
+                f"{', '.join(a.activity_name for a in unfinished_activities)})"
             )
-            .first()
-            is not None
-        )
-        if not has_design_link:
-            problems.append("at least one design document link saved")
-        # The separate architectural_approval approval-process gate used
-        # to also be required here -- dropped as a blocking exit
-        # criterion so that saving a design link is genuinely enough on
-        # its own to move past Design, matching how this stage is
-        # actually meant to work.
 
     elif previous_stage == "Government Submission" and new_stage == "Supervision":
         # Gates leaving Government Submission into Supervision -- at

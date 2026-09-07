@@ -1,5 +1,6 @@
 import type { BadgeVariant } from '@/types/Ui'
 import type { ProjectPriority, ProjectStatus, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { SelectedActivityStatus } from '@/types/ServiceCatalog'
 
 // "Supervision" is an independent add-on stage that comes after
 // Government Submission (Approvals & Permits), not before it -- a
@@ -116,4 +117,15 @@ export function getProjectStatusVariant(status: ProjectStatus): BadgeVariant {
 
 export function getProjectPriorityVariant(priority: ProjectPriority): BadgeVariant {
   return PRIORITY_VARIANTS[priority]
+}
+
+const SELECTED_ACTIVITY_STATUS_VARIANTS: Record<SelectedActivityStatus, BadgeVariant> = {
+  'Not Started': 'neutral',
+  'In Progress': 'info',
+  Complete: 'success',
+  Cancelled: 'danger',
+}
+
+export function getSelectedActivityStatusVariant(status: SelectedActivityStatus): BadgeVariant {
+  return SELECTED_ACTIVITY_STATUS_VARIANTS[status]
 }

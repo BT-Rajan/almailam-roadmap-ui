@@ -15,8 +15,10 @@ import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { usePaymentStore } from '@/stores/paymentStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
+import { projectService } from '@/services/projectService'
 import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
@@ -28,7 +30,7 @@ import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
-import { getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
+import { getSelectedActivityStatusVariant, getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -55,8 +57,40 @@ const paymentStore = usePaymentStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
+
+// Guards each row's own Close/Reopen buttons individually so acting on
+// one activity doesn't disable the others while its request is in
+// flight.
+const activityActionPendingId = ref<string>()
+
+async function closeDesignActivity(activityId: string, status: 'Complete' | 'Cancelled'): Promise<void> {
+  activityActionPendingId.value = activityId
+  try {
+    await projectService.closeDesignActivity(props.project.id, activityId, status)
+    await projectStore.refreshProject(props.project.id)
+    toastStore.show('success', t('project.overviewTab.activityClosed'))
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    activityActionPendingId.value = undefined
+  }
+}
+
+async function reopenDesignActivity(activityId: string): Promise<void> {
+  activityActionPendingId.value = activityId
+  try {
+    await projectService.reopenDesignActivity(props.project.id, activityId)
+    await projectStore.refreshProject(props.project.id)
+    toastStore.show('success', t('project.overviewTab.activityReopened'))
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.failedToReopenActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    activityActionPendingId.value = undefined
+  }
+}
 
 // Scope, Project Details, and Client Details are only useful while the
 // project is still being set up -- once it's past Quotation, staff are
@@ -503,6 +537,44 @@ function verificationResultLabel(result: string): string {
         </div>
       </template>
       <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.designActivitiesTitle') }}</span>
+          <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="flex flex-col gap-2">
+            <div
+              v-for="activity in project.selectedActivities"
+              :key="activity.id ?? activity.activityId"
+              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            >
+              <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+              <div class="flex items-center gap-2">
+                <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
+                <template v-if="activity.id">
+                  <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="activityActionPendingId === activity.id"
+                      @click="reopenDesignActivity(activity.id)"
+                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                  </template>
+                  <template v-else>
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="activityActionPendingId === activity.id"
+                      @click="closeDesignActivity(activity.id, 'Cancelled')"
+                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                    <BaseButton
+                      variant="primary" size="sm" class="no-print"
+                      :loading="activityActionPendingId === activity.id"
+                      @click="closeDesignActivity(activity.id, 'Complete')"
+                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                  </template>
+                </template>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignActivitiesYet') }}</p>
+        </div>
+
         <div v-if="designDocuments.length > 0" class="flex flex-col gap-2">
           <div
             v-for="document in designDocuments"

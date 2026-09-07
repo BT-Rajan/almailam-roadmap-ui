@@ -15,20 +15,32 @@ def _enum_validator(allowed: tuple[str, ...], label: str):
 
 
 class SelectedActivityOut(BaseModel):
+    # This project's own row id (not the catalog activity_id below,
+    # which stays a display-only snapshot) -- the stable identifier
+    # Task.selectedActivityId and the close/reopen endpoints operate on
+    # (migration 0073). Plain str(row.id), same convention used for
+    # other rows with no synthetic business number (e.g. document
+    # versions -- see DocumentVersionOut).
+    id: str
     serviceId: str
     serviceName: str
     activityId: str
     activityName: str
     fixedCost: float
+    status: str
+    closedAt: datetime | None = None
 
     @staticmethod
     def from_model(activity) -> "SelectedActivityOut":
         return SelectedActivityOut(
+            id=str(activity.id),
             serviceId=activity.service_id,
             serviceName=activity.service_name,
             activityId=activity.activity_id,
             activityName=activity.activity_name,
             fixedCost=float(activity.fixed_cost),
+            status=activity.status,
+            closedAt=activity.closed_at,
         )
 
 
@@ -333,5 +345,16 @@ class StageEligibilityOut(BaseModel):
     stage: str
     eligible: bool
     reason: str | None = None
+
+
+class CloseDesignActivityRequest(BaseModel):
+    status: str = "Complete"
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str) -> str:
+        if value not in ("Complete", "Cancelled"):
+            raise ValueError("status must be 'Complete' or 'Cancelled'")
+        return value
 
 
