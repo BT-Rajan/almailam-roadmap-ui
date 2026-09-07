@@ -136,11 +136,12 @@ class ProjectOut(BaseModel):
     projectNo: str
     projectName: str
     description: str | None = None
-    # Internal approval of `description` (the scope-of-work text) at the
-    # Requirement stage -- see ScopeOfWorkOut for the full revision
-    # history behind it.
-    scopeStatus: str
-    scopeApprovedAt: datetime | None = None
+    # Set once the client has confirmed `description` (the scope-of-work
+    # text) via email OTP -- see ScopeOfWorkOut for the full revision
+    # history behind it. The sole sign-off gating the move out of the
+    # Requirement stage (migration 0079 dropped the earlier staff-only
+    # internal-approval step).
+    scopeClientConfirmedAt: datetime | None = None
     clientId: str
     service: str
     engineer: str
@@ -201,8 +202,7 @@ class ProjectOut(BaseModel):
             projectNo=project.project_no,
             projectName=project.project_name,
             description=project.description,
-            scopeStatus=project.scope_status,
-            scopeApprovedAt=project.scope_approved_at,
+            scopeClientConfirmedAt=project.scope_client_confirmed_at,
             clientId=f"CLT-{project.client_id:03d}",
             service=project.service,
             engineer=engineer_name,
@@ -254,14 +254,10 @@ class ScopeRevisionOut(BaseModel):
 
 class ScopeOfWorkOut(BaseModel):
     description: str | None
-    scopeStatus: str
-    scopeApprovedAt: datetime | None
-    scopeApprovedBy: str | None
-    # The client-facing counterpart to scopeApprovedAt -- set once the
-    # client has confirmed this scope via email OTP (see
-    # project_service.verify_requirement_otp), distinct from staff's own
-    # internal approval above. Both are required to leave the
-    # Requirement stage.
+    # Set once the client has confirmed this scope via email OTP (see
+    # project_service.verify_requirement_otp) -- the sole sign-off
+    # required to leave the Requirement stage (migration 0079 dropped
+    # the earlier staff-only internal-approval step).
     scopeClientConfirmedAt: datetime | None = None
     # Non-null while a verification code is outstanding (sent but not
     # yet confirmed or replaced by a resend) -- cleared the moment

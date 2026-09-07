@@ -897,17 +897,14 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if not has_identification:
             problems.append("the client's identification document (e.g. Civil ID) on file")
-        # The other half of the Requirement stage's redesign -- scope of
-        # work has to be reviewed and internally approved before the
-        # project can move into commercial quoting, not just have some
-        # text sitting in Draft.
-        if project.scope_status != "Approved":
-            problems.append("the scope of work approved")
-        # Internal approval alone is explicitly "not a client-facing
-        # sign-off" (see approve_scope_of_work) -- the client also has to
-        # have confirmed the scope by reading an email OTP back to staff
-        # (see send_requirement_otp/verify_requirement_otp) before real
-        # commercial work starts against it.
+        # The other half of the Requirement stage's redesign -- the
+        # client has to have confirmed the scope of work by reading an
+        # email OTP back to staff (see send_requirement_otp/
+        # verify_requirement_otp) before real commercial work starts
+        # against it. This used to also require a separate staff-only
+        # internal approval first; migration 0079 dropped that step, so
+        # the client's own confirmation is now the sole sign-off gating
+        # this transition.
         if project.scope_client_confirmed_at is None:
             problems.append("the scope of work confirmed by the client (send and verify the email code)")
 
@@ -1313,13 +1310,12 @@ def save_scope_of_work(
     file: UploadFile | None = None,
 ) -> Project:
     """The Requirement stage's own scope-of-work editor. Every save here
-    writes a project_scope_revisions row (R0, R1, ...) and, if the
-    scope had already been approved, reopens it back to "Draft" -- an
-    approval is a sign-off on specific text, not a status that should
-    silently keep covering whatever the text becomes after further
-    edits. Same reasoning clears any client confirmation (and cancels
-    an outstanding OTP, if one was sent against the old text) --
-    see send_requirement_otp/verify_requirement_otp."""
+    writes a project_scope_revisions row (R0, R1, ...) and clears any
+    existing client confirmation (and cancels an outstanding OTP, if one
+    was sent against the old text) -- a confirmation is a sign-off on
+    specific text, not a status that should silently keep covering
+    whatever the text becomes after further edits. See
+    send_requirement_otp/verify_requirement_otp."""
     project = get_project(db, project_no)
     _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
@@ -1350,10 +1346,6 @@ def save_scope_of_work(
         )
     )
 
-    if project.scope_status == "Approved":
-        project.scope_status = "Draft"
-        project.scope_approved_at = None
-        project.scope_approved_by = None
     project.scope_client_confirmed_at = None
     project.otp_code_hash = None
     project.otp_expires_at = None
@@ -1368,57 +1360,21 @@ def save_scope_of_work(
     return project
 
 
-def approve_scope_of_work(db: Session, project_no: str, user_id: int) -> Project:
-    """Internal approval of the Requirement stage's scope of work --
-    "it is internal approval", not a client-facing sign-off (that's what
-    send_requirement_otp/verify_requirement_otp below are for). Once
-    approved (and the client has separately confirmed via OTP),
-    try_auto_advance_stage picks both up (alongside the client-
-    identification check already in _assert_stage_exit_criteria) and
-    moves the project straight to "Quotation" without a separate manual
-    click."""
-    project = get_project(db, project_no)
-    if not (project.description or "").strip():
-        raise ValidationAppError("Add the scope of work before approving it.")
-    if project.scope_status == "Approved":
-        return project
-
-    project.scope_status = "Approved"
-    project.scope_approved_at = datetime.now(timezone.utc)
-    project.scope_approved_by = user_id
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work approved", user_id)
-    timeline_service.create_system_event(
-        db, project.id, "note", title="Scope of work approved", description=project.description, actor_id=user_id
-    )
-    # The session is autoflush=False -- flush first so the exit-criteria
-    # check's own fresh queries (e.g. client identification) see
-    # everything written so far in this transaction. project.scope_
-    # status itself is read as a live in-memory attribute, not a fresh
-    # query, so it's already safe either way -- this is for consistency
-    # with every other try_auto_advance_stage call site.
-    db.flush()
-    try_auto_advance_stage(db, project, user_id)
-
-    db.commit()
-    db.refresh(project)
-    return project
-
-
 def send_requirement_otp(db: Session, project_no: str, user_id: int) -> Project:
     """Sends (or resends) the email OTP that gets the client's own
-    sign-off on the Requirement stage's scope of work -- the client-
-    facing counterpart approve_scope_of_work explicitly isn't. Reuses
-    the exact same generation/hashing/expiry logic as client_service.
-    send_onboarding_otp (see app/core/otp.py), stored on this project's
-    own otp_* columns (see EmailOtpMixin) rather than the client's --
-    scope confirmation is a per-project fact, not a per-client one, and
-    a client with several projects needs to confirm each independently.
+    sign-off on the Requirement stage's scope of work -- the sole
+    approval this stage now requires (migration 0079 dropped the
+    earlier staff-only internal-approval step that used to have to
+    happen first). Reuses the exact same generation/hashing/expiry
+    logic as client_service.send_onboarding_otp (see app/core/otp.py),
+    stored on this project's own otp_* columns (see EmailOtpMixin)
+    rather than the client's -- scope confirmation is a per-project
+    fact, not a per-client one, and a client with several projects needs
+    to confirm each independently.
     """
     project = get_project(db, project_no)
-    if project.scope_status != "Approved":
-        raise ValidationAppError(
-            "Approve the scope of work internally before sending it to the client for confirmation."
-        )
+    if not (project.description or "").strip():
+        raise ValidationAppError("Add the scope of work before sending it to the client for confirmation.")
 
     code = otp.generate_code()
     project.otp_code_hash = otp.hash_code(code)
@@ -1454,8 +1410,6 @@ def verify_requirement_otp(db: Session, project_no: str, code: str, user_id: int
     (same idea as project_service._send_project_created_email -- no
     further action needed from them)."""
     project = get_project(db, project_no)
-    if project.scope_status != "Approved":
-        raise ValidationAppError("The scope of work isn't approved yet.")
     if not project.otp_code_hash or not project.otp_expires_at:
         raise ValidationAppError("No verification code has been sent yet. Send one first.")
     if otp.is_expired(project.otp_expires_at):
