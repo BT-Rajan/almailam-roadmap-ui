@@ -328,6 +328,7 @@ export default {
       failedToSend: 'Failed to send verification code',
       failedToVerify: 'Failed to verify code',
     },
+    submittingNotice: 'Submitting details and sending the verification email -- this can take a few seconds.',
   },
 
   addressEditDialog: {

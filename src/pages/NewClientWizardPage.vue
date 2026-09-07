@@ -450,22 +450,32 @@ function goToCreatedClient(): void {
         <ClientReviewStep v-else v-model="form" />
       </div>
 
-      <div class="mt-8 flex items-center justify-between border-t border-border-light pt-4">
-        <FormActionBar
-          v-if="currentStep < WIZARD_STEPS.length - 1"
-          :cancel-label="currentStep === 0 ? t('client.newWizard.cancel') : t('client.newWizard.back')"
-          :submit-label="t('client.newWizard.next')"
-          @cancel="currentStep === 0 ? cancelWizard() : goBack()"
-          @submit="goNext"
-        />
-        <FormActionBar
-          v-else
-          :cancel-label="t('client.newWizard.back')"
-          :submit-label="t('client.newWizard.addClient')"
-          :loading="isSubmitting"
-          @cancel="goBack"
-          @submit="submitWizard"
-        />
+      <div class="mt-8 flex flex-col gap-2 border-t border-border-light pt-4">
+        <div class="flex items-center justify-between">
+          <FormActionBar
+            v-if="currentStep < WIZARD_STEPS.length - 1"
+            :cancel-label="currentStep === 0 ? t('client.newWizard.cancel') : t('client.newWizard.back')"
+            :submit-label="t('client.newWizard.next')"
+            @cancel="currentStep === 0 ? cancelWizard() : goBack()"
+            @submit="goNext"
+          />
+          <FormActionBar
+            v-else
+            :cancel-label="t('client.newWizard.back')"
+            :submit-label="t('client.newWizard.addClient')"
+            :loading="isSubmitting"
+            @cancel="goBack"
+            @submit="submitWizard"
+          />
+        </div>
+        <!-- Submitting now also uploads the identification file and sends
+             the client's verification email in the same request (see
+             submitWizard/createOnboardingRequest) -- both can genuinely
+             take several seconds, and a bare spinner with no explanation
+             read as "stuck" during that wait. -->
+        <p v-if="isSubmitting" class="text-end text-xs text-text-muted">
+          {{ t('client.newWizard.submittingNotice') }}
+        </p>
       </div>
     </div>
 

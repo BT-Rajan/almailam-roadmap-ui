@@ -328,6 +328,7 @@ export default {
       failedToSend: 'فشل إرسال رمز التحقق',
       failedToVerify: 'فشل التحقق من الرمز',
     },
+    submittingNotice: 'جارٍ إرسال التفاصيل وبريد التحقق -- قد يستغرق هذا بضع ثوانٍ.',
   },
 
   addressEditDialog: {
