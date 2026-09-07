@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, CheckCircle2, Mail, MessageSquare } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Mail, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -64,7 +64,6 @@ const scopeDraft = ref('')
 const summaryDraft = ref('')
 const selectedFile = ref<File>()
 const isSaving = ref(false)
-const isApproving = ref(false)
 
 const isOtpDialogOpen = ref(false)
 const isOtpSaving = ref(false)
@@ -85,11 +84,12 @@ async function load(): Promise<void> {
 
 // Mirrors the real exit criterion for Requirement -> Quotation exactly
 // (project_service._assert_stage_exit_criteria) -- an identification
-// record on file, not just any uploaded document. Approving without
-// this used to "succeed" but silently leave the project stuck at
-// Requirement with no explanation (try_auto_advance_stage no-ops
-// quietly when the criteria aren't met yet) -- surfaced here instead so
-// staff know what's actually still missing before they click Approve.
+// record on file, not just any uploaded document. Confirming with the
+// client without this used to "succeed" but silently leave the project
+// stuck at Requirement with no explanation (try_auto_advance_stage
+// no-ops quietly when the criteria aren't met yet) -- surfaced here
+// instead so staff know what's actually still missing before they send
+// the confirmation code.
 function loadClientIdentification(): void {
   if (props.client) clientStore.loadClientDetail(props.client.id)
 }
@@ -104,47 +104,34 @@ const hasTextChanged = computed(() => scopeDraft.value.trim() !== (scopeOfWork.v
 const canSave = computed(
   () => !isRequirementLocked.value && scopeDraft.value.trim().length > 0 && (hasTextChanged.value || Boolean(selectedFile.value)),
 )
-// Scope approval itself is an internal sign-off independent of client
-// identification (see project_service.approve_scope_of_work) -- only
-// the *stage* move to Quotation needs identification on file too (see
-// _assert_stage_exit_criteria). So this button stays enabled without
-// it (approving scope while waiting on the client's ID is a legitimate
-// sequence), but the warning below sets the right expectation first.
-const canApprove = computed(
-  () =>
-    !isRequirementLocked.value &&
-    scopeOfWork.value?.scopeStatus === 'Draft' &&
-    (scopeOfWork.value?.description ?? '').trim().length > 0 &&
-    !hasTextChanged.value,
-)
-
-// Mirrors the real Requirement -> Quotation exit criterion exactly
-// (project_service._assert_stage_exit_criteria: scope Approved + client
-// identification on file) -- the project has already auto-advanced to
-// Quotation the moment both became true (see try_auto_advance_stage),
-// so this is just the UI convenience of jumping straight to that tab
-// instead of leaving staff to find it via the stepper. Guarded by
-// hasProjectPassedStage the same way as the other "Advance to X"
-// buttons, so it doesn't linger once the project has moved on further
-// still (e.g. Payment Plan or beyond) on a later visit to this tab.
-const canAdvanceToQuotation = computed(
-  () =>
-    scopeOfWork.value?.scopeStatus === 'Approved' &&
-    Boolean(scopeOfWork.value?.scopeClientConfirmedAt) &&
-    hasClientIdentification.value &&
-    !hasProjectPassedStage(props.project.currentStage, 'Quotation'),
-)
-
-// Internal approval (canApprove/handleApprove above) is explicitly "not
-// a client-facing sign-off" -- this is that sign-off, gated on internal
-// approval having happened first (see project_service.
-// send_requirement_otp) and hidden again once the client has already
-// confirmed, so the button doesn't linger uselessly after its job is done.
+// Scope of work has to actually be saved (and not have unsaved edits
+// sitting in the textarea) before it's sent to the client -- there's no
+// separate internal sign-off step anymore, so the client's own OTP
+// confirmation (canConfirmWithClient/handleOpenOtpDialog below) is the
+// only approval this stage requires.
 const canConfirmWithClient = computed(
   () =>
     !isRequirementLocked.value &&
-    scopeOfWork.value?.scopeStatus === 'Approved' &&
+    (scopeOfWork.value?.description ?? '').trim().length > 0 &&
+    !hasTextChanged.value &&
     !scopeOfWork.value?.scopeClientConfirmedAt,
+)
+
+// Mirrors the real Requirement -> Quotation exit criterion exactly
+// (project_service._assert_stage_exit_criteria: scope confirmed by the
+// client + client identification on file) -- the project has already
+// auto-advanced to Quotation the moment both became true (see
+// try_auto_advance_stage), so this is just the UI convenience of
+// jumping straight to that tab instead of leaving staff to find it via
+// the stepper. Guarded by hasProjectPassedStage the same way as the
+// other "Advance to X" buttons, so it doesn't linger once the project
+// has moved on further still (e.g. Payment Plan or beyond) on a later
+// visit to this tab.
+const canAdvanceToQuotation = computed(
+  () =>
+    Boolean(scopeOfWork.value?.scopeClientConfirmedAt) &&
+    hasClientIdentification.value &&
+    !hasProjectPassedStage(props.project.currentStage, 'Quotation'),
 )
 
 function handleAdvanceToQuotation(): void {
@@ -177,10 +164,11 @@ async function handleConfirmOtp(payload: { code: string }): Promise<void> {
   try {
     scopeOfWork.value = await projectService.verifyRequirementOtp(props.project.id, payload.code)
     // verifyRequirementOtp can move current_stage server-side (see
-    // project_service.try_auto_advance_stage) -- same "sync the shared
-    // store's cached copy" reasoning as handleApprove above, since this
-    // call goes straight through projectService rather than one of the
-    // store's own mutating actions.
+    // project_service.try_auto_advance_stage) -- the shared project
+    // store's cached copy (what the header badge and Workflow Progress
+    // stepper above this tab actually read) doesn't know that on its
+    // own, since this call goes straight through projectService rather
+    // than one of the store's own mutating actions.
     await projectStore.refreshProject(props.project.id)
     isOtpDialogOpen.value = false
     if (props.project.currentStage === 'Quotation') {
@@ -216,37 +204,6 @@ async function handleSave(): Promise<void> {
     toastStore.show('error', t('project.requirementTab.couldNotSaveScope'), err instanceof Error ? err.message : t('common.pleaseTryAgain'))
   } finally {
     isSaving.value = false
-  }
-}
-
-async function handleApprove(): Promise<void> {
-  isApproving.value = true
-  try {
-    const updated = await projectService.approveScopeOfWork(props.project.id)
-    await load()
-    // approveScopeOfWork can move current_stage server-side (see
-    // project_service.try_auto_advance_stage) -- the shared project
-    // store's cached copy (what the header badge and Workflow Progress
-    // stepper above this tab actually read) doesn't know that on its
-    // own, since this call goes straight through projectService rather
-    // than one of the store's own mutating actions.
-    await projectStore.refreshProject(props.project.id)
-    if (updated.currentStage === 'Quotation') {
-      toastStore.show('success', t('project.requirementTab.scopeApprovedTitle'), t('project.requirementTab.movedToQuotationDescription'))
-      emit('navigate-tab', 'quotation')
-    } else if (!hasClientIdentification.value) {
-      toastStore.show(
-        'success',
-        t('project.requirementTab.scopeApprovedTitle'),
-        t('project.requirementTab.internalApprovalPendingIdDescription'),
-      )
-    } else {
-      toastStore.show('success', t('project.requirementTab.scopeApprovedTitle'), t('project.requirementTab.internalApprovalRecordedDescription'))
-    }
-  } catch (err) {
-    toastStore.show('error', t('project.requirementTab.couldNotApproveScope'), err instanceof Error ? err.message : t('common.pleaseTryAgain'))
-  } finally {
-    isApproving.value = false
   }
 }
 
@@ -322,14 +279,8 @@ const clientDetailItems = computed(() => {
           <div class="flex items-center gap-2">
             <h3 class="text-sm font-semibold text-text-primary">{{ t('project.requirementTab.scopeOfWorkTitle') }}</h3>
             <StatusBadge
-              v-if="scopeOfWork"
-              :label="scopeOfWork.scopeStatus === 'Approved' ? t('project.scopeStatus.approved') : t('project.scopeStatus.draft')"
-              :variant="scopeOfWork.scopeStatus === 'Approved' ? 'success' : 'neutral'"
-            />
-            <StatusBadge
-              v-if="scopeOfWork?.scopeClientConfirmedAt"
-              :label="t('project.requirementTab.clientConfirmed')"
-              variant="success"
+              :label="scopeOfWork?.scopeClientConfirmedAt ? t('project.requirementTab.clientConfirmed') : t('project.scopeStatus.awaitingConfirmation')"
+              :variant="scopeOfWork?.scopeClientConfirmedAt ? 'success' : 'neutral'"
             />
             <span
               v-if="isRequirementLocked"
@@ -343,9 +294,6 @@ const clientDetailItems = computed(() => {
             <template v-if="!isRequirementLocked">
               <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
                 {{ t('project.requirementTab.saveScope') }}
-              </BaseButton>
-              <BaseButton size="sm" :icon="CheckCircle2" :disabled="!canApprove" :loading="isApproving" @click="handleApprove">
-                {{ t('project.requirementTab.approve') }}
               </BaseButton>
               <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isOtpSaving" @click="handleOpenOtpDialog">
                 {{ t('project.requirementTab.confirmWithClient') }}
@@ -365,26 +313,18 @@ const clientDetailItems = computed(() => {
         <p v-if="isRequirementLocked" class="text-sm text-text-secondary">
           {{ t('project.requirementTab.lockedNotice') }}
         </p>
-        <template v-else-if="scopeOfWork?.scopeStatus === 'Approved'">
+        <template v-else-if="scopeOfWork?.scopeClientConfirmedAt">
           <p class="text-sm text-text-secondary">
-            {{
-              t('project.requirementTab.approvedByOn', {
-                by: scopeOfWork.scopeApprovedBy ? t('project.requirementTab.approvedByFragment', { name: scopeOfWork.scopeApprovedBy }) : '',
-                on: scopeOfWork.scopeApprovedAt ? t('project.requirementTab.approvedOnFragment', { date: formatDateTime(scopeOfWork.scopeApprovedAt) }) : '',
-              })
-            }}
-          </p>
-          <p v-if="scopeOfWork.scopeClientConfirmedAt" class="text-sm text-text-secondary">
             {{
               t('project.requirementTab.clientConfirmedOn', {
                 on: t('project.requirementTab.clientConfirmedOnFragment', { date: formatDateTime(scopeOfWork.scopeClientConfirmedAt) }),
               })
             }}
           </p>
-          <p v-else class="text-xs text-warning-600">
-            {{ t('project.requirementTab.awaitingClientConfirmationNotice') }}
-          </p>
         </template>
+        <p v-else-if="canConfirmWithClient" class="text-xs text-warning-600">
+          {{ t('project.requirementTab.awaitingClientConfirmationNotice') }}
+        </p>
 
         <TextArea
           v-model="scopeDraft"
@@ -405,7 +345,7 @@ const clientDetailItems = computed(() => {
           <FileUploader :hint="t('project.requirementTab.uploadHint')" @select="selectedFile = $event" />
         </template>
 
-        <p v-if="canApprove && !hasClientIdentification" class="text-xs text-danger-500">
+        <p v-if="canConfirmWithClient && !hasClientIdentification" class="text-xs text-danger-500">
           {{ t('project.requirementTab.noClientIdNotice') }}
         </p>
       </div>

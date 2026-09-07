@@ -19,9 +19,13 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
 #
 # "Enquiry" was itself renamed to "Requirement" (migration 0038) -- it
 # now has its own dedicated tab (ProjectRequirementTab.vue) for managing
-# the scope-of-work text with revision history and an internal approval
-# step. See scope_status/PROJECT_SCOPE_STATUSES below and
-# project_service.approve_scope_of_work.
+# the scope-of-work text with revision history. It originally gated the
+# move to "Quotation" behind a staff-only internal approval step *plus*
+# a client OTP confirmation (see scope_status/PROJECT_SCOPE_STATUSES and
+# project_service.approve_scope_of_work in prior revisions) -- migration
+# 0079 dropped the internal approval step entirely. The client's own
+# email-OTP confirmation (scope_client_confirmed_at below) is now the
+# sole sign-off required to leave Requirement.
 #
 # "Execution & Tracking" and "Completed" were removed entirely
 # (migration 0051) -- the 23-step execution checklist, the 5-stage
@@ -82,12 +86,6 @@ SELECTED_ACTIVITY_STATUSES = ("Not Started", "In Progress", "Complete", "Cancell
 # sub-tasks, same as Permits). See ProjectSelectedSupervisionActivity
 # below and project_service._recompute_supervision_eligibility.
 SELECTED_SUPERVISION_STATUSES = ("Planned", "Eligible", "In Progress", "Complete", "Cancelled")
-# Internal approval of the project's scope-of-work text (the
-# `description` field below) -- set by the Requirement stage's Approve
-# action, which is what gates the automatic move to "Quotation" (see
-# project_service._assert_stage_exit_criteria / approve_scope_of_work).
-# Not client-facing -- "it is internal approval".
-PROJECT_SCOPE_STATUSES = ("Draft", "Approved")
 
 
 class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
@@ -103,25 +101,15 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # document template's address placeholder (see
     # document_template_service.MERGE_FIELD_CATALOG).
     site_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    # Internal approval of `description` (the scope-of-work text) at the
-    # Requirement stage -- see PROJECT_SCOPE_STATUSES above.
-    # scope_approved_at/_by are both None until first approved.
-    scope_status: Mapped[str] = mapped_column(
-        Enum(*PROJECT_SCOPE_STATUSES, name="project_scope_status"), nullable=False, default="Draft"
-    )
-    scope_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    scope_approved_by: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    # The client-facing counterpart to scope_status/scope_approved_at
-    # above -- set once the client has confirmed the scope of work via
-    # email OTP (see project_service.send_requirement_otp/
-    # verify_requirement_otp), which is what internal approval alone was
-    # explicitly documented as NOT being. Required, alongside internal
-    # approval, to leave the Requirement stage (see
-    # _assert_stage_exit_criteria). Cleared whenever the scope text
-    # changes again (save_scope_of_work), same as scope_approved_at --
-    # a confirmation is a sign-off on specific text.
+    # Set once the client has confirmed the scope of work (the
+    # `description` field above) via email OTP (see project_service.
+    # send_requirement_otp/verify_requirement_otp) -- the sole sign-off
+    # required to leave the Requirement stage (see
+    # _assert_stage_exit_criteria; migration 0079 dropped the earlier
+    # staff-only internal-approval step that used to be required
+    # alongside it). Cleared whenever the scope text changes again
+    # (save_scope_of_work) -- a confirmation is a sign-off on specific
+    # text.
     scope_client_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True

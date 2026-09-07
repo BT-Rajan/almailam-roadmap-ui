@@ -316,8 +316,8 @@ async function uploadMultipart<T>(path: string, formData: FormData): Promise<T> 
 }
 
 /**
- * Fetch the Requirement stage's scope-of-work text, approval status, and
- * revision history for a project via backend API.
+ * Fetch the Requirement stage's scope-of-work text, client-confirmation
+ * status, and revision history for a project via backend API.
  */
 async function getScopeOfWork(projectId: string): Promise<ScopeOfWork> {
   try {
@@ -330,7 +330,7 @@ async function getScopeOfWork(projectId: string): Promise<ScopeOfWork> {
 
 /**
  * Save the Requirement stage's scope-of-work text, writing a new revision.
- * Reopens an already-approved scope back to Draft -- see project_service.
+ * Clears any existing client confirmation -- see project_service.
  * save_scope_of_work.
  */
 async function saveScopeOfWork(
@@ -352,24 +352,9 @@ async function saveScopeOfWork(
 }
 
 /**
- * Internal approval of the scope of work -- once approved, the backend
- * automatically moves the project on to the Quotation stage (assuming its
- * other exit criteria, e.g. client identification, are already met).
- */
-async function approveScopeOfWork(projectId: string): Promise<Project> {
-  try {
-    return await apiClient.post<Project>(`/api/projects/${projectId}/scope-of-work/approve`, {})
-  } catch (error) {
-    console.error(`Failed to approve scope of work for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to approve scope of work')
-  }
-}
-
-/**
  * Sends (or resends) the email OTP that gets the client's own sign-off
- * on the Requirement stage's scope of work -- distinct from (and
- * required in addition to) approveScopeOfWork's internal approval. See
- * project_service.send_requirement_otp.
+ * on the Requirement stage's scope of work -- the sole approval this
+ * stage requires. See project_service.send_requirement_otp.
  */
 async function sendRequirementOtp(projectId: string): Promise<ScopeOfWork> {
   try {
@@ -480,7 +465,6 @@ export const projectService = {
   deleteProject,
   getScopeOfWork,
   saveScopeOfWork,
-  approveScopeOfWork,
   sendRequirementOtp,
   verifyRequirementOtp,
   getHandoverStatus,

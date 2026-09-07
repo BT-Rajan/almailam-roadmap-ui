@@ -48,14 +48,8 @@ def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
 
 def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
     revisions = project_service.get_scope_revisions_with_names(db, project.id)
-    approved_by_name = (
-        project_service.engineer_name(db, project.scope_approved_by) if project.scope_approved_by else None
-    )
     return ScopeOfWorkOut(
         description=project.description,
-        scopeStatus=project.scope_status,
-        scopeApprovedAt=project.scope_approved_at,
-        scopeApprovedBy=approved_by_name,
         scopeClientConfirmedAt=project.scope_client_confirmed_at,
         otpSentAt=project.otp_sent_at,
         revisions=[ScopeRevisionOut.from_model(revision, name) for revision, name in revisions],
@@ -233,12 +227,6 @@ def save_scope_of_work(
 ):
     project = project_service.save_scope_of_work(db, project_no, scopeText, summary, current_user.id, file)
     return _scope_of_work_out(db, project)
-
-
-@router.post("/{project_no}/scope-of-work/approve", response_model=ProjectOut)
-def approve_scope_of_work(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    project = project_service.approve_scope_of_work(db, project_no, current_user.id)
-    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.post("/{project_no}/requirement/send-otp", response_model=ScopeOfWorkOut)
