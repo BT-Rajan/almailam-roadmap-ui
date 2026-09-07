@@ -15,7 +15,7 @@ from app.models.payment import AGREEMENT_STREAMS
 from app.models.project import Project, ProjectScopeRevision
 from app.models.quotation import Quotation, QuotationLineItem, QuotationRevision
 from app.models.user import User
-from app.services import audit_service, document_template_service, email_service, email_template_service, payment_service, project_service, timeline_service
+from app.services import audit_service, document_template_service, email_service, email_template_service, notification_service, payment_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "QUOTATION"
@@ -510,8 +510,24 @@ def verify_quotation_otp(db: Session, quotation_no: str, code: str, user_id: int
             attachment_mimetype="application/pdf",
             db=db,
         )
-    except ValidationAppError:
-        pass
+    except ValidationAppError as error:
+        # Most commonly: no default Quotation document template has
+        # been uploaded yet (Administration > Documents), so there was
+        # nothing to attach. Silently dropping this left staff with no
+        # way to know the client was never actually emailed -- the
+        # approval itself has already succeeded above and stays that
+        # way; this only surfaces that the follow-up email didn't go
+        # out, so someone can fix the template and use the quotation's
+        # own "Email document" action to send it once it's fixed.
+        notification_service.notify_role(
+            db, "Administrator",
+            "Quotation confirmation email not sent",
+            f"Quotation {quotation.quotation_no} was approved, but the confirmation email to the client could not be sent: {error}",
+            "System",
+            link_route_name="project-workspace",
+            link_params={"projectId": project.project_no},
+        )
+        db.commit()
     return quotation
 
 

@@ -14,7 +14,7 @@ from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service, document_template_service, email_service, email_template_service, project_service, timeline_service
+from app.services import audit_service, document_template_service, email_service, email_template_service, notification_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -448,8 +448,24 @@ def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) 
             attachment_mimetype="application/pdf",
             db=db,
         )
-    except ValidationAppError:
-        pass
+    except ValidationAppError as error:
+        # Most commonly: no default Contract document template has been
+        # uploaded yet (Administration > Documents), so there was
+        # nothing to attach. Silently dropping this left staff with no
+        # way to know the client was never actually emailed -- the
+        # signing itself has already succeeded above and stays that
+        # way; this only surfaces that the follow-up email didn't go
+        # out, so someone can fix the template and use the contract's
+        # own "Email document" action to send it once it's fixed.
+        notification_service.notify_role(
+            db, "Administrator",
+            "Contract confirmation email not sent",
+            f"Contract {contract.contract_no} was signed, but the confirmation email to the client could not be sent: {error}",
+            "System",
+            link_route_name="project-workspace",
+            link_params={"projectId": project.project_no},
+        )
+        db.commit()
     return contract
 
 
