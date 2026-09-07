@@ -6,7 +6,7 @@ from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.file_storage import resolve_path
 from app.models.client import Client
 from app.models.document import ProjectDocument
-from app.models.payment import FinancialAgreement, PaymentObligation
+from app.models.payment import FinancialAgreement
 from app.models.project import Project, ProjectSelectedActivity
 from app.models.timeline import ProjectTimelineEvent
 from app.models.user import User

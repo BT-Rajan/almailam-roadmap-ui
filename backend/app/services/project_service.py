@@ -16,7 +16,7 @@ from app.core.status_transitions import (
 )
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import Client, ClientIdentification
-from app.models.contract import Contract, ContractRevision
+from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
 from app.models.project import (

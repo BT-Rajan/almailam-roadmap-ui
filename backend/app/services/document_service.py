@@ -15,7 +15,7 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.document import DocumentVersion, ProjectDocument
 from app.models.project import Project
 from app.models.user import User
-from app.services import audit_service, notification_service, project_service, timeline_service
+from app.services import audit_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "DOCUMENT"
