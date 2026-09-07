@@ -86,6 +86,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
   'On Hold': 'project.status.onHold',
   Cancelled: 'project.status.cancelled',
+  Completed: 'project.status.completed',
 }
 function statusLabel(status: string): string {
   return t(STATUS_LABEL_KEYS[status] ?? status)

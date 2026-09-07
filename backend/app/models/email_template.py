@@ -22,6 +22,7 @@ EMAIL_TEMPLATE_KEYS = (
     "quotation_approved",
     "contract_otp",
     "contract_signed",
+    "handover_otp",
 )
 
 

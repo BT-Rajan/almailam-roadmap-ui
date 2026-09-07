@@ -63,12 +63,19 @@ export function isStageReasonRequired(from: string, to: string): boolean {
   return false
 }
 
-// No "Completed" value -- a project never reaches a terminal "done"
-// status, only Active/On Hold/Cancelled.
+// "Completed" is a real terminal status now, but it's never a manual
+// pick from this dialog -- a project only reaches it by the client
+// acknowledging the hand-over OTP (see try_complete_project/
+// verify_handover_otp in project_service.py), so it's deliberately
+// left out of Active's manual targets here even though the backend's
+// own PROJECT_STATUS_ALLOWED_TRANSITIONS allows Active -> Completed
+// for that system-driven transition. Completed itself has no further
+// transitions, matching the backend.
 export const PROJECT_STATUS_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Active: ['On Hold', 'Cancelled'],
   'On Hold': ['Active', 'Cancelled'],
   Cancelled: ['Active'],
+  Completed: [],
 }
 
 // "On Hold"/"Cancelled" always need one. "Cancelled" -> "Active" only

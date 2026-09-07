@@ -48,7 +48,11 @@ from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.services.client_service import check_and_notify_stale_onboarding
 from app.services.payment_service import check_and_notify_payment_reminders
-from app.services.project_service import check_and_notify_stale_projects
+from app.services.project_service import (
+    check_and_notify_overdue_projects,
+    check_and_notify_stale_projects,
+    check_and_notify_unpaid_completed_projects,
+)
 
 settings = get_settings()
 logger = logging.getLogger("app.scheduler")
@@ -85,6 +89,22 @@ def _run_staleness_checks() -> None:
             logger.info("Payment-reminder check: sent %d reminder(s).", notified)
     except Exception:
         logger.exception("Payment-reminder check failed.")
+        db.rollback()
+
+    try:
+        notified = check_and_notify_unpaid_completed_projects(db)
+        if notified:
+            logger.info("Unpaid-completed-project check: notified %d project(s).", notified)
+    except Exception:
+        logger.exception("Unpaid-completed-project check failed.")
+        db.rollback()
+
+    try:
+        notified = check_and_notify_overdue_projects(db)
+        if notified:
+            logger.info("Overdue-project check: notified %d project(s).", notified)
+    except Exception:
+        logger.exception("Overdue-project check failed.")
         db.rollback()
     finally:
         db.close()

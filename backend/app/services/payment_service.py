@@ -57,6 +57,20 @@ def _try_auto_advance_project_stage(db: Session, project_id: int, user_id: int |
         project_service.try_auto_advance_stage(db, project, user_id)
 
 
+def _try_complete_project_after_payment(db: Session, project_id: int, user_id: int | None) -> None:
+    """A payment reaching 100% of a project's current total value is one
+    of the two conditions project_service.try_complete_project waits on
+    (the other being every planned Design/Permit/Supervision item
+    closed) -- called from record_payment, same local-import reasoning
+    as _try_auto_advance_project_stage above."""
+    from app.services import project_service
+
+    db.flush()
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is not None:
+        project_service.try_complete_project(db, project, user_id)
+
+
 def parse_agreement_id(raw: str) -> int:
     text = raw.removeprefix("FA-") if raw.upper().startswith("FA-") else raw
     if not text.isdigit():
@@ -608,6 +622,7 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
         )
 
     _notify_installments_settled(db, agreement, newly_settled)
+    _try_complete_project_after_payment(db, agreement.project_id, user_id)
 
     db.commit()
     db.refresh(payment)
@@ -718,6 +733,38 @@ def get_financial_summary(db: Session, agreement_id: int) -> dict:
     )
     summary["estimateAmount"] = float(quotation.amount) if quotation else None
     return summary
+
+
+def get_project_payment_status(db: Session, project: Project) -> dict:
+    """Aggregates every FinancialAgreement a project has (Design and/or
+    Supervision) against their *current* contract_amount -- not the
+    amount at contract-signing time, so a later change order/added
+    activity is reflected immediately ("it is about the current
+    project value at the time of closure"). Used by
+    project_service.try_complete_project to check the 100%-paid gate.
+    A project with no financial agreement at all reports fully_paid
+    False rather than vacuously True (shouldn't normally happen once
+    Payment Plan has been passed, but the gate should never
+    misread "nothing to pay" as "fully paid")."""
+    agreements = db.query(FinancialAgreement).filter(FinancialAgreement.project_id == project.id).all()
+    if not agreements:
+        return {"totalContractAmount": Decimal("0"), "totalReceived": Decimal("0"), "fullyPaid": False}
+
+    total_contract_amount = Decimal("0")
+    total_received = Decimal("0")
+    for agreement in agreements:
+        obligations = get_obligations(db, agreement.id)
+        payments = get_payments(db, agreement.id)
+        refunds = get_refunds(db, agreement.id)
+        summary = calc.get_financial_summary(agreement, obligations, payments, refunds)
+        total_contract_amount += Decimal(str(agreement.contract_amount))
+        total_received += summary["totalReceived"]
+
+    return {
+        "totalContractAmount": total_contract_amount,
+        "totalReceived": total_received,
+        "fullyPaid": total_contract_amount > 0 and total_received >= total_contract_amount,
+    }
 
 
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:

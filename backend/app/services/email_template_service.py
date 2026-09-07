@@ -133,6 +133,18 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "This is an informational message -- no action is needed."
         ),
     },
+    "handover_otp": {
+        "subject": "Project {{ project_no }} is ready for hand-over",
+        "body": (
+            "Dear {{ contact_person }},\n\n"
+            "Project {{ project_no }} is complete and fully paid. Please find the hand-over summary below.\n\n"
+            "{{ checklist }}\n\n"
+            "Your verification code is {{ code }}.\n\n"
+            "Share this code with the staff member handling this project to confirm you accept the "
+            "hand-over and close out the project. It expires in {{ validity_label }}.\n\n"
+            "If you didn't request this, you can safely ignore this email."
+        ),
+    },
 }
 
 # What the admin UI's reference panel offers per template -- computed
@@ -204,6 +216,13 @@ MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
         {"key": "contact_person", "label": "Contact Person"},
         {"key": "contract_no", "label": "Contract No."},
         {"key": "summary", "label": "Contract Summary (value, representative, expiry, clauses)"},
+    ],
+    "handover_otp": [
+        {"key": "contact_person", "label": "Contact Person"},
+        {"key": "project_no", "label": "Project No."},
+        {"key": "checklist", "label": "Hand-over Checklist (completed Design/Permit/Supervision items)"},
+        {"key": "code", "label": "Verification Code"},
+        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
     ],
 }
 

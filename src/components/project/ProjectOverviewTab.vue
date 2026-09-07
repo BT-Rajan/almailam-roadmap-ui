@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, MessageSquare } from '@lucide/vue'
+import { AlertTriangle, CheckCircle2, Mail, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -10,6 +10,7 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
+import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -25,9 +26,9 @@ import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/t
 import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
-import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { HandoverStatus, Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate } from '@/utils/dateFormatter'
+import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
@@ -74,6 +75,7 @@ async function closeDesignActivity(activityId: string, status: 'Complete' | 'Can
   try {
     await projectService.closeDesignActivity(props.project.id, activityId, status)
     await projectStore.refreshProject(props.project.id)
+    await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
@@ -104,6 +106,7 @@ async function setPermitStatus(permitId: string, status: 'In Progress' | 'Comple
   try {
     await projectService.setPermitStatus(props.project.id, permitId, status)
     await projectStore.refreshProject(props.project.id)
+    await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
@@ -121,11 +124,65 @@ async function setSupervisionStatus(activityId: string, status: 'In Progress' | 
   try {
     await projectService.setSupervisionStatus(props.project.id, activityId, status)
     await projectStore.refreshProject(props.project.id)
+    await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     supervisionActionPendingId.value = undefined
+  }
+}
+
+// Hand-over: populated (checklist non-empty) once every planned Design/
+// Permit/Supervision item is closed and payment is fully settled (see
+// project_service.try_complete_project) -- independent of stageContext
+// since it can become true while viewing any stage's tab, so it's
+// loaded unconditionally rather than gated by loadStageDataIfNeeded.
+const handoverStatus = ref<HandoverStatus>()
+
+async function loadHandoverStatus(): Promise<void> {
+  try {
+    handoverStatus.value = await projectService.getHandoverStatus(props.project.id)
+  } catch {
+    handoverStatus.value = undefined
+  }
+}
+
+const showHandoverCard = computed(() => props.project.status === 'Completed' || (handoverStatus.value?.checklist.length ?? 0) > 0)
+
+const isHandoverOtpDialogOpen = ref(false)
+const isHandoverOtpSaving = ref(false)
+const handoverOtpStep = ref<'send' | 'enter-code'>('send')
+
+function openHandoverOtpDialog(): void {
+  handoverOtpStep.value = handoverStatus.value?.otpSentAt ? 'enter-code' : 'send'
+  isHandoverOtpDialogOpen.value = true
+}
+
+async function handleSendHandoverOtp(): Promise<void> {
+  isHandoverOtpSaving.value = true
+  try {
+    handoverStatus.value = await projectService.sendHandoverOtp(props.project.id)
+    handoverOtpStep.value = 'enter-code'
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.handover.failedToSend'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isHandoverOtpSaving.value = false
+  }
+}
+
+async function handleConfirmHandoverOtp(payload: { code: string }): Promise<void> {
+  isHandoverOtpSaving.value = true
+  try {
+    await projectService.verifyHandoverOtp(props.project.id, payload.code)
+    await projectStore.refreshProject(props.project.id)
+    await loadHandoverStatus()
+    isHandoverOtpDialogOpen.value = false
+    toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.handover.failedToVerify'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isHandoverOtpSaving.value = false
   }
 }
 
@@ -232,6 +289,9 @@ function loadStageDataIfNeeded(): void {
 }
 onMounted(loadStageDataIfNeeded)
 watch(() => [props.stageContext, props.client?.id], loadStageDataIfNeeded)
+
+onMounted(loadHandoverStatus)
+watch(() => props.project.id, loadHandoverStatus)
 
 // Civil ID is filed under the 'Identity Document' category regardless of
 // the client's actual document-type label -- see
@@ -393,6 +453,69 @@ function verificationResultLabel(result: string): string {
 
 <template>
   <div class="flex flex-col gap-6">
+    <Card v-if="showHandoverCard">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.handover.title') }}</h3>
+          <StatusBadge
+            v-if="project.status === 'Completed'"
+            :label="t('project.overviewTab.handover.acknowledged')"
+            variant="success"
+          />
+          <StatusBadge
+            v-else
+            :label="t('project.overviewTab.handover.awaitingAcknowledgment')"
+            variant="warning"
+          />
+        </div>
+      </template>
+
+      <ul v-if="handoverStatus?.checklist.length" class="flex flex-col gap-1.5">
+        <li
+          v-for="item in handoverStatus.checklist"
+          :key="item.id"
+          class="flex items-center gap-2 text-sm text-text-secondary"
+        >
+          <CheckCircle2 class="h-4 w-4 shrink-0 text-status-success" />
+          <span>{{ item.title }}</span>
+          <span class="text-xs text-text-muted">({{ item.sourceType }})</span>
+        </li>
+      </ul>
+
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border-light pt-3">
+        <p v-if="project.status === 'Completed' && handoverStatus?.handoverAcknowledgedAt" class="text-sm text-text-secondary">
+          {{ t('project.overviewTab.handover.acknowledgedOnFragment', { date: formatDateTime(handoverStatus.handoverAcknowledgedAt) }) }}
+        </p>
+        <p v-else-if="handoverStatus?.otpSentAt" class="text-sm text-text-secondary">
+          {{ t('project.overviewTab.handover.otpSentOnFragment', { date: formatDateTime(handoverStatus.otpSentAt) }) }}
+        </p>
+        <p v-else class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
+
+        <BaseButton
+          v-if="project.status !== 'Completed' && client"
+          size="sm"
+          :icon="Mail"
+          :loading="isHandoverOtpSaving"
+          class="no-print"
+          @click="openHandoverOtpDialog"
+        >
+          {{ handoverStatus?.otpSentAt ? t('project.overviewTab.handover.resendOrEnterCode') : t('project.overviewTab.handover.sendVerificationCode') }}
+        </BaseButton>
+      </div>
+
+      <OtpVerificationDialog
+        v-if="client"
+        v-model="isHandoverOtpDialogOpen"
+        :email="client.email"
+        :step="handoverOtpStep"
+        :loading="isHandoverOtpSaving"
+        :title="t('project.overviewTab.handover.otpDialogTitle')"
+        :send-step-description="t('project.overviewTab.handover.otpDialogSendStepDescription', { email: client.email })"
+        @send="handleSendHandoverOtp"
+        @confirm="handleConfirmHandoverOtp"
+      />
+    </Card>
+
     <Card v-if="hasScope && showScopeAndDetails">
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.scopeTitle') }}</h3>

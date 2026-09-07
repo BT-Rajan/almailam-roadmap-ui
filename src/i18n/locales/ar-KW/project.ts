@@ -8,6 +8,7 @@ export default {
     active: 'نشط',
     onHold: 'معلّق',
     cancelled: 'ملغى',
+    completed: 'مكتمل',
   },
 
   priority: {
@@ -215,6 +216,22 @@ export default {
     clientDetailsTitle: 'تفاصيل العميل',
     messageClient: 'مراسلة العميل',
     viewFullProfile: 'عرض الملف الكامل',
+    handover: {
+      title: 'التسليم',
+      acknowledged: 'تم التأكيد',
+      awaitingAcknowledgment: 'بانتظار التأكيد',
+      readyToSend: 'تم إغلاق جميع البنود المخطط لها وتسوية الدفعات — جاهز لإرسال تأكيد التسليم.',
+      otpSentOnFragment: 'تم إرسال رمز التحقق في {date}. بانتظار تأكيد العميل.',
+      acknowledgedOnFragment: 'أكّد العميل التسليم في {date}.',
+      sendVerificationCode: 'إرسال رمز التحقق',
+      resendOrEnterCode: 'إعادة الإرسال / إدخال الرمز',
+      otpDialogTitle: 'تأكيد التسليم',
+      otpDialogSendStepDescription: 'سيتم إرسال رمز تحقق إلى {email} مع قائمة التسليم. اطلب الرمز من العميل لتأكيده.',
+      confirmedTitle: 'تم تأكيد التسليم',
+      confirmedDescription: 'أصبح المشروع الآن مكتملاً.',
+      failedToSend: 'فشل إرسال رمز التحقق',
+      failedToVerify: 'فشل التحقق من الرمز',
+    },
     fields: {
       service: 'الخدمة',
       fieldEngineer: 'المهندس الميداني',

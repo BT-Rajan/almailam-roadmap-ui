@@ -188,9 +188,16 @@ FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = set()
 # the workflow stage of the same name it used to require current_stage
 # to have also reached.
 PROJECT_STATUS_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Active": {"On Hold", "Cancelled"},
+    # "Completed" is only ever reached via project_service.
+    # verify_handover_otp (the client's handover acknowledgment), not a
+    # manual status change -- it's still listed here (rather than
+    # bypassing assert_transition_allowed) so that path goes through
+    # the same validation/audit-logging every other status change does.
+    # No transition out of "Completed" -- there's no reopen path yet.
+    "Active": {"On Hold", "Cancelled", "Completed"},
     "On Hold": {"Active", "Cancelled"},
     "Cancelled": {"Active"},
+    "Completed": set(),
 }
 PROJECT_STATUS_STATUSES_REQUIRING_REASON = {"On Hold", "Cancelled"}
 

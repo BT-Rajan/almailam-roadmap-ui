@@ -273,6 +273,38 @@ class ScopeOfWorkOut(BaseModel):
     revisions: list[ScopeRevisionOut] = Field(default_factory=list)
 
 
+class HandoverChecklistItemOut(BaseModel):
+    id: str
+    sourceType: str
+    title: str
+    completedAt: datetime
+
+    @staticmethod
+    def from_model(item) -> "HandoverChecklistItemOut":
+        return HandoverChecklistItemOut(
+            id=str(item.id), sourceType=item.source_type, title=item.title, completedAt=item.completed_at,
+        )
+
+
+class HandoverStatusOut(BaseModel):
+    """The project's own OTP-sent/acknowledged pair, same shape as
+    ScopeOfWorkOut's otpSentAt/scopeClientConfirmedAt -- lets the
+    frontend open the OTP dialog straight to "enter code" when one's
+    already outstanding."""
+
+    otpSentAt: datetime | None = None
+    handoverAcknowledgedAt: datetime | None = None
+    checklist: list[HandoverChecklistItemOut] = Field(default_factory=list)
+
+    @staticmethod
+    def from_model(project, checklist: list) -> "HandoverStatusOut":
+        return HandoverStatusOut(
+            otpSentAt=project.otp_sent_at,
+            handoverAcknowledgedAt=project.handover_acknowledged_at,
+            checklist=[HandoverChecklistItemOut.from_model(item) for item in checklist],
+        )
+
+
 class ProjectCreate(BaseModel):
     projectName: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)

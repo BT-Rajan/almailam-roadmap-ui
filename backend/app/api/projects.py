@@ -6,10 +6,12 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
+from app.models.handover_checklist import HandoverChecklistItem
 from app.schemas.common import OtpVerifyRequest, PagedResponse
 from app.schemas.project import (
     AddServicesInput,
     CloseDesignActivityRequest,
+    HandoverStatusOut,
     ProjectCreate,
     ProjectOut,
     ProjectStageUpdate,
@@ -254,6 +256,39 @@ def verify_requirement_otp(
 ):
     project = project_service.verify_requirement_otp(db, project_no, payload.code, current_user.id)
     return _scope_of_work_out(db, project)
+
+
+def _handover_status_out(db: Session, project) -> HandoverStatusOut:
+    checklist = (
+        db.query(HandoverChecklistItem)
+        .filter(HandoverChecklistItem.project_id == project.id)
+        .order_by(HandoverChecklistItem.source_type.asc(), HandoverChecklistItem.id.asc())
+        .all()
+    )
+    return HandoverStatusOut.from_model(project, checklist)
+
+
+@router.get("/{project_no}/handover", response_model=HandoverStatusOut)
+def get_handover_status(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    return _handover_status_out(db, project)
+
+
+@router.post("/{project_no}/handover/send-otp", response_model=HandoverStatusOut)
+def send_handover_otp(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.send_handover_otp(db, project_no, current_user.id)
+    return _handover_status_out(db, project)
+
+
+@router.post("/{project_no}/handover/verify-otp", response_model=ProjectOut)
+def verify_handover_otp(
+    project_no: str,
+    payload: OtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.verify_handover_otp(db, project_no, payload.code, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
 @router.get("/{project_no}/scope-of-work/{revision_id}/document")

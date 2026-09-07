@@ -79,6 +79,7 @@ const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
   Active: 'active',
   'On Hold': 'on-hold',
   Cancelled: 'completed',
+  Completed: 'completed',
 }
 
 // Most recently created projects (higher id = created later), not a fixed

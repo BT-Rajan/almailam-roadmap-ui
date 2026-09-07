@@ -104,6 +104,7 @@ const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {
   Active: 'success',
   'On Hold': 'warning',
   Cancelled: 'danger',
+  Completed: 'success',
 }
 
 const PRIORITY_VARIANTS: Record<ProjectPriority, BadgeVariant> = {

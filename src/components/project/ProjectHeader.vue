@@ -45,6 +45,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
   'On Hold': 'project.status.onHold',
   Cancelled: 'project.status.cancelled',
+  Completed: 'project.status.completed',
 }
 const statusLabel = computed(() => t(STATUS_LABEL_KEYS[props.project.status] ?? props.project.status))
 
@@ -79,7 +80,7 @@ const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.proj
         <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" />
         <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
         <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton>
-        <BaseButton variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton>
+        <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton>
         <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton>
         <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
         <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />

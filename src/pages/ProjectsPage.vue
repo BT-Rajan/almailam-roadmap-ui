@@ -48,6 +48,7 @@ const STATUS_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('project.status.active'), value: 'Active' },
   { label: t('project.status.onHold'), value: 'On Hold' },
   { label: t('project.status.cancelled'), value: 'Cancelled' },
+  { label: t('project.status.completed'), value: 'Completed' },
 ])
 
 const STAGE_OPTIONS = computed<SelectOption[]>(() => [
@@ -112,6 +113,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
   'On Hold': 'project.status.onHold',
   Cancelled: 'project.status.cancelled',
+  Completed: 'project.status.completed',
 }
 function statusLabel(status: string): string {
   return t(STATUS_LABEL_KEYS[status] ?? status)

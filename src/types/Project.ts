@@ -1,9 +1,12 @@
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 
-// No "Completed" value -- a project never reaches a terminal "done"
-// status, only Active/On Hold/Cancelled. See backend/app/models/
-// project.py's PROJECT_STATUSES comment.
-export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled'
+// "Completed" is the terminal status a project reaches once every
+// planned Design/Permit/Supervision item is closed, payment on the
+// current project value is settled in full, and the client has
+// acknowledged the hand-over email (OTP-verified). See
+// backend/app/models/project.py's PROJECT_STATUSES /
+// PROJECT_STATUS_ALLOWED_TRANSITIONS comments.
+export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled' | 'Completed'
 
 // "Correction" used to be its own stage (Review <-> Correction, a loop
 // back and forth for what's really one review cycle). Merged into
@@ -215,4 +218,24 @@ export interface ScopeOfWork {
   // instead of "send" when one's already on its way.
   otpSentAt?: string | null
   revisions: ScopeRevision[]
+}
+
+export interface HandoverChecklistItem {
+  id: string
+  sourceType: 'Design' | 'Permit' | 'Supervision'
+  title: string
+  completedAt: string
+}
+
+// Populated (checklist non-empty) once every planned Design/Permit/
+// Supervision item is Complete/Cancelled AND the project's current
+// value is fully paid (see project_service.try_complete_project) --
+// same "reopen the OTP dialog straight to enter-code when one's
+// already outstanding" pattern as ScopeOfWork.otpSentAt above.
+// handoverAcknowledgedAt is set once the client's OTP is verified,
+// the moment project.status flips to 'Completed'.
+export interface HandoverStatus {
+  otpSentAt?: string | null
+  handoverAcknowledgedAt?: string | null
+  checklist: HandoverChecklistItem[]
 }

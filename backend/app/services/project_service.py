@@ -19,6 +19,7 @@ from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
+from app.models.handover_checklist import HandoverChecklistItem
 from app.models.permit_selection import ProjectSelectedPermit
 from app.models.prerequisite import PermitPrerequisite, SupervisionPrerequisite
 from app.models.project import (
@@ -349,6 +350,7 @@ def close_design_activity(
     _set_design_activity_status(db, activity, new_status, user_id, auto=False)
     db.commit()
     db.refresh(activity)
+    try_complete_project(db, project, user_id)
     return activity
 
 
@@ -376,10 +378,15 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     """Called by task_service.set_status whenever a task linked to a
     Design activity is marked Completed -- if every one of that
     activity's linked tasks (there must be at least one) is now
-    Completed, closes the activity automatically. Does not commit --
-    the caller's own status-change transaction covers this too. Never
-    overrides a status already set by hand (Complete/Cancelled), and is
-    a no-op for the common case of a task with no linked activity."""
+    Completed, closes the activity automatically. Never overrides a
+    status already set by hand (Complete/Cancelled), and is a no-op
+    for the common case of a task with no linked activity. Doesn't
+    commit its own status change -- the caller's status-change
+    transaction covers that too -- but the completion check it may
+    trigger (try_complete_project) does commit its own work partway
+    through (checklist generation, the OTP send); that's fine, it just
+    means this call and the caller's own commit each cover part of the
+    same overall change."""
     activity = db.query(ProjectSelectedActivity).filter(ProjectSelectedActivity.id == activity_id).first()
     if activity is None or activity.status in ("Complete", "Cancelled"):
         return
@@ -391,6 +398,9 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
         return
     _set_design_activity_status(db, activity, "Complete", user_id, auto=True)
+    project = db.query(Project).filter(Project.id == activity.project_id).first()
+    if project is not None:
+        try_complete_project(db, project, user_id)
 
 
 def get_selected_permit(db: Session, project_id: int, permit_id: int) -> ProjectSelectedPermit:
@@ -432,6 +442,7 @@ def set_permit_status(
     )
     db.commit()
     db.refresh(permit)
+    try_complete_project(db, project, user_id)
     return permit
 
 
@@ -479,6 +490,7 @@ def set_supervision_status(
     )
     db.commit()
     db.refresh(activity)
+    try_complete_project(db, project, user_id)
     return activity
 
 
@@ -780,6 +792,12 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
             raise ValidationAppError("targetDate must be after the project's startDate.")
         changes["target_date"] = (project.target_date, payload.targetDate)
         project.target_date = payload.targetDate
+        # A pushed-out target_date may no longer be in the past --
+        # check_and_notify_overdue_projects only re-notifies once this
+        # is cleared, the same "cleared the moment the underlying
+        # condition stops being true" rule stale_notified_at follows.
+        if project.overdue_notified_at is not None and payload.targetDate >= date.today():
+            project.overdue_notified_at = None
     # progress is deliberately not settable here -- it's computed from
     # current_stage (see recompute_progress), not typed in by hand. See
     # ProjectUpdate's own schema comment.
@@ -1038,8 +1056,17 @@ _PROGRESS_BAND_COUNT = 7
 
 def recompute_progress(db: Session, project: Project) -> int:
     """Derives project.progress from current_stage -- entering a stage
-    jumps progress to that stage's band floor. Does not commit --
+    jumps progress to that stage's band floor. status == "Completed"
+    (set by verify_handover_otp, independent of current_stage -- see
+    the "project completion / hand-over" section below) is the one
+    exception: a completed project always reads 100%, regardless of
+    which band its current_stage still points at, since Design/Permit/
+    Supervision finishing in parallel doesn't correspond to any single
+    further stage to advance current_stage into. Does not commit --
     callers already do."""
+    if project.status == "Completed":
+        project.progress = 100
+        return project.progress
     band = _STAGE_PROGRESS_BAND[project.current_stage]
     progress = round(band * 100 / _PROGRESS_BAND_COUNT)
     project.progress = max(0, min(100, progress))
@@ -1597,6 +1624,272 @@ def check_and_notify_stale_projects(db: Session) -> int:
             )
             project.stale_notified_at = datetime.now(timezone.utc)
             notified_count += 1
+
+    db.commit()
+    return notified_count
+
+
+# --- project completion / hand-over -------------------------------------
+#
+# The three parallel tracks (Design, Permit, Supervision) each carry
+# their own status independently of current_stage/WORKFLOW_STAGES --
+# project.status gaining "Completed" (migration 0073) is what actually
+# closes a project out, gated on every planned item across all three
+# tracks being Complete/Cancelled AND the project's current total value
+# being fully paid, followed by the client acknowledging a hand-over
+# email (verify_handover_otp), the same client-confirmation shape used
+# at every other stage in this app.
+
+
+def _all_tracks_closed(db: Session, project: Project) -> bool:
+    """Every planned Design activity, Permit, and Supervision activity
+    is Complete or Cancelled -- the first of the two conditions
+    try_complete_project waits on."""
+    design_open = any(a.status not in ("Complete", "Cancelled") for a in get_selected_activities(db, project.id))
+    permit_open = any(p.status not in ("Complete", "Cancelled") for p in get_selected_permits(db, project.id))
+    supervision_open = any(
+        a.status not in ("Complete", "Cancelled") for a in get_selected_supervision_activities(db, project.id)
+    )
+    return not (design_open or permit_open or supervision_open)
+
+
+def _generate_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
+    """One row per Complete (not Cancelled -- nothing to hand over on a
+    descoped item) Design activity/Permit/Supervision activity.
+    Idempotent by construction -- HandoverChecklistItem's unique
+    constraint (project_id, source_type, source_id) means calling this
+    more than once for the same project just no-ops on items that
+    already have a row ("no repetitions"). Does not commit -- the
+    caller already does. Returns every item (existing + newly created)
+    so the hand-over email can list them all."""
+    existing = {
+        (item.source_type, item.source_id): item
+        for item in db.query(HandoverChecklistItem).filter(HandoverChecklistItem.project_id == project.id).all()
+    }
+    sources: list[tuple[str, int, str, datetime | None]] = (
+        [
+            ("Design", a.id, a.activity_name, a.closed_at)
+            for a in get_selected_activities(db, project.id) if a.status == "Complete"
+        ]
+        + [
+            ("Permit", p.id, p.permit_name, p.closed_at)
+            for p in get_selected_permits(db, project.id) if p.status == "Complete"
+        ]
+        + [
+            ("Supervision", a.id, a.activity_name, a.closed_at)
+            for a in get_selected_supervision_activities(db, project.id) if a.status == "Complete"
+        ]
+    )
+    for source_type, source_id, title, closed_at in sources:
+        key = (source_type, source_id)
+        if key in existing:
+            continue
+        item = HandoverChecklistItem(
+            project_id=project.id, source_type=source_type, source_id=source_id,
+            title=title, completed_at=closed_at or datetime.now(timezone.utc),
+        )
+        db.add(item)
+        existing[key] = item
+    db.flush()
+    return list(existing.values())
+
+
+def try_complete_project(db: Session, project: Project, user_id: int | None) -> None:
+    """Checked after any Design/Permit/Supervision item closes and
+    after a payment is recorded (see payment_service.
+    _try_complete_project_after_payment) -- once every planned item
+    across all three tracks is Complete/Cancelled AND the project's
+    current total value is fully paid, generates the hand-over
+    checklist (idempotent) and sends the confirmation email with an
+    OTP. Does not itself flip project.status -- that only happens once
+    the client acknowledges (verify_handover_otp). Never re-sends
+    automatically once handover_sent_at is set -- send_handover_otp is
+    the manual resend path for a failed send or a lost code. Commits."""
+    db.flush()
+    if project.status == "Completed" or project.handover_sent_at is not None:
+        return
+    if not _all_tracks_closed(db, project):
+        return
+    if not payment_service.get_project_payment_status(db, project)["fullyPaid"]:
+        return
+
+    _generate_handover_checklist(db, project)
+    db.commit()
+    db.refresh(project)
+
+    try:
+        send_handover_otp(db, project.project_no, user_id)
+    except ValidationAppError:
+        # send_handover_otp's own except-block already notified
+        # Administrators and left handover_sent_at unset -- the next
+        # try_complete_project call (from any future track close or
+        # payment) retries the send. Completion readiness itself
+        # (everything above) doesn't depend on the email succeeding.
+        pass
+
+
+def send_handover_otp(db: Session, project_no: str, user_id: int | None) -> Project:
+    """Sends (or resends) the client-facing hand-over confirmation OTP.
+    Normally called by try_complete_project once the project is ready;
+    also directly callable as the manual resend action if the first
+    send failed or the client lost the code. Requires the hand-over
+    checklist to already exist (try_complete_project always generates
+    it first) since the email lists it."""
+    project = get_project(db, project_no)
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None:
+        raise ValidationAppError("This project's client record is missing.")
+
+    checklist = (
+        db.query(HandoverChecklistItem)
+        .filter(HandoverChecklistItem.project_id == project.id)
+        .order_by(HandoverChecklistItem.source_type.asc(), HandoverChecklistItem.id.asc())
+        .all()
+    )
+    checklist_text = "\n".join(f"- [{item.source_type}] {item.title}" for item in checklist) or "(no items)"
+
+    code = otp.generate_code()
+    project.otp_code_hash = otp.hash_code(code)
+    project.otp_expires_at = otp.new_expiry()
+    project.otp_attempts = 0
+    project.otp_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over OTP sent", user_id)
+    db.commit()
+    db.refresh(project)
+
+    try:
+        subject, body = email_template_service.render(
+            db, "handover_otp",
+            {
+                "contact_person": client.contact_person,
+                "project_no": project.project_no,
+                "checklist": checklist_text,
+                "code": code,
+                "validity_label": otp.validity_label(),
+            },
+        )
+        email_service.send_email(client.email, subject, body, db=db)
+        project.handover_sent_at = datetime.now(timezone.utc)
+        db.commit()
+    except ValidationAppError as error:
+        # Mirrors the fix already shipped for Quotation/Contract
+        # confirmation emails: a delivery failure never blocks the
+        # underlying completion readiness, it only needs to be visible
+        # to someone who can fix it and resend.
+        notification_service.notify_role(
+            db, "Administrator",
+            "Hand-over email not sent",
+            f"Project {project.project_no} is ready for hand-over, but the confirmation email to the "
+            f"client could not be sent: {error}",
+            "System",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+        db.commit()
+        raise
+    return project
+
+
+def verify_handover_otp(db: Session, project_no: str, code: str, user_id: int | None) -> Project:
+    """The client's hand-over acknowledgment -- the last client-facing
+    confirmation in the workflow. Standard OTP checks, identical
+    structure to every other verify_*_otp in this app. On success,
+    flips project.status to 'Completed' via the normal set_status path
+    (same transition validation/audit logging every other status
+    change gets)."""
+    project = get_project(db, project_no)
+    if not project.otp_code_hash or not project.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if otp.is_expired(project.otp_expires_at):
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if project.otp_attempts >= otp.MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+    if not otp.code_matches(code, project.otp_code_hash):
+        project.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    project.otp_code_hash = None
+    project.otp_expires_at = None
+    project.otp_attempts = 0
+    project.otp_sent_at = None
+    project.handover_acknowledged_at = datetime.now(timezone.utc)
+    db.commit()
+
+    project = set_status(db, project_no, "Completed", None, user_id)
+    recompute_progress(db, project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def check_and_notify_unpaid_completed_projects(db: Session) -> int:
+    """Finds Active projects whose Design/Permit/Supervision items are
+    all Complete/Cancelled but aren't yet fully paid, and notifies
+    every Administrator once per episode -- unpaid_completion_
+    notified_at prevents re-notifying every run; cleared once payment
+    completes (try_complete_project doesn't clear it itself since it
+    only ever runs forward to completion, so it's cleared here instead,
+    the moment the condition that caused the alert stops being true).
+    Same "periodic check, plain callable function" shape as
+    check_and_notify_stale_projects above."""
+    candidates = (
+        db.query(Project)
+        .filter(Project.deleted_at.is_(None), Project.status == "Active")
+        .all()
+    )
+
+    notified_count = 0
+    for project in candidates:
+        fully_paid = payment_service.get_project_payment_status(db, project)["fullyPaid"]
+        all_closed = _all_tracks_closed(db, project)
+
+        if all_closed and not fully_paid:
+            if project.unpaid_completion_notified_at is None:
+                notification_service.notify_role(
+                    db, "Administrator",
+                    "Project finished but not fully paid",
+                    f"{project.project_name} ({project.project_no}) has every planned Design/Permit/"
+                    "Supervision item closed, but is not yet fully paid.",
+                    "Project",
+                    link_route_name="project-workspace", link_params={"projectId": project.project_no},
+                )
+                project.unpaid_completion_notified_at = datetime.now(timezone.utc)
+                notified_count += 1
+        elif project.unpaid_completion_notified_at is not None:
+            project.unpaid_completion_notified_at = None
+
+    db.commit()
+    return notified_count
+
+
+def check_and_notify_overdue_projects(db: Session) -> int:
+    """Finds Active projects past their target_date and notifies every
+    Administrator once per episode -- overdue_notified_at prevents
+    re-notifying every run; cleared if target_date is pushed back out
+    (update_project) or the project stops being Active, the moment the
+    condition that caused the alert stops being true. Same shape as
+    check_and_notify_stale_projects above."""
+    today = date.today()
+    candidates = (
+        db.query(Project)
+        .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.target_date < today)
+        .all()
+    )
+
+    notified_count = 0
+    for project in candidates:
+        if project.overdue_notified_at is not None:
+            continue
+        notification_service.notify_role(
+            db, "Administrator",
+            "Project past its target date",
+            f"{project.project_name} ({project.project_no}) was due on {project.target_date.isoformat()} "
+            "and is still Active.",
+            "Project",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        )
+        project.overdue_notified_at = datetime.now(timezone.utc)
+        notified_count += 1
 
     db.commit()
     return notified_count

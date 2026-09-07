@@ -43,6 +43,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
   'On Hold': 'project.status.onHold',
   Cancelled: 'project.status.cancelled',
+  Completed: 'project.status.completed',
 }
 const statusLabel = computed(() => t(STATUS_LABEL_KEYS[props.project.status] ?? props.project.status))
 

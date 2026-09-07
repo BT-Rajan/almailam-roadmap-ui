@@ -8,6 +8,7 @@ export default {
     active: 'Active',
     onHold: 'On Hold',
     cancelled: 'Cancelled',
+    completed: 'Completed',
   },
 
   priority: {
@@ -215,6 +216,22 @@ export default {
     clientDetailsTitle: 'Client Details',
     messageClient: 'Message Client',
     viewFullProfile: 'View Full Profile',
+    handover: {
+      title: 'Hand-over',
+      acknowledged: 'Acknowledged',
+      awaitingAcknowledgment: 'Awaiting Acknowledgment',
+      readyToSend: 'Every planned item is closed and payment is settled — ready to send the hand-over confirmation.',
+      otpSentOnFragment: "Verification code sent on {date}. Awaiting the client's confirmation.",
+      acknowledgedOnFragment: 'Client acknowledged hand-over on {date}.',
+      sendVerificationCode: 'Send Verification Code',
+      resendOrEnterCode: 'Resend / Enter Code',
+      otpDialogTitle: 'Confirm Hand-over',
+      otpDialogSendStepDescription: 'This sends a verification code to {email}, along with the hand-over checklist. Read the code back from the client to confirm.',
+      confirmedTitle: 'Hand-over confirmed',
+      confirmedDescription: 'The project is now marked Completed.',
+      failedToSend: 'Failed to send the verification code',
+      failedToVerify: 'Failed to verify the code',
+    },
     fields: {
       service: 'Service',
       fieldEngineer: 'Field Engineer',
