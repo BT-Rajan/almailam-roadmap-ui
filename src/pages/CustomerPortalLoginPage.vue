@@ -7,6 +7,7 @@ import AuthCard from '@/components/auth/AuthCard.vue'
 import StaffLoginForm from '@/components/auth/StaffLoginForm.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { safeRedirectPath } from '@/utils/safeRedirect'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -20,7 +21,7 @@ const initialMessage = authStore.consumeLogoutReason() ?? undefined
 
 async function handleSuccess(): Promise<void> {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
-  await router.push(redirect ?? { name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECTS })
+  await router.push(safeRedirectPath(redirect) ?? { name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECTS })
 }
 </script>
 

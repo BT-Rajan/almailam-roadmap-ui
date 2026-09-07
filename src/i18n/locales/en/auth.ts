@@ -7,7 +7,6 @@ export default {
 
   passwordLabel: 'Password',
   passwordPlaceholder: 'Enter your password',
-  rememberMe: 'Remember me',
   forgotPassword: 'Forgot password?',
   signedOut: 'Signed out',
   signInFailedTitle: "Couldn't sign you in",

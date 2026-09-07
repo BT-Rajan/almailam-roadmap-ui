@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.exceptions import AuthError, ValidationAppError
+from app.core.lockout import LockoutTracker
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -18,6 +20,15 @@ from app.models.user import User
 settings = get_settings()
 
 GENERIC_LOGIN_ERROR = "Invalid username or password."
+
+# Per-account lockout (below) is keyed by identifier, which is exactly
+# what lets someone lock out an account they don't own -- 5 wrong
+# guesses against a known username is enough. This second, per-IP
+# tracker catches that: looser (won't punish a whole shared office for
+# one person mistyping a password) but stops a single client from
+# hammering the login endpoint across many identifiers or repeatedly
+# locking one out.
+_login_ip_lockout = LockoutTracker(max_attempts=20, lockout_seconds=15 * 60)
 
 
 def _issue_tokens(db: Session, user: User) -> dict:
@@ -57,7 +68,7 @@ def _register_failed_attempt(db: Session, user: User) -> None:
     db.commit()
 
 
-def login(db: Session, identifier: str, password: str) -> dict:
+def login(db: Session, identifier: str, password: str, client_ip: str = "unknown") -> dict:
     """Single entry point for all three frontends (staff app, Site
     Engineer Portal, Customer Portal) -- resolves the identifier against
     username, employee_id, or customer_id, whichever matches. A user only
@@ -67,6 +78,9 @@ def login(db: Session, identifier: str, password: str) -> dict:
     have matched, for the same reason the old per-portal logins used one:
     this can't be used to enumerate valid usernames/employee IDs/customer
     IDs."""
+    if _login_ip_lockout.seconds_locked(client_ip):
+        raise AuthError("Too many attempts from this network. Please try again later.")
+
     user = (
         db.query(User)
         .filter(
@@ -75,14 +89,25 @@ def login(db: Session, identifier: str, password: str) -> dict:
         )
         .first()
     )
-    return _authenticate_and_issue_tokens(db, user, password)
+    try:
+        tokens = _authenticate_and_issue_tokens(db, user, password)
+    except AuthError:
+        _login_ip_lockout.register_failure(client_ip)
+        raise
+    _login_ip_lockout.register_success(client_ip)
+    return tokens
 
 
 def _authenticate_and_issue_tokens(db: Session, user: User | None, password: str) -> dict:
     # Same generic message whether the account doesn't exist or the
     # password is wrong -- never confirms which, so this can't be used to
-    # enumerate valid usernames/employee IDs.
+    # enumerate valid usernames/employee IDs. Deliberately still runs
+    # verify_password (against a fixed dummy hash) even when there's no
+    # user to check against, so this path costs the same as a wrong-
+    # password rejection below -- otherwise the *speed* of the response
+    # gives away what the message doesn't.
     if user is None:
+        verify_password(password, DUMMY_PASSWORD_HASH)
         raise AuthError(GENERIC_LOGIN_ERROR)
 
     if not user.is_active:
