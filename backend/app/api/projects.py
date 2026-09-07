@@ -19,7 +19,9 @@ from app.schemas.project import (
     ScopeRevisionOut,
     SelectedActivityOut,
     SelectedPermitOut,
+    SelectedSupervisionActivityOut,
     SetPermitStatusRequest,
+    SetSupervisionStatusRequest,
     StageEligibilityOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
@@ -185,6 +187,18 @@ def set_permit_status(
 ):
     permit = project_service.set_permit_status(db, project_no, permit_id, payload.status, current_user.id)
     return SelectedPermitOut.from_model(permit)
+
+
+@router.post("/{project_no}/supervision-activities/{activity_id}/status", response_model=SelectedSupervisionActivityOut)
+def set_supervision_status(
+    project_no: str,
+    activity_id: int,
+    payload: SetSupervisionStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    activity = project_service.set_supervision_status(db, project_no, activity_id, payload.status, current_user.id)
+    return SelectedSupervisionActivityOut.from_model(activity)
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)

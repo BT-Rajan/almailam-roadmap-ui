@@ -245,6 +245,24 @@ async function setPermitStatus(
 }
 
 /**
+ * Directly sets a Supervision activity's status -- same reasoning as
+ * setPermitStatus: no sub-tasks, the user sets this based on their own
+ * read of site-engineer reports. 'Eligible' isn't settable this way.
+ */
+async function setSupervisionStatus(
+  projectId: string, activityId: string, status: 'In Progress' | 'Complete' | 'Cancelled',
+): Promise<SelectedSupervisionActivity> {
+  try {
+    return await apiClient.post<SelectedSupervisionActivity>(
+      `/api/projects/${projectId}/supervision-activities/${activityId}/status`, { status },
+    )
+  } catch (error) {
+    console.error(`Failed to set status for supervision activity ${activityId} on project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update supervision activity status')
+  }
+}
+
+/**
  * Change a project's operational status (Active/On Hold/Cancelled).
  * `reason` is required for some transitions (On Hold, Cancelled, and
  * reopening a Cancelled project) -- enforced server-side.
@@ -412,6 +430,7 @@ export const projectService = {
   closeDesignActivity,
   reopenDesignActivity,
   setPermitStatus,
+  setSupervisionStatus,
   addServices,
   setStatus,
   deleteProject,

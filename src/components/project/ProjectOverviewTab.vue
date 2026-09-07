@@ -109,6 +109,23 @@ async function setPermitStatus(permitId: string, status: 'In Progress' | 'Comple
   }
 }
 
+// Supervision has no sub-tasks either -- same direct-status pattern as
+// Permits, based on the user's own read of site-engineer reports.
+const supervisionActionPendingId = ref<string>()
+
+async function setSupervisionStatus(activityId: string, status: 'In Progress' | 'Complete' | 'Cancelled'): Promise<void> {
+  supervisionActionPendingId.value = activityId
+  try {
+    await projectService.setSupervisionStatus(props.project.id, activityId, status)
+    await projectStore.refreshProject(props.project.id)
+    toastStore.show('success', t('project.overviewTab.activityClosed'))
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    supervisionActionPendingId.value = undefined
+  }
+}
+
 // Scope, Project Details, and Client Details are only useful while the
 // project is still being set up -- once it's past Quotation, staff are
 // working from that stage's own overview card instead, and repeating this
@@ -623,7 +640,7 @@ function verificationResultLabel(result: string): string {
           <div
             v-for="activity in project.selectedSupervisionActivities"
             :key="activity.activityId"
-            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3"
           >
             <div class="flex flex-col gap-0.5 truncate">
               <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
@@ -631,7 +648,37 @@ function verificationResultLabel(result: string): string {
                 {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.overviewTab.ongoing') }}
               </span>
             </div>
-            <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
+            <div class="flex items-center gap-2">
+              <span class="shrink-0 text-sm font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
+              <StatusBadge v-if="activity.status" :label="activity.status" :variant="getSelectedPermitStatusVariant(activity.status)" />
+              <template v-if="activity.id">
+                <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
+                  <BaseButton
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="supervisionActionPendingId === activity.id"
+                    @click="setSupervisionStatus(activity.id, 'In Progress')"
+                  >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                </template>
+                <template v-else>
+                  <BaseButton
+                    v-if="activity.status !== 'In Progress'"
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="supervisionActionPendingId === activity.id"
+                    @click="setSupervisionStatus(activity.id, 'In Progress')"
+                  >{{ t('project.overviewTab.startApplication') }}</BaseButton>
+                  <BaseButton
+                    variant="secondary" size="sm" class="no-print"
+                    :loading="supervisionActionPendingId === activity.id"
+                    @click="setSupervisionStatus(activity.id, 'Cancelled')"
+                  >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                  <BaseButton
+                    variant="primary" size="sm" class="no-print"
+                    :loading="supervisionActionPendingId === activity.id"
+                    @click="setSupervisionStatus(activity.id, 'Complete')"
+                  >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                </template>
+              </template>
+            </div>
           </div>
         </div>
         <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noSupervisionActivities') }}</p>

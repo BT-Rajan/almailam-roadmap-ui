@@ -11,8 +11,10 @@ from app.schemas.service_catalog import (
     ServiceCatalogItemCreate,
     ServiceCatalogItemOut,
     ServiceCatalogItemUpdate,
+    SupervisionPrerequisiteCreate,
+    SupervisionPrerequisiteOut,
 )
-from app.services import service_catalog_service
+from app.services import prerequisite_service, service_catalog_service
 
 router = APIRouter(prefix="/api/service-catalog", tags=["service-catalog"])
 
@@ -88,3 +90,31 @@ def update_activity(
 @router.delete("/activities/{activity_id}", status_code=204)
 def remove_activity(activity_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     service_catalog_service.remove_activity(db, activity_id, current_user.id)
+
+
+@router.get("/activities/{activity_id}/supervision-prerequisites", response_model=list[SupervisionPrerequisiteOut])
+def list_supervision_prerequisites(activity_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
+    return [
+        SupervisionPrerequisiteOut.from_model(p)
+        for p in prerequisite_service.list_supervision_prerequisites(db, activity_id)
+    ]
+
+
+@router.post(
+    "/activities/{activity_id}/supervision-prerequisites", response_model=SupervisionPrerequisiteOut, status_code=201,
+)
+def add_supervision_prerequisite(
+    activity_id: str,
+    payload: SupervisionPrerequisiteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    prerequisite = prerequisite_service.add_supervision_prerequisite(db, activity_id, payload.designActivityId)
+    return SupervisionPrerequisiteOut.from_model(prerequisite)
+
+
+@router.delete("/supervision-prerequisites/{prerequisite_id}", status_code=204)
+def remove_supervision_prerequisite(
+    prerequisite_id: int, db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    prerequisite_service.remove_supervision_prerequisite(db, prerequisite_id)

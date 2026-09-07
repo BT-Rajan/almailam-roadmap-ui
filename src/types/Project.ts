@@ -64,12 +64,26 @@ export type ProjectPriority = 'High' | 'Medium' | 'Low'
 // project's overall supervisionStartDate/supervisionEndDate (both are
 // captured separately, per the day-prorated monthly billing rules --
 // see payment_calculations.generate_prorated_monthly_schedule).
+// Gated the same way a Permit is (see SelectedPermitStatus below) --
+// 'Planned' until its admin-defined SupervisionPrerequisite Design
+// activities are all Complete, then 'Eligible'; 'In Progress'/
+// 'Complete'/'Cancelled' are set directly by the user from there
+// (no sub-tasks, same as Permits).
+export type SelectedSupervisionStatus = 'Planned' | 'Eligible' | 'In Progress' | 'Complete' | 'Cancelled'
+
 export interface SelectedSupervisionActivity {
+  // This activity instance's own row id -- what setSupervisionStatus
+  // operates on. Same convention as SelectedServiceActivity.id/
+  // SelectedPermit.id.
+  id?: string
   activityId: string
   activityName: string
   monthlyRate: number
   startDate: string
   endDate?: string | null
+  status?: SelectedSupervisionStatus
+  eligibilityMetAt?: string | null
+  closedAt?: string | null
 }
 
 // A Permit picked at project setup (PermitPickerDialog) -- the missing

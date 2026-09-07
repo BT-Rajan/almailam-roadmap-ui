@@ -40,3 +40,14 @@ export interface SelectedServiceActivity {
   status?: SelectedActivityStatus
   closedAt?: string
 }
+
+// An admin-configured "this Design activity must be Complete before
+// this Supervision activity is eligible" rule -- see
+// project_service._recompute_supervision_eligibility. Same shape as
+// PermitPrerequisite (types/PermitCatalog.ts).
+export interface SupervisionPrerequisite {
+  id: string
+  designActivityId: string
+  designActivityName: string
+  serviceName: string
+}

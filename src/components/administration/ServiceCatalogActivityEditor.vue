@@ -1,18 +1,29 @@
 <script setup lang="ts">
-import { Plus, Trash2 } from '@lucide/vue'
-import { ref } from 'vue'
+import { ChevronDown, ChevronUp, Plus, Trash2, X } from '@lucide/vue'
+import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { serviceCatalogService } from '@/services/serviceCatalogService'
+import { useToastStore } from '@/stores/toastStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import type { ServiceCatalogActivity } from '@/types/ServiceCatalog'
+import type { ServiceCatalogActivity, ServiceCatalogBranch, SupervisionPrerequisite } from '@/types/ServiceCatalog'
+import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
+const toastStore = useToastStore()
 
-defineProps<{
+const props = defineProps<{
   activities: ServiceCatalogActivity[]
+  branch: ServiceCatalogBranch
+  // Every Design-branch activity, for the "eligible once these are
+  // Complete" prerequisite picker -- only relevant when branch ===
+  // 'Supervision'. See ServiceCatalogPanel.vue.
+  designActivityOptions: SelectOption[]
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +34,60 @@ const emit = defineEmits<{
 
 const newActivityName = ref('')
 const newActivityCost = ref('')
+
+// Prerequisites (Supervision branch only) are fetched lazily, per
+// activity, only once its row is expanded -- same pattern as
+// PermitCatalogListEditor's own prerequisites panel.
+const expandedActivityId = ref<string>()
+const prerequisitesByActivity = reactive<Record<string, SupervisionPrerequisite[]>>({})
+const isLoadingPrerequisites = ref<string>()
+const newPrerequisiteActivityId = reactive<Record<string, string>>({})
+const isMutatingPrerequisite = ref<string>()
+
+async function toggleExpanded(activity: ServiceCatalogActivity): Promise<void> {
+  if (props.branch !== 'Supervision') return
+  if (expandedActivityId.value === activity.id) {
+    expandedActivityId.value = undefined
+    return
+  }
+  expandedActivityId.value = activity.id
+  if (prerequisitesByActivity[activity.id]) return
+  isLoadingPrerequisites.value = activity.id
+  try {
+    prerequisitesByActivity[activity.id] = await serviceCatalogService.getSupervisionPrerequisites(activity.id)
+  } catch (error) {
+    toastStore.show('error', t('administration.serviceCatalog.failedToLoadPrerequisites'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isLoadingPrerequisites.value = undefined
+  }
+}
+
+async function addPrerequisite(activity: ServiceCatalogActivity): Promise<void> {
+  const designActivityId = newPrerequisiteActivityId[activity.id]
+  if (!designActivityId) return
+  isMutatingPrerequisite.value = activity.id
+  try {
+    const created = await serviceCatalogService.addSupervisionPrerequisite(activity.id, designActivityId)
+    prerequisitesByActivity[activity.id] = [...(prerequisitesByActivity[activity.id] ?? []), created]
+    newPrerequisiteActivityId[activity.id] = ''
+  } catch (error) {
+    toastStore.show('error', t('administration.serviceCatalog.failedToAddPrerequisite'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isMutatingPrerequisite.value = undefined
+  }
+}
+
+async function removePrerequisite(activity: ServiceCatalogActivity, prerequisite: SupervisionPrerequisite): Promise<void> {
+  isMutatingPrerequisite.value = activity.id
+  try {
+    await serviceCatalogService.removeSupervisionPrerequisite(prerequisite.id)
+    prerequisitesByActivity[activity.id] = (prerequisitesByActivity[activity.id] ?? []).filter((p) => p.id !== prerequisite.id)
+  } catch (error) {
+    toastStore.show('error', t('administration.serviceCatalog.failedToRemovePrerequisite'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isMutatingPrerequisite.value = undefined
+  }
+}
 
 function submitNewActivity(): void {
   if (newActivityName.value.trim().length === 0) return
@@ -80,7 +145,57 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
 
         <div class="flex shrink-0 items-center gap-2 self-end sm:self-start">
           <span class="text-sm font-medium text-text-muted">{{ formatCurrency(activity.fixedCost) }}</span>
+          <IconButton
+            v-if="branch === 'Supervision'"
+            :icon="expandedActivityId === activity.id ? ChevronUp : ChevronDown"
+            :label="t('administration.serviceCatalog.prerequisites')"
+            size="sm" variant="ghost"
+            @click="toggleExpanded(activity)"
+          />
           <IconButton :icon="Trash2" :label="t('administration.serviceCatalog.removeActivity')" size="sm" variant="danger" @click="emit('remove', activity.id)" />
+        </div>
+
+        <div
+          v-if="branch === 'Supervision' && expandedActivityId === activity.id"
+          class="flex w-full flex-col gap-2 rounded-lg border border-border-light bg-bg-hover p-3 sm:basis-full"
+        >
+          <p class="text-xs font-medium text-text-secondary">{{ t('administration.serviceCatalog.prerequisitesDescription') }}</p>
+          <SkeletonLoader v-if="isLoadingPrerequisites === activity.id" :rows="2" />
+          <template v-else>
+            <p v-if="(prerequisitesByActivity[activity.id] ?? []).length === 0" class="text-xs text-text-muted">
+              {{ t('administration.serviceCatalog.noPrerequisitesYet') }}
+            </p>
+            <div v-else class="flex flex-wrap gap-2">
+              <span
+                v-for="prerequisite in prerequisitesByActivity[activity.id]"
+                :key="prerequisite.id"
+                class="inline-flex items-center gap-1 rounded-full border border-accent-300 bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700"
+              >
+                {{ prerequisite.serviceName }} — {{ prerequisite.designActivityName }}
+                <button
+                  type="button"
+                  :aria-label="t('administration.serviceCatalog.removePrerequisite')"
+                  :disabled="isMutatingPrerequisite === activity.id"
+                  @click="removePrerequisite(activity, prerequisite)"
+                >
+                  <X class="h-3 w-3" />
+                </button>
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <SelectBox
+                v-model="newPrerequisiteActivityId[activity.id]"
+                :placeholder="t('administration.serviceCatalog.addPrerequisitePlaceholder')"
+                :options="designActivityOptions"
+                class="flex-1"
+              />
+              <BaseButton
+                variant="secondary" size="sm"
+                :disabled="!newPrerequisiteActivityId[activity.id] || isMutatingPrerequisite === activity.id"
+                @click="addPrerequisite(activity)"
+              >{{ t('administration.serviceCatalog.add') }}</BaseButton>
+            </div>
+          </template>
         </div>
       </li>
     </ol>

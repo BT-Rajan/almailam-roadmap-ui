@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { ServiceCatalogActivity, ServiceCatalogBranch, ServiceCatalogItem } from '@/types/ServiceCatalog'
+import type { ServiceCatalogActivity, ServiceCatalogBranch, ServiceCatalogItem, SupervisionPrerequisite } from '@/types/ServiceCatalog'
 
 /**
  * Fetch all services (with their activities) from the backend API
@@ -92,6 +92,44 @@ async function removeActivity(activityId: string): Promise<void> {
   }
 }
 
+/**
+ * Fetch a Supervision activity's Design-activity prerequisites via
+ * backend API -- see SupervisionPrerequisite / project_service.
+ * _recompute_supervision_eligibility.
+ */
+async function getSupervisionPrerequisites(activityId: string): Promise<SupervisionPrerequisite[]> {
+  try {
+    return await apiClient.get<SupervisionPrerequisite[]>(
+      `/api/service-catalog/activities/${activityId}/supervision-prerequisites`,
+    )
+  } catch (error) {
+    console.error(`Failed to fetch prerequisites for supervision activity ${activityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch supervision prerequisites')
+  }
+}
+
+async function addSupervisionPrerequisite(
+  activityId: string, designActivityId: string,
+): Promise<SupervisionPrerequisite> {
+  try {
+    return await apiClient.post<SupervisionPrerequisite>(
+      `/api/service-catalog/activities/${activityId}/supervision-prerequisites`, { designActivityId },
+    )
+  } catch (error) {
+    console.error(`Failed to add prerequisite to supervision activity ${activityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add supervision prerequisite')
+  }
+}
+
+async function removeSupervisionPrerequisite(prerequisiteId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/service-catalog/supervision-prerequisites/${prerequisiteId}`)
+  } catch (error) {
+    console.error(`Failed to remove prerequisite ${prerequisiteId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to remove supervision prerequisite')
+  }
+}
+
 export const serviceCatalogService = {
   getServices,
   createService,
@@ -100,4 +138,7 @@ export const serviceCatalogService = {
   addActivity,
   updateActivity,
   removeActivity,
+  getSupervisionPrerequisites,
+  addSupervisionPrerequisite,
+  removeSupervisionPrerequisite,
 }

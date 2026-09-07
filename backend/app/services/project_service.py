@@ -20,7 +20,7 @@ from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
 from app.models.permit_selection import ProjectSelectedPermit
-from app.models.prerequisite import PermitPrerequisite
+from app.models.prerequisite import PermitPrerequisite, SupervisionPrerequisite
 from app.models.project import (
     Project,
     ProjectScopeRevision,
@@ -228,6 +228,7 @@ def _set_design_activity_status(
         project = db.query(Project).filter(Project.id == activity.project_id).first()
         if project is not None:
             _recompute_permit_eligibility(db, project)
+            _recompute_supervision_eligibility(db, project)
 
 
 def _recompute_permit_eligibility(db: Session, project: Project) -> None:
@@ -280,6 +281,56 @@ def _recompute_permit_eligibility(db: Session, project: Project) -> None:
                 link_route_name="project-workspace", link_params={"projectId": project.project_no},
             )
             permit.eligibility_notified_at = datetime.now(timezone.utc)
+
+
+def _recompute_supervision_eligibility(db: Session, project: Project) -> None:
+    """Same shape and rationale as _recompute_permit_eligibility above,
+    for Supervision activities instead of Permits -- "only when few
+    design activities get completed we can start ... same case apply
+    for supervision." Also one-directional (only Planned -> Eligible)
+    and notifies Administrators once, guarded by
+    eligibility_notified_at. Does not commit -- callers already do."""
+    planned_activities = (
+        db.query(ProjectSelectedSupervisionActivity)
+        .filter(
+            ProjectSelectedSupervisionActivity.project_id == project.id,
+            ProjectSelectedSupervisionActivity.status == "Planned",
+        )
+        .all()
+    )
+    if not planned_activities:
+        return
+    complete_design_activity_ids = {
+        a.activity_id for a in get_selected_activities(db, project.id) if a.status == "Complete"
+    }
+    for activity in planned_activities:
+        # activity_id is the catalog display id ("ACT-004"), but
+        # SupervisionPrerequisite.supervision_activity_id is the
+        # catalog's real numeric id -- resolve the one this row was
+        # picked from rather than joining through the string snapshot.
+        catalog_activity_id = int(activity.activity_id.removeprefix("ACT-")) if activity.activity_id.startswith("ACT-") else None
+        if catalog_activity_id is None:
+            continue
+        required_activity_ids = {
+            f"ACT-{p.design_activity_id:03d}"
+            for p in db.query(SupervisionPrerequisite)
+            .filter(SupervisionPrerequisite.supervision_activity_id == catalog_activity_id)
+            .all()
+        }
+        if not required_activity_ids.issubset(complete_design_activity_ids):
+            continue
+        activity.status = "Eligible"
+        activity.eligibility_met_at = datetime.now(timezone.utc)
+        if activity.eligibility_notified_at is None:
+            notification_service.notify_role(
+                db, "Administrator",
+                "Supervision ready to start",
+                f"{activity.activity_name} is now eligible to start on project {project.project_no} "
+                "-- its required Design work is complete.",
+                "System",
+                link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            )
+            activity.eligibility_notified_at = datetime.now(timezone.utc)
 
 
 def close_design_activity(
@@ -382,6 +433,53 @@ def set_permit_status(
     db.commit()
     db.refresh(permit)
     return permit
+
+
+def get_selected_supervision_activity(
+    db: Session, project_id: int, activity_id: int
+) -> ProjectSelectedSupervisionActivity:
+    """A single Supervision activity row, scoped to a specific project --
+    same reasoning as get_selected_activity/get_selected_permit above."""
+    activity = (
+        db.query(ProjectSelectedSupervisionActivity)
+        .filter(
+            ProjectSelectedSupervisionActivity.id == activity_id,
+            ProjectSelectedSupervisionActivity.project_id == project_id,
+        )
+        .first()
+    )
+    if activity is None:
+        raise NotFoundError("Selected supervision activity")
+    return activity
+
+
+def set_supervision_status(
+    db: Session, project_no: str, activity_id: int, new_status: str, user_id: int
+) -> ProjectSelectedSupervisionActivity:
+    """Supervision has no sub-tasks -- the user sets this directly,
+    based on their own read of the site engineer's reports, whenever
+    they judge it done ("closes anytime as they deem fit"). new_status
+    is 'In Progress', 'Complete', or 'Cancelled' -- 'Eligible' is
+    computed, not settable here (see
+    _recompute_supervision_eligibility). Same shape as
+    set_permit_status."""
+    project = get_project(db, project_no)
+    activity = get_selected_supervision_activity(db, project.id, activity_id)
+    previous = activity.status
+    activity.status = new_status
+    if new_status in ("Complete", "Cancelled"):
+        activity.closed_at = datetime.now(timezone.utc)
+        activity.closed_by = user_id
+    else:
+        activity.closed_at = None
+        activity.closed_by = None
+    audit_service.log_event(
+        db, ENTITY_TYPE, project.id, "Supervision activity status changed", user_id,
+        previous_value=previous, new_value=new_status,
+    )
+    db.commit()
+    db.refresh(activity)
+    return activity
 
 
 def _persist_supervision_selection(
@@ -607,11 +705,12 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
 
     _persist_permit_selection(db, project.id, payload.selectedPermits or [])
     db.flush()
-    # Picks up any permit with no prerequisites at all (immediately
-    # eligible) -- this is the only call site that fires for a project
-    # with no Design activities to ever close and trigger the recompute
-    # from _set_design_activity_status instead.
+    # Picks up any permit/supervision activity with no prerequisites at
+    # all (immediately eligible) -- this is the only call site that
+    # fires for a project with no Design activities to ever close and
+    # trigger the recompute from _set_design_activity_status instead.
     _recompute_permit_eligibility(db, project)
+    _recompute_supervision_eligibility(db, project)
 
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project created", user_id, new_value=project.project_name)
     db.commit()

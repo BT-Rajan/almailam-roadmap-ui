@@ -33,6 +33,20 @@ function branchLabel(branch: ServiceCatalogBranch): string {
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
 
+// Every Design-branch activity, flat, for the Supervision prerequisite
+// picker (see SupervisionPrerequisite) -- Supervision activities only
+// ever gate on Design work.
+const designActivityOptions = computed<SelectOption[]>(() =>
+  serviceCatalogStore.services
+    .filter((service) => service.branch === 'Design')
+    .flatMap((service) =>
+      service.activities.map((activity) => ({
+        label: `${service.name} — ${activity.name}`,
+        value: activity.id,
+      })),
+    ),
+)
+
 // Only one Supervision-branch service is allowed (the backend now
 // rejects a second one -- see service_catalog_service.
 // _assert_no_existing_supervision_service) -- once one exists, hide the
@@ -177,6 +191,8 @@ function handleRemoveActivity(activityId: string): void {
 
           <ServiceCatalogActivityEditor
             :activities="serviceCatalogStore.selectedService.activities"
+            :branch="serviceCatalogStore.selectedService.branch"
+            :design-activity-options="designActivityOptions"
             @add="handleAddActivity"
             @update="handleUpdateActivity"
             @remove="handleRemoveActivity"

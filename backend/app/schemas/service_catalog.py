@@ -50,3 +50,29 @@ class ServiceCatalogActivityCreate(BaseModel):
 class ServiceCatalogActivityUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=150)
     fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
+
+
+class SupervisionPrerequisiteOut(BaseModel):
+    """One admin-configured "this Design activity must be Complete
+    before this Supervision activity is eligible" rule (migration
+    0074) -- see project_service._recompute_supervision_eligibility.
+    Same shape as PermitPrerequisiteOut."""
+
+    id: str
+    designActivityId: str
+    designActivityName: str
+    serviceName: str
+
+    @staticmethod
+    def from_model(prerequisite) -> "SupervisionPrerequisiteOut":
+        activity = prerequisite.design_activity
+        return SupervisionPrerequisiteOut(
+            id=str(prerequisite.id),
+            designActivityId=f"ACT-{activity.id:03d}",
+            designActivityName=activity.name,
+            serviceName=activity.service.name,
+        )
+
+
+class SupervisionPrerequisiteCreate(BaseModel):
+    designActivityId: str = Field(min_length=1, max_length=20)

@@ -59,3 +59,6 @@ class SupervisionPrerequisite(Base):
     design_activity_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("service_catalog_activities.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Read-only convenience for SupervisionPrerequisiteOut.from_model --
+    # no back_populates, same reasoning as PermitPrerequisite.design_activity.
+    design_activity: Mapped[ServiceCatalogActivity] = relationship(foreign_keys=[design_activity_id])

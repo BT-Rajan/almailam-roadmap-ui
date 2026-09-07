@@ -75,6 +75,13 @@ PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # was actually done. See ProjectSelectedActivity.status and
 # ProjectSelectedSupervisionActivity.status below.
 SELECTED_ACTIVITY_STATUSES = ("Not Started", "In Progress", "Complete", "Cancelled")
+# Supervision activities are gated the same way Permits are (migration
+# 0074) -- "Planned" until their admin-defined SupervisionPrerequisite
+# Design activities are all Complete, then "Eligible"; "In Progress"/
+# "Complete"/"Cancelled" set directly by the user from there (no
+# sub-tasks, same as Permits). See ProjectSelectedSupervisionActivity
+# below and project_service._recompute_supervision_eligibility.
+SELECTED_SUPERVISION_STATUSES = ("Planned", "Eligible", "In Progress", "Complete", "Cancelled")
 # Internal approval of the project's scope-of-work text (the
 # `description` field below) -- set by the Requirement stage's Approve
 # action, which is what gates the automatic move to "Quotation" (see
@@ -292,12 +299,18 @@ class ProjectSelectedSupervisionActivity(Base):
     monthly_rate: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    # Direct user-driven completion (migration 0073) -- unlike Design,
-    # Supervision has no sub-tasks: the user closes this whenever they
-    # judge it done (based on site-engineer input), never auto-derived.
-    # See project_service.close_supervision_activity.
+    # Gated like a Permit (migration 0074) -- "Planned" until every
+    # SupervisionPrerequisite Design activity is Complete, then
+    # "Eligible"; from there the user sets "In Progress"/"Complete"/
+    # "Cancelled" directly whenever they judge it done (based on
+    # site-engineer input) -- Supervision has no sub-tasks, so this is
+    # never auto-derived the way Design's status is. See
+    # project_service.set_supervision_status/
+    # _recompute_supervision_eligibility.
     status: Mapped[str] = mapped_column(
-        Enum(*SELECTED_ACTIVITY_STATUSES, name="supervision_activity_status"), nullable=False, default="Not Started"
+        Enum(*SELECTED_SUPERVISION_STATUSES, name="supervision_activity_status"), nullable=False, default="Planned"
     )
+    eligibility_met_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    eligibility_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     closed_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

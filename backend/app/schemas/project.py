@@ -53,20 +53,31 @@ class SelectedActivityIn(BaseModel):
 
 
 class SelectedSupervisionActivityOut(BaseModel):
+    # This project's own row id -- what set_supervision_status operates
+    # on (migration 0074), same convention as SelectedActivityOut.id/
+    # SelectedPermitOut.id.
+    id: str
     activityId: str
     activityName: str
     monthlyRate: float
     startDate: date
     endDate: date | None = None
+    status: str
+    eligibilityMetAt: datetime | None = None
+    closedAt: datetime | None = None
 
     @staticmethod
     def from_model(activity) -> "SelectedSupervisionActivityOut":
         return SelectedSupervisionActivityOut(
+            id=str(activity.id),
             activityId=activity.activity_id,
             activityName=activity.activity_name,
             monthlyRate=float(activity.monthly_rate),
             startDate=activity.start_date,
             endDate=activity.end_date,
+            status=activity.status,
+            eligibilityMetAt=activity.eligibility_met_at,
+            closedAt=activity.closed_at,
         )
 
 
@@ -411,6 +422,21 @@ class SetPermitStatusRequest(BaseModel):
     their own discretion (migration 0073), unlike Design's auto-close.
     'Eligible' isn't settable here: it's computed
     (project_service._recompute_permit_eligibility)."""
+
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def check_status(cls, value: str) -> str:
+        if value not in ("In Progress", "Complete", "Cancelled"):
+            raise ValueError("status must be 'In Progress', 'Complete', or 'Cancelled'")
+        return value
+
+
+class SetSupervisionStatusRequest(BaseModel):
+    """Same shape as SetPermitStatusRequest -- Supervision also has no
+    sub-tasks (migration 0074), the user sets this directly based on
+    their own read of site-engineer reports."""
 
     status: str
 
