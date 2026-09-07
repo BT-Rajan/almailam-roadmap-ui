@@ -87,6 +87,8 @@ export default {
     everyPartMustBeApproved: 'Every part has to be approved here before this project can move to Contract.',
     readyForContract: 'Every required payment plan is approved — this project is ready for Contract.',
     advanceToContract: 'Advance to Contract',
+    projectMovedOn: 'This project has moved on to {stage} — the payment plan below is shown for reference.',
+    goToStage: 'Go to {stage}',
     noPlanYetTitle: 'No payment plan yet',
     noPlanSupervisionDescription: "Create a payment plan to generate its day-prorated monthly schedule for this project.",
     noPlanDesignDescription: 'Create a one-time payment plan for this project — paid in full, or split into up to 5 installments you control.',

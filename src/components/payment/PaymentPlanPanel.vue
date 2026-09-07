@@ -20,7 +20,7 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import { hasProjectPassedStage } from '@/utils/projectHelpers'
+import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import type { AgreementStream, CreateAgreementInput, FinancialAgreement } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { SmartTableColumn } from '@/types/Table'
@@ -119,6 +119,21 @@ const allRequiredAgreementsApproved = () =>
 // Approved, so allRequiredAgreementsApproved() alone would keep this
 // banner dangling forever on an old Payment Plan tab visit.
 const showAdvanceToContractBanner = () => allRequiredAgreementsApproved() && !hasProjectPassedStage(props.project.currentStage, 'Contract')
+
+// The stepper (WorkflowProgress.vue) lets staff jump back to this tab
+// from a project that's already moved past it (e.g. reviewing the
+// approved plan while the project now sits at Design) -- see
+// stageContext in ProjectWorkspacePage.vue. Once that's happened, the
+// banner above correctly stops showing (it's not relevant anymore),
+// but nothing was left in its place saying where the project actually
+// is now or how to get back there -- the tab just went quiet, reading
+// as a dead end. This replaces it with a pointer to wherever
+// current_stage really is.
+const projectHasMovedOn = () => hasProjectPassedStage(props.project.currentStage, 'Contract')
+const currentStageLabel = () => t(getWorkflowStageLabelKey(props.project.currentStage))
+function goToCurrentStage(): void {
+  emit('navigate-tab', getWorkflowStageTabKey(props.project.currentStage))
+}
 
 const anyAgreementMissing = () => visibleStreams.value.some((stream) => !agreementForStream(stream))
 
@@ -245,6 +260,14 @@ async function handleConfirmDelete(): Promise<void> {
     >
       <p class="text-sm text-success-700">{{ t('payment.planPanel.readyForContract') }}</p>
       <BaseButton size="sm" :icon="advanceIcon" @click="handleAdvanceToContract">{{ t('payment.planPanel.advanceToContract') }}</BaseButton>
+    </div>
+
+    <div
+      v-if="projectHasMovedOn()"
+      class="flex flex-col items-start justify-between gap-3 rounded-lg border border-info-100 bg-info-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
+    >
+      <p class="text-sm text-info-700">{{ t('payment.planPanel.projectMovedOn', { stage: currentStageLabel() }) }}</p>
+      <BaseButton size="sm" :icon="advanceIcon" @click="goToCurrentStage">{{ t('payment.planPanel.goToStage', { stage: currentStageLabel() }) }}</BaseButton>
     </div>
 
     <div v-for="stream in visibleStreams" :key="stream" class="flex flex-col gap-4">

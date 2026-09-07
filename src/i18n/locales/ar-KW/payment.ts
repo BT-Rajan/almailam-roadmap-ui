@@ -87,6 +87,8 @@ export default {
     everyPartMustBeApproved: 'يجب اعتماد كل جزء هنا قبل أن ينتقل هذا المشروع إلى العقد.',
     readyForContract: 'تم اعتماد كل خطط الدفع المطلوبة — هذا المشروع جاهز للانتقال إلى العقد.',
     advanceToContract: 'التقدم إلى العقد',
+    projectMovedOn: 'انتقل هذا المشروع إلى {stage} — خطة الدفع أدناه معروضة للمرجعية فقط.',
+    goToStage: 'الانتقال إلى {stage}',
     noPlanYetTitle: 'لا توجد خطة دفع بعد',
     noPlanSupervisionDescription: 'أنشئ خطة دفع لإنشاء جدولها الشهري المحتسب تناسبياً لهذا المشروع.',
     noPlanDesignDescription: 'أنشئ خطة دفع لمرة واحدة لهذا المشروع — تُدفع كاملة، أو تُقسّم إلى حتى 5 دفعات تتحكم بها.',

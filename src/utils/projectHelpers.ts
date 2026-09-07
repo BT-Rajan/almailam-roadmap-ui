@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
+import type { ProjectPriority, ProjectStatus, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 
 // "Supervision" is an independent add-on stage that comes after
 // Government Submission (Approvals & Permits), not before it -- a
@@ -50,6 +50,45 @@ const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
 
 export function getWorkflowStageLabel(stage: WorkflowStage | string): string {
   return WORKFLOW_STAGE_LABELS[stage as WorkflowStage] ?? stage
+}
+
+// i18n key for each stage's translated label -- was previously only
+// defined inline as WorkflowProgress.vue's own STAGE_LABEL_KEYS. Pulled
+// out here so anything else that needs to name the project's current
+// stage (e.g. PaymentPlanPanel.vue pointing staff at wherever the
+// project actually is now) can render it in the active locale too,
+// instead of falling back to the English-only getWorkflowStageLabel
+// above.
+const WORKFLOW_STAGE_LABEL_KEYS: Record<WorkflowStage, string> = {
+  Requirement: 'project.stage.requirement',
+  Quotation: 'project.stage.quotation',
+  'Payment Plan': 'project.stage.paymentPlan',
+  Contract: 'project.stage.contract',
+  Design: 'project.stage.design',
+  Supervision: 'project.stage.supervision',
+  'Government Submission': 'project.stage.governmentSubmission',
+}
+
+export function getWorkflowStageLabelKey(stage: WorkflowStage): string {
+  return WORKFLOW_STAGE_LABEL_KEYS[stage]
+}
+
+// Single source of truth for "which tab covers this stage" -- was
+// previously only defined inline as WorkflowProgress.vue's own
+// STAGE_TABS. Pulled out here for the same reason as the label keys
+// above.
+const WORKFLOW_STAGE_TAB_KEYS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
+  Requirement: 'requirement',
+  Quotation: 'quotation',
+  'Payment Plan': 'payment-plan',
+  Contract: 'contract',
+  Design: 'design',
+  Supervision: 'supervision',
+  'Government Submission': 'government',
+}
+
+export function getWorkflowStageTabKey(stage: WorkflowStage): ProjectWorkspaceTabKey {
+  return WORKFLOW_STAGE_TAB_KEYS[stage]
 }
 
 const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {

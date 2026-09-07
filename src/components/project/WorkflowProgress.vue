@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import Stepper from '@/components/common/Stepper.vue'
 import type { ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
-import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { WORKFLOW_STAGES, getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey } from '@/utils/projectHelpers'
 
 interface Props {
   currentStage: WorkflowStage
@@ -23,18 +23,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const STAGE_LABEL_KEYS: Record<WorkflowStage, string> = {
-  Requirement: 'project.stage.requirement',
-  Quotation: 'project.stage.quotation',
-  'Payment Plan': 'project.stage.paymentPlan',
-  Contract: 'project.stage.contract',
-  Design: 'project.stage.design',
-  Supervision: 'project.stage.supervision',
-  'Government Submission': 'project.stage.governmentSubmission',
-}
-
 function stageLabel(stage: WorkflowStage): string {
-  return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
+  return t(getWorkflowStageLabelKey(stage) ?? getWorkflowStageLabel(stage))
 }
 
 // Every one of these stages jumps to the tab that covers it -- this
@@ -45,16 +35,6 @@ function stageLabel(stage: WorkflowStage): string {
 // details, scope of work, and its revision history/internal approval.
 // Government Submission is the terminal stage -- there is no further
 // stage past it.
-const STAGE_TABS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
-  Requirement: 'requirement',
-  Quotation: 'quotation',
-  'Payment Plan': 'payment-plan',
-  Contract: 'contract',
-  Design: 'design',
-  Supervision: 'supervision',
-  'Government Submission': 'government',
-}
-
 // Requirement/Quotation/Contract/Government Submission are common to
 // every project; Design and Supervision only show up as steps when this
 // project actually includes that kind of work.
@@ -86,7 +66,7 @@ const isStepNavigable = (): boolean => true
 
 function handleSelect(index: number): void {
   const stage = visibleStages.value[index]
-  if (stage) emit('navigate-tab', STAGE_TABS[stage])
+  if (stage) emit('navigate-tab', getWorkflowStageTabKey(stage))
 }
 </script>
 
