@@ -8,7 +8,6 @@ import type {
   ClientOnboardingRequirement,
   ClientOnboardingState,
   ClientStatus,
-  ClientVerification,
   ClientVerificationResult,
   OnboardingCheckContext,
 } from '@/types/Client'
@@ -17,7 +16,7 @@ import type { BadgeVariant } from '@/types/Ui'
 const ONBOARDING_STATE_VARIANTS: Record<ClientOnboardingState, BadgeVariant> = {
   'Information Required': 'warning',
   'Documents Required': 'warning',
-  'Under Review': 'info',
+  'Pending Verification': 'info',
   Ready: 'success',
   Rejected: 'danger',
   Suspended: 'neutral',
@@ -118,45 +117,19 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
 }
 
 /**
- * Verifications are append-only history (see client_service.py's
- * create_verification -- re-verifying something adds a new row, it
- * never edits or removes the old one, on purpose, so the audit trail
- * of who checked what and when is never lost). calculateOnboardingState()
- * below needs to know the CURRENT state of each item, not its whole
- * history -- without this, a document that was Pending and later
- * re-verified as Verified would still count as pending forever, because
- * the old Pending row is still sitting in the list. Same bug, worse
- * consequence, for Rejected: a client could get permanently stuck in
- * the Rejected onboarding state even after the actual problem was
- * fixed and re-verified, since the stale Rejected row never goes away
- * on its own.
+ * Recommends where a client's onboarding should be, purely from the
+ * data on file -- doesn't consult ClientVerification (that's now just
+ * an append-only audit record shown on the client workspace, no longer
+ * a gate; see the "Pending Verification" state itself, which is proven
+ * by a confirmed email OTP rather than a document verification result).
  *
- * Dedupes to one entry per item -- keyed by documentId when the
- * verification is tied to a specific document (matching how the
- * backend already keeps that document's own verification_status in
- * sync with its latest check), or by the item name otherwise -- keeping
- * only the most recent by verifiedDate.
- */
-function latestVerificationPerItem(verifications: ClientVerification[]): ClientVerification[] {
-  const latestByKey = new Map<string, ClientVerification>()
-  for (const verification of verifications) {
-    const key = verification.documentId ?? `item:${verification.item.trim().toLowerCase()}`
-    const existing = latestByKey.get(key)
-    if (!existing || new Date(verification.verifiedDate) > new Date(existing.verifiedDate)) {
-      latestByKey.set(key, verification)
-    }
-  }
-  return Array.from(latestByKey.values())
-}
-
-/**
- * Onboarding is only complete (Ready) once Identification is on file --
- * documents (category 'Document') and basic profile info (category
- * 'Information') are earlier gates (Documents Required / Information
- * Required respectively). A document that's been actively rejected on
- * verification still short-circuits straight to Rejected, same as before
- * -- that's a real problem flag, independent of which step the client
- * happens to be on.
+ * A client already sitting at 'Rejected' or 'Suspended' stays there --
+ * those are exception states a human put the client into on purpose,
+ * not something this recommendation should override. Missing documents
+ * or missing profile/identification info route back to the relevant
+ * data-collection step; once everything required is on file, the
+ * recommendation is 'Pending Verification' (send the OTP) unless the
+ * client has already cleared that and is 'Ready'.
  */
 export function calculateOnboardingState(
   client: Client,
@@ -164,19 +137,16 @@ export function calculateOnboardingState(
   contacts: ClientContact[],
   addresses: ClientAddress[],
   identifications: ClientIdentification[],
-  verifications: ClientVerification[],
 ): ClientOnboardingState {
   if (client.onboardingState === 'Rejected' || client.onboardingState === 'Suspended') {
     return client.onboardingState
   }
 
   const summary = evaluateOnboardingRequirements({ client, documents, contacts, addresses, identifications })
-  const currentVerifications = latestVerificationPerItem(verifications)
-  const hasRejectedVerification = currentVerifications.some((verification) => verification.result === 'Rejected')
 
-  if (hasRejectedVerification) return 'Rejected'
   if (summary.missingCategories.includes('Document')) return 'Documents Required'
-  if (summary.missingCategories.includes('Information')) return 'Information Required'
-  if (summary.missingCategories.includes('Identification')) return 'Under Review'
-  return 'Ready'
+  if (summary.missingCategories.includes('Information') || summary.missingCategories.includes('Identification')) {
+    return 'Information Required'
+  }
+  return client.onboardingState === 'Ready' ? 'Ready' : 'Pending Verification'
 }

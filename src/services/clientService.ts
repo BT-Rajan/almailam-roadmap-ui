@@ -536,6 +536,37 @@ async function autoAdvanceOnboarding(clientId: string): Promise<Client> {
   }
 }
 
+/**
+ * Sends (or resends) the email OTP that gates a client into "Ready" --
+ * see backend client_service.send_onboarding_otp. Moves "Documents
+ * Required" to "Pending Verification" on first send.
+ */
+async function sendOnboardingOtp(clientId: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/send-otp`, {})
+  } catch (error) {
+    console.error(`Failed to send verification code for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+  }
+}
+
+/**
+ * Confirms the code the client read back to staff. On success the
+ * backend moves the client to "Ready", provisions its Customer Portal
+ * login, and emails the client a welcome message -- see
+ * client_service.verify_onboarding_otp. Rejected with a specific
+ * message (wrong code, expired, too many attempts) that should be
+ * shown to the user as-is, not replaced with a generic fallback.
+ */
+async function verifyOnboardingOtp(clientId: string, code: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/verify-otp`, { code })
+  } catch (error) {
+    console.error(`Failed to verify code for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+  }
+}
+
 export type ClientVerificationInput = {
   item: string
   result: ClientVerificationResult
@@ -707,6 +738,8 @@ export const clientService = {
   createVerification,
   updateOnboardingState,
   autoAdvanceOnboarding,
+  sendOnboardingOtp,
+  verifyOnboardingOtp,
   findPossibleDuplicates,
   findIdentificationDuplicates,
   mergeClients,

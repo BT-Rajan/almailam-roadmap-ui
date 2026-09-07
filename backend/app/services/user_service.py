@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.security import hash_password
+from app.models.client import Client
 from app.models.user import User
 from app.schemas.user import ProfileUpdate, UserCreate, UserUpdate
 from app.services import audit_service
@@ -63,6 +64,43 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
     audit_service.log_event(
         db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role
     )
+    db.commit()
+    db.refresh(user)
+    return user, temporary_password
+
+
+def create_client_portal_user(db: Session, client: Client, actor_id: int | None) -> tuple[User, str]:
+    """Provisions (or re-provisions) the Customer Portal login for a
+    client whose onboarding OTP was just confirmed -- see
+    client_service.verify_onboarding_otp, the sole caller.
+
+    A client can be verified more than once in its lifetime (Ready ->
+    Suspended -> Pending Verification -> Ready again), so this reuses
+    the existing Customer account for that client_id when one's already
+    there instead of failing on the email-uniqueness constraint --
+    same "reset instead of recreate" idea as reset_user_password.
+    """
+    existing = db.query(User).filter(User.client_id == client.id, User.deleted_at.is_(None)).first()
+    if existing is not None:
+        return reset_user_password(db, existing.id, actor_id)
+
+    if db.query(User).filter(User.email == client.email).first() is not None:
+        raise ConflictError("A user with this email already exists.")
+
+    temporary_password = _generate_temporary_password()
+    user = User(
+        username=client.email,
+        email=client.email,
+        password_hash=hash_password(temporary_password),
+        full_name=client.contact_person,
+        role="Customer",
+        customer_id=f"CUS-{client.id:04d}",
+        client_id=client.id,
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+    audit_service.log_event(db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role)
     db.commit()
     db.refresh(user)
     return user, temporary_password

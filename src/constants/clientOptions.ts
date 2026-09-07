@@ -120,7 +120,7 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
   { label: 'All Onboarding States', value: 'All', labelKey: 'clientOptions.onboardingState.all' },
   { label: 'Information Required', value: 'Information Required', labelKey: 'clientOptions.onboardingState.informationRequired' },
   { label: 'Documents Required', value: 'Documents Required', labelKey: 'clientOptions.onboardingState.documentsRequired' },
-  { label: 'Under Review', value: 'Under Review', labelKey: 'clientOptions.onboardingState.underReview' },
+  { label: 'Pending Verification', value: 'Pending Verification', labelKey: 'clientOptions.onboardingState.pendingVerification' },
   { label: 'Ready', value: 'Ready', labelKey: 'clientOptions.onboardingState.ready' },
   { label: 'Rejected', value: 'Rejected', labelKey: 'clientOptions.onboardingState.rejected' },
   { label: 'Suspended', value: 'Suspended', labelKey: 'clientOptions.onboardingState.suspended' },
@@ -131,12 +131,21 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
 // enforcement (it re-validates every transition server-side); this copy
 // only drives which options the UI offers, so a mismatch fails safe (the
 // backend rejects it) rather than open.
+//
+// "Under Review" was replaced by "Pending Verification" -- there's no
+// more manual eyeball review; staff send the client an email OTP and
+// enter the code the client reads back (see ClientOtpVerificationDialog
+// and clientStore.sendOnboardingOtp/verifyOnboardingOtp). "Ready" is
+// deliberately NOT offered here as a manual "Change Status" target even
+// though the backend's own table allows it -- it's reachable only through
+// a confirmed OTP, never a bare status change (see ClientOnboardingStatusDialog,
+// which reads this table to build its option list).
 export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState, ClientOnboardingState[]> = {
   'Information Required': ['Documents Required'],
-  'Documents Required': ['Under Review'],
-  'Under Review': ['Ready', 'Rejected', 'Documents Required'],
+  'Documents Required': ['Pending Verification'],
+  'Pending Verification': ['Rejected', 'Documents Required'],
   Ready: ['Suspended'],
-  Suspended: ['Under Review', 'Rejected'],
+  Suspended: ['Pending Verification', 'Rejected'],
   Rejected: ['Information Required'],
 }
 

@@ -22,6 +22,7 @@ import ClientIdentificationEditDialog from '@/components/client/ClientIdentifica
 import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
 import ClientOnboardingStatusDialog from '@/components/client/ClientOnboardingStatusDialog.vue'
+import ClientOtpVerificationDialog from '@/components/client/ClientOtpVerificationDialog.vue'
 import ClientWorkspaceTabs from '@/components/client/ClientWorkspaceTabs.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
@@ -68,6 +69,9 @@ const isUploadDialogOpen = ref(false)
 const isStatusDialogOpen = ref(false)
 const isOnboardingStateSaving = ref(false)
 const isVerificationDialogOpen = ref(false)
+const isOtpDialogOpen = ref(false)
+const isOtpSaving = ref(false)
+const otpStep = ref<'send' | 'enter-code'>('send')
 const isVerificationSaving = ref(false)
 const verificationDialogTarget = ref<ClientDocument | null>(null)
 const isEditDialogOpen = ref(false)
@@ -308,6 +312,44 @@ async function handleAutoAdvanceOnboarding(): Promise<void> {
 
 function handleConfirmStatusChange(payload: { onboardingState: ClientOnboardingState; reason?: string }): void {
   void applyOnboardingState(payload.onboardingState, payload.reason)
+}
+
+function handleOpenOtpDialog(): void {
+  otpStep.value = client.value?.onboardingState === 'Pending Verification' ? 'enter-code' : 'send'
+  isOtpDialogOpen.value = true
+}
+
+async function handleSendOtp(): Promise<void> {
+  if (!client.value) return
+  isOtpSaving.value = true
+  try {
+    await clientStore.sendOnboardingOtp(client.value.id)
+    otpStep.value = 'enter-code'
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.otpVerificationDialog.failedToSend'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
+}
+
+async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+  if (!client.value) return
+  const email = client.value.email
+  isOtpSaving.value = true
+  try {
+    await clientStore.verifyOnboardingOtp(client.value.id, payload.code)
+    resultDialogStore.showSuccess(
+      t('client.workspacePage.resultDialog.clientVerifiedTitle'),
+      t('client.workspacePage.resultDialog.welcomeEmailSent', { email }),
+    )
+    isOtpDialogOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.otpVerificationDialog.failedToVerify'), detail)
+  } finally {
+    isOtpSaving.value = false
+  }
 }
 
 function openVerificationDialog(document?: ClientDocument): void {
@@ -760,10 +802,10 @@ function createProjectForClient(): void {
             :contacts="clientStore.contacts"
             :addresses="clientStore.addresses"
             :identifications="clientStore.identifications"
-            :verifications="clientStore.verifications"
             :loading="isOnboardingStateSaving"
             @autoAdvance="handleAutoAdvanceOnboarding"
             @change-status="isStatusDialogOpen = true"
+            @verifyEmail="handleOpenOtpDialog"
           />
           <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
@@ -909,6 +951,14 @@ function createProjectForClient(): void {
         :current-state="client.onboardingState"
         :loading="isOnboardingStateSaving"
         @confirm="handleConfirmStatusChange"
+      />
+      <ClientOtpVerificationDialog
+        v-model="isOtpDialogOpen"
+        :email="client.email"
+        :step="otpStep"
+        :loading="isOtpSaving"
+        @send="handleSendOtp"
+        @confirm="handleConfirmOtp"
       />
       <ClientVerificationDialog
         v-model="isVerificationDialogOpen"

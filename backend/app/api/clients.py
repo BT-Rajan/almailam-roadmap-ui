@@ -33,6 +33,7 @@ from app.schemas.client import (
     ClientIdentificationUpdate,
     ClientMergeRequest,
     ClientOnboardingStateUpdate,
+    ClientOtpVerifyRequest,
     ClientOut,
     ClientStatusUpdate,
     ClientUpdate,
@@ -250,6 +251,33 @@ def auto_advance_onboarding(
 ):
     client = client_service.auto_advance_onboarding(
         db, client_service.parse_client_id(client_id), current_user.id
+    )
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
+
+
+@router.post("/{client_id}/onboarding-state/send-otp", response_model=ClientOut)
+def send_onboarding_otp(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    client = client_service.send_onboarding_otp(
+        db, client_service.parse_client_id(client_id), current_user.id
+    )
+    names = _account_manager_names(db, [client])
+    return _client_out(client, names)
+
+
+@router.post("/{client_id}/onboarding-state/verify-otp", response_model=ClientOut)
+def verify_onboarding_otp(
+    client_id: str,
+    payload: ClientOtpVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    client = client_service.verify_onboarding_otp(
+        db, client_service.parse_client_id(client_id), payload.code, current_user.id
     )
     names = _account_manager_names(db, [client])
     return _client_out(client, names)

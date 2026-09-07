@@ -5,7 +5,7 @@ export type ClientType = 'Individual' | 'Company' | 'Organisation' | 'Government
 export type ClientOnboardingState =
   | 'Information Required'
   | 'Documents Required'
-  | 'Under Review'
+  | 'Pending Verification'
   | 'Ready'
   | 'Rejected'
   | 'Suspended'

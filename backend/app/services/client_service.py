@@ -1,4 +1,5 @@
 import re
+import secrets
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import UploadFile
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
+from app.core.security import hash_password, verify_password
 from app.core.status_transitions import (
     CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
     CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON,
@@ -27,9 +29,12 @@ from app.models.client import (
     ClientIdentification,
     ClientVerification,
 )
-from app.services import audit_service, company_service, notification_service
+from app.services import audit_service, company_service, email_service, notification_service, user_service
 
 ENTITY_TYPE = "CLIENT"
+OTP_LENGTH = 6
+OTP_VALIDITY_MINUTES = 10
+OTP_MAX_ATTEMPTS = 5
 
 
 def parse_client_id(raw: str) -> int:
@@ -154,17 +159,18 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
         mobile=payload.mobile,
         email=payload.email,
         city=payload.city,
-        # New clients go straight to "Ready" instead of starting the
-        # multi-step onboarding pipeline (Information Required ->
-        # Documents Required -> Under Review) -- the New Client wizard
-        # already requires full contact, address, identification and
-        # consent details up front, so there is nothing left for that
-        # pipeline to gate. They can be selected on a project immediately
-        # (see project_service.create_project's onboarding_state ==
-        # "Ready" check). Staff can still move a client to any of the
-        # review states manually afterwards via "Change Status" on the
-        # client workspace page if something needs a closer look.
-        onboarding_state="Ready",
+        # New clients skip straight past the data-collection steps
+        # (Information Required -> Documents Required) -- the New Client
+        # wizard already requires full contact, address, identification
+        # and consent details up front, so there's nothing left for those
+        # to gate. They land at "Pending Verification" instead of "Ready"
+        # though: a client can't be selected on a project (see
+        # project_service.create_project's onboarding_state == "Ready"
+        # check) until staff have sent them an email OTP and confirmed
+        # the code back (see send_onboarding_otp/verify_onboarding_otp
+        # below), which is also what provisions their Customer Portal
+        # login and sends the welcome email.
+        onboarding_state="Pending Verification",
         preferred_language=payload.communicationPreference.preferredLanguage,
         preferred_channel=payload.communicationPreference.preferredChannel,
         email_consent=payload.communicationPreference.emailConsent,
@@ -374,6 +380,113 @@ def auto_advance_onboarding(db: Session, client_id: int, user_id: int | None) ->
         client = set_onboarding_state(db, client_id, next_state, None, user_id)
         hops += 1
     return client
+
+
+def _generate_otp_code() -> str:
+    return "".join(str(secrets.randbelow(10)) for _ in range(OTP_LENGTH))
+
+
+def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Client:
+    """Sends (or resends) the email OTP that gates onboarding into
+    "Ready". Moves "Documents Required" -> "Pending Verification" on the
+    first send; resending while already "Pending Verification" is a
+    same-state no-op as far as the state machine is concerned (assert_
+    transition_allowed treats current == new as always legal) -- it just
+    regenerates the code and restarts the attempt counter and expiry.
+    """
+    client = get_client(db, client_id)
+    assert_transition_allowed(
+        CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, client.onboarding_state, "Pending Verification", "client"
+    )
+
+    code = _generate_otp_code()
+    client.otp_code_hash = hash_password(code)
+    client.otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_VALIDITY_MINUTES)
+    client.otp_attempts = 0
+    client.otp_sent_at = datetime.now(timezone.utc)
+
+    if client.onboarding_state != "Pending Verification":
+        client = set_onboarding_state(db, client_id, "Pending Verification", None, user_id)
+    else:
+        db.commit()
+        db.refresh(client)
+
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Verification OTP sent", user_id)
+    db.commit()
+
+    email_service.send_email(
+        client.email,
+        "Your Al Mailam verification code",
+        f"Your verification code is {code}.\n\n"
+        f"Share this code with the staff member handling your onboarding to confirm your "
+        f"email address. It expires in {OTP_VALIDITY_MINUTES} minutes.\n\n"
+        "If you didn't request this, you can safely ignore this email.",
+        db=db,
+    )
+    return client
+
+
+def verify_onboarding_otp(db: Session, client_id: int, code: str, user_id: int | None) -> Client:
+    """Confirms the code the client read back to staff. Success is what
+    actually moves the client to "Ready" -- this is the only caller of
+    set_onboarding_state(..., "Ready", ...) in the whole onboarding flow,
+    deliberately not exposed as a manual "Change Status" option (see the
+    comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Also provisions the
+    client's Customer Portal login and emails them a welcome message the
+    moment verification succeeds, so "Ready" always means the client can
+    both be put on a project and already has portal access.
+    """
+    client = get_client(db, client_id)
+    if client.onboarding_state != "Pending Verification":
+        raise ValidationAppError("This client isn't awaiting email verification.")
+    if not client.otp_code_hash or not client.otp_expires_at:
+        raise ValidationAppError("No verification code has been sent yet. Send one first.")
+    if datetime.now(timezone.utc).replace(tzinfo=None) > client.otp_expires_at:
+        raise ValidationAppError("This code has expired. Send a new one.")
+    if client.otp_attempts >= OTP_MAX_ATTEMPTS:
+        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+
+    if not verify_password(code.strip(), client.otp_code_hash):
+        client.otp_attempts += 1
+        db.commit()
+        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+
+    client.otp_code_hash = None
+    client.otp_expires_at = None
+    client.otp_attempts = 0
+    client.otp_sent_at = None
+    db.commit()
+
+    client = set_onboarding_state(db, client_id, "Ready", None, user_id)
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via OTP", user_id)
+    db.commit()
+
+    portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
+    _send_welcome_email(db, client, portal_user, temporary_password)
+    return client
+
+
+def _send_welcome_email(db: Session, client: Client, portal_user: User, temporary_password: str) -> None:
+    profile_lines = [
+        f"Client type: {client.client_type}",
+        f"Name: {client.company_name}",
+        f"Contact person: {client.contact_person}",
+        f"Mobile: {client.mobile}",
+        f"Email: {client.email}",
+        f"City: {client.city}",
+        f"Preferred language: {client.preferred_language}",
+        f"Preferred contact channel: {client.preferred_channel}",
+    ]
+    body = (
+        f"Dear {client.contact_person},\n\n"
+        "Welcome to Al Mailam! Your email has been verified and your onboarding is complete.\n\n"
+        "Here are the details we have on file for you:\n" + "\n".join(profile_lines) + "\n\n"
+        "You can now sign in to the Client Portal to track your projects:\n"
+        f"Customer ID: {portal_user.customer_id}\n"
+        f"Temporary password: {temporary_password}\n\n"
+        "For your security, please sign in and change this password as soon as possible."
+    )
+    email_service.send_email(client.email, "Welcome to Al Mailam -- your account is ready", body, db=db)
 
 
 def check_and_notify_stale_onboarding(db: Session) -> int:

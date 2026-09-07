@@ -48,7 +48,7 @@ export default {
     all: 'All Onboarding States',
     informationRequired: 'Information Required',
     documentsRequired: 'Documents Required',
-    underReview: 'Under Review',
+    pendingVerification: 'Pending Verification',
     ready: 'Ready',
     rejected: 'Rejected',
     suspended: 'Suspended',

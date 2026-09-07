@@ -366,6 +366,20 @@ export const useClientStore = defineStore('client', {
       return updated
     },
 
+    async sendOnboardingOtp(clientId: string) {
+      const updated = await clientService.sendOnboardingOtp(clientId)
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
+    },
+
+    async verifyOnboardingOtp(clientId: string, code: string) {
+      const updated = await clientService.verifyOnboardingOtp(clientId, code)
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      return updated
+    },
+
     // Records a verification check via the backend API. When it's tied to
     // a specific document, the backend also updates that document's own
     // verificationStatus in the same transaction -- mirrored here on the

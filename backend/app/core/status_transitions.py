@@ -70,14 +70,28 @@ TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 # completeness is now judged on Identification and Consent being on
 # file (see clientHelpers.ts's calculateOnboardingState), not on
 # document verification, so "Documents Required" now moves straight to
-# "Under Review". Document verification itself is unaffected -- it's
-# still recorded per-document, it just no longer gates onboarding.
+# the verification step. Document verification (ClientVerification
+# records) is unaffected -- it's still recorded per-document, it just
+# no longer gates onboarding.
+#
+# "Under Review" (migration 0066) was replaced by "Pending Verification"
+# -- there's no more manual eyeball review; staff instead send the
+# client an email OTP and confirm the code the client reads back (see
+# client_service.send_onboarding_otp/verify_onboarding_otp). "Ready" is
+# deliberately reachable from "Pending Verification" ONLY through
+# verify_onboarding_otp's own set_onboarding_state() call, never through
+# a bare status-change action -- it's the one hop in this table that
+# isn't offered as a manual transition target by the frontend's
+# "Change Status" dialog (see CLIENT_ONBOARDING_ALLOWED_TRANSITIONS'
+# mirror in src/constants/clientOptions.ts), even though it's listed
+# here so assert_transition_allowed still accepts it when the OTP
+# service call makes it.
 CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Information Required": {"Documents Required"},
-    "Documents Required": {"Under Review"},
-    "Under Review": {"Ready", "Rejected", "Documents Required"},
+    "Documents Required": {"Pending Verification"},
+    "Pending Verification": {"Ready", "Rejected", "Documents Required"},
     "Ready": {"Suspended"},
-    "Suspended": {"Under Review", "Rejected"},
+    "Suspended": {"Pending Verification", "Rejected"},
     "Rejected": {"Information Required"},
 }
 CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}

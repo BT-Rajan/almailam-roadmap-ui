@@ -12,7 +12,7 @@ CLIENT_STATUSES = ("Active", "Inactive")
 CLIENT_ONBOARDING_STATES = (
     "Information Required",
     "Documents Required",
-    "Under Review",
+    "Pending Verification",
     "Ready",
     "Rejected",
     "Suspended",
@@ -60,6 +60,17 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     # set_onboarding_state), so a fresh staleness period starts if it
     # stalls again later at a different step.
     onboarding_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # -- email OTP verification (replaces the old manual "Under Review" step) --
+    # otp_code_hash is bcrypt-hashed the same way as User.password_hash (see
+    # app.core.security.hash_password/verify_password) -- never stored in
+    # plaintext. All four are cleared the moment verification succeeds (see
+    # client_service.verify_onboarding_otp), so a non-null otp_code_hash
+    # always means "a code is currently outstanding".
+    otp_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    otp_attempts: Mapped[int] = mapped_column(nullable=False, default=0)
+    otp_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # -- individualProfile (only populated when client_type == 'Individual') --
     ind_full_legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)

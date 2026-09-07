@@ -58,6 +58,7 @@ export default {
     noFurtherChanges: 'No further status changes are available from this status.',
     advance: 'Advance',
     changeStatus: 'Change Status',
+    verifyEmail: 'Verify Client Email',
   },
 
   verificationList: {
@@ -145,6 +146,8 @@ export default {
       verificationRecordedTitle: 'Verification recorded',
       markedAsResult: '"{item}" marked as {result}.',
       failedToRecordVerification: 'Failed to record verification',
+      clientVerifiedTitle: 'Client verified',
+      welcomeEmailSent: 'Client email confirmed. A welcome email with Client Portal credentials was sent to {email}.',
       clientUpdatedTitle: 'Client updated',
       changesSavedSuccessfully: 'Changes were saved successfully.',
       failedToUpdateClient: 'Failed to update client',
@@ -314,7 +317,7 @@ export default {
     resumeDraft: 'Resume Draft',
     clientSubmittedTitle: 'Client Submitted',
     clientSubmittedMessagePart1: 'was successfully created as client',
-    clientReadyNotice: 'The client is Ready and can be selected on a new project right away.',
+    clientReadyNotice: 'Next, send the client an email verification code from their workspace. Once confirmed, they\'ll be Ready to select on a project and will receive their Client Portal login.',
     viewClientWorkspace: 'View Client Workspace',
     failedToOnboardClient: 'Failed to onboard client',
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
@@ -438,6 +441,19 @@ export default {
     newStatus: 'New Status',
     reason: 'Reason',
     reasonRequiredHint: 'Required for this status change',
+  },
+
+  otpVerificationDialog: {
+    title: 'Verify Client Email',
+    sendStepDescription: "Send a one-time verification code to {email}. Ask the client to read it back to you once they've received it.",
+    sendCode: 'Send Verification Code',
+    resendCode: 'Resend code',
+    codeSentTo: 'A verification code was sent to {email}.',
+    codeLabel: 'Verification Code',
+    codePlaceholder: 'Enter the 6-digit code',
+    confirm: 'Confirm',
+    failedToSend: 'Failed to send verification code',
+    failedToVerify: 'Failed to verify code',
   },
 
   verificationDialog: {

@@ -103,7 +103,7 @@ function clientTypeLabel(clientType: string): string {
 const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
   'Information Required': 'clientOptions.onboardingState.informationRequired',
   'Documents Required': 'clientOptions.onboardingState.documentsRequired',
-  'Under Review': 'clientOptions.onboardingState.underReview',
+  'Pending Verification': 'clientOptions.onboardingState.pendingVerification',
   Ready: 'clientOptions.onboardingState.ready',
   Rejected: 'clientOptions.onboardingState.rejected',
   Suspended: 'clientOptions.onboardingState.suspended',

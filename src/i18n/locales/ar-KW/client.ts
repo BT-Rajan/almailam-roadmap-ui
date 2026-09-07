@@ -58,6 +58,7 @@ export default {
     noFurtherChanges: 'لا تتوفر تغييرات أخرى للحالة من هذه المرحلة.',
     advance: 'تقديم',
     changeStatus: 'تغيير الحالة',
+    verifyEmail: 'التحقق من بريد العميل',
   },
 
   verificationList: {
@@ -145,6 +146,8 @@ export default {
       verificationRecordedTitle: 'تم تسجيل التحقق',
       markedAsResult: 'تم وضع علامة على "{item}" بـ {result}.',
       failedToRecordVerification: 'فشل تسجيل التحقق',
+      clientVerifiedTitle: 'تم التحقق من العميل',
+      welcomeEmailSent: 'تم تأكيد البريد الإلكتروني للعميل. تم إرسال رسالة ترحيب تحتوي على بيانات دخول بوابة العميل إلى {email}.',
       clientUpdatedTitle: 'تم تحديث العميل',
       changesSavedSuccessfully: 'تم حفظ التغييرات بنجاح.',
       failedToUpdateClient: 'فشل تحديث العميل',
@@ -314,7 +317,7 @@ export default {
     resumeDraft: 'استئناف المسودة',
     clientSubmittedTitle: 'تم إرسال العميل',
     clientSubmittedMessagePart1: 'تم إنشاؤه بنجاح كعميل',
-    clientReadyNotice: 'حالة العميل جاهز، ويمكن اختياره في مشروع جديد على الفور.',
+    clientReadyNotice: 'بعد ذلك، أرسل للعميل رمز تحقق عبر البريد الإلكتروني من صفحة العميل. بعد تأكيد الرمز، تصبح حالته "جاهز" ويمكن اختياره في مشروع، وسيصله بريد يحتوي على بيانات دخول بوابة العميل.',
     viewClientWorkspace: 'عرض مساحة عمل العميل',
     failedToOnboardClient: 'فشلت تهيئة العميل',
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
@@ -438,6 +441,19 @@ export default {
     newStatus: 'الحالة الجديدة',
     reason: 'السبب',
     reasonRequiredHint: 'مطلوب لهذا التغيير في الحالة',
+  },
+
+  otpVerificationDialog: {
+    title: 'التحقق من بريد العميل',
+    sendStepDescription: 'أرسل رمز تحقق لمرة واحدة إلى {email}. اطلب من العميل قراءة الرمز لك بعد استلامه.',
+    sendCode: 'إرسال رمز التحقق',
+    resendCode: 'إعادة إرسال الرمز',
+    codeSentTo: 'تم إرسال رمز تحقق إلى {email}.',
+    codeLabel: 'رمز التحقق',
+    codePlaceholder: 'أدخل الرمز المكوّن من 6 أرقام',
+    confirm: 'تأكيد',
+    failedToSend: 'فشل إرسال رمز التحقق',
+    failedToVerify: 'فشل التحقق من الرمز',
   },
 
   verificationDialog: {

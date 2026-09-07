@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftCircle, ArrowRightCircle, Settings2 } from '@lucide/vue'
+import { ArrowLeftCircle, ArrowRightCircle, Mail, Settings2 } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,7 +8,7 @@ import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, CLIENT_ONBOARDING_STATES_REQUIRING_REASON } from '@/constants/clientOptions'
 import { useLocale } from '@/composables/useLocale'
-import type { Client, ClientAddress, ClientContact, ClientDocument, ClientIdentification, ClientVerification } from '@/types/Client'
+import type { Client, ClientAddress, ClientContact, ClientDocument, ClientIdentification } from '@/types/Client'
 import { calculateOnboardingState, getClientOnboardingStateVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
@@ -17,13 +17,13 @@ const props = defineProps<{
   contacts: ClientContact[]
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
-  verifications: ClientVerification[]
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
   autoAdvance: []
   changeStatus: []
+  verifyEmail: []
 }>()
 
 const { t } = useI18n()
@@ -36,7 +36,7 @@ const advanceIcon = computed(() => (isRtl.value ? ArrowLeftCircle : ArrowRightCi
 const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
   'Information Required': 'clientOptions.onboardingState.informationRequired',
   'Documents Required': 'clientOptions.onboardingState.documentsRequired',
-  'Under Review': 'clientOptions.onboardingState.underReview',
+  'Pending Verification': 'clientOptions.onboardingState.pendingVerification',
   Ready: 'clientOptions.onboardingState.ready',
   Rejected: 'clientOptions.onboardingState.rejected',
   Suspended: 'clientOptions.onboardingState.suspended',
@@ -59,12 +59,20 @@ const recommendedState = computed(() =>
     props.contacts,
     props.addresses,
     props.identifications,
-    props.verifications,
   ),
 )
 
 const availableTransitions = computed(
   () => CLIENT_ONBOARDING_ALLOWED_TRANSITIONS[props.client.onboardingState] ?? [],
+)
+
+// The one path to "Ready" -- a confirmed email OTP, not a manual status
+// change (see the comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Shown
+// once there's nothing left to collect ("Documents Required", to send the
+// first code) and while a code is outstanding ("Pending Verification", to
+// enter it or resend).
+const canVerifyEmail = computed(
+  () => props.client.onboardingState === 'Documents Required' || props.client.onboardingState === 'Pending Verification',
 )
 
 // The bulk "Advance" action only makes sense when the current step has
@@ -75,8 +83,14 @@ const availableTransitions = computed(
 // what used to be several separate "Change Status" round trips for the
 // common, no-real-decision case. Anything else -- a branch point, a
 // dead end, or a reason-gated step -- falls through to "Change Status".
+// Excluded whenever "Verify Client Email" is showing: a bare advance
+// would flip the status without ever sending the OTP, leaving the
+// client stuck "Pending Verification" with no code on its way.
 const canAutoAdvance = computed(
-  () => availableTransitions.value.length === 1 && !CLIENT_ONBOARDING_STATES_REQUIRING_REASON.includes(availableTransitions.value[0]),
+  () =>
+    !canVerifyEmail.value &&
+    availableTransitions.value.length === 1 &&
+    !CLIENT_ONBOARDING_STATES_REQUIRING_REASON.includes(availableTransitions.value[0]),
 )
 </script>
 
@@ -101,6 +115,15 @@ const canAutoAdvance = computed(
       </p>
 
       <div class="flex flex-wrap items-center gap-2">
+        <BaseButton
+          v-if="canVerifyEmail"
+          size="sm"
+          :icon="Mail"
+          :loading="loading"
+          @click="emit('verifyEmail')"
+        >
+          {{ t('client.onboardingActions.verifyEmail') }}
+        </BaseButton>
         <BaseButton
           v-if="canAutoAdvance"
           size="sm"

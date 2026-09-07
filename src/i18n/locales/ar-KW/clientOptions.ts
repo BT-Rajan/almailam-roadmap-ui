@@ -48,7 +48,7 @@ export default {
     all: 'جميع مراحل التهيئة',
     informationRequired: 'يتطلب معلومات',
     documentsRequired: 'يتطلب مستندات',
-    underReview: 'قيد المراجعة',
+    pendingVerification: 'بانتظار التحقق',
     ready: 'جاهز',
     rejected: 'مرفوض',
     suspended: 'موقوف',
