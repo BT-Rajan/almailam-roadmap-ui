@@ -35,7 +35,7 @@ import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
-import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel, hasProjectPassedStage } from '@/utils/projectHelpers'
+import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -383,7 +383,7 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 }
 
 function scopeConfirmationLabel(confirmed: boolean): string {
-  return t(confirmed ? 'project.requirementTab.clientConfirmed' : 'project.scopeStatus.awaitingConfirmation')
+  return t(confirmed ? 'project.requirementTab.confirmed' : 'project.scopeStatus.awaitingConfirmation')
 }
 
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
@@ -543,13 +543,6 @@ function verificationResultLabel(result: string): string {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requirementTitle') }}</h3>
           <div class="flex items-center gap-2 no-print">
-            <BaseButton
-              v-if="project.scopeClientConfirmedAt && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
-              size="sm"
-              @click="emit('navigate-tab', 'quotation')"
-            >
-              {{ t('project.overviewTab.advanceToQuotation') }}
-            </BaseButton>
             <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">{{ t('project.overviewTab.goToRequirement') }}</BaseButton>
           </div>
         </div>

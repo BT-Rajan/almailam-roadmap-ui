@@ -102,16 +102,18 @@ Session = sessionmaker(bind=engine)
 db = Session()
 
 # -- Headless email -------------------------------------------------
-# Every email-OTP-gated confirmation step in this app (Requirement,
-# Quotation, Contract, Hand-over, both Client onboarding flows) is now
-# confirmed by uploading a scan of the client's physically signed copy
-# instead (see confirm_requirement_scope/confirm_quotation_approval/
-# confirm_contract_signing/confirm_project_handover/confirm_onboarding_
-# verification/confirm_onboarding_request) -- see MINI_PDF_BYTES/
-# _pdf_upload below for the fake upload this script uses. SMTP is still
-# mocked out since some of those confirmations also email the client a
-# courtesy copy, and there's no guarantee SMTP is configured in
-# whatever environment this runs in.
+# Most email-OTP-gated confirmation steps in this app (Quotation,
+# Contract, Hand-over, both Client onboarding flows) are now confirmed
+# by uploading a scan of the client's physically signed copy instead
+# (see confirm_quotation_approval/confirm_contract_signing/
+# confirm_project_handover/confirm_onboarding_verification/
+# confirm_onboarding_request) -- see MINI_PDF_BYTES/_pdf_upload below
+# for the fake upload this script uses. Requirement's own confirm_
+# requirement_scope is the one exception: it's a direct staff action
+# with no client artifact at all. SMTP is still mocked out since some
+# of these confirmations also email the client a courtesy copy, and
+# there's no guarantee SMTP is configured in whatever environment this
+# runs in.
 _email_patch = patch("app.services.email_service.send_email")
 _doc_email_patch = patch("app.services.email_service.send_document_email")
 _email_patch.start()
@@ -408,14 +410,15 @@ def create_demo_project(
 
 def do_requirement(actor: user_models.User, project, client, *, add_id: bool, confirm: bool) -> None:
     """Enters the scope of work; optionally adds the client's
-    identification document and confirms it with a signed-document
-    upload, which is what actually lets the project leave Requirement
-    (see project_service._assert_stage_exit_criteria)."""
+    identification document and confirms it directly (a staff-side
+    action, no client artifact involved), which is what actually lets
+    the project leave Requirement (see
+    project_service._assert_stage_exit_criteria)."""
     project_service.save_scope_of_work(db, project.project_no, SCOPE_TEXT, "Initial scope of work", actor.id)
     if add_id:
         add_identification(actor, client)
     if confirm:
-        project_service.confirm_requirement_scope(db, project.project_no, _pdf_upload("scope-confirmation.pdf"), actor.id)
+        project_service.confirm_requirement_scope(db, project.project_no, actor.id)
 
 
 def do_quotation(actor: user_models.User, project, *, approve: bool):

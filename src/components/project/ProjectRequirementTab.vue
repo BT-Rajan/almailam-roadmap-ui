@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, Mail, MessageSquare } from '@lucide/vue'
+import { MessageSquare, ShieldCheck } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -8,13 +8,11 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import ScopeRevisionHistory from '@/components/project/ScopeRevisionHistory.vue'
-import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
 import { useClientStore } from '@/stores/clientStore'
@@ -25,7 +23,6 @@ import type { Client } from '@/types/Client'
 import type { Project, ProjectWorkspaceTabKey, ScopeOfWork, ScopeRevision } from '@/types/Project'
 import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 import { triggerBlobDownload } from '@/utils/fileDownload'
-import { hasProjectPassedStage } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -42,11 +39,6 @@ const clientStore = useClientStore()
 const quotationStore = useQuotationStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
-const { isRtl } = useLocale()
-
-// Points the way this action advances the project, which flips with
-// reading direction.
-const advanceIcon = computed(() => (isRtl.value ? ArrowLeft : ArrowRight))
 
 // Once any of this project's quotations has been finalized, the scope
 // it was built against is frozen too -- see backend project_service.
@@ -65,8 +57,7 @@ const summaryDraft = ref('')
 const selectedFile = ref<File>()
 const isSaving = ref(false)
 
-const isConfirmDialogOpen = ref(false)
-const isConfirmSaving = ref(false)
+const isConfirming = ref(false)
 
 async function load(): Promise<void> {
   isLoading.value = true
@@ -83,12 +74,11 @@ async function load(): Promise<void> {
 
 // Mirrors the real exit criterion for Requirement -> Quotation exactly
 // (project_service._assert_stage_exit_criteria) -- an identification
-// record on file, not just any uploaded document. Confirming with the
-// client without this used to "succeed" but silently leave the project
-// stuck at Requirement with no explanation (try_auto_advance_stage
-// no-ops quietly when the criteria aren't met yet) -- surfaced here
-// instead so staff know what's actually still missing before they send
-// the confirmation code.
+// record on file, not just any uploaded document. Confirming without
+// this fails outright server-side (confirm_requirement_scope raises)
+// -- surfaced here proactively so staff know what's still missing
+// before they click Confirm rather than only finding out from the
+// error toast.
 function loadClientIdentification(): void {
   if (props.client) clientStore.loadClientDetail(props.client.id)
 }
@@ -104,11 +94,11 @@ const canSave = computed(
   () => !isRequirementLocked.value && scopeDraft.value.trim().length > 0 && (hasTextChanged.value || Boolean(selectedFile.value)),
 )
 // Scope of work has to actually be saved (and not have unsaved edits
-// sitting in the textarea) before it's confirmed with the client --
-// there's no separate internal sign-off step anymore, so the client's
-// own signed confirmation (canConfirmWithClient below) is the only
+// sitting in the textarea) before it's confirmed -- there's no
+// separate internal sign-off step, and no client-facing step either,
+// so this direct confirm action (canConfirm below) is the only
 // approval this stage requires.
-const canConfirmWithClient = computed(
+const canConfirm = computed(
   () =>
     !isRequirementLocked.value &&
     (scopeOfWork.value?.description ?? '').trim().length > 0 &&
@@ -116,53 +106,34 @@ const canConfirmWithClient = computed(
     !scopeOfWork.value?.scopeClientConfirmedAt,
 )
 
-// Mirrors the real Requirement -> Quotation exit criterion exactly
-// (project_service._assert_stage_exit_criteria: scope confirmed by the
-// client + client identification on file) -- the project has already
-// auto-advanced to Quotation the moment both became true (see
-// try_auto_advance_stage), so this is just the UI convenience of
-// jumping straight to that tab instead of leaving staff to find it via
-// the stepper. Guarded by hasProjectPassedStage the same way as the
-// other "Advance to X" buttons, so it doesn't linger once the project
-// has moved on further still (e.g. Payment Plan or beyond) on a later
-// visit to this tab.
-const canAdvanceToQuotation = computed(
-  () =>
-    Boolean(scopeOfWork.value?.scopeClientConfirmedAt) &&
-    hasClientIdentification.value &&
-    !hasProjectPassedStage(props.project.currentStage, 'Quotation'),
-)
-
-function handleAdvanceToQuotation(): void {
-  emit('navigate-tab', 'quotation')
-}
-
-async function handleConfirmScope(payload: { file: File }): Promise<void> {
-  isConfirmSaving.value = true
+// A direct staff action, no dialog and no client-facing artifact --
+// project_service.confirm_requirement_scope validates the same exit
+// criteria this tab already surfaces (scope saved + client
+// identification on file) and, on success, moves the project straight
+// to Quotation in the same call. There's no separate "advance" step
+// afterward: by the time this resolves the project is already on
+// Quotation, so navigate there directly.
+async function handleConfirm(): Promise<void> {
+  isConfirming.value = true
   try {
-    scopeOfWork.value = await projectService.confirmRequirementScope(props.project.id, payload.file)
-    // confirmRequirementScope can move current_stage server-side (see
-    // project_service.try_auto_advance_stage) -- the shared project
-    // store's cached copy (what the header badge and Workflow Progress
-    // stepper above this tab actually read) doesn't know that on its
-    // own, since this call goes straight through projectService rather
-    // than one of the store's own mutating actions.
+    scopeOfWork.value = await projectService.confirmRequirementScope(props.project.id)
+    // confirmRequirementScope moves current_stage server-side -- the
+    // shared project store's cached copy (what the header badge and
+    // Workflow Progress stepper above this tab actually read) doesn't
+    // know that on its own, since this call goes straight through
+    // projectService rather than one of the store's own mutating
+    // actions.
     await projectStore.refreshProject(props.project.id)
-    isConfirmDialogOpen.value = false
-    if (props.project.currentStage === 'Quotation') {
-      toastStore.show('success', t('project.requirementTab.confirmDialog.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
-      emit('navigate-tab', 'quotation')
-    } else {
-      toastStore.show('success', t('project.requirementTab.confirmDialog.confirmedTitle'), t('project.requirementTab.confirmDialog.confirmedDescription'))
-    }
+    toastStore.show('success', t('project.requirementTab.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
+    emit('navigate-tab', 'quotation')
   } catch (err) {
     toastStore.show(
       'error',
-      t('project.requirementTab.confirmDialog.failedToConfirm'),
+      t('project.requirementTab.failedToConfirm'),
       err instanceof Error ? err.message : t('common.pleaseTryAgain'),
     )
   } finally {
-    isConfirmSaving.value = false
+    isConfirming.value = false
   }
 }
 
@@ -231,17 +202,12 @@ const clientDetailItems = computed(() => {
          approval action lives here, not buried in a card header, so
          it's always in the same place regardless of which stage tab
          is open. -->
-    <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center justify-end gap-2 no-print">
-      <template v-if="!isRequirementLocked">
-        <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
-          {{ t('project.requirementTab.saveScope') }}
-        </BaseButton>
-        <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isConfirmSaving" @click="isConfirmDialogOpen = true">
-          {{ t('project.requirementTab.confirmWithClient') }}
-        </BaseButton>
-      </template>
-      <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="advanceIcon" @click="handleAdvanceToQuotation">
-        {{ t('project.requirementTab.advanceToQuotation') }}
+    <div v-if="!isRequirementLocked" class="flex flex-wrap items-center justify-end gap-2 no-print">
+      <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
+        {{ t('project.requirementTab.saveScope') }}
+      </BaseButton>
+      <BaseButton v-if="canConfirm" size="sm" :icon="ShieldCheck" :loading="isConfirming" @click="handleConfirm">
+        {{ t('project.requirementTab.confirm') }}
       </BaseButton>
     </div>
 
@@ -276,7 +242,7 @@ const clientDetailItems = computed(() => {
         <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.requirementTab.scopeOfWorkTitle') }}</h3>
           <StatusBadge
-            :label="scopeOfWork?.scopeClientConfirmedAt ? t('project.requirementTab.clientConfirmed') : t('project.scopeStatus.awaitingConfirmation')"
+            :label="scopeOfWork?.scopeClientConfirmedAt ? t('project.requirementTab.confirmed') : t('project.scopeStatus.awaitingConfirmation')"
             :variant="scopeOfWork?.scopeClientConfirmedAt ? 'success' : 'neutral'"
           />
           <span
@@ -298,14 +264,14 @@ const clientDetailItems = computed(() => {
         <template v-else-if="scopeOfWork?.scopeClientConfirmedAt">
           <p class="text-sm text-text-secondary">
             {{
-              t('project.requirementTab.clientConfirmedOn', {
-                on: t('project.requirementTab.clientConfirmedOnFragment', { date: formatDateTime(scopeOfWork.scopeClientConfirmedAt) }),
+              t('project.requirementTab.confirmedOn', {
+                on: t('project.requirementTab.confirmedOnFragment', { date: formatDateTime(scopeOfWork.scopeClientConfirmedAt) }),
               })
             }}
           </p>
         </template>
-        <p v-else-if="canConfirmWithClient" class="text-xs text-warning-600">
-          {{ t('project.requirementTab.awaitingClientConfirmationNotice') }}
+        <p v-else-if="canConfirm" class="text-xs text-warning-600">
+          {{ t('project.requirementTab.awaitingConfirmationNotice') }}
         </p>
 
         <TextArea
@@ -327,20 +293,12 @@ const clientDetailItems = computed(() => {
           <FileUploader :hint="t('project.requirementTab.uploadHint')" @select="selectedFile = $event" />
         </template>
 
-        <p v-if="canConfirmWithClient && !hasClientIdentification" class="text-xs text-danger-500">
+        <p v-if="canConfirm && !hasClientIdentification" class="text-xs text-danger-500">
           {{ t('project.requirementTab.noClientIdNotice') }}
         </p>
       </div>
     </Card>
 
     <ScopeRevisionHistory v-if="scopeOfWork" :revisions="scopeOfWork.revisions" @download="handleDownloadRevision" />
-
-    <SignedDocumentUploadDialog
-      v-model="isConfirmDialogOpen"
-      :loading="isConfirmSaving"
-      :title="t('project.requirementTab.confirmDialog.title')"
-      :description="t('project.requirementTab.confirmDialog.description')"
-      @confirm="handleConfirmScope"
-    />
   </div>
 </template>

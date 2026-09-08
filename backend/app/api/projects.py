@@ -234,11 +234,10 @@ def save_scope_of_work(
 @router.post("/{project_no}/requirement/confirm-scope", response_model=ScopeOfWorkOut)
 def confirm_requirement_scope(
     project_no: str,
-    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    project = project_service.confirm_requirement_scope(db, project_no, file, current_user.id)
+    project = project_service.confirm_requirement_scope(db, project_no, current_user.id)
     return _scope_of_work_out(db, project)
 
 

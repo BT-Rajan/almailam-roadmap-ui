@@ -49,7 +49,7 @@ export default {
   },
 
   scopeStatus: {
-    awaitingConfirmation: 'بانتظار تأكيد العميل',
+    awaitingConfirmation: 'بانتظار التأكيد',
   },
 
   agreementStatus: {
@@ -161,7 +161,6 @@ export default {
     notSet: 'غير محدد',
     ongoing: 'مستمر',
     requirementTitle: 'المتطلبات',
-    advanceToQuotation: 'التقدم إلى عرض السعر',
     goToRequirement: 'الانتقال إلى المتطلبات',
     scopeOfWorkStatus: 'حالة نطاق العمل',
     noClientIdWarning: 'لا توجد وثيقة هوية للعميل مسجلة بعد — مطلوبة قبل الانتقال إلى عرض السعر.',
@@ -252,19 +251,18 @@ export default {
     scopeOfWorkTitle: 'نطاق العمل',
     contentLocked: 'المحتوى مقفل',
     saveScope: 'حفظ نطاق العمل',
-    confirmWithClient: 'التأكيد مع العميل',
-    clientConfirmed: 'أكّده العميل',
-    advanceToQuotation: 'التقدم إلى عرض السعر',
+    confirm: 'تأكيد',
+    confirmed: 'مؤكَّد',
     lockedNotice: 'تم بالفعل اعتماد عرض سعر هذا المشروع استناداً إلى هذا النطاق، لذا فهو مقفل — أي تعديل هنا لن يتطابق بعد الآن مع ما تم تسعيره.',
-    clientConfirmedOn: 'أكّده العميل{on}.',
-    clientConfirmedOnFragment: ' بتاريخ {date}',
-    awaitingClientConfirmationNotice: 'نطاق العمل جاهز — أرسل رمز تحقق إلى العميل لتأكيده قبل أن يتمكن المشروع من الانتقال إلى عرض السعر.',
+    confirmedOn: 'تم التأكيد{on}.',
+    confirmedOnFragment: ' بتاريخ {date}',
+    awaitingConfirmationNotice: 'نطاق العمل جاهز للتأكيد — بمجرد تأكيده سينتقل المشروع إلى عرض السعر.',
     scopeOfWorkLabel: 'نطاق العمل',
     scopeOfWorkPlaceholder: 'ما الذي طلبه العميل...',
     changeSummaryLabel: 'ملخص التغيير (اختياري)',
     changeSummaryPlaceholder: 'ما الذي تغيّر في هذه المراجعة...',
     uploadHint: 'مستند داعم اختياري (PDF أو Word أو Excel أو صورة)',
-    noClientIdNotice: 'لا توجد وثيقة هوية للعميل مسجلة بعد (مثل البطاقة المدنية) — سيبقى المشروع في مرحلة المتطلبات إلى أن تُضاف الهوية أيضاً.',
+    noClientIdNotice: 'لا توجد وثيقة هوية للعميل مسجلة بعد (مثل البطاقة المدنية) — وهذا مطلوب قبل إمكانية تأكيد النطاق.',
     fields: {
       service: 'الخدمة',
       responsibleEngineer: 'المهندس المسؤول',
@@ -281,13 +279,8 @@ export default {
     scopeSavedDescription: 'تم تسجيل مراجعة جديدة.',
     couldNotSaveScope: 'تعذّر حفظ نطاق العمل',
     movedToQuotationDescription: 'انتقل المشروع إلى عرض السعر.',
-    confirmDialog: {
-      title: 'تأكيد نطاق العمل',
-      description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل لتأكيد مراجعته وقبوله لنطاق العمل.',
-      failedToConfirm: 'فشل تأكيد نطاق العمل',
-      confirmedTitle: 'تم تأكيد نطاق العمل',
-      confirmedDescription: 'تم تسجيل تأكيد العميل. تم إرسال نسخة من النطاق المؤكد إليه عبر البريد الإلكتروني.',
-    },
+    confirmedTitle: 'تم تأكيد نطاق العمل',
+    failedToConfirm: 'فشل تأكيد نطاق العمل',
   },
 
   quotationTab: {

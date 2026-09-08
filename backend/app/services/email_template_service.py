@@ -65,11 +65,11 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         ),
     },
     "requirement_confirmed": {
-        "subject": "Scope of work confirmed for {{ project_name }}",
+        "subject": "Scope of work finalized for {{ project_name }}",
         "body": (
             "Dear {{ contact_person }},\n\n"
-            "Thank you for confirming the scope of work for {{ project_name }} "
-            "({{ project_no }}):\n\n{{ scope_text }}\n\n"
+            "The scope of work for {{ project_name }} ({{ project_no }}) has been "
+            "finalized:\n\n{{ scope_text }}\n\n"
             "This is an informational message -- no action is needed."
         ),
     },

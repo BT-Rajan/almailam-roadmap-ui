@@ -150,11 +150,12 @@ class ProjectOut(BaseModel):
     projectNo: str
     projectName: str
     description: str | None = None
-    # Set once the client has confirmed `description` (the scope-of-work
-    # text) via email OTP -- see ScopeOfWorkOut for the full revision
-    # history behind it. The sole sign-off gating the move out of the
-    # Requirement stage (migration 0079 dropped the earlier staff-only
-    # internal-approval step).
+    # Set once the project associate has confirmed `description` (the
+    # scope-of-work text) is finalized -- see ScopeOfWorkOut for the
+    # full revision history behind it. The sole sign-off gating the
+    # move out of the Requirement stage (migration 0079 dropped the
+    # earlier staff-only internal-approval step; there's no
+    # client-facing step at all now).
     scopeClientConfirmedAt: datetime | None = None
     clientId: str
     service: str
@@ -268,10 +269,11 @@ class ScopeRevisionOut(BaseModel):
 
 class ScopeOfWorkOut(BaseModel):
     description: str | None
-    # Set once the client's signed confirmation of this scope has been
-    # uploaded (see project_service.confirm_requirement_scope) -- the
+    # Set once the project associate has confirmed this scope is
+    # finalized (see project_service.confirm_requirement_scope) -- the
     # sole sign-off required to leave the Requirement stage (migration
-    # 0079 dropped the earlier staff-only internal-approval step).
+    # 0079 dropped the earlier staff-only internal-approval step; no
+    # client-facing step is involved).
     scopeClientConfirmedAt: datetime | None = None
     revisions: list[ScopeRevisionOut] = Field(default_factory=list)
 

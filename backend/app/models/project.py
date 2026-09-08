@@ -23,9 +23,11 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
 # move to "Quotation" behind a staff-only internal approval step *plus*
 # a client OTP confirmation (see scope_status/PROJECT_SCOPE_STATUSES and
 # project_service.approve_scope_of_work in prior revisions) -- migration
-# 0079 dropped the internal approval step entirely. The client's own
-# email-OTP confirmation (scope_client_confirmed_at below) is now the
-# sole sign-off required to leave Requirement.
+# 0079 dropped the internal approval step entirely. The project
+# associate's own direct confirmation (scope_client_confirmed_at below
+# -- no client-facing step at all, see project_service.
+# confirm_requirement_scope) is now the sole sign-off required to leave
+# Requirement.
 #
 # "Execution & Tracking" and "Completed" were removed entirely
 # (migration 0051) -- the 23-step execution checklist, the 5-stage
@@ -101,15 +103,13 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # document template's address placeholder (see
     # document_template_service.MERGE_FIELD_CATALOG).
     site_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    # Set once the client has confirmed the scope of work (the
-    # `description` field above) via a signed-document upload (see
-    # project_service.confirm_requirement_scope) -- the sole sign-off
-    # required to leave the Requirement stage (see
-    # _assert_stage_exit_criteria; migration 0079 dropped the earlier
-    # staff-only internal-approval step that used to be required
-    # alongside it). Cleared whenever the scope text changes again
-    # (save_scope_of_work) -- a confirmation is a sign-off on specific
-    # text.
+    # Set once the project associate confirms the scope of work (the
+    # `description` field above) is finalized (see
+    # project_service.confirm_requirement_scope) -- required to leave
+    # the Requirement stage (see _assert_stage_exit_criteria). No
+    # client-facing sign-off is involved. Cleared whenever the scope
+    # text changes again (save_scope_of_work) -- a confirmation is a
+    # sign-off on specific text.
     scope_client_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True

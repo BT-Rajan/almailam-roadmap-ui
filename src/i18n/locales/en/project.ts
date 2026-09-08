@@ -49,7 +49,7 @@ export default {
   },
 
   scopeStatus: {
-    awaitingConfirmation: 'Awaiting Client Confirmation',
+    awaitingConfirmation: 'Awaiting Confirmation',
   },
 
   agreementStatus: {
@@ -161,7 +161,6 @@ export default {
     notSet: 'Not set',
     ongoing: 'Ongoing',
     requirementTitle: 'Requirement',
-    advanceToQuotation: 'Advance to Quotation',
     goToRequirement: 'Go to Requirement',
     scopeOfWorkStatus: 'Scope of Work Status',
     noClientIdWarning: 'The client has no identification document on file yet — required before moving on to Quotation.',
@@ -252,19 +251,18 @@ export default {
     scopeOfWorkTitle: 'Scope of Work',
     contentLocked: 'Content Locked',
     saveScope: 'Save Scope of Work',
-    confirmWithClient: 'Confirm with Client',
-    clientConfirmed: 'Client Confirmed',
-    advanceToQuotation: 'Advance to Quotation',
+    confirm: 'Confirm',
+    confirmed: 'Confirmed',
     lockedNotice: "This project's quotation has already been finalized against this scope, so it's locked — a change here would no longer match what was quoted.",
-    clientConfirmedOn: 'Client confirmed{on}.',
-    clientConfirmedOnFragment: ' on {date}',
-    awaitingClientConfirmationNotice: 'The scope of work is ready — send the client a verification code to confirm it before the project can move to Quotation.',
+    confirmedOn: 'Confirmed{on}.',
+    confirmedOnFragment: ' on {date}',
+    awaitingConfirmationNotice: 'The scope of work is ready to confirm — once confirmed, the project moves on to Quotation.',
     scopeOfWorkLabel: 'Scope of Work',
     scopeOfWorkPlaceholder: 'What has the client asked for...',
     changeSummaryLabel: 'Change Summary (optional)',
     changeSummaryPlaceholder: 'What changed in this revision...',
     uploadHint: 'Optional supporting document (PDF, Word, Excel or image)',
-    noClientIdNotice: "The client has no identification document on file yet (e.g. Civil ID) — the project will stay at Requirement until identification is added too.",
+    noClientIdNotice: "The client has no identification document on file yet (e.g. Civil ID) — this is required before the scope can be confirmed.",
     fields: {
       service: 'Service',
       responsibleEngineer: 'Responsible Engineer',
@@ -281,13 +279,8 @@ export default {
     scopeSavedDescription: 'A new revision was recorded.',
     couldNotSaveScope: 'Could not save scope of work',
     movedToQuotationDescription: 'The project moved on to Quotation.',
-    confirmDialog: {
-      title: 'Confirm Scope of Work',
-      description: "Upload a scan of the client's physically signed copy to confirm they've reviewed and accepted the scope of work.",
-      failedToConfirm: 'Failed to confirm scope of work',
-      confirmedTitle: 'Scope of work confirmed',
-      confirmedDescription: "The client's confirmation was recorded. A copy of the confirmed scope was emailed to them.",
-    },
+    confirmedTitle: 'Scope of work confirmed',
+    failedToConfirm: 'Failed to confirm scope of work',
   },
 
   quotationTab: {

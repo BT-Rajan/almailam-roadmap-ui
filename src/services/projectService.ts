@@ -367,18 +367,15 @@ async function saveScopeOfWork(
 }
 
 /**
- * Records the client's own sign-off on the Requirement stage's scope
- * of work -- the sole approval this stage requires -- as a scan of
- * their physically signed copy. On success the backend records the
- * confirmation and, once every other exit criterion is also met,
- * automatically advances the project to Quotation. See
+ * Confirms the Requirement stage's scope of work is finalized -- the
+ * sole approval this stage requires -- and, on success, moves the
+ * project straight to Quotation. A direct staff action with no
+ * client-facing artifact involved. See
  * project_service.confirm_requirement_scope.
  */
-async function confirmRequirementScope(projectId: string, file: File): Promise<ScopeOfWork> {
+async function confirmRequirementScope(projectId: string): Promise<ScopeOfWork> {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    return await apiClient.postForm<ScopeOfWork>(`/api/projects/${projectId}/requirement/confirm-scope`, formData)
+    return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/confirm-scope`, {})
   } catch (error) {
     console.error(`Failed to confirm scope of work for project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to confirm scope of work')

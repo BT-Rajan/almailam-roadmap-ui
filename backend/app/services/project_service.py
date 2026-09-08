@@ -900,16 +900,14 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         )
         if not has_identification:
             problems.append("the client's identification document (e.g. Civil ID) on file")
-        # The other half of the Requirement stage's redesign -- the
-        # client has to have confirmed the scope of work, evidenced by a
-        # scan of their physically signed copy (see
-        # confirm_requirement_scope) before real commercial work starts
-        # against it. This used to also require a separate staff-only
-        # internal approval first; migration 0079 dropped that step, so
-        # the client's own confirmation is now the sole sign-off gating
-        # this transition.
-        if project.scope_client_confirmed_at is None:
-            problems.append("the scope of work confirmed by the client (send and verify the email code)")
+        # There's no client-facing sign-off gating this transition
+        # anymore -- the project associate confirms the scope is final
+        # and moves it into Quotation directly (see
+        # confirm_requirement_scope, called by ProjectRequirementTab.vue's
+        # "Confirm" button) once there's an actual scope to quote
+        # against.
+        if not (project.description or "").strip():
+            problems.append("the scope of work written up")
 
     elif new_stage == "Payment Plan":
         # Moved here from Contract's own former entry criterion --
@@ -1103,9 +1101,18 @@ def _auto_advance_target(current_stage: str, includes_design: bool, includes_sup
     (Government Submission -> Design, Supervision -> Government
     Submission) stays manual -- an exceptional, reason-required
     correction, not something that should ever happen as a side effect
-    of an unrelated action."""
-    if current_stage == "Requirement":
-        return "Quotation"
+    of an unrelated action.
+
+    Requirement -> Quotation is likewise never listed here: unlike
+    every other transition below, there's no other business event to
+    hook this one onto -- it's the sole outcome of
+    confirm_requirement_scope's own explicit "Confirm" action, which
+    applies that stage change directly instead of going through this
+    function. Were "Quotation" returned here, some unrelated action
+    that merely happens to satisfy Quotation's exit criteria (e.g.
+    adding the client's identification once a scope is already saved)
+    would silently advance the project without anyone having clicked
+    Confirm."""
     if current_stage == "Quotation":
         return "Payment Plan"
     if current_stage == "Payment Plan":
@@ -1334,9 +1341,9 @@ def save_scope_of_work(
     specific text, not a status that should silently keep covering
     whatever the text becomes after further edits. See
     confirm_requirement_scope. The otp_* field resets below are now
-    inert leftovers from the old email-OTP flow (nothing sets them
-    anymore) -- harmless to keep clearing for any project whose row
-    still carries a value from before this change."""
+    inert leftovers from the old OTP/signed-upload confirmation flows
+    (nothing sets them anymore) -- harmless to keep clearing for any
+    project whose row still carries a value from before this change."""
     project = get_project(db, project_no)
     _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
@@ -1381,45 +1388,45 @@ def save_scope_of_work(
     return project
 
 
-def confirm_requirement_scope(db: Session, project_no: str, file: UploadFile, user_id: int) -> Project:
-    """Records the client's sign-off on the Requirement stage's scope of
-    work -- the sole approval this stage requires (migration 0079
-    dropped the earlier staff-only internal-approval step). Previously
-    an email OTP the client read back to staff; now a scan of their
-    physically signed scope-of-work copy, uploaded here as the
-    confirmation record (see document_service.create_document, stored
-    as a "Report"-typed project Document -- there's no dedicated
-    document type for a signed scope confirmation, and adding one for
-    a single-purpose label isn't worth the schema migration). There's
-    no code to verify, so this is a direct manual action rather than a
-    hard-gated one -- the signed upload is the evidence, not a
-    cryptographic proof. Success is what lets the project actually
-    leave Requirement (see _assert_stage_exit_criteria's
-    scope_client_confirmed_at check); also emails the client the
-    confirmed scope of work for their own records, purely informational
-    (same idea as project_service._send_project_created_email -- no
-    further action needed from them)."""
+def confirm_requirement_scope(db: Session, project_no: str, user_id: int) -> Project:
+    """The staff-side action that moves a project from Requirement into
+    Quotation -- previously required the client's signed confirmation of
+    the scope, uploaded here as a PDF; that client-facing step is gone,
+    so this is now a direct action the project associate takes
+    themselves once the scope is finalized, no upload or code involved.
+    Still seeds scope_client_confirmed_at (reusing
+    _assert_stage_exit_criteria's own Quotation checks, so this fails
+    with the same messages get_stage_eligibility already surfaces) --
+    quotation_service.confirm_quotation_approval keys its own "scope
+    reconfirmed since last edit" section off that same timestamp, so
+    this keeps that logic meaningful. Applies the Quotation stage
+    change directly (via _apply_stage_change) rather than through
+    try_auto_advance_stage/_auto_advance_target -- this is the only
+    trigger for that transition (see _auto_advance_target's own
+    comment on why Requirement is deliberately left out of it), so
+    there's no "maybe some other action already got here first" case
+    to silently no-op on. The client is still sent an FYI copy of the
+    finalized scope (see requirement_confirmed's wording, updated by
+    migration 0082 to no longer thank the client for "confirming" it
+    themselves) -- a failed/unconfigured send only notifies
+    Administrators, same as every other confirmation email in this
+    app, never blocking the action itself."""
     project = get_project(db, project_no)
-    if not (project.description or "").strip():
-        raise ValidationAppError("Add the scope of work before recording the client's confirmation.")
-    assert_pdf_upload(file)
-
-    document_service.create_document(
-        db, project.project_no, f"Signed Scope Confirmation {project.project_no}", "Report", file, user_id,
-    )
+    if project.current_stage != "Requirement":
+        raise ValidationAppError("This project has already moved past the Requirement stage.")
+    _assert_stage_exit_criteria(db, project, project.current_stage, "Quotation")
 
     project.scope_client_confirmed_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work confirmed by client via signed document upload", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work confirmed", user_id)
     timeline_service.create_system_event(
-        db, project.id, "note", title="Scope of work confirmed by client", description=project.description, actor_id=user_id
+        db, project.id, "note", title="Scope of work confirmed", description=project.description, actor_id=user_id,
     )
-    db.flush()
-    try_auto_advance_stage(db, project, user_id)
+    _apply_stage_change(db, project, "Quotation", None, user_id)
     db.commit()
     db.refresh(project)
 
-    client = client_service.get_client(db, project.client_id)
-    if client.email_consent:
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is not None and client.email_consent:
         try:
             subject, body = email_template_service.render(
                 db,
@@ -1435,14 +1442,13 @@ def confirm_requirement_scope(db: Session, project_no: str, file: UploadFile, us
         except ValidationAppError as error:
             notification_service.notify_role(
                 db, "Administrator",
-                "Scope confirmation email not sent",
-                f"Project {project.project_no}'s scope of work was confirmed, but the confirmation "
-                f"email to the client could not be sent: {error}",
+                "Scope-confirmed email failed to send",
+                f"Project {project.project_no}'s scope-confirmed email to the client failed: {error}",
                 "System",
-                link_route_name="project-workspace",
-                link_params={"projectId": project.project_no},
+                link_route_name="project-workspace", link_params={"projectId": project.project_no},
             )
             db.commit()
+
     return project
 
 
