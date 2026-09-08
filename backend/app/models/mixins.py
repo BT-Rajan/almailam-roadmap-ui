@@ -19,12 +19,11 @@ class SoftDeleteMixin:
 class EmailOtpMixin:
     """Columns for the entities that used to gate a step behind a
     client reading back a one-time email code -- Client, Project,
-    Quotation, Contract, PendingClientOnboarding. That whole flow (see
-    the removed app/core/otp.py) was replaced by staff uploading a scan
-    of the client's physically signed copy instead (see
-    quotation_service.confirm_quotation_approval and its siblings), so
-    nothing writes these columns anymore; kept as inert columns rather
-    than a destructive migration to drop them."""
+    Quotation, Contract. That whole flow (see the removed app/core/otp.py)
+    was replaced by staff uploading a scan of the client's physically
+    signed copy instead (see quotation_service.confirm_quotation_approval
+    and its siblings), so nothing writes these columns anymore; kept as
+    inert columns rather than a destructive migration to drop them."""
 
     otp_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

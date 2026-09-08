@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { FilePlus, MessageSquare, Plus, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
+import { Plus, UserPlus, MapPinPlus, IdCardLanyard } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Alert from '@/components/common/Alert.vue'
-import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -19,22 +18,13 @@ import ClientEditDialog from '@/components/client/ClientEditDialog.vue'
 import ClientHeader from '@/components/client/ClientHeader.vue'
 import ClientMergeDialog from '@/components/client/ClientMergeDialog.vue'
 import ClientIdentificationEditDialog from '@/components/client/ClientIdentificationEditDialog.vue'
-import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
-import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
-import ClientOnboardingStatusDialog from '@/components/client/ClientOnboardingStatusDialog.vue'
 import ClientWorkspaceTabs from '@/components/client/ClientWorkspaceTabs.vue'
-import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
 // Lazy-loaded: only fetched when the user opens that tab (see ProjectWorkspacePage
 // for the same pattern applied to the project workspace).
 const ClientContactList = defineAsyncComponent(() => import('@/components/client/ClientContactList.vue'))
 const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
-const ClientDocumentCard = defineAsyncComponent(() => import('@/components/client/ClientDocumentCard.vue'))
-const ClientDocumentUploadDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentUploadDialog.vue'))
-const ClientDocumentEditDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentEditDialog.vue'))
-const ClientDocumentVersionDialog = defineAsyncComponent(() => import('@/components/client/ClientDocumentVersionDialog.vue'))
-const ClientVerificationDialog = defineAsyncComponent(() => import('@/components/client/ClientVerificationDialog.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -43,12 +33,8 @@ import type {
   ClientAddress,
   ClientContact,
   ClientDocument,
-  ClientDocumentCategory,
-  ClientDocumentVersion,
   ClientDuplicateMatch,
   ClientIdentification,
-  ClientOnboardingState,
-  ClientVerificationResult,
   ClientWorkspaceTab,
   ClientWorkspaceTabKey,
 } from '@/types/Client'
@@ -65,14 +51,6 @@ const { t } = useI18n()
 
 const clientId = computed(() => route.params.clientId as string)
 const activeTab = ref<ClientWorkspaceTabKey>('overview')
-const isUploadDialogOpen = ref(false)
-const isStatusDialogOpen = ref(false)
-const isOnboardingStateSaving = ref(false)
-const isVerificationDialogOpen = ref(false)
-const isOnboardingConfirmDialogOpen = ref(false)
-const isOnboardingConfirmSaving = ref(false)
-const isVerificationSaving = ref(false)
-const verificationDialogTarget = ref<ClientDocument | null>(null)
 const isEditDialogOpen = ref(false)
 const isEditSaving = ref(false)
 const isStatusToggleSaving = ref(false)
@@ -97,13 +75,9 @@ const isIdentificationDialogOpen = ref(false)
 const isIdentificationSaving = ref(false)
 const identificationDialogTarget = ref<ClientIdentification | null>(null)
 
-const isDocumentEditDialogOpen = ref(false)
-const isDocumentEditSaving = ref(false)
-const documentEditTarget = ref<ClientDocument | null>(null)
-
-// One shared delete-confirmation dialog for all four record types, rather
-// than four near-identical ConfirmationDialog instances.
-type DeletableRecordType = 'contact' | 'address' | 'identification' | 'document'
+// One shared delete-confirmation dialog for all three record types, rather
+// than three near-identical ConfirmationDialog instances.
+type DeletableRecordType = 'contact' | 'address' | 'identification'
 const isDeleteDialogOpen = ref(false)
 const isDeleteSaving = ref(false)
 const deleteTarget = ref<{ type: DeletableRecordType; id: string; label: string } | null>(null)
@@ -112,19 +86,16 @@ const TABS = computed<ClientWorkspaceTab[]>(() => [
   { key: 'overview', label: t('client.workspaceTabs.overview') },
   { key: 'contacts', label: t('client.workspaceTabs.contacts') },
   { key: 'identification', label: t('client.workspaceTabs.identification') },
-  { key: 'documents', label: t('client.workspaceTabs.documents') },
   { key: 'projects', label: t('client.workspaceTabs.projects') },
 ])
 
 const client = computed(() => clientStore.getClientById(clientId.value))
 const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
 // Same eligibility rule NewProjectWizardPage.vue and the backend both
-// enforce (onboardingState === 'Ready' && status === 'Active') --
-// mirrored here so this button never leads to a dead end where the
-// client silently isn't selectable on the next page.
-const clientEligibleForNewProject = computed(
-  () => client.value?.onboardingState === 'Ready' && client.value?.status === 'Active',
-)
+// enforce (status === 'Active') -- mirrored here so this button never
+// leads to a dead end where the client silently isn't selectable on
+// the next page.
+const clientEligibleForNewProject = computed(() => client.value?.status === 'Active')
 
 const isLoading = computed(() => clientStore.isLoading || clientStore.isDetailLoading)
 const error = computed(() => clientStore.error ?? clientStore.detailError)
@@ -190,34 +161,6 @@ async function loadData(): Promise<void> {
 onMounted(loadData)
 watch(clientId, loadData)
 
-async function handleDocumentUpload(payload: { category: ClientDocumentCategory; title: string; file: File }): Promise<void> {
-  if (!client.value) return
-  try {
-    await clientStore.createDocument(client.value.id, {
-      category: payload.category,
-      title: payload.title,
-      file: payload.file,
-    })
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.documentAddedTitle'),
-      t('client.workspacePage.resultDialog.uploadedSuccessfully', { title: payload.title }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUploadDocument'), detail)
-  }
-}
-
-async function handleDocumentDownload(document: ClientDocument): Promise<void> {
-  if (!client.value) return
-  try {
-    await clientStore.downloadDocument(client.value.id, document.id, document.originalFilename)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToDownloadDocument'), detail)
-  }
-}
-
 async function handleViewIdentificationDocument(document: ClientDocument): Promise<void> {
   if (!client.value) return
   try {
@@ -225,138 +168,6 @@ async function handleViewIdentificationDocument(document: ClientDocument): Promi
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToOpenDocument'), detail)
-  }
-}
-
-async function handleReplaceDocumentFile(document: ClientDocument, file: File): Promise<void> {
-  if (!client.value) return
-  try {
-    await clientStore.replaceDocumentFile(client.value.id, document.id, file)
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.fileReplacedTitle'),
-      t('client.workspacePage.resultDialog.updatedToNewVersion', { title: document.title }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToReplaceFile'), detail)
-  }
-}
-
-const isVersionHistoryOpen = ref(false)
-const isVersionHistoryLoading = ref(false)
-const versionHistoryDocument = ref<ClientDocument | undefined>(undefined)
-
-async function openVersionHistory(document: ClientDocument): Promise<void> {
-  if (!client.value) return
-  versionHistoryDocument.value = document
-  isVersionHistoryOpen.value = true
-  isVersionHistoryLoading.value = true
-  try {
-    await clientStore.loadDocumentVersions(client.value.id, document.id)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToLoadVersionHistory'), detail)
-  } finally {
-    isVersionHistoryLoading.value = false
-  }
-}
-
-async function handleDownloadVersion(version: ClientDocumentVersion): Promise<void> {
-  if (!client.value || !versionHistoryDocument.value) return
-  try {
-    await clientStore.downloadDocumentVersion(client.value.id, versionHistoryDocument.value.id, version.id, version.originalFilename)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToDownloadVersion'), detail)
-  }
-}
-
-async function applyOnboardingState(nextState: ClientOnboardingState, reason?: string): Promise<void> {
-  if (!client.value) return
-  isOnboardingStateSaving.value = true
-  try {
-    await clientStore.setOnboardingState(client.value.id, nextState, reason)
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.onboardingStatusUpdatedTitle'),
-      t('client.workspacePage.resultDialog.statusChangedTo', { status: nextState }),
-    )
-    isStatusDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateOnboardingStatus'), detail)
-  } finally {
-    isOnboardingStateSaving.value = false
-  }
-}
-
-async function handleAutoAdvanceOnboarding(): Promise<void> {
-  if (!client.value) return
-  isOnboardingStateSaving.value = true
-  try {
-    const before = client.value.onboardingState
-    const updated = await clientStore.autoAdvanceOnboarding(client.value.id)
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.onboardingStatusUpdatedTitle'),
-      updated.onboardingState === before
-        ? t('client.workspacePage.resultDialog.needsManualDecision')
-        : t('client.workspacePage.resultDialog.statusAdvancedFrom', { before, after: updated.onboardingState }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToAdvanceOnboardingStatus'), detail)
-  } finally {
-    isOnboardingStateSaving.value = false
-  }
-}
-
-function handleConfirmStatusChange(payload: { onboardingState: ClientOnboardingState; reason?: string }): void {
-  void applyOnboardingState(payload.onboardingState, payload.reason)
-}
-
-async function handleConfirmOnboardingVerification(payload: { file: File }): Promise<void> {
-  if (!client.value) return
-  const email = client.value.email
-  isOnboardingConfirmSaving.value = true
-  try {
-    await clientStore.confirmOnboardingVerification(client.value.id, payload.file)
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.clientVerifiedTitle'),
-      t('client.workspacePage.resultDialog.welcomeEmailSent', { email }),
-    )
-    isOnboardingConfirmDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.emailVerification.failedToConfirm'), detail)
-  } finally {
-    isOnboardingConfirmSaving.value = false
-  }
-}
-
-function openVerificationDialog(document?: ClientDocument): void {
-  verificationDialogTarget.value = document ?? null
-  isVerificationDialogOpen.value = true
-}
-
-async function handleConfirmVerification(payload: {
-  item: string
-  result: ClientVerificationResult
-  notes?: string
-  documentId?: string
-}): Promise<void> {
-  if (!client.value) return
-  isVerificationSaving.value = true
-  try {
-    await clientStore.createVerification(client.value.id, payload)
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.verificationRecordedTitle'),
-      t('client.workspacePage.resultDialog.markedAsResult', { item: payload.item, result: payload.result }),
-    )
-    isVerificationDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToRecordVerification'), detail)
-  } finally {
-    isVerificationSaving.value = false
   }
 }
 
@@ -371,7 +182,6 @@ async function handleConfirmEdit(payload: ClientEditForm): Promise<void> {
       email: payload.email,
       city: payload.city,
       accountManagerId: payload.accountManagerId,
-      notes: payload.notes,
       communicationPreference: {
         preferredLanguage: payload.preferredLanguage,
         preferredChannel: payload.preferredChannel,
@@ -621,43 +431,6 @@ async function handleConfirmIdentification(payload: {
   }
 }
 
-// --- Document metadata edit ---
-
-function openDocumentEditDialog(document: ClientDocument): void {
-  documentEditTarget.value = document
-  isDocumentEditDialogOpen.value = true
-}
-
-async function handleConfirmDocumentEdit(payload: {
-  category: ClientDocumentCategory
-  title: string
-  issueDate: string
-  expiryDate: string
-  issuingAuthority: string
-}): Promise<void> {
-  if (!client.value || !documentEditTarget.value) return
-  isDocumentEditSaving.value = true
-  try {
-    await clientStore.updateDocument(client.value.id, documentEditTarget.value.id, {
-      category: payload.category,
-      title: payload.title,
-      issueDate: payload.issueDate || undefined,
-      expiryDate: payload.expiryDate || undefined,
-      issuingAuthority: payload.issuingAuthority || undefined,
-    })
-    resultDialogStore.showSuccess(
-      t('client.workspacePage.resultDialog.documentUpdatedTitle'),
-      t('client.workspacePage.resultDialog.wasUpdated', { name: payload.title }),
-    )
-    isDocumentEditDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.workspacePage.resultDialog.failedToUpdateDocument'), detail)
-  } finally {
-    isDocumentEditSaving.value = false
-  }
-}
-
 // --- Shared delete confirmation ---
 
 function requestDelete(type: DeletableRecordType, id: string, label: string): void {
@@ -672,8 +445,7 @@ async function handleConfirmDelete(): Promise<void> {
   try {
     if (type === 'contact') await clientStore.deleteContact(client.value.id, id)
     else if (type === 'address') await clientStore.deleteAddress(client.value.id, id)
-    else if (type === 'identification') await clientStore.deleteIdentification(client.value.id, id)
-    else await clientStore.deleteDocument(client.value.id, id)
+    else await clientStore.deleteIdentification(client.value.id, id)
     resultDialogStore.showSuccess(
       t('client.workspacePage.resultDialog.removedTitle'),
       t('client.workspacePage.resultDialog.wasRemoved', { name: label }),
@@ -749,44 +521,7 @@ function createProjectForClient(): void {
           class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
         >
           <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
-          <div class="flex flex-col gap-3">
-            <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
-            <Card>
-              <template #header>
-                <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.internalNotes') }}</h3>
-              </template>
-              <p class="whitespace-pre-wrap text-sm text-text-secondary">
-                {{ client.notes || t('client.workspacePage.noInternalNotes') }}
-              </p>
-            </Card>
-            <BaseButton
-              variant="secondary"
-              size="sm"
-              :icon="MessageSquare"
-              class="no-print self-start"
-              @click="router.push({ name: ROUTE_NAMES.MESSAGE_CENTRE, query: { clientId: client.id } })"
-            >
-              {{ t('client.workspacePage.messageClient') }}
-            </BaseButton>
-          </div>
-          <ClientOnboardingProgress
-            :client="client"
-            :documents="clientStore.documents"
-            :contacts="clientStore.contacts"
-            :addresses="clientStore.addresses"
-            :identifications="clientStore.identifications"
-          />
-          <ClientOnboardingActions
-            :client="client"
-            :documents="clientStore.documents"
-            :contacts="clientStore.contacts"
-            :addresses="clientStore.addresses"
-            :identifications="clientStore.identifications"
-            :loading="isOnboardingStateSaving"
-            @autoAdvance="handleAutoAdvanceOnboarding"
-            @change-status="isStatusDialogOpen = true"
-            @verifyEmail="isOnboardingConfirmDialogOpen = true"
-          />
+          <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
           <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
               <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.addresses') }}</h3>
@@ -847,47 +582,6 @@ function createProjectForClient(): void {
       </div>
 
       <div
-        v-else-if="activeTab === 'documents'"
-        id="client-tabpanel-documents"
-        role="tabpanel"
-        aria-labelledby="client-tab-documents"
-        tabindex="0"
-        class="flex flex-col gap-6"
-      >
-        <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="FilePlus" @click="isUploadDialogOpen = true">{{ t('client.workspacePage.addDocument') }}</BaseButton>
-        </div>
-        <EmptyState
-          v-if="clientStore.documents.length === 0"
-          :title="t('client.workspacePage.noDocumentsTitle')"
-          :description="t('client.workspacePage.noDocumentsDescription')"
-          :action-label="t('client.workspacePage.addDocument')"
-          @action="isUploadDialogOpen = true"
-        />
-        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-          <ClientDocumentCard
-            v-for="document in clientStore.documents"
-            :key="document.id"
-            :document="document"
-            @download="handleDocumentDownload(document)"
-            @verify="openVerificationDialog(document)"
-            @edit="openDocumentEditDialog(document)"
-            @delete="requestDelete('document', document.id, document.title)"
-            @history="openVersionHistory(document)"
-            @replace-file="(file) => handleReplaceDocumentFile(document, file)"
-          />
-        </div>
-        <ClientDocumentUploadDialog v-model="isUploadDialogOpen" @upload="handleDocumentUpload" />
-        <ClientDocumentVersionDialog
-          v-model="isVersionHistoryOpen"
-          :document="versionHistoryDocument"
-          :versions="clientStore.documentVersions"
-          :loading="isVersionHistoryLoading"
-          @download="handleDownloadVersion"
-        />
-      </div>
-
-      <div
         v-else-if="activeTab === 'projects'"
         id="client-tabpanel-projects"
         role="tabpanel"
@@ -904,7 +598,7 @@ function createProjectForClient(): void {
             {{ t('client.workspacePage.newProject') }}
           </BaseButton>
           <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
-            {{ t('client.workspacePage.onboardingMustBeReady') }}
+            {{ t('client.workspacePage.clientMustBeActive') }}
           </p>
         </div>
         <EmptyState
@@ -926,26 +620,6 @@ function createProjectForClient(): void {
       </div>
 
 
-      <ClientOnboardingStatusDialog
-        v-model="isStatusDialogOpen"
-        :current-state="client.onboardingState"
-        :loading="isOnboardingStateSaving"
-        @confirm="handleConfirmStatusChange"
-      />
-      <SignedDocumentUploadDialog
-        v-model="isOnboardingConfirmDialogOpen"
-        :loading="isOnboardingConfirmSaving"
-        :title="t('client.emailVerification.title')"
-        :description="t('client.emailVerification.description')"
-        @confirm="handleConfirmOnboardingVerification"
-      />
-      <ClientVerificationDialog
-        v-model="isVerificationDialogOpen"
-        :initial-item="verificationDialogTarget?.title"
-        :document-id="verificationDialogTarget?.id"
-        :loading="isVerificationSaving"
-        @confirm="handleConfirmVerification"
-      />
       <ClientEditDialog
         v-model="isEditDialogOpen"
         :client="client"
@@ -970,12 +644,6 @@ function createProjectForClient(): void {
         :client-type="client.clientType"
         :loading="isIdentificationSaving"
         @confirm="handleConfirmIdentification"
-      />
-      <ClientDocumentEditDialog
-        v-model="isDocumentEditDialogOpen"
-        :document="documentEditTarget"
-        :loading="isDocumentEditSaving"
-        @confirm="handleConfirmDocumentEdit"
       />
       <ConfirmationDialog
         v-model="isDeleteDialogOpen"

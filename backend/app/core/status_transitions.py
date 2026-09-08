@@ -69,44 +69,6 @@ TASK_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 # trail; everything else is routine day-to-day movement.
 TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 
-# --- Client Onboarding -- src/types/Client.ts: ClientOnboardingState
-#
-# Added here while building Pass B07 (the Client entity) -- B04's
-# original scope only covered submissions/quotations/contracts/tasks/
-# payment overrides and didn't anticipate this one, but it's the same
-# mechanism and belongs in the same table of tables.
-#
-# "Verification Required" was removed as its own state: onboarding
-# completeness is now judged on Identification and Consent being on
-# file (see clientHelpers.ts's calculateOnboardingState), not on
-# document verification, so "Documents Required" now moves straight to
-# the verification step. Document verification (ClientVerification
-# records) is unaffected -- it's still recorded per-document, it just
-# no longer gates onboarding.
-#
-# "Under Review" (migration 0066) was replaced by "Pending Verification"
-# -- there's no more manual eyeball review; staff instead confirm the
-# client's own signed consent, uploaded as a scan (see
-# client_service.confirm_onboarding_verification). "Ready" is
-# deliberately reachable from "Documents Required" or "Pending
-# Verification" ONLY through confirm_onboarding_verification's own
-# set_onboarding_state() call, never through a bare status-change
-# action -- it's the one hop in this table that isn't offered as a
-# manual transition target by the frontend's "Change Status" dialog
-# (see CLIENT_ONBOARDING_ALLOWED_TRANSITIONS' mirror in
-# src/constants/clientOptions.ts), even though it's listed here so
-# assert_transition_allowed still accepts it when the confirmation
-# service call makes it.
-CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Information Required": {"Documents Required"},
-    "Documents Required": {"Pending Verification", "Ready"},
-    "Pending Verification": {"Ready", "Rejected", "Documents Required"},
-    "Ready": {"Suspended"},
-    "Suspended": {"Pending Verification", "Rejected"},
-    "Rejected": {"Information Required"},
-}
-CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON = {"Rejected", "Suspended"}
-
 # --- Project Workflow Stage -- src/types/Project.ts: WorkflowStage
 #
 # Same story as client onboarding above: discovered while building the

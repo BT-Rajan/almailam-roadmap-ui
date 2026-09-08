@@ -6,14 +6,10 @@ import type {
   ClientCommunicationPreference,
   ClientContact,
   ClientDocument,
-  ClientDocumentVersion,
   ClientDuplicateMatch,
   ClientIdentification,
   ClientIndividualProfile,
-  ClientOnboardingState,
   ClientOrganisationProfile,
-  ClientVerification,
-  ClientVerificationResult,
 } from '@/types/Client'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import { fetchAllPages } from '@/utils/fetchAllPages'
@@ -33,7 +29,14 @@ function buildQuery(params: Record<string, string | number | undefined>): string
  * it only asks the server for one page at a time instead of the whole table.
  */
 async function getClientsPage(
-  params: PageParams & { clientType?: string; status?: string; onboardingState?: string; accountManagerId?: string } = {},
+  params: PageParams & {
+    clientType?: string
+    status?: string
+    onboardingState?: string
+    accountManagerId?: string
+    /** true to browse soft-deleted clients instead of active ones -- see restoreClient. */
+    deleted?: boolean
+  } = {},
 ): Promise<PagedResponse<Client>> {
   try {
     const query = buildQuery({
@@ -45,6 +48,7 @@ async function getClientsPage(
       sort: params.sort,
       page: params.page,
       pageSize: params.pageSize,
+      deleted: params.deleted ? 'true' : undefined,
     })
     return await apiClient.get<PagedResponse<Client>>(`/api/clients${query}`)
   } catch (error) {
@@ -251,108 +255,6 @@ async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]
   }
 }
 
-export type ClientDocumentInput = {
-  category: ClientDocument['category']
-  title: string
-  issueDate?: string
-  expiryDate?: string
-  issuingAuthority?: string
-  file: File
-}
-
-/**
- * Upload a new client document via backend API. Sends the actual file as
- * multipart/form-data -- apiClient always JSON-encodes its body, so this
- * bypasses it and does a raw fetch instead, same pattern as
- * documentService.ts's uploadDocument() for project documents (including
- * the 401 -> refresh -> retry-once flow, since apiClient's helper only
- * covers JSON requests).
- */
-async function createDocument(clientId: string, input: ClientDocumentInput): Promise<ClientDocument> {
-  const authStore = useAuthStore()
-  const formData = new FormData()
-  formData.append('category', input.category)
-  formData.append('title', input.title)
-  if (input.issueDate) formData.append('issueDate', input.issueDate)
-  if (input.expiryDate) formData.append('expiryDate', input.expiryDate)
-  if (input.issuingAuthority) formData.append('issuingAuthority', input.issuingAuthority)
-  formData.append('file', input.file)
-
-  const doRequest = () =>
-    fetch(`/api/clients/${clientId}/documents`, {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
-  try {
-    let response = await doRequest()
-
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) {
-        response = await doRequest()
-      }
-    }
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => undefined)
-      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
-    }
-
-    return (await response.json()) as ClientDocument
-  } catch (error) {
-    console.error(`Failed to record document for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record document')
-  }
-}
-
-export interface IdentificationVerificationResult {
-  checked: boolean
-  matches?: boolean
-  reasoning?: string
-}
-
-/**
- * Vision-based plausibility check for the New Client wizard's
- * identification upload -- not tied to a client id, since this is
- * called before any client record exists yet. `checked: false` means
- * the AI couldn't evaluate the file (disabled, unconfigured, provider
- * error, or a PDF, which this check doesn't attempt) -- the wizard
- * treats that as "accept with a manual verification caveat," not as a
- * rejection. A non-2xx response here means the file itself was
- * rejected outright (wrong type, over the 5 MB limit, content doesn't
- * match its extension) -- callers should surface that as a hard error.
- */
-async function verifyIdentificationDocument(file: File, documentType: string): Promise<IdentificationVerificationResult> {
-  const authStore = useAuthStore()
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('documentType', documentType)
-
-  const doRequest = () =>
-    fetch('/api/clients/verify-identification-document', {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
-  let response = await doRequest()
-  if (response.status === 401) {
-    const refreshed = await authStore.tryRefresh()
-    if (refreshed) response = await doRequest()
-  }
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => undefined)
-    throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Verification failed with status ${response.status}`)
-  }
-
-  return (await response.json()) as IdentificationVerificationResult
-}
-
 /**
  * Download a client document's stored file from backend API.
  */
@@ -373,207 +275,6 @@ async function downloadDocument(clientId: string, documentId: string): Promise<B
   } catch (error) {
     console.error(`Failed to download document ${documentId} for client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to download document')
-  }
-}
-
-export type ClientDocumentUpdateInput = {
-  category?: ClientDocument['category']
-  title?: string
-  issueDate?: string
-  expiryDate?: string
-  issuingAuthority?: string
-}
-
-/**
- * Update a client document's metadata (title, category, dates, issuing
- * authority) via backend API. Does not replace the stored file -- use
- * replaceDocumentFile() below for that.
- */
-async function updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput): Promise<ClientDocument> {
-  try {
-    return await apiClient.patch<ClientDocument>(`/api/clients/${clientId}/documents/${documentId}`, input)
-  } catch (error) {
-    console.error(`Failed to update document ${documentId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update document')
-  }
-}
-
-/**
- * Replace a client document's stored file with a new one, bumping its
- * version. The replaced file's own version is preserved and remains
- * downloadable -- see getDocumentVersions()/downloadDocumentVersion()
- * below -- rather than being silently discarded.
- */
-async function replaceDocumentFile(clientId: string, documentId: string, file: File, notes?: string): Promise<ClientDocument> {
-  const authStore = useAuthStore()
-  const formData = new FormData()
-  formData.append('file', file)
-  if (notes) formData.append('notes', notes)
-
-  const doRequest = () =>
-    fetch(`/api/clients/${clientId}/documents/${documentId}/replace-file`, {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
-  try {
-    let response = await doRequest()
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) response = await doRequest()
-    }
-    if (!response.ok) {
-      const data = await response.json().catch(() => undefined)
-      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
-    }
-    return (await response.json()) as ClientDocument
-  } catch (error) {
-    console.error(`Failed to replace file for document ${documentId} on client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to replace document file')
-  }
-}
-
-/**
- * Fetch the full version history for a client document -- every past
- * file, not just the current one, each genuinely downloadable via
- * downloadDocumentVersion() below.
- */
-async function getDocumentVersions(clientId: string, documentId: string): Promise<ClientDocumentVersion[]> {
-  try {
-    return await apiClient.get<ClientDocumentVersion[]>(`/api/clients/${clientId}/documents/${documentId}/versions`)
-  } catch (error) {
-    console.error(`Failed to fetch versions for document ${documentId} on client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document versions')
-  }
-}
-
-/**
- * Download one specific past version's file (not necessarily the
- * current one) -- this is what actually makes version history useful
- * for recovering a prior revision, not just a read-only log.
- */
-async function downloadDocumentVersion(clientId: string, documentId: string, versionId: string): Promise<Blob> {
-  const authStore = useAuthStore()
-  try {
-    const response = await fetch(`/api/clients/${clientId}/documents/${documentId}/versions/${versionId}/download`, {
-      method: 'GET',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`)
-    }
-
-    return await response.blob()
-  } catch (error) {
-    console.error(`Failed to download version ${versionId} of document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to download document version')
-  }
-}
-
-/**
- * Remove a client document via backend API (soft delete -- the stored
- * file is retained on disk, same as the main project Documents module).
- */
-async function deleteDocument(clientId: string, documentId: string): Promise<void> {
-  try {
-    await apiClient.delete(`/api/clients/${clientId}/documents/${documentId}`)
-  } catch (error) {
-    console.error(`Failed to delete document ${documentId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
-  }
-}
-
-/**
- * Fetch verifications for a specific client from backend API
- */
-async function getVerificationsForClient(clientId: string): Promise<ClientVerification[]> {
-  try {
-    return await apiClient.get<ClientVerification[]>(`/api/clients/${clientId}/verifications`)
-  } catch (error) {
-    console.error(`Failed to fetch verifications for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch verifications')
-  }
-}
-
-export type ClientOnboardingStateInput = {
-  onboardingState: ClientOnboardingState
-  reason?: string
-}
-
-/**
- * Advance or change a client's onboarding state via backend API. The
- * backend re-validates the transition against its own state machine
- * (app/core/status_transitions.py) and requires a reason for certain
- * target states -- this call can be rejected even if the UI offered it.
- */
-async function updateOnboardingState(clientId: string, input: ClientOnboardingStateInput): Promise<Client> {
-  try {
-    return await apiClient.patch<Client>(`/api/clients/${clientId}/onboarding-state`, input)
-  } catch (error) {
-    console.error(`Failed to update onboarding state for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update onboarding state')
-  }
-}
-
-/**
- * Walks a client forward through every onboarding transition that has
- * exactly one legal next state, in a single call -- replaces what used
- * to be several separate "Change Status" round trips for the common
- * case where each step has nothing to actually decide. Stops on its
- * own at the first genuine decision point or reason-requiring state;
- * see client_service.auto_advance_onboarding on the backend.
- */
-async function autoAdvanceOnboarding(clientId: string): Promise<Client> {
-  try {
-    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/auto-advance`, {})
-  } catch (error) {
-    console.error(`Failed to auto-advance onboarding for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to advance onboarding')
-  }
-}
-
-/**
- * Records the client's own signed consent -- a scan of their
- * physically signed copy, uploaded here -- confirming a client into
- * "Ready" from either "Documents Required" or "Pending Verification".
- * On success the backend moves the client to "Ready", provisions its
- * Customer Portal login, and emails the client a welcome message --
- * see client_service.confirm_onboarding_verification.
- */
-async function confirmOnboardingVerification(clientId: string, file: File): Promise<Client> {
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    return await apiClient.postForm<Client>(`/api/clients/${clientId}/onboarding-state/confirm-verification`, formData)
-  } catch (error) {
-    console.error(`Failed to confirm verification for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm verification')
-  }
-}
-
-export type ClientVerificationInput = {
-  item: string
-  result: ClientVerificationResult
-  notes?: string
-  documentId?: string
-}
-
-/**
- * Record a new client verification via backend API. When documentId is
- * given, the backend also updates that document's own verificationStatus
- * to match -- see createVerification() below in the store for the local
- * cache update that keeps the document list in sync without a re-fetch.
- */
-async function createVerification(clientId: string, input: ClientVerificationInput): Promise<ClientVerification> {
-  try {
-    return await apiClient.post<ClientVerification>(`/api/clients/${clientId}/verifications`, input)
-  } catch (error) {
-    console.error(`Failed to record verification for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record verification')
   }
 }
 
@@ -642,61 +343,37 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
   }
 }
 
-export interface OnboardingRequestPayload {
+export interface ClientFullCreatePayload {
   client: Partial<Client>
   contacts: ClientContactInput[]
   address?: ClientAddressInput
   identification?: ClientIdentificationInput
 }
 
-export interface PendingOnboardingRequest {
-  id: string
-  email: string
-}
-
 /**
- * Stages a New Client wizard submission -- no Client (or any of its
- * Contact/Address/Identification/Document rows) is created until
- * confirmOnboardingRequest below succeeds. Sends the identification
- * file as multipart/form-data alongside a single JSON-stringified
- * `payload` field (it nests a variable-length contacts list, so it
- * can't be flattened into individual Form fields the way createDocument
- * above does).
+ * The New Client wizard's submit action -- creates the client and
+ * every sub-record (contacts, address, identification, identification
+ * document) immediately, in one call, with no staging or confirmation
+ * step. Sends the identification file as multipart/form-data alongside
+ * a single JSON-stringified `payload` field (it nests a variable-length
+ * contacts list, so it can't be flattened into individual Form fields).
  */
-async function createOnboardingRequest(
-  payload: OnboardingRequestPayload,
+async function createClientFull(
+  payload: ClientFullCreatePayload,
   identificationFile: File | null,
   documentCategory?: string,
   documentTitle?: string,
-): Promise<PendingOnboardingRequest> {
+): Promise<Client> {
   try {
     const formData = new FormData()
     formData.append('payload', JSON.stringify(payload))
     if (documentCategory) formData.append('documentCategory', documentCategory)
     if (documentTitle) formData.append('documentTitle', documentTitle)
     if (identificationFile) formData.append('identificationFile', identificationFile)
-    return await apiClient.postForm<PendingOnboardingRequest>('/api/clients/onboarding-requests', formData)
+    return await apiClient.postForm<Client>('/api/clients/full', formData)
   } catch (error) {
-    console.error('Failed to submit client onboarding request:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to submit onboarding request')
-  }
-}
-
-/**
- * Records the client's signed consent to onboard -- a scan of their
- * physically signed copy, uploaded here. On success the backend
- * creates the real Client (and every staged sub-record) for the first
- * time, already at onboarding_state "Ready" -- see backend
- * client_service.confirm_onboarding_request.
- */
-async function confirmOnboardingRequest(pendingId: string, file: File): Promise<Client> {
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    return await apiClient.postForm<Client>(`/api/clients/onboarding-requests/${pendingId}/confirm`, formData)
-  } catch (error) {
-    console.error(`Failed to confirm onboarding request ${pendingId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm onboarding request')
+    console.error('Failed to create client:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to create client')
   }
 }
 
@@ -730,8 +407,7 @@ export type ClientUpdateInput = {
 /**
  * Update an existing client's profile via backend API. Deliberately typed
  * to only the fields the backend's ClientUpdate schema actually accepts --
- * status and onboardingState changes go through their own dedicated,
- * reason-validated endpoints (setStatus / updateOnboardingState above)
+ * status changes go through their own dedicated endpoint (setStatus above)
  * rather than this general-purpose one.
  */
 async function updateClient(clientId: string, clientData: ClientUpdateInput): Promise<Client> {
@@ -744,7 +420,8 @@ async function updateClient(clientId: string, clientData: ClientUpdateInput): Pr
 }
 
 /**
- * Delete a client via backend API
+ * Delete (soft-delete) a client via backend API -- recoverable via
+ * restoreClient below.
  */
 async function deleteClient(clientId: string): Promise<void> {
   try {
@@ -752,6 +429,18 @@ async function deleteClient(clientId: string): Promise<void> {
   } catch (error) {
     console.error(`Failed to delete client ${clientId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete client')
+  }
+}
+
+/**
+ * Restore a soft-deleted client via backend API -- undoes deleteClient.
+ */
+async function restoreClient(clientId: string): Promise<Client> {
+  try {
+    return await apiClient.post<Client>(`/api/clients/${clientId}/restore`, {})
+  } catch (error) {
+    console.error(`Failed to restore client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to restore client')
   }
 }
 
@@ -772,26 +461,14 @@ export const clientService = {
   updateIdentification,
   deleteIdentification,
   getDocumentsForClient,
-  createDocument,
-  verifyIdentificationDocument,
-  updateDocument,
-  replaceDocumentFile,
-  getDocumentVersions,
-  downloadDocumentVersion,
-  deleteDocument,
   downloadDocument,
-  getVerificationsForClient,
-  createVerification,
-  updateOnboardingState,
-  autoAdvanceOnboarding,
-  confirmOnboardingVerification,
   findPossibleDuplicates,
   findIdentificationDuplicates,
   mergeClients,
   createClient,
-  createOnboardingRequest,
-  confirmOnboardingRequest,
+  createClientFull,
   updateClient,
   setStatus,
   deleteClient,
+  restoreClient,
 }

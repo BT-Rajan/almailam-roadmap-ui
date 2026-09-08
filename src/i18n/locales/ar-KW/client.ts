@@ -1,8 +1,4 @@
 export default {
-  onboardingProgress: 'تقدم التهيئة',
-  onboardingComplete: '(مكتمل)',
-  onboardingIncomplete: '(غير مكتمل)',
-
   unassigned: 'غير معيّن',
   unknownClient: 'عميل غير معروف',
 
@@ -105,7 +101,7 @@ export default {
     noDocumentsTitle: 'لا توجد مستندات مسجلة',
     noDocumentsDescription: 'ارفع وثائق الهوية أو التسجيل أو التفويض الخاصة بهذا العميل.',
     newProject: 'مشروع جديد',
-    onboardingMustBeReady: 'يجب أن تكون حالة التهيئة "جاهز" وأن يكون العميل نشطاً قبل إنشاء مشروع.',
+    clientMustBeActive: 'يجب أن يكون العميل نشطاً قبل إنشاء مشروع.',
     noProjectsTitle: 'لا توجد مشاريع بعد',
     noProjectsDescription: 'ستظهر هنا المشاريع التي يتم إنشاؤها لهذا العميل.',
     fields: {
@@ -275,7 +271,6 @@ export default {
     clientType: 'نوع العميل',
     allTypes: 'جميع الأنواع',
     status: 'الحالة',
-    onboardingState: 'حالة التهيئة',
     myClients: 'عملائي',
     layoutAria: 'تخطيط قائمة العملاء',
     gridView: 'عرض شبكي',
@@ -284,7 +279,7 @@ export default {
     noClientsFoundTitle: 'لا يوجد عملاء',
     noClientsAssignedDescription: 'لا يوجد لديك عملاء معيّنون كمدير حساب لهم. أوقف تفعيل "عملائي" لرؤية الجميع، أو عيّن نفسك عبر تعديل العميل.',
     noClientsAssignedDescriptionTable: 'لا يوجد لديك عملاء معيّنون كمدير حساب لهم. أوقف تفعيل "عملائي" لرؤية الجميع.',
-    noClientsFoundDescription: 'حاول تعديل عوامل التصفية، أو قم بتهيئة عميل جديد.',
+    noClientsFoundDescription: 'حاول تعديل عوامل التصفية، أو أضف عميلاً جديداً.',
     columns: {
       code: 'الرمز',
       name: 'الاسم',
@@ -293,9 +288,16 @@ export default {
       email: 'البريد الإلكتروني',
       city: 'المدينة',
       accountManager: 'مدير الحساب',
-      onboarding: 'التهيئة',
       status: 'الحالة',
     },
+    deletedClients: 'العملاء المحذوفون',
+    backToClients: 'العودة إلى العملاء',
+    noDeletedClientsTitle: 'لا يوجد عملاء محذوفون',
+    noDeletedClientsDescription: 'سيظهر هنا العملاء الذين تم حذفهم، ويمكن استعادتهم في أي وقت.',
+    restore: 'استعادة',
+    restoredTitle: 'تمت استعادة العميل',
+    restoredDescription: 'تمت استعادة {name}.',
+    failedToRestore: 'فشلت استعادة العميل',
   },
 
   newWizard: {

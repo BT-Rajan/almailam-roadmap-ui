@@ -47,7 +47,7 @@ def notify_role(
 ) -> int:
     """Broadcasts one notification to every active user with the given
     role -- e.g. every Administrator, when client_service.
-    confirm_onboarding_request creates a new client. Mirrors the
+    create_client_full creates a new client. Mirrors the
     one-notification-per-recipient pattern client_service.
     check_and_notify_stale_onboarding already uses for a single account
     manager, generalized to "every user with this role". Does not

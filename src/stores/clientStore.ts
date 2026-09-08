@@ -6,12 +6,10 @@ import type {
   ClientAddressUpdateInput,
   ClientContactInput,
   ClientContactUpdateInput,
-  ClientDocumentInput,
-  ClientDocumentUpdateInput,
+  ClientFullCreatePayload,
   ClientIdentificationInput,
   ClientIdentificationUpdateInput,
   ClientUpdateInput,
-  ClientVerificationInput,
 } from '@/services/clientService'
 import { useAuthStore } from '@/stores/authStore'
 import { triggerBlobDownload } from '@/utils/fileDownload'
@@ -20,12 +18,9 @@ import type {
   ClientAddress,
   ClientContact,
   ClientDocument,
-  ClientDocumentVersion,
   ClientIdentification,
-  ClientOnboardingState,
   ClientStatus,
   ClientType,
-  ClientVerification,
   ClientViewMode,
 } from '@/types/Client'
 
@@ -42,15 +37,16 @@ interface ClientStoreState {
   error: string | undefined
   typeFilter: ClientType | 'All'
   statusFilter: ClientStatus | 'All'
-  onboardingFilter: ClientOnboardingState | 'All'
   myClientsOnly: boolean
+  // Browses soft-deleted clients (see restoreClient) instead of active
+  // ones -- an admin-only alternate view of the same paginated table,
+  // not combined with the type/status filters above.
+  showDeleted: boolean
   viewMode: ClientViewMode
   contacts: ClientContact[]
   addresses: ClientAddress[]
   identifications: ClientIdentification[]
   documents: ClientDocument[]
-  documentVersions: ClientDocumentVersion[]
-  verifications: ClientVerification[]
   isDetailLoading: boolean
   detailError: string | undefined
   // Server-paginated browse state for ClientsPage -- separate from
@@ -69,15 +65,13 @@ export const useClientStore = defineStore('client', {
     error: undefined,
     typeFilter: 'All',
     statusFilter: 'All',
-    onboardingFilter: 'All',
     myClientsOnly: false,
+    showDeleted: false,
     viewMode: 'grid',
     contacts: [],
     addresses: [],
     identifications: [],
     documents: [],
-    documentVersions: [],
-    verifications: [],
     isDetailLoading: false,
     detailError: undefined,
     pageItems: [],
@@ -87,12 +81,7 @@ export const useClientStore = defineStore('client', {
 
   getters: {
     hasActiveFilters(state): boolean {
-      return (
-        state.typeFilter !== 'All' ||
-        state.statusFilter !== 'All' ||
-        state.onboardingFilter !== 'All' ||
-        state.myClientsOnly
-      )
+      return state.typeFilter !== 'All' || state.statusFilter !== 'All' || state.myClientsOnly
     },
 
     getClientById(state) {
@@ -127,8 +116,8 @@ export const useClientStore = defineStore('client', {
           pageSize: this.pagination.pageSize,
           clientType: this.typeFilter !== 'All' ? this.typeFilter : undefined,
           status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
-          onboardingState: this.onboardingFilter !== 'All' ? this.onboardingFilter : undefined,
           accountManagerId: this.myClientsOnly ? authStore.user?.id : undefined,
+          deleted: this.showDeleted,
         })
         this.pageItems = result.items
         this.pagination = {
@@ -159,18 +148,16 @@ export const useClientStore = defineStore('client', {
       this.isDetailLoading = true
       this.detailError = undefined
       try {
-        const [contacts, addresses, identifications, documents, verifications] = await Promise.all([
+        const [contacts, addresses, identifications, documents] = await Promise.all([
           clientService.getContactsForClient(clientId),
           clientService.getAddressesForClient(clientId),
           clientService.getIdentificationsForClient(clientId),
           clientService.getDocumentsForClient(clientId),
-          clientService.getVerificationsForClient(clientId),
         ])
         this.contacts = contacts
         this.addresses = addresses
         this.identifications = identifications
         this.documents = documents
-        this.verifications = verifications
       } catch {
         this.detailError = 'Unable to load the client profile. Please try again.'
       } finally {
@@ -190,8 +177,10 @@ export const useClientStore = defineStore('client', {
       void this.loadClientsPage()
     },
 
-    setOnboardingFilter(state: ClientOnboardingState | 'All') {
-      this.onboardingFilter = state
+    // Toggles between browsing active clients and browsing soft-deleted
+    // ones (the Deleted Clients view, paired with restoreClient below).
+    setShowDeleted(value: boolean) {
+      this.showDeleted = value
       this.pagination.page = 1
       void this.loadClientsPage()
     },
@@ -217,6 +206,20 @@ export const useClientStore = defineStore('client', {
     // vanished on refresh.
     async createClient(clientData: Partial<Client>) {
       const client = await clientService.createClient(clientData)
+      this.clients = [client, ...this.clients]
+      return client
+    },
+
+    // The New Client wizard's submit action -- creates the client and
+    // every sub-record (contacts, address, identification document)
+    // immediately, in one call, with no staging/confirmation step.
+    async createClientFull(
+      payload: ClientFullCreatePayload,
+      identificationFile: File | null,
+      documentCategory?: string,
+      documentTitle?: string,
+    ) {
+      const client = await clientService.createClientFull(payload, identificationFile, documentCategory, documentTitle)
       this.clients = [client, ...this.clients]
       return client
     },
@@ -248,6 +251,15 @@ export const useClientStore = defineStore('client', {
       await clientService.deleteClient(clientId)
       this.clients = this.clients.filter((c) => c.id !== clientId)
       this.pageItems = this.pageItems.filter((c) => c.id !== clientId)
+    },
+
+    // Undoes deleteClient -- restores a soft-deleted client and removes
+    // it from the Deleted Clients view's page cache (it belongs back
+    // among active clients now, not this list).
+    async restoreClient(clientId: string) {
+      const restored = await clientService.restoreClient(clientId)
+      this.pageItems = this.pageItems.filter((c) => c.id !== clientId)
+      return restored
     },
 
     async createContact(clientId: string, input: ClientContactInput) {
@@ -301,29 +313,6 @@ export const useClientStore = defineStore('client', {
       this.identifications = this.identifications.filter((i) => i.id !== identificationId)
     },
 
-    async createDocument(clientId: string, input: ClientDocumentInput) {
-      const document = await clientService.createDocument(clientId, input)
-      this.documents = [document, ...this.documents]
-      return document
-    },
-
-    async updateDocument(clientId: string, documentId: string, input: ClientDocumentUpdateInput) {
-      const updated = await clientService.updateDocument(clientId, documentId, input)
-      this.documents = this.documents.map((d) => (d.id === documentId ? updated : d))
-      return updated
-    },
-
-    async replaceDocumentFile(clientId: string, documentId: string, file: File) {
-      const updated = await clientService.replaceDocumentFile(clientId, documentId, file)
-      this.documents = this.documents.map((d) => (d.id === documentId ? updated : d))
-      return updated
-    },
-
-    async deleteDocument(clientId: string, documentId: string) {
-      await clientService.deleteDocument(clientId, documentId)
-      this.documents = this.documents.filter((d) => d.id !== documentId)
-    },
-
     async downloadDocument(clientId: string, documentId: string, filename: string) {
       const blob = await clientService.downloadDocument(clientId, documentId)
       triggerBlobDownload(blob, filename)
@@ -339,59 +328,9 @@ export const useClientStore = defineStore('client', {
       window.open(url, '_blank', 'noopener,noreferrer')
     },
 
-    async loadDocumentVersions(clientId: string, documentId: string) {
-      this.documentVersions = await clientService.getDocumentVersions(clientId, documentId)
-    },
-
-    async downloadDocumentVersion(clientId: string, documentId: string, versionId: string, filename: string) {
-      const blob = await clientService.downloadDocumentVersion(clientId, documentId, versionId)
-      triggerBlobDownload(blob, filename)
-    },
-
-    // Advances/changes a client's onboarding state via the backend's
-    // transition engine and updates the cached copy in both `clients`
-    // (used by the workspace page) and `pageItems` (used by the browse
-    // table) so the new state shows up immediately without a full reload.
-    async setOnboardingState(clientId: string, onboardingState: ClientOnboardingState, reason?: string) {
-      const updated = await clientService.updateOnboardingState(clientId, { onboardingState, reason })
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
-      return updated
-    },
-
-    async autoAdvanceOnboarding(clientId: string) {
-      const updated = await clientService.autoAdvanceOnboarding(clientId)
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
-      return updated
-    },
-
-    async confirmOnboardingVerification(clientId: string, file: File) {
-      const updated = await clientService.confirmOnboardingVerification(clientId, file)
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
-      return updated
-    },
-
-    // Records a verification check via the backend API. When it's tied to
-    // a specific document, the backend also updates that document's own
-    // verificationStatus in the same transaction -- mirrored here on the
-    // cached copy so the Documents tab reflects it immediately.
-    async createVerification(clientId: string, input: ClientVerificationInput) {
-      const verification = await clientService.createVerification(clientId, input)
-      this.verifications = [verification, ...this.verifications]
-      if (verification.documentId) {
-        this.documents = this.documents.map((d) =>
-          d.id === verification.documentId ? { ...d, verificationStatus: verification.result } : d,
-        )
-      }
-      return verification
-    },
-
     clearFilters() {
       this.typeFilter = 'All'
       this.statusFilter = 'All'
-      this.onboardingFilter = 'All'
       this.myClientsOnly = false
       this.pagination.page = 1
       void this.loadClientsPage()

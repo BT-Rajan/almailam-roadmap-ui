@@ -6,13 +6,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
-from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
+from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
-from app.core.status_transitions import (
-    CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
-    CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON,
-)
-from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.user import User
 from app.models.project import Project
 from app.models.client import (
@@ -26,15 +21,8 @@ from app.models.client import (
     ClientDocumentVersion,
     ClientIdentification,
     ClientVerification,
-    PendingClientOnboarding,
 )
-from app.schemas.client import (
-    ClientAddressCreate,
-    ClientContactCreate,
-    ClientCreate,
-    ClientIdentificationCreate,
-    PendingClientOnboardingCreate,
-)
+from app.schemas.client import ClientFullCreate
 from app.services import audit_service, company_service, email_service, email_template_service, notification_service, user_service
 
 ENTITY_TYPE = "CLIENT"
@@ -96,8 +84,9 @@ def list_clients(
     sort: str | None = None,
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
+    deleted: bool = False,
 ) -> dict:
-    query = db.query(Client).filter(Client.deleted_at.is_(None))
+    query = db.query(Client).filter(Client.deleted_at.isnot(None) if deleted else Client.deleted_at.is_(None))
 
     if search:
         term = f"%{search.strip().lower()}%"
@@ -162,17 +151,10 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
         mobile=payload.mobile,
         email=payload.email,
         city=payload.city,
-        # New clients skip straight past the data-collection steps
-        # (Information Required -> Documents Required) -- the New Client
-        # wizard already requires full contact, address, identification
-        # and consent details up front, so there's nothing left for those
-        # to gate. They land at "Pending Verification" instead of "Ready"
-        # though: a client can't be selected on a project (see
-        # project_service.create_project's onboarding_state == "Ready"
-        # check) until staff confirm the client's signed consent (see
-        # confirm_onboarding_verification below), which is also what
-        # provisions their Customer Portal login and sends the welcome
-        # email.
+        # onboarding_state no longer gates anything -- a client only
+        # needs status == "Active" to be selectable on a project (see
+        # project_service) -- so this default is now just a data field,
+        # not something any caller needs to move forward manually.
         onboarding_state="Pending Verification",
         preferred_language=payload.communicationPreference.preferredLanguage,
         preferred_channel=payload.communicationPreference.preferredChannel,
@@ -305,8 +287,6 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
 
     if payload.status is not None and payload.status != client.status:
         client = set_status(db, client_id, payload.status, user_id)
-    if payload.onboardingState is not None and payload.onboardingState != client.onboarding_state:
-        client = set_onboarding_state(db, client_id, payload.onboardingState, payload.reason, user_id)
 
     return client
 
@@ -321,106 +301,6 @@ def set_status(db: Session, client_id: int, status: str, user_id: int | None) ->
         client.status = status
         db.commit()
         db.refresh(client)
-    return client
-
-
-def set_onboarding_state(
-    db: Session, client_id: int, new_state: str, reason: str | None, user_id: int | None
-) -> Client:
-    client = get_client(db, client_id)
-    assert_transition_allowed(
-        CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, client.onboarding_state, new_state, "client"
-    )
-    if new_state in CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON:
-        assert_reason_given(reason, f"A reason is required to move onboarding to '{new_state}'.")
-
-    audit_service.log_event(
-        db, ENTITY_TYPE, client.id, "Onboarding state changed", user_id,
-        previous_value=client.onboarding_state, new_value=new_state, reason=reason,
-    )
-    client.onboarding_state = new_state
-    # A fresh staleness period starts now that onboarding has genuinely
-    # moved -- see check_and_notify_stale_onboarding.
-    client.onboarding_notified_at = None
-    db.commit()
-    db.refresh(client)
-    return client
-
-
-def auto_advance_onboarding(db: Session, client_id: int, user_id: int | None) -> Client:
-    """Walks a client forward through every onboarding transition that
-    has exactly one legal next state, stopping the moment it reaches a
-    genuine decision point (a state with zero or multiple valid next
-    states -- e.g. "Under Review" branching to Ready/Rejected/Documents
-    Required) or a state requiring a reason (which needs a human to
-    supply one).
-
-    This exists because walking a fully-ready client from "Information
-    Required" all the way to "Under Review" previously took three
-    separate manual round trips through the status-change dialog, even
-    though none of those three hops involve any real decision -- each
-    one only ever has a single legal destination. Each hop still goes
-    through the exact same validation and audit logging as a single
-    set_onboarding_state() call (so the audit trail shows the real
-    sequence of transitions, not one opaque jump); this just removes
-    the repeated manual clicking between them.
-
-    Not gated on document/verification completeness -- staff can
-    already manually force any individual transition via "Change
-    Status" regardless of what's actually on file, so this doesn't
-    introduce a stricter rule than what already exists; it only
-    automates the mechanical part.
-    """
-    client = get_client(db, client_id)
-    hops = 0
-    while True:
-        options = CLIENT_ONBOARDING_ALLOWED_TRANSITIONS.get(client.onboarding_state, set())
-        if len(options) != 1:
-            break
-        next_state = next(iter(options))
-        if next_state in CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON:
-            break
-        client = set_onboarding_state(db, client_id, next_state, None, user_id)
-        hops += 1
-    return client
-
-
-def confirm_onboarding_verification(db: Session, client_id: int, file: UploadFile, user_id: int | None) -> Client:
-    """Records the client's own verification -- previously an email OTP
-    the client read back to staff, now a scan of their physically
-    signed consent, uploaded here as the verification record (see
-    create_document; stored under the "Other" category since it isn't
-    an identity/registration document itself, just evidence of
-    consent). There's no code to verify, so this is a direct manual
-    action reachable from either "Documents Required" or "Pending
-    Verification" rather than a hard-gated one -- the signed upload is
-    the evidence, not a cryptographic proof. Success is what actually
-    moves the client to "Ready" -- this is the only caller of
-    set_onboarding_state(..., "Ready", ...) in the whole onboarding
-    flow, deliberately not exposed as a manual "Change Status" option
-    (see the comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Also
-    provisions the client's Customer Portal login and emails them a
-    welcome message the moment verification succeeds, so "Ready"
-    always means the client can both be put on a project and already
-    has portal access.
-    """
-    client = get_client(db, client_id)
-    if client.onboarding_state not in ("Documents Required", "Pending Verification"):
-        raise ValidationAppError("This client isn't awaiting verification.")
-    assert_pdf_upload(file)
-
-    storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
-    _create_document_row(
-        db, client.id, "Other", "Signed Onboarding Consent", None, None, None,
-        storage_key, original_filename, size_bytes, user_id,
-    )
-
-    client = set_onboarding_state(db, client_id, "Ready", None, user_id)
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via signed document upload", user_id)
-    db.commit()
-
-    portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
-    _send_welcome_email(db, client, portal_user, temporary_password)
     return client
 
 
@@ -444,130 +324,83 @@ def _send_welcome_email(db: Session, client: Client, portal_user: User, temporar
     email_service.send_email(client.email, subject, body, db=db)
 
 
-def get_pending_onboarding(db: Session, pending_id: int) -> PendingClientOnboarding:
-    pending = db.query(PendingClientOnboarding).filter(PendingClientOnboarding.id == pending_id).first()
-    if pending is None:
-        raise NotFoundError("Client onboarding request")
-    return pending
-
-
-def create_onboarding_request(
+def create_client_full(
     db: Session,
-    payload: PendingClientOnboardingCreate,
+    payload: ClientFullCreate,
     identification_file: UploadFile | None,
     document_category: str | None,
     document_title: str | None,
     user_id: int | None,
-) -> PendingClientOnboarding:
-    """Stages a whole New Client wizard submission -- no Client (or any
-    of its Contact/Address/Identification/Document rows) is created
-    until staff confirm it with the client's signed consent, uploaded
-    as a scan (see confirm_onboarding_request). The identification
-    file, if any, is written to its permanent location right away (same
-    "client_documents" bucket create_document already uses) since
-    save_upload doesn't need a client id to do that -- only the
-    ClientDocument row referencing it is deferred. document_category/
+) -> Client:
+    """The New Client wizard's submit action -- creates the client and
+    every sub-record (contacts, address, identification, identification
+    document) immediately, in one call, with no staging or confirmation
+    step. Reuses create_client/create_contact/create_address/
+    create_identification/_create_document_row unchanged. document_category/
     document_title are computed by the frontend exactly as they already
     are for a live create_document call (see clientOptions.ts's
-    getDocumentCategoryForIdentificationType) -- the wizard has
-    everything needed for that mapping before a client id ever exists,
-    so there's nothing to duplicate here.
+    getDocumentCategoryForIdentificationType).
+
+    Also provisions the client's Customer Portal login and emails them a
+    welcome message right away -- there's no separate verification step
+    left to gate that on, so a newly added client can access the portal
+    immediately.
     """
-    document: dict | None = None
+    client = create_client(db, payload.client, user_id)
+
+    for contact in payload.contacts:
+        create_contact(db, client.id, contact, user_id)
+
+    if payload.address:
+        create_address(db, client.id, payload.address, user_id)
+
+    if payload.identification:
+        create_identification(db, client.id, payload.identification, user_id)
+
     if identification_file is not None:
-        storage_key, original_filename, size_bytes = save_upload(identification_file, "client_documents")
-        identification = payload.identification
         if not document_category or not document_title:
             raise ValidationAppError("documentCategory and documentTitle are required with an identification file.")
-        document = {
-            "category": document_category,
-            "title": document_title,
-            "issueDate": identification.issueDate.isoformat() if identification and identification.issueDate else None,
-            "expiryDate": identification.expiryDate.isoformat() if identification and identification.expiryDate else None,
-            "issuingAuthority": identification.issuingCountry if identification else None,
-            "storageKey": storage_key,
-            "originalFilename": original_filename,
-            "sizeBytes": size_bytes,
-        }
-
-    pending = PendingClientOnboarding(
-        payload=payload.model_dump(mode="json"),
-        document=document,
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(pending)
-    db.commit()
-    db.refresh(pending)
-    return pending
-
-
-def confirm_onboarding_request(db: Session, pending_id: int, file: UploadFile, user_id: int | None) -> Client:
-    """Records the client's signed consent to onboard -- previously an
-    email OTP the client read back to staff, now a scan of their
-    physically signed copy. Success is what actually creates the Client
-    (and every staged sub-record) for the first time. Reuses
-    create_client/create_contact/create_address/create_identification/
-    _create_document_row completely unchanged, so the materialized
-    client is byte-for-byte what the old create-then-verify flow used
-    to produce -- just built inside one transaction instead of several
-    separate API calls, then the signed consent itself is saved as one
-    more ClientDocument (category "Other") once the client id exists.
-    onboarding_state goes straight to "Ready" (skipping the "Pending
-    Verification" hop) since verification already happened before this
-    row existed.
-    """
-    pending = get_pending_onboarding(db, pending_id)
-    assert_pdf_upload(file)
-    consent_storage_key, consent_filename, consent_size_bytes = save_upload(file, "client_documents")
-
-    client_payload = ClientCreate(**pending.payload["client"])
-    client = create_client(db, client_payload, user_id)
-
-    for contact_dict in pending.payload.get("contacts") or []:
-        create_contact(db, client.id, ClientContactCreate(**contact_dict), user_id)
-
-    if pending.payload.get("address"):
-        create_address(db, client.id, ClientAddressCreate(**pending.payload["address"]), user_id)
-
-    if pending.payload.get("identification"):
-        create_identification(db, client.id, ClientIdentificationCreate(**pending.payload["identification"]), user_id)
-
-    if pending.document:
-        doc = pending.document
+        storage_key, original_filename, size_bytes = save_upload(identification_file, "client_documents")
+        identification = payload.identification
         _create_document_row(
-            db, client.id, doc["category"], doc["title"],
-            date.fromisoformat(doc["issueDate"]) if doc.get("issueDate") else None,
-            date.fromisoformat(doc["expiryDate"]) if doc.get("expiryDate") else None,
-            doc.get("issuingAuthority"),
-            doc["storageKey"], doc["originalFilename"], doc["sizeBytes"],
+            db, client.id, document_category, document_title,
+            identification.issueDate if identification else None,
+            identification.expiryDate if identification else None,
+            identification.issuingCountry if identification else None,
+            storage_key, original_filename, size_bytes,
             user_id,
         )
 
-    _create_document_row(
-        db, client.id, "Other", "Signed Onboarding Consent", None, None, None,
-        consent_storage_key, consent_filename, consent_size_bytes, user_id,
-    )
-
-    client.onboarding_state = "Ready"
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via signed document upload", user_id)
-    db.commit()
-    db.refresh(client)
-
     portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
-    _send_welcome_email(db, client, portal_user, temporary_password)
+    try:
+        _send_welcome_email(db, client, portal_user, temporary_password)
+    except ValidationAppError as error:
+        # A down/misconfigured mail server must never block adding a
+        # client -- that's exactly the friction this silent-add flow
+        # exists to remove. The portal account above is already created
+        # either way; this only surfaces that the welcome email didn't
+        # go out, so someone can follow up (e.g. share the login another
+        # way) -- mirrors quotation_service.confirm_quotation_approval's
+        # identical fallback for its own confirmation email.
+        notification_service.notify_role(
+            db, "Administrator",
+            "Client welcome email not sent",
+            f"{client.company_name} was added, but the welcome email could not be sent: {error}",
+            "System",
+            link_route_name="client-workspace",
+            link_params={"clientId": f"CLT-{client.id:03d}"},
+        )
 
     notification_service.notify_role(
         db, "Administrator",
         "New client created",
-        f"{client.company_name} was onboarded and verified.",
+        f"{client.company_name} was added.",
         "System",
         link_route_name="client-workspace",
         link_params={"clientId": f"CLT-{client.id:03d}"},
     )
     db.commit()
-
-    db.delete(pending)
-    db.commit()
+    db.refresh(client)
     return client
 
 
@@ -578,10 +411,7 @@ def check_and_notify_stale_onboarding(db: Session) -> int:
     manager once per staleness episode -- mirrors project_service.
     check_and_notify_stale_projects exactly, applied to onboarding
     instead of project stage. onboarding_notified_at prevents
-    re-notifying every time this runs, and is cleared the moment
-    onboarding_state actually changes (set_onboarding_state), so a
-    fresh staleness period starts if it stalls again later at a
-    different step.
+    re-notifying every time this runs.
 
     Only considers clients still genuinely in progress -- Ready,
     Rejected, and Suspended are all deliberate end states (done,
@@ -1260,13 +1090,10 @@ def _create_document_row(
     uploaded_by: int,
 ) -> ClientDocument:
     """The row-creation tail of create_document, extracted so
-    confirm_onboarding_request can write the same ClientDocument +
-    ClientDocumentVersion rows from a file that was already saved to
-    permanent storage at onboarding-request time (see
-    create_onboarding_request) -- there's no fresh UploadFile to read at
-    confirmation time for the identification document (it was already
-    saved to storage when it was staged), only the storage_key/
-    filename/size save_upload already returned earlier."""
+    create_client_full can write the identification document's
+    ClientDocument + ClientDocumentVersion rows from a file already
+    saved to permanent storage by save_upload, without re-reading an
+    UploadFile a second time."""
     document = ClientDocument(
         client_id=client_id,
         category=category,
@@ -1523,3 +1350,21 @@ def delete_client(db: Session, client_id: int, actor_id: int) -> None:
     audit_service.log_event(db, ENTITY_TYPE, client.id, "Client deleted", actor_id, previous_value=client.company_name)
     client.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def restore_client(db: Session, client_id: int, actor_id: int) -> Client:
+    """Undoes delete_client -- clears deleted_at so the client is a
+    normal, active record again (list_clients, get_client, and every
+    other lookup start including it immediately). Doesn't touch
+    client.status: a client deleted while "Inactive" comes back
+    "Inactive", not silently reactivated -- staff still change status
+    separately if that's also needed."""
+    client = db.query(Client).filter(Client.id == client_id, Client.deleted_at.isnot(None)).first()
+    if client is None:
+        raise NotFoundError("Deleted client")
+
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client restored", actor_id, previous_value=client.company_name)
+    client.deleted_at = None
+    db.commit()
+    db.refresh(client)
+    return client

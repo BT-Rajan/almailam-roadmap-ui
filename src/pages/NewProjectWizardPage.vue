@@ -202,23 +202,19 @@ onMounted(async () => {
   // change. Fetched fresh for the same reason as the client list above.
   await serviceCatalogStore.loadServices()
   if (permitCatalogStore.permits.length === 0) await permitCatalogStore.loadPermits()
-  // Only clients that have completed onboarding AND are still Active can
-  // have a project created for them (enforced server-side too, in
-  // project_service.create_project) -- a project needs a real, currently
-  // active client relationship behind it, not one still mid-onboarding
-  // or one the business has since deactivated.
-  const readyClients = projectStore.clients.filter(
-    (client) => client.onboardingState === 'Ready' && client.status === 'Active',
-  )
-  hasIneligibleClients.value = readyClients.length < projectStore.clients.length
-  clientOptions.value = readyClients.map((client) => ({ label: client.companyName, value: client.id }))
+  // Only Active clients can have a project created for them -- a project
+  // needs a real, currently active client relationship behind it, not
+  // one the business has since deactivated.
+  const activeClients = projectStore.clients.filter((client) => client.status === 'Active')
+  hasIneligibleClients.value = activeClients.length < projectStore.clients.length
+  clientOptions.value = activeClients.map((client) => ({ label: client.companyName, value: client.id }))
 
   // Arriving from a client's own workspace page ("New Project" there)
   // pre-selects that client -- saves a step and rules out picking the
   // wrong one out of a long list. Only pre-fills if the client is
-  // actually eligible (Ready + Active); if not, the wizard's own
-  // "No eligible clients" / ineligible-clients messaging below still
-  // explains why, rather than silently pre-selecting something invalid.
+  // actually eligible (Active); if not, the wizard's own "No eligible
+  // clients" / ineligible-clients messaging below still explains why,
+  // rather than silently pre-selecting something invalid.
   const preselectedClientId = route.query.clientId
   if (typeof preselectedClientId === 'string' && clientOptions.value.some((option) => option.value === preselectedClientId)) {
     form.clientId = preselectedClientId

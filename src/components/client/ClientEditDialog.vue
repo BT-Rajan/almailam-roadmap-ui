@@ -7,7 +7,6 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import FormSection from '@/components/common/FormSection.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useUserStore } from '@/stores/userStore'
 import type { Client } from '@/types/Client'
@@ -67,7 +66,6 @@ function emptyForm(): ClientEditForm {
     preferredLanguage: 'English',
     preferredChannel: 'Email',
     accountManagerId: '',
-    notes: '',
     individualProfile: { fullLegalName: '', preferredName: '', nationality: '', dateOfBirth: '', countryOfResidence: '' },
     organisationProfile: {
       legalName: '',
@@ -102,7 +100,6 @@ watch(
     form.preferredLanguage = props.client.communicationPreference.preferredLanguage
     form.preferredChannel = props.client.communicationPreference.preferredChannel
     form.accountManagerId = props.client.accountManagerId ?? ''
-    form.notes = props.client.notes ?? ''
 
     if (props.client.individualProfile) {
       Object.assign(form.individualProfile, {
@@ -161,7 +158,6 @@ function handleConfirm(): void {
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
           <SelectBox v-model="form.accountManagerId" :label="t('client.editDialog.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
         </div>
-        <TextArea v-model="form.notes" :label="t('client.editDialog.internalNotes')" :hint="t('client.editDialog.internalNotesHint')" :rows="3" />
       </FormSection>
 
       <FormSection v-if="client.clientType === 'Individual'" :title="t('client.editDialog.personalInformation')">

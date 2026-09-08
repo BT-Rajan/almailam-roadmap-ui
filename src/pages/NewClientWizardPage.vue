@@ -7,7 +7,6 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import Stepper from '@/components/common/Stepper.vue'
 
 // Lazy-loaded: only one wizard step is visible at a time.
@@ -17,7 +16,6 @@ const ClientIdentificationStep = defineAsyncComponent(() => import('@/components
 const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
 import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { clientService } from '@/services/clientService'
 import { useClientStore } from '@/stores/clientStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -137,16 +135,6 @@ watch(currentStep, saveDraft)
 // can be missed while the page is already navigating away.
 const showConfirmation = ref(false)
 const createdClient = ref<Client | null>(null)
-
-// Review & Confirm no longer creates the client directly -- it stages
-// the submission (see submitWizard below); the client (and every
-// sub-record) is only created once handleConfirmOnboarding succeeds,
-// confirmed by uploading a scan of the client's physically signed
-// consent. pendingOnboardingId identifies that staged submission for
-// the confirm call.
-const isConfirmDialogOpen = ref(false)
-const isConfirmSaving = ref(false)
-const pendingOnboardingId = ref('')
 
 async function checkForDuplicates(): Promise<void> {
   const name = form.value.clientType === 'Individual' ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
@@ -345,7 +333,7 @@ async function submitWizard(): Promise<void> {
           }
         : undefined
 
-    const pending = await clientService.createOnboardingRequest(
+    const client = await clientStore.createClientFull(
       {
         client: {
           clientType: form.value.clientType,
@@ -373,29 +361,14 @@ async function submitWizard(): Promise<void> {
       form.value.identificationFile ? `${form.value.identification.documentType} - ${displayName}` : undefined,
     )
 
-    pendingOnboardingId.value = pending.id
-    isConfirmDialogOpen.value = true
+    createdClient.value = client
+    clearDraft()
+    showConfirmation.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
     resultDialogStore.showError(t('client.newWizard.failedToOnboardClient'), detail)
   } finally {
     isSubmitting.value = false
-  }
-}
-
-async function handleConfirmOnboarding(payload: { file: File }): Promise<void> {
-  isConfirmSaving.value = true
-  try {
-    const client = await clientService.confirmOnboardingRequest(pendingOnboardingId.value, payload.file)
-    createdClient.value = client
-    clearDraft()
-    isConfirmDialogOpen.value = false
-    showConfirmation.value = true
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.newWizard.confirmDialog.failedToConfirm'), detail)
-  } finally {
-    isConfirmSaving.value = false
   }
 }
 
@@ -454,24 +427,15 @@ function goToCreatedClient(): void {
             @submit="submitWizard"
           />
         </div>
-        <!-- Submitting now also uploads the identification file and sends
-             the client's verification email in the same request (see
-             submitWizard/createOnboardingRequest) -- both can genuinely
-             take several seconds, and a bare spinner with no explanation
-             read as "stuck" during that wait. -->
+        <!-- Submitting creates the client (and uploads the identification
+             file, if any) in a single request, which can genuinely take
+             a few seconds -- a bare spinner with no explanation read as
+             "stuck" during that wait. -->
         <p v-if="isSubmitting" class="text-end text-xs text-text-muted">
           {{ t('client.newWizard.submittingNotice') }}
         </p>
       </div>
     </div>
-
-    <SignedDocumentUploadDialog
-      v-model="isConfirmDialogOpen"
-      :loading="isConfirmSaving"
-      :title="t('client.newWizard.confirmDialog.title')"
-      :description="t('client.newWizard.confirmDialog.description')"
-      @confirm="handleConfirmOnboarding"
-    />
 
     <BaseDialog :model-value="showConfirmation" :title="t('client.newWizard.clientSubmittedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">

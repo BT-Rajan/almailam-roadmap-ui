@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -56,17 +56,14 @@ class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # Set by client_service.check_and_notify_stale_onboarding() once the
     # account manager has been notified that this client's onboarding
     # hasn't moved in a while -- mirrors Project.stale_notified_at.
-    # Cleared the moment onboarding_state actually changes (see
-    # set_onboarding_state), so a fresh staleness period starts if it
-    # stalls again later at a different step.
     onboarding_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # otp_code_hash/otp_expires_at/otp_attempts/otp_sent_at come from
-    # EmailOtpMixin -- inert leftovers of the old email-OTP verification
-    # step (replaced the older manual "Under Review" step); nothing
-    # writes them anymore now that verification is confirmed via a
-    # signed document upload instead (see client_service.
-    # confirm_onboarding_verification).
+    # EmailOtpMixin -- inert leftovers of an old email-OTP verification
+    # step. onboarding_state itself is also now just a data field: a
+    # client only needs status == "Active" to be usable on a project
+    # (client creation -- see client_service.create_client_full -- no
+    # longer has any verification/approval step to gate).
 
     # -- individualProfile (only populated when client_type == 'Individual') --
     ind_full_legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
@@ -260,30 +257,3 @@ class ClientVerification(Base):
     )
     verified_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-
-
-class PendingClientOnboarding(Base, EmailOtpMixin):
-    """A New Client wizard submission staged behind confirmation -- see
-    client_service.create_onboarding_request/confirm_onboarding_request.
-    No Client (or any of its Contact/Address/Identification/Document rows)
-    exists until staff confirm it with the client's signed consent
-    (a scan of their physically signed copy); an abandoned or
-    never-confirmed wizard submission never leaves a half-onboarded
-    Client record behind. `payload` holds the already-validated
-    ClientCreate + sub-record payloads as plain JSON (re-validated
-    through the same Pydantic schemas again at confirmation time);
-    `document` holds the identification file's already-saved
-    storage_key plus the ClientDocument fields it needs -- the file
-    itself is written to its permanent location (the same
-    "client_documents" bucket client_service.create_document uses) the
-    moment this row is created, so confirmation never has to move
-    anything, only decide whether the ClientDocument row gets written.
-    The otp_* columns inherited from EmailOtpMixin are inert leftovers
-    of the old email-OTP flow -- nothing writes them anymore."""
-
-    __tablename__ = "pending_client_onboardings"
-
-    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
-    document: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

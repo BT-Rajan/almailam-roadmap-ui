@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
-import { getClientDisplayName, getClientOnboardingStateVariant, getClientStatusVariant } from '@/utils/clientHelpers'
+import { getClientDisplayName, getClientStatusVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
   client: Client
@@ -30,16 +30,6 @@ const CLIENT_STATUS_LABEL_KEYS: Record<string, string> = {
   Inactive: 'clientOptions.status.inactive',
 }
 const clientStatusLabel = computed(() => t(CLIENT_STATUS_LABEL_KEYS[props.client.status] ?? props.client.status))
-
-const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
-  'Information Required': 'clientOptions.onboardingState.informationRequired',
-  'Documents Required': 'clientOptions.onboardingState.documentsRequired',
-  'Pending Verification': 'clientOptions.onboardingState.pendingVerification',
-  Ready: 'clientOptions.onboardingState.ready',
-  Rejected: 'clientOptions.onboardingState.rejected',
-  Suspended: 'clientOptions.onboardingState.suspended',
-}
-const onboardingStateLabel = computed(() => t(ONBOARDING_STATE_LABEL_KEYS[props.client.onboardingState] ?? props.client.onboardingState))
 
 const emit = defineEmits<{
   open: [clientId: string]
@@ -97,10 +87,6 @@ function handleKeydown(event: KeyboardEvent): void {
           <UserRound class="h-4 w-4 shrink-0 text-text-muted" />
           <span class="truncate">{{ client.accountManagerName ?? t('client.unassigned') }}</span>
         </div>
-      </div>
-
-      <div class="flex items-center justify-between border-t border-border-light pt-3">
-        <StatusBadge :label="onboardingStateLabel" :variant="getClientOnboardingStateVariant(client.onboardingState)" size="sm" />
       </div>
     </div>
   </Card>

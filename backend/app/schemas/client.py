@@ -7,7 +7,6 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.models.client import (
     ADDRESS_TYPES,
     CLIENT_DOCUMENT_CATEGORIES,
-    CLIENT_ONBOARDING_STATES,
     CLIENT_STATUSES,
     CLIENT_TYPES,
     CLIENT_VERIFICATION_RESULTS,
@@ -247,8 +246,6 @@ class ClientUpdate(BaseModel):
     individualProfile: IndividualProfileIn | None = None
     organisationProfile: OrganisationProfileIn | None = None
     status: str | None = None
-    onboardingState: str | None = None
-    reason: str | None = None
     # "" means unassign/clear; a real value means set; omitted (None)
     # means leave untouched -- same convention used throughout this app's
     # edit dialogs, which always resend the field's current value.
@@ -262,13 +259,6 @@ class ClientUpdate(BaseModel):
             raise ValueError(f"status must be one of {CLIENT_STATUSES}")
         return value
 
-    @field_validator("onboardingState")
-    @classmethod
-    def check_onboarding_state(cls, value: str | None) -> str | None:
-        if value is not None and value not in CLIENT_ONBOARDING_STATES:
-            raise ValueError(f"onboardingState must be one of {CLIENT_ONBOARDING_STATES}")
-        return value
-
     @field_validator("mobile")
     @classmethod
     def check_mobile(cls, value: str | None) -> str | None:
@@ -280,14 +270,6 @@ class ClientUpdate(BaseModel):
 class ClientStatusUpdate(BaseModel):
     status: str
     _check = field_validator("status")(_enum_validator(CLIENT_STATUSES, "status"))
-
-
-class ClientOnboardingStateUpdate(BaseModel):
-    onboardingState: str
-    reason: str | None = None
-    _check = field_validator("onboardingState")(
-        _enum_validator(CLIENT_ONBOARDING_STATES, "onboardingState")
-    )
 
 
 class ClientDuplicateMatchOut(BaseModel):
@@ -633,39 +615,15 @@ class ClientVerificationCreate(BaseModel):
     _check = field_validator("result")(_enum_validator(CLIENT_VERIFICATION_RESULTS, "result"))
 
 
-class IdentificationVerificationOut(BaseModel):
-    # "checked" is false whenever the AI couldn't actually evaluate the
-    # file (disabled, unconfigured, provider error, or a file type this
-    # check doesn't attempt -- see api/clients.py's verify_identification_
-    # document) -- the frontend treats that as "accept with a manual
-    # verification caveat", not as a rejection. matches/reasoning are
-    # only meaningful when checked is true.
-    checked: bool
-    matches: bool | None = None
-    reasoning: str | None = None
-
-
-class PendingClientOnboardingCreate(BaseModel):
-    """The whole New Client wizard submission, staged behind email
-    verification -- see client_service.create_onboarding_request. Nests
-    the exact same schemas ClientCreate/ClientContactCreate/
-    ClientAddressCreate/ClientIdentificationCreate already validate a
-    live create with, so every field-level rule they carry (phone
-    format, enum checks, date ordering) applies here unchanged."""
+class ClientFullCreate(BaseModel):
+    """The whole New Client wizard submission -- created immediately, in
+    one call, with no staging step. Nests the exact same schemas
+    ClientCreate/ClientContactCreate/ClientAddressCreate/
+    ClientIdentificationCreate already validate a live create with, so
+    every field-level rule they carry (phone format, enum checks, date
+    ordering) applies here unchanged."""
 
     client: ClientCreate
     contacts: list[ClientContactCreate] = Field(default_factory=list)
     address: ClientAddressCreate | None = None
     identification: ClientIdentificationCreate | None = None
-
-
-class PendingClientOnboardingOut(BaseModel):
-    id: str
-    email: str
-
-    @staticmethod
-    def from_model(pending) -> "PendingClientOnboardingOut":
-        return PendingClientOnboardingOut(
-            id=str(pending.id),
-            email=pending.payload["client"]["email"],
-        )

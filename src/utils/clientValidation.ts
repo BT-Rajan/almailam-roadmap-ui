@@ -211,7 +211,6 @@ export interface ClientEditForm {
   preferredLanguage: string
   preferredChannel: ClientPreferredChannel
   accountManagerId: string
-  notes: string
   individualProfile: {
     fullLegalName: string
     preferredName: string

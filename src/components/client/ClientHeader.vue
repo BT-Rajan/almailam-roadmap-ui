@@ -7,7 +7,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
-import { getClientDisplayName, getClientOnboardingStateVariant, getClientStatusVariant } from '@/utils/clientHelpers'
+import { getClientDisplayName, getClientStatusVariant } from '@/utils/clientHelpers'
 
 const props = defineProps<{
   client: Client
@@ -39,16 +39,6 @@ const CLIENT_STATUS_LABEL_KEYS: Record<string, string> = {
   Inactive: 'clientOptions.status.inactive',
 }
 const clientStatusLabel = computed(() => t(CLIENT_STATUS_LABEL_KEYS[props.client.status] ?? props.client.status))
-
-const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
-  'Information Required': 'clientOptions.onboardingState.informationRequired',
-  'Documents Required': 'clientOptions.onboardingState.documentsRequired',
-  'Pending Verification': 'clientOptions.onboardingState.pendingVerification',
-  Ready: 'clientOptions.onboardingState.ready',
-  Rejected: 'clientOptions.onboardingState.rejected',
-  Suspended: 'clientOptions.onboardingState.suspended',
-}
-const onboardingStateLabel = computed(() => t(ONBOARDING_STATE_LABEL_KEYS[props.client.onboardingState] ?? props.client.onboardingState))
 </script>
 
 <template>
@@ -70,7 +60,6 @@ const onboardingStateLabel = computed(() => t(ONBOARDING_STATE_LABEL_KEYS[props.
       </div>
 
       <div class="flex shrink-0 flex-wrap items-center gap-2">
-        <StatusBadge :label="onboardingStateLabel" :variant="getClientOnboardingStateVariant(client.onboardingState)" />
         <StatusBadge :label="clientStatusLabel" :variant="getClientStatusVariant(client.status)" />
         <BaseButton variant="secondary" size="sm" :loading="statusSaving" @click="$emit('toggle-status')">
           {{ client.status === 'Active' ? t('client.header.deactivate') : t('client.header.reactivate') }}

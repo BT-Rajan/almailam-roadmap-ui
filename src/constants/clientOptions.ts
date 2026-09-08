@@ -2,7 +2,6 @@ import type {
   ClientDocumentCategory,
   ClientIdentificationType,
   ClientOnboardingRequirement,
-  ClientOnboardingState,
   ClientType,
 } from '@/types/Client'
 import type { SelectOption } from '@/types/Ui'
@@ -115,43 +114,6 @@ export const CLIENT_STATUS_OPTIONS: SelectOption[] = [
   { label: 'Active', value: 'Active', labelKey: 'clientOptions.status.active' },
   { label: 'Inactive', value: 'Inactive', labelKey: 'clientOptions.status.inactive' },
 ]
-
-export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
-  { label: 'All Onboarding States', value: 'All', labelKey: 'clientOptions.onboardingState.all' },
-  { label: 'Information Required', value: 'Information Required', labelKey: 'clientOptions.onboardingState.informationRequired' },
-  { label: 'Documents Required', value: 'Documents Required', labelKey: 'clientOptions.onboardingState.documentsRequired' },
-  { label: 'Pending Verification', value: 'Pending Verification', labelKey: 'clientOptions.onboardingState.pendingVerification' },
-  { label: 'Ready', value: 'Ready', labelKey: 'clientOptions.onboardingState.ready' },
-  { label: 'Rejected', value: 'Rejected', labelKey: 'clientOptions.onboardingState.rejected' },
-  { label: 'Suspended', value: 'Suspended', labelKey: 'clientOptions.onboardingState.suspended' },
-]
-
-// Mirrors backend/app/core/status_transitions.py CLIENT_ONBOARDING_ALLOWED_TRANSITIONS
-// exactly -- keep the two in sync. The backend is the sole source of
-// enforcement (it re-validates every transition server-side); this copy
-// only drives which options the UI offers, so a mismatch fails safe (the
-// backend rejects it) rather than open.
-//
-// "Under Review" was replaced by "Pending Verification" -- there's no
-// more manual eyeball review; staff confirm the client's own signed
-// consent, uploaded as a scan (see ClientWorkspacePage.vue's
-// SignedDocumentUploadDialog and clientStore.confirmOnboardingVerification).
-// "Ready" is deliberately NOT offered here as a manual "Change Status"
-// target even though the backend's own table allows it -- it's reachable
-// only through that confirmation, never a bare status change (see
-// ClientOnboardingStatusDialog, which reads this table to build its
-// option list).
-export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState, ClientOnboardingState[]> = {
-  'Information Required': ['Documents Required'],
-  'Documents Required': ['Pending Verification'],
-  'Pending Verification': ['Rejected', 'Documents Required'],
-  Ready: ['Suspended'],
-  Suspended: ['Pending Verification', 'Rejected'],
-  Rejected: ['Information Required'],
-}
-
-// Mirrors backend/app/core/status_transitions.py CLIENT_ONBOARDING_STATUSES_REQUIRING_REASON.
-export const CLIENT_ONBOARDING_STATES_REQUIRING_REASON: ClientOnboardingState[] = ['Rejected', 'Suspended']
 
 const INDIVIDUAL_REQUIREMENTS: ClientOnboardingRequirement[] = [
   {

@@ -1,8 +1,4 @@
 export default {
-  onboardingProgress: 'Onboarding Progress',
-  onboardingComplete: '(Complete)',
-  onboardingIncomplete: '(Incomplete)',
-
   unassigned: 'Unassigned',
   unknownClient: 'Unknown Client',
 
@@ -105,7 +101,7 @@ export default {
     noDocumentsTitle: 'No documents on file',
     noDocumentsDescription: 'Upload identity, registration or authorisation documents for this client.',
     newProject: 'New Project',
-    onboardingMustBeReady: 'Onboarding must be Ready and the client Active before a project can be created.',
+    clientMustBeActive: 'The client must be Active before a project can be created.',
     noProjectsTitle: 'No projects yet',
     noProjectsDescription: 'Projects created for this client will appear here.',
     fields: {
@@ -275,7 +271,6 @@ export default {
     clientType: 'Client Type',
     allTypes: 'All Types',
     status: 'Status',
-    onboardingState: 'Onboarding State',
     myClients: 'My Clients',
     layoutAria: 'Client list layout',
     gridView: 'Grid view',
@@ -284,7 +279,7 @@ export default {
     noClientsFoundTitle: 'No clients found',
     noClientsAssignedDescription: "You have no clients assigned as their account manager. Turn off 'My Clients' to see everyone, or assign yourself via Edit Client.",
     noClientsAssignedDescriptionTable: "You have no clients assigned as their account manager. Turn off 'My Clients' to see everyone.",
-    noClientsFoundDescription: 'Try adjusting your filters, or onboard a new client.',
+    noClientsFoundDescription: 'Try adjusting your filters, or add a new client.',
     columns: {
       code: 'Code',
       name: 'Name',
@@ -293,9 +288,16 @@ export default {
       email: 'Email',
       city: 'City',
       accountManager: 'Account Manager',
-      onboarding: 'Onboarding',
       status: 'Status',
     },
+    deletedClients: 'Deleted Clients',
+    backToClients: 'Back to Clients',
+    noDeletedClientsTitle: 'No deleted clients',
+    noDeletedClientsDescription: 'Clients that have been deleted will appear here, and can be restored at any time.',
+    restore: 'Restore',
+    restoredTitle: 'Client restored',
+    restoredDescription: '{name} was restored.',
+    failedToRestore: 'Failed to restore client',
   },
 
   newWizard: {

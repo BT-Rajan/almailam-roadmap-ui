@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LayoutGrid, Plus, TableProperties } from '@lucide/vue'
+import { LayoutGrid, Plus, RotateCcw, TableProperties, Trash2 } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -16,17 +16,15 @@ import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
 import ClientCard from '@/components/client/ClientCard.vue'
-import {
-  CLIENT_ONBOARDING_STATE_OPTIONS,
-  CLIENT_STATUS_OPTIONS,
-  CLIENT_TYPE_OPTIONS,
-} from '@/constants/clientOptions'
+import { CLIENT_STATUS_OPTIONS, CLIENT_TYPE_OPTIONS } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
-import type { ClientOnboardingState, ClientStatus, ClientType } from '@/types/Client'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
+import { useToastStore } from '@/stores/toastStore'
+import type { ClientStatus, ClientType } from '@/types/Client'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SelectOption } from '@/types/Ui'
-import { getClientDisplayName, getClientOnboardingStateVariant, getClientStatusVariant } from '@/utils/clientHelpers'
+import { getClientDisplayName, getClientStatusVariant } from '@/utils/clientHelpers'
 
 interface ClientTableRow {
   [key: string]: unknown
@@ -38,12 +36,13 @@ interface ClientTableRow {
   email: string
   city: string
   status: ClientStatus
-  onboardingState: ClientOnboardingState
   accountManager: string
 }
 
 const router = useRouter()
 const clientStore = useClientStore()
+const resultDialogStore = useResultDialogStore()
+const toastStore = useToastStore()
 const { t } = useI18n()
 
 const TYPE_OPTIONS = computed<SelectOption[]>(() => [{ label: t('client.clientsPage.allTypes'), value: 'All' }, ...CLIENT_TYPE_OPTIONS])
@@ -56,7 +55,6 @@ const TABLE_COLUMNS = computed<SmartTableColumn<ClientTableRow>[]>(() => [
   { key: 'email', label: t('client.clientsPage.columns.email'), sortable: true },
   { key: 'city', label: t('client.clientsPage.columns.city'), sortable: true },
   { key: 'accountManager', label: t('client.clientsPage.columns.accountManager'), sortable: false },
-  { key: 'onboardingState', label: t('client.clientsPage.columns.onboarding'), sortable: true },
   { key: 'status', label: t('client.clientsPage.columns.status'), sortable: true },
 ])
 
@@ -70,7 +68,6 @@ const tableRows = computed<ClientTableRow[]>(() =>
     email: client.email,
     city: client.city,
     status: client.status,
-    onboardingState: client.onboardingState,
     accountManager: client.accountManagerName ?? '—',
   })),
 )
@@ -82,11 +79,26 @@ function loadData(): void {
 onMounted(loadData)
 
 function openClient(clientId: string): void {
+  if (clientStore.showDeleted) return
   router.push({ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId } })
 }
 
 function createClient(): void {
   router.push({ name: ROUTE_NAMES.CLIENT_NEW })
+}
+
+function toggleShowDeleted(): void {
+  clientStore.setShowDeleted(!clientStore.showDeleted)
+}
+
+async function restoreClient(clientId: string, name: string): Promise<void> {
+  try {
+    await clientStore.restoreClient(clientId)
+    toastStore.show('success', t('client.clientsPage.restoredTitle'), t('client.clientsPage.restoredDescription', { name }))
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('client.clientsPage.failedToRestore'), detail)
+  }
 }
 
 const CLIENT_TYPE_LABEL_KEYS: Record<string, string> = {
@@ -98,18 +110,6 @@ const CLIENT_TYPE_LABEL_KEYS: Record<string, string> = {
 }
 function clientTypeLabel(clientType: string): string {
   return t(CLIENT_TYPE_LABEL_KEYS[clientType] ?? clientType)
-}
-
-const ONBOARDING_STATE_LABEL_KEYS: Record<string, string> = {
-  'Information Required': 'clientOptions.onboardingState.informationRequired',
-  'Documents Required': 'clientOptions.onboardingState.documentsRequired',
-  'Pending Verification': 'clientOptions.onboardingState.pendingVerification',
-  Ready: 'clientOptions.onboardingState.ready',
-  Rejected: 'clientOptions.onboardingState.rejected',
-  Suspended: 'clientOptions.onboardingState.suspended',
-}
-function onboardingStateLabel(state: string): string {
-  return t(ONBOARDING_STATE_LABEL_KEYS[state] ?? state)
 }
 
 const CLIENT_STATUS_LABEL_KEYS: Record<string, string> = {
@@ -128,6 +128,13 @@ function clientStatusLabel(status: string): string {
       :subtitle="t('client.clientsPage.subtitle')"
     >
       <template #actions>
+        <BaseButton
+          variant="secondary"
+          :icon="clientStore.showDeleted ? undefined : Trash2"
+          @click="toggleShowDeleted"
+        >
+          {{ clientStore.showDeleted ? t('client.clientsPage.backToClients') : t('client.clientsPage.deletedClients') }}
+        </BaseButton>
         <BaseButton :icon="Plus" @click="createClient">{{ t('client.clientsPage.newClient') }}</BaseButton>
       </template>
     </PageHeader>
@@ -152,14 +159,6 @@ function clientStatusLabel(status: string): string {
             :model-value="clientStore.statusFilter"
             :options="CLIENT_STATUS_OPTIONS"
             @update:model-value="clientStore.setStatusFilter($event as ClientStatus | 'All')"
-          />
-        </div>
-        <div class="w-52">
-          <SelectBox
-            :label="t('client.clientsPage.onboardingState')"
-            :model-value="clientStore.onboardingFilter"
-            :options="CLIENT_ONBOARDING_STATE_OPTIONS"
-            @update:model-value="clientStore.setOnboardingFilter($event as ClientOnboardingState | 'All')"
           />
         </div>
         <BaseButton
@@ -194,6 +193,52 @@ function clientStatusLabel(status: string): string {
     </FilterBar>
 
     <ErrorState v-if="clientStore.error" :description="clientStore.error" @retry="loadData" />
+
+    <template v-else-if="clientStore.showDeleted">
+      <div v-if="clientStore.isPageLoading" class="flex flex-col gap-3">
+        <div v-for="placeholder in 4" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
+          <SkeletonLoader :rows="2" />
+        </div>
+      </div>
+
+      <EmptyState
+        v-else-if="clientStore.pageItems.length === 0"
+        :title="t('client.clientsPage.noDeletedClientsTitle')"
+        :description="t('client.clientsPage.noDeletedClientsDescription')"
+      />
+
+      <template v-else>
+        <div class="flex flex-col gap-3">
+          <div
+            v-for="client in clientStore.pageItems"
+            :key="client.id"
+            class="flex flex-col gap-2 rounded-xl border border-border-light bg-bg-card p-4 tablet:flex-row tablet:items-center tablet:justify-between"
+          >
+            <div class="flex flex-col gap-0.5">
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ client.code }} · {{ clientTypeLabel(client.clientType) }}</p>
+              <p class="text-sm font-semibold text-text-primary">{{ getClientDisplayName(client) }}</p>
+              <p class="text-xs text-text-muted">{{ client.email }} · {{ client.mobile }}</p>
+            </div>
+            <BaseButton size="sm" :icon="RotateCcw" @click="restoreClient(client.id, getClientDisplayName(client))">
+              {{ t('client.clientsPage.restore') }}
+            </BaseButton>
+          </div>
+        </div>
+        <div class="rounded-xl border border-border-light bg-bg-card">
+          <TablePagination
+            :current-page="clientStore.pagination.page"
+            :total-pages="clientStore.pagination.totalPages"
+            :total-items="clientStore.pagination.total"
+            :start-index="(clientStore.pagination.page - 1) * clientStore.pagination.pageSize"
+            :end-index="Math.min(clientStore.pagination.page * clientStore.pagination.pageSize, clientStore.pagination.total)"
+            :page-size="clientStore.pagination.pageSize"
+            :page-size-options="[9, 18, 27]"
+            @page-change="clientStore.setPage"
+            @page-size-change="clientStore.setPageSize"
+          />
+        </div>
+      </template>
+    </template>
 
     <template v-else-if="clientStore.viewMode === 'grid'">
       <div v-if="clientStore.isPageLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
@@ -252,12 +297,6 @@ function clientStatusLabel(status: string): string {
       >
         <template #cell-clientType="{ value }">
           {{ clientTypeLabel(value as string) }}
-        </template>
-        <template #cell-onboardingState="{ value }">
-          <StatusBadge
-            :label="onboardingStateLabel(value as string)"
-            :variant="getClientOnboardingStateVariant(value as ClientOnboardingState)"
-          />
         </template>
         <template #cell-status="{ value }">
           <StatusBadge :label="clientStatusLabel(value as string)" :variant="getClientStatusVariant(value as ClientStatus)" show-dot />
