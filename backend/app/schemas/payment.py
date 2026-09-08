@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core import payment_calculations as calc
 from app.models.payment import ADJUSTMENT_TYPES, PAYMENT_FREQUENCIES, PAYMENT_MODES
+from app.schemas.common import not_future_validator, not_past_validator
 
 MAX_MILESTONES = 5
 
@@ -105,6 +106,9 @@ class FinancialAgreementCreate(BaseModel):
 
     _check_mode = field_validator("paymentMode")(_enum_validator(PAYMENT_MODES, "paymentMode"))
     _check_freq = field_validator("paymentFrequency")(_optional_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))
+    _check_agreement_date = field_validator("agreementDate")(not_future_validator("agreementDate"))
+    _check_contract_start = field_validator("contractStartDate")(not_future_validator("contractStartDate"))
+    _check_contract_end = field_validator("contractEndDate")(not_past_validator("contractEndDate"))
 
     @model_validator(mode="after")
     def _check_milestones(self) -> "FinancialAgreementCreate":
@@ -117,6 +121,12 @@ class FinancialAgreementCreate(BaseModel):
         # not a plan that's actually short of or over 100%.
         if abs(total - Decimal("100")) > Decimal("0.5"):
             raise ValueError(f"Milestone percentages must add up to 100% (currently {total}%).")
+        return self
+
+    @model_validator(mode="after")
+    def _check_date_order(self) -> "FinancialAgreementCreate":
+        if self.contractStartDate is not None and self.contractEndDate is not None and self.contractEndDate < self.contractStartDate:
+            raise ValueError("contractEndDate must not be before contractStartDate")
         return self
 
 
@@ -137,6 +147,16 @@ class FinancialAgreementUpdate(BaseModel):
     paymentMode: str
     paymentFrequency: str | None = None
     milestones: list[MilestoneInput] | None = None
+
+    _check_agreement_date = field_validator("agreementDate")(not_future_validator("agreementDate"))
+    _check_contract_start = field_validator("contractStartDate")(not_future_validator("contractStartDate"))
+    _check_contract_end = field_validator("contractEndDate")(not_past_validator("contractEndDate"))
+
+    @model_validator(mode="after")
+    def _check_date_order(self) -> "FinancialAgreementUpdate":
+        if self.contractStartDate is not None and self.contractEndDate is not None and self.contractEndDate < self.contractStartDate:
+            raise ValueError("contractEndDate must not be before contractStartDate")
+        return self
 
     _check_mode = field_validator("paymentMode")(_enum_validator(PAYMENT_MODES, "paymentMode"))
     _check_freq = field_validator("paymentFrequency")(_optional_enum_validator(PAYMENT_FREQUENCIES, "paymentFrequency"))

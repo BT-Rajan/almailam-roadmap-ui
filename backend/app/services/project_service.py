@@ -523,12 +523,10 @@ def _persist_supervision_selection(
             raise ValidationAppError(
                 f"'{activity.activityName}' starts before the overall Supervision start date."
             )
-        if supervision_end_date is not None:
-            activity_end = activity.endDate or activity.startDate
-            if activity_end > supervision_end_date:
-                raise ValidationAppError(
-                    f"'{activity.activityName}' extends past the overall Supervision end date."
-                )
+        if supervision_end_date is not None and activity.endDate > supervision_end_date:
+            raise ValidationAppError(
+                f"'{activity.activityName}' extends past the overall Supervision end date."
+            )
 
     for activity in selection:
         db.add(

@@ -16,6 +16,7 @@ from app.models.client import (
     IDENTIFICATION_TYPES,
     PREFERRED_CHANNELS,
 )
+from app.schemas.common import not_future_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -59,15 +60,6 @@ def _website_validator(label: str):
     return _check
 
 
-def _not_future_validator(label: str):
-    def _check(value: date) -> date:
-        if value > date.today():
-            raise ValueError(f"{label} cannot be in the future")
-        return value
-
-    return _check
-
-
 # --- nested profile schemas -------------------------------------------------
 
 
@@ -78,7 +70,7 @@ class IndividualProfileIn(BaseModel):
     dateOfBirth: date
     countryOfResidence: str = Field(min_length=1, max_length=80)
 
-    _check_dob = field_validator("dateOfBirth")(_not_future_validator("dateOfBirth"))
+    _check_dob = field_validator("dateOfBirth")(not_future_validator("dateOfBirth"))
 
 
 class IndividualProfileOut(BaseModel):
@@ -100,7 +92,7 @@ class OrganisationProfileIn(BaseModel):
     dateOfIncorporation: date
     website: str | None = Field(default=None, max_length=200)
 
-    _check_incorporation = field_validator("dateOfIncorporation")(_not_future_validator("dateOfIncorporation"))
+    _check_incorporation = field_validator("dateOfIncorporation")(not_future_validator("dateOfIncorporation"))
 
     @field_validator("website")
     @classmethod
@@ -458,7 +450,7 @@ class ClientIdentificationCreate(BaseModel):
     expiryDate: date
     issuingCountry: str = Field(min_length=1, max_length=80)
     _check = field_validator("documentType")(_enum_validator(IDENTIFICATION_TYPES, "documentType"))
-    _check_issue_date = field_validator("issueDate")(_not_future_validator("issueDate"))
+    _check_issue_date = field_validator("issueDate")(not_future_validator("issueDate"))
 
     @field_validator("expiryDate")
     @classmethod

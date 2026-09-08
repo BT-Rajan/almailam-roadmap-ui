@@ -12,6 +12,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { todayIso } from '@/utils/dateFormatter'
 import type { ContractClauseInput, ContractCreateInput } from '@/services/contractService'
 import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
@@ -74,7 +75,7 @@ function emptyForm() {
 function scopeSummaryFromProject(project: Project | undefined): string {
   const lines = (project?.selectedActivities ?? []).map((item) => `${item.serviceName} - ${item.activityName}`)
   const supervisionLines = (project?.selectedSupervisionActivities ?? []).map(
-    (activity) => `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate ?? 'ongoing'})`,
+    (activity) => `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate})`,
   )
   return [...lines, ...supervisionLines].join('\n')
 }
@@ -93,7 +94,7 @@ const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
   contractValue: [validators.required('Contract value is required')],
-  expiryDate: [validators.required('Expiry date is required')],
+  expiryDate: [validators.required('Expiry date is required'), validators.notPastDate('Expiry date cannot be in the past')],
   clientRepresentative: [validators.required("Client representative's name is required")],
   scopeSummary: [validators.required('Scope summary is required')],
 })
@@ -180,7 +181,7 @@ function handleConfirm(): void {
           :error="errors.contractValue"
           @update:model-value="form.contractValue = Number($event)"
         />
-        <DatePicker v-model="form.expiryDate" :label="t('project.newContractDialog.expiryDate')" required :error="errors.expiryDate" />
+        <DatePicker v-model="form.expiryDate" :label="t('project.newContractDialog.expiryDate')" required :min="todayIso()" :error="errors.expiryDate" />
       </div>
 
       <TextInput

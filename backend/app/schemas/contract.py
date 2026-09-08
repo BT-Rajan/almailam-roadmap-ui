@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.html_sanitizer import sanitize_html
 from app.models.contract import CONTRACT_STATUSES
+from app.schemas.common import not_past_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -119,6 +120,8 @@ class ContractCreate(BaseModel):
     scopeSummary: str = Field(min_length=1)
     clauses: list[ContractClauseIn] = Field(default_factory=list)
 
+    _check_expiry = field_validator("expiryDate")(not_past_validator("expiryDate"))
+
     @field_validator("scopeSummary")
     @classmethod
     def sanitize_scope_summary(cls, value: str) -> str:
@@ -133,6 +136,8 @@ class ContractUpdate(BaseModel):
     clauses: list[ContractClauseIn] | None = None
     status: str | None = None
     reason: str | None = None
+
+    _check_expiry = field_validator("expiryDate")(not_past_validator("expiryDate"))
 
     @field_validator("scopeSummary")
     @classmethod

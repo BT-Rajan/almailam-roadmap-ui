@@ -1,5 +1,10 @@
 import { i18n } from '@/i18n'
 
+/** Today's date as YYYY-MM-DD, for DatePicker's `min`/`max` props and past/future-date checks. */
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 const DISPLAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: '2-digit',
   month: 'short',

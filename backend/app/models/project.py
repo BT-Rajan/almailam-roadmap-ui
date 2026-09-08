@@ -272,7 +272,12 @@ class ProjectSelectedSupervisionActivity(Base):
     (Project above) -- both are captured separately, per the user's
     confirmation. Once a Supervision financial agreement is created,
     these dates drive the real, day-prorated monthly billing schedule
-    (see payment_calculations.generate_prorated_monthly_schedule)."""
+    (see payment_calculations.generate_prorated_monthly_schedule).
+    end_date is required (migration 0081 backfilled the rows that
+    predate that) -- it used to be optional, which let a project reach
+    Payment Plan with no way to actually create the Supervision
+    agreement (_compute_contract_terms hard-requires it); see
+    SelectedSupervisionActivityIn's own comment in schemas/project.py."""
 
     __tablename__ = "project_selected_supervision_activities"
 
@@ -284,7 +289,7 @@ class ProjectSelectedSupervisionActivity(Base):
     activity_name: Mapped[str] = mapped_column(String(150), nullable=False)
     monthly_rate: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
     # Gated like a Permit (migration 0074) -- "Planned" until every
     # SupervisionPrerequisite Design activity is Complete, then
     # "Eligible"; from there the user sets "In Progress"/"Complete"/

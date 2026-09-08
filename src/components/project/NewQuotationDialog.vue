@@ -13,6 +13,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { todayIso } from '@/utils/dateFormatter'
 import type { QuotationCreateInput, QuotationLineItemInput } from '@/services/quotationService'
 import type { Project } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -85,7 +86,7 @@ function formFromProject(project: Project | undefined) {
     unitPrice: item.fixedCost,
   }))
   const supervisionLineItems = (project?.selectedSupervisionActivities ?? []).map((activity) => ({
-    description: `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate ?? 'ongoing'})`,
+    description: `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate})`,
     quantity: 1,
     unitPrice: activity.monthlyRate,
   }))
@@ -99,7 +100,7 @@ const lineItemErrors = reactive<string[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
-  validity: [validators.required('Validity date is required')],
+  validity: [validators.required('Validity date is required'), validators.notPastDate('Validity date cannot be in the past')],
 })
 
 watch(
@@ -177,7 +178,7 @@ function handleConfirm(): void {
   <BaseDialog :model-value="modelValue" :title="t('project.newQuotationDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :error="errors.validity" />
+        <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :min="todayIso()" :error="errors.validity" />
         <SelectBox v-model="form.currency" :label="t('project.newQuotationDialog.currency')" :options="CURRENCY_OPTIONS" />
       </div>
 

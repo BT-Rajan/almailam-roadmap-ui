@@ -11,6 +11,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import type { AgreementStream, CreateAgreementInput, FinancialAgreement, PaymentMilestoneInput, PaymentMode, PaymentObligation } from '@/types/Payment'
 import type { SelectOption } from '@/types/Ui'
+import { todayIso } from '@/utils/dateFormatter'
 
 interface ApprovedQuotation {
   quotationNo: string
@@ -229,7 +230,7 @@ function handleClose(): void {
     >
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
-        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required />
+        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
         <TextInput
           v-model="quotationReference"
           :label="t('payment.agreementFormDialog.quotationReference')"
@@ -257,8 +258,8 @@ function handleClose(): void {
             />
           </div>
         </div>
-        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required />
-        <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required />
+        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
+        <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" />
         <TextInput
           v-model="quotationReference"
           :label="t('payment.agreementFormDialog.quotationReference')"

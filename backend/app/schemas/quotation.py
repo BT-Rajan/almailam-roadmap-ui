@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.html_sanitizer import sanitize_html
 from app.models.quotation import QUOTATION_STATUSES
+from app.schemas.common import not_past_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -110,6 +111,8 @@ class QuotationCreate(BaseModel):
     paymentTerms: list[str] = Field(default_factory=list)
     lineItems: list[QuotationLineItemIn] = Field(min_length=1)
 
+    _check_validity = field_validator("validity")(not_past_validator("validity"))
+
     @field_validator("notes")
     @classmethod
     def sanitize_notes(cls, value: str | None) -> str | None:
@@ -131,6 +134,8 @@ class QuotationUpdate(BaseModel):
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
     status: str | None = None
     reason: str | None = None
+
+    _check_validity = field_validator("validity")(not_past_validator("validity"))
 
     @field_validator("notes")
     @classmethod

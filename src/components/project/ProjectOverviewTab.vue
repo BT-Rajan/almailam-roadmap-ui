@@ -531,7 +531,7 @@ function verificationResultLabel(result: string): string {
             :key="item.activityId"
             class="flex items-center justify-between gap-3 text-sm text-text-secondary"
           >
-            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ item.endDate ? formatDate(item.endDate) : t('project.overviewTab.ongoing') }})</span>
+            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ formatDate(item.endDate) }})</span>
             <span class="shrink-0 text-text-muted">{{ formatCurrency(item.monthlyRate) }}/mo</span>
           </li>
         </ul>
@@ -859,7 +859,7 @@ function verificationResultLabel(result: string): string {
               <div class="flex flex-col gap-0.5 truncate">
                 <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
                 <span class="text-xs text-text-muted">
-                  {{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.overviewTab.ongoing') }}
+                  {{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }}
                 </span>
               </div>
               <div class="flex items-center gap-2">

@@ -3,6 +3,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, condecimal, field_validator
 
 from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
+from app.schemas.common import not_past_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -61,7 +62,9 @@ class SelectedSupervisionActivityOut(BaseModel):
     activityName: str
     monthlyRate: float
     startDate: date
-    endDate: date | None = None
+    # Required going forward (migration 0081 backfilled any pre-existing
+    # NULL rows) -- see SelectedSupervisionActivityIn's own comment.
+    endDate: date
     status: str
     eligibilityMetAt: datetime | None = None
     closedAt: datetime | None = None
@@ -82,17 +85,28 @@ class SelectedSupervisionActivityOut(BaseModel):
 
 
 class SelectedSupervisionActivityIn(BaseModel):
+    # endDate used to be optional -- a Supervision activity could be
+    # selected (and the project driven all the way through Design,
+    # Government Submission and into Supervision itself) with no end
+    # date at all, only to hit a wall once a Financial Agreement was
+    # created for it (payment_service._compute_contract_terms hard-
+    # requires one to build the prorated monthly schedule) -- a real,
+    # confirmed bug: a user could get all the way to Payment Plan with
+    # no way forward and no early warning. Required here now so it's
+    # caught at the point of selection instead.
     activityId: str = Field(min_length=1, max_length=20)
     activityName: str = Field(min_length=1, max_length=150)
     monthlyRate: condecimal(ge=0, max_digits=12, decimal_places=2)  # type: ignore[valid-type]
     startDate: date
-    endDate: date | None = None
+    endDate: date
+
+    _check_end_not_past = field_validator("endDate")(not_past_validator("endDate"))
 
     @field_validator("endDate")
     @classmethod
-    def end_after_start(cls, value: date | None, info) -> date | None:
+    def end_after_start(cls, value: date, info) -> date:
         start_date = info.data.get("startDate")
-        if value is not None and start_date is not None and value < start_date:
+        if start_date is not None and value < start_date:
             raise ValueError("endDate must not be before startDate")
         return value
 

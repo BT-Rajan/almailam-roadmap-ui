@@ -83,7 +83,11 @@ export interface SelectedSupervisionActivity {
   activityName: string
   monthlyRate: number
   startDate: string
-  endDate?: string | null
+  // Required (backend migration 0081) -- an activity with no end date
+  // could reach Payment Plan with no way to actually create its
+  // Financial Agreement, since that always needs one to build the
+  // day-prorated monthly billing schedule.
+  endDate: string
   status?: SelectedSupervisionStatus
   eligibilityMetAt?: string | null
   closedAt?: string | null

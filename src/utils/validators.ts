@@ -1,4 +1,5 @@
 import type { ValidationRule } from '@/types/Validation'
+import { todayIso } from '@/utils/dateFormatter'
 
 export const validators = {
   required: (message = 'This field is required'): ValidationRule => (value) => {
@@ -71,5 +72,18 @@ export const validators = {
     if (!value) return true
     const phoneRegex = /^[\d\s\-\+\(\)]+$/
     return phoneRegex.test(String(value)) && String(value).replace(/\D/g, '').length >= 10 ? true : message
+  },
+
+  // Both ISO "YYYY-MM-DD" date-only strings, compared lexicographically
+  // (correct for that format) rather than parsed as Date objects, to
+  // avoid a timezone-shift edge case at day boundaries.
+  notPastDate: (message = 'This date cannot be in the past'): ValidationRule => (value) => {
+    if (!value) return true
+    return String(value) >= todayIso() ? true : message
+  },
+
+  notFutureDate: (message = 'This date cannot be in the future'): ValidationRule => (value) => {
+    if (!value) return true
+    return String(value) <= todayIso() ? true : message
   },
 }

@@ -1,13 +1,14 @@
 import type { ClientWizardAddressDraft, ClientWizardContactDraft, ClientWizardForm, ClientWizardIdentificationDraft } from '@/types/ClientWizard'
 import type { ClientPreferredChannel } from '@/types/Client'
+import { todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 export type FieldErrors = Record<string, string>
 
-/** Today's date as YYYY-MM-DD, for DatePicker's `max` prop and past-date checks. */
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+// Re-exported for every existing importer of todayIso from this module
+// -- the function itself now lives in dateFormatter.ts (a more fitting
+// home, since it's a general date helper, not client-specific).
+export { todayIso }
 
 // Digits, spaces, +, -, (, ) only, with at least 7 actual digits -- kept
 // deliberately in sync with backend/app/schemas/client.py's

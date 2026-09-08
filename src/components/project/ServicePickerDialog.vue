@@ -11,6 +11,7 @@ import IconButton from '@/components/common/IconButton.vue'
 import type { SelectedSupervisionActivity } from '@/types/Project'
 import type { SelectedServiceActivity, ServiceCatalogItem } from '@/types/ServiceCatalog'
 import { formatCurrency } from '@/utils/currencyFormatter'
+import { todayIso } from '@/utils/dateFormatter'
 
 export interface ServicePickerConfirmPayload {
   design: SelectedServiceActivity[]
@@ -189,6 +190,13 @@ function isSupervisionSelected(activityId: string): boolean {
   return activityId in supervisionRows
 }
 
+// The end date can't be before its own start date OR before today
+// (ISO "YYYY-MM-DD" strings compare correctly as dates lexicographically).
+function minEndDate(activityId: string): string {
+  const startDate = supervisionRows[activityId]?.startDate || ''
+  return startDate > todayIso() ? startDate : todayIso()
+}
+
 function toggleSupervisionActivity(activityId: string, activityName: string, monthlyRate: number): void {
   if (isSupervisionSelected(activityId)) {
     delete supervisionRows[activityId]
@@ -203,13 +211,18 @@ function toggleSupervisionActivity(activityId: string, activityName: string, mon
   }
 }
 
+// Only ever built from rows that already passed supervisionDatesMissing's
+// gate below, so both dates are always real strings by the time this
+// reaches the caller -- endDate is no longer optional (a Supervision
+// activity with none used to be able to reach Payment Plan with no way
+// to actually create its Financial Agreement).
 const selectedSupervisionItems = computed<SelectedSupervisionActivity[]>(() =>
   Object.values(supervisionRows).map((row) => ({
     activityId: row.activityId,
     activityName: row.activityName,
     monthlyRate: row.monthlyRate,
     startDate: row.startDate,
-    endDate: row.endDate || null,
+    endDate: row.endDate,
   })),
 )
 
@@ -218,12 +231,12 @@ const supervisionMonthlyTotal = computed(() =>
 )
 const hasSupervisionPicks = computed(() => selectedSupervisionItems.value.length > 0)
 
-// Every checked activity needs its own start date before this can be
-// confirmed -- the overall window's start is what a newly-checked
-// activity defaults to, but it can be blank if the window itself hasn't
-// been set yet.
+// Every checked activity needs both its own start AND end date before
+// this can be confirmed -- the overall window's start/end is what a
+// newly-checked activity defaults to, but either can be blank if the
+// window itself hasn't been set yet.
 const supervisionDatesMissing = computed(
-  () => hasSupervisionPicks.value && Object.values(supervisionRows).some((row) => !row.startDate),
+  () => hasSupervisionPicks.value && Object.values(supervisionRows).some((row) => !row.startDate || !row.endDate),
 )
 
 const canConfirm = computed(
@@ -340,7 +353,12 @@ function handleConfirm(): void {
                 </div>
                 <div v-if="isSupervisionSelected(activity.id)" class="mt-2 ms-7 grid grid-cols-1 gap-2 tablet:grid-cols-2">
                   <DatePicker v-model="supervisionRows[activity.id].startDate" :label="t('project.servicePickerDialog.startDate')" required />
-                  <DatePicker v-model="supervisionRows[activity.id].endDate" :label="t('project.servicePickerDialog.endDate')" />
+                  <DatePicker
+                    v-model="supervisionRows[activity.id].endDate"
+                    :label="t('project.servicePickerDialog.endDate')"
+                    required
+                    :min="minEndDate(activity.id)"
+                  />
                 </div>
               </div>
             </div>
