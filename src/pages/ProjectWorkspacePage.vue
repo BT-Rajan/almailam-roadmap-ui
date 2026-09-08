@@ -425,7 +425,7 @@ async function handleConfirmDelete(): Promise<void> {
       >
         <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
-      <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" />
+      <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
         <PaymentPlanPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
       </div>

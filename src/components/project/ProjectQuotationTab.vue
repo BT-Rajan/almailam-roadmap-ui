@@ -23,7 +23,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
@@ -31,6 +31,10 @@ import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 const props = defineProps<{
   project: Project
   client: Client | undefined
+}>()
+
+const emit = defineEmits<{
+  'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
 const quotationStore = useQuotationStore()
@@ -258,6 +262,10 @@ async function handleConfirmApproval(payload: { file: File }): Promise<void> {
     await projectStore.refreshProject(props.project.id)
     isApprovalDialogOpen.value = false
     resultDialogStore.showSuccess(t('project.quotationTab.approvalDialog.approvedTitle'), t('project.quotationTab.approvalDialog.approvedDescription'))
+    // An Approved quotation is exactly what unlocks Payment Plan (see
+    // hasApprovedQuotation above) -- take staff straight there instead
+    // of leaving them on the now-locked Quotation tab.
+    emit('navigate-tab', 'payment-plan')
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('project.quotationTab.approvalDialog.failedToConfirm'), detail)
