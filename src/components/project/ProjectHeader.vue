@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Building2, Pencil, Plus, RefreshCw, Trash2, User, Workflow } from '@lucide/vue'
+import { Building2, Pencil, Plus, Trash2, User } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
