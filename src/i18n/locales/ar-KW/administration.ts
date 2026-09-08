@@ -543,6 +543,7 @@ export default {
 
   permitCatalog: {
     permitName: 'اسم التصريح',
+    fixedCost: 'التكلفة الثابتة',
     removePermit: 'إزالة التصريح',
     noPermitsYet: 'لا توجد تصاريح بعد — أضف واحدًا أدناه.',
     addPermit: 'إضافة تصريح',

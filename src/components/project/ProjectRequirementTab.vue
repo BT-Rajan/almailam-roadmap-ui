@@ -40,13 +40,18 @@ const quotationStore = useQuotationStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
-// Once any of this project's quotations has been finalized, the scope
-// it was built against is frozen too -- see backend project_service.
-// _assert_requirement_editable. Reads straight from quotationStore.
+// Once one of this project's quotations has actually been Approved, the
+// scope it was built against is frozen too -- see backend
+// project_service._assert_requirement_editable. Deliberately checks
+// status === 'Approved' rather than finalizedAt: a quotation is
+// "finalized" (leaves Draft) the moment it's sent for review, well before
+// the client accepts it, and the scope must stay editable through that
+// whole negotiation -- it only locks once there's something the client
+// has actually signed off on. Reads straight from quotationStore.
 // quotations without loading it here -- ProjectWorkspacePage.vue's own
 // loadData() already fetches this project's quotations before any tab
 // (this one included) ever mounts.
-const isRequirementLocked = computed(() => quotationStore.quotations.some((quotation) => quotation.finalizedAt))
+const isRequirementLocked = computed(() => quotationStore.quotations.some((quotation) => quotation.status === 'Approved'))
 
 const isLoading = ref(false)
 const error = ref<string>()

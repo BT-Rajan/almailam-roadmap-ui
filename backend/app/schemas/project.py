@@ -124,6 +124,10 @@ class SelectedPermitOut(BaseModel):
     # permitName still shows what was originally picked either way.
     permitId: str | None = None
     permitName: str
+    # Snapshotted from the catalog's fixed_cost at selection time
+    # (migration 0084) -- None only for rows selected before that column
+    # existed.
+    permitPrice: float | None = None
     status: str
     eligibilityMetAt: datetime | None = None
     closedAt: datetime | None = None
@@ -134,6 +138,7 @@ class SelectedPermitOut(BaseModel):
             id=str(permit.id),
             permitId=f"PER-{permit.permit_catalog_item_id:03d}" if permit.permit_catalog_item_id else None,
             permitName=permit.permit_name,
+            permitPrice=float(permit.permit_price) if permit.permit_price is not None else None,
             status=permit.status,
             eligibilityMetAt=permit.eligibility_met_at,
             closedAt=permit.closed_at,

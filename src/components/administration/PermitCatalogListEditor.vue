@@ -10,6 +10,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { permitCatalogService } from '@/services/permitCatalogService'
 import { useToastStore } from '@/stores/toastStore'
+import { formatCurrency } from '@/utils/currencyFormatter'
 import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
 import type { SelectOption } from '@/types/Ui'
 
@@ -23,10 +24,14 @@ defineProps<{
   designActivityOptions: SelectOption[]
 }>()
 
+// update carries both fields together (not a partial), since the
+// backend's PermitCatalogItemUpdate replaces the whole row -- unlike
+// ServiceCatalogActivityEditor's per-field partial update, there's only
+// one PATCH shape here, so name and fixedCost always travel together.
 const emit = defineEmits<{
-  update: [permitId: string, name: string]
+  update: [permitId: string, name: string, fixedCost: number]
   remove: [permitId: string]
-  add: [name: string]
+  add: [name: string, fixedCost: number]
 }>()
 
 // Prerequisites are fetched lazily, per permit, only once its row is
@@ -83,23 +88,33 @@ async function removePrerequisite(permit: PermitCatalogItem, prerequisite: Permi
 }
 
 const newPermitName = ref('')
+const newPermitCost = ref('')
 
 function submitNewPermit(): void {
   if (newPermitName.value.trim().length === 0) return
-  emit('add', newPermitName.value.trim())
+  const cost = Number(newPermitCost.value)
+  emit('add', newPermitName.value.trim(), Number.isFinite(cost) ? cost : 0)
   newPermitName.value = ''
+  newPermitCost.value = ''
 }
 
-// Local draft of an in-progress name edit, keyed by permit id, so typing
+// Local drafts of in-progress edits, keyed by permit id, so typing
 // doesn't fire a save on every keystroke -- only once the field loses
 // focus and the value actually changed. Same pattern as
-// ServiceCatalogActivityEditor's name draft.
+// ServiceCatalogActivityEditor's name/cost drafts.
 const nameDrafts = ref<Record<string, string>>({})
+const costDrafts = ref<Record<string, string>>({})
 
 function commitName(permit: PermitCatalogItem, value: string): void {
   delete nameDrafts.value[permit.id]
   const trimmed = value.trim()
-  if (trimmed.length > 0 && trimmed !== permit.name) emit('update', permit.id, trimmed)
+  if (trimmed.length > 0 && trimmed !== permit.name) emit('update', permit.id, trimmed, permit.fixedCost)
+}
+
+function commitCost(permit: PermitCatalogItem, value: string): void {
+  delete costDrafts.value[permit.id]
+  const cost = Number(value)
+  if (Number.isFinite(cost) && cost !== permit.fixedCost) emit('update', permit.id, permit.name, cost)
 }
 </script>
 
@@ -119,6 +134,16 @@ function commitName(permit: PermitCatalogItem, value: string): void {
             @update:model-value="nameDrafts[permit.id] = $event"
             @blur="commitName(permit, $event)"
           />
+          <TextInput
+            :model-value="costDrafts[permit.id] ?? String(permit.fixedCost)"
+            type="number"
+            inputmode="decimal"
+            :placeholder="t('administration.permitCatalog.fixedCost')"
+            class="w-32"
+            @update:model-value="costDrafts[permit.id] = $event"
+            @blur="commitCost(permit, $event)"
+          />
+          <span class="shrink-0 text-sm font-medium text-text-muted">{{ formatCurrency(permit.fixedCost) }}</span>
           <IconButton
             :icon="expandedPermitId === permit.id ? ChevronUp : ChevronDown"
             :label="t('administration.permitCatalog.prerequisites')"
@@ -175,6 +200,14 @@ function commitName(permit: PermitCatalogItem, value: string): void {
       <p class="text-sm font-medium text-text-secondary">{{ t('administration.permitCatalog.addPermit') }}</p>
       <div class="flex flex-col gap-2 sm:flex-row">
         <TextInput v-model="newPermitName" :placeholder="t('administration.permitCatalog.permitName')" class="sm:flex-1" @keyup.enter="submitNewPermit" />
+        <TextInput
+          v-model="newPermitCost"
+          type="number"
+          inputmode="decimal"
+          :placeholder="t('administration.permitCatalog.fixedCost')"
+          class="sm:w-32"
+          @keyup.enter="submitNewPermit"
+        />
         <BaseButton :icon="Plus" variant="secondary" :disabled="newPermitName.trim().length === 0" @click="submitNewPermit">
           {{ t('administration.permitCatalog.add') }}
         </BaseButton>

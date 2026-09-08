@@ -51,12 +51,12 @@ function reportIfFailed(action: Promise<void>): void {
   })
 }
 
-function handleAddPermit(name: string): void {
-  reportIfFailed(permitCatalogStore.addPermit(name))
+function handleAddPermit(name: string, fixedCost: number): void {
+  reportIfFailed(permitCatalogStore.addPermit(name, fixedCost))
 }
 
-function handleUpdatePermit(permitId: string, name: string): void {
-  reportIfFailed(permitCatalogStore.renamePermit(permitId, name))
+function handleUpdatePermit(permitId: string, name: string, fixedCost: number): void {
+  reportIfFailed(permitCatalogStore.renamePermit(permitId, name, fixedCost))
 }
 
 function handleRemovePermit(permitId: string): void {

@@ -1,6 +1,7 @@
 export interface PermitCatalogItem {
   id: string
   name: string
+  fixedCost: number
 }
 
 // An admin-configured "this Design activity must be Complete before

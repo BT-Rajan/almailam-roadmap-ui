@@ -265,6 +265,7 @@ function togglePermit(permitId: string): void {
 const selectedPermitItems = computed<PermitCatalogItem[]>(() =>
   props.permits.filter((permit) => selectedPermitIds.value.includes(permit.id)),
 )
+const permitTotal = computed(() => selectedPermitItems.value.reduce((sum, item) => sum + item.fixedCost, 0))
 
 // Every checked activity needs both its own start AND end date before
 // this can be confirmed -- the overall window's start/end is what a
@@ -414,9 +415,10 @@ function handleConfirm(): void {
 
       <!-- Permits to apply for -- folded in from the wizard's former
            separate PermitPickerDialog so services, permits and
-           supervision are all planned in this one modal. Simple
-           checkbox list, no pricing/dates involved. Only offered by
-           callers that opt in (see showPermits above). -->
+           supervision are all planned in this one modal. Each permit
+           carries its own standard fee (PermitCatalogItem.fixedCost,
+           admin-set), same one-time-charge shape as Design activities.
+           Only offered by callers that opt in (see showPermits above). -->
       <div v-if="showPermits" class="flex flex-col rounded-lg border border-border-light">
         <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
           {{ t('project.servicePickerDialog.permitsToApplyFor') }}
@@ -426,9 +428,10 @@ function handleConfirm(): void {
           <div
             v-for="permit in permits"
             :key="permit.id"
-            class="flex items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-bg-hover"
+            class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1.5 hover:bg-bg-hover"
           >
             <Checkbox :model-value="isPermitSelected(permit.id)" :label="permit.name" @update:model-value="togglePermit(permit.id)" />
+            <span class="shrink-0 text-xs text-text-muted">{{ formatCurrency(permit.fixedCost, currency) }}</span>
           </div>
         </div>
       </div>
@@ -454,7 +457,8 @@ function handleConfirm(): void {
               <span class="text-primary-700">{{ formatCurrency(supervisionMonthlyTotal, currency) }}/mo</span>
             </span>
             <span v-if="showPermits && selectedPermitItems.length > 0">
-              {{ t('project.servicePickerDialog.permitsCount', selectedPermitItems.length) }}
+              {{ t('project.servicePickerDialog.permitsCount', selectedPermitItems.length) }} ·
+              <span class="text-primary-700">{{ formatCurrency(permitTotal, currency) }}</span>
             </span>
           </span>
         </p>

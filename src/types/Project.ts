@@ -107,6 +107,9 @@ export interface SelectedPermit {
   id: string
   permitId?: string | null
   permitName: string
+  // Snapshotted from the catalog's fixedCost at selection time -- null
+  // only for rows selected before permit pricing existed.
+  permitPrice?: number | null
   status: SelectedPermitStatus
   eligibilityMetAt?: string | null
   closedAt?: string | null

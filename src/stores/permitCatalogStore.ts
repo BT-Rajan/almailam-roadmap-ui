@@ -33,11 +33,11 @@ export const usePermitCatalogStore = defineStore('permitCatalog', {
       }
     },
 
-    async addPermit(name: string) {
+    async addPermit(name: string, fixedCost: number) {
       this.isMutating = true
       this.mutationError = undefined
       try {
-        const permit = await permitCatalogService.createPermit(name)
+        const permit = await permitCatalogService.createPermit(name, fixedCost)
         this.permits = [...this.permits, permit].sort((a, b) => a.name.localeCompare(b.name))
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to add the permit. Please try again.'
@@ -46,11 +46,11 @@ export const usePermitCatalogStore = defineStore('permitCatalog', {
       }
     },
 
-    async renamePermit(permitId: string, name: string) {
+    async renamePermit(permitId: string, name: string, fixedCost: number) {
       this.isMutating = true
       this.mutationError = undefined
       try {
-        const updated = await permitCatalogService.renamePermit(permitId, name)
+        const updated = await permitCatalogService.renamePermit(permitId, name, fixedCost)
         this.permits = this.permits
           .map((permit) => (permit.id === permitId ? updated : permit))
           .sort((a, b) => a.name.localeCompare(b.name))

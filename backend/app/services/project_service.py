@@ -556,6 +556,7 @@ def _persist_permit_selection(db: Session, project_id: int, selection: list) -> 
                 project_id=project_id,
                 permit_catalog_item_id=catalog_item.id,
                 permit_name=permit.permitName,
+                permit_price=catalog_item.fixed_cost,
             )
         )
 

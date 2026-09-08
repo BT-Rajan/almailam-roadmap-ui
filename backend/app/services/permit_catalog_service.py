@@ -46,12 +46,12 @@ def _assert_name_available(db: Session, name: str, exclude_id: int | None = None
         raise ConflictError(f'A permit named "{name.strip()}" already exists.')
 
 
-def create_permit(db: Session, name: str, user_id: int) -> PermitCatalogItem:
+def create_permit(db: Session, name: str, fixed_cost: float, user_id: int) -> PermitCatalogItem:
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Permit name is required.")
     _assert_name_available(db, clean_name)
-    permit = PermitCatalogItem(name=clean_name)
+    permit = PermitCatalogItem(name=clean_name, fixed_cost=fixed_cost)
     db.add(permit)
     db.flush()
     audit_service.log_event(db, ENTITY_TYPE, permit.id, "Permit added", user_id, new_value=clean_name)
@@ -60,7 +60,7 @@ def create_permit(db: Session, name: str, user_id: int) -> PermitCatalogItem:
     return permit
 
 
-def rename_permit(db: Session, permit_raw_id: str, name: str, user_id: int) -> PermitCatalogItem:
+def rename_permit(db: Session, permit_raw_id: str, name: str, fixed_cost: float, user_id: int) -> PermitCatalogItem:
     permit = get_permit(db, permit_raw_id)
     clean_name = name.strip()
     if not clean_name:
@@ -68,6 +68,7 @@ def rename_permit(db: Session, permit_raw_id: str, name: str, user_id: int) -> P
     _assert_name_available(db, clean_name, exclude_id=permit.id)
     previous_name = permit.name
     permit.name = clean_name
+    permit.fixed_cost = fixed_cost
     audit_service.log_event(
         db, ENTITY_TYPE, permit.id, "Permit renamed", user_id, previous_value=previous_name, new_value=clean_name,
     )

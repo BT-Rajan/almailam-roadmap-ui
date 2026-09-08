@@ -1,4 +1,4 @@
-from sqlalchemy import String
+from sqlalchemy import Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -14,9 +14,17 @@ class PermitCatalogItem(Base, TimestampMixin, SoftDeleteMixin):
     ServiceCatalogItem there's no activities sub-level, since a permit
     is picked as a whole, not broken into priced sub-items. Name
     uniqueness is enforced case-insensitively in permit_catalog_service.
+
+    fixed_cost is the standard government/authority fee for this permit
+    (migration 0084) -- same one-time-charge shape as
+    ServiceCatalogActivity.fixed_cost, just flat since there's no
+    activity sub-level here. Snapshotted onto ProjectSelectedPermit.
+    permit_price at selection time (see project_service.
+    _persist_permit_selection), same convention as Design activities.
     """
 
     __tablename__ = "permit_catalog_items"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+    fixed_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)

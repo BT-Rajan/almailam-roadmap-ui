@@ -1,21 +1,24 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, condecimal
 
 
 class PermitCatalogItemOut(BaseModel):
     id: str
     name: str
+    fixedCost: float
 
     @staticmethod
     def from_model(permit) -> "PermitCatalogItemOut":
-        return PermitCatalogItemOut(id=f"PER-{permit.id:03d}", name=permit.name)
+        return PermitCatalogItemOut(id=f"PER-{permit.id:03d}", name=permit.name, fixedCost=float(permit.fixed_cost))
 
 
 class PermitCatalogItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
+    fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2) = 0  # type: ignore[valid-type]
 
 
 class PermitCatalogItemUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
+    fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2) = 0  # type: ignore[valid-type]
 
 
 class PermitPrerequisiteOut(BaseModel):

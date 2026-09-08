@@ -561,6 +561,7 @@ export default {
 
   permitCatalog: {
     permitName: 'Permit name',
+    fixedCost: 'Fixed cost',
     removePermit: 'Remove permit',
     noPermitsYet: 'No permits yet — add one below.',
     addPermit: 'Add Permit',

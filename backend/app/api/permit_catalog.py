@@ -34,7 +34,7 @@ def create_permit(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    permit = permit_catalog_service.create_permit(db, payload.name, current_user.id)
+    permit = permit_catalog_service.create_permit(db, payload.name, float(payload.fixedCost), current_user.id)
     return PermitCatalogItemOut.from_model(permit)
 
 
@@ -45,7 +45,7 @@ def rename_permit(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    permit = permit_catalog_service.rename_permit(db, permit_id, payload.name, current_user.id)
+    permit = permit_catalog_service.rename_permit(db, permit_id, payload.name, float(payload.fixedCost), current_user.id)
     return PermitCatalogItemOut.from_model(permit)
 
 

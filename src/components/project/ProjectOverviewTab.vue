@@ -250,7 +250,8 @@ const hasScope = computed(
   () =>
     Boolean(props.project.description) ||
     (props.project.selectedActivities && props.project.selectedActivities.length > 0) ||
-    (props.project.selectedSupervisionActivities && props.project.selectedSupervisionActivities.length > 0),
+    (props.project.selectedSupervisionActivities && props.project.selectedSupervisionActivities.length > 0) ||
+    (props.project.selectedPermits && props.project.selectedPermits.length > 0),
 )
 
 // Civil ID verification (Quotation), design document status (Design), and
@@ -291,6 +292,54 @@ const civilIdDocument = computed(() => clientStore.documents.find((document) => 
 // to be visible here, not only on the Requirement tab itself which
 // needs an extra click via the Workflow Progress stepper to reach.
 const hasClientIdentification = computed(() => clientStore.identifications.length > 0)
+
+// Same check the backend's exit criterion makes (project.description
+// non-empty) -- deliberately not the broader hasScope (which also goes
+// true off selectedActivities/selectedSupervisionActivities alone), so
+// this can never show the Next Stage button enabled in a state the
+// server would still reject.
+const hasScopeText = computed(() => Boolean((props.project.description ?? '').trim()))
+const canAdvanceToQuotation = computed(
+  () => hasScopeText.value && hasClientIdentification.value && !props.project.scopeClientConfirmedAt,
+)
+
+const isAdvancingToQuotation = ref(false)
+
+// The same action as ProjectRequirementTab's own "Confirm" button
+// (project_service.confirm_requirement_scope) -- offered directly here
+// too since this Overview tab is the one staff land on by default while
+// a project sits at Requirement (only "Overview" shows in the top tab
+// bar for that stage, see ProjectWorkspacePage.vue's TABS). Gated on
+// canAdvanceToQuotation so it can only ever fire once: confirming sets
+// project.scopeClientConfirmedAt, which immediately flips that guard
+// false on the refreshed project.
+//
+// Navigates to 'quotation' on success rather than just refreshing in
+// place, same as ProjectRequirementTab.handleConfirm -- stageContext
+// (what this whole Overview tab renders) deliberately does NOT follow
+// project.currentStage on an ordinary refreshProject() call (see
+// ProjectWorkspacePage.vue's own comment on that watcher, there to stop
+// an unrelated background update from yanking someone's stepper-driven
+// view out from under them); only an explicit navigate-tab updates it.
+// Without this, staff would advance the project but keep looking at a
+// stale Requirement-stage Overview.
+async function handleAdvanceToQuotation(): Promise<void> {
+  isAdvancingToQuotation.value = true
+  try {
+    await projectService.confirmRequirementScope(props.project.id)
+    await projectStore.refreshProject(props.project.id)
+    toastStore.show('success', t('project.requirementTab.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
+    emit('navigate-tab', 'quotation')
+  } catch (error) {
+    toastStore.show(
+      'error',
+      t('project.requirementTab.failedToConfirm'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    isAdvancingToQuotation.value = false
+  }
+}
 
 function viewCivilIdDocument(): void {
   if (!props.client || !civilIdDocument.value) return
@@ -380,10 +429,6 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
   const dates = [submission.decisionDate, submission.submittedDate].filter((value): value is string => Boolean(value))
   if (dates.length === 0) return undefined
   return dates.reduce((latest, current) => (new Date(current) > new Date(latest) ? current : latest))
-}
-
-function scopeConfirmationLabel(confirmed: boolean): string {
-  return t(confirmed ? 'project.requirementTab.confirmed' : 'project.scopeStatus.awaitingConfirmation')
 }
 
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
@@ -536,33 +581,50 @@ function verificationResultLabel(result: string): string {
           </li>
         </ul>
       </div>
+
+      <div v-if="project.selectedPermits && project.selectedPermits.length > 0" class="mt-3 border-t border-border-light pt-3">
+        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</p>
+        <ul class="flex flex-col gap-1">
+          <li
+            v-for="permit in project.selectedPermits"
+            :key="permit.id"
+            class="flex items-center justify-between gap-3 text-sm text-text-secondary"
+          >
+            <span>{{ permit.permitName }}</span>
+            <span class="shrink-0 text-text-muted">{{ permit.permitPrice != null ? formatCurrency(permit.permitPrice) : '—' }}</span>
+          </li>
+        </ul>
+      </div>
     </Card>
 
     <Card v-if="stageContext === 'Requirement'">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requirementTitle') }}</h3>
-          <div class="flex items-center gap-2 no-print">
-            <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'requirement')">{{ t('project.overviewTab.goToRequirement') }}</BaseButton>
-          </div>
+          <BaseButton variant="ghost" size="sm" class="no-print" @click="emit('navigate-tab', 'requirement')">
+            {{ t('project.overviewTab.editScopeOfWork') }}
+          </BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-sm text-text-secondary">{{ t('project.overviewTab.scopeOfWorkStatus') }}</span>
-          <StatusBadge
-            :label="scopeConfirmationLabel(Boolean(project.scopeClientConfirmedAt))"
-            :variant="project.scopeClientConfirmedAt ? 'success' : 'neutral'"
-          />
+        <div v-if="!hasScopeText" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+          <AlertTriangle class="h-4 w-4 shrink-0" />
+          <span>{{ t('project.overviewTab.noScopeWarning') }}</span>
         </div>
-
-        <div
-          v-if="project.scopeClientConfirmedAt && !hasClientIdentification"
-          class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700"
-        >
+        <div v-if="!hasClientIdentification" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           <AlertTriangle class="h-4 w-4 shrink-0" />
           <span>{{ t('project.overviewTab.noClientIdWarning') }}</span>
         </div>
+
+        <BaseButton
+          v-if="project.currentStage === 'Requirement'"
+          class="no-print self-start"
+          :disabled="!canAdvanceToQuotation"
+          :loading="isAdvancingToQuotation"
+          @click="handleAdvanceToQuotation"
+        >
+          {{ t('project.overviewTab.nextStage') }}
+        </BaseButton>
       </div>
     </Card>
 
@@ -1037,7 +1099,7 @@ function verificationResultLabel(result: string): string {
         <DetailPanel :title="t('project.overviewTab.clientDetailsTitle')" :items="clientDetailItems" />
         <div class="flex gap-2 no-print">
           <BaseButton
-            v-if="client"
+            v-if="client && stageContext !== 'Requirement'"
             variant="secondary"
             size="sm"
             :icon="MessageSquare"

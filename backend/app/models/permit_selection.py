@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -46,6 +46,12 @@ class ProjectSelectedPermit(Base):
         BigPK, ForeignKey("permit_catalog_items.id", ondelete="SET NULL"), nullable=True, index=True
     )
     permit_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    # Snapshot of PermitCatalogItem.fixed_cost at selection time (migration
+    # 0084), same convention as permit_name -- survives a later catalog
+    # price change or the catalog item being removed entirely. Nullable
+    # only for rows created before this column existed; every row created
+    # by _persist_permit_selection from here on always sets it.
+    permit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     status: Mapped[str] = mapped_column(
         Enum(*SELECTED_PERMIT_STATUSES, name="selected_permit_status"), nullable=False, default="Planned"
     )

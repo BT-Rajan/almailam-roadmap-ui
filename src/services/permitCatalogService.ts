@@ -17,9 +17,9 @@ async function getPermits(): Promise<PermitCatalogItem[]> {
  * Create a new permit via backend API. The backend rejects duplicate
  * names (case-insensitive) with a 409, surfaced as a thrown Error.
  */
-async function createPermit(name: string): Promise<PermitCatalogItem> {
+async function createPermit(name: string, fixedCost: number): Promise<PermitCatalogItem> {
   try {
-    return await apiClient.post<PermitCatalogItem>('/api/permit-catalog/permits', { name })
+    return await apiClient.post<PermitCatalogItem>('/api/permit-catalog/permits', { name, fixedCost })
   } catch (error) {
     console.error('Failed to add permit:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to add permit')
@@ -27,11 +27,11 @@ async function createPermit(name: string): Promise<PermitCatalogItem> {
 }
 
 /**
- * Rename a permit via backend API
+ * Rename (and re-price) a permit via backend API
  */
-async function renamePermit(permitId: string, name: string): Promise<PermitCatalogItem> {
+async function renamePermit(permitId: string, name: string, fixedCost: number): Promise<PermitCatalogItem> {
   try {
-    return await apiClient.patch<PermitCatalogItem>(`/api/permit-catalog/permits/${permitId}`, { name })
+    return await apiClient.patch<PermitCatalogItem>(`/api/permit-catalog/permits/${permitId}`, { name, fixedCost })
   } catch (error) {
     console.error(`Failed to rename permit ${permitId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to rename permit')
