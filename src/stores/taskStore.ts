@@ -165,6 +165,12 @@ export const useTaskStore = defineStore('task', {
       return task
     },
 
+    async deleteTask(taskId: string): Promise<void> {
+      await taskService.deleteTask(taskId)
+      this.tasks = this.tasks.filter((task) => task.id !== taskId)
+      if (this.selectedTaskId === taskId) this.selectedTaskId = undefined
+    },
+
     setSearchTerm(term: string) {
       this.searchTerm = term
     },

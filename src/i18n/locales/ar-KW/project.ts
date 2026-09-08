@@ -463,6 +463,11 @@ export default {
     changePriorityMessage: 'تغيير أولوية "{title}" من {from} إلى {to}؟',
     reassignTaskMessage: 'إعادة إسناد "{title}" من {from} إلى {to}؟',
     thisUser: 'هذا المستخدم',
+    deleteTaskTitle: 'حذف المهمة',
+    deleteTaskMessage: 'حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
+    taskDeletedTitle: 'تم حذف المهمة',
+    taskDeletedDescription: 'تم حذف "{title}".',
+    failedToDeleteTask: 'فشل حذف المهمة',
   },
 
   reportPage: {

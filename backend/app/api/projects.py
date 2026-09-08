@@ -76,14 +76,16 @@ def list_projects(
     supervision_activities_by_project = project_service.get_selected_supervision_activities_batch(
         db, {p.id for p in result["items"]},
     )
+    permits_by_project = project_service.get_selected_permits_batch(db, {p.id for p in result["items"]})
 
     def _out(p) -> ProjectOut:
         activities = activities_by_project.get(p.id, [])
         supervision_activities = supervision_activities_by_project.get(p.id, [])
+        permits = permits_by_project.get(p.id, [])
         includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
         return ProjectOut.from_model(
             p, names.get(p.engineer_id, "Unknown"), activities, supervision_activities,
-            includes_design, includes_supervision,
+            includes_design, includes_supervision, permits,
         )
 
     result["items"] = [_out(p) for p in result["items"]]

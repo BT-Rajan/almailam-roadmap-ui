@@ -36,6 +36,7 @@ export default {
     status: 'Status',
     priority: 'Priority',
     severity: 'Severity',
+    delete: 'Delete Task',
   },
 
   board: {
@@ -73,6 +74,11 @@ export default {
     taskCreatedTitle: 'Task created',
     taskCreatedDescription: '"{title}" was assigned to {assignee}.',
     failedToCreateTask: 'Failed to create task',
+    deleteTaskTitle: 'Delete task',
+    deleteTaskMessage: 'Delete "{title}"? This cannot be undone.',
+    taskDeletedTitle: 'Task deleted',
+    taskDeletedDescription: '"{title}" was deleted.',
+    failedToDeleteTask: 'Failed to delete task',
   },
 
   formDialog: {

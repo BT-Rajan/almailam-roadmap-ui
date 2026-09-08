@@ -763,6 +763,65 @@ function verificationResultLabel(result: string): string {
           <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignActivitiesYet') }}</p>
         </div>
 
+        <div class="flex flex-col gap-2">
+          <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</span>
+          <div v-if="project.selectedPermits && project.selectedPermits.length > 0" class="flex flex-col gap-2">
+            <div
+              v-for="permit in project.selectedPermits"
+              :key="permit.id"
+              class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
+                <div class="flex items-center gap-2">
+                  <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
+                  <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'In Progress')"
+                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+                  </template>
+                  <template v-else>
+                    <BaseButton
+                      v-if="permit.status !== 'In Progress'"
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'In Progress')"
+                    >{{ t('project.overviewTab.startApplication') }}</BaseButton>
+                    <BaseButton
+                      variant="secondary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'Cancelled')"
+                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                    <BaseButton
+                      variant="primary" size="sm" class="no-print"
+                      :loading="permitActionPendingId === permit.id"
+                      @click="setPermitStatus(permit.id, 'Complete')"
+                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                  </template>
+                </div>
+              </div>
+              <button
+                v-if="permit.permitId"
+                type="button"
+                class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
+                @click="toggleReferenceDocs('Permit', permit.permitId)"
+              >{{ t('project.overviewTab.referenceDocuments') }}</button>
+              <div v-if="permit.permitId && expandedReferenceDocsKey === `Permit:${permit.permitId}`" class="flex flex-col gap-1">
+                <SkeletonLoader v-if="isLoadingReferenceDocs === `Permit:${permit.permitId}`" :rows="1" />
+                <p v-else-if="(referenceDocsByKey[`Permit:${permit.permitId}`] ?? []).length === 0" class="text-xs text-text-muted">
+                  {{ t('project.overviewTab.noReferenceDocuments') }}
+                </p>
+                <ul v-else class="list-inside list-disc text-xs text-text-muted">
+                  <li v-for="link in referenceDocsByKey[`Permit:${permit.permitId}`]" :key="link.id">{{ link.requirementName }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noPermitsSelectedYet') }}</p>
+        </div>
+
         <div v-if="designDocuments.length > 0" class="flex flex-col gap-2">
           <div
             v-for="document in designDocuments"

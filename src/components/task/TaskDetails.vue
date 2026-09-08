@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { Trash2 } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
@@ -23,6 +25,7 @@ const emit = defineEmits<{
   'priority-change': [priority: TaskPriority]
   'severity-change': [severity: TaskSeverity]
   reassign: [assignee: string]
+  delete: []
 }>()
 
 const { t } = useI18n()
@@ -87,5 +90,9 @@ const details = computed(() => [
         @update:model-value="emit('severity-change', $event as TaskSeverity)"
       />
     </div>
+
+    <BaseButton variant="danger" size="sm" :icon="Trash2" class="self-start no-print" @click="emit('delete')">
+      {{ t('task.details.delete') }}
+    </BaseButton>
   </div>
 </template>

@@ -45,6 +45,7 @@ type PendingChange =
   | { kind: 'status'; value: TaskStatus }
   | { kind: 'priority'; value: TaskPriority }
   | { kind: 'reassign'; value: string }
+  | { kind: 'delete' }
 
 const isConfirmDialogOpen = ref(false)
 const isConfirmSaving = ref(false)
@@ -56,6 +57,7 @@ const confirmDialogTitle = computed(() => {
     status: t('project.tasksTab.changeStatusTitle'),
     priority: t('project.tasksTab.changePriorityTitle'),
     reassign: t('project.tasksTab.reassignTaskTitle'),
+    delete: t('project.tasksTab.deleteTaskTitle'),
   }[pendingChange.value.kind]
 })
 
@@ -68,9 +70,12 @@ const confirmDialogMessage = computed(() => {
     case 'priority':
       return t('project.tasksTab.changePriorityMessage', { title: task.title, from: task.priority, to: pendingChange.value.value })
     case 'reassign': {
-      const nextAssignee = userStore.users.find((user) => user.id === pendingChange.value?.value)?.name ?? t('project.tasksTab.thisUser')
+      const assigneeUserId = pendingChange.value.value
+      const nextAssignee = userStore.users.find((user) => user.id === assigneeUserId)?.name ?? t('project.tasksTab.thisUser')
       return t('project.tasksTab.reassignTaskMessage', { title: task.title, from: task.assignedTo, to: nextAssignee })
     }
+    case 'delete':
+      return t('project.tasksTab.deleteTaskMessage', { title: task.title })
     default:
       return ''
   }
@@ -91,6 +96,13 @@ function requestReassign(assigneeUserId: string): void {
   isConfirmDialogOpen.value = true
 }
 
+function requestDelete(): void {
+  pendingChange.value = { kind: 'delete' }
+  isConfirmDialogOpen.value = true
+}
+
+const confirmDialogVariant = computed(() => (pendingChange.value?.kind === 'delete' ? 'danger' : 'primary'))
+
 async function handleConfirmPendingChange(): Promise<void> {
   if (!pendingChange.value) return
   isConfirmSaving.value = true
@@ -99,8 +111,10 @@ async function handleConfirmPendingChange(): Promise<void> {
       await handleStatusChange(pendingChange.value.value)
     } else if (pendingChange.value.kind === 'priority') {
       await handlePriorityChange(pendingChange.value.value)
-    } else {
+    } else if (pendingChange.value.kind === 'reassign') {
       await handleReassign(pendingChange.value.value)
+    } else {
+      await handleDeleteTask()
     }
     isConfirmDialogOpen.value = false
   } finally {
@@ -160,6 +174,18 @@ async function handleReassign(assignee: string): Promise<void> {
     toastStore.show('error', t('project.tasksTab.failedToReassignTask'), detail)
   }
 }
+
+async function handleDeleteTask(): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  const title = taskStore.selectedTask?.title ?? ''
+  try {
+    await taskStore.deleteTask(taskStore.selectedTaskId)
+    toastStore.show('success', t('project.tasksTab.taskDeletedTitle'), t('project.tasksTab.taskDeletedDescription', { title }))
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToDeleteTask'), detail)
+  }
+}
 </script>
 
 <template>
@@ -200,6 +226,7 @@ async function handleReassign(assignee: string): Promise<void> {
       @status-change="requestStatusChange"
       @priority-change="requestPriorityChange"
       @reassign="requestReassign"
+      @delete="requestDelete"
     />
   </BaseDrawer>
 
@@ -208,6 +235,7 @@ async function handleReassign(assignee: string): Promise<void> {
     :title="confirmDialogTitle"
     :message="confirmDialogMessage"
     confirm-label="Confirm"
+    :confirm-variant="confirmDialogVariant"
     :loading="isConfirmSaving"
     @confirm="handleConfirmPendingChange"
   />

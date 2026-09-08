@@ -463,6 +463,11 @@ export default {
     changePriorityMessage: 'Change the priority of "{title}" from {from} to {to}?',
     reassignTaskMessage: 'Reassign "{title}" from {from} to {to}?',
     thisUser: 'this user',
+    deleteTaskTitle: 'Delete task',
+    deleteTaskMessage: 'Delete "{title}"? This cannot be undone.',
+    taskDeletedTitle: 'Task deleted',
+    taskDeletedDescription: '"{title}" was deleted.',
+    failedToDeleteTask: 'Failed to delete task',
   },
 
   reportPage: {

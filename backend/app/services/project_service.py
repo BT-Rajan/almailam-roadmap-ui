@@ -991,6 +991,22 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                 f"every selected Design activity closed ({len(unfinished_activities)} still open: "
                 f"{', '.join(a.activity_name for a in unfinished_activities)})"
             )
+        # An activity can be force-closed by a human even while a task
+        # under it (or a generic, unlinked one -- Task predates the
+        # activity link, see Task.selected_activity_id's docstring) is
+        # still open, so this is a separate check, not implied by the
+        # one above: nothing on the project's to-do list should be left
+        # dangling once Design is behind it.
+        open_tasks = (
+            db.query(Task)
+            .filter(Task.project_id == project.id, Task.deleted_at.is_(None), Task.status != "Completed")
+            .all()
+        )
+        if open_tasks:
+            problems.append(
+                f"every task closed ({len(open_tasks)} still open: "
+                f"{', '.join(t.title for t in open_tasks)})"
+            )
 
     elif previous_stage == "Government Submission" and new_stage == "Supervision":
         # Gates leaving Government Submission into Supervision -- at

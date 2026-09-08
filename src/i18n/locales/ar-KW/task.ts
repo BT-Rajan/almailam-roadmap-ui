@@ -36,6 +36,7 @@ export default {
     status: 'الحالة',
     priority: 'الأولوية',
     severity: 'الخطورة',
+    delete: 'حذف المهمة',
   },
 
   board: {
@@ -73,6 +74,11 @@ export default {
     taskCreatedTitle: 'تم إنشاء المهمة',
     taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
     failedToCreateTask: 'فشل إنشاء المهمة',
+    deleteTaskTitle: 'حذف المهمة',
+    deleteTaskMessage: 'حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
+    taskDeletedTitle: 'تم حذف المهمة',
+    taskDeletedDescription: 'تم حذف "{title}".',
+    failedToDeleteTask: 'فشل حذف المهمة',
   },
 
   formDialog: {

@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -127,6 +128,29 @@ async function handleReassign(assignee: string): Promise<void> {
   }
 }
 
+const isDeleteConfirmOpen = ref(false)
+const isDeleting = ref(false)
+
+function requestDelete(): void {
+  isDeleteConfirmOpen.value = true
+}
+
+async function handleConfirmDelete(): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  const title = taskStore.selectedTask?.title ?? ''
+  isDeleting.value = true
+  try {
+    await taskStore.deleteTask(taskStore.selectedTaskId)
+    toastStore.show('success', t('task.taskActions.taskDeletedTitle'), t('task.taskActions.taskDeletedDescription', { title }))
+    isDeleteConfirmOpen.value = false
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToDeleteTask'), detail)
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 async function handleCreateTask(input: TaskInput): Promise<void> {
   try {
     const task = await taskStore.createTask(input)
@@ -206,6 +230,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
         @reassign="handleReassign"
+        @delete="requestDelete"
       />
     </BaseDrawer>
 
@@ -213,6 +238,15 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       v-model="isCreateDialogOpen"
       :projects="taskStore.projects"
       @create="handleCreateTask"
+    />
+
+    <ConfirmationDialog
+      v-model="isDeleteConfirmOpen"
+      :title="t('task.taskActions.deleteTaskTitle')"
+      :message="t('task.taskActions.deleteTaskMessage', { title: taskStore.selectedTask?.title ?? '' })"
+      confirm-variant="danger"
+      :loading="isDeleting"
+      @confirm="handleConfirmDelete"
     />
   </div>
 </template>
