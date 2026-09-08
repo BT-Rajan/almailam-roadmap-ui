@@ -35,7 +35,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   patch: [value: Partial<Quotation>]
-  saveAsFinal: [value: Partial<Quotation>]
 }>()
 
 const { t } = useI18n()
@@ -133,11 +132,6 @@ function saveDraft(): void {
   isEditing.value = false
 }
 
-function saveAsFinal(): void {
-  emit('saveAsFinal', buildPatch())
-  isEditing.value = false
-}
-
 const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
   Draft: 'project.quotationStatus.draft',
   Approved: 'project.quotationStatus.approved',
@@ -166,8 +160,7 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
           </BaseButton>
           <template v-else-if="isEditing">
             <BaseButton variant="ghost" size="sm" :icon="X" @click="cancelEditing">{{ t('common.cancel') }}</BaseButton>
-            <BaseButton variant="secondary" size="sm" :icon="Check" @click="saveDraft">{{ t('common.save') }}</BaseButton>
-            <BaseButton size="sm" @click="saveAsFinal">{{ t('project.quotationPreview.saveAsFinal') }}</BaseButton>
+            <BaseButton size="sm" :icon="Check" @click="saveDraft">{{ t('common.save') }}</BaseButton>
           </template>
         </div>
       </div>
