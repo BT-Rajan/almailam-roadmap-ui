@@ -214,14 +214,17 @@ async function handleConfirmOtp(payload: { code: string }): Promise<void> {
   if (!contract) return
   isOtpSaving.value = true
   try {
-    await contractStore.verifyContractOtp(contract.id, payload.code)
+    const signed = await contractStore.verifyContractOtp(contract.id, payload.code)
     // verifyContractOtp can move current_stage server-side (see
     // contract_service.set_status -> try_auto_advance_stage) -- same
     // "sync the shared store's cached copy" reasoning as
     // handleStatusConfirm below.
     await projectStore.refreshProject(props.project.id)
     isOtpDialogOpen.value = false
-    resultDialogStore.showSuccess(t('project.contractTab.otpDialog.signedTitle'), t('project.contractTab.otpDialog.signedDescription'))
+    const description = signed.confirmationEmailSent === false
+      ? t('project.contractTab.otpDialog.signedDescriptionEmailFailed')
+      : t('project.contractTab.otpDialog.signedDescription')
+    resultDialogStore.showSuccess(t('project.contractTab.otpDialog.signedTitle'), description)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('project.contractTab.otpDialog.failedToVerify'), detail)

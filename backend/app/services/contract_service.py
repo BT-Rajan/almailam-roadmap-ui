@@ -388,13 +388,21 @@ def _contract_summary_text(contract: Contract, clauses: list[ContractClause]) ->
     return "\n".join(lines)
 
 
-def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) -> Contract:
+def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) -> tuple[Contract, bool]:
     """Confirms the code the client read back to staff -- the client's
     signature on the contract. Success is what actually moves the
     contract to "Signed" (reuses set_status, which already handles
     signed_date and project_service.try_auto_advance_stage -- not
     reimplemented here). The client is always emailed a copy of the
-    signed contract (PDF attached) once confirmed."""
+    signed contract (PDF attached) once confirmed.
+
+    Returns (contract, confirmation_email_sent) -- the second element
+    is False whenever the client was eligible for the email (has
+    consent) but it didn't go out, so the caller (the API layer) can
+    tell the signing user honestly instead of always claiming success;
+    True covers both "sent" and "not applicable" (no project/client/
+    consent) so the frontend only needs to special-case False.
+    """
     contract = get_contract(db, contract_no)
     if contract.status != "Draft" or contract.finalized_at is None:
         raise ValidationAppError("This contract isn't awaiting signature.")
@@ -420,11 +428,11 @@ def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) 
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
     if project is None:
-        return contract
+        return contract, True
 
     client = db.query(Client).filter(Client.id == project.client_id).first()
     if client is None or not client.email_consent:
-        return contract
+        return contract, True
 
     try:
         clauses = get_clauses(db, contract.id)
@@ -466,7 +474,8 @@ def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) 
             link_params={"projectId": project.project_no},
         )
         db.commit()
-    return contract
+        return contract, False
+    return contract, True
 
 
 def _contract_exists(db: Session, contract_no: str) -> Contract:

@@ -448,6 +448,7 @@ export default {
       failedToVerify: 'Failed to verify code',
       signedTitle: 'Contract signed',
       signedDescription: "The client's signature was recorded. A copy of the signed contract was emailed to them.",
+      signedDescriptionEmailFailed: "The client's signature was recorded, but the confirmation email could not be sent. Use \"Email Document\" below to send them a copy once the issue is fixed.",
     },
   },
 

@@ -31,7 +31,7 @@ def _user_name(db: Session, user_id: int) -> str:
     return user.full_name if user else "Unknown"
 
 
-def _to_out(db: Session, contract) -> ContractOut:
+def _to_out(db: Session, contract, confirmation_email_sent: bool | None = None) -> ContractOut:
     from app.models.quotation import Quotation
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
@@ -43,7 +43,8 @@ def _to_out(db: Session, contract) -> ContractOut:
         quotation = db.query(Quotation).filter(Quotation.id == contract.quotation_id).first()
         quotation_no = quotation.quotation_no if quotation else None
     return ContractOut.from_model(
-        contract, project.project_no if project else "", prepared_by_name, clauses, revisions, quotation_no
+        contract, project.project_no if project else "", prepared_by_name, clauses, revisions, quotation_no,
+        confirmation_email_sent,
     )
 
 
@@ -119,8 +120,8 @@ def verify_contract_otp(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    contract = contract_service.verify_contract_otp(db, contract_no, payload.code, current_user.id)
-    return _to_out(db, contract)
+    contract, confirmation_email_sent = contract_service.verify_contract_otp(db, contract_no, payload.code, current_user.id)
+    return _to_out(db, contract, confirmation_email_sent)
 
 
 @router.post("/{contract_no}/revisions", response_model=ContractOut, status_code=201)

@@ -80,11 +80,17 @@ class ContractOut(BaseModel):
     # frontend reopen the OTP dialog straight to "enter code" when one's
     # already on its way, same idea as QuotationOut.otpSentAt.
     otpSentAt: datetime | None = None
+    # Only meaningful right after verify-otp -- False means the client's
+    # signed-copy confirmation email failed to send (see
+    # contract_service.verify_contract_otp), so the frontend can tell
+    # the signing user honestly instead of always claiming it was
+    # emailed. None on every other endpoint that returns a ContractOut.
+    confirmationEmailSent: bool | None = None
 
     @staticmethod
     def from_model(
         contract, project_no: str, prepared_by_name: str, clauses: list, revisions: list[tuple],
-        quotation_no: str | None = None,
+        quotation_no: str | None = None, confirmation_email_sent: bool | None = None,
     ) -> "ContractOut":
         return ContractOut(
             id=contract.contract_no,
@@ -105,6 +111,7 @@ class ContractOut(BaseModel):
             revisions=[ContractRevisionOut.from_model(r, name) for r, name in revisions],
             finalizedAt=contract.finalized_at,
             otpSentAt=contract.otp_sent_at,
+            confirmationEmailSent=confirmation_email_sent,
         )
 
 
