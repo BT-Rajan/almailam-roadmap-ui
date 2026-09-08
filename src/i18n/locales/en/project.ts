@@ -148,7 +148,7 @@ export default {
   },
 
   overviewTab: {
-    scopeTitle: 'Scope',
+    scopeTitle: 'Scope of Work',
     servicesLabel: 'Services',
     supervisionMonthlyLabel: 'Supervision (Monthly)',
     notSet: 'Not set',
@@ -292,10 +292,8 @@ export default {
 
   revisionHistory: {
     title: 'Revision History',
-    scopeTitle: 'Scope Revision History',
     emptyTitle: 'No revisions recorded',
     current: 'Current',
-    attachedDocument: 'Attached document',
   },
 
   pricingSummary: {

@@ -292,10 +292,8 @@ export default {
 
   revisionHistory: {
     title: 'سجل المراجعات',
-    scopeTitle: 'سجل مراجعات النطاق',
     emptyTitle: 'لا توجد مراجعات مسجلة',
     current: 'الحالية',
-    attachedDocument: 'مستند مرفق',
   },
 
   pricingSummary: {
