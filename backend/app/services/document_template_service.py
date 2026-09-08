@@ -500,20 +500,32 @@ def get_merge_fields(document_type: str) -> list[dict]:
 
 
 def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
-    """Rewrites a paragraph down to a single run containing `text`,
-    preserving the first existing run's character formatting (bold,
-    font, etc.) if there was one. A deliberate simplification -- a
-    paragraph that mixed multiple run styles mid-sentence collapses to
-    one style -- far more robust than trying to splice text in while
-    preserving every original run boundary, and irrelevant for the
-    short, mostly-plain lines a merge field actually lives in."""
+    """Rewrites a paragraph down to a single trailing run containing
+    `text`, preserving the first existing text run's character
+    formatting (bold, font, etc.) if there was one. A deliberate
+    simplification -- a paragraph that mixed multiple run styles
+    mid-sentence collapses to one style -- far more robust than trying
+    to splice text in while preserving every original run boundary,
+    and irrelevant for the short, mostly-plain lines a merge field
+    actually lives in.
+
+    Any run containing a <w:drawing> (an image -- e.g. a company logo
+    sharing this paragraph with the company-name text next to it, a
+    common letterhead layout) is left untouched rather than swept up
+    with the text runs: a real uploaded template's own embedded
+    picture has to survive an admin mapping this paragraph to a field
+    just as reliably as it survives the actual docxtpl merge later
+    (see _render_docx's own comment -- docxtpl itself never touches
+    non-Jinja content, so this is the one place in the mapping tool
+    that used to be able to destroy it)."""
     runs = list(paragraph.runs)
+    text_runs = [run for run in runs if run._r.find(qn("w:drawing")) is None]
     preserved_rpr = None
-    if runs:
-        existing_rpr = runs[0]._r.find(qn("w:rPr"))
+    if text_runs:
+        existing_rpr = text_runs[0]._r.find(qn("w:rPr"))
         if existing_rpr is not None:
             preserved_rpr = copy.deepcopy(existing_rpr)
-    for run in runs:
+    for run in text_runs:
         run._r.getparent().remove(run._r)
     new_run = OxmlElement("w:r")
     if preserved_rpr is not None:
