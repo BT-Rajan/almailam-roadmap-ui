@@ -125,6 +125,18 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     project_service.assert_project_open_for_new_work(project)
     amount = compute_amount([(item.quantity, item.unitPrice) for item in payload.lineItems], payload.discountAmount)
 
+    # Not blocked -- staff sometimes do legitimately need another
+    # quotation once one's already Approved (a scope change mid-project,
+    # say) -- but it's unusual enough, and easy enough to do by accident
+    # while looking at an old Draft/Rejected/Expired sibling, that
+    # Administrators should know it happened rather than the project
+    # quietly ending up with two "live-looking" quotations.
+    existing_approved = (
+        db.query(Quotation)
+        .filter(Quotation.project_id == project.id, Quotation.status == "Approved")
+        .first()
+    )
+
     quotation = Quotation(
         quotation_no=next_number(db, "QUOTATION"),
         project_id=project.id,
@@ -169,6 +181,19 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     # triggered the move yet. No-op otherwise.
     db.flush()
     project_service.try_auto_advance_stage(db, project, user_id)
+
+    if existing_approved is not None:
+        notification_service.notify_role(
+            db, "Administrator",
+            "Quotation created while one is already Approved",
+            f"Quotation {quotation.quotation_no} was created for project {project.project_no}, "
+            f"which already has an Approved quotation ({existing_approved.quotation_no}). "
+            "Confirm this was intentional.",
+            "Project",
+            link_route_name="project-workspace",
+            link_params={"projectId": project.project_no},
+        )
+
     db.commit()
     db.refresh(quotation)
     return quotation
@@ -346,20 +371,12 @@ def send_quotation_otp(db: Session, quotation_no: str, user_id: int) -> Quotatio
             "Save the quotation as Final before sending it to the client for approval."
         )
 
-    code = otp.generate_code()
-    quotation.otp_code_hash = otp.hash_code(code)
-    quotation.otp_expires_at = otp.new_expiry()
-    quotation.otp_attempts = 0
-    quotation.otp_sent_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Approval OTP sent", user_id)
-    db.commit()
-    db.refresh(quotation)
-
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
     client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
     if client is None:
         raise ValidationAppError("This quotation's project/client record is missing.")
 
+    code = otp.generate_code()
     subject, body = email_template_service.render(
         db,
         "quotation_otp",
@@ -370,7 +387,21 @@ def send_quotation_otp(db: Session, quotation_no: str, user_id: int) -> Quotatio
             "validity_label": otp.validity_label(),
         },
     )
+    # Persist the OTP state only once the email has actually gone out --
+    # a failed send (bad SMTP config, network blip) used to leave the
+    # quotation looking "OTP sent" in the DB with a code the client
+    # never received, so entering anything just failed as "incorrect
+    # code" instead of prompting a resend of a code that was actually
+    # issued.
     email_service.send_email(client.email, subject, body, db=db)
+
+    quotation.otp_code_hash = otp.hash_code(code)
+    quotation.otp_expires_at = otp.new_expiry()
+    quotation.otp_attempts = 0
+    quotation.otp_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Approval OTP sent", user_id)
+    db.commit()
+    db.refresh(quotation)
     return quotation
 
 
