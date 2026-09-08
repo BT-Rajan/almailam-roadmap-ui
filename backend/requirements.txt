@@ -20,6 +20,13 @@ APScheduler==3.11.3
 # there is no OCR step in this pipeline.
 pypdf==5.1.0
 python-docx==1.1.2
+# Also the direct driver, elsewhere, for the whole admin document-
+# template feature (app/services/document_template_service.py): reads/
+# rewrites an uploaded .docx for the field-mapping tool, and renders a
+# merged one straight to HTML (_docx_to_html/_docx_to_pdf) for the
+# Quotation/Contract "Print"/"Email" PDF -- see weasyprint's own
+# comment below for why that's a direct render rather than a generic
+# docx->HTML library or a LibreOffice-headless conversion.
 # Merges live project data into an admin-uploaded .docx template to
 # produce the actual downloadable Quotation/Contract document (see
 # app/services/document_template_service.py) -- Jinja2-style {{ field }}
@@ -33,27 +40,25 @@ docxtpl==0.19.0
 # minimal/slim container images. tzdata bundles it directly so the
 # lookup never silently falls back to server-local time.
 tzdata==2025.2
-# HTML -> PDF rendering for a filled government-form template (see
-# app/services/pdf_render.py) -- turns a merged {{token}} template into
-# a real, printable PDF saved as a project Document, not just an
-# on-screen preview. Unlike tzdata above, this is NOT a pure-Python
-# wheel: it needs Pango, Cairo, and GDK-Pixbuf shared libraries already
-# installed on the host (e.g. Debian/Ubuntu: libpango-1.0-0,
-# libpangocairo-1.0-0, libcairo2, libgdk-pixbuf-2.0-0). install.sh
-# deliberately never runs apt-get itself (see its own header comment),
-# so these must already be present on the server -- if `pip install -r
-# requirements.txt` succeeds but importing weasyprint fails, that's the
-# missing piece, not a Python problem.
+# HTML -> PDF rendering. Two callers: a filled government-form template
+# (see app/services/pdf_render.py), and document_template_service.
+# _docx_to_pdf's own HTML (rendered directly from python-docx above,
+# not through a generic docx->HTML library -- see that function's own
+# docstring) for the Quotation/Contract "Print"/"Email" PDF, so those
+# show the admin's real uploaded-template content -- including its
+# images and direct formatting -- instead of a separate hardcoded
+# preview. A LibreOffice-headless docx->PDF conversion was tried for
+# the latter first and does not run reliably in this app's container,
+# hence a pure-Python HTML round-trip instead of shelling out to it.
+# Unlike tzdata above, this is NOT a pure-Python wheel: it needs Pango,
+# Cairo, and GDK-Pixbuf shared libraries already installed on the host
+# (e.g. Debian/Ubuntu: libpango-1.0-0, libpangocairo-1.0-0, libcairo2,
+# libgdk-pixbuf-2.0-0). install.sh deliberately never runs apt-get
+# itself (see its own header comment), so these must already be
+# present on the server -- if `pip install -r requirements.txt`
+# succeeds but importing weasyprint fails, that's the missing piece,
+# not a Python problem.
 weasyprint==69.0
-# Turns a merged Quotation/Contract .docx into semantic HTML (see
-# document_template_service._docx_to_pdf), which is then handed to
-# WeasyPrint above to produce the PDF "Print"/"Email" actually use --
-# so those show the admin's real uploaded-template content instead of a
-# separate hardcoded preview. Pure-Python, no system dependency (unlike
-# weasyprint above): a LibreOffice-headless docx->PDF conversion was
-# tried first and does not run reliably in this app's container, hence
-# this HTML round-trip instead of a direct docx->PDF tool.
-mammoth==1.12.1
 # Server-side sanitizer for the rich-text content saved from Quotation/
 # Contract preview editors (scope summary, clauses, notes, terms) --
 # strips anything outside the small formatting allowlist (bold/italic/

@@ -22,6 +22,7 @@ font even when the uploaded template (and its content) was plain
 English.
 """
 
+import base64
 import copy
 import html
 import io
@@ -30,12 +31,12 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
-import mammoth
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Mm
-from docx.table import Table
+from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from docxtpl import DocxTemplate, InlineImage
 from sqlalchemy.orm import Session
@@ -237,20 +238,171 @@ _PDF_STYLE_BY_LANGUAGE = {
     "English": ("ltr", "left", "'Helvetica Neue', Arial, 'NotoNaskhArabic', sans-serif"),
 }
 
+_ALIGN_CSS = {
+    WD_ALIGN_PARAGRAPH.LEFT: "left",
+    WD_ALIGN_PARAGRAPH.CENTER: "center",
+    WD_ALIGN_PARAGRAPH.RIGHT: "right",
+    WD_ALIGN_PARAGRAPH.JUSTIFY: "justify",
+}
+
+
+def _run_image_html(run) -> str | None:
+    """A run's <w:drawing> as a base64-embedded <img>, sized from the
+    drawing's own EMU extent (1 EMU = 1/914400in -> px at 96dpi is
+    EMU/9525) -- covers both an inline picture and a floating/anchored
+    one (e.g. a letterhead logo positioned beside the title text) the
+    same way, since docx stores the extent identically either way.
+    Returns None for a run with no drawing, or one whose image part
+    can't be resolved (never expected in practice, but a merge field's
+    run should never hard-fail a whole document over one bad image)."""
+    drawing = run._r.find(qn("w:drawing"))
+    if drawing is None:
+        return None
+    blip = drawing.find(f".//{qn('a:blip')}")
+    if blip is None:
+        return None
+    r_id = blip.get(qn("r:embed"))
+    if not r_id:
+        return None
+    try:
+        part = run.part.related_parts[r_id]
+    except KeyError:
+        return None
+    style = ""
+    extent = drawing.find(f".//{qn('wp:extent')}")
+    if extent is not None and extent.get("cx"):
+        width_px = int(extent.get("cx")) / 9525
+        style = f' style="width:{width_px:.1f}px;max-width:100%;"'
+    encoded = base64.b64encode(part.blob).decode("ascii")
+    return f'<img src="data:{part.content_type};base64,{encoded}"{style}>'
+
+
+def _run_html(run) -> str:
+    """One run's exact character formatting (bold/italic/underline,
+    explicit font color, explicit font size) as an inline-styled
+    <span>, or its image if it carries one instead of text -- the
+    template's own direct formatting on a merge field's run (see
+    MERGE_FIELD_CATALOG/apply_mapping: mapping a field preserves the
+    run it replaces text in) survives into the PDF this way, not just
+    into the .docx download."""
+    image_html = _run_image_html(run)
+    if image_html is not None:
+        return image_html
+    text = html.escape(run.text or "")
+    if not text:
+        return ""
+    text = text.replace("\n", "<br>").replace("\t", "&emsp;")
+    styles: list[str] = []
+    if run.font.bold:
+        styles.append("font-weight:bold")
+    if run.font.italic:
+        styles.append("font-style:italic")
+    if run.font.underline:
+        styles.append("text-decoration:underline")
+    try:
+        color = run.font.color.rgb if run.font.color is not None else None
+    except AttributeError:
+        color = None
+    if color:
+        styles.append(f"color:#{color}")
+    if run.font.size:
+        styles.append(f"font-size:{run.font.size.pt:g}pt")
+    return f'<span style="{";".join(styles)}">{text}</span>' if styles else text
+
+
+def _has_num_pr(pPr) -> bool:
+    return pPr is not None and pPr.find(qn("w:numPr")) is not None
+
+
+def _is_list_paragraph(paragraph: Paragraph) -> bool:
+    """Whether this paragraph uses Word's own numbered/bulleted-list
+    formatting -- common for a template's Terms & Conditions/Clauses
+    (see MERGE_FIELD_CATALOG's repeating_list fields: each loop
+    iteration is one paragraph, and an admin authoring those as a real
+    Word list, not manually typed dashes, is the expected case). Not
+    tied to which numbering definition/level it uses -- a single
+    bullet-point treatment for any list paragraph is a reasonable
+    approximation short of reading numbering.xml's actual list styles.
+
+    <w:numPr> can live directly on the paragraph, but for a paragraph
+    using a named list style (e.g. Word's own "List Bullet", what
+    add_paragraph(style=...) produces, and the common case for a
+    template authored by clicking Word's bullet-list toolbar button)
+    it instead lives on that style's own <w:pPr> in styles.xml, not on
+    the paragraph itself -- checked here too, one level, not walking a
+    w:basedOn chain further up."""
+    if _has_num_pr(paragraph._p.find(qn("w:pPr"))):
+        return True
+    style = paragraph.style
+    return style is not None and _has_num_pr(style.element.find(qn("w:pPr")))
+
+
+def _paragraph_html(paragraph: Paragraph) -> str:
+    runs_html = "".join(_run_html(run) for run in paragraph.runs)
+    align = _ALIGN_CSS.get(paragraph.alignment)
+    styles = [f"text-align:{align}"] if align else []
+    prefix = ""
+    if _is_list_paragraph(paragraph):
+        styles.append("margin-inline-start:1.5em")
+        prefix = "&bull;&nbsp;"
+    style = f' style="{";".join(styles)};"' if styles else ""
+    return f"<p{style}>{prefix}{runs_html}</p>"
+
+
+def _cell_style(cell: _Cell) -> str:
+    """A table cell's own background shading (<w:shd>), the one piece
+    of direct table formatting distinctive enough to matter visually
+    (e.g. a dark header row with white text) -- borders stay the flat
+    `td, th` rule below rather than reading each cell's own border
+    spec, a reasonable approximation for the plain grid lines almost
+    every uploaded template's tables actually use."""
+    tc_pr = cell._tc.find(qn("w:tcPr"))
+    shading = tc_pr.find(qn("w:shd")) if tc_pr is not None else None
+    fill = shading.get(qn("w:fill")) if shading is not None else None
+    if fill and fill.upper() != "AUTO":
+        return f' style="background-color:#{fill};"'
+    return ""
+
+
+def _table_html(table: Table) -> str:
+    rows_html = []
+    for row in table.rows:
+        cells_html = [
+            f"<td{_cell_style(cell)}>{''.join(_paragraph_html(p) for p in cell.paragraphs)}</td>"
+            for cell in row.cells
+        ]
+        rows_html.append(f"<tr>{''.join(cells_html)}</tr>")
+    return f"<table>{''.join(rows_html)}</table>"
+
+
+def _docx_to_html(document) -> str:
+    """The merged document's body, rendered directly from its own
+    python-docx object tree (paragraphs/runs/tables, walked the same
+    "one block at a time, in document order" way as _body_blocks
+    below, reused here) rather than through a generic docx->HTML
+    converter -- see _docx_to_pdf's docstring for why."""
+    parts = []
+    for _, kind, wrapper in _body_blocks(document):
+        parts.append(_paragraph_html(wrapper) if kind == "paragraph" else _table_html(wrapper))
+    return "".join(parts)
+
 
 def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
     """Converts a merged .docx to a real, selectable-text PDF for
     Print/Email, reusing the exact stack pdf_render.py already relies on
     for Government Forms (WeasyPrint + the bundled Noto Naskh Arabic
-    font) rather than adding a new system dependency: mammoth (a pure
-    pip package, no system libs) turns the .docx body into semantic
-    HTML, which WeasyPrint then paginates into a PDF. This won't
-    reproduce the admin's exact Word layout pixel-for-pixel (mammoth
-    keeps paragraphs/headings/bold/tables/lists, not precise
-    spacing/borders), but it is the same merged content, real
-    RTL-capable Arabic text throughout -- unlike a LibreOffice-based
-    docx->PDF conversion, which was tried here and does not run
-    reliably headless in this app's container.
+    font) rather than adding a new system dependency. _docx_to_html
+    above renders the document's own paragraphs/runs/tables straight
+    from python-docx -- the same library already used elsewhere in this
+    file for the field-mapping tool -- into HTML that keeps each run's
+    own bold/italic/underline/color/size and each table cell's own
+    background shading, plus every embedded image (inline or
+    floating/anchored, e.g. a letterhead logo), not just the paragraph/
+    table structure a generic docx->HTML library would keep. A
+    LibreOffice-headless docx->PDF conversion was tried before this and
+    does not run reliably in this app's container, so this stays a
+    pure-Python round-trip through WeasyPrint rather than shelling out
+    to it.
 
     Direction/alignment/font follow the template's own declared
     `language` (DocumentTemplate.language) rather than always assuming
@@ -258,8 +410,8 @@ def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
     on every document, English ones included."""
     direction, text_align, font_stack = _PDF_STYLE_BY_LANGUAGE[language]
     html_lang = "ar" if language == "Arabic" else "en"
-    result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
-    body_html = result.value
+    document = Document(io.BytesIO(docx_bytes))
+    body_html = _docx_to_html(document)
     html_doc = f"""<!DOCTYPE html>
 <html dir="{direction}" lang="{html_lang}">
 <head>
@@ -281,6 +433,7 @@ def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
   table {{ width: 100%; border-collapse: collapse; margin: 0 0 1em; }}
   td, th {{ border: 1px solid #999; padding: 0.4em 0.6em; }}
   p {{ margin: 0 0 0.8em; }}
+  img {{ display: block; }}
 </style>
 </head>
 <body>{body_html}</body>
