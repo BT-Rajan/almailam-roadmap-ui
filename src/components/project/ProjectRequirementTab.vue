@@ -225,6 +225,26 @@ const clientDetailItems = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
+    <!-- Same top-level toolbar position as every other stage tab
+         (ProjectQuotationTab/ProjectContractTab's Approve/Sign action,
+         ProjectDocumentsTab's Design-mode toolbar) -- the primary
+         approval action lives here, not buried in a card header, so
+         it's always in the same place regardless of which stage tab
+         is open. -->
+    <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center justify-end gap-2 no-print">
+      <template v-if="!isRequirementLocked">
+        <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
+          {{ t('project.requirementTab.saveScope') }}
+        </BaseButton>
+        <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isConfirmSaving" @click="isConfirmDialogOpen = true">
+          {{ t('project.requirementTab.confirmWithClient') }}
+        </BaseButton>
+      </template>
+      <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="advanceIcon" @click="handleAdvanceToQuotation">
+        {{ t('project.requirementTab.advanceToQuotation') }}
+      </BaseButton>
+    </div>
+
     <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
       <DetailPanel :title="t('project.requirementTab.projectDetailsTitle')" :items="projectDetailItems" />
       <div class="flex flex-col gap-3">
@@ -253,34 +273,18 @@ const clientDetailItems = computed(() => {
 
     <Card>
       <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <h3 class="text-sm font-semibold text-text-primary">{{ t('project.requirementTab.scopeOfWorkTitle') }}</h3>
-            <StatusBadge
-              :label="scopeOfWork?.scopeClientConfirmedAt ? t('project.requirementTab.clientConfirmed') : t('project.scopeStatus.awaitingConfirmation')"
-              :variant="scopeOfWork?.scopeClientConfirmedAt ? 'success' : 'neutral'"
-            />
-            <span
-              v-if="isRequirementLocked"
-              class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-            >
-              {{ t('project.requirementTab.contentLocked') }}
-            </span>
-          </div>
-
-          <div v-if="!isRequirementLocked || canAdvanceToQuotation" class="flex flex-wrap items-center gap-2 no-print">
-            <template v-if="!isRequirementLocked">
-              <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
-                {{ t('project.requirementTab.saveScope') }}
-              </BaseButton>
-              <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isConfirmSaving" @click="isConfirmDialogOpen = true">
-                {{ t('project.requirementTab.confirmWithClient') }}
-              </BaseButton>
-            </template>
-            <BaseButton v-if="canAdvanceToQuotation" size="sm" :icon="advanceIcon" @click="handleAdvanceToQuotation">
-              {{ t('project.requirementTab.advanceToQuotation') }}
-            </BaseButton>
-          </div>
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.requirementTab.scopeOfWorkTitle') }}</h3>
+          <StatusBadge
+            :label="scopeOfWork?.scopeClientConfirmedAt ? t('project.requirementTab.clientConfirmed') : t('project.scopeStatus.awaitingConfirmation')"
+            :variant="scopeOfWork?.scopeClientConfirmedAt ? 'success' : 'neutral'"
+          />
+          <span
+            v-if="isRequirementLocked"
+            class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+          >
+            {{ t('project.requirementTab.contentLocked') }}
+          </span>
         </div>
       </template>
 
