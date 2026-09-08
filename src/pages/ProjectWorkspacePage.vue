@@ -26,6 +26,7 @@ const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/proj
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentStatusPanel = defineAsyncComponent(() => import('@/components/payment/PaymentStatusPanel.vue'))
+const PaymentPlanPanel = defineAsyncComponent(() => import('@/components/payment/PaymentPlanPanel.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -94,6 +95,7 @@ const stageContext = ref<WorkflowStage>('Requirement')
 const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   requirement: 'Requirement',
   quotation: 'Quotation',
+  'payment-plan': 'Payment Plan',
   'payment-status': 'Payment Plan',
   contract: 'Contract',
   design: 'Design',
@@ -131,14 +133,15 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Payment Plan':
-      // No Payment Plan tab here anymore -- the agreement/approval UI
-      // (PaymentPlanPanel.vue) now lives embedded inside the Quotation
-      // tab (see ProjectQuotationTab.vue and WORKFLOW_STAGE_TAB_KEYS in
-      // utils/projectHelpers.ts, which is why the stepper's own Payment
-      // Plan step lands there too). Payment Status stays a real top-bar
-      // tab -- unlike the plan itself, tracking what's actually been
-      // collected is an ongoing concern staff return to long after
-      // Quotation is done, not something to bury behind the stepper.
+      // No 'payment-plan' entry in this top-bar list -- same as
+      // Contract/Design/Government Submission/Supervision below, the
+      // stepper's Payment Plan step lands directly on its own dedicated
+      // tab (PaymentPlanPanel.vue, see WORKFLOW_STAGE_TAB_KEYS in
+      // utils/projectHelpers.ts), which isn't one of these top-bar
+      // buttons either. Payment Status stays a real top-bar tab here --
+      // unlike the plan itself, tracking what's actually been collected
+      // is an ongoing concern staff return to long after Quotation is
+      // done, not something to bury behind the stepper.
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'payment-status', label: t('project.workspaceTabs.paymentStatus') },
@@ -422,13 +425,10 @@ async function handleConfirmDelete(): Promise<void> {
       >
         <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
-      <ProjectQuotationTab
-        v-else-if="activeTab === 'quotation'"
-        :project="project"
-        :client="client"
-        @navigate-tab="activeTab = $event"
-        @add-service="openAddServiceDialog"
-      />
+      <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" />
+      <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
+        <PaymentPlanPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
+      </div>
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
       <div
         v-else-if="activeTab === 'documents' || activeTab === 'design'"

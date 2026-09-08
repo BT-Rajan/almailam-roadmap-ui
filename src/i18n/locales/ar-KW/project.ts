@@ -262,7 +262,6 @@ export default {
     failedToUpdateQuotation: 'فشل تحديث عرض السعر',
     failedToFinalizeQuotation: 'فشل اعتماد عرض السعر كنهائي',
     failedToRevertToDraft: 'فشل إعادة عرض السعر إلى مسودة',
-    paymentPlanTitle: 'خطة الدفع',
     approvalDialog: {
       title: 'اعتماد عرض السعر',
       description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل لتأكيد موافقته على عرض السعر.',

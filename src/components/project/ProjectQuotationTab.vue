@@ -15,7 +15,6 @@ import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
-import PaymentPlanPanel from '@/components/payment/PaymentPlanPanel.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import type { QuotationCreateInput } from '@/services/quotationService'
 import { useCompanyStore } from '@/stores/companyStore'
@@ -24,7 +23,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
-import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
@@ -32,11 +31,6 @@ import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 const props = defineProps<{
   project: Project
   client: Client | undefined
-}>()
-
-const emit = defineEmits<{
-  'navigate-tab': [tab: ProjectWorkspaceTabKey]
-  'add-service': []
 }>()
 
 const quotationStore = useQuotationStore()
@@ -565,15 +559,5 @@ async function handleRevertToDraft(): Promise<void> {
   </div>
 
   <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :loading="isCreating" @confirm="handleCreateQuotation" />
-
-  <div class="no-print">
-    <h3 class="mb-4 text-sm font-semibold text-text-primary">{{ t('project.quotationTab.paymentPlanTitle') }}</h3>
-    <PaymentPlanPanel
-      :project-id="project.id"
-      :project="project"
-      @navigate-tab="emit('navigate-tab', $event)"
-      @add-service="emit('add-service')"
-    />
-  </div>
 </template>
 

@@ -187,6 +187,7 @@ export type ProjectWorkspaceTabKey =
   | 'supervision'
   | 'government'
   | 'quotation'
+  | 'payment-plan'
   | 'payment-status'
   | 'contract'
   | 'tasks'

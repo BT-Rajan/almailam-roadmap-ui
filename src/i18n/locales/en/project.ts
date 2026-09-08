@@ -262,7 +262,6 @@ export default {
     failedToUpdateQuotation: 'Failed to update quotation',
     failedToFinalizeQuotation: 'Failed to finalize quotation',
     failedToRevertToDraft: 'Failed to move quotation back to Draft',
-    paymentPlanTitle: 'Payment Plan',
     approvalDialog: {
       title: 'Approve Quotation',
       description: "Upload a scan of the client's physically signed copy to confirm their approval of the quotation.",
