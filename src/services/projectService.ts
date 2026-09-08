@@ -106,10 +106,10 @@ export interface ProjectCreateInput {
   // persist them as mandatory-upload requirements on the project. Optional
   // for the same reason as selectedActivities above.
   requiredPermitDocuments?: string[]
-  // Permits this project needs to apply for (PermitPickerDialog) --
-  // becomes the Permit track's own trackable rows. Distinct from
-  // requiredPermitDocuments above, which is about permits the client
-  // already holds.
+  // Permits this project needs to apply for, picked in the unified
+  // ServicePickerDialog -- becomes the Permit track's own trackable
+  // rows. Distinct from requiredPermitDocuments above, which is about
+  // permits the client already holds.
   selectedPermits?: { permitId: string; permitName: string }[]
 }
 

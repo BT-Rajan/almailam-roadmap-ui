@@ -93,7 +93,8 @@ export interface SelectedSupervisionActivity {
   closedAt?: string | null
 }
 
-// A Permit picked at project setup (PermitPickerDialog) -- the missing
+// A Permit picked at project setup (in the unified ServicePickerDialog) --
+// the missing
 // counterpart to SelectedServiceActivity/SelectedSupervisionActivity
 // that Permits never had before. status starts 'Planned' and becomes
 // 'Eligible' once its admin-defined prerequisite Design activities are

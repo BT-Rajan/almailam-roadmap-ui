@@ -559,8 +559,6 @@ export default {
     edit: 'تعديل',
     activityCount: 'لا توجد أنشطة | نشاط واحد | {count} أنشطة',
     supervisionCount: 'لا توجد أنشطة إشراف | نشاط إشراف واحد | {count} أنشطة إشراف',
-    permitsToApplyFor: 'التراخيص المطلوب التقدم لها (اختياري)',
-    selectPermits: 'اختر التراخيص',
     permitCount: 'لا توجد تراخيص | ترخيص واحد | {count} تراخيص',
     fieldEngineer: 'المهندس الميداني',
     assignEngineer: 'عيّن مهندساً',
@@ -650,15 +648,6 @@ export default {
     createQuotation: 'إنشاء عرض السعر',
   },
 
-  permitPickerDialog: {
-    title: 'اختيار التراخيص',
-    permits: 'التراخيص',
-    noPermitsYet: 'لا توجد تراخيص في الكتالوج بعد.',
-    noPermitsSelected: 'لم يتم اختيار تراخيص',
-    permitsSelected: 'لم يتم اختيار تراخيص | تم اختيار ترخيص واحد | تم اختيار {count} تراخيص',
-    addPermits: 'إضافة التراخيص',
-  },
-
   editDialog: {
     title: 'تعديل المشروع',
     projectName: 'اسم المشروع',
@@ -706,6 +695,9 @@ export default {
     designServicesCount: 'لا توجد خدمات تصميم | خدمة تصميم واحدة | {count} خدمات تصميم',
     activitiesCount: 'لا توجد أنشطة | نشاط واحد | {count} أنشطة',
     supervisionActivitiesCount: 'لا توجد أنشطة إشراف | نشاط إشراف واحد | {count} أنشطة إشراف',
+    permitsToApplyFor: 'التراخيص المطلوب التقدم لها (اختياري)',
+    noPermitsYet: 'لا توجد تراخيص في الكتالوج بعد.',
+    permitsCount: 'لا توجد تراخيص | ترخيص واحد | {count} تراخيص',
     saveSelections: 'حفظ الاختيارات',
   },
 

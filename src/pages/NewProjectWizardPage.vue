@@ -11,7 +11,6 @@ import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
-import PermitPickerDialog from '@/components/project/PermitPickerDialog.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -71,7 +70,6 @@ const isSubmitting = ref(false)
 const showConfirmation = ref(false)
 const createdProject = ref<Project | null>(null)
 const isServicePickerOpen = ref(false)
-const isPermitPickerOpen = ref(false)
 
 const form = reactive({
   clientId: '',
@@ -95,9 +93,10 @@ const form = reactive({
   selectedSupervisionActivities: [] as SelectedSupervisionActivity[],
   supervisionStartDate: '' as string | null,
   supervisionEndDate: '' as string | null,
-  // Permits this project needs to apply for (PermitPickerDialog) --
-  // optional, distinct from the client-already-holds permits step
-  // this wizard doesn't have.
+  // Permits this project needs to apply for, picked in the same unified
+  // ServicePickerDialog as Design services and Supervision -- optional,
+  // distinct from the client-already-holds permits step this wizard
+  // doesn't have.
   selectedPermits: [] as PermitCatalogItem[],
 })
 
@@ -170,13 +169,10 @@ function handleServicesConfirmed(payload: ServicePickerConfirmPayload): void {
   form.selectedSupervisionActivities = payload.supervision
   form.supervisionStartDate = payload.supervisionStartDate
   form.supervisionEndDate = payload.supervisionEndDate
+  form.selectedPermits = payload.permits
   const names = new Set(payload.design.map((item) => item.serviceName))
   if (payload.supervision.length > 0) names.add('Supervision')
   form.service = [...names].join(', ')
-}
-
-function handlePermitsConfirmed(permits: PermitCatalogItem[]): void {
-  form.selectedPermits = permits
 }
 
 const clientOptions = ref<SelectOption[]>([])
@@ -411,7 +407,12 @@ function goToCreatedProject(): void {
                 :class="errors.selectedActivities ? 'border-danger-500' : 'border-border-default'"
                 @click="isServicePickerOpen = true"
               >
-                <span v-if="form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0" class="text-text-muted">{{ t('project.newWizard.selectService') }}</span>
+                <span
+                  v-if="form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 && form.selectedPermits.length === 0"
+                  class="text-text-muted"
+                >
+                  {{ t('project.newWizard.selectService') }}
+                </span>
                 <span v-else class="text-text-primary">
                   <template v-if="form.selectedActivities.length > 0">
                     {{ t('project.newWizard.activityCount', form.selectedActivities.length) }} ·
@@ -422,30 +423,24 @@ function goToCreatedProject(): void {
                     {{ t('project.newWizard.supervisionCount', form.selectedSupervisionActivities.length) }} ·
                     {{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo
                   </template>
+                  <template v-if="(form.selectedActivities.length > 0 || form.selectedSupervisionActivities.length > 0) && form.selectedPermits.length > 0"> + </template>
+                  <template v-if="form.selectedPermits.length > 0">
+                    {{ t('project.newWizard.permitCount', form.selectedPermits.length) }}
+                  </template>
                 </span>
                 <span class="text-xs font-medium text-primary-600">
-                  {{ form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 ? t('project.newWizard.choose') : t('project.newWizard.edit') }}
+                  {{
+                    form.selectedActivities.length === 0 && form.selectedSupervisionActivities.length === 0 && form.selectedPermits.length === 0
+                      ? t('project.newWizard.choose')
+                      : t('project.newWizard.edit')
+                  }}
                 </span>
               </button>
               <p v-if="errors.selectedActivities" class="text-xs text-danger-600">{{ errors.selectedActivities }}</p>
               <p v-else-if="form.service" class="truncate text-xs text-text-muted">{{ form.service }}</p>
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <label id="permit-picker-label" class="text-sm font-medium text-text-secondary">{{ t('project.newWizard.permitsToApplyFor') }}</label>
-              <button
-                id="permit-picker-button"
-                type="button"
-                aria-labelledby="permit-picker-label permit-picker-button"
-                class="flex min-h-[42px] w-full items-center justify-between rounded-lg border border-border-default bg-bg-card px-3 py-2 text-start text-sm transition-colors duration-fast hover:bg-bg-hover"
-                @click="isPermitPickerOpen = true"
-              >
-                <span v-if="form.selectedPermits.length === 0" class="text-text-muted">{{ t('project.newWizard.selectPermits') }}</span>
-                <span v-else class="text-text-primary">{{ t('project.newWizard.permitCount', form.selectedPermits.length) }}</span>
-                <span class="text-xs font-medium text-primary-600">
-                  {{ form.selectedPermits.length === 0 ? t('project.newWizard.choose') : t('project.newWizard.edit') }}
-                </span>
-              </button>
-              <p v-if="form.selectedPermits.length > 0" class="truncate text-xs text-text-muted">{{ form.selectedPermits.map((p) => p.name).join(', ') }}</p>
+              <p v-if="form.selectedPermits.length > 0" class="truncate text-xs text-text-muted">
+                {{ t('project.overviewTab.permitsTitle') }}: {{ form.selectedPermits.map((p) => p.name).join(', ') }}
+              </p>
             </div>
             <SelectBox
               v-model="form.engineer"
@@ -559,6 +554,12 @@ function goToCreatedProject(): void {
                 </p>
               </template>
             </div>
+            <div v-if="form.selectedPermits.length > 0" class="tablet:col-span-2">
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</p>
+              <ul class="mt-1 flex flex-col gap-0.5">
+                <li v-for="permit in form.selectedPermits" :key="permit.id" class="text-sm text-text-primary">{{ permit.name }}</li>
+              </ul>
+            </div>
           </div>
         </FormSection>
       </div>
@@ -604,15 +605,11 @@ function goToCreatedProject(): void {
       :selected-supervision="form.selectedSupervisionActivities"
       :supervision-start-date="form.supervisionStartDate"
       :supervision-end-date="form.supervisionEndDate"
+      show-permits
+      :permits="permitCatalogStore.permits"
+      :selected-permits="form.selectedPermits"
       currency="KWD"
       @confirm="handleServicesConfirmed"
-    />
-
-    <PermitPickerDialog
-      v-model="isPermitPickerOpen"
-      :permits="permitCatalogStore.permits"
-      :selected-ids="form.selectedPermits.map((p) => p.id)"
-      @confirm="handlePermitsConfirmed"
     />
 
     <BaseDialog :model-value="showConfirmation" :title="t('project.newWizard.projectCreatedTitle')" size="sm" :closable="false">

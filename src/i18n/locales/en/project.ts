@@ -559,8 +559,6 @@ export default {
     edit: 'Edit',
     activityCount: 'no activities | {count} activity | {count} activities',
     supervisionCount: 'no supervision activities | {count} supervision | {count} supervision',
-    permitsToApplyFor: 'Permits to Apply For (optional)',
-    selectPermits: 'Select permits',
     permitCount: 'no permits | {count} permit | {count} permits',
     fieldEngineer: 'Field Engineer',
     assignEngineer: 'Assign an engineer',
@@ -650,15 +648,6 @@ export default {
     createQuotation: 'Create Quotation',
   },
 
-  permitPickerDialog: {
-    title: 'Select Permits',
-    permits: 'Permits',
-    noPermitsYet: 'No permits in the catalog yet.',
-    noPermitsSelected: 'No permits selected',
-    permitsSelected: 'no permits selected | {count} permit selected | {count} permits selected',
-    addPermits: 'Add Permits',
-  },
-
   editDialog: {
     title: 'Edit Project',
     projectName: 'Project Name',
@@ -706,6 +695,9 @@ export default {
     designServicesCount: 'no design services | {count} design service | {count} design services',
     activitiesCount: 'no activities | {count} activity | {count} activities',
     supervisionActivitiesCount: 'no supervision activities | {count} supervision activity | {count} supervision activities',
+    permitsToApplyFor: 'Permits to Apply For (optional)',
+    noPermitsYet: 'No permits in the catalog yet.',
+    permitsCount: 'no permits | {count} permit | {count} permits',
     saveSelections: 'Save Selections',
   },
 

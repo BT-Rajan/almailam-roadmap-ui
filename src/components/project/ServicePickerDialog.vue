@@ -8,6 +8,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Checkbox from '@/components/common/Checkbox.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { SelectedSupervisionActivity } from '@/types/Project'
 import type { SelectedServiceActivity, ServiceCatalogItem } from '@/types/ServiceCatalog'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -18,6 +19,7 @@ export interface ServicePickerConfirmPayload {
   supervision: SelectedSupervisionActivity[]
   supervisionStartDate: string | null
   supervisionEndDate: string | null
+  permits: PermitCatalogItem[]
 }
 
 const props = withDefaults(
@@ -28,9 +30,20 @@ const props = withDefaults(
     selectedSupervision: SelectedSupervisionActivity[]
     supervisionStartDate?: string | null
     supervisionEndDate?: string | null
+    // Permits only make sense to plan at project *creation* time today --
+    // there's no backend support yet for adding a permit to an
+    // already-created project the way add_selected_services lets Design/
+    // Supervision be added later (see ProjectWorkspacePage.vue's own
+    // "Add Services" use of this same dialog, which deliberately leaves
+    // this off). Explicit opt-in flag rather than inferring it from
+    // `permits` being non-empty, so a caller that simply hasn't loaded
+    // the permit catalog yet doesn't have the section silently vanish.
+    showPermits?: boolean
+    permits?: PermitCatalogItem[]
+    selectedPermits?: PermitCatalogItem[]
     currency?: string
   }>(),
-  { currency: 'KWD', supervisionStartDate: null, supervisionEndDate: null },
+  { currency: 'KWD', supervisionStartDate: null, supervisionEndDate: null, showPermits: false, permits: () => [], selectedPermits: () => [] },
 )
 
 const emit = defineEmits<{
@@ -74,6 +87,12 @@ const supervisionRows = reactive<Record<string, SupervisionDraftRow>>({})
 const supervisionWindowStart = ref('')
 const supervisionWindowEnd = ref('')
 
+// --- Permit picks -- same simple checkbox-list draft as Design/
+// Supervision above, formerly its own separate PermitPickerDialog.
+// Folded in here so services, permits and supervision are all planned
+// in one place instead of three separate modals/fields on the wizard.
+const selectedPermitIds = ref<string[]>([])
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -101,6 +120,8 @@ watch(
     }
     supervisionWindowStart.value = props.supervisionStartDate ?? ''
     supervisionWindowEnd.value = props.supervisionEndDate ?? ''
+
+    selectedPermitIds.value = props.selectedPermits.map((permit) => permit.id)
   },
   { immediate: true },
 )
@@ -231,6 +252,20 @@ const supervisionMonthlyTotal = computed(() =>
 )
 const hasSupervisionPicks = computed(() => selectedSupervisionItems.value.length > 0)
 
+function isPermitSelected(permitId: string): boolean {
+  return selectedPermitIds.value.includes(permitId)
+}
+
+function togglePermit(permitId: string): void {
+  selectedPermitIds.value = isPermitSelected(permitId)
+    ? selectedPermitIds.value.filter((id) => id !== permitId)
+    : [...selectedPermitIds.value, permitId]
+}
+
+const selectedPermitItems = computed<PermitCatalogItem[]>(() =>
+  props.permits.filter((permit) => selectedPermitIds.value.includes(permit.id)),
+)
+
 // Every checked activity needs both its own start AND end date before
 // this can be confirmed -- the overall window's start/end is what a
 // newly-checked activity defaults to, but either can be blank if the
@@ -240,7 +275,10 @@ const supervisionDatesMissing = computed(
 )
 
 const canConfirm = computed(
-  () => selectedDesignItems.value.length > 0 || (hasSupervisionPicks.value && !supervisionDatesMissing.value),
+  () =>
+    selectedDesignItems.value.length > 0 ||
+    (hasSupervisionPicks.value && !supervisionDatesMissing.value) ||
+    selectedPermitItems.value.length > 0,
 )
 
 function closeDialog(): void {
@@ -254,6 +292,7 @@ function handleConfirm(): void {
     supervision: selectedSupervisionItems.value,
     supervisionStartDate: hasSupervisionPicks.value ? supervisionWindowStart.value || null : null,
     supervisionEndDate: hasSupervisionPicks.value ? supervisionWindowEnd.value || null : null,
+    permits: selectedPermitItems.value,
   })
   emit('update:modelValue', false)
 }
@@ -372,12 +411,38 @@ function handleConfirm(): void {
           </template>
         </div>
       </div>
+
+      <!-- Permits to apply for -- folded in from the wizard's former
+           separate PermitPickerDialog so services, permits and
+           supervision are all planned in this one modal. Simple
+           checkbox list, no pricing/dates involved. Only offered by
+           callers that opt in (see showPermits above). -->
+      <div v-if="showPermits" class="flex flex-col rounded-lg border border-border-light">
+        <div class="border-b border-border-light bg-bg-hover px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+          {{ t('project.servicePickerDialog.permitsToApplyFor') }}
+        </div>
+        <div class="max-h-48 overflow-y-auto p-2">
+          <p v-if="permits.length === 0" class="p-2 text-sm text-text-muted">{{ t('project.servicePickerDialog.noPermitsYet') }}</p>
+          <div
+            v-for="permit in permits"
+            :key="permit.id"
+            class="flex items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-bg-hover"
+          >
+            <Checkbox :model-value="isPermitSelected(permit.id)" :label="permit.name" @update:model-value="togglePermit(permit.id)" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <template #footer>
       <div class="flex w-full items-center justify-between gap-3">
         <p class="text-sm font-medium text-text-secondary">
-          <span v-if="selectedDesignItems.length === 0 && !hasSupervisionPicks" class="text-text-muted">{{ t('project.servicePickerDialog.nothingSelected') }}</span>
+          <span
+            v-if="selectedDesignItems.length === 0 && !hasSupervisionPicks && selectedPermitItems.length === 0"
+            class="text-text-muted"
+          >
+            {{ t('project.servicePickerDialog.nothingSelected') }}
+          </span>
           <span v-else class="flex flex-col items-start gap-0.5">
             <span v-if="selectedDesignItems.length > 0">
               {{ t('project.servicePickerDialog.designServicesCount', distinctServiceCount) }} ·
@@ -387,6 +452,9 @@ function handleConfirm(): void {
             <span v-if="hasSupervisionPicks">
               {{ t('project.servicePickerDialog.supervisionActivitiesCount', selectedSupervisionItems.length) }} ·
               <span class="text-primary-700">{{ formatCurrency(supervisionMonthlyTotal, currency) }}/mo</span>
+            </span>
+            <span v-if="showPermits && selectedPermitItems.length > 0">
+              {{ t('project.servicePickerDialog.permitsCount', selectedPermitItems.length) }}
             </span>
           </span>
         </p>
