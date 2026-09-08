@@ -41,7 +41,7 @@ export function hasProjectPassedStage(currentStage: WorkflowStage, referenceStag
 // unchanged. Route every user-facing display of a WorkflowStage through
 // this instead of interpolating the raw string.
 const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
-  Requirement: 'Requirement',
+  Requirement: 'Scope',
   Quotation: 'Quotation',
   'Payment Plan': 'Payment Plan',
   Contract: 'Contract',
@@ -86,6 +86,17 @@ export function getWorkflowStageLabelKey(stage: WorkflowStage): string {
 // since staff work through it as part of the same quotation-negotiation
 // conversation with the client. Payment Status (ongoing collections
 // tracking, a different and longer-lived concern) keeps its own tab.
+//
+// "Requirement" points at 'requirement', a tab key with no dedicated
+// component of its own anymore -- the Scope of Work editor (edit/save &
+// proceed) now lives directly on ProjectOverviewTab's own Scope card,
+// replacing the former separate ProjectRequirementTab destination
+// entirely, and ProjectWorkspacePage.vue renders it for 'requirement'
+// the same as 'overview'. Kept distinct from 'overview' itself (rather
+// than pointing here too) so the stepper's "Scope" step still reliably
+// resets stageContext back to 'Requirement' -- see ProjectWorkspaceTabKey's
+// own comment for why a same-value 'overview' -> 'overview' reassignment
+// wouldn't do that.
 const WORKFLOW_STAGE_TAB_KEYS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Requirement: 'requirement',
   Quotation: 'quotation',

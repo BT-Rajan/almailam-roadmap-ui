@@ -31,10 +31,11 @@ function stageLabel(stage: WorkflowStage): string {
 // stepper is now the only place Quotation/Contract/Design/Supervision/
 // Government Submission are reachable from (their own tab buttons were
 // removed as exact duplicates of these same stage names). Requirement
-// (formerly Enquiry) has its own dedicated tab now -- client/project
-// details, scope of work, and its revision history/internal approval.
-// Government Submission is the terminal stage -- there is no further
-// stage past it.
+// (formerly Enquiry, displayed as "Scope") jumps to the 'requirement'
+// tab key, which renders the same ProjectOverviewTab as 'overview' does
+// -- its scope-of-work editing (edit / save & proceed) lives directly on
+// that tab's own Scope card. Government Submission is the terminal
+// stage -- there is no further stage past it.
 // Requirement/Quotation/Contract/Government Submission are common to
 // every project; Design and Supervision only show up as steps when this
 // project actually includes that kind of work.

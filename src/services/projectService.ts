@@ -326,19 +326,6 @@ async function uploadMultipart<T>(path: string, formData: FormData): Promise<T> 
 }
 
 /**
- * Fetch the Requirement stage's scope-of-work text, client-confirmation
- * status, and revision history for a project via backend API.
- */
-async function getScopeOfWork(projectId: string): Promise<ScopeOfWork> {
-  try {
-    return await apiClient.get<ScopeOfWork>(`/api/projects/${projectId}/scope-of-work`)
-  } catch (error) {
-    console.error(`Failed to fetch scope of work for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch scope of work')
-  }
-}
-
-/**
  * Save the Requirement stage's scope-of-work text, writing a new revision.
  * Clears any existing client confirmation -- see project_service.
  * save_scope_of_work.
@@ -425,29 +412,6 @@ async function confirmProjectHandover(projectId: string, file: File): Promise<Pr
   }
 }
 
-/**
- * Download the document attached to one scope-of-work revision.
- */
-async function downloadScopeRevisionDocument(projectId: string, revisionId: string): Promise<Blob> {
-  const authStore = useAuthStore()
-  const doRequest = () =>
-    fetch(`/api/projects/${projectId}/scope-of-work/${revisionId}/document`, {
-      method: 'GET',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-    })
-
-  let response = await doRequest()
-  if (response.status === 401) {
-    const refreshed = await authStore.tryRefresh()
-    if (refreshed) response = await doRequest()
-  }
-  if (!response.ok) {
-    throw new Error(`Download failed with status ${response.status}`)
-  }
-  return await response.blob()
-}
-
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -464,11 +428,9 @@ export const projectService = {
   setStatus,
   deleteProject,
   restoreProject,
-  getScopeOfWork,
   saveScopeOfWork,
   confirmRequirementScope,
   getHandoverStatus,
   notifyHandoverReady,
   confirmProjectHandover,
-  downloadScopeRevisionDocument,
 }

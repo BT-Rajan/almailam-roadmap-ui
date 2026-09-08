@@ -20,7 +20,6 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 
 // Lazy-loaded: only fetched when the user actually opens that tab, instead of
 // shipping with the page on first load.
-const ProjectRequirementTab = defineAsyncComponent(() => import('@/components/project/ProjectRequirementTab.vue'))
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
@@ -419,10 +418,15 @@ async function handleConfirmDelete(): Promise<void> {
 
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
-      <div v-if="activeTab === 'overview'" id="project-tabpanel-overview" role="tabpanel" aria-labelledby="project-tab-overview" tabindex="0">
+      <div
+        v-if="activeTab === 'overview' || activeTab === 'requirement'"
+        id="project-tabpanel-overview"
+        role="tabpanel"
+        aria-labelledby="project-tab-overview"
+        tabindex="0"
+      >
         <ProjectOverviewTab :project="project" :client="client" :stage-context="stageContext" @navigate-tab="activeTab = $event" />
       </div>
-      <ProjectRequirementTab v-else-if="activeTab === 'requirement'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <ProjectQuotationTab
         v-else-if="activeTab === 'quotation'"
         :project="project"

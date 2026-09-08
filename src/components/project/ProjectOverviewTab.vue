@@ -10,6 +10,7 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -198,11 +199,19 @@ async function toggleReferenceDocs(targetType: DocumentRequirementTargetType, ta
   }
 }
 
-// Scope, Project Details, and Client Details are only useful while the
-// project is still being set up -- once it's past Quotation, staff are
-// working from that stage's own overview card instead, and repeating this
-// same block on every stage's Overview was reported as noise.
-const showScopeAndDetails = computed(() => props.stageContext === 'Requirement' || props.stageContext === 'Quotation')
+// Scope is only useful while the project is still being set up -- once
+// it's past Quotation, staff are working from that stage's own overview
+// card instead, and repeating this same block on every stage's Overview
+// was reported as noise.
+const showScope = computed(() => props.stageContext === 'Requirement' || props.stageContext === 'Quotation')
+
+// Project Details / Client Details / Message Client / View Full Profile
+// are Quotation-stage-only now -- the Requirement/Scope stage's Overview
+// was simplified down to just the Scope card itself plus its own Edit /
+// Save & Proceed controls, dropping everything else that used to repeat
+// here (reported as clutter on a page whose only real job at this stage
+// is finalizing and confirming the scope).
+const showProjectAndClientDetails = computed(() => props.stageContext === 'Quotation')
 
 const STAGE_LABEL_KEYS: Record<string, string> = {
   Requirement: 'project.stage.requirement',
@@ -282,58 +291,73 @@ watch(() => props.project.id, loadHandoverStatus)
 // getDocumentCategoryForIdentificationType (constants/clientOptions.ts).
 const civilIdDocument = computed(() => clientStore.documents.find((document) => document.category === 'Identity Document'))
 
-// Mirrors ProjectRequirementTab's own check exactly (and the backend's
-// real Requirement -> Quotation exit criterion,
-// project_service._assert_stage_exit_criteria) -- a ClientIdentification
-// record on file, not just any uploaded document. This tab is the one
-// staff land on by default while a project sits at Requirement (the top
-// tab bar shows only "Overview" for that stage -- see
-// ProjectWorkspacePage.vue's TABS), so the "ready to advance" state has
-// to be visible here, not only on the Requirement tab itself which
-// needs an extra click via the Workflow Progress stepper to reach.
+// Mirrors the backend's real Requirement -> Quotation exit criterion
+// exactly (project_service._assert_stage_exit_criteria) -- a
+// ClientIdentification record on file, not just any uploaded document.
 const hasClientIdentification = computed(() => clientStore.identifications.length > 0)
 
 // Same check the backend's exit criterion makes (project.description
 // non-empty) -- deliberately not the broader hasScope (which also goes
 // true off selectedActivities/selectedSupervisionActivities alone), so
-// this can never show the Next Stage button enabled in a state the
-// server would still reject.
+// this can never show Save & Proceed enabled in a state the server
+// would still reject.
 const hasScopeText = computed(() => Boolean((props.project.description ?? '').trim()))
 const canAdvanceToQuotation = computed(
   () => hasScopeText.value && hasClientIdentification.value && !props.project.scopeClientConfirmedAt,
 )
 
+// Once a quotation has actually been Approved, the scope it was built
+// against is frozen -- same rule as the backend's own gate
+// (project_service._assert_requirement_editable), and the only condition
+// under which Edit/Save & Proceed disappear. quotationStore.quotations is
+// already loaded unconditionally by ProjectWorkspacePage.vue before any
+// tab (this one included) mounts, so no extra fetch is needed here.
+const isScopeLocked = computed(() => quotationStore.quotations.some((quotation) => quotation.status === 'Approved'))
+
+// Scope of Work used to be edited on a separate Requirement tab (Save
+// Scope + a distinct Confirm action, plus its own Project/Client Details
+// cards) -- collapsed into this one Scope card instead: an inline Edit
+// toggle swaps the read-only description for a draft textarea, and a
+// single Save & Proceed both persists any edit and confirms/advances,
+// removing the separate save-only step.
+const isEditingScope = ref(false)
+const scopeDraft = ref('')
+
+function startEditingScope(): void {
+  scopeDraft.value = props.project.description ?? ''
+  isEditingScope.value = true
+}
+
 const isAdvancingToQuotation = ref(false)
 
-// The same action as ProjectRequirementTab's own "Confirm" button
-// (project_service.confirm_requirement_scope) -- offered directly here
-// too since this Overview tab is the one staff land on by default while
-// a project sits at Requirement (only "Overview" shows in the top tab
-// bar for that stage, see ProjectWorkspacePage.vue's TABS). Gated on
-// canAdvanceToQuotation so it can only ever fire once: confirming sets
-// project.scopeClientConfirmedAt, which immediately flips that guard
-// false on the refreshed project.
+// Gated on canAdvanceToQuotation so it can only ever fire once:
+// confirming sets project.scopeClientConfirmedAt, which immediately
+// flips that guard false on the refreshed project.
 //
 // Navigates to 'quotation' on success rather than just refreshing in
-// place, same as ProjectRequirementTab.handleConfirm -- stageContext
-// (what this whole Overview tab renders) deliberately does NOT follow
-// project.currentStage on an ordinary refreshProject() call (see
-// ProjectWorkspacePage.vue's own comment on that watcher, there to stop
-// an unrelated background update from yanking someone's stepper-driven
-// view out from under them); only an explicit navigate-tab updates it.
-// Without this, staff would advance the project but keep looking at a
-// stale Requirement-stage Overview.
-async function handleAdvanceToQuotation(): Promise<void> {
+// place -- stageContext (what this whole Overview tab renders)
+// deliberately does NOT follow project.currentStage on an ordinary
+// refreshProject() call (see ProjectWorkspacePage.vue's own comment on
+// that watcher, there to stop an unrelated background update from
+// yanking someone's stepper-driven view out from under them); only an
+// explicit navigate-tab updates it. Without this, staff would advance
+// the project but keep looking at a stale Requirement-stage Overview.
+async function handleSaveAndProceed(): Promise<void> {
   isAdvancingToQuotation.value = true
   try {
+    const draft = scopeDraft.value.trim()
+    if (isEditingScope.value && draft && draft !== (props.project.description ?? '').trim()) {
+      await projectService.saveScopeOfWork(props.project.id, draft, undefined, undefined)
+    }
     await projectService.confirmRequirementScope(props.project.id)
     await projectStore.refreshProject(props.project.id)
-    toastStore.show('success', t('project.requirementTab.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
+    isEditingScope.value = false
+    toastStore.show('success', t('project.overviewTab.scopeConfirmedTitle'), t('project.overviewTab.scopeConfirmedDescription'))
     emit('navigate-tab', 'quotation')
   } catch (error) {
     toastStore.show(
       'error',
-      t('project.requirementTab.failedToConfirm'),
+      t('project.overviewTab.failedToSaveScope'),
       error instanceof Error ? error.message : t('common.pleaseTryAgain'),
     )
   } finally {
@@ -544,11 +568,26 @@ function verificationResultLabel(result: string): string {
       />
     </Card>
 
-    <Card v-if="hasScope && showScopeAndDetails">
+    <Card v-if="hasScope && showScope">
       <template #header>
-        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.scopeTitle') }}</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.scopeTitle') }}</h3>
+          <BaseButton
+            v-if="stageContext === 'Requirement' && !isScopeLocked && !isEditingScope"
+            variant="ghost" size="sm" class="no-print"
+            @click="startEditingScope"
+          >
+            {{ t('project.overviewTab.editScope') }}
+          </BaseButton>
+        </div>
       </template>
-      <p v-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
+
+      <TextArea
+        v-if="isEditingScope"
+        v-model="scopeDraft"
+        :rows="6"
+      />
+      <p v-else-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
 
       <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
         <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.servicesLabel') }}</p>
@@ -595,37 +634,26 @@ function verificationResultLabel(result: string): string {
           </li>
         </ul>
       </div>
-    </Card>
 
-    <Card v-if="stageContext === 'Requirement'">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requirementTitle') }}</h3>
-          <BaseButton variant="ghost" size="sm" class="no-print" @click="emit('navigate-tab', 'requirement')">
-            {{ t('project.overviewTab.editScopeOfWork') }}
-          </BaseButton>
-        </div>
-      </template>
-      <div class="flex flex-col gap-4">
-        <div v-if="!hasScopeText" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+      <template v-if="stageContext === 'Requirement' && !isScopeLocked">
+        <div v-if="!hasScopeText" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           <AlertTriangle class="h-4 w-4 shrink-0" />
           <span>{{ t('project.overviewTab.noScopeWarning') }}</span>
         </div>
-        <div v-if="!hasClientIdentification" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+        <div v-if="!hasClientIdentification" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           <AlertTriangle class="h-4 w-4 shrink-0" />
           <span>{{ t('project.overviewTab.noClientIdWarning') }}</span>
         </div>
 
         <BaseButton
-          v-if="project.currentStage === 'Requirement'"
-          class="no-print self-start"
+          class="mt-3 no-print"
           :disabled="!canAdvanceToQuotation"
           :loading="isAdvancingToQuotation"
-          @click="handleAdvanceToQuotation"
+          @click="handleSaveAndProceed"
         >
-          {{ t('project.overviewTab.nextStage') }}
+          {{ t('project.overviewTab.saveAndProceed') }}
         </BaseButton>
-      </div>
+      </template>
     </Card>
 
     <Card v-if="stageContext === 'Quotation'">
@@ -1093,13 +1121,13 @@ function verificationResultLabel(result: string): string {
       </div>
     </Card>
 
-    <div v-if="showScopeAndDetails" class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+    <div v-if="showProjectAndClientDetails" class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
       <DetailPanel :title="t('project.overviewTab.projectDetailsTitle')" :items="projectDetailItems" />
       <div class="flex flex-col gap-3">
         <DetailPanel :title="t('project.overviewTab.clientDetailsTitle')" :items="clientDetailItems" />
         <div class="flex gap-2 no-print">
           <BaseButton
-            v-if="client && stageContext !== 'Requirement'"
+            v-if="client"
             variant="secondary"
             size="sm"
             :icon="MessageSquare"

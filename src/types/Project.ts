@@ -12,9 +12,9 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled' | 'Completed'
 // back and forth for what's really one review cycle). Merged into
 // Review -- a correction cycle is logged as a note on the project's
 // History instead of a separate stage. "Enquiry" was itself renamed to
-// "Requirement" -- it now has its own dedicated tab
-// (ProjectRequirementTab.vue) for managing the scope-of-work text with
-// revision history and an internal approval step. "Execution &
+// "Requirement" (displayed to users as "Scope") -- its scope-of-work
+// editing (edit / save & proceed) lives directly on ProjectOverviewTab's
+// own Scope card rather than a dedicated tab of its own. "Execution &
 // Tracking" and "Completed" were removed entirely -- "Government
 // Submission" is now the terminal stage. "Supervision" sits alongside
 // "Design" -- a project can include either, both, or neither, depending
@@ -171,6 +171,14 @@ export interface Project {
 
 export type ProjectViewMode = 'grid' | 'table'
 
+// 'requirement' has no dedicated component of its own anymore -- the
+// Workflow Progress stepper's "Scope" step still needs a tab-key value
+// distinct from 'overview' (see ProjectWorkspacePage.vue) so navigating
+// there always sets stageContext back to 'Requirement' even when the
+// project has since moved on and activeTab was already sitting on
+// 'overview' (a same-value assignment wouldn't otherwise trigger the
+// watcher that updates stageContext); it renders the exact same
+// ProjectOverviewTab as 'overview' does.
 export type ProjectWorkspaceTabKey =
   | 'overview'
   | 'requirement'
@@ -203,10 +211,9 @@ export interface ScopeRevision {
 
 export interface ScopeOfWork {
   description: string | null
-  // Set once the client has confirmed this scope via a signed document
-  // upload (see ProjectRequirementTab.vue's SignedDocumentUploadDialog)
-  // -- the sole sign-off required before the project can leave the
-  // Requirement stage.
+  // Set once confirm_requirement_scope runs (see ProjectOverviewTab's
+  // Save & Proceed) -- the sole sign-off required before the project can
+  // leave the Requirement stage.
   scopeClientConfirmedAt?: string | null
   revisions: ScopeRevision[]
 }
