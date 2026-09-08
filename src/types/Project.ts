@@ -161,16 +161,8 @@ export interface Project {
   // Design/Supervision stepper nodes and workspace tabs are shown.
   includesDesign: boolean
   includesSupervision: boolean
-  // Permits the client confirmed they already hold, captured during project
-  // setup. Each name here is mandatory to upload in the Documents tab --
-  // see ProjectDocumentsTab's "Required Permit Documents" checklist. Optional
-  // because most existing projects predate the permits step and because a
-  // backend that hasn't been extended to persist this yet can just ignore it.
-  requiredPermitDocuments?: string[]
   // Permits this project needs to apply for, each with its own
-  // eligibility/closure lifecycle -- distinct from
-  // requiredPermitDocuments above, which is about permits the client
-  // already holds. See SelectedPermit.
+  // eligibility/closure lifecycle. See SelectedPermit.
   selectedPermits?: SelectedPermit[]
 }
 

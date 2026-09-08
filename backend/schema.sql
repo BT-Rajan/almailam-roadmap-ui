@@ -295,10 +295,6 @@ CREATE TABLE IF NOT EXISTS projects (
     status          ENUM('Active','On Hold','Cancelled') NOT NULL DEFAULT 'Active',
     stale_notified_at DATETIME NULL,
     service_total   DECIMAL(12,2) NULL,
-    -- Permit names the client confirmed, at project setup, they already
-    -- hold -- each becomes a mandatory upload requirement on the
-    -- Documents tab (see ProjectDocumentsTab.vue's permitChecklist).
-    required_permit_documents JSON NOT NULL DEFAULT (JSON_ARRAY()),
     -- Nominal combined monthly rate across this project's selected
     -- Supervision activities (migration 0059, renamed from
     -- type_activity_total) -- informational only, not prorated; the real

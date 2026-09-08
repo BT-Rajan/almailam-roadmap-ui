@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -144,15 +144,6 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # prices change later, and so callers that only need the number (list
     # views, cards) don't have to join/aggregate for it.
     service_total: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    # Permit names the client confirmed, at project setup (New Project
-    # Wizard's Permits step), they already hold -- each becomes a
-    # mandatory upload requirement on the Documents tab (see
-    # ProjectDocumentsTab.vue's permitChecklist, which loosely matches a
-    # Government-category link document's name against these). Permits
-    # the client does NOT yet have aren't stored here at all -- those
-    # become Tasks instead (create_project's caller), since they're work
-    # to do, not a document to chase.
-    required_permit_documents: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     # Nominal combined monthly rate across this project's selected
     # Supervision activities (migration 0059, renamed from
     # type_activity_total) -- informational only, not prorated; the real

@@ -102,14 +102,9 @@ export interface ProjectCreateInput {
   selectedSupervisionActivities?: SelectedSupervisionActivity[]
   supervisionStartDate?: string
   supervisionEndDate?: string
-  // Permits the client already holds -- sent through so the backend can
-  // persist them as mandatory-upload requirements on the project. Optional
-  // for the same reason as selectedActivities above.
-  requiredPermitDocuments?: string[]
   // Permits this project needs to apply for, picked in the unified
   // ServicePickerDialog -- becomes the Permit track's own trackable
-  // rows. Distinct from requiredPermitDocuments above, which is about
-  // permits the client already holds.
+  // rows.
   selectedPermits?: { permitId: string; permitName: string }[]
 }
 

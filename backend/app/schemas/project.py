@@ -196,10 +196,6 @@ class ProjectOut(BaseModel):
     # stepper nodes and workspace tabs are shown on the frontend.
     includesDesign: bool = False
     includesSupervision: bool = False
-    # Permit names the client confirmed, at project setup, they already
-    # hold -- each is a mandatory upload requirement on the Documents
-    # tab (see ProjectDocumentsTab.vue's permitChecklist).
-    requiredPermitDocuments: list[str] = Field(default_factory=list)
     # The project/plot address (migration 0063) -- fills a Quotation/
     # Contract document template's address placeholder. Distinct from
     # any of the client's own ClientAddress rows.
@@ -239,7 +235,6 @@ class ProjectOut(BaseModel):
             supervisionEndDate=project.supervision_end_date,
             includesDesign=includes_design,
             includesSupervision=includes_supervision,
-            requiredPermitDocuments=list(project.required_permit_documents or []),
             siteAddress=project.site_address,
             selectedPermits=[SelectedPermitOut.from_model(p) for p in (selected_permits or [])],
         )
@@ -333,16 +328,9 @@ class ProjectCreate(BaseModel):
     supervisionStartDate: date | None = None
     supervisionEndDate: date | None = None
     # Permits this project needs to apply for (migration 0073, picked
-    # via PermitPickerDialog) -- becomes the Permit track's own
-    # trackable ProjectSelectedPermit rows. Distinct from
-    # requiredPermitDocuments below, which is about permits the client
-    # already holds.
+    # via the unified ServicePickerDialog) -- becomes the Permit track's
+    # own trackable ProjectSelectedPermit rows.
     selectedPermits: list[SelectedPermitIn] | None = None
-    # Permits the client confirmed they already hold -- each becomes a
-    # mandatory upload requirement on the Documents tab. Permits the
-    # client doesn't have yet aren't sent here at all; the wizard turns
-    # those into Tasks instead, against the project this call returns.
-    requiredPermitDocuments: list[str] = Field(default_factory=list)
     siteAddress: str | None = Field(default=None, max_length=300)
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))

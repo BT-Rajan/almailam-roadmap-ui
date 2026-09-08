@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
+import { ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -216,26 +216,6 @@ function openAddDialog(category: ProjectLinkDocumentCategory): void {
   isAddDialogOpen.value = true
 }
 
-// Permits the client confirmed they already hold during project setup are
-// mandatory to add here. Filed under Government Documents since that's
-// where permits live; a permit counts as satisfied once some Government
-// link document's name has it, loosely matched since the person adding
-// it may title it "Building Permit - signed copy" etc.
-const permitChecklist = computed(() =>
-  (props.project.requiredPermitDocuments ?? []).map((permitName) => {
-    const satisfied = linkDocumentsFor('Government').some((document) =>
-      document.name.toLowerCase().includes(permitName.toLowerCase()),
-    )
-    return { name: permitName, satisfied }
-  }),
-)
-
-function openPermitDialog(permitName: string): void {
-  addDialogCategory.value = 'Government'
-  addDialogInitialName.value = permitName
-  isAddDialogOpen.value = true
-}
-
 function requestLinkDelete(document: ProjectLinkDocument): void {
   linkDeleteTarget.value = document
   isLinkDeleteDialogOpen.value = true
@@ -359,34 +339,6 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
 
   <!-- Documents mode: four fixed categories. -->
   <div v-else class="flex flex-col gap-8">
-    <!-- 0. Required Permit Documents -->
-    <section v-if="permitChecklist.length > 0" class="flex flex-col gap-4">
-      <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.requiredPermitsTitle') }}</h3>
-      <div class="rounded-xl border border-border-light bg-bg-card p-4">
-        <p class="mb-3 text-xs text-text-muted">
-          {{ t('project.documentsTab.requiredPermitsDescription') }}
-        </p>
-        <ul class="flex flex-col gap-2">
-          <li
-            v-for="permit in permitChecklist"
-            :key="permit.name"
-            class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
-            :class="permit.satisfied ? 'border-success-200 bg-success-50' : 'border-warning-200 bg-warning-50'"
-          >
-            <span class="flex items-center gap-2">
-              <CheckCircle2 v-if="permit.satisfied" class="h-4 w-4 shrink-0 text-success-600" />
-              <AlertTriangle v-else class="h-4 w-4 shrink-0 text-warning-600" />
-              <span :class="permit.satisfied ? 'text-text-secondary' : 'text-text-primary font-medium'">{{ permit.name }}</span>
-            </span>
-            <BaseButton v-if="!permit.satisfied" variant="secondary" size="sm" class="no-print" @click="openPermitDialog(permit.name)">
-              {{ t('project.documentsTab.addDocument') }}
-            </BaseButton>
-            <span v-else class="text-xs font-medium text-success-700">{{ t('project.documentsTab.added') }}</span>
-          </li>
-        </ul>
-      </div>
-    </section>
-
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
