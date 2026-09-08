@@ -2,7 +2,6 @@
 import { AlertTriangle, CheckCircle2, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -15,8 +14,8 @@ import SmartTable from '@/components/common/SmartTable.vue'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
 import DesignDocumentDialog from '@/components/document/DesignDocumentDialog.vue'
+import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import LinkDocumentCard from '@/components/document/LinkDocumentCard.vue'
-import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
@@ -33,7 +32,6 @@ const props = defineProps<{
   mode: 'documents' | 'design'
 }>()
 
-const router = useRouter()
 const documentStore = useDocumentStore()
 const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
@@ -178,8 +176,15 @@ const designTableRows = computed<DesignDocumentRow[]>(() =>
   })),
 )
 
+// Opens the document inline, without leaving the project workspace --
+// this used to route to the standalone /documents/:id page, which
+// dropped the user out of the project entirely.
+const isPreviewOpen = ref(false)
+const previewDocumentId = ref<string | undefined>(undefined)
+
 function openDocument(documentId: string): void {
-  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
+  previewDocumentId.value = documentId
+  isPreviewOpen.value = true
 }
 
 // Customer ID Documents -- read-only, sourced from the client's own
@@ -326,6 +331,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
       :is-saving="isDesignSaving"
       @save="handleSaveDesignDocument"
     />
+    <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
     <ConfirmationDialog
       v-model="isDeleteDialogOpen"
       :title="t('project.documentsTab.deleteDialogTitle')"

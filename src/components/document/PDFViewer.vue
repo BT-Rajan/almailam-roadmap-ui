@@ -1,75 +1,111 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, FileText, ZoomIn, ZoomOut } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { FileQuestion, Link as LinkIcon } from '@lucide/vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import IconButton from '@/components/common/IconButton.vue'
-import { useLocale } from '@/composables/useLocale'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import { documentService } from '@/services/documentService'
+import type { ProjectDocument } from '@/types/Document'
 
-interface Props {
-  title: string
-  pageCount?: number
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  pageCount: 4,
-})
+const props = defineProps<{
+  document: ProjectDocument
+}>()
 
 const { t } = useI18n()
-const { isRtl } = useLocale()
 
-// Previous/next chevrons point the way the reader moves, which reverses
-// with reading direction rather than staying physically fixed.
-const previousPageIcon = computed(() => (isRtl.value ? ChevronRight : ChevronLeft))
-const nextPageIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
+const isLoading = ref(false)
+const loadError = ref<string | undefined>(undefined)
+const objectUrl = ref<string | undefined>(undefined)
+const blobType = ref('')
 
-const currentPage = ref(1)
-const zoomLevel = ref(100)
+// Only PDFs and images can be rendered inline in the browser with no
+// extra dependency -- everything else (Word, Excel, DWG, ...) falls
+// back to a plain "preview not available" state instead of a blank or
+// broken frame.
+const previewKind = computed<'pdf' | 'image' | 'unsupported'>(() => {
+  if (blobType.value === 'application/pdf') return 'pdf'
+  if (blobType.value.startsWith('image/')) return 'image'
+  return 'unsupported'
+})
 
-const canGoPrevious = computed(() => currentPage.value > 1)
-const canGoNext = computed(() => currentPage.value < props.pageCount)
-
-function goToPreviousPage(): void {
-  if (canGoPrevious.value) currentPage.value -= 1
+function revokeCurrentUrl(): void {
+  if (objectUrl.value) {
+    URL.revokeObjectURL(objectUrl.value)
+    objectUrl.value = undefined
+  }
 }
 
-function goToNextPage(): void {
-  if (canGoNext.value) currentPage.value += 1
+// Previously this component never fetched or rendered any real file at
+// all -- it was a static mock (icon + title + fake "Preview page N"
+// text) regardless of what was actually uploaded. This fetches the
+// real bytes and renders them via a Blob object URL, the same download
+// endpoint VersionHistory/download actions already use, just consumed
+// as a preview instead of a Save-As.
+async function loadPreview(): Promise<void> {
+  revokeCurrentUrl()
+  loadError.value = undefined
+  blobType.value = ''
+
+  // A link-only document (no uploaded file) has nothing to fetch.
+  if (!props.document.originalFilename) return
+
+  isLoading.value = true
+  try {
+    const blob = await documentService.downloadDocument(props.document.id)
+    blobType.value = blob.type
+    objectUrl.value = URL.createObjectURL(blob)
+  } catch (error) {
+    loadError.value = error instanceof Error && error.message ? error.message : t('document.pdfViewer.failedToLoadPreview')
+  } finally {
+    isLoading.value = false
+  }
 }
 
-function zoomOut(): void {
-  zoomLevel.value = Math.max(50, zoomLevel.value - 25)
-}
+watch(() => props.document.id, loadPreview, { immediate: true })
+onBeforeUnmount(revokeCurrentUrl)
 
-function zoomIn(): void {
-  zoomLevel.value = Math.min(200, zoomLevel.value + 25)
+function openExternalLink(): void {
+  if (props.document.externalLink) window.open(props.document.externalLink, '_blank', 'noopener,noreferrer')
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <div class="flex items-center justify-between rounded-lg border border-border-light bg-bg-secondary px-3 py-2">
-      <div class="flex items-center gap-1">
-        <IconButton :icon="previousPageIcon" :label="t('common.previousPage')" size="sm" :disabled="!canGoPrevious" @click="goToPreviousPage" />
-        <span class="px-2 text-sm text-text-secondary">{{ t('document.pdfViewer.pageOf', { current: currentPage, total: pageCount }) }}</span>
-        <IconButton :icon="nextPageIcon" :label="t('common.nextPage')" size="sm" :disabled="!canGoNext" @click="goToNextPage" />
-      </div>
-      <div class="flex items-center gap-1">
-        <IconButton :icon="ZoomOut" :label="t('document.pdfViewer.zoomOut')" size="sm" :disabled="zoomLevel <= 50" @click="zoomOut" />
-        <span class="w-12 text-center text-sm text-text-secondary">{{ zoomLevel }}%</span>
-        <IconButton :icon="ZoomIn" :label="t('document.pdfViewer.zoomIn')" size="sm" :disabled="zoomLevel >= 200" @click="zoomIn" />
-      </div>
+  <div class="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-border-light bg-bg-secondary">
+    <div v-if="isLoading" class="flex-1 p-6">
+      <SkeletonLoader :rows="8" />
     </div>
 
-    <div class="flex min-h-[420px] items-center justify-center overflow-auto rounded-lg border border-border-light bg-bg-secondary p-6">
-      <div
-        class="flex aspect-[3/4] w-full max-w-md flex-col items-center justify-center gap-3 rounded-md bg-bg-card p-8 text-center shadow-medium transition-all duration-normal"
-        :style="{ transform: `scale(${zoomLevel / 100})` }"
-      >
-        <FileText class="h-12 w-12 text-text-muted" />
-        <p class="text-sm font-medium text-text-secondary">{{ title }}</p>
-        <p class="text-xs text-text-muted">{{ t('document.pdfViewer.previewPage', { page: currentPage }) }}</p>
-      </div>
+    <ErrorState v-else-if="loadError" class="flex-1" :description="loadError" @retry="loadPreview" />
+
+    <EmptyState
+      v-else-if="!document.originalFilename"
+      class="flex-1"
+      :icon="LinkIcon"
+      :title="t('document.pdfViewer.linkOnlyTitle')"
+      :description="t('document.pdfViewer.linkOnlyDescription')"
+      :action-label="document.externalLink ? t('document.pdfViewer.openLink') : undefined"
+      @action="openExternalLink"
+    />
+
+    <iframe
+      v-else-if="previewKind === 'pdf' && objectUrl"
+      :src="objectUrl"
+      :title="document.title"
+      class="min-h-[600px] w-full flex-1 border-0"
+    />
+
+    <div v-else-if="previewKind === 'image' && objectUrl" class="flex flex-1 items-center justify-center overflow-auto p-4">
+      <img :src="objectUrl" :alt="document.title" class="max-h-[70vh] max-w-full object-contain" />
     </div>
+
+    <EmptyState
+      v-else
+      class="flex-1"
+      :icon="FileQuestion"
+      :title="t('document.pdfViewer.unsupportedTitle')"
+      :description="t('document.pdfViewer.unsupportedDescription')"
+    />
   </div>
 </template>

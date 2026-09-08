@@ -150,7 +150,7 @@ async function handleDelete(): Promise<void> {
 
     <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
       <div class="flex flex-col gap-6 laptop:col-span-2">
-        <PDFViewer :title="documentStore.currentDocument.title" />
+        <PDFViewer :document="documentStore.currentDocument" />
 
         <Card>
           <template #header>

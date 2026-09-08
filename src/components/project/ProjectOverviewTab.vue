@@ -9,6 +9,7 @@ import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -375,8 +376,15 @@ function openFillDialog(form: GovernmentForm): void {
   isFillDialogOpen.value = true
 }
 
+// Opens the filled document inline, without leaving the project
+// workspace -- this used to route to the standalone /documents/:id
+// page, which dropped the user out of the project entirely.
+const isPreviewOpen = ref(false)
+const previewDocumentId = ref<string | undefined>(undefined)
+
 function viewFilledDocument(documentId: string): void {
-  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId } })
+  previewDocumentId.value = documentId
+  isPreviewOpen.value = true
 }
 
 // Approvals & Permits (Government Submission) checklist -- every
@@ -1027,5 +1035,6 @@ function verificationResultLabel(result: string): string {
       :project-id="project.id"
       :forms="fillDialogForm ? [fillDialogForm] : []"
     />
+    <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
   </div>
 </template>

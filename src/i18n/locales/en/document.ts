@@ -36,10 +36,12 @@ export default {
   },
 
   pdfViewer: {
-    pageOf: 'Page {current} of {total}',
-    zoomOut: 'Zoom out',
-    zoomIn: 'Zoom in',
-    previewPage: 'Preview page {page}',
+    failedToLoadPreview: 'Failed to load preview',
+    linkOnlyTitle: 'This document is a link',
+    linkOnlyDescription: 'No file was uploaded for this document — it only points to a file stored outside the app.',
+    openLink: 'Open link',
+    unsupportedTitle: 'Preview not available',
+    unsupportedDescription: 'This file type cannot be previewed here. Download it to view the full content.',
   },
 
   fileUploader: {

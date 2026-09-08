@@ -36,10 +36,12 @@ export default {
   },
 
   pdfViewer: {
-    pageOf: 'صفحة {current} من {total}',
-    zoomOut: 'تصغير',
-    zoomIn: 'تكبير',
-    previewPage: 'معاينة الصفحة {page}',
+    failedToLoadPreview: 'فشل تحميل المعاينة',
+    linkOnlyTitle: 'هذا المستند عبارة عن رابط',
+    linkOnlyDescription: 'لم يتم رفع ملف لهذا المستند — إنه يشير فقط إلى ملف مخزَّن خارج التطبيق.',
+    openLink: 'فتح الرابط',
+    unsupportedTitle: 'المعاينة غير متاحة',
+    unsupportedDescription: 'لا يمكن معاينة هذا النوع من الملفات هنا. قم بتنزيله لعرض المحتوى الكامل.',
   },
 
   fileUploader: {

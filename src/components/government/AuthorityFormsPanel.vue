@@ -2,7 +2,6 @@
 import { Download, Eye, FileEdit, Plus, Printer, Trash2 } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -10,8 +9,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
+import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
-import { ROUTE_NAMES } from '@/constants/routeNames'
 import { documentService } from '@/services/documentService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useProjectFormStore } from '@/stores/projectFormStore'
@@ -29,7 +28,6 @@ const props = defineProps<{
   authorityId: string
 }>()
 
-const router = useRouter()
 const { t } = useI18n()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectFormStore = useProjectFormStore()
@@ -167,9 +165,16 @@ function handleDialogClosed(open: boolean): void {
   if (!open) selectedNewFormId.value = ''
 }
 
+// Opens the filed document inline, without leaving the project
+// workspace -- this used to route to the standalone /documents/:id
+// page, which dropped the user out of the project entirely.
+const isPreviewOpen = ref(false)
+const previewDocumentId = ref<string | undefined>(undefined)
+
 function viewDocument(entry: ProjectFormEntry): void {
   if (!entry.documentId) return
-  router.push({ name: ROUTE_NAMES.DOCUMENT_VIEWER, params: { documentId: entry.documentId } })
+  previewDocumentId.value = entry.documentId
+  isPreviewOpen.value = true
 }
 
 async function downloadDocument(entry: ProjectFormEntry): Promise<void> {
@@ -292,5 +297,7 @@ async function confirmDelete(): Promise<void> {
       @update:model-value="deleteTarget = undefined"
       @confirm="confirmDelete"
     />
+
+    <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
   </div>
 </template>
