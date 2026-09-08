@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LayoutGrid, Plus, TableProperties } from '@lucide/vue'
+import { LayoutGrid, Plus, RotateCcw, TableProperties, Trash2 } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -19,6 +19,8 @@ import TablePagination from '@/components/common/TablePagination.vue'
 import ProjectCard from '@/components/project/ProjectCard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
@@ -41,6 +43,8 @@ interface ProjectTableRow {
 
 const router = useRouter()
 const projectStore = useProjectStore()
+const resultDialogStore = useResultDialogStore()
+const toastStore = useToastStore()
 const { t } = useI18n()
 
 const STATUS_OPTIONS = computed<SelectOption[]>(() => [
@@ -141,12 +145,33 @@ function openProject(projectId: string): void {
 function createProject(): void {
   router.push({ name: ROUTE_NAMES.PROJECT_NEW })
 }
+
+function toggleShowDeleted(): void {
+  projectStore.setShowDeleted(!projectStore.showDeleted)
+}
+
+async function restoreProject(projectId: string, name: string): Promise<void> {
+  try {
+    await projectStore.restoreProject(projectId)
+    toastStore.show('success', t('project.projectsPage.restoredTitle'), t('project.projectsPage.restoredDescription', { name }))
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.projectsPage.failedToRestore'), detail)
+  }
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-6">
     <PageHeader :title="t('project.projectsPage.title')" :subtitle="t('project.projectsPage.subtitle')">
       <template #actions>
+        <BaseButton
+          variant="secondary"
+          :icon="projectStore.showDeleted ? undefined : Trash2"
+          @click="toggleShowDeleted"
+        >
+          {{ projectStore.showDeleted ? t('project.projectsPage.backToProjects') : t('project.projectsPage.deletedProjects') }}
+        </BaseButton>
         <BaseButton :icon="Plus" @click="createProject">{{ t('project.projectsPage.newProject') }}</BaseButton>
       </template>
     </PageHeader>
@@ -213,6 +238,53 @@ function createProject(): void {
     </FilterBar>
 
     <ErrorState v-if="projectStore.error" :description="projectStore.error" @retry="loadData" />
+
+    <template v-else-if="projectStore.showDeleted">
+      <div v-if="projectStore.isPageLoading" class="flex flex-col gap-3">
+        <div v-for="placeholder in 4" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-5">
+          <SkeletonLoader :rows="2" />
+        </div>
+      </div>
+
+      <EmptyState
+        v-else-if="projectStore.pageItems.length === 0"
+        :title="t('project.projectsPage.noDeletedProjectsTitle')"
+        :description="t('project.projectsPage.noDeletedProjectsDescription')"
+      />
+
+      <template v-else>
+        <div class="flex flex-col gap-3">
+          <div
+            v-for="project in projectStore.pageItems"
+            :key="project.id"
+            class="flex flex-col gap-2 rounded-xl border border-border-light bg-bg-card p-4 tablet:flex-row tablet:items-center tablet:justify-between"
+          >
+            <div class="flex flex-col gap-0.5">
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
+                {{ project.projectNo }} · {{ projectStore.getClientById(project.clientId)?.companyName ?? t('project.unknownClient') }}
+              </p>
+              <p class="text-sm font-semibold text-text-primary">{{ project.projectName }}</p>
+            </div>
+            <BaseButton size="sm" :icon="RotateCcw" @click="restoreProject(project.id, project.projectName)">
+              {{ t('project.projectsPage.restore') }}
+            </BaseButton>
+          </div>
+        </div>
+        <div class="rounded-xl border border-border-light bg-bg-card">
+          <TablePagination
+            :current-page="projectStore.pagination.page"
+            :total-pages="projectStore.pagination.totalPages"
+            :total-items="projectStore.pagination.total"
+            :start-index="(projectStore.pagination.page - 1) * projectStore.pagination.pageSize"
+            :end-index="Math.min(projectStore.pagination.page * projectStore.pagination.pageSize, projectStore.pagination.total)"
+            :page-size="projectStore.pagination.pageSize"
+            :page-size-options="[9, 18, 27]"
+            @page-change="projectStore.setPage"
+            @page-size-change="projectStore.setPageSize"
+          />
+        </div>
+      </template>
+    </template>
 
     <template v-else-if="projectStore.viewMode === 'grid'">
       <div v-if="projectStore.isPageLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">

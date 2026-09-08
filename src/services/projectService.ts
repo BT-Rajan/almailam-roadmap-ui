@@ -20,7 +20,15 @@ function buildQuery(params: Record<string, string | number | undefined>): string
  * it only asks the server for one page at a time instead of the whole table.
  */
 async function getProjectsPage(
-  params: PageParams & { clientId?: string; status?: string; priority?: string; stage?: string; engineerId?: string } = {},
+  params: PageParams & {
+    clientId?: string
+    status?: string
+    priority?: string
+    stage?: string
+    engineerId?: string
+    /** true to browse soft-deleted projects instead of active ones -- see restoreProject. */
+    deleted?: boolean
+  } = {},
 ): Promise<PagedResponse<Project>> {
   try {
     const query = buildQuery({
@@ -33,6 +41,7 @@ async function getProjectsPage(
       sort: params.sort,
       page: params.page,
       pageSize: params.pageSize,
+      deleted: params.deleted ? 'true' : undefined,
     })
     return await apiClient.get<PagedResponse<Project>>(`/api/projects${query}`)
   } catch (error) {
@@ -62,13 +71,6 @@ async function getProjectById(projectId: string): Promise<Project | undefined> {
     console.error(`Failed to fetch project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch project')
   }
-}
-
-/**
- * Fetch projects for a specific client from backend API
- */
-async function getProjectsByClient(clientId: string): Promise<Project[]> {
-  return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
 }
 
 export interface ProjectCreateInput {
@@ -277,7 +279,8 @@ async function setStatus(projectId: string, status: string, reason?: string): Pr
 }
 
 /**
- * Delete a project via backend API
+ * Delete (soft-delete) a project via backend API -- recoverable via
+ * restoreProject below.
  */
 async function deleteProject(projectId: string): Promise<void> {
   try {
@@ -285,6 +288,18 @@ async function deleteProject(projectId: string): Promise<void> {
   } catch (error) {
     console.error(`Failed to delete project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to delete project')
+  }
+}
+
+/**
+ * Restore a soft-deleted project via backend API -- undoes deleteProject.
+ */
+async function restoreProject(projectId: string): Promise<Project> {
+  try {
+    return await apiClient.post<Project>(`/api/projects/${projectId}/restore`, {})
+  } catch (error) {
+    console.error(`Failed to restore project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to restore project')
   }
 }
 
@@ -445,7 +460,6 @@ export const projectService = {
   getProjects,
   getProjectsPage,
   getProjectById,
-  getProjectsByClient,
   createProject,
   updateProject,
   setStage,
@@ -457,6 +471,7 @@ export const projectService = {
   addServices,
   setStatus,
   deleteProject,
+  restoreProject,
   getScopeOfWork,
   saveScopeOfWork,
   confirmRequirementScope,

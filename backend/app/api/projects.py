@@ -64,12 +64,13 @@ def list_projects(
     engineerId: str | None = None,
     search: str | None = None,
     sort: str | None = None,
+    deleted: bool = False,
     page: int = Query(default=1, ge=1),
     pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    result = project_service.list_projects(db, clientId, status, priority, stage, engineerId, search, sort, page, pageSize)
+    result = project_service.list_projects(db, clientId, status, priority, stage, engineerId, search, sort, page, pageSize, deleted)
     engineer_ids = {p.engineer_id for p in result["items"]}
     names = project_service.engineer_names(db, engineer_ids)
     activities_by_project = project_service.get_selected_activities_batch(db, {p.id for p in result["items"]})
@@ -324,3 +325,9 @@ def update_timeline_event(
 @router.delete("/{project_no}", status_code=204)
 def delete_project(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
     project_service.delete_project(db, project_no, current_user.id)
+
+
+@router.post("/{project_no}/restore", response_model=ProjectOut)
+def restore_project(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    project = project_service.restore_project(db, project_no, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))

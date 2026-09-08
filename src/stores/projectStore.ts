@@ -25,6 +25,10 @@ interface ProjectStoreState {
   priorityFilter: ProjectPriority | 'All'
   myProjectsOnly: boolean
   viewMode: ProjectViewMode
+  // Browses soft-deleted projects (see restoreProject) instead of active
+  // ones -- an alternate view of the same paginated table, not combined
+  // with the filters above.
+  showDeleted: boolean
   // Server-paginated browse state for ProjectsPage -- separate from
   // `projects` above, which stays a full, unpaginated cache because other
   // pages (e.g. the project workspace) look a project up locally by id
@@ -46,6 +50,7 @@ export const useProjectStore = defineStore('project', {
     priorityFilter: 'All',
     myProjectsOnly: false,
     viewMode: 'grid',
+    showDeleted: false,
     pageItems: [],
     pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
     isPageLoading: false,
@@ -102,6 +107,7 @@ export const useProjectStore = defineStore('project', {
           stage: this.stageFilter !== 'All' ? this.stageFilter : undefined,
           priority: this.priorityFilter !== 'All' ? this.priorityFilter : undefined,
           engineerId: this.myProjectsOnly ? authStore.user?.id : undefined,
+          deleted: this.showDeleted,
         })
         this.pageItems = result.items
         this.pagination = {
@@ -168,6 +174,14 @@ export const useProjectStore = defineStore('project', {
       this.viewMode = mode
     },
 
+    // Toggles between browsing active projects and browsing soft-deleted
+    // ones (the Deleted Projects view, paired with restoreProject below).
+    setShowDeleted(value: boolean) {
+      this.showDeleted = value
+      this.pagination.page = 1
+      void this.loadProjectsPage()
+    },
+
     // Persists a project via the backend API.
     async createProject(projectData: ProjectCreateInput): Promise<Project> {
       const project = await projectService.createProject(projectData)
@@ -218,6 +232,15 @@ export const useProjectStore = defineStore('project', {
       await projectService.deleteProject(projectId)
       this.projects = this.projects.filter((p) => p.id !== projectId)
       this.pageItems = this.pageItems.filter((p) => p.id !== projectId)
+    },
+
+    // Undoes deleteProject -- restores a soft-deleted project and removes
+    // it from the Deleted Projects view's page cache (it belongs back
+    // among active projects now, not this list).
+    async restoreProject(projectId: string): Promise<Project> {
+      const restored = await projectService.restoreProject(projectId)
+      this.pageItems = this.pageItems.filter((p) => p.id !== projectId)
+      return restored
     },
 
     clearFilters() {

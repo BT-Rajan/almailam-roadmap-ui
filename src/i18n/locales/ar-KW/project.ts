@@ -511,6 +511,14 @@ export default {
       engineer: 'المهندس',
       targetDate: 'التاريخ المستهدف',
     },
+    deletedProjects: 'المشاريع المحذوفة',
+    backToProjects: 'العودة إلى المشاريع',
+    noDeletedProjectsTitle: 'لا توجد مشاريع محذوفة',
+    noDeletedProjectsDescription: 'ستظهر هنا المشاريع التي تم حذفها، ويمكن استعادتها في أي وقت.',
+    restore: 'استعادة',
+    restoredTitle: 'تمت استعادة المشروع',
+    restoredDescription: 'تمت استعادة {name}.',
+    failedToRestore: 'فشلت استعادة المشروع',
   },
 
   workspacePage: {

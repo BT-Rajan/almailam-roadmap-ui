@@ -511,6 +511,14 @@ export default {
       engineer: 'Engineer',
       targetDate: 'Target Date',
     },
+    deletedProjects: 'Deleted Projects',
+    backToProjects: 'Back to Projects',
+    noDeletedProjectsTitle: 'No deleted projects',
+    noDeletedProjectsDescription: 'Projects that have been deleted will appear here, and can be restored at any time.',
+    restore: 'Restore',
+    restoredTitle: 'Project restored',
+    restoredDescription: '{name} was restored.',
+    failedToRestore: 'Failed to restore project',
   },
 
   workspacePage: {

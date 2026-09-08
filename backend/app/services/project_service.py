@@ -74,8 +74,9 @@ def list_projects(
     sort: str | None = None,
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
+    deleted: bool = False,
 ) -> dict:
-    query = db.query(Project).filter(Project.deleted_at.is_(None))
+    query = db.query(Project).filter(Project.deleted_at.isnot(None) if deleted else Project.deleted_at.is_(None))
     if client_id:
         query = query.filter(Project.client_id == client_service.parse_client_id(client_id))
     if status:
@@ -111,10 +112,6 @@ def get_project(db: Session, project_no: str) -> Project:
     if project is None:
         raise NotFoundError("Project")
     return project
-
-
-def get_projects_by_client(db: Session, client_id: str) -> list[Project]:
-    return list_projects(db, client_id=client_id)
 
 
 def get_selected_activities(db: Session, project_id: int) -> list[ProjectSelectedActivity]:
@@ -1523,6 +1520,27 @@ def delete_project(db: Session, project_no: str, actor_id: int) -> None:
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project deleted", actor_id, previous_value=project.project_name)
     project.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def restore_project(db: Session, project_no: str, actor_id: int) -> Project:
+    """Undoes delete_project -- clears deleted_at so the project is a
+    normal, active record again (list_projects, get_project, and every
+    other lookup start including it immediately). Doesn't touch
+    project.status or current_stage: a project deleted mid-stage comes
+    back exactly where it left off."""
+    project = (
+        db.query(Project)
+        .filter(Project.project_no == project_no, Project.deleted_at.isnot(None))
+        .first()
+    )
+    if project is None:
+        raise NotFoundError("Deleted project")
+
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Project restored", actor_id, previous_value=project.project_name)
+    project.deleted_at = None
+    db.commit()
+    db.refresh(project)
+    return project
 
 
 def check_and_notify_stale_projects(db: Session) -> int:
