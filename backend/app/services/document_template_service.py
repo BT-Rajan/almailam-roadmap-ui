@@ -652,27 +652,73 @@ def get_merge_fields(document_type: str) -> list[dict]:
     return MERGE_FIELD_CATALOG[document_type]
 
 
-def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
-    """Rewrites a paragraph down to a single trailing run containing
-    `text`, preserving the first existing text run's character
-    formatting (bold, font, etc.) if there was one. A deliberate
-    simplification -- a paragraph that mixed multiple run styles
-    mid-sentence collapses to one style -- far more robust than trying
-    to splice text in while preserving every original run boundary,
-    and irrelevant for the short, mostly-plain lines a merge field
-    actually lives in.
+_MERGE_TOKEN_RE = re.compile(r"\{\{\s*[A-Za-z_][\w.]*\s*\}\}")
 
-    Any run containing a <w:drawing> (an image -- e.g. a company logo
-    sharing this paragraph with the company-name text next to it, a
-    common letterhead layout) is left untouched rather than swept up
-    with the text runs: a real uploaded template's own embedded
-    picture has to survive an admin mapping this paragraph to a field
-    just as reliably as it survives the actual docxtpl merge later
-    (see _render_docx's own comment -- docxtpl itself never touches
-    non-Jinja content, so this is the one place in the mapping tool
-    that used to be able to destroy it)."""
+
+def _split_merge_tokens(text: str) -> list[tuple[str, bool]]:
+    """Splits `text` into (segment, is_token) pieces at every `{{
+    field }}` / `{{ item.column }}` merge-field token -- used by
+    _set_paragraph_text so each token can be written into its own run,
+    separate from the template's static wording around it. Doesn't
+    touch `{%p ... %}`/`{%tr ... %}` repeating-block markers (a
+    different syntax, and those live in their own throwaway
+    paragraphs/rows -- see _marker_paragraph_element/_clone_marker_row
+    -- never inside a mapped block's own text). Empty input, or text
+    with no tokens at all, still yields exactly one segment so the
+    common case (no fields, or a token-free static line) round-trips
+    to a single plain run, same as before this existed."""
+    segments: list[tuple[str, bool]] = []
+    pos = 0
+    for match in _MERGE_TOKEN_RE.finditer(text):
+        if match.start() > pos:
+            segments.append((text[pos : match.start()], False))
+        segments.append((match.group(0), True))
+        pos = match.end()
+    if pos < len(text) or not segments:
+        segments.append((text[pos:], False))
+    return segments
+
+
+def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
+    """Rewrites a paragraph's *text* runs to hold `text`, preserving
+    the first existing text run's character formatting (bold, font,
+    etc.) as a base for every new run. A deliberate simplification --
+    a paragraph that mixed multiple run styles mid-sentence collapses
+    to one base style -- far more robust than trying to splice text in
+    while preserving every original run boundary, and irrelevant for
+    the short, mostly-plain lines a merge field actually lives in.
+
+    Every `{{ field }}` merge-field token in `text` (see
+    _split_merge_tokens) gets its own run, on top of that base style
+    plus bold -- so once a real document is rendered from this saved
+    template, the *entered* value stands out from the template's own
+    static wording without the admin ever hand-formatting anything.
+    docxtpl's plain-text substitution only replaces a run's text, not
+    its formatting, so the token's run staying bold is what makes the
+    merged value come out bold; the static wording around it, in its
+    own separate run, is untouched. (RichText -- inline bold
+    formatting passed in the merge *data* itself rather than baked
+    into the saved template -- was tried and rejected: it works by
+    splicing raw XML into a run's text mid-render, which only produces
+    valid OOXML when that run holds nothing but the token, and every
+    run this service writes always holds a full mapped paragraph's
+    text, tokens and static wording together, so it corrupted the
+    document as soon as a token shared a paragraph with any other
+    text.)
+
+    Any run containing a <w:drawing> or legacy VML <w:pict> (an image
+    -- e.g. a company logo sharing this paragraph with the
+    company-name text next to it, a common letterhead layout) is left
+    untouched rather than swept up with the text runs: a real uploaded
+    template's own embedded picture has to survive an admin mapping
+    this paragraph to a field just as reliably as it survives the
+    actual docxtpl merge later (see _render_docx's own comment --
+    docxtpl itself never touches non-Jinja content, so this is the one
+    place in the mapping tool that used to be able to destroy it)."""
     runs = list(paragraph.runs)
-    text_runs = [run for run in runs if run._r.find(qn("w:drawing")) is None]
+    text_runs = [run for run in runs if run._r.find(qn("w:drawing")) is None and run._r.find(qn("w:pict")) is None]
+    had_drawing = len(text_runs) != len(runs)
+
     preserved_rpr = None
     if text_runs:
         existing_rpr = text_runs[0]._r.find(qn("w:rPr"))
@@ -680,14 +726,27 @@ def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
             preserved_rpr = copy.deepcopy(existing_rpr)
     for run in text_runs:
         run._r.getparent().remove(run._r)
-    new_run = OxmlElement("w:r")
-    if preserved_rpr is not None:
-        new_run.append(preserved_rpr)
-    new_text_el = OxmlElement("w:t")
-    new_text_el.set(qn("xml:space"), "preserve")
-    new_text_el.text = text
-    new_run.append(new_text_el)
-    paragraph._p.append(new_run)
+
+    if not text and had_drawing:
+        # Nothing to write and the paragraph still holds its image --
+        # don't add a stray empty run on top of it.
+        return
+
+    for segment, is_token in _split_merge_tokens(text):
+        new_run = OxmlElement("w:r")
+        run_rpr = copy.deepcopy(preserved_rpr) if preserved_rpr is not None else None
+        if is_token:
+            if run_rpr is None:
+                run_rpr = OxmlElement("w:rPr")
+            if run_rpr.find(qn("w:b")) is None:
+                run_rpr.append(OxmlElement("w:b"))
+        if run_rpr is not None:
+            new_run.append(run_rpr)
+        new_text_el = OxmlElement("w:t")
+        new_text_el.set(qn("xml:space"), "preserve")
+        new_text_el.text = segment
+        new_run.append(new_text_el)
+        paragraph._p.append(new_run)
 
 
 def _marker_paragraph_element(tag_text: str):
