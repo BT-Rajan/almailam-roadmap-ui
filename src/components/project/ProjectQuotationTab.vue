@@ -39,6 +39,14 @@ const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
 
+// Once one quotation for this project has been Approved, that's the
+// quotation the project moves forward on -- creating another would just
+// be a second, competing quotation for the same project, so New
+// Quotation is disabled from here on (matches isScopeLocked's same
+// "an Approved quotation exists" check on the Scope card in
+// ProjectOverviewTab.vue).
+const hasApprovedQuotation = computed(() => quotationStore.quotations.some((quotation) => quotation.status === 'Approved'))
+
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
   { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
@@ -377,7 +385,7 @@ async function handleRevertToDraft(): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between">
-    <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
+    <BaseButton size="sm" :icon="Plus" :disabled="hasApprovedQuotation" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <div v-if="quotationStore.selectedQuotation?.status === 'Draft'" ref="decisionMenuRef" class="relative">
         <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovalSaving || isFinalizing" @click="toggleDecisionMenu">
