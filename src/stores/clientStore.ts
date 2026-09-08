@@ -366,15 +366,8 @@ export const useClientStore = defineStore('client', {
       return updated
     },
 
-    async sendOnboardingOtp(clientId: string) {
-      const updated = await clientService.sendOnboardingOtp(clientId)
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
-      return updated
-    },
-
-    async verifyOnboardingOtp(clientId: string, code: string) {
-      const updated = await clientService.verifyOnboardingOtp(clientId, code)
+    async confirmOnboardingVerification(clientId: string, file: File) {
+      const updated = await clientService.confirmOnboardingVerification(clientId, file)
       this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
       this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
       return updated

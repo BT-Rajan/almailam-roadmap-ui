@@ -6,8 +6,8 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
-import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import Stepper from '@/components/common/Stepper.vue'
 
 // Lazy-loaded: only one wizard step is visible at a time.
@@ -139,14 +139,14 @@ const showConfirmation = ref(false)
 const createdClient = ref<Client | null>(null)
 
 // Review & Confirm no longer creates the client directly -- it stages
-// the submission and sends the OTP immediately (see submitWizard
-// below); the client (and every sub-record) is only created once
-// handleConfirmOtp succeeds. pendingOnboardingId/pendingEmail identify
-// that staged submission for the resend/verify calls.
-const isOtpDialogOpen = ref(false)
-const isOtpSaving = ref(false)
+// the submission (see submitWizard below); the client (and every
+// sub-record) is only created once handleConfirmOnboarding succeeds,
+// confirmed by uploading a scan of the client's physically signed
+// consent. pendingOnboardingId identifies that staged submission for
+// the confirm call.
+const isConfirmDialogOpen = ref(false)
+const isConfirmSaving = ref(false)
 const pendingOnboardingId = ref('')
-const pendingEmail = ref('')
 
 async function checkForDuplicates(): Promise<void> {
   const name = form.value.clientType === 'Individual' ? form.value.individualProfile.fullLegalName : form.value.organisationProfile.legalName
@@ -374,8 +374,7 @@ async function submitWizard(): Promise<void> {
     )
 
     pendingOnboardingId.value = pending.id
-    pendingEmail.value = pending.email
-    isOtpDialogOpen.value = true
+    isConfirmDialogOpen.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
     resultDialogStore.showError(t('client.newWizard.failedToOnboardClient'), detail)
@@ -384,32 +383,19 @@ async function submitWizard(): Promise<void> {
   }
 }
 
-async function handleResendOtp(): Promise<void> {
-  isOtpSaving.value = true
+async function handleConfirmOnboarding(payload: { file: File }): Promise<void> {
+  isConfirmSaving.value = true
   try {
-    const pending = await clientService.resendOnboardingRequestOtp(pendingOnboardingId.value)
-    pendingEmail.value = pending.email
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.newWizard.verifyEmailDialog.failedToSend'), detail)
-  } finally {
-    isOtpSaving.value = false
-  }
-}
-
-async function handleConfirmOtp(payload: { code: string }): Promise<void> {
-  isOtpSaving.value = true
-  try {
-    const client = await clientService.verifyOnboardingRequestOtp(pendingOnboardingId.value, payload.code)
+    const client = await clientService.confirmOnboardingRequest(pendingOnboardingId.value, payload.file)
     createdClient.value = client
     clearDraft()
-    isOtpDialogOpen.value = false
+    isConfirmDialogOpen.value = false
     showConfirmation.value = true
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.newWizard.verifyEmailDialog.failedToVerify'), detail)
+    resultDialogStore.showError(t('client.newWizard.confirmDialog.failedToConfirm'), detail)
   } finally {
-    isOtpSaving.value = false
+    isConfirmSaving.value = false
   }
 }
 
@@ -479,14 +465,12 @@ function goToCreatedClient(): void {
       </div>
     </div>
 
-    <OtpVerificationDialog
-      v-model="isOtpDialogOpen"
-      :email="pendingEmail"
-      step="enter-code"
-      :loading="isOtpSaving"
-      :title="t('client.newWizard.verifyEmailDialog.title')"
-      @send="handleResendOtp"
-      @confirm="handleConfirmOtp"
+    <SignedDocumentUploadDialog
+      v-model="isConfirmDialogOpen"
+      :loading="isConfirmSaving"
+      :title="t('client.newWizard.confirmDialog.title')"
+      :description="t('client.newWizard.confirmDialog.description')"
+      @confirm="handleConfirmOnboarding"
     />
 
     <BaseDialog :model-value="showConfirmation" :title="t('client.newWizard.clientSubmittedTitle')" size="sm" :closable="false">

@@ -43,12 +43,13 @@ QUOTATION_STATUSES_REQUIRING_REASON = {"Rejected"}
 #
 # "Signed" is deliberately still listed here as a Draft transition --
 # contract_service.set_status still accepts it (that's what
-# verify_contract_otp calls) -- but the only way to actually reach it is
-# a confirmed client email OTP (see ProjectContractTab.vue's
-# OtpVerificationDialog), same treatment as Quotation's "Approved". The
-# frontend's own mirror of this table (CONTRACT_ALLOWED_TRANSITIONS in
-# src/constants/quotationContractOptions.ts) omits it from Draft's
-# manual "Change Status" options for that reason.
+# confirm_contract_signing calls) -- but the only way to actually reach
+# it is staff uploading the client's physically signed copy (see
+# ProjectContractTab.vue's SignedDocumentUploadDialog), same treatment
+# as Quotation's "Approved". The frontend's own mirror of this table
+# (CONTRACT_ALLOWED_TRANSITIONS in src/constants/
+# quotationContractOptions.ts) omits it from Draft's manual "Change
+# Status" options for that reason.
 CONTRACT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Draft": {"Signed"},
     "Signed": {"Active"},
@@ -84,20 +85,21 @@ TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 # no longer gates onboarding.
 #
 # "Under Review" (migration 0066) was replaced by "Pending Verification"
-# -- there's no more manual eyeball review; staff instead send the
-# client an email OTP and confirm the code the client reads back (see
-# client_service.send_onboarding_otp/verify_onboarding_otp). "Ready" is
-# deliberately reachable from "Pending Verification" ONLY through
-# verify_onboarding_otp's own set_onboarding_state() call, never through
-# a bare status-change action -- it's the one hop in this table that
-# isn't offered as a manual transition target by the frontend's
-# "Change Status" dialog (see CLIENT_ONBOARDING_ALLOWED_TRANSITIONS'
-# mirror in src/constants/clientOptions.ts), even though it's listed
-# here so assert_transition_allowed still accepts it when the OTP
+# -- there's no more manual eyeball review; staff instead confirm the
+# client's own signed consent, uploaded as a scan (see
+# client_service.confirm_onboarding_verification). "Ready" is
+# deliberately reachable from "Documents Required" or "Pending
+# Verification" ONLY through confirm_onboarding_verification's own
+# set_onboarding_state() call, never through a bare status-change
+# action -- it's the one hop in this table that isn't offered as a
+# manual transition target by the frontend's "Change Status" dialog
+# (see CLIENT_ONBOARDING_ALLOWED_TRANSITIONS' mirror in
+# src/constants/clientOptions.ts), even though it's listed here so
+# assert_transition_allowed still accepts it when the confirmation
 # service call makes it.
 CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Information Required": {"Documents Required"},
-    "Documents Required": {"Pending Verification"},
+    "Documents Required": {"Pending Verification", "Ready"},
     "Pending Verification": {"Ready", "Rejected", "Documents Required"},
     "Ready": {"Suspended"},
     "Suspended": {"Pending Verification", "Rejected"},

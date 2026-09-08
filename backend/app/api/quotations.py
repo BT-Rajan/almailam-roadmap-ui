@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,6 @@ from app.core.exceptions import ValidationAppError
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.common import OtpVerifyRequest
 from app.schemas.document_template import DocumentEmailRequest
 from app.schemas.quotation import (
     QuotationCreate,
@@ -99,20 +98,14 @@ def set_status(
     return _to_out(db, quotation)
 
 
-@router.post("/{quotation_no}/send-otp", response_model=QuotationOut)
-def send_quotation_otp(quotation_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    quotation = quotation_service.send_quotation_otp(db, quotation_no, current_user.id)
-    return _to_out(db, quotation)
-
-
-@router.post("/{quotation_no}/verify-otp", response_model=QuotationOut)
-def verify_quotation_otp(
+@router.post("/{quotation_no}/confirm-approval", response_model=QuotationOut)
+def confirm_quotation_approval(
     quotation_no: str,
-    payload: OtpVerifyRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    quotation = quotation_service.verify_quotation_otp(db, quotation_no, payload.code, current_user.id)
+    quotation = quotation_service.confirm_quotation_approval(db, quotation_no, file, current_user.id)
     return _to_out(db, quotation)
 
 

@@ -22,8 +22,8 @@ import ClientIdentificationEditDialog from '@/components/client/ClientIdentifica
 import ClientOnboardingActions from '@/components/client/ClientOnboardingActions.vue'
 import ClientOnboardingProgress from '@/components/client/ClientOnboardingProgress.vue'
 import ClientOnboardingStatusDialog from '@/components/client/ClientOnboardingStatusDialog.vue'
-import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import ClientWorkspaceTabs from '@/components/client/ClientWorkspaceTabs.vue'
+import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 
 // Lazy-loaded: only fetched when the user opens that tab (see ProjectWorkspacePage
@@ -69,9 +69,8 @@ const isUploadDialogOpen = ref(false)
 const isStatusDialogOpen = ref(false)
 const isOnboardingStateSaving = ref(false)
 const isVerificationDialogOpen = ref(false)
-const isOtpDialogOpen = ref(false)
-const isOtpSaving = ref(false)
-const otpStep = ref<'send' | 'enter-code'>('send')
+const isOnboardingConfirmDialogOpen = ref(false)
+const isOnboardingConfirmSaving = ref(false)
 const isVerificationSaving = ref(false)
 const verificationDialogTarget = ref<ClientDocument | null>(null)
 const isEditDialogOpen = ref(false)
@@ -314,41 +313,22 @@ function handleConfirmStatusChange(payload: { onboardingState: ClientOnboardingS
   void applyOnboardingState(payload.onboardingState, payload.reason)
 }
 
-function handleOpenOtpDialog(): void {
-  otpStep.value = client.value?.onboardingState === 'Pending Verification' ? 'enter-code' : 'send'
-  isOtpDialogOpen.value = true
-}
-
-async function handleSendOtp(): Promise<void> {
-  if (!client.value) return
-  isOtpSaving.value = true
-  try {
-    await clientStore.sendOnboardingOtp(client.value.id)
-    otpStep.value = 'enter-code'
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.emailVerification.failedToSend'), detail)
-  } finally {
-    isOtpSaving.value = false
-  }
-}
-
-async function handleConfirmOtp(payload: { code: string }): Promise<void> {
+async function handleConfirmOnboardingVerification(payload: { file: File }): Promise<void> {
   if (!client.value) return
   const email = client.value.email
-  isOtpSaving.value = true
+  isOnboardingConfirmSaving.value = true
   try {
-    await clientStore.verifyOnboardingOtp(client.value.id, payload.code)
+    await clientStore.confirmOnboardingVerification(client.value.id, payload.file)
     resultDialogStore.showSuccess(
       t('client.workspacePage.resultDialog.clientVerifiedTitle'),
       t('client.workspacePage.resultDialog.welcomeEmailSent', { email }),
     )
-    isOtpDialogOpen.value = false
+    isOnboardingConfirmDialogOpen.value = false
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('client.emailVerification.failedToVerify'), detail)
+    resultDialogStore.showError(t('client.emailVerification.failedToConfirm'), detail)
   } finally {
-    isOtpSaving.value = false
+    isOnboardingConfirmSaving.value = false
   }
 }
 
@@ -805,7 +785,7 @@ function createProjectForClient(): void {
             :loading="isOnboardingStateSaving"
             @autoAdvance="handleAutoAdvanceOnboarding"
             @change-status="isStatusDialogOpen = true"
-            @verifyEmail="handleOpenOtpDialog"
+            @verifyEmail="isOnboardingConfirmDialogOpen = true"
           />
           <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
@@ -952,13 +932,12 @@ function createProjectForClient(): void {
         :loading="isOnboardingStateSaving"
         @confirm="handleConfirmStatusChange"
       />
-      <OtpVerificationDialog
-        v-model="isOtpDialogOpen"
-        :email="client.email"
-        :step="otpStep"
-        :loading="isOtpSaving"
-        @send="handleSendOtp"
-        @confirm="handleConfirmOtp"
+      <SignedDocumentUploadDialog
+        v-model="isOnboardingConfirmDialogOpen"
+        :loading="isOnboardingConfirmSaving"
+        :title="t('client.emailVerification.title')"
+        :description="t('client.emailVerification.description')"
+        @confirm="handleConfirmOnboardingVerification"
       />
       <ClientVerificationDialog
         v-model="isVerificationDialogOpen"

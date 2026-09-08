@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,6 @@ from app.core.exceptions import ValidationAppError
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.common import OtpVerifyRequest
 from app.schemas.contract import (
     ContractCreate,
     ContractOut,
@@ -107,20 +106,14 @@ def set_status(
     return _to_out(db, contract)
 
 
-@router.post("/{contract_no}/send-otp", response_model=ContractOut)
-def send_contract_otp(contract_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    contract = contract_service.send_contract_otp(db, contract_no, current_user.id)
-    return _to_out(db, contract)
-
-
-@router.post("/{contract_no}/verify-otp", response_model=ContractOut)
-def verify_contract_otp(
+@router.post("/{contract_no}/confirm-signing", response_model=ContractOut)
+def confirm_contract_signing(
     contract_no: str,
-    payload: OtpVerifyRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    contract, confirmation_email_sent = contract_service.verify_contract_otp(db, contract_no, payload.code, current_user.id)
+    contract, confirmation_email_sent = contract_service.confirm_contract_signing(db, contract_no, file, current_user.id)
     return _to_out(db, contract, confirmation_email_sent)
 
 

@@ -7,8 +7,8 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
@@ -179,9 +179,8 @@ const isEmailDialogOpen = ref(false)
 const isSendingEmail = ref(false)
 const emailTo = ref('')
 
-const isOtpDialogOpen = ref(false)
-const isOtpSaving = ref(false)
-const otpStep = ref<'send' | 'enter-code'>('send')
+const isApprovalDialogOpen = ref(false)
+const isApprovalSaving = ref(false)
 
 function openEmailDialog(): void {
   emailTo.value = props.client?.email ?? ''
@@ -224,14 +223,9 @@ async function ensureFinalized(): Promise<boolean> {
   }
 }
 
-function openOtpDialog(): void {
-  otpStep.value = quotationStore.selectedQuotation?.otpSentAt ? 'enter-code' : 'send'
-  isOtpDialogOpen.value = true
-}
-
 async function handleApprove(): Promise<void> {
   if (!(await ensureFinalized())) return
-  openOtpDialog()
+  isApprovalDialogOpen.value = true
 }
 
 async function handleApproveFromMenu(): Promise<void> {
@@ -249,39 +243,24 @@ function handleExpireFromMenu(): void {
   isExpireDialogOpen.value = true
 }
 
-async function handleSendOtp(): Promise<void> {
+async function handleConfirmApproval(payload: { file: File }): Promise<void> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return
-  isOtpSaving.value = true
+  isApprovalSaving.value = true
   try {
-    await quotationStore.sendQuotationOtp(quotation.id)
-    otpStep.value = 'enter-code'
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.quotationTab.otpDialog.failedToSend'), detail)
-  } finally {
-    isOtpSaving.value = false
-  }
-}
-
-async function handleConfirmOtp(payload: { code: string }): Promise<void> {
-  const quotation = quotationStore.selectedQuotation
-  if (!quotation) return
-  isOtpSaving.value = true
-  try {
-    await quotationStore.verifyQuotationOtp(quotation.id, payload.code)
-    // verifyQuotationOtp can move current_stage server-side (see
+    await quotationStore.confirmQuotationApproval(quotation.id, payload.file)
+    // confirmQuotationApproval can move current_stage server-side (see
     // quotation_service.set_status -> try_auto_advance_stage) -- same
     // "sync the shared store's cached copy" reasoning as
     // handleConfirmReject/handleConfirmExpire below.
     await projectStore.refreshProject(props.project.id)
-    isOtpDialogOpen.value = false
-    resultDialogStore.showSuccess(t('project.quotationTab.otpDialog.approvedTitle'), t('project.quotationTab.otpDialog.approvedDescription'))
+    isApprovalDialogOpen.value = false
+    resultDialogStore.showSuccess(t('project.quotationTab.approvalDialog.approvedTitle'), t('project.quotationTab.approvalDialog.approvedDescription'))
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.quotationTab.otpDialog.failedToVerify'), detail)
+    resultDialogStore.showError(t('project.quotationTab.approvalDialog.failedToConfirm'), detail)
   } finally {
-    isOtpSaving.value = false
+    isApprovalSaving.value = false
   }
 }
 
@@ -311,10 +290,11 @@ async function handlePatch(patch: Partial<Quotation>): Promise<void> {
 }
 
 // Escape hatch for a quotation that got finalized (by Approve/Reject/
-// Expire above) but never actually left Draft -- e.g. the OTP was sent
-// but never confirmed, or the Reject/Expire call itself failed after
-// finalizing. Without this there'd be no way back into editing at all,
-// since the inline Edit button only shows while unfinalized.
+// Expire above) but never actually left Draft -- e.g. the approval
+// dialog was opened but no file was ever confirmed, or the Reject/
+// Expire call itself failed after finalizing. Without this there'd be
+// no way back into editing at all, since the inline Edit button only
+// shows while unfinalized.
 async function handleReopenForEditing(): Promise<void> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return
@@ -406,7 +386,7 @@ async function handleRevertToDraft(): Promise<void> {
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <div v-if="quotationStore.selectedQuotation?.status === 'Draft'" ref="decisionMenuRef" class="relative">
-        <BaseButton size="sm" :icon="ShieldCheck" :loading="isOtpSaving || isFinalizing" @click="toggleDecisionMenu">
+        <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovalSaving || isFinalizing" @click="toggleDecisionMenu">
           {{ t('project.quotationTab.decision') }}
           <ChevronDown class="ms-1 h-3.5 w-3.5" />
         </BaseButton>
@@ -518,16 +498,12 @@ async function handleRevertToDraft(): Promise<void> {
     </template>
   </BaseDialog>
 
-  <OtpVerificationDialog
-    v-if="client"
-    v-model="isOtpDialogOpen"
-    :email="client.email"
-    :step="otpStep"
-    :loading="isOtpSaving"
-    :title="t('project.quotationTab.otpDialog.title')"
-    :send-step-description="t('project.quotationTab.otpDialog.sendStepDescription', { email: client.email })"
-    @send="handleSendOtp"
-    @confirm="handleConfirmOtp"
+  <SignedDocumentUploadDialog
+    v-model="isApprovalDialogOpen"
+    :loading="isApprovalSaving"
+    :title="t('project.quotationTab.approvalDialog.title')"
+    :description="t('project.quotationTab.approvalDialog.description')"
+    @confirm="handleConfirmApproval"
   />
 
   <BaseDialog v-if="quotationStore.selectedQuotation" v-model="isRejectDialogOpen" :title="t('project.quotationTab.rejectDialog.title')" size="sm">

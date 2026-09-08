@@ -82,14 +82,8 @@ export const useContractStore = defineStore('contract', {
       return updated
     },
 
-    async sendContractOtp(contractId: string): Promise<Contract> {
-      const updated = await contractService.sendContractOtp(contractId)
-      this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
-      return updated
-    },
-
-    async verifyContractOtp(contractId: string, code: string): Promise<Contract> {
-      const updated = await contractService.verifyContractOtp(contractId, code)
+    async confirmContractSigning(contractId: string, file: File): Promise<Contract> {
+      const updated = await contractService.confirmContractSigning(contractId, file)
       this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
       return updated
     },

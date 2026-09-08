@@ -58,7 +58,7 @@ export default {
     noFurtherChanges: 'No further status changes are available from this status.',
     advance: 'Advance',
     changeStatus: 'Change Status',
-    verifyEmail: 'Verify Client Email',
+    verifyEmail: 'Verify Client',
   },
 
   verificationList: {
@@ -323,12 +323,12 @@ export default {
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
     fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
     fieldsNeedAttentionBeforeOnboarding: 'Some fields under "{step}" need attention before this client can be onboarded.',
-    verifyEmailDialog: {
-      title: 'Verify Client Email',
-      failedToSend: 'Failed to send verification code',
-      failedToVerify: 'Failed to verify code',
+    confirmDialog: {
+      title: 'Confirm Client Onboarding',
+      description: "Upload a scan of the client's physically signed consent to create the client.",
+      failedToConfirm: 'Failed to confirm onboarding',
     },
-    submittingNotice: 'Submitting details and sending the verification email -- this can take a few seconds.',
+    submittingNotice: 'Submitting details -- this can take a few seconds.',
   },
 
   addressEditDialog: {
@@ -450,8 +450,9 @@ export default {
   },
 
   emailVerification: {
-    failedToSend: 'Failed to send verification code',
-    failedToVerify: 'Failed to verify code',
+    title: 'Verify Client',
+    description: "Upload a scan of the client's physically signed consent to confirm and mark them Ready.",
+    failedToConfirm: 'Failed to confirm verification',
   },
 
   verificationDialog: {

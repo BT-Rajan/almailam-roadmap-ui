@@ -7,11 +7,11 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
+import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
-import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -151,39 +151,21 @@ async function loadHandoverStatus(): Promise<void> {
 
 const showHandoverCard = computed(() => props.project.status === 'Completed' || (handoverStatus.value?.checklist.length ?? 0) > 0)
 
-const isHandoverOtpDialogOpen = ref(false)
-const isHandoverOtpSaving = ref(false)
-const handoverOtpStep = ref<'send' | 'enter-code'>('send')
+const isHandoverDialogOpen = ref(false)
+const isHandoverSaving = ref(false)
 
-function openHandoverOtpDialog(): void {
-  handoverOtpStep.value = handoverStatus.value?.otpSentAt ? 'enter-code' : 'send'
-  isHandoverOtpDialogOpen.value = true
-}
-
-async function handleSendHandoverOtp(): Promise<void> {
-  isHandoverOtpSaving.value = true
+async function handleConfirmHandover(payload: { file: File }): Promise<void> {
+  isHandoverSaving.value = true
   try {
-    handoverStatus.value = await projectService.sendHandoverOtp(props.project.id)
-    handoverOtpStep.value = 'enter-code'
-  } catch (error) {
-    toastStore.show('error', t('project.overviewTab.handover.failedToSend'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  } finally {
-    isHandoverOtpSaving.value = false
-  }
-}
-
-async function handleConfirmHandoverOtp(payload: { code: string }): Promise<void> {
-  isHandoverOtpSaving.value = true
-  try {
-    await projectService.verifyHandoverOtp(props.project.id, payload.code)
+    await projectService.confirmProjectHandover(props.project.id, payload.file)
     await projectStore.refreshProject(props.project.id)
     await loadHandoverStatus()
-    isHandoverOtpDialogOpen.value = false
+    isHandoverDialogOpen.value = false
     toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
   } catch (error) {
-    toastStore.show('error', t('project.overviewTab.handover.failedToVerify'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    toastStore.show('error', t('project.overviewTab.handover.failedToConfirm'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
-    isHandoverOtpSaving.value = false
+    isHandoverSaving.value = false
   }
 }
 
@@ -490,8 +472,8 @@ function verificationResultLabel(result: string): string {
         <p v-if="project.status === 'Completed' && handoverStatus?.handoverAcknowledgedAt" class="text-sm text-text-secondary">
           {{ t('project.overviewTab.handover.acknowledgedOnFragment', { date: formatDateTime(handoverStatus.handoverAcknowledgedAt) }) }}
         </p>
-        <p v-else-if="handoverStatus?.otpSentAt" class="text-sm text-text-secondary">
-          {{ t('project.overviewTab.handover.otpSentOnFragment', { date: formatDateTime(handoverStatus.otpSentAt) }) }}
+        <p v-else-if="handoverStatus?.handoverSentAt" class="text-sm text-text-secondary">
+          {{ t('project.overviewTab.handover.readySinceFragment', { date: formatDateTime(handoverStatus.handoverSentAt) }) }}
         </p>
         <p v-else class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
 
@@ -499,24 +481,21 @@ function verificationResultLabel(result: string): string {
           v-if="project.status !== 'Completed' && client"
           size="sm"
           :icon="Mail"
-          :loading="isHandoverOtpSaving"
+          :loading="isHandoverSaving"
           class="no-print"
-          @click="openHandoverOtpDialog"
+          @click="isHandoverDialogOpen = true"
         >
-          {{ handoverStatus?.otpSentAt ? t('project.overviewTab.handover.resendOrEnterCode') : t('project.overviewTab.handover.sendVerificationCode') }}
+          {{ t('project.overviewTab.handover.confirmHandover') }}
         </BaseButton>
       </div>
 
-      <OtpVerificationDialog
+      <SignedDocumentUploadDialog
         v-if="client"
-        v-model="isHandoverOtpDialogOpen"
-        :email="client.email"
-        :step="handoverOtpStep"
-        :loading="isHandoverOtpSaving"
-        :title="t('project.overviewTab.handover.otpDialogTitle')"
-        :send-step-description="t('project.overviewTab.handover.otpDialogSendStepDescription', { email: client.email })"
-        @send="handleSendHandoverOtp"
-        @confirm="handleConfirmHandoverOtp"
+        v-model="isHandoverDialogOpen"
+        :loading="isHandoverSaving"
+        :title="t('project.overviewTab.handover.confirmDialogTitle')"
+        :description="t('project.overviewTab.handover.confirmDialogDescription')"
+        @confirm="handleConfirmHandover"
       />
     </Card>
 

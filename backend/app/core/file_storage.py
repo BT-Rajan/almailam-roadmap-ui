@@ -66,6 +66,20 @@ def matches_signature(extension: str, contents: bytes) -> bool:
     return any(contents.startswith(sig) for sig in signatures)
 
 
+def assert_pdf_upload(file: UploadFile) -> None:
+    """Business-rule check (not a security one -- save_upload's own
+    magic-byte check on '.pdf' already covers that) for the six "client
+    physically signs, staff uploads the scan" confirmation flows
+    (Requirement scope, Quotation approval, Contract signing, Hand-over
+    acknowledgment, both Client onboarding flows) -- these replaced the
+    old email-OTP gate, and the one thing they all require is that
+    what's uploaded is actually a PDF, not any of the other types
+    ALLOWED_EXTENSIONS otherwise permits for ordinary document uploads."""
+    extension = Path(file.filename or "").suffix.lower()
+    if extension != ".pdf":
+        raise ValidationAppError("Please upload the signed document as a PDF file.")
+
+
 def save_upload(file: UploadFile, subdirectory: str) -> tuple[str, str, int]:
     """Returns (storage_key, original_filename, size_bytes). storage_key is
     a generated name -- the original filename is never used as a path

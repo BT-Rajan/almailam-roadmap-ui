@@ -75,15 +75,10 @@ class ContractOut(BaseModel):
     clauses: list[ContractClauseOut]
     revisions: list[ContractRevisionOut]
     finalizedAt: datetime | None
-    # Non-null while a signing code is outstanding -- see
-    # contract_service.send_contract_otp/verify_contract_otp. Lets the
-    # frontend reopen the OTP dialog straight to "enter code" when one's
-    # already on its way, same idea as QuotationOut.otpSentAt.
-    otpSentAt: datetime | None = None
-    # Only meaningful right after verify-otp -- False means the client's
-    # signed-copy confirmation email failed to send (see
-    # contract_service.verify_contract_otp), so the frontend can tell
-    # the signing user honestly instead of always claiming it was
+    # Only meaningful right after confirm-signing -- False means the
+    # client's signed-copy confirmation email failed to send (see
+    # contract_service.confirm_contract_signing), so the frontend can
+    # tell the signing user honestly instead of always claiming it was
     # emailed. None on every other endpoint that returns a ContractOut.
     confirmationEmailSent: bool | None = None
 
@@ -110,7 +105,6 @@ class ContractOut(BaseModel):
             clauses=[ContractClauseOut.from_model(c) for c in clauses],
             revisions=[ContractRevisionOut.from_model(r, name) for r, name in revisions],
             finalizedAt=contract.finalized_at,
-            otpSentAt=contract.otp_sent_at,
             confirmationEmailSent=confirmation_email_sent,
         )
 

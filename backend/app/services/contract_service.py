@@ -1,9 +1,10 @@
 from datetime import date, datetime, timezone
 
+from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.file_storage import assert_pdf_upload
 from app.core.status_transitions import (
     CONTRACT_ALLOWED_TRANSITIONS,
     CONTRACT_STATUSES_REQUIRING_REASON,
@@ -14,7 +15,7 @@ from app.models.contract import Contract, ContractClause, ContractRevision
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
-from app.services import audit_service, document_template_service, email_service, email_template_service, notification_service, project_service, timeline_service
+from app.services import audit_service, document_service, document_template_service, email_service, email_template_service, notification_service, project_service, timeline_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "CONTRACT"
@@ -332,49 +333,6 @@ def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
     return contract
 
 
-def send_contract_otp(db: Session, contract_no: str, user_id: int) -> Contract:
-    """Sends (or resends) the email OTP that gates a contract into
-    "Signed" -- the client-facing counterpart to staff finalizing and
-    emailing it (see api/contracts.py's document/email route, unchanged).
-    Requires Draft + finalized (the same "content has to be locked
-    before a decision is recorded on it" rule set_status already
-    enforces) so an OTP is never sent against still-editable content.
-    Reuses app/core/otp.py's generation/hashing, shared with client
-    onboarding, Requirement confirmation, and Quotation approval."""
-    contract = get_contract(db, contract_no)
-    if contract.status != "Draft" or contract.finalized_at is None:
-        raise ValidationAppError(
-            "Save the contract as Final before sending it to the client for signing."
-        )
-
-    code = otp.generate_code()
-    contract.otp_code_hash = otp.hash_code(code)
-    contract.otp_expires_at = otp.new_expiry()
-    contract.otp_attempts = 0
-    contract.otp_sent_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, contract.id, "Signing OTP sent", user_id)
-    db.commit()
-    db.refresh(contract)
-
-    project = db.query(Project).filter(Project.id == contract.project_id).first()
-    client = db.query(Client).filter(Client.id == project.client_id).first() if project else None
-    if client is None:
-        raise ValidationAppError("This contract's project/client record is missing.")
-
-    subject, body = email_template_service.render(
-        db,
-        "contract_otp",
-        {
-            "contact_person": client.contact_person,
-            "code": code,
-            "contract_no": contract.contract_no,
-            "validity_label": otp.validity_label(),
-        },
-    )
-    email_service.send_email(client.email, subject, body, db=db)
-    return contract
-
-
 def _contract_summary_text(contract: Contract, clauses: list[ContractClause]) -> str:
     lines = [
         f"Contract Value: {contract.contract_value:.2f} {contract.currency}",
@@ -388,12 +346,17 @@ def _contract_summary_text(contract: Contract, clauses: list[ContractClause]) ->
     return "\n".join(lines)
 
 
-def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) -> tuple[Contract, bool]:
-    """Confirms the code the client read back to staff -- the client's
-    signature on the contract. Success is what actually moves the
-    contract to "Signed" (reuses set_status, which already handles
-    signed_date and project_service.try_auto_advance_stage -- not
-    reimplemented here). The client is always emailed a copy of the
+def confirm_contract_signing(db: Session, contract_no: str, file: UploadFile, user_id: int) -> tuple[Contract, bool]:
+    """Records the client's signature on the contract -- previously an
+    email OTP the client read back to staff, now a scan of their
+    physically signed copy, uploaded here as the signing record (see
+    document_service.create_document; stored as a "Contract"-typed
+    project Document, same as the generated copy staff can already
+    email out). There's no code to verify, so this is a direct manual
+    action rather than a hard-gated one -- the signed upload is the
+    evidence, not a cryptographic proof. Reuses set_status, which
+    already handles signed_date and project_service.
+    try_auto_advance_stage. The client is always emailed a copy of the
     signed contract (PDF attached) once confirmed.
 
     Returns (contract, confirmation_email_sent) -- the second element
@@ -406,28 +369,20 @@ def verify_contract_otp(db: Session, contract_no: str, code: str, user_id: int) 
     contract = get_contract(db, contract_no)
     if contract.status != "Draft" or contract.finalized_at is None:
         raise ValidationAppError("This contract isn't awaiting signature.")
-    if not contract.otp_code_hash or not contract.otp_expires_at:
-        raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if otp.is_expired(contract.otp_expires_at):
-        raise ValidationAppError("This code has expired. Send a new one.")
-    if contract.otp_attempts >= otp.MAX_ATTEMPTS:
-        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
-
-    if not otp.code_matches(code, contract.otp_code_hash):
-        contract.otp_attempts += 1
-        db.commit()
-        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
-
-    contract.otp_code_hash = None
-    contract.otp_expires_at = None
-    contract.otp_attempts = 0
-    contract.otp_sent_at = None
-    db.commit()
-
-    contract = set_status(db, contract_no, "Signed", None, user_id)
+    assert_pdf_upload(file)
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
     if project is None:
+        raise ValidationAppError("This contract's project record is missing.")
+
+    document_service.create_document(
+        db, project.project_no, f"Signed Contract {contract.contract_no}", "Contract", file, user_id,
+    )
+
+    contract = set_status(db, contract_no, "Signed", None, user_id)
+
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    if client is None or not client.email_consent:
         return contract, True
 
     client = db.query(Client).filter(Client.id == project.client_id).first()

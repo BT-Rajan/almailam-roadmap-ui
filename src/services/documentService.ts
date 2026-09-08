@@ -99,7 +99,6 @@ async function uploadDocument(
   type: DocumentType,
   externalLink?: string,
 ): Promise<ProjectDocument> {
-  const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('projectId', projectId)
   formData.append('title', title)
@@ -107,30 +106,8 @@ async function uploadDocument(
   if (externalLink) formData.append('externalLink', externalLink)
   if (file) formData.append('file', file)
 
-  const doRequest = () =>
-    fetch('/api/documents', {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
   try {
-    let response = await doRequest()
-
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) {
-        response = await doRequest()
-      }
-    }
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => undefined)
-      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
-    }
-
-    return (await response.json()) as ProjectDocument
+    return await apiClient.postForm<ProjectDocument>('/api/documents', formData)
   } catch (error) {
     console.error('Failed to upload document:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to upload document')

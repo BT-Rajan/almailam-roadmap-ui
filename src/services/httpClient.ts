@@ -43,6 +43,46 @@ async function extractErrorMessage(response: Response): Promise<string> {
   }
 }
 
+// Multipart upload counterpart to request<T>() -- FormData bodies (a
+// file plus a few string fields) can't go through the JSON path above:
+// no Content-Type header here at all, since the browser has to set its
+// own multipart boundary. Same auth/401-retry/error-extraction
+// behavior as request<T>() otherwise, so every file-upload call site
+// (document uploads, the signed-PDF confirmation dialogs) gets the
+// same session-refresh handling as every JSON call already does,
+// instead of each hand-rolling its own fetch.
+export async function requestForm<T>(
+  path: string,
+  formData: FormData,
+  options: { _retried?: boolean } = {},
+): Promise<T> {
+  const authStore = useAuthStore()
+  const headers: Record<string, string> = {}
+  if (authStore.accessToken) headers.Authorization = `Bearer ${authStore.accessToken}`
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (response.status === 401 && !options._retried) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) {
+      return requestForm<T>(path, formData, { _retried: true })
+    }
+    authStore.logout()
+    throw new ApiError(401, 'Session expired. Please log in again.')
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await extractErrorMessage(response))
+  }
+
+  return (await response.json()) as T
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const authStore = useAuthStore()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -92,4 +132,5 @@ export const apiClient = {
     request<T>(path, { ...options, method: 'PATCH', body }),
   delete: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'DELETE' }),
+  postForm: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
 }

@@ -66,11 +66,11 @@ const availableTransitions = computed(
   () => CLIENT_ONBOARDING_ALLOWED_TRANSITIONS[props.client.onboardingState] ?? [],
 )
 
-// The one path to "Ready" -- a confirmed email OTP, not a manual status
-// change (see the comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Shown
-// once there's nothing left to collect ("Documents Required", to send the
-// first code) and while a code is outstanding ("Pending Verification", to
-// enter it or resend).
+// The one path to "Ready" -- a confirmed signed-document upload, not a
+// manual status change (see the comment on
+// CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Shown once there's nothing
+// left to collect ("Documents Required") or while still awaiting that
+// confirmation ("Pending Verification").
 const canVerifyEmail = computed(
   () => props.client.onboardingState === 'Documents Required' || props.client.onboardingState === 'Pending Verification',
 )
@@ -83,9 +83,9 @@ const canVerifyEmail = computed(
 // what used to be several separate "Change Status" round trips for the
 // common, no-real-decision case. Anything else -- a branch point, a
 // dead end, or a reason-gated step -- falls through to "Change Status".
-// Excluded whenever "Verify Client Email" is showing: a bare advance
-// would flip the status without ever sending the OTP, leaving the
-// client stuck "Pending Verification" with no code on its way.
+// Excluded whenever "Verify Client" is showing: a bare advance would
+// flip the status without ever collecting the client's signed
+// confirmation.
 const canAutoAdvance = computed(
   () =>
     !canVerifyEmail.value &&

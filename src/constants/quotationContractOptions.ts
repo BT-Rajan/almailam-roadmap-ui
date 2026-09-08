@@ -14,10 +14,11 @@
 // "Approved" is deliberately NOT offered here as a manual "Change
 // Status" target even though the backend's own table allows it --
 // quotation_service.set_status still accepts it (that's what
-// verify_quotation_otp calls), but the only way to actually reach it is
-// a confirmed client email OTP (see ProjectQuotationTab.vue's
-// OtpVerificationDialog), same treatment as Client's "Ready" and the
-// Requirement stage's own scope confirmation.
+// confirm_quotation_approval calls), but the only way to actually
+// reach it is a confirmed signed-document upload (see
+// ProjectQuotationTab.vue's SignedDocumentUploadDialog), same
+// treatment as Client's "Ready" and the Requirement stage's own scope
+// confirmation.
 export const QUOTATION_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Draft: ['Rejected', 'Expired'],
   Approved: [],
@@ -34,9 +35,9 @@ export function isQuotationReasonRequired(newStatus: string): boolean {
 // "Signed" is deliberately NOT offered here as a manual "Change Status"
 // target even though the backend's own table allows it --
 // contract_service.set_status still accepts it (that's what
-// verify_contract_otp calls), but the only way to actually reach it is
-// a confirmed client email OTP (see ProjectContractTab.vue's
-// OtpVerificationDialog), same treatment as Quotation's "Approved".
+// confirm_contract_signing calls), but the only way to actually reach
+// it is a confirmed signed-document upload (see ProjectContractTab.vue's
+// SignedDocumentUploadDialog), same treatment as Quotation's "Approved".
 export const CONTRACT_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Draft: [],
   Signed: ['Active'],

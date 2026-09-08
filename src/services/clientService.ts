@@ -537,33 +537,21 @@ async function autoAdvanceOnboarding(clientId: string): Promise<Client> {
 }
 
 /**
- * Sends (or resends) the email OTP that gates a client into "Ready" --
- * see backend client_service.send_onboarding_otp. Moves "Documents
- * Required" to "Pending Verification" on first send.
+ * Records the client's own signed consent -- a scan of their
+ * physically signed copy, uploaded here -- confirming a client into
+ * "Ready" from either "Documents Required" or "Pending Verification".
+ * On success the backend moves the client to "Ready", provisions its
+ * Customer Portal login, and emails the client a welcome message --
+ * see client_service.confirm_onboarding_verification.
  */
-async function sendOnboardingOtp(clientId: string): Promise<Client> {
+async function confirmOnboardingVerification(clientId: string, file: File): Promise<Client> {
   try {
-    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/send-otp`, {})
+    const formData = new FormData()
+    formData.append('file', file)
+    return await apiClient.postForm<Client>(`/api/clients/${clientId}/onboarding-state/confirm-verification`, formData)
   } catch (error) {
-    console.error(`Failed to send verification code for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
-  }
-}
-
-/**
- * Confirms the code the client read back to staff. On success the
- * backend moves the client to "Ready", provisions its Customer Portal
- * login, and emails the client a welcome message -- see
- * client_service.verify_onboarding_otp. Rejected with a specific
- * message (wrong code, expired, too many attempts) that should be
- * shown to the user as-is, not replaced with a generic fallback.
- */
-async function verifyOnboardingOtp(clientId: string, code: string): Promise<Client> {
-  try {
-    return await apiClient.post<Client>(`/api/clients/${clientId}/onboarding-state/verify-otp`, { code })
-  } catch (error) {
-    console.error(`Failed to verify code for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+    console.error(`Failed to confirm verification for client ${clientId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm verification')
   }
 }
 
@@ -664,18 +652,16 @@ export interface OnboardingRequestPayload {
 export interface PendingOnboardingRequest {
   id: string
   email: string
-  otpSentAt: string | null
 }
 
 /**
- * Stages a New Client wizard submission and immediately emails the
- * onboarding OTP -- no Client (or any of its Contact/Address/
- * Identification/Document rows) is created until
- * verifyOnboardingRequestOtp below succeeds. Sends the identification
+ * Stages a New Client wizard submission -- no Client (or any of its
+ * Contact/Address/Identification/Document rows) is created until
+ * confirmOnboardingRequest below succeeds. Sends the identification
  * file as multipart/form-data alongside a single JSON-stringified
  * `payload` field (it nests a variable-length contacts list, so it
  * can't be flattened into individual Form fields the way createDocument
- * above does) -- same raw-fetch-with-401-retry pattern as createDocument.
+ * above does).
  */
 async function createOnboardingRequest(
   payload: OnboardingRequestPayload,
@@ -683,37 +669,13 @@ async function createOnboardingRequest(
   documentCategory?: string,
   documentTitle?: string,
 ): Promise<PendingOnboardingRequest> {
-  const authStore = useAuthStore()
-  const formData = new FormData()
-  formData.append('payload', JSON.stringify(payload))
-  if (documentCategory) formData.append('documentCategory', documentCategory)
-  if (documentTitle) formData.append('documentTitle', documentTitle)
-  if (identificationFile) formData.append('identificationFile', identificationFile)
-
-  const doRequest = () =>
-    fetch('/api/clients/onboarding-requests', {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
   try {
-    let response = await doRequest()
-
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) {
-        response = await doRequest()
-      }
-    }
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => undefined)
-      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Request failed with status ${response.status}`)
-    }
-
-    return (await response.json()) as PendingOnboardingRequest
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify(payload))
+    if (documentCategory) formData.append('documentCategory', documentCategory)
+    if (documentTitle) formData.append('documentTitle', documentTitle)
+    if (identificationFile) formData.append('identificationFile', identificationFile)
+    return await apiClient.postForm<PendingOnboardingRequest>('/api/clients/onboarding-requests', formData)
   } catch (error) {
     console.error('Failed to submit client onboarding request:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to submit onboarding request')
@@ -721,30 +683,20 @@ async function createOnboardingRequest(
 }
 
 /**
- * Resends the verification code for a staged (not-yet-created) client --
- * see backend client_service.resend_onboarding_request_otp.
+ * Records the client's signed consent to onboard -- a scan of their
+ * physically signed copy, uploaded here. On success the backend
+ * creates the real Client (and every staged sub-record) for the first
+ * time, already at onboarding_state "Ready" -- see backend
+ * client_service.confirm_onboarding_request.
  */
-async function resendOnboardingRequestOtp(pendingId: string): Promise<PendingOnboardingRequest> {
+async function confirmOnboardingRequest(pendingId: string, file: File): Promise<Client> {
   try {
-    return await apiClient.post<PendingOnboardingRequest>(`/api/clients/onboarding-requests/${pendingId}/send-otp`, {})
+    const formData = new FormData()
+    formData.append('file', file)
+    return await apiClient.postForm<Client>(`/api/clients/onboarding-requests/${pendingId}/confirm`, formData)
   } catch (error) {
-    console.error(`Failed to resend onboarding code for request ${pendingId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
-  }
-}
-
-/**
- * Confirms the code the client read back to staff. On success the
- * backend creates the real Client (and every staged sub-record) for the
- * first time, already at onboarding_state "Ready" -- see backend
- * client_service.verify_onboarding_request_otp.
- */
-async function verifyOnboardingRequestOtp(pendingId: string, code: string): Promise<Client> {
-  try {
-    return await apiClient.post<Client>(`/api/clients/onboarding-requests/${pendingId}/verify-otp`, { code })
-  } catch (error) {
-    console.error(`Failed to verify onboarding code for request ${pendingId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+    console.error(`Failed to confirm onboarding request ${pendingId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm onboarding request')
   }
 }
 
@@ -832,15 +784,13 @@ export const clientService = {
   createVerification,
   updateOnboardingState,
   autoAdvanceOnboarding,
-  sendOnboardingOtp,
-  verifyOnboardingOtp,
+  confirmOnboardingVerification,
   findPossibleDuplicates,
   findIdentificationDuplicates,
   mergeClients,
   createClient,
   createOnboardingRequest,
-  resendOnboardingRequestOtp,
-  verifyOnboardingRequestOtp,
+  confirmOnboardingRequest,
   updateClient,
   setStatus,
   deleteClient,

@@ -3,8 +3,8 @@ import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 // "Completed" is the terminal status a project reaches once every
 // planned Design/Permit/Supervision item is closed, payment on the
 // current project value is settled in full, and the client has
-// acknowledged the hand-over email (OTP-verified). See
-// backend/app/models/project.py's PROJECT_STATUSES /
+// acknowledged the hand-over via a confirmed signed-document upload.
+// See backend/app/models/project.py's PROJECT_STATUSES /
 // PROJECT_STATUS_ALLOWED_TRANSITIONS comments.
 export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled' | 'Completed'
 
@@ -118,9 +118,9 @@ export interface Project {
   // ClientAddress rows.
   siteAddress?: string
   // Set once the client has confirmed `description` (the scope-of-work
-  // text) via email OTP -- see ScopeOfWork below for the full revision
-  // history behind it. The sole sign-off gating the move out of the
-  // Requirement stage.
+  // text) via a signed document upload -- see ScopeOfWork below for
+  // the full revision history behind it. The sole sign-off gating the
+  // move out of the Requirement stage.
   scopeClientConfirmedAt?: string | null
   clientId: string
   service: string
@@ -203,15 +203,11 @@ export interface ScopeRevision {
 
 export interface ScopeOfWork {
   description: string | null
-  // Set once the client has confirmed this scope via email OTP (see
-  // ProjectRequirementTab.vue's OtpVerificationDialog) -- the sole
-  // sign-off required before the project can leave the Requirement
-  // stage.
+  // Set once the client has confirmed this scope via a signed document
+  // upload (see ProjectRequirementTab.vue's SignedDocumentUploadDialog)
+  // -- the sole sign-off required before the project can leave the
+  // Requirement stage.
   scopeClientConfirmedAt?: string | null
-  // Non-null while a verification code is outstanding -- lets the
-  // Requirement tab reopen the OTP dialog straight to "enter code"
-  // instead of "send" when one's already on its way.
-  otpSentAt?: string | null
   revisions: ScopeRevision[]
 }
 
@@ -225,12 +221,13 @@ export interface HandoverChecklistItem {
 // Populated (checklist non-empty) once every planned Design/Permit/
 // Supervision item is Complete/Cancelled AND the project's current
 // value is fully paid (see project_service.try_complete_project) --
-// same "reopen the OTP dialog straight to enter-code when one's
-// already outstanding" pattern as ScopeOfWork.otpSentAt above.
-// handoverAcknowledgedAt is set once the client's OTP is verified,
-// the moment project.status flips to 'Completed'.
+// handoverSentAt is set at that point (project_service.
+// notify_handover_ready), before staff have confirmed anything; it's
+// what gates the "Confirm Hand-over" signed-document upload action
+// being available. handoverAcknowledgedAt is set once that upload is
+// confirmed, the moment project.status flips to 'Completed'.
 export interface HandoverStatus {
-  otpSentAt?: string | null
+  handoverSentAt?: string | null
   handoverAcknowledgedAt?: string | null
   checklist: HandoverChecklistItem[]
 }

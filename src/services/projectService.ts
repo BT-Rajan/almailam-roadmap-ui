@@ -352,39 +352,30 @@ async function saveScopeOfWork(
 }
 
 /**
- * Sends (or resends) the email OTP that gets the client's own sign-off
- * on the Requirement stage's scope of work -- the sole approval this
- * stage requires. See project_service.send_requirement_otp.
+ * Records the client's own sign-off on the Requirement stage's scope
+ * of work -- the sole approval this stage requires -- as a scan of
+ * their physically signed copy. On success the backend records the
+ * confirmation and, once every other exit criterion is also met,
+ * automatically advances the project to Quotation. See
+ * project_service.confirm_requirement_scope.
  */
-async function sendRequirementOtp(projectId: string): Promise<ScopeOfWork> {
+async function confirmRequirementScope(projectId: string, file: File): Promise<ScopeOfWork> {
   try {
-    return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/send-otp`, {})
+    const formData = new FormData()
+    formData.append('file', file)
+    return await apiClient.postForm<ScopeOfWork>(`/api/projects/${projectId}/requirement/confirm-scope`, formData)
   } catch (error) {
-    console.error(`Failed to send requirement verification code for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+    console.error(`Failed to confirm scope of work for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm scope of work')
   }
 }
 
 /**
- * Confirms the code the client read back to staff. On success the
- * backend records the client's confirmation and, once every other exit
- * criterion is also met, automatically advances the project to
- * Quotation. See project_service.verify_requirement_otp.
- */
-async function verifyRequirementOtp(projectId: string, code: string): Promise<ScopeOfWork> {
-  try {
-    return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/verify-otp`, { code })
-  } catch (error) {
-    console.error(`Failed to verify requirement code for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
-  }
-}
-
-/**
- * The project's hand-over readiness: the OTP-confirmation state and the
- * generated hand-over checklist (empty until every Design/Permit/
- * Supervision item is closed and payment is fully settled). See
- * project_service.try_complete_project / GET /{project_no}/handover.
+ * The project's hand-over readiness: whether Administrators have been
+ * notified it's ready, and the generated hand-over checklist (empty
+ * until every Design/Permit/Supervision item is closed and payment is
+ * fully settled). See project_service.try_complete_project / GET
+ * /{project_no}/handover.
  */
 async function getHandoverStatus(projectId: string): Promise<HandoverStatus> {
   try {
@@ -396,31 +387,34 @@ async function getHandoverStatus(projectId: string): Promise<HandoverStatus> {
 }
 
 /**
- * Sends (or resends) the client-facing hand-over confirmation OTP.
- * Normally sent automatically once the project is ready
- * (try_complete_project); this is also the manual resend path for a
- * failed send or a lost code. See project_service.send_handover_otp.
+ * Re-notifies Administrators the project is ready for hand-over.
+ * Normally notified automatically once the project first becomes ready
+ * (try_complete_project); this is the manual re-notify path. See
+ * project_service.notify_handover_ready.
  */
-async function sendHandoverOtp(projectId: string): Promise<HandoverStatus> {
+async function notifyHandoverReady(projectId: string): Promise<HandoverStatus> {
   try {
-    return await apiClient.post<HandoverStatus>(`/api/projects/${projectId}/handover/send-otp`, {})
+    return await apiClient.post<HandoverStatus>(`/api/projects/${projectId}/handover/notify-ready`, {})
   } catch (error) {
-    console.error(`Failed to send hand-over verification code for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send verification code')
+    console.error(`Failed to notify hand-over readiness for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to notify hand-over readiness')
   }
 }
 
 /**
- * Confirms the code the client read back to staff. On success the
- * project's status flips to Completed. See
- * project_service.verify_handover_otp.
+ * Records the client's hand-over acknowledgment -- a scan of their
+ * physically signed copy, uploaded here. On success the project's
+ * status flips to Completed. See project_service.
+ * confirm_project_handover.
  */
-async function verifyHandoverOtp(projectId: string, code: string): Promise<Project> {
+async function confirmProjectHandover(projectId: string, file: File): Promise<Project> {
   try {
-    return await apiClient.post<Project>(`/api/projects/${projectId}/handover/verify-otp`, { code })
+    const formData = new FormData()
+    formData.append('file', file)
+    return await apiClient.postForm<Project>(`/api/projects/${projectId}/handover/confirm`, formData)
   } catch (error) {
-    console.error(`Failed to verify hand-over code for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to verify code')
+    console.error(`Failed to confirm hand-over for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm hand-over')
   }
 }
 
@@ -465,10 +459,9 @@ export const projectService = {
   deleteProject,
   getScopeOfWork,
   saveScopeOfWork,
-  sendRequirementOtp,
-  verifyRequirementOtp,
+  confirmRequirementScope,
   getHandoverStatus,
-  sendHandoverOtp,
-  verifyHandoverOtp,
+  notifyHandoverReady,
+  confirmProjectHandover,
   downloadScopeRevisionDocument,
 }

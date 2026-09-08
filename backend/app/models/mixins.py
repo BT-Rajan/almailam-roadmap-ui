@@ -17,15 +17,14 @@ class SoftDeleteMixin:
 
 
 class EmailOtpMixin:
-    """Columns for any entity that gates a step behind a client reading
-    back a one-time email code -- see app/core/otp.py for the shared
-    generation/hashing/expiry logic every user of this mixin calls.
-    otp_code_hash is bcrypt-hashed the same way as User.password_hash,
-    never stored in plaintext. All four are cleared the moment
-    verification succeeds (or the content being confirmed changes, so a
-    stale code can never be replayed against different content) -- a
-    non-null otp_code_hash always means "a code is currently
-    outstanding"."""
+    """Columns for the entities that used to gate a step behind a
+    client reading back a one-time email code -- Client, Project,
+    Quotation, Contract, PendingClientOnboarding. That whole flow (see
+    the removed app/core/otp.py) was replaced by staff uploading a scan
+    of the client's physically signed copy instead (see
+    quotation_service.confirm_quotation_approval and its siblings), so
+    nothing writes these columns anymore; kept as inert columns rather
+    than a destructive migration to drop them."""
 
     otp_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

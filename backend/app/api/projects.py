@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.models.handover_checklist import HandoverChecklistItem
-from app.schemas.common import OtpVerifyRequest, PagedResponse
+from app.schemas.common import PagedResponse
 from app.schemas.project import (
     AddServicesInput,
     CloseDesignActivityRequest,
@@ -51,7 +51,6 @@ def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
     return ScopeOfWorkOut(
         description=project.description,
         scopeClientConfirmedAt=project.scope_client_confirmed_at,
-        otpSentAt=project.otp_sent_at,
         revisions=[ScopeRevisionOut.from_model(revision, name) for revision, name in revisions],
     )
 
@@ -229,20 +228,14 @@ def save_scope_of_work(
     return _scope_of_work_out(db, project)
 
 
-@router.post("/{project_no}/requirement/send-otp", response_model=ScopeOfWorkOut)
-def send_requirement_otp(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    project = project_service.send_requirement_otp(db, project_no, current_user.id)
-    return _scope_of_work_out(db, project)
-
-
-@router.post("/{project_no}/requirement/verify-otp", response_model=ScopeOfWorkOut)
-def verify_requirement_otp(
+@router.post("/{project_no}/requirement/confirm-scope", response_model=ScopeOfWorkOut)
+def confirm_requirement_scope(
     project_no: str,
-    payload: OtpVerifyRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    project = project_service.verify_requirement_otp(db, project_no, payload.code, current_user.id)
+    project = project_service.confirm_requirement_scope(db, project_no, file, current_user.id)
     return _scope_of_work_out(db, project)
 
 
@@ -262,20 +255,20 @@ def get_handover_status(project_no: str, db: Session = Depends(get_db), _=Depend
     return _handover_status_out(db, project)
 
 
-@router.post("/{project_no}/handover/send-otp", response_model=HandoverStatusOut)
-def send_handover_otp(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    project = project_service.send_handover_otp(db, project_no, current_user.id)
+@router.post("/{project_no}/handover/notify-ready", response_model=HandoverStatusOut)
+def notify_handover_ready(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.notify_handover_ready(db, project_no, current_user.id)
     return _handover_status_out(db, project)
 
 
-@router.post("/{project_no}/handover/verify-otp", response_model=ProjectOut)
-def verify_handover_otp(
+@router.post("/{project_no}/handover/confirm", response_model=ProjectOut)
+def confirm_project_handover(
     project_no: str,
-    payload: OtpVerifyRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    project = project_service.verify_handover_otp(db, project_no, payload.code, current_user.id)
+    project = project_service.confirm_project_handover(db, project_no, file, current_user.id)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 

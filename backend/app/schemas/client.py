@@ -670,12 +670,10 @@ class PendingClientOnboardingCreate(BaseModel):
 class PendingClientOnboardingOut(BaseModel):
     id: str
     email: str
-    otpSentAt: datetime | None = None
 
     @staticmethod
     def from_model(pending) -> "PendingClientOnboardingOut":
         return PendingClientOnboardingOut(
             id=str(pending.id),
             email=pending.payload["client"]["email"],
-            otpSentAt=pending.otp_sent_at,
         )

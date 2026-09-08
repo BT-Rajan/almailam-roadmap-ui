@@ -71,8 +71,9 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
 
 def create_client_portal_user(db: Session, client: Client, actor_id: int | None) -> tuple[User, str]:
     """Provisions (or re-provisions) the Customer Portal login for a
-    client whose onboarding OTP was just confirmed -- see
-    client_service.verify_onboarding_otp, the sole caller.
+    client whose onboarding was just confirmed via a signed document
+    upload -- see client_service.confirm_onboarding_verification and
+    confirm_onboarding_request, its two callers.
 
     A client can be verified more than once in its lifetime (Ready ->
     Suspended -> Pending Verification -> Ready again), so this reuses

@@ -58,7 +58,7 @@ export default {
     noFurtherChanges: 'لا تتوفر تغييرات أخرى للحالة من هذه المرحلة.',
     advance: 'تقديم',
     changeStatus: 'تغيير الحالة',
-    verifyEmail: 'التحقق من بريد العميل',
+    verifyEmail: 'التحقق من العميل',
   },
 
   verificationList: {
@@ -323,12 +323,12 @@ export default {
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
     fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
     fieldsNeedAttentionBeforeOnboarding: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل تهيئة هذا العميل.',
-    verifyEmailDialog: {
-      title: 'التحقق من بريد العميل الإلكتروني',
-      failedToSend: 'فشل إرسال رمز التحقق',
-      failedToVerify: 'فشل التحقق من الرمز',
+    confirmDialog: {
+      title: 'تأكيد تهيئة العميل',
+      description: 'ارفع نسخة ممسوحة ضوئياً من موافقة العميل الموقّعة فعلياً لإنشاء العميل.',
+      failedToConfirm: 'فشل تأكيد التهيئة',
     },
-    submittingNotice: 'جارٍ إرسال التفاصيل وبريد التحقق -- قد يستغرق هذا بضع ثوانٍ.',
+    submittingNotice: 'جارٍ إرسال التفاصيل -- قد يستغرق هذا بضع ثوانٍ.',
   },
 
   addressEditDialog: {
@@ -450,8 +450,9 @@ export default {
   },
 
   emailVerification: {
-    failedToSend: 'فشل إرسال رمز التحقق',
-    failedToVerify: 'فشل التحقق من الرمز',
+    title: 'التحقق من العميل',
+    description: 'ارفع نسخة ممسوحة ضوئياً من موافقة العميل الموقّعة فعلياً للتأكيد وتحديد حالته كـ"جاهز".',
+    failedToConfirm: 'فشل تأكيد التحقق',
   },
 
   verificationDialog: {

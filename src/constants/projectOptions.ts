@@ -65,10 +65,10 @@ export function isStageReasonRequired(from: string, to: string): boolean {
 
 // "Completed" is a real terminal status now, but it's never a manual
 // pick from this dialog -- a project only reaches it by the client
-// acknowledging the hand-over OTP (see try_complete_project/
-// verify_handover_otp in project_service.py), so it's deliberately
-// left out of Active's manual targets here even though the backend's
-// own PROJECT_STATUS_ALLOWED_TRANSITIONS allows Active -> Completed
+// confirming a signed hand-over acknowledgment upload (see
+// try_complete_project/confirm_project_handover in project_service.py),
+// so it's deliberately left out of Active's manual targets here even
+// though the backend's own PROJECT_STATUS_ALLOWED_TRANSITIONS allows Active -> Completed
 // for that system-driven transition. Completed itself has no further
 // transitions, matching the backend.
 export const PROJECT_STATUS_ALLOWED_TRANSITIONS: Record<string, string[]> = {

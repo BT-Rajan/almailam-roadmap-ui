@@ -254,18 +254,11 @@ class ScopeRevisionOut(BaseModel):
 
 class ScopeOfWorkOut(BaseModel):
     description: str | None
-    # Set once the client has confirmed this scope via email OTP (see
-    # project_service.verify_requirement_otp) -- the sole sign-off
-    # required to leave the Requirement stage (migration 0079 dropped
-    # the earlier staff-only internal-approval step).
+    # Set once the client's signed confirmation of this scope has been
+    # uploaded (see project_service.confirm_requirement_scope) -- the
+    # sole sign-off required to leave the Requirement stage (migration
+    # 0079 dropped the earlier staff-only internal-approval step).
     scopeClientConfirmedAt: datetime | None = None
-    # Non-null while a verification code is outstanding (sent but not
-    # yet confirmed or replaced by a resend) -- cleared the moment
-    # verification succeeds, same as scopeClientConfirmedAt being set.
-    # Lets the frontend open the OTP dialog straight to the "enter code"
-    # step when one's already on its way, instead of always defaulting
-    # to "send".
-    otpSentAt: datetime | None = None
     revisions: list[ScopeRevisionOut] = Field(default_factory=list)
 
 
@@ -283,19 +276,20 @@ class HandoverChecklistItemOut(BaseModel):
 
 
 class HandoverStatusOut(BaseModel):
-    """The project's own OTP-sent/acknowledged pair, same shape as
-    ScopeOfWorkOut's otpSentAt/scopeClientConfirmedAt -- lets the
-    frontend open the OTP dialog straight to "enter code" when one's
-    already outstanding."""
+    """The project's own hand-over readiness/acknowledgment pair --
+    handoverSentAt is set once project_service.notify_handover_ready
+    has flagged the project ready (every track closed, fully paid);
+    the frontend uses it to decide whether the "Confirm Hand-over"
+    signed-document upload action is available yet."""
 
-    otpSentAt: datetime | None = None
+    handoverSentAt: datetime | None = None
     handoverAcknowledgedAt: datetime | None = None
     checklist: list[HandoverChecklistItemOut] = Field(default_factory=list)
 
     @staticmethod
     def from_model(project, checklist: list) -> "HandoverStatusOut":
         return HandoverStatusOut(
-            otpSentAt=project.otp_sent_at,
+            handoverSentAt=project.handover_sent_at,
             handoverAcknowledgedAt=project.handover_acknowledged_at,
             checklist=[HandoverChecklistItemOut.from_model(item) for item in checklist],
         )

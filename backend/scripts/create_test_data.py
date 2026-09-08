@@ -3,11 +3,12 @@ Creates real, comprehensive test data that exercises EVERY stage of the
 Project workflow -- Requirement, Quotation, Payment Plan, Contract,
 Design, Government Submission (Approvals & Permits), Supervision, and
 Completed. Goes through the real service layer throughout (the exact
-functions the API itself calls), including the real OTP-gated
-Requirement/Quotation/Contract/Hand-over confirmation flows -- SMTP and
-the OTP code itself are mocked out so the script can run headless, but
-every state transition it produces is one a real user action would
-also have produced, not a shortcut that skips validation.
+functions the API itself calls), including the real Requirement/
+Quotation/Contract/Hand-over signed-document-upload confirmation flows
+(a fake in-memory PDF stands in for the client's physically signed
+copy) -- SMTP is mocked out so the script can run headless, but every
+state transition it produces is one a real user action would also
+have produced, not a shortcut that skips validation.
 
 One project is created per workflow stage, each deliberately left
 sitting mid-flight AT that stage (e.g. the Quotation demo project has a
@@ -100,21 +101,19 @@ engine = create_engine(settings.database_url)
 Session = sessionmaker(bind=engine)
 db = Session()
 
-# -- Headless email/OTP -------------------------------------------------
-# Every send_*_otp call in this app (Requirement, Quotation, Contract,
-# Hand-over) generates a real random code, hashes it, and only ever
-# reveals the plaintext by emailing it -- there is no way to drive
-# those OTP-gated steps from a script without knowing the code, and no
-# guarantee SMTP is even configured in whatever environment this runs
-# in. Every affected service module imports these the exact same way
-# (`from app.core import otp`, `from app.services import
-# email_service`), so patching these two canonical attributes covers
-# every caller in one shot rather than needing a per-module patch.
-TEST_OTP_CODE = "123456"
-_otp_patch = patch("app.core.otp.generate_code", return_value=TEST_OTP_CODE)
+# -- Headless email -------------------------------------------------
+# Every email-OTP-gated confirmation step in this app (Requirement,
+# Quotation, Contract, Hand-over, both Client onboarding flows) is now
+# confirmed by uploading a scan of the client's physically signed copy
+# instead (see confirm_requirement_scope/confirm_quotation_approval/
+# confirm_contract_signing/confirm_project_handover/confirm_onboarding_
+# verification/confirm_onboarding_request) -- see MINI_PDF_BYTES/
+# _pdf_upload below for the fake upload this script uses. SMTP is still
+# mocked out since some of those confirmations also email the client a
+# courtesy copy, and there's no guarantee SMTP is configured in
+# whatever environment this runs in.
 _email_patch = patch("app.services.email_service.send_email")
 _doc_email_patch = patch("app.services.email_service.send_document_email")
-_otp_patch.start()
 _email_patch.start()
 _doc_email_patch.start()
 
@@ -150,6 +149,13 @@ startxref
 0
 %%EOF
 """
+
+
+def _pdf_upload(filename: str) -> UploadFile:
+    """A fresh UploadFile over MINI_PDF_BYTES -- the stream position on
+    an UploadFile is consumed after one read, so every confirm_* call
+    below needs its own instance rather than sharing one."""
+    return UploadFile(io.BytesIO(MINI_PDF_BYTES), filename=filename)
 
 
 # -- Setup: admin actor, engineer, catalog lookups -----------------------
@@ -304,10 +310,10 @@ def create_ready_client(actor: user_models.User, label: str):
     client = client_service.create_client(db, payload, actor.id)
     # The lightweight onboarding path -- goes straight from create_client's
     # actual starting state ("Pending Verification") to "Ready" in one
-    # hop, rather than the full email-OTP round trip (see
-    # add_customer_portal_login below for the one client that does go
-    # through the real OTP flow, to also exercise that path and leave a
-    # working Customer Portal login behind).
+    # hop, rather than the full signed-document-upload confirmation (see
+    # the Completed project's client near the end of main(), which does
+    # get a real Customer Portal login provisioned via
+    # user_service.create_client_portal_user directly).
     client_service.set_onboarding_state(db, client.id, "Ready", None, actor.id)
     return client
 
@@ -402,15 +408,14 @@ def create_demo_project(
 
 def do_requirement(actor: user_models.User, project, client, *, add_id: bool, confirm: bool) -> None:
     """Enters the scope of work; optionally adds the client's
-    identification document and sends+verifies the confirmation OTP,
-    which is what actually lets the project leave Requirement (see
-    project_service._assert_stage_exit_criteria)."""
+    identification document and confirms it with a signed-document
+    upload, which is what actually lets the project leave Requirement
+    (see project_service._assert_stage_exit_criteria)."""
     project_service.save_scope_of_work(db, project.project_no, SCOPE_TEXT, "Initial scope of work", actor.id)
     if add_id:
         add_identification(actor, client)
     if confirm:
-        project_service.send_requirement_otp(db, project.project_no, actor.id)
-        project_service.verify_requirement_otp(db, project.project_no, TEST_OTP_CODE, actor.id)
+        project_service.confirm_requirement_scope(db, project.project_no, _pdf_upload("scope-confirmation.pdf"), actor.id)
 
 
 def do_quotation(actor: user_models.User, project, *, approve: bool):
@@ -433,8 +438,7 @@ def do_quotation(actor: user_models.User, project, *, approve: bool):
     )
     quotation_service.finalize_quotation(db, quotation.quotation_no, actor.id)
     if approve:
-        quotation_service.send_quotation_otp(db, quotation.quotation_no, actor.id)
-        quotation_service.verify_quotation_otp(db, quotation.quotation_no, TEST_OTP_CODE, actor.id)
+        quotation_service.confirm_quotation_approval(db, quotation.quotation_no, _pdf_upload("signed-quotation.pdf"), actor.id)
         db.refresh(quotation)
     return quotation
 
@@ -478,10 +482,10 @@ def do_payment_plan(actor: user_models.User, project, quotation, *, approve: boo
 
 def do_contract(actor: user_models.User, project, quotation, *, sign: bool):
     """Creates and finalizes a contract from the approved quotation;
-    optionally signs it via the real OTP flow, which auto-advances the
-    project into Design (this app always includes Design in the demo
-    scope, so Contract never routes straight to Government Submission
-    here)."""
+    optionally signs it via the real signed-document-upload
+    confirmation, which auto-advances the project into Design (this
+    app always includes Design in the demo scope, so Contract never
+    routes straight to Government Submission here)."""
     contract = contract_service.create_contract(
         db,
         cons.ContractCreate(
@@ -498,8 +502,7 @@ def do_contract(actor: user_models.User, project, quotation, *, sign: bool):
     )
     contract_service.finalize_contract(db, contract.contract_no, actor.id)
     if sign:
-        contract_service.send_contract_otp(db, contract.contract_no, actor.id)
-        contract_service.verify_contract_otp(db, contract.contract_no, TEST_OTP_CODE, actor.id)
+        contract_service.confirm_contract_signing(db, contract.contract_no, _pdf_upload("signed-contract.pdf"), actor.id)
     return contract
 
 
@@ -628,9 +631,10 @@ def pay_agreement_in_full(actor: user_models.User, agreement) -> None:
 def complete_handover(actor: user_models.User, project) -> None:
     """try_complete_project (fired automatically by the last track close
     or payment above) already generated the hand-over checklist and
-    sent the OTP -- this is the client's own acknowledgment step, the
-    only path to Project.status == 'Completed'."""
-    project_service.verify_handover_otp(db, project.project_no, TEST_OTP_CODE, actor.id)
+    notified Administrators it's ready -- this is staff confirming the
+    client's signed acknowledgment, the only path to Project.status ==
+    'Completed'."""
+    project_service.confirm_project_handover(db, project.project_no, _pdf_upload("signed-handover.pdf"), actor.id)
 
 
 # -- Document Requirements (admin, informational) --------------------------
@@ -782,13 +786,15 @@ def main() -> None:
     pay_agreement_in_full(actor, design_agreement_8)
     pay_agreement_in_full(actor, supervision_agreement_8)
     # The final payment above already triggered try_complete_project
-    # (every track was already closed) and sent the hand-over OTP.
+    # (every track was already closed) and notified Administrators the
+    # project is ready for hand-over.
     complete_handover(actor, project_8)
     results.append((project_8.project_no, "Completed (fully paid, hand-over acknowledged)"))
 
     # Give the Completed project's client a working Customer Portal
     # login -- create_client_portal_user is normally only ever called
-    # from verify_onboarding_otp (the real OTP flow), but calling it
+    # from confirm_onboarding_verification/confirm_onboarding_request
+    # (the real signed-document-upload confirmation), but calling it
     # directly here is the same real provisioning step without needing
     # to run every other demo client through that extra round trip too.
     portal_user, portal_password = user_service.create_client_portal_user(db, client_8, actor.id)
@@ -808,8 +814,6 @@ def main() -> None:
     print("  Site Engineer:   Employee ID = EMP-STAGEDEMO-001   Password = StageDemo123!")
     print(f"  Customer Portal: Mobile = {client_8.mobile}   Username = {portal_user.username}   Password = {portal_password}")
     print()
-    print(f"(Every OTP used while building this data was fixed to '{TEST_OTP_CODE}' -- only relevant if you")
-    print(" want to reproduce/extend these steps by hand against the same client/project records.)")
     print("=" * 78)
 
 
@@ -817,6 +821,5 @@ if __name__ == "__main__":
     try:
         main()
     finally:
-        _otp_patch.stop()
         _email_patch.stop()
         _doc_email_patch.stop()

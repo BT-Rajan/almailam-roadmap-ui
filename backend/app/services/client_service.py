@@ -5,9 +5,8 @@ from fastapi import UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
-from app.core.file_storage import resolve_path, save_upload
+from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     CLIENT_ONBOARDING_ALLOWED_TRANSITIONS,
@@ -170,10 +169,10 @@ def create_client(db: Session, payload, user_id: int | None) -> Client:
         # to gate. They land at "Pending Verification" instead of "Ready"
         # though: a client can't be selected on a project (see
         # project_service.create_project's onboarding_state == "Ready"
-        # check) until staff have sent them an email OTP and confirmed
-        # the code back (see send_onboarding_otp/verify_onboarding_otp
-        # below), which is also what provisions their Customer Portal
-        # login and sends the welcome email.
+        # check) until staff confirm the client's signed consent (see
+        # confirm_onboarding_verification below), which is also what
+        # provisions their Customer Portal login and sends the welcome
+        # email.
         onboarding_state="Pending Verification",
         preferred_language=payload.communicationPreference.preferredLanguage,
         preferred_channel=payload.communicationPreference.preferredChannel,
@@ -386,76 +385,38 @@ def auto_advance_onboarding(db: Session, client_id: int, user_id: int | None) ->
     return client
 
 
-def send_onboarding_otp(db: Session, client_id: int, user_id: int | None) -> Client:
-    """Sends (or resends) the email OTP that gates onboarding into
-    "Ready". Moves "Documents Required" -> "Pending Verification" on the
-    first send; resending while already "Pending Verification" is a
-    same-state no-op as far as the state machine is concerned (assert_
-    transition_allowed treats current == new as always legal) -- it just
-    regenerates the code and restarts the attempt counter and expiry.
-    See app/core/otp.py for the generation/hashing logic, shared with
-    project_service.send_requirement_otp.
+def confirm_onboarding_verification(db: Session, client_id: int, file: UploadFile, user_id: int | None) -> Client:
+    """Records the client's own verification -- previously an email OTP
+    the client read back to staff, now a scan of their physically
+    signed consent, uploaded here as the verification record (see
+    create_document; stored under the "Other" category since it isn't
+    an identity/registration document itself, just evidence of
+    consent). There's no code to verify, so this is a direct manual
+    action reachable from either "Documents Required" or "Pending
+    Verification" rather than a hard-gated one -- the signed upload is
+    the evidence, not a cryptographic proof. Success is what actually
+    moves the client to "Ready" -- this is the only caller of
+    set_onboarding_state(..., "Ready", ...) in the whole onboarding
+    flow, deliberately not exposed as a manual "Change Status" option
+    (see the comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Also
+    provisions the client's Customer Portal login and emails them a
+    welcome message the moment verification succeeds, so "Ready"
+    always means the client can both be put on a project and already
+    has portal access.
     """
     client = get_client(db, client_id)
-    assert_transition_allowed(
-        CLIENT_ONBOARDING_ALLOWED_TRANSITIONS, client.onboarding_state, "Pending Verification", "client"
+    if client.onboarding_state not in ("Documents Required", "Pending Verification"):
+        raise ValidationAppError("This client isn't awaiting verification.")
+    assert_pdf_upload(file)
+
+    storage_key, original_filename, size_bytes = save_upload(file, "client_documents")
+    _create_document_row(
+        db, client.id, "Other", "Signed Onboarding Consent", None, None, None,
+        storage_key, original_filename, size_bytes, user_id,
     )
-
-    code = otp.generate_code()
-    client.otp_code_hash = otp.hash_code(code)
-    client.otp_expires_at = otp.new_expiry()
-    client.otp_attempts = 0
-    client.otp_sent_at = datetime.now(timezone.utc)
-
-    if client.onboarding_state != "Pending Verification":
-        client = set_onboarding_state(db, client_id, "Pending Verification", None, user_id)
-    else:
-        db.commit()
-        db.refresh(client)
-
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Verification OTP sent", user_id)
-    db.commit()
-
-    subject, body = email_template_service.render(
-        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
-    )
-    email_service.send_email(client.email, subject, body, db=db)
-    return client
-
-
-def verify_onboarding_otp(db: Session, client_id: int, code: str, user_id: int | None) -> Client:
-    """Confirms the code the client read back to staff. Success is what
-    actually moves the client to "Ready" -- this is the only caller of
-    set_onboarding_state(..., "Ready", ...) in the whole onboarding flow,
-    deliberately not exposed as a manual "Change Status" option (see the
-    comment on CLIENT_ONBOARDING_ALLOWED_TRANSITIONS). Also provisions the
-    client's Customer Portal login and emails them a welcome message the
-    moment verification succeeds, so "Ready" always means the client can
-    both be put on a project and already has portal access.
-    """
-    client = get_client(db, client_id)
-    if client.onboarding_state != "Pending Verification":
-        raise ValidationAppError("This client isn't awaiting email verification.")
-    if not client.otp_code_hash or not client.otp_expires_at:
-        raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if otp.is_expired(client.otp_expires_at):
-        raise ValidationAppError("This code has expired. Send a new one.")
-    if client.otp_attempts >= otp.MAX_ATTEMPTS:
-        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
-
-    if not otp.code_matches(code, client.otp_code_hash):
-        client.otp_attempts += 1
-        db.commit()
-        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
-
-    client.otp_code_hash = None
-    client.otp_expires_at = None
-    client.otp_attempts = 0
-    client.otp_sent_at = None
-    db.commit()
 
     client = set_onboarding_state(db, client_id, "Ready", None, user_id)
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via OTP", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via signed document upload", user_id)
     db.commit()
 
     portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
@@ -498,10 +459,10 @@ def create_onboarding_request(
     document_title: str | None,
     user_id: int | None,
 ) -> PendingClientOnboarding:
-    """Stages a whole New Client wizard submission and immediately sends
-    the onboarding OTP -- no Client (or any of its Contact/Address/
-    Identification/Document rows) is created until the client confirms
-    the code (see verify_onboarding_request_otp). The identification
+    """Stages a whole New Client wizard submission -- no Client (or any
+    of its Contact/Address/Identification/Document rows) is created
+    until staff confirm it with the client's signed consent, uploaded
+    as a scan (see confirm_onboarding_request). The identification
     file, if any, is written to its permanent location right away (same
     "client_documents" bucket create_document already uses) since
     save_upload doesn't need a client id to do that -- only the
@@ -535,64 +496,29 @@ def create_onboarding_request(
         created_at=datetime.now(timezone.utc),
     )
     db.add(pending)
-    db.flush()
-
-    code = otp.generate_code()
-    pending.otp_code_hash = otp.hash_code(code)
-    pending.otp_expires_at = otp.new_expiry()
-    pending.otp_attempts = 0
-    pending.otp_sent_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(pending)
-
-    subject, body = email_template_service.render(
-        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
-    )
-    email_service.send_email(payload.client.email, subject, body, db=db)
     return pending
 
 
-def resend_onboarding_request_otp(db: Session, pending_id: int, user_id: int | None) -> PendingClientOnboarding:
-    pending = get_pending_onboarding(db, pending_id)
-
-    code = otp.generate_code()
-    pending.otp_code_hash = otp.hash_code(code)
-    pending.otp_expires_at = otp.new_expiry()
-    pending.otp_attempts = 0
-    pending.otp_sent_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(pending)
-
-    subject, body = email_template_service.render(
-        db, "client_onboarding_otp", {"code": code, "validity_label": otp.validity_label()}
-    )
-    email_service.send_email(pending.payload["client"]["email"], subject, body, db=db)
-    return pending
-
-
-def verify_onboarding_request_otp(db: Session, pending_id: int, code: str, user_id: int | None) -> Client:
-    """Confirms the code the client read back to staff -- success is
-    what actually creates the Client (and every staged sub-record) for
-    the first time. Reuses create_client/create_contact/create_address/
-    create_identification/_create_document_row completely unchanged, so
-    the materialized client is byte-for-byte what the old
-    create-then-verify flow used to produce -- just built inside one
-    transaction instead of several separate API calls. onboarding_state
-    goes straight to "Ready" (skipping the old "Pending Verification"
-    hop) since verification already happened before this row existed.
+def confirm_onboarding_request(db: Session, pending_id: int, file: UploadFile, user_id: int | None) -> Client:
+    """Records the client's signed consent to onboard -- previously an
+    email OTP the client read back to staff, now a scan of their
+    physically signed copy. Success is what actually creates the Client
+    (and every staged sub-record) for the first time. Reuses
+    create_client/create_contact/create_address/create_identification/
+    _create_document_row completely unchanged, so the materialized
+    client is byte-for-byte what the old create-then-verify flow used
+    to produce -- just built inside one transaction instead of several
+    separate API calls, then the signed consent itself is saved as one
+    more ClientDocument (category "Other") once the client id exists.
+    onboarding_state goes straight to "Ready" (skipping the "Pending
+    Verification" hop) since verification already happened before this
+    row existed.
     """
     pending = get_pending_onboarding(db, pending_id)
-    if not pending.otp_code_hash or not pending.otp_expires_at:
-        raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if otp.is_expired(pending.otp_expires_at):
-        raise ValidationAppError("This code has expired. Send a new one.")
-    if pending.otp_attempts >= otp.MAX_ATTEMPTS:
-        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
-
-    if not otp.code_matches(code, pending.otp_code_hash):
-        pending.otp_attempts += 1
-        db.commit()
-        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+    assert_pdf_upload(file)
+    consent_storage_key, consent_filename, consent_size_bytes = save_upload(file, "client_documents")
 
     client_payload = ClientCreate(**pending.payload["client"])
     client = create_client(db, client_payload, user_id)
@@ -617,8 +543,13 @@ def verify_onboarding_request_otp(db: Session, pending_id: int, code: str, user_
             user_id,
         )
 
+    _create_document_row(
+        db, client.id, "Other", "Signed Onboarding Consent", None, None, None,
+        consent_storage_key, consent_filename, consent_size_bytes, user_id,
+    )
+
     client.onboarding_state = "Ready"
-    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via OTP", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, client.id, "Client verified via signed document upload", user_id)
     db.commit()
     db.refresh(client)
 
@@ -1329,12 +1260,13 @@ def _create_document_row(
     uploaded_by: int,
 ) -> ClientDocument:
     """The row-creation tail of create_document, extracted so
-    verify_onboarding_request_otp can write the same ClientDocument +
+    confirm_onboarding_request can write the same ClientDocument +
     ClientDocumentVersion rows from a file that was already saved to
     permanent storage at onboarding-request time (see
     create_onboarding_request) -- there's no fresh UploadFile to read at
-    verification time, only the storage_key/filename/size save_upload
-    already returned earlier."""
+    confirmation time for the identification document (it was already
+    saved to storage when it was staged), only the storage_key/
+    filename/size save_upload already returned earlier."""
     document = ClientDocument(
         client_id=client_id,
         category=category,

@@ -121,15 +121,16 @@ export function evaluateOnboardingRequirements(ctx: OnboardingCheckContext): Onb
  * data on file -- doesn't consult ClientVerification (that's now just
  * an append-only audit record shown on the client workspace, no longer
  * a gate; see the "Pending Verification" state itself, which is proven
- * by a confirmed email OTP rather than a document verification result).
+ * by a confirmed signed-document upload rather than a document
+ * verification result).
  *
  * A client already sitting at 'Rejected' or 'Suspended' stays there --
  * those are exception states a human put the client into on purpose,
  * not something this recommendation should override. Missing documents
  * or missing profile/identification info route back to the relevant
  * data-collection step; once everything required is on file, the
- * recommendation is 'Pending Verification' (send the OTP) unless the
- * client has already cleared that and is 'Ready'.
+ * recommendation is 'Pending Verification' (request the signed consent
+ * upload) unless the client has already cleared that and is 'Ready'.
  */
 export function calculateOnboardingState(
   client: Client,

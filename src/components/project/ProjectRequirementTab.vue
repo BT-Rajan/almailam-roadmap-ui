@@ -8,7 +8,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import OtpVerificationDialog from '@/components/common/OtpVerificationDialog.vue'
+import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -65,9 +65,8 @@ const summaryDraft = ref('')
 const selectedFile = ref<File>()
 const isSaving = ref(false)
 
-const isOtpDialogOpen = ref(false)
-const isOtpSaving = ref(false)
-const otpStep = ref<'send' | 'enter-code'>('send')
+const isConfirmDialogOpen = ref(false)
+const isConfirmSaving = ref(false)
 
 async function load(): Promise<void> {
   isLoading.value = true
@@ -105,10 +104,10 @@ const canSave = computed(
   () => !isRequirementLocked.value && scopeDraft.value.trim().length > 0 && (hasTextChanged.value || Boolean(selectedFile.value)),
 )
 // Scope of work has to actually be saved (and not have unsaved edits
-// sitting in the textarea) before it's sent to the client -- there's no
-// separate internal sign-off step anymore, so the client's own OTP
-// confirmation (canConfirmWithClient/handleOpenOtpDialog below) is the
-// only approval this stage requires.
+// sitting in the textarea) before it's confirmed with the client --
+// there's no separate internal sign-off step anymore, so the client's
+// own signed confirmation (canConfirmWithClient below) is the only
+// approval this stage requires.
 const canConfirmWithClient = computed(
   () =>
     !isRequirementLocked.value &&
@@ -138,53 +137,32 @@ function handleAdvanceToQuotation(): void {
   emit('navigate-tab', 'quotation')
 }
 
-function handleOpenOtpDialog(): void {
-  otpStep.value = scopeOfWork.value?.otpSentAt ? 'enter-code' : 'send'
-  isOtpDialogOpen.value = true
-}
-
-async function handleSendOtp(): Promise<void> {
-  isOtpSaving.value = true
+async function handleConfirmScope(payload: { file: File }): Promise<void> {
+  isConfirmSaving.value = true
   try {
-    scopeOfWork.value = await projectService.sendRequirementOtp(props.project.id)
-    otpStep.value = 'enter-code'
-  } catch (err) {
-    toastStore.show(
-      'error',
-      t('project.requirementTab.otpDialog.failedToSend'),
-      err instanceof Error ? err.message : t('common.pleaseTryAgain'),
-    )
-  } finally {
-    isOtpSaving.value = false
-  }
-}
-
-async function handleConfirmOtp(payload: { code: string }): Promise<void> {
-  isOtpSaving.value = true
-  try {
-    scopeOfWork.value = await projectService.verifyRequirementOtp(props.project.id, payload.code)
-    // verifyRequirementOtp can move current_stage server-side (see
+    scopeOfWork.value = await projectService.confirmRequirementScope(props.project.id, payload.file)
+    // confirmRequirementScope can move current_stage server-side (see
     // project_service.try_auto_advance_stage) -- the shared project
     // store's cached copy (what the header badge and Workflow Progress
     // stepper above this tab actually read) doesn't know that on its
     // own, since this call goes straight through projectService rather
     // than one of the store's own mutating actions.
     await projectStore.refreshProject(props.project.id)
-    isOtpDialogOpen.value = false
+    isConfirmDialogOpen.value = false
     if (props.project.currentStage === 'Quotation') {
-      toastStore.show('success', t('project.requirementTab.otpDialog.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
+      toastStore.show('success', t('project.requirementTab.confirmDialog.confirmedTitle'), t('project.requirementTab.movedToQuotationDescription'))
       emit('navigate-tab', 'quotation')
     } else {
-      toastStore.show('success', t('project.requirementTab.otpDialog.confirmedTitle'), t('project.requirementTab.otpDialog.confirmedDescription'))
+      toastStore.show('success', t('project.requirementTab.confirmDialog.confirmedTitle'), t('project.requirementTab.confirmDialog.confirmedDescription'))
     }
   } catch (err) {
     toastStore.show(
       'error',
-      t('project.requirementTab.otpDialog.failedToVerify'),
+      t('project.requirementTab.confirmDialog.failedToConfirm'),
       err instanceof Error ? err.message : t('common.pleaseTryAgain'),
     )
   } finally {
-    isOtpSaving.value = false
+    isConfirmSaving.value = false
   }
 }
 
@@ -295,7 +273,7 @@ const clientDetailItems = computed(() => {
               <BaseButton variant="secondary" size="sm" :disabled="!canSave" :loading="isSaving" @click="handleSave">
                 {{ t('project.requirementTab.saveScope') }}
               </BaseButton>
-              <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isOtpSaving" @click="handleOpenOtpDialog">
+              <BaseButton v-if="canConfirmWithClient" size="sm" :icon="Mail" :loading="isConfirmSaving" @click="isConfirmDialogOpen = true">
                 {{ t('project.requirementTab.confirmWithClient') }}
               </BaseButton>
             </template>
@@ -353,16 +331,12 @@ const clientDetailItems = computed(() => {
 
     <ScopeRevisionHistory v-if="scopeOfWork" :revisions="scopeOfWork.revisions" @download="handleDownloadRevision" />
 
-    <OtpVerificationDialog
-      v-if="client"
-      v-model="isOtpDialogOpen"
-      :email="client.email"
-      :step="otpStep"
-      :loading="isOtpSaving"
-      :title="t('project.requirementTab.otpDialog.title')"
-      :send-step-description="t('project.requirementTab.otpDialog.sendStepDescription', { email: client.email })"
-      @send="handleSendOtp"
-      @confirm="handleConfirmOtp"
+    <SignedDocumentUploadDialog
+      v-model="isConfirmDialogOpen"
+      :loading="isConfirmSaving"
+      :title="t('project.requirementTab.confirmDialog.title')"
+      :description="t('project.requirementTab.confirmDialog.description')"
+      @confirm="handleConfirmScope"
     />
   </div>
 </template>

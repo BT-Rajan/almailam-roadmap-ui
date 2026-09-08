@@ -133,13 +133,14 @@ export const CLIENT_ONBOARDING_STATE_OPTIONS: SelectOption[] = [
 // backend rejects it) rather than open.
 //
 // "Under Review" was replaced by "Pending Verification" -- there's no
-// more manual eyeball review; staff send the client an email OTP and
-// enter the code the client reads back (see ClientOtpVerificationDialog
-// and clientStore.sendOnboardingOtp/verifyOnboardingOtp). "Ready" is
-// deliberately NOT offered here as a manual "Change Status" target even
-// though the backend's own table allows it -- it's reachable only through
-// a confirmed OTP, never a bare status change (see ClientOnboardingStatusDialog,
-// which reads this table to build its option list).
+// more manual eyeball review; staff confirm the client's own signed
+// consent, uploaded as a scan (see ClientWorkspacePage.vue's
+// SignedDocumentUploadDialog and clientStore.confirmOnboardingVerification).
+// "Ready" is deliberately NOT offered here as a manual "Change Status"
+// target even though the backend's own table allows it -- it's reachable
+// only through that confirmation, never a bare status change (see
+// ClientOnboardingStatusDialog, which reads this table to build its
+// option list).
 export const CLIENT_ONBOARDING_ALLOWED_TRANSITIONS: Record<ClientOnboardingState, ClientOnboardingState[]> = {
   'Information Required': ['Documents Required'],
   'Documents Required': ['Pending Verification'],

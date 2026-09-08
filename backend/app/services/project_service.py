@@ -4,9 +4,8 @@ from fastapi import UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core import otp
 from app.core.exceptions import NotFoundError, ValidationAppError
-from app.core.file_storage import resolve_path, save_upload
+from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
     PROJECT_STAGE_ALLOWED_TRANSITIONS,
@@ -31,7 +30,7 @@ from app.models.project import (
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, email_service, email_template_service, notification_service, payment_service, permit_catalog_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, document_service, email_service, email_template_service, notification_service, payment_service, permit_catalog_service, timeline_service, user_service
 from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "PROJECT"
@@ -898,9 +897,9 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if not has_identification:
             problems.append("the client's identification document (e.g. Civil ID) on file")
         # The other half of the Requirement stage's redesign -- the
-        # client has to have confirmed the scope of work by reading an
-        # email OTP back to staff (see send_requirement_otp/
-        # verify_requirement_otp) before real commercial work starts
+        # client has to have confirmed the scope of work, evidenced by a
+        # scan of their physically signed copy (see
+        # confirm_requirement_scope) before real commercial work starts
         # against it. This used to also require a separate staff-only
         # internal approval first; migration 0079 dropped that step, so
         # the client's own confirmation is now the sole sign-off gating
@@ -1054,8 +1053,8 @@ _PROGRESS_BAND_COUNT = 7
 def recompute_progress(db: Session, project: Project) -> int:
     """Derives project.progress from current_stage -- entering a stage
     jumps progress to that stage's band floor. status == "Completed"
-    (set by verify_handover_otp, independent of current_stage -- see
-    the "project completion / hand-over" section below) is the one
+    (set by confirm_project_handover, independent of current_stage --
+    see the "project completion / hand-over" section below) is the one
     exception: a completed project always reads 100%, regardless of
     which band its current_stage still points at, since Design/Permit/
     Supervision finishing in parallel doesn't correspond to any single
@@ -1282,7 +1281,7 @@ def _assert_requirement_editable(db: Session, project: Project) -> None:
     a quotation doesn't lock it, since the client may still come back
     asking for scope changes before they accept. It only freezes once a
     quotation has actually been Approved (see quotation_service.
-    verify_quotation_otp, the only path to that status): at that point
+    confirm_quotation_approval, the only path to that status): at that point
     the client has accepted both the scope and what it costs, and
     editing the scope afterward would silently invalidate what they
     just signed off on. Checked here rather than only on the frontend so
@@ -1311,11 +1310,13 @@ def save_scope_of_work(
 ) -> Project:
     """The Requirement stage's own scope-of-work editor. Every save here
     writes a project_scope_revisions row (R0, R1, ...) and clears any
-    existing client confirmation (and cancels an outstanding OTP, if one
-    was sent against the old text) -- a confirmation is a sign-off on
+    existing client confirmation -- a confirmation is a sign-off on
     specific text, not a status that should silently keep covering
     whatever the text becomes after further edits. See
-    send_requirement_otp/verify_requirement_otp."""
+    confirm_requirement_scope. The otp_* field resets below are now
+    inert leftovers from the old email-OTP flow (nothing sets them
+    anymore) -- harmless to keep clearing for any project whose row
+    still carries a value from before this change."""
     project = get_project(db, project_no)
     _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
@@ -1360,74 +1361,35 @@ def save_scope_of_work(
     return project
 
 
-def send_requirement_otp(db: Session, project_no: str, user_id: int) -> Project:
-    """Sends (or resends) the email OTP that gets the client's own
-    sign-off on the Requirement stage's scope of work -- the sole
-    approval this stage now requires (migration 0079 dropped the
-    earlier staff-only internal-approval step that used to have to
-    happen first). Reuses the exact same generation/hashing/expiry
-    logic as client_service.send_onboarding_otp (see app/core/otp.py),
-    stored on this project's own otp_* columns (see EmailOtpMixin)
-    rather than the client's -- scope confirmation is a per-project
-    fact, not a per-client one, and a client with several projects needs
-    to confirm each independently.
-    """
-    project = get_project(db, project_no)
-    if not (project.description or "").strip():
-        raise ValidationAppError("Add the scope of work before sending it to the client for confirmation.")
-
-    code = otp.generate_code()
-    project.otp_code_hash = otp.hash_code(code)
-    project.otp_expires_at = otp.new_expiry()
-    project.otp_attempts = 0
-    project.otp_sent_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Requirement confirmation OTP sent", user_id)
-    db.commit()
-    db.refresh(project)
-
-    client = client_service.get_client(db, project.client_id)
-    subject, body = email_template_service.render(
-        db,
-        "requirement_otp",
-        {
-            "contact_person": client.contact_person,
-            "code": code,
-            "project_name": project.project_name,
-            "project_no": project.project_no,
-            "validity_label": otp.validity_label(),
-        },
-    )
-    email_service.send_email(client.email, subject, body, db=db)
-    return project
-
-
-def verify_requirement_otp(db: Session, project_no: str, code: str, user_id: int) -> Project:
-    """Confirms the code the client read back to staff -- the client-
-    facing sign-off on the scope of work. Success is what lets the
-    project actually leave Requirement (see _assert_stage_exit_criteria's
+def confirm_requirement_scope(db: Session, project_no: str, file: UploadFile, user_id: int) -> Project:
+    """Records the client's sign-off on the Requirement stage's scope of
+    work -- the sole approval this stage requires (migration 0079
+    dropped the earlier staff-only internal-approval step). Previously
+    an email OTP the client read back to staff; now a scan of their
+    physically signed scope-of-work copy, uploaded here as the
+    confirmation record (see document_service.create_document, stored
+    as a "Report"-typed project Document -- there's no dedicated
+    document type for a signed scope confirmation, and adding one for
+    a single-purpose label isn't worth the schema migration). There's
+    no code to verify, so this is a direct manual action rather than a
+    hard-gated one -- the signed upload is the evidence, not a
+    cryptographic proof. Success is what lets the project actually
+    leave Requirement (see _assert_stage_exit_criteria's
     scope_client_confirmed_at check); also emails the client the
     confirmed scope of work for their own records, purely informational
     (same idea as project_service._send_project_created_email -- no
     further action needed from them)."""
     project = get_project(db, project_no)
-    if not project.otp_code_hash or not project.otp_expires_at:
-        raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if otp.is_expired(project.otp_expires_at):
-        raise ValidationAppError("This code has expired. Send a new one.")
-    if project.otp_attempts >= otp.MAX_ATTEMPTS:
-        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
+    if not (project.description or "").strip():
+        raise ValidationAppError("Add the scope of work before recording the client's confirmation.")
+    assert_pdf_upload(file)
 
-    if not otp.code_matches(code, project.otp_code_hash):
-        project.otp_attempts += 1
-        db.commit()
-        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+    document_service.create_document(
+        db, project.project_no, f"Signed Scope Confirmation {project.project_no}", "Report", file, user_id,
+    )
 
-    project.otp_code_hash = None
-    project.otp_expires_at = None
-    project.otp_attempts = 0
-    project.otp_sent_at = None
     project.scope_client_confirmed_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work confirmed by client via OTP", user_id)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Scope of work confirmed by client via signed document upload", user_id)
     timeline_service.create_system_event(
         db, project.id, "note", title="Scope of work confirmed by client", description=project.description, actor_id=user_id
     )
@@ -1450,8 +1412,17 @@ def verify_requirement_otp(db: Session, project_no: str, code: str, user_id: int
                 },
             )
             email_service.send_email(client.email, subject, body, db=db)
-        except ValidationAppError:
-            pass
+        except ValidationAppError as error:
+            notification_service.notify_role(
+                db, "Administrator",
+                "Scope confirmation email not sent",
+                f"Project {project.project_no}'s scope of work was confirmed, but the confirmation "
+                f"email to the client could not be sent: {error}",
+                "System",
+                link_route_name="project-workspace",
+                link_params={"projectId": project.project_no},
+            )
+            db.commit()
     return project
 
 
@@ -1590,9 +1561,9 @@ def check_and_notify_stale_projects(db: Session) -> int:
 # project.status gaining "Completed" (migration 0073) is what actually
 # closes a project out, gated on every planned item across all three
 # tracks being Complete/Cancelled AND the project's current total value
-# being fully paid, followed by the client acknowledging a hand-over
-# email (verify_handover_otp), the same client-confirmation shape used
-# at every other stage in this app.
+# being fully paid, followed by staff confirming the client's signed
+# hand-over acknowledgment (confirm_project_handover), the same
+# client-confirmation shape used at every other stage in this app.
 
 
 def _all_tracks_closed(db: Session, project: Project) -> bool:
@@ -1654,11 +1625,12 @@ def try_complete_project(db: Session, project: Project, user_id: int | None) -> 
     _try_complete_project_after_payment) -- once every planned item
     across all three tracks is Complete/Cancelled AND the project's
     current total value is fully paid, generates the hand-over
-    checklist (idempotent) and sends the confirmation email with an
-    OTP. Does not itself flip project.status -- that only happens once
-    the client acknowledges (verify_handover_otp). Never re-sends
-    automatically once handover_sent_at is set -- send_handover_otp is
-    the manual resend path for a failed send or a lost code. Commits."""
+    checklist (idempotent) and notifies Administrators the project is
+    ready. Does not itself flip project.status -- that only happens
+    once staff confirm the client's signed hand-over acknowledgment
+    (confirm_project_handover). Never re-notifies automatically once
+    handover_sent_at is set -- notify_handover_ready is the manual
+    re-notify path if the record needs to go out again. Commits."""
     db.flush()
     if project.status == "Completed" or project.handover_sent_at is not None:
         return
@@ -1672,23 +1644,27 @@ def try_complete_project(db: Session, project: Project, user_id: int | None) -> 
     db.refresh(project)
 
     try:
-        send_handover_otp(db, project.project_no, user_id)
+        notify_handover_ready(db, project.project_no, user_id)
     except ValidationAppError:
-        # send_handover_otp's own except-block already notified
-        # Administrators and left handover_sent_at unset -- the next
-        # try_complete_project call (from any future track close or
-        # payment) retries the send. Completion readiness itself
-        # (everything above) doesn't depend on the email succeeding.
+        # This project's client record is missing -- handover_sent_at
+        # stays unset, so the next try_complete_project call (from any
+        # future track close or payment) retries. Completion readiness
+        # itself (everything above) doesn't depend on this succeeding.
         pass
 
 
-def send_handover_otp(db: Session, project_no: str, user_id: int | None) -> Project:
-    """Sends (or resends) the client-facing hand-over confirmation OTP.
-    Normally called by try_complete_project once the project is ready;
-    also directly callable as the manual resend action if the first
-    send failed or the client lost the code. Requires the hand-over
+def notify_handover_ready(db: Session, project_no: str, user_id: int | None) -> Project:
+    """Notifies Administrators that a project is ready for hand-over --
+    every planned Design/Permit/Supervision item closed, fully paid.
+    Normally called by try_complete_project the moment the project
+    becomes ready; also directly callable as a manual re-notify action.
+    Previously this emailed the client an OTP code to read back; now
+    the next step is a manual one (staff collect the client's signed
+    hand-over acknowledgment and confirm it via confirm_project_
+    handover below), so this only needs to tell staff to go do that --
+    there's no client-facing code to send. Requires the hand-over
     checklist to already exist (try_complete_project always generates
-    it first) since the email lists it."""
+    it first)."""
     project = get_project(db, project_no)
     client = db.query(Client).filter(Client.id == project.client_id).first()
     if client is None:
@@ -1702,70 +1678,45 @@ def send_handover_otp(db: Session, project_no: str, user_id: int | None) -> Proj
     )
     checklist_text = "\n".join(f"- [{item.source_type}] {item.title}" for item in checklist) or "(no items)"
 
-    code = otp.generate_code()
-    project.otp_code_hash = otp.hash_code(code)
-    project.otp_expires_at = otp.new_expiry()
-    project.otp_attempts = 0
-    project.otp_sent_at = datetime.now(timezone.utc)
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over OTP sent", user_id)
+    project.handover_sent_at = datetime.now(timezone.utc)
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over readiness notice sent", user_id)
     db.commit()
     db.refresh(project)
 
-    try:
-        subject, body = email_template_service.render(
-            db, "handover_otp",
-            {
-                "contact_person": client.contact_person,
-                "project_no": project.project_no,
-                "checklist": checklist_text,
-                "code": code,
-                "validity_label": otp.validity_label(),
-            },
-        )
-        email_service.send_email(client.email, subject, body, db=db)
-        project.handover_sent_at = datetime.now(timezone.utc)
-        db.commit()
-    except ValidationAppError as error:
-        # Mirrors the fix already shipped for Quotation/Contract
-        # confirmation emails: a delivery failure never blocks the
-        # underlying completion readiness, it only needs to be visible
-        # to someone who can fix it and resend.
-        notification_service.notify_role(
-            db, "Administrator",
-            "Hand-over email not sent",
-            f"Project {project.project_no} is ready for hand-over, but the confirmation email to the "
-            f"client could not be sent: {error}",
-            "System",
-            link_route_name="project-workspace", link_params={"projectId": project.project_no},
-        )
-        db.commit()
-        raise
+    notification_service.notify_role(
+        db, "Administrator",
+        "Project ready for hand-over",
+        f"Project {project.project_no} has every planned item closed and is fully paid -- collect the "
+        f"client's signed hand-over acknowledgment and confirm it on the project.\n\n{checklist_text}",
+        "Project",
+        link_route_name="project-workspace", link_params={"projectId": project.project_no},
+    )
+    db.commit()
     return project
 
 
-def verify_handover_otp(db: Session, project_no: str, code: str, user_id: int | None) -> Project:
-    """The client's hand-over acknowledgment -- the last client-facing
-    confirmation in the workflow. Standard OTP checks, identical
-    structure to every other verify_*_otp in this app. On success,
-    flips project.status to 'Completed' via the normal set_status path
-    (same transition validation/audit logging every other status
-    change gets)."""
+def confirm_project_handover(db: Session, project_no: str, file: UploadFile, user_id: int | None) -> Project:
+    """Records the client's hand-over acknowledgment -- the last
+    client-facing confirmation in the workflow. Previously an email OTP
+    the client read back to staff; now a scan of their physically
+    signed acknowledgment, uploaded here as the confirmation record
+    (see document_service.create_document, stored as a "Report"-typed
+    project Document). There's no code to verify, so this is a direct
+    manual action rather than a hard-gated one -- the signed upload is
+    the evidence, not a cryptographic proof. Only reachable once
+    notify_handover_ready has actually flagged the project ready
+    (handover_sent_at set); on success, flips project.status to
+    'Completed' via the normal set_status path (same transition
+    validation/audit logging every other status change gets)."""
     project = get_project(db, project_no)
-    if not project.otp_code_hash or not project.otp_expires_at:
-        raise ValidationAppError("No verification code has been sent yet. Send one first.")
-    if otp.is_expired(project.otp_expires_at):
-        raise ValidationAppError("This code has expired. Send a new one.")
-    if project.otp_attempts >= otp.MAX_ATTEMPTS:
-        raise ValidationAppError("Too many incorrect attempts. Send a new code.")
-    if not otp.code_matches(code, project.otp_code_hash):
-        project.otp_attempts += 1
-        db.commit()
-        raise ValidationAppError("Incorrect code. Please check with the client and try again.")
+    if project.handover_sent_at is None:
+        raise ValidationAppError("This project isn't ready for hand-over yet.")
+    assert_pdf_upload(file)
 
-    project.otp_code_hash = None
-    project.otp_expires_at = None
-    project.otp_attempts = 0
-    project.otp_sent_at = None
+    document_service.create_document(
+        db, project.project_no, f"Signed Hand-over Acknowledgment {project.project_no}", "Report", file, user_id,
+    )
+
     project.handover_acknowledged_at = datetime.now(timezone.utc)
     db.commit()
 

@@ -12,7 +12,7 @@ from app.core.exceptions import ValidationAppError
 from app.core.file_storage import format_file_size, matches_signature
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
-from app.schemas.common import OtpVerifyRequest, PagedResponse
+from app.schemas.common import PagedResponse
 from app.schemas.client import (
     ClientAddressCreate,
     ClientAddressOut,
@@ -133,14 +133,14 @@ def create_onboarding_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    """Stages a New Client wizard submission and immediately emails the
-    onboarding OTP -- see client_service.create_onboarding_request. No
-    Client row (or any of its Contact/Address/Identification/Document
-    sub-records) exists until POST .../{id}/verify-otp below succeeds.
-    `payload` is a JSON string (not a plain Form field per part) since it
-    nests a variable-length list of contacts alongside the client/
-    address/identification objects -- parsed here, then validated the
-    same way any other request body would be.
+    """Stages a New Client wizard submission -- see client_service.
+    create_onboarding_request. No Client row (or any of its Contact/
+    Address/Identification/Document sub-records) exists until POST
+    .../{id}/confirm below succeeds. `payload` is a JSON string (not a
+    plain Form field per part) since it nests a variable-length list of
+    contacts alongside the client/address/identification objects --
+    parsed here, then validated the same way any other request body
+    would be.
     """
     parsed = PendingClientOnboardingCreate.model_validate(json.loads(payload))
     pending = client_service.create_onboarding_request(
@@ -149,20 +149,14 @@ def create_onboarding_request(
     return PendingClientOnboardingOut.from_model(pending)
 
 
-@router.post("/onboarding-requests/{pending_id}/send-otp", response_model=PendingClientOnboardingOut)
-def resend_onboarding_request_otp(pending_id: int, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    pending = client_service.resend_onboarding_request_otp(db, pending_id, current_user.id)
-    return PendingClientOnboardingOut.from_model(pending)
-
-
-@router.post("/onboarding-requests/{pending_id}/verify-otp", response_model=ClientOut)
-def verify_onboarding_request_otp(
+@router.post("/onboarding-requests/{pending_id}/confirm", response_model=ClientOut)
+def confirm_onboarding_request(
     pending_id: int,
-    payload: OtpVerifyRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    client = client_service.verify_onboarding_request_otp(db, pending_id, payload.code, current_user.id)
+    client = client_service.confirm_onboarding_request(db, pending_id, file, current_user.id)
     names = _account_manager_names(db, [client])
     return _client_out(client, names)
 
@@ -301,28 +295,15 @@ def auto_advance_onboarding(
     return _client_out(client, names)
 
 
-@router.post("/{client_id}/onboarding-state/send-otp", response_model=ClientOut)
-def send_onboarding_otp(
+@router.post("/{client_id}/onboarding-state/confirm-verification", response_model=ClientOut)
+def confirm_onboarding_verification(
     client_id: str,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    client = client_service.send_onboarding_otp(
-        db, client_service.parse_client_id(client_id), current_user.id
-    )
-    names = _account_manager_names(db, [client])
-    return _client_out(client, names)
-
-
-@router.post("/{client_id}/onboarding-state/verify-otp", response_model=ClientOut)
-def verify_onboarding_otp(
-    client_id: str,
-    payload: OtpVerifyRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    client = client_service.verify_onboarding_otp(
-        db, client_service.parse_client_id(client_id), payload.code, current_user.id
+    client = client_service.confirm_onboarding_verification(
+        db, client_service.parse_client_id(client_id), file, current_user.id
     )
     names = _account_manager_names(db, [client])
     return _client_out(client, names)
