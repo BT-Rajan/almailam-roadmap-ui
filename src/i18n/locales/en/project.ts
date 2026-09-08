@@ -49,8 +49,7 @@ export default {
   },
 
   scopeStatus: {
-    draft: 'Draft',
-    approved: 'Approved',
+    awaitingConfirmation: 'Awaiting Client Confirmation',
   },
 
   agreementStatus: {
@@ -255,23 +254,19 @@ export default {
     scopeOfWorkTitle: 'Scope of Work',
     contentLocked: 'Content Locked',
     saveScope: 'Save Scope of Work',
-    approve: 'Approve',
     confirmWithClient: 'Confirm with Client',
     clientConfirmed: 'Client Confirmed',
     advanceToQuotation: 'Advance to Quotation',
     lockedNotice: "This project's quotation has already been finalized against this scope, so it's locked — a change here would no longer match what was quoted.",
-    approvedByOn: 'Approved{by}{on}. Editing the text below will reopen it for approval.',
-    approvedByFragment: ' by {name}',
-    approvedOnFragment: ' on {date}',
     clientConfirmedOn: 'Client confirmed{on}.',
     clientConfirmedOnFragment: ' on {date}',
-    awaitingClientConfirmationNotice: 'Internal approval is recorded, but the client still needs to confirm this scope by email before the project can move to Quotation.',
+    awaitingClientConfirmationNotice: 'The scope of work is ready — send the client a verification code to confirm it before the project can move to Quotation.',
     scopeOfWorkLabel: 'Scope of Work',
     scopeOfWorkPlaceholder: 'What has the client asked for...',
     changeSummaryLabel: 'Change Summary (optional)',
     changeSummaryPlaceholder: 'What changed in this revision...',
     uploadHint: 'Optional supporting document (PDF, Word, Excel or image)',
-    noClientIdNotice: 'The client has no identification document on file yet (e.g. Civil ID) — Approve will still record this internal sign-off, but the project will stay at Requirement until identification is added too.',
+    noClientIdNotice: "The client has no identification document on file yet (e.g. Civil ID) — the project will stay at Requirement until identification is added too.",
     fields: {
       service: 'Service',
       responsibleEngineer: 'Responsible Engineer',
@@ -287,11 +282,7 @@ export default {
     scopeSavedTitle: 'Scope of work saved',
     scopeSavedDescription: 'A new revision was recorded.',
     couldNotSaveScope: 'Could not save scope of work',
-    scopeApprovedTitle: 'Scope of work approved',
     movedToQuotationDescription: 'The project moved on to Quotation.',
-    internalApprovalPendingIdDescription: "Internal approval recorded, but the project stays at Requirement until the client's identification document is on file too.",
-    internalApprovalRecordedDescription: 'Internal approval recorded. Send the client a verification code to confirm before moving to Quotation.',
-    couldNotApproveScope: 'Could not approve scope of work',
     otpDialog: {
       title: 'Confirm Scope of Work',
       sendStepDescription: "Send a one-time verification code to {email}. Ask the client to read it back to you once they've reviewed and accepted the scope of work.",

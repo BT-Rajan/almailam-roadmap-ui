@@ -400,12 +400,8 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
   return dates.reduce((latest, current) => (new Date(current) > new Date(latest) ? current : latest))
 }
 
-const SCOPE_STATUS_LABEL_KEYS: Record<string, string> = {
-  Draft: 'project.scopeStatus.draft',
-  Approved: 'project.scopeStatus.approved',
-}
-function scopeStatusLabel(status: string): string {
-  return t(SCOPE_STATUS_LABEL_KEYS[status] ?? status)
+function scopeConfirmationLabel(confirmed: boolean): string {
+  return t(confirmed ? 'project.requirementTab.clientConfirmed' : 'project.scopeStatus.awaitingConfirmation')
 }
 
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
@@ -569,7 +565,7 @@ function verificationResultLabel(result: string): string {
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.requirementTitle') }}</h3>
           <div class="flex items-center gap-2 no-print">
             <BaseButton
-              v-if="project.scopeStatus === 'Approved' && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
+              v-if="project.scopeClientConfirmedAt && hasClientIdentification && !hasProjectPassedStage(project.currentStage, 'Quotation')"
               size="sm"
               @click="emit('navigate-tab', 'quotation')"
             >
@@ -583,13 +579,13 @@ function verificationResultLabel(result: string): string {
         <div class="flex items-center justify-between gap-3">
           <span class="text-sm text-text-secondary">{{ t('project.overviewTab.scopeOfWorkStatus') }}</span>
           <StatusBadge
-            :label="scopeStatusLabel(project.scopeStatus)"
-            :variant="project.scopeStatus === 'Approved' ? 'success' : 'neutral'"
+            :label="scopeConfirmationLabel(Boolean(project.scopeClientConfirmedAt))"
+            :variant="project.scopeClientConfirmedAt ? 'success' : 'neutral'"
           />
         </div>
 
         <div
-          v-if="project.scopeStatus === 'Approved' && !hasClientIdentification"
+          v-if="project.scopeClientConfirmedAt && !hasClientIdentification"
           class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700"
         >
           <AlertTriangle class="h-4 w-4 shrink-0" />

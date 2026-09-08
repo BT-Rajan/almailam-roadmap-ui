@@ -51,8 +51,9 @@ def clear_refresh_cookie(response: Response) -> None:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    tokens = auth_service.login(db, payload.username, payload.password)
+def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    tokens = auth_service.login(db, payload.username, payload.password, client_ip)
     set_refresh_cookie(response, tokens["refresh_token"])
     return tokens
 

@@ -49,8 +49,7 @@ export default {
   },
 
   scopeStatus: {
-    draft: 'مسودة',
-    approved: 'معتمد',
+    awaitingConfirmation: 'بانتظار تأكيد العميل',
   },
 
   agreementStatus: {
@@ -255,23 +254,19 @@ export default {
     scopeOfWorkTitle: 'نطاق العمل',
     contentLocked: 'المحتوى مقفل',
     saveScope: 'حفظ نطاق العمل',
-    approve: 'اعتماد',
     confirmWithClient: 'التأكيد مع العميل',
     clientConfirmed: 'أكّده العميل',
     advanceToQuotation: 'التقدم إلى عرض السعر',
     lockedNotice: 'تم بالفعل اعتماد عرض سعر هذا المشروع استناداً إلى هذا النطاق، لذا فهو مقفل — أي تعديل هنا لن يتطابق بعد الآن مع ما تم تسعيره.',
-    approvedByOn: 'معتمد{by}{on}. تعديل النص أدناه سيعيد فتحه للاعتماد.',
-    approvedByFragment: ' من قبل {name}',
-    approvedOnFragment: ' بتاريخ {date}',
     clientConfirmedOn: 'أكّده العميل{on}.',
     clientConfirmedOnFragment: ' بتاريخ {date}',
-    awaitingClientConfirmationNotice: 'تم تسجيل الاعتماد الداخلي، لكن على العميل تأكيد هذا النطاق عبر البريد الإلكتروني قبل أن يتمكن المشروع من الانتقال إلى عرض السعر.',
+    awaitingClientConfirmationNotice: 'نطاق العمل جاهز — أرسل رمز تحقق إلى العميل لتأكيده قبل أن يتمكن المشروع من الانتقال إلى عرض السعر.',
     scopeOfWorkLabel: 'نطاق العمل',
     scopeOfWorkPlaceholder: 'ما الذي طلبه العميل...',
     changeSummaryLabel: 'ملخص التغيير (اختياري)',
     changeSummaryPlaceholder: 'ما الذي تغيّر في هذه المراجعة...',
     uploadHint: 'مستند داعم اختياري (PDF أو Word أو Excel أو صورة)',
-    noClientIdNotice: 'لا توجد وثيقة هوية للعميل مسجلة بعد (مثل البطاقة المدنية) — سيتم تسجيل هذا الاعتماد الداخلي رغم ذلك عند الضغط على اعتماد، لكن المشروع سيبقى في مرحلة المتطلبات إلى أن تُضاف الهوية أيضاً.',
+    noClientIdNotice: 'لا توجد وثيقة هوية للعميل مسجلة بعد (مثل البطاقة المدنية) — سيبقى المشروع في مرحلة المتطلبات إلى أن تُضاف الهوية أيضاً.',
     fields: {
       service: 'الخدمة',
       responsibleEngineer: 'المهندس المسؤول',
@@ -287,11 +282,7 @@ export default {
     scopeSavedTitle: 'تم حفظ نطاق العمل',
     scopeSavedDescription: 'تم تسجيل مراجعة جديدة.',
     couldNotSaveScope: 'تعذّر حفظ نطاق العمل',
-    scopeApprovedTitle: 'تم اعتماد نطاق العمل',
     movedToQuotationDescription: 'انتقل المشروع إلى عرض السعر.',
-    internalApprovalPendingIdDescription: 'تم تسجيل الاعتماد الداخلي، لكن المشروع سيبقى في مرحلة المتطلبات إلى أن تُضاف وثيقة هوية العميل أيضاً.',
-    internalApprovalRecordedDescription: 'تم تسجيل الاعتماد الداخلي. أرسل رمز تحقق إلى العميل للتأكيد قبل الانتقال إلى عرض السعر.',
-    couldNotApproveScope: 'تعذّر اعتماد نطاق العمل',
     otpDialog: {
       title: 'تأكيد نطاق العمل',
       sendStepDescription: 'أرسل رمز تحقق لمرة واحدة إلى {email}. اطلب من العميل قراءة الرمز لك بعد مراجعة نطاق العمل وقبوله.',

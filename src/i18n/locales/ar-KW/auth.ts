@@ -7,7 +7,6 @@ export default {
 
   passwordLabel: 'كلمة المرور',
   passwordPlaceholder: 'أدخل كلمة المرور',
-  rememberMe: 'تذكرني',
   forgotPassword: 'نسيت كلمة المرور؟',
   signedOut: 'تم تسجيل الخروج',
   signInFailedTitle: 'تعذّر تسجيل دخولك',

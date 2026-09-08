@@ -79,8 +79,14 @@ const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.proj
         <StatusBadge :label="stageLabel" variant="info" />
         <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" />
         <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
-        <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton>
-        <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton>
+        <!-- Change Stage / Change Status buttons hidden deliberately, not removed --
+             this is currently the only UI path that calls projectStore.setStage /
+             setStatus (see ProjectWorkspacePage.vue's @change-stage / @change-status
+             handlers and ProjectTransitionDialog), so hiding them means projects can
+             no longer be advanced through stages or moved to On Hold / Cancelled
+             from this screen. Uncomment to restore. -->
+        <!-- <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton> -->
+        <!-- <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton> -->
         <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton>
         <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
         <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />

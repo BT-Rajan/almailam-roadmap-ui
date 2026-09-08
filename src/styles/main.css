@@ -143,11 +143,6 @@
     @apply font-sans transition-colors duration-normal;
     color: var(--color-text-primary);
     background-color: #f2f2f4;
-    background-image:
-      radial-gradient(at 15% 0%, rgb(var(--color-accent-500) / 0.07) 0px, transparent 55%),
-      radial-gradient(at 85% 0%, rgb(23 23 26 / 0.06) 0px, transparent 55%),
-      radial-gradient(at 0% 55%, rgb(var(--color-accent-500) / 0.05) 0px, transparent 50%),
-      radial-gradient(at 90% 90%, rgb(23 23 26 / 0.05) 0px, transparent 50%);
     background-attachment: fixed;
     background-size: cover;
     min-height: 100vh;
@@ -405,20 +400,13 @@
   transform: translateX(16px);
 }
 
-/* Jade gradient text -- used sparingly for hero headings (e.g. the
+/* Jade accent heading color -- used sparingly for hero headings (e.g. the
    dashboard greeting) so a couple of premium moments stand out against
    the otherwise-neutral heading color, without recoloring every heading
-   in the app. */
+   in the app. Solid in light mode; the dark theme keeps its gradient
+   treatment (see .dark override below). */
 .text-gradient-accent {
-  background-image: linear-gradient(
-    120deg,
-    theme('colors.accent.300'),
-    theme('colors.accent.500') 50%,
-    theme('colors.accent.700')
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  color: theme('colors.accent.600');
 }
 
 .dark .text-gradient-accent {
@@ -428,6 +416,9 @@
     theme('colors.accent.400') 50%,
     theme('colors.accent.600')
   );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 /* Ambient background: soft accent/graphite glow blobs plus a faint grain
@@ -473,10 +464,14 @@
   border: 1px solid var(--glass-border);
 }
 
-/* Rich graphite-to-black gradient used for primary brand touches
-   (logo mark, primary buttons) to give the "Uber-black" premium feel */
+/* Rich graphite brand surface used for primary brand touches (logo mark,
+   primary buttons) for the "Uber-black" premium feel. Solid in light
+   mode; the dark theme keeps its gradient treatment (see .dark override
+   below) -- that's the mode where the flat color would otherwise fade
+   into the near-black chrome. */
 .gradient-luxe {
-  background-image: linear-gradient(135deg, theme('colors.primary.500'), theme('colors.primary.800'));
+  background-image: none;
+  background-color: theme('colors.primary.700');
 }
 
 /* The light-mode gradient (graphite fading to near-black) reads as a
@@ -494,8 +489,11 @@
     0 4px 14px -2px rgb(0 0 0 / 0.55);
 }
 
+/* Solid in light mode; the dark theme keeps its gradient (see .dark
+   override below). */
 .gradient-luxe-accent {
-  background-image: linear-gradient(135deg, theme('colors.accent.400'), theme('colors.accent.600'));
+  background-image: none;
+  background-color: theme('colors.accent.500');
 }
 
 /* Deepened for the dark theme -- darker stops (500->900 instead of

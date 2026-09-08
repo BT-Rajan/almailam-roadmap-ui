@@ -9,7 +9,6 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -123,15 +122,6 @@ function clientStatusLabel(status: string): string {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <PageHeader
-      :title="t('client.clientsPage.title')"
-      :subtitle="t('client.clientsPage.subtitle')"
-    >
-      <template #actions>
-        <BaseButton :icon="Plus" @click="createClient">{{ t('client.clientsPage.newClient') }}</BaseButton>
-      </template>
-    </PageHeader>
-
     <FilterBar
       :show-search="false"
       :has-active-filters="clientStore.hasActiveFilters"
@@ -170,6 +160,7 @@ function clientStatusLabel(status: string): string {
         >
           {{ t('client.clientsPage.myClients') }}
         </BaseButton>
+        <BaseButton :icon="Plus" @click="createClient">{{ t('client.clientsPage.newClient') }}</BaseButton>
       </template>
       <template #actions>
         <div class="flex items-center gap-1 rounded-lg border border-border-default p-1" role="group" :aria-label="t('client.clientsPage.layoutAria')">

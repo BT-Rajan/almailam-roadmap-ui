@@ -52,6 +52,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
+# Fixed bcrypt hash (cost 12, matching hash_password) with no matching
+# plaintext. Used to run verify_password's full bcrypt cost against a
+# nonexistent account, so "no such user" and "wrong password" take the
+# same amount of time -- otherwise the fast-path return for a missing
+# user is a timing oracle that defeats the generic login error message.
+DUMMY_PASSWORD_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO7ZWk3XwzOJJHK0qHY.qvz3ZvXQxE3Cy"
+
+
 def create_access_token(
     subject: str, extra_claims: dict | None = None, expire_minutes: int | None = None
 ) -> str:

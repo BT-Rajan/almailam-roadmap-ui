@@ -107,10 +107,6 @@ export interface SelectedPermit {
   closedAt?: string | null
 }
 
-// Internal approval of a project's scope-of-work text -- see
-// ScopeOfWork below. Not client-facing.
-export type ScopeStatus = 'Draft' | 'Approved'
-
 export interface Project {
   id: string
   projectNo: string
@@ -121,8 +117,11 @@ export interface Project {
   // MERGE_FIELD_CATALOG). Distinct from any of the client's own
   // ClientAddress rows.
   siteAddress?: string
-  scopeStatus: ScopeStatus
-  scopeApprovedAt?: string | null
+  // Set once the client has confirmed `description` (the scope-of-work
+  // text) via email OTP -- see ScopeOfWork below for the full revision
+  // history behind it. The sole sign-off gating the move out of the
+  // Requirement stage.
+  scopeClientConfirmedAt?: string | null
   clientId: string
   service: string
   engineer: string
@@ -204,14 +203,10 @@ export interface ScopeRevision {
 
 export interface ScopeOfWork {
   description: string | null
-  scopeStatus: ScopeStatus
-  scopeApprovedAt?: string | null
-  scopeApprovedBy?: string | null
-  // The client-facing counterpart to scopeApprovedAt -- set once the
-  // client has confirmed this scope via email OTP (see
-  // ProjectRequirementTab.vue's OtpVerificationDialog). Both this and
-  // scopeApprovedAt are required before the project can leave the
-  // Requirement stage.
+  // Set once the client has confirmed this scope via email OTP (see
+  // ProjectRequirementTab.vue's OtpVerificationDialog) -- the sole
+  // sign-off required before the project can leave the Requirement
+  // stage.
   scopeClientConfirmedAt?: string | null
   // Non-null while a verification code is outstanding -- lets the
   // Requirement tab reopen the OTP dialog straight to "enter code"
