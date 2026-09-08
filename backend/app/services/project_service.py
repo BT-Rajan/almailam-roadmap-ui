@@ -341,12 +341,18 @@ def close_design_activity(
     task-driven auto-close below). new_status is 'Complete' or
     'Cancelled' -- the latter for a descoped activity that was never
     going to be finished, so it stops blocking project completion
-    without pretending it was actually done."""
+    without pretending it was actually done. Also tries auto-advancing
+    the stage (same as every other stage-completing action) -- closing
+    the last open Design activity is exactly what Design's own exit
+    criterion checks, so nothing should be left waiting on a separate
+    manual "move stage" click that doesn't currently exist in the UI."""
     if new_status not in ("Complete", "Cancelled"):
         raise ValidationAppError("new_status must be 'Complete' or 'Cancelled'.")
     project = get_project(db, project_no)
     activity = get_selected_activity(db, project.id, activity_id)
     _set_design_activity_status(db, activity, new_status, user_id, auto=False)
+    db.flush()
+    try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(activity)
     try_complete_project(db, project, user_id)
@@ -381,11 +387,12 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     status already set by hand (Complete/Cancelled), and is a no-op
     for the common case of a task with no linked activity. Doesn't
     commit its own status change -- the caller's status-change
-    transaction covers that too -- but the completion check it may
-    trigger (try_complete_project) does commit its own work partway
-    through (checklist generation, the OTP send); that's fine, it just
-    means this call and the caller's own commit each cover part of the
-    same overall change."""
+    transaction covers that too -- but the stage-advance/completion
+    checks it may trigger (try_auto_advance_stage, try_complete_project)
+    do commit their own work partway through (a stage change, checklist
+    generation, the hand-over notice); that's fine, it just means this
+    call and the caller's own commit each cover part of the same
+    overall change."""
     activity = db.query(ProjectSelectedActivity).filter(ProjectSelectedActivity.id == activity_id).first()
     if activity is None or activity.status in ("Complete", "Cancelled"):
         return
@@ -399,6 +406,8 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     _set_design_activity_status(db, activity, "Complete", user_id, auto=True)
     project = db.query(Project).filter(Project.id == activity.project_id).first()
     if project is not None:
+        db.flush()
+        try_auto_advance_stage(db, project, user_id)
         try_complete_project(db, project, user_id)
 
 
