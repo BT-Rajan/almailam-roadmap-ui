@@ -45,10 +45,11 @@ class Quotation(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # ready to print. A quotation can't leave Draft status until this
     # is set (see quotation_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Email OTP approval -- otp_code_hash/otp_expires_at/otp_attempts/
-    # otp_sent_at come from EmailOtpMixin; see quotation_service.
-    # send_quotation_otp/verify_quotation_otp. Confirming the code is
-    # the only path to status == "Approved".
+    # Signed-document approval -- otp_code_hash/otp_expires_at/
+    # otp_attempts/otp_sent_at come from EmailOtpMixin and are inert
+    # leftovers now (see its docstring); see quotation_service.
+    # confirm_quotation_approval. Confirming the signed-document upload
+    # is the only path to status == "Approved".
 
 
 class QuotationRevision(Base):

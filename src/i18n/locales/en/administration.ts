@@ -278,45 +278,25 @@ export default {
     savedDescription: 'The email will use this wording from now on.',
     failedToSave: 'Failed to save template',
     keys: {
-      clientOnboardingOtp: {
-        label: 'Client Onboarding: Verification Code',
-        description: 'Sent when staff request an email OTP to confirm a client during onboarding.',
-      },
       clientWelcome: {
         label: 'Client Onboarding: Welcome',
-        description: 'Sent once a client confirms their OTP -- includes their Client Portal login.',
+        description: 'Sent once a client is confirmed via a signed document upload -- includes their Client Portal login.',
       },
       projectCreated: {
         label: 'Project Created',
         description: 'Sent to the client when a new project is created for them.',
       },
-      requirementOtp: {
-        label: 'Requirement: Verification Code',
-        description: 'Sent when staff ask the client to confirm the scope of work.',
-      },
       requirementConfirmed: {
         label: 'Requirement: Scope Confirmed',
         description: 'Sent once the client confirms the scope of work.',
-      },
-      quotationOtp: {
-        label: 'Quotation: Verification Code',
-        description: 'Sent when staff ask the client to approve a finalized quotation.',
       },
       quotationApproved: {
         label: 'Quotation: Approved',
         description: 'Sent once the client approves a quotation -- includes a copy and the payment plan.',
       },
-      contractOtp: {
-        label: 'Contract: Verification Code',
-        description: 'Sent when staff ask the client to sign a finalized contract.',
-      },
       contractSigned: {
         label: 'Contract: Signed',
         description: 'Sent once the client signs a contract -- includes a copy and its summary.',
-      },
-      handoverOtp: {
-        label: 'Hand-over: Verification Code',
-        description: 'Sent once a project is complete and fully paid -- includes the hand-over checklist and code.',
       },
       permitApplicationSubmitted: {
         label: 'Permit: Application Submitted',

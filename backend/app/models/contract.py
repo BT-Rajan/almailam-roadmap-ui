@@ -45,10 +45,11 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # A contract can't leave Draft status until this is set (see
     # contract_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Email OTP approval -- otp_code_hash/otp_expires_at/otp_attempts/
-    # otp_sent_at come from EmailOtpMixin; see contract_service.
-    # send_contract_otp/verify_contract_otp. Confirming the code is the
-    # only path to status == "Signed".
+    # Signed-document approval -- otp_code_hash/otp_expires_at/
+    # otp_attempts/otp_sent_at come from EmailOtpMixin and are inert
+    # leftovers now (see its docstring); see contract_service.
+    # confirm_contract_signing. Confirming the signed-document upload is
+    # the only path to status == "Signed".
 
 
 class ContractClause(Base):

@@ -1,5 +1,5 @@
 """Admin-editable subject/body for every automated email the app sends
-(OTP codes, welcome/confirmation copies) -- the plain-text counterpart
+(welcome/confirmation copies, FYI notices) -- the plain-text counterpart
 to document_template_service.py's admin-uploaded .docx templates for
 Quotation/Contract documents. Same "{{ field }} placeholder, admin
 controls the wording, code supplies the data" philosophy, just simple
@@ -28,20 +28,11 @@ ENTITY_TYPE = "EMAIL_TEMPLATE"
 _TOKEN_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
-    "client_onboarding_otp": {
-        "subject": "Your Al Mailam verification code",
-        "body": (
-            "Your verification code is {{ code }}.\n\n"
-            "Share this code with the staff member handling your onboarding to confirm your "
-            "email address. It expires in {{ validity_label }}.\n\n"
-            "If you didn't request this, you can safely ignore this email."
-        ),
-    },
     "client_welcome": {
         "subject": "Welcome to Al Mailam -- your account is ready",
         "body": (
             "Dear {{ contact_person }},\n\n"
-            "Welcome to Al Mailam! Your email has been verified and your onboarding is complete.\n\n"
+            "Welcome to Al Mailam! Your onboarding is complete.\n\n"
             "Here are the details we have on file for you:\n"
             "Client type: {{ client_type }}\n"
             "Name: {{ company_name }}\n"
@@ -73,17 +64,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "This is an informational message -- no action is needed."
         ),
     },
-    "requirement_otp": {
-        "subject": "Confirm the scope of work for {{ project_name }}",
-        "body": (
-            "Dear {{ contact_person }},\n\n"
-            "Your verification code is {{ code }}.\n\n"
-            "Share this code with the staff member handling project {{ project_name }} "
-            "({{ project_no }}) to confirm you accept the scope of work as written. "
-            "It expires in {{ validity_label }}.\n\n"
-            "If you didn't request this, you can safely ignore this email."
-        ),
-    },
     "requirement_confirmed": {
         "subject": "Scope of work confirmed for {{ project_name }}",
         "body": (
@@ -91,16 +71,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "Thank you for confirming the scope of work for {{ project_name }} "
             "({{ project_no }}):\n\n{{ scope_text }}\n\n"
             "This is an informational message -- no action is needed."
-        ),
-    },
-    "quotation_otp": {
-        "subject": "Your approval code for Quotation {{ quotation_no }}",
-        "body": (
-            "Dear {{ contact_person }},\n\n"
-            "Your verification code is {{ code }}.\n\n"
-            "Share this code with the staff member handling Quotation {{ quotation_no }} "
-            "to confirm you accept it. It expires in {{ validity_label }}.\n\n"
-            "If you didn't request this, you can safely ignore this email."
         ),
     },
     "quotation_approved": {
@@ -114,16 +84,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "This is an informational message -- no action is needed."
         ),
     },
-    "contract_otp": {
-        "subject": "Your signing code for Contract {{ contract_no }}",
-        "body": (
-            "Dear {{ contact_person }},\n\n"
-            "Your verification code is {{ code }}.\n\n"
-            "Share this code with the staff member handling Contract {{ contract_no }} "
-            "to confirm you accept and sign it. It expires in {{ validity_label }}.\n\n"
-            "If you didn't request this, you can safely ignore this email."
-        ),
-    },
     "contract_signed": {
         "subject": "Contract {{ contract_no }} signed",
         "body": (
@@ -131,18 +91,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             "Thank you for confirming Contract {{ contract_no }}. Please find a copy attached.\n\n"
             "Contract summary:\n{{ summary }}\n\n"
             "This is an informational message -- no action is needed."
-        ),
-    },
-    "handover_otp": {
-        "subject": "Project {{ project_no }} is ready for hand-over",
-        "body": (
-            "Dear {{ contact_person }},\n\n"
-            "Project {{ project_no }} is complete and fully paid. Please find the hand-over summary below.\n\n"
-            "{{ checklist }}\n\n"
-            "Your verification code is {{ code }}.\n\n"
-            "Share this code with the staff member handling this project to confirm you accept the "
-            "hand-over and close out the project. It expires in {{ validity_label }}.\n\n"
-            "If you didn't request this, you can safely ignore this email."
         ),
     },
     "permit_application_submitted": {
@@ -199,10 +147,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
 # just not editable/removable data the way a plain field like {{ code }}
 # is understood to be.
 MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
-    "client_onboarding_otp": [
-        {"key": "code", "label": "Verification Code"},
-        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
-    ],
     "client_welcome": [
         {"key": "contact_person", "label": "Contact Person"},
         {"key": "client_type", "label": "Client Type"},
@@ -226,24 +170,11 @@ MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
         {"key": "target_date", "label": "Target Date"},
         {"key": "engineer_name", "label": "Assigned Engineer"},
     ],
-    "requirement_otp": [
-        {"key": "contact_person", "label": "Contact Person"},
-        {"key": "code", "label": "Verification Code"},
-        {"key": "project_name", "label": "Project Name"},
-        {"key": "project_no", "label": "Project No."},
-        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
-    ],
     "requirement_confirmed": [
         {"key": "contact_person", "label": "Contact Person"},
         {"key": "project_name", "label": "Project Name"},
         {"key": "project_no", "label": "Project No."},
         {"key": "scope_text", "label": "Confirmed Scope of Work Text"},
-    ],
-    "quotation_otp": [
-        {"key": "contact_person", "label": "Contact Person"},
-        {"key": "code", "label": "Verification Code"},
-        {"key": "quotation_no", "label": "Quotation No."},
-        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
     ],
     "quotation_approved": [
         {"key": "contact_person", "label": "Contact Person"},
@@ -252,23 +183,10 @@ MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
         {"key": "scope_change_section", "label": "Scope Change Section (blank unless scope was reconfirmed)"},
         {"key": "payment_plan_section", "label": "Payment Plan Section (blank if no plan exists yet)"},
     ],
-    "contract_otp": [
-        {"key": "contact_person", "label": "Contact Person"},
-        {"key": "code", "label": "Verification Code"},
-        {"key": "contract_no", "label": "Contract No."},
-        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
-    ],
     "contract_signed": [
         {"key": "contact_person", "label": "Contact Person"},
         {"key": "contract_no", "label": "Contract No."},
         {"key": "summary", "label": "Contract Summary (value, representative, expiry, clauses)"},
-    ],
-    "handover_otp": [
-        {"key": "contact_person", "label": "Contact Person"},
-        {"key": "project_no", "label": "Project No."},
-        {"key": "checklist", "label": "Hand-over Checklist (completed Design/Permit/Supervision items)"},
-        {"key": "code", "label": "Verification Code"},
-        {"key": "validity_label", "label": "Code Validity (e.g. '24 hours')"},
     ],
     "permit_application_submitted": [
         {"key": "contact_person", "label": "Contact Person"},

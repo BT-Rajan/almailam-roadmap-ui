@@ -1,16 +1,14 @@
 // One of the app's fixed, non-creatable/deletable automated-email keys
 // -- mirrors backend/app/models/email_template.py's EMAIL_TEMPLATE_KEYS.
+// The five *_otp keys that used to live here were removed once every
+// OTP-code confirmation flow switched to a signed-document upload (see
+// migration 0080).
 export type EmailTemplateKey =
-  | 'client_onboarding_otp'
   | 'client_welcome'
   | 'project_created'
-  | 'requirement_otp'
   | 'requirement_confirmed'
-  | 'quotation_otp'
   | 'quotation_approved'
-  | 'contract_otp'
   | 'contract_signed'
-  | 'handover_otp'
   | 'permit_application_submitted'
   | 'permit_response_received'
   | 'payment_received'

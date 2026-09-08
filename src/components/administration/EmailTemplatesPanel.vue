@@ -32,16 +32,11 @@ const toastStore = useToastStore()
 // (friendly name + "when this sends"), not a second source of truth
 // for which keys exist (that's EMAIL_TEMPLATE_KEYS on the backend).
 const TEMPLATE_INFO: { key: EmailTemplateKey; labelKey: string; descriptionKey: string }[] = [
-  { key: 'client_onboarding_otp', labelKey: 'administration.emailTemplates.keys.clientOnboardingOtp.label', descriptionKey: 'administration.emailTemplates.keys.clientOnboardingOtp.description' },
   { key: 'client_welcome', labelKey: 'administration.emailTemplates.keys.clientWelcome.label', descriptionKey: 'administration.emailTemplates.keys.clientWelcome.description' },
   { key: 'project_created', labelKey: 'administration.emailTemplates.keys.projectCreated.label', descriptionKey: 'administration.emailTemplates.keys.projectCreated.description' },
-  { key: 'requirement_otp', labelKey: 'administration.emailTemplates.keys.requirementOtp.label', descriptionKey: 'administration.emailTemplates.keys.requirementOtp.description' },
   { key: 'requirement_confirmed', labelKey: 'administration.emailTemplates.keys.requirementConfirmed.label', descriptionKey: 'administration.emailTemplates.keys.requirementConfirmed.description' },
-  { key: 'quotation_otp', labelKey: 'administration.emailTemplates.keys.quotationOtp.label', descriptionKey: 'administration.emailTemplates.keys.quotationOtp.description' },
   { key: 'quotation_approved', labelKey: 'administration.emailTemplates.keys.quotationApproved.label', descriptionKey: 'administration.emailTemplates.keys.quotationApproved.description' },
-  { key: 'contract_otp', labelKey: 'administration.emailTemplates.keys.contractOtp.label', descriptionKey: 'administration.emailTemplates.keys.contractOtp.description' },
   { key: 'contract_signed', labelKey: 'administration.emailTemplates.keys.contractSigned.label', descriptionKey: 'administration.emailTemplates.keys.contractSigned.description' },
-  { key: 'handover_otp', labelKey: 'administration.emailTemplates.keys.handoverOtp.label', descriptionKey: 'administration.emailTemplates.keys.handoverOtp.description' },
   { key: 'permit_application_submitted', labelKey: 'administration.emailTemplates.keys.permitApplicationSubmitted.label', descriptionKey: 'administration.emailTemplates.keys.permitApplicationSubmitted.description' },
   { key: 'permit_response_received', labelKey: 'administration.emailTemplates.keys.permitResponseReceived.label', descriptionKey: 'administration.emailTemplates.keys.permitResponseReceived.description' },
   { key: 'payment_received', labelKey: 'administration.emailTemplates.keys.paymentReceived.label', descriptionKey: 'administration.emailTemplates.keys.paymentReceived.description' },

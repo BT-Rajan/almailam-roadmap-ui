@@ -9,20 +9,19 @@ from app.models.user import BigPK
 # codebase (see email_template_service.DEFAULT_TEMPLATES for the map).
 # Unlike DocumentTemplate, these aren't admin-creatable/deletable --
 # there is always exactly one row per key, seeded by migration 0069
-# (contract_otp/contract_signed seeded separately by migration 0071)
-# with the app's original hardcoded copy so behavior is unchanged until
-# an admin edits one.
+# (contract_signed seeded separately by migration 0071) with the app's
+# original hardcoded copy so behavior is unchanged until an admin edits
+# one. The five *_otp keys that used to exist here (client_onboarding_otp,
+# requirement_otp, quotation_otp, contract_otp, handover_otp) were
+# removed by migration 0080 once every one of those confirmation flows
+# switched from an emailed OTP code to a signed-document upload -- see
+# quotation_service.confirm_quotation_approval and its siblings.
 EMAIL_TEMPLATE_KEYS = (
-    "client_onboarding_otp",
     "client_welcome",
     "project_created",
-    "requirement_otp",
     "requirement_confirmed",
-    "quotation_otp",
     "quotation_approved",
-    "contract_otp",
     "contract_signed",
-    "handover_otp",
     "permit_application_submitted",
     "permit_response_received",
     "payment_received",

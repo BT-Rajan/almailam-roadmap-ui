@@ -102,8 +102,8 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # document_template_service.MERGE_FIELD_CATALOG).
     site_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     # Set once the client has confirmed the scope of work (the
-    # `description` field above) via email OTP (see project_service.
-    # send_requirement_otp/verify_requirement_otp) -- the sole sign-off
+    # `description` field above) via a signed-document upload (see
+    # project_service.confirm_requirement_scope) -- the sole sign-off
     # required to leave the Requirement stage (see
     # _assert_stage_exit_criteria; migration 0079 dropped the earlier
     # staff-only internal-approval step that used to be required
@@ -171,12 +171,10 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # project_service.try_complete_project once every planned Design/
     # Permit/Supervision item is Complete/Cancelled and the project's
     # current total value is fully paid. handover_sent_at/
-    # handover_acknowledged_at track the outbound email and the
-    # client's confirmation of it; the OTP itself reuses this model's
-    # own EmailOtpMixin columns below (send_handover_otp/
-    # verify_handover_otp), the same "reused across stages, cleared
-    # after each confirmation" pattern already used for the
-    # Requirement stage's scope_client_confirmed_at. status only
+    # handover_acknowledged_at track the ready-for-handover notice and
+    # the client's confirmation of it via a signed-document upload (see
+    # notify_handover_ready/confirm_project_handover) -- EmailOtpMixin's
+    # columns below are inert leftovers now (see its docstring). status only
     # becomes "Completed" once handover_acknowledged_at is set -- an
     # email that fails to send never blocks this internally, it only
     # notifies Administrators (see notify_role) so someone can resend.
