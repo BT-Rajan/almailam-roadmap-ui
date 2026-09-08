@@ -72,10 +72,10 @@ const rows = computed<AgreementTableRow[]>(() =>
 )
 
 function goToProjectPayments(row: AgreementTableRow): void {
-  // This table is about collections (received/pending/overdue), so a
-  // row click lands on Payment Status -- the plan itself (create/edit/
-  // approve) lives one tab over, at Payment Plan.
-  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId }, query: { tab: 'payment-status' } })
+  // Opening a project always lands on Workflow Progress Stage 1
+  // (Requirement/Scope) -- that's the only landing view, everywhere.
+  // Staff reach Payment Status from there via the stepper/top tab bar.
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId } })
 }
 
 function loadData(): void {

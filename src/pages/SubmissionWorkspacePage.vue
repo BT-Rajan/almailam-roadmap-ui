@@ -318,7 +318,11 @@ async function handleMarkComplete(): Promise<void> {
 
 function goBack(): void {
   if (originProjectId.value) {
-    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: originProjectId.value }, query: { tab: 'government' } })
+    // Opening a project always lands on Workflow Progress Stage 1
+    // (Requirement/Scope) -- that's the only landing view, everywhere.
+    // Staff reach Government Submission from there via the stepper/top
+    // tab bar.
+    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: originProjectId.value } })
     return
   }
   router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })

@@ -55,19 +55,19 @@ const { t } = useI18n()
 
 const projectId = computed(() => route.params.projectId as string)
 
-const VALID_TAB_KEYS: ProjectWorkspaceTabKey[] = ['overview', 'requirement', 'documents', 'quotation', 'payment-status', 'contract', 'design', 'supervision', 'government', 'tasks']
-const queryTab = route.query.tab
-const initialTab = typeof queryTab === 'string' && VALID_TAB_KEYS.includes(queryTab as ProjectWorkspaceTabKey) ? (queryTab as ProjectWorkspaceTabKey) : 'overview'
-const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
+// There is exactly one way to land on a project: Workflow Progress
+// Stage 1 (Requirement/Scope). No route query, no other page's deep
+// link, and no project's real current_stage ever changes that --
+// previously a project could be opened straight onto a *different*
+// stage's view (e.g. via ?tab=payment-status from the Payments page,
+// or by falling back to whatever current_stage the project actually
+// happened to be at), so the same "open a project" action showed a
+// different view depending on how/which project you opened, which was
+// reported as a bug. activeTab and stageContext below both always
+// start at Requirement now; the Workflow Progress stepper (and the top
+// tab bar once on the page) remain the only way to move off it.
+const activeTab = ref<ProjectWorkspaceTabKey>('overview')
 
-// Quotation, Contract, Design, and Government aren't buttons here --
-// they're reachable from the Workflow Progress stepper above (see
-// WorkflowProgress.vue), which already says those exact same words.
-// Keeping both would just be the same duplication moved one component
-// over. Their tab keys stay valid (VALID_TAB_KEYS below, and the v-if
-// chain further down) so the stepper can still land on them, with
-// every function of that tab unchanged.
-//
 // Which of Overview/Documents/Payments/Tasks actually show here, and
 // what the Overview pane itself shows, is driven by `stageContext`
 // below -- NOT directly by the project's actual current_stage. The
@@ -80,18 +80,17 @@ const activeTab = ref<ProjectWorkspaceTabKey>(initialTab)
 // Overview tab showed Requirement's overview instead of Quotation's,
 // which is confusing and was reported as a bug. stageContext instead
 // tracks whichever stage section was last actually navigated to via the
-// stepper (falling back to the project's real current_stage until the
-// first such navigation), so Overview always matches where staff are
-// actually working.
+// stepper within this page (starting from Requirement every time), so
+// Overview always matches where staff are actually working.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
 const stageContext = ref<WorkflowStage>('Requirement')
 
-// Resets to the project's real stage on first load and whenever
-// switching to a different project's workspace -- but not on every
-// later reactive update to the *same* project (e.g. a refreshProject()
-// call after some unrelated approval), so a stepper-driven context
-// someone is mid-review of isn't silently pulled out from under them.
+// Resets to Requirement on first load and whenever switching to a
+// different project's workspace -- but not on every later reactive
+// update to the *same* project (e.g. a refreshProject() call after some
+// unrelated approval), so a stepper-driven context someone is
+// mid-review of isn't silently pulled out from under them.
 const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   requirement: 'Requirement',
   quotation: 'Quotation',
@@ -106,12 +105,8 @@ watch(
   project,
   (value, oldValue) => {
     if (value && (!oldValue || oldValue.id !== value.id)) {
-      // Respects an explicit stepper-driven deep link (?tab=quotation
-      // etc, already reflected in activeTab by the time the project
-      // finishes loading) over the project's real stage -- only
-      // defaults to the real stage when activeTab isn't already
-      // pointing at a specific one.
-      stageContext.value = STAGE_TAB_KEYS[activeTab.value] ?? value.currentStage
+      activeTab.value = 'overview'
+      stageContext.value = 'Requirement'
     }
   },
   { immediate: true },
