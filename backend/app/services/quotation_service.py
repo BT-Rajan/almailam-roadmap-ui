@@ -443,6 +443,17 @@ def verify_quotation_otp(db: Session, quotation_no: str, code: str, user_id: int
     quotation = set_status(db, quotation_no, "Approved", None, user_id)
 
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
+
+    notification_service.notify_role(
+        db, "Administrator",
+        "Quotation approved",
+        f"Quotation {quotation.quotation_no} was approved by the client (verified via OTP).",
+        "System",
+        link_route_name="project-workspace" if project else None,
+        link_params={"projectId": project.project_no} if project else None,
+    )
+    db.commit()
+
     scope_was_reconfirmed = project is not None and project.scope_client_confirmed_at is None
     if project is not None and scope_was_reconfirmed:
         project.scope_client_confirmed_at = datetime.now(timezone.utc)
