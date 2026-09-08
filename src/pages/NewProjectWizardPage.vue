@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 
@@ -13,9 +13,7 @@ import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
-import StatusBadge from '@/components/common/StatusBadge.vue'
 import Stepper from '@/components/common/Stepper.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
@@ -31,7 +29,6 @@ import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
-import { getProjectPriorityVariant } from '@/utils/projectHelpers'
 import { validators } from '@/utils/validators'
 
 const router = useRouter()
@@ -56,15 +53,6 @@ const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('project.priority.low'), value: 'Low' },
 ])
 
-const PRIORITY_LABEL_KEYS: Record<string, string> = {
-  High: 'project.priority.high',
-  Medium: 'project.priority.medium',
-  Low: 'project.priority.low',
-}
-function priorityLabel(priority: string): string {
-  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
-}
-
 const currentStep = ref(0)
 const isSubmitting = ref(false)
 const showConfirmation = ref(false)
@@ -82,7 +70,6 @@ const form = reactive({
   engineer: '',
   priority: 'Medium' as ProjectPriority,
   projectName: '',
-  scope: '',
   siteAddress: '',
   startDate: '',
   targetDate: '',
@@ -104,16 +91,12 @@ const supervisionMonthlyTotal = computed(() =>
   form.selectedSupervisionActivities.reduce((sum, item) => sum + item.monthlyRate, 0),
 )
 
-// Scope of Work is auto-populated from whatever was picked in the unified
-// service picker -- "scope = services + supervision + permits", per the
-// actual requirement, rather than staff retyping a summary of choices
-// already made elsewhere in this same wizard. Still a normal editable TextArea:
-// lastAutoScope tracks the most recent auto-generated text so a manual
-// edit (form.scope diverging from it) is respected and stops being
-// overwritten -- otherwise picking one more activity after typing a
-// custom scope would silently discard what staff just wrote.
-const lastAutoScope = ref('')
-
+// Scope of Work is a plain preview, derived entirely from whatever was
+// picked in the unified service picker -- "scope = services +
+// supervision + permits", per the actual requirement -- and shown
+// read-only on the Review step, not a field staff type into
+// themselves (there's nothing else for it to diverge from, so this is
+// a plain computed rather than a watch-and-sync-unless-edited field).
 function buildScopeText(): string {
   const lines: string[] = []
   const activitiesByService = new Map<string, string[]>()
@@ -130,8 +113,8 @@ function buildScopeText(): string {
     if (lines.length > 0) lines.push('')
     lines.push('Supervision Activities:')
     // No price here -- same "name only" convention as the Design
-    // services above (the dedicated Service field/Review step already
-    // shows pricing; this text is a description, not a quote).
+    // services above; this text is a description, not a quote (the
+    // Service picker's own button/summary already shows pricing).
     form.selectedSupervisionActivities.forEach((item) => lines.push(`- ${item.activityName}`))
   }
   if (form.selectedPermits.length > 0) {
@@ -142,17 +125,7 @@ function buildScopeText(): string {
   return lines.join('\n')
 }
 
-watch(
-  () => [form.selectedActivities, form.selectedSupervisionActivities, form.selectedPermits],
-  () => {
-    const generated = buildScopeText()
-    if (form.scope.trim().length === 0 || form.scope === lastAutoScope.value) {
-      form.scope = generated
-      lastAutoScope.value = generated
-    }
-  },
-  { deep: true },
-)
+const scopeText = computed(buildScopeText)
 
 const serviceTotal = computed(() => form.selectedActivities.reduce((sum, item) => sum + item.fixedCost, 0))
 
@@ -325,7 +298,7 @@ async function submitWizard(): Promise<void> {
   try {
     const project = await projectStore.createProject({
       projectName: form.projectName,
-      description: form.scope || undefined,
+      description: scopeText.value || undefined,
       siteAddress: form.siteAddress || undefined,
       clientId: form.clientId,
       service: form.service,
@@ -474,13 +447,6 @@ function goToCreatedProject(): void {
             required
             :error="errors.projectName"
           />
-          <TextArea
-            v-model="form.scope"
-            :label="t('project.newWizard.scopeOfWork')"
-            :placeholder="t('project.newWizard.scopeOfWorkPlaceholder')"
-            :hint="t('project.newWizard.scopeOfWorkHint')"
-            :rows="6"
-          />
           <TextInput
             v-model="form.siteAddress"
             :label="t('project.newWizard.siteAddress')"
@@ -500,34 +466,8 @@ function goToCreatedProject(): void {
               <p class="text-sm text-text-primary">{{ selectedClientName() }}</p>
             </div>
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.service') }}</p>
-              <p class="text-sm text-text-primary">{{ form.service || t('project.newWizard.notSelected') }}</p>
-              <ul v-if="form.selectedActivities.length > 0" class="mt-1 flex flex-col gap-0.5">
-                <li v-for="item in form.selectedActivities" :key="item.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
-                  <span class="truncate">{{ item.activityName }}</span>
-                  <span class="shrink-0">{{ formatCurrency(item.fixedCost, 'KWD') }}</span>
-                </li>
-                <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
-                  <span>{{ t('project.newWizard.total') }}</span>
-                  <span>{{ formatCurrency(serviceTotal, 'KWD') }}</span>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.fieldEngineer') }}</p>
-              <p class="text-sm text-text-primary">{{ selectedEngineerName() }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.priority') }}</p>
-              <StatusBadge :label="priorityLabel(form.priority)" :variant="getProjectPriorityVariant(form.priority)" />
-            </div>
-            <div class="tablet:col-span-2">
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.projectName') }}</p>
               <p class="text-sm text-text-primary">{{ form.projectName || t('project.newWizard.notEntered') }}</p>
-            </div>
-            <div v-if="form.scope" class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.scopeOfWork') }}</p>
-              <p class="text-sm text-text-primary">{{ form.scope }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.startDate') }}</p>
@@ -538,35 +478,12 @@ function goToCreatedProject(): void {
               <p class="text-sm text-text-primary">{{ form.targetDate ? formatDate(form.targetDate) : t('project.newWizard.notSet') }}</p>
             </div>
             <div class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.stage.supervision') }}</p>
-              <p v-if="form.selectedSupervisionActivities.length === 0" class="text-sm text-text-primary">{{ t('project.newWizard.none') }}</p>
-              <template v-else>
-                <p class="text-sm text-text-primary">
-                  {{ form.supervisionStartDate ? formatDate(form.supervisionStartDate) : t('project.newWizard.notSet') }} –
-                  {{ form.supervisionEndDate ? formatDate(form.supervisionEndDate) : t('project.newWizard.ongoing') }}
-                </p>
-                <ul class="mt-1 flex flex-col gap-0.5">
-                  <li v-for="activity in form.selectedSupervisionActivities" :key="activity.activityId" class="flex items-center justify-between gap-3 text-xs text-text-muted">
-                    <span class="truncate">
-                      {{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ activity.endDate ? formatDate(activity.endDate) : t('project.newWizard.ongoing') }})
-                    </span>
-                    <span class="shrink-0">{{ formatCurrency(activity.monthlyRate) }}/mo</span>
-                  </li>
-                  <li class="flex items-center justify-between gap-3 border-t border-border-light pt-1 text-xs font-medium text-text-secondary">
-                    <span>{{ t('project.newWizard.combinedMonthlyTotal') }}</span>
-                    <span>{{ formatCurrency(supervisionMonthlyTotal, 'KWD') }}/mo</span>
-                  </li>
-                </ul>
-                <p class="mt-1 text-xs text-text-muted">
-                  {{ t('project.newWizard.supervisionBillingNote') }}
-                </p>
-              </template>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.scopeOfWork') }}</p>
+              <p class="whitespace-pre-line text-sm text-text-primary">{{ scopeText || t('project.newWizard.notEntered') }}</p>
             </div>
-            <div v-if="form.selectedPermits.length > 0" class="tablet:col-span-2">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</p>
-              <ul class="mt-1 flex flex-col gap-0.5">
-                <li v-for="permit in form.selectedPermits" :key="permit.id" class="text-sm text-text-primary">{{ permit.name }}</li>
-              </ul>
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.fieldEngineer') }}</p>
+              <p class="text-sm text-text-primary">{{ selectedEngineerName() }}</p>
             </div>
           </div>
         </FormSection>
