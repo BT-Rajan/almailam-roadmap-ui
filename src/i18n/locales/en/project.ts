@@ -586,7 +586,6 @@ export default {
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
     fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
     earlierFieldsNeedAttention: 'Some earlier fields need attention before this project can be created.',
-    addedToPipelineDescription: '{name} was added to the pipeline.',
   },
 
   newContractDialog: {

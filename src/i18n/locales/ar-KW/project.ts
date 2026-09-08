@@ -586,7 +586,6 @@ export default {
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
     fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
     earlierFieldsNeedAttention: 'بعض الحقول السابقة تحتاج إلى مراجعة قبل إنشاء هذا المشروع.',
-    addedToPipelineDescription: 'تمت إضافة {name} إلى قائمة المشاريع.',
   },
 
   newContractDialog: {

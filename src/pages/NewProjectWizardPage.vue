@@ -321,7 +321,6 @@ async function submitWizard(): Promise<void> {
           : undefined,
     })
 
-    toastStore.show('success', t('project.newWizard.projectCreatedTitle'), t('project.newWizard.addedToPipelineDescription', { name: project.projectName }))
     createdProject.value = project
     showConfirmation.value = true
   } catch (error) {
