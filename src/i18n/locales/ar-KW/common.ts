@@ -109,6 +109,7 @@ export default {
     sendCode: 'إرسال رمز التحقق',
     resendCode: 'إعادة إرسال الرمز',
     codeSentTo: 'تم إرسال رمز تحقق إلى {email}.',
+    deliveryDelayNotice: 'قد يستغرق وصول البريد الإلكتروني بضع دقائق. إذا لم يصل الرمز بعد، يُرجى الانتظار قليلاً قبل إعادة الإرسال.',
     codeLabel: 'رمز التحقق',
     codePlaceholder: 'أدخل الرمز المكوّن من 6 أرقام',
     confirm: 'تأكيد',

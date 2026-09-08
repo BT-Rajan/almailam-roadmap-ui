@@ -295,6 +295,7 @@ export default {
 
   quotationTab: {
     newQuotation: 'New Quotation',
+    decision: 'Decision',
     approve: 'Approve',
     reject: 'Reject',
     expire: 'Expire',
@@ -307,6 +308,7 @@ export default {
     noQuotationSelectedTitle: 'No quotation selected',
     noQuotationSelectedDescription: 'Select a quotation from the list to preview it, or create a new one.',
     recipientEmail: 'Recipient Email',
+    emailDeliveryNotice: 'Email delivery can take a few minutes.',
     send: 'Send',
     quotationEmailedTitle: 'Quotation emailed',
     failedToCreateQuotation: 'Failed to create quotation',

@@ -92,6 +92,7 @@ function handleConfirm(): void {
       <p class="text-sm text-text-secondary">
         {{ t('common.otpVerificationDialog.codeSentTo', { email }) }}
       </p>
+      <p class="text-xs text-text-muted">{{ t('common.otpVerificationDialog.deliveryDelayNotice') }}</p>
       <TextInput
         v-model="form.code"
         :label="t('common.otpVerificationDialog.codeLabel')"

@@ -107,6 +107,7 @@ export default {
     sendCode: 'Send Verification Code',
     resendCode: 'Resend code',
     codeSentTo: 'A verification code was sent to {email}.',
+    deliveryDelayNotice: 'Email delivery can take a few minutes. If the code hasn\'t arrived yet, wait a little before resending.',
     codeLabel: 'Verification Code',
     codePlaceholder: 'Enter the 6-digit code',
     confirm: 'Confirm',

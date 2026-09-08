@@ -295,6 +295,7 @@ export default {
 
   quotationTab: {
     newQuotation: 'عرض سعر جديد',
+    decision: 'القرار',
     approve: 'اعتماد',
     reject: 'رفض',
     expire: 'إنهاء الصلاحية',
@@ -307,6 +308,7 @@ export default {
     noQuotationSelectedTitle: 'لم يتم تحديد عرض سعر',
     noQuotationSelectedDescription: 'اختر عرض سعر من القائمة لمعاينته، أو أنشئ واحداً جديداً.',
     recipientEmail: 'بريد المستلم الإلكتروني',
+    emailDeliveryNotice: 'قد يستغرق وصول البريد الإلكتروني بضع دقائق.',
     send: 'إرسال',
     quotationEmailedTitle: 'تم إرسال عرض السعر',
     failedToCreateQuotation: 'فشل إنشاء عرض السعر',

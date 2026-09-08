@@ -119,12 +119,16 @@ async function handleDownloadDocument(): Promise<void> {
 // Print and Download used to be two separate buttons -- merged into one
 // trigger with a small menu underneath so the toolbar reads as "produce
 // a document, pick the format" instead of two competing top-level
-// actions. Plain click-toggle + outside-click/Escape close; this
-// toolbar isn't nested inside anything that clips or scrolls
-// independently, so it doesn't need the teleported-to-body positioning
-// UserMenu.vue's own dropdown needs for the top nav.
+// actions. Same treatment for Approve/Reject/Expire below -- one
+// "Decision" trigger instead of three competing top-level buttons.
+// Plain click-toggle + outside-click/Escape close; this toolbar isn't
+// nested inside anything that clips or scrolls independently, so it
+// doesn't need the teleported-to-body positioning UserMenu.vue's own
+// dropdown needs for the top nav.
 const isDocumentMenuOpen = ref(false)
 const documentMenuRef = ref<HTMLElement>()
+const isDecisionMenuOpen = ref(false)
+const decisionMenuRef = ref<HTMLElement>()
 
 function toggleDocumentMenu(): void {
   isDocumentMenuOpen.value = !isDocumentMenuOpen.value
@@ -134,19 +138,31 @@ function closeDocumentMenu(): void {
   isDocumentMenuOpen.value = false
 }
 
-function handleClickOutsideDocumentMenu(event: MouseEvent): void {
-  if (isDocumentMenuOpen.value && !documentMenuRef.value?.contains(event.target as Node)) closeDocumentMenu()
+function toggleDecisionMenu(): void {
+  isDecisionMenuOpen.value = !isDecisionMenuOpen.value
 }
 
-function handleKeydownDocumentMenu(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && isDocumentMenuOpen.value) closeDocumentMenu()
+function closeDecisionMenu(): void {
+  isDecisionMenuOpen.value = false
 }
 
-window.addEventListener('mousedown', handleClickOutsideDocumentMenu)
-window.addEventListener('keydown', handleKeydownDocumentMenu)
+function handleClickOutsideMenus(event: MouseEvent): void {
+  const target = event.target as Node
+  if (isDocumentMenuOpen.value && !documentMenuRef.value?.contains(target)) closeDocumentMenu()
+  if (isDecisionMenuOpen.value && !decisionMenuRef.value?.contains(target)) closeDecisionMenu()
+}
+
+function handleKeydownMenus(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  if (isDocumentMenuOpen.value) closeDocumentMenu()
+  if (isDecisionMenuOpen.value) closeDecisionMenu()
+}
+
+window.addEventListener('mousedown', handleClickOutsideMenus)
+window.addEventListener('keydown', handleKeydownMenus)
 onBeforeUnmount(() => {
-  window.removeEventListener('mousedown', handleClickOutsideDocumentMenu)
-  window.removeEventListener('keydown', handleKeydownDocumentMenu)
+  window.removeEventListener('mousedown', handleClickOutsideMenus)
+  window.removeEventListener('keydown', handleKeydownMenus)
 })
 
 async function handlePrintFromMenu(): Promise<void> {
@@ -216,6 +232,21 @@ function openOtpDialog(): void {
 async function handleApprove(): Promise<void> {
   if (!(await ensureFinalized())) return
   openOtpDialog()
+}
+
+async function handleApproveFromMenu(): Promise<void> {
+  closeDecisionMenu()
+  await handleApprove()
+}
+
+function handleRejectFromMenu(): void {
+  closeDecisionMenu()
+  openRejectDialog()
+}
+
+function handleExpireFromMenu(): void {
+  closeDecisionMenu()
+  isExpireDialogOpen.value = true
 }
 
 async function handleSendOtp(): Promise<void> {
@@ -374,17 +405,45 @@ async function handleRevertToDraft(): Promise<void> {
   <div class="flex items-center justify-between">
     <BaseButton size="sm" :icon="Plus" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
-      <template v-if="quotationStore.selectedQuotation?.status === 'Draft'">
-        <BaseButton size="sm" :icon="ShieldCheck" :loading="isOtpSaving || isFinalizing" @click="handleApprove">
-          {{ t('project.quotationTab.approve') }}
+      <div v-if="quotationStore.selectedQuotation?.status === 'Draft'" ref="decisionMenuRef" class="relative">
+        <BaseButton size="sm" :icon="ShieldCheck" :loading="isOtpSaving || isFinalizing" @click="toggleDecisionMenu">
+          {{ t('project.quotationTab.decision') }}
+          <ChevronDown class="ms-1 h-3.5 w-3.5" />
         </BaseButton>
-        <BaseButton variant="secondary" size="sm" :icon="Ban" @click="openRejectDialog">
-          {{ t('project.quotationTab.reject') }}
-        </BaseButton>
-        <BaseButton variant="secondary" size="sm" :icon="Clock" @click="isExpireDialogOpen = true">
-          {{ t('project.quotationTab.expire') }}
-        </BaseButton>
-      </template>
+        <div
+          v-if="isDecisionMenuOpen"
+          role="menu"
+          class="absolute start-0 z-dropdown mt-1 w-52 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleApproveFromMenu"
+          >
+            <ShieldCheck class="h-4 w-4 text-success-600" />
+            <span>{{ t('project.quotationTab.approve') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleRejectFromMenu"
+          >
+            <Ban class="h-4 w-4 text-danger-600" />
+            <span>{{ t('project.quotationTab.reject') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleExpireFromMenu"
+          >
+            <Clock class="h-4 w-4 text-warning-600" />
+            <span>{{ t('project.quotationTab.expire') }}</span>
+          </button>
+        </div>
+      </div>
       <BaseButton
         v-if="quotationStore.selectedQuotation?.status === 'Rejected' || quotationStore.selectedQuotation?.status === 'Expired'"
         variant="secondary"
@@ -449,7 +508,10 @@ async function handleRevertToDraft(): Promise<void> {
   </div>
 
   <BaseDialog v-model="isEmailDialogOpen" :title="t('project.quotationTab.emailQuotation')" size="sm">
-    <TextInput v-model="emailTo" :label="t('project.quotationTab.recipientEmail')" type="email" required placeholder="client@example.com" />
+    <div class="flex flex-col gap-2">
+      <TextInput v-model="emailTo" :label="t('project.quotationTab.recipientEmail')" type="email" required placeholder="client@example.com" />
+      <p class="text-xs text-text-muted">{{ t('project.quotationTab.emailDeliveryNotice') }}</p>
+    </div>
     <template #footer>
       <BaseButton variant="secondary" @click="isEmailDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
       <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">{{ t('project.quotationTab.send') }}</BaseButton>
