@@ -15,7 +15,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { labelKey: 'navigation.projects', routeName: ROUTE_NAMES.PROJECTS, icon: 'FolderKanban', matchPath: '/projects' },
   { labelKey: 'navigation.payments', routeName: ROUTE_NAMES.PAYMENTS, icon: 'Wallet', matchPath: '/payments' },
   // { labelKey: 'navigation.documents', routeName: ROUTE_NAMES.DOCUMENTS, icon: 'FileText', matchPath: '/documents' },
-  { labelKey: 'navigation.tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
+  // { labelKey: 'navigation.tasks', routeName: ROUTE_NAMES.TASKS, icon: 'ListChecks', matchPath: '/tasks' },
   { labelKey: 'navigation.reports', routeName: ROUTE_NAMES.REPORTS, icon: 'BarChart3', matchPath: '/reports' },
   {
     labelKey: 'navigation.administration',
