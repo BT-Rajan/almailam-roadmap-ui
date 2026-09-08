@@ -231,6 +231,14 @@ function handleDocumentClick(): void {
 
 <template>
   <div class="space-y-8 pb-8">
+    <!-- Page Header -->
+    <div>
+      <h1 class="font-display text-3xl font-semibold text-text-primary">
+        <span class="text-gradient-accent">{{ t('dashboard.title') }}</span>
+      </h1>
+      <p class="text-text-muted mt-1">{{ t('dashboard.welcomeSubtitle') }}</p>
+    </div>
+
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
       <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick(kpi.id)" />

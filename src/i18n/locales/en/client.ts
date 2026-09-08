@@ -269,6 +269,8 @@ export default {
   },
 
   clientsPage: {
+    title: 'Clients',
+    subtitle: 'Onboard, verify and reuse individual and organisation client profiles across every project.',
     newClient: 'New Client',
     clientType: 'Client Type',
     allTypes: 'All Types',

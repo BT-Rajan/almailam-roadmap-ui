@@ -1,4 +1,6 @@
 export default {
+  title: 'Executive Dashboard',
+  welcomeSubtitle: "Welcome back. Here's your project overview.",
   totalProjects: 'Total Projects',
   activeProjects: 'Active Projects',
   totalClients: 'Total Clients',

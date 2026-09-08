@@ -1,4 +1,6 @@
 export default {
+  title: 'لوحة التحكم التنفيذية',
+  welcomeSubtitle: 'مرحباً بعودتك. إليك نظرة عامة على مشاريعك.',
   totalProjects: 'إجمالي المشاريع',
   activeProjects: 'المشاريع النشطة',
   totalClients: 'إجمالي العملاء',
