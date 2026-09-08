@@ -105,9 +105,9 @@ const supervisionMonthlyTotal = computed(() =>
 )
 
 // Scope of Work is auto-populated from whatever was picked in the unified
-// service picker -- "scope = services + supervision", per the actual
-// requirement, rather than staff retyping a summary of choices already
-// made elsewhere in this same wizard. Still a normal editable TextArea:
+// service picker -- "scope = services + supervision + permits", per the
+// actual requirement, rather than staff retyping a summary of choices
+// already made elsewhere in this same wizard. Still a normal editable TextArea:
 // lastAutoScope tracks the most recent auto-generated text so a manual
 // edit (form.scope diverging from it) is respected and stops being
 // overwritten -- otherwise picking one more activity after typing a
@@ -129,13 +129,21 @@ function buildScopeText(): string {
   if (form.selectedSupervisionActivities.length > 0) {
     if (lines.length > 0) lines.push('')
     lines.push('Supervision Activities:')
-    form.selectedSupervisionActivities.forEach((item) => lines.push(`- ${item.activityName} (${formatCurrency(item.monthlyRate)}/mo)`))
+    // No price here -- same "name only" convention as the Design
+    // services above (the dedicated Service field/Review step already
+    // shows pricing; this text is a description, not a quote).
+    form.selectedSupervisionActivities.forEach((item) => lines.push(`- ${item.activityName}`))
+  }
+  if (form.selectedPermits.length > 0) {
+    if (lines.length > 0) lines.push('')
+    lines.push('Permits to Apply For:')
+    form.selectedPermits.forEach((permit) => lines.push(`- ${permit.name}`))
   }
   return lines.join('\n')
 }
 
 watch(
-  () => [form.selectedActivities, form.selectedSupervisionActivities],
+  () => [form.selectedActivities, form.selectedSupervisionActivities, form.selectedPermits],
   () => {
     const generated = buildScopeText()
     if (form.scope.trim().length === 0 || form.scope === lastAutoScope.value) {
