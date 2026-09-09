@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { Quotation } from '@/types/Quotation'
+import type { Quotation, QuotationAuditEvent } from '@/types/Quotation'
 
 /**
  * Fetch quotations for a specific project from backend API
@@ -147,6 +147,20 @@ async function confirmQuotationApproval(quotationId: string, file: File): Promis
   }
 }
 
+/**
+ * Fetch the audit trail (status changes, emailed/downloaded/printed,
+ * approval document uploads) for a specific quotation -- merged with
+ * its content revisions by QuotationRevisionHistory.vue.
+ */
+async function getAuditEvents(quotationId: string): Promise<QuotationAuditEvent[]> {
+  try {
+    return await apiClient.get<QuotationAuditEvent[]>(`/api/quotations/${quotationId}/audit-events`)
+  } catch (error) {
+    console.error(`Failed to fetch audit events for quotation ${quotationId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotation audit events')
+  }
+}
+
 export const quotationService = {
   getQuotationsByProject,
   getQuotationById,
@@ -158,4 +172,5 @@ export const quotationService = {
   finalizeQuotation,
   reopenQuotation,
   confirmQuotationApproval,
+  getAuditEvents,
 }

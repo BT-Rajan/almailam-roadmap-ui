@@ -294,6 +294,11 @@ export default {
     current: 'Current',
   },
 
+  quotationHistory: {
+    title: 'History',
+    reason: 'Reason: {reason}',
+  },
+
   pricingSummary: {
     title: 'Pricing Summary',
     subtotal: 'Subtotal',

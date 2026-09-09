@@ -53,6 +53,7 @@ from app.services.project_service import (
     check_and_notify_stale_projects,
     check_and_notify_unpaid_completed_projects,
 )
+from app.services.quotation_service import check_and_expire_quotations
 
 settings = get_settings()
 logger = logging.getLogger("app.scheduler")
@@ -105,6 +106,14 @@ def _run_staleness_checks() -> None:
             logger.info("Overdue-project check: notified %d project(s).", notified)
     except Exception:
         logger.exception("Overdue-project check failed.")
+        db.rollback()
+
+    try:
+        expired = check_and_expire_quotations(db)
+        if expired:
+            logger.info("Quotation-expiry check: expired %d quotation(s).", expired)
+    except Exception:
+        logger.exception("Quotation-expiry check failed.")
         db.rollback()
     finally:
         db.close()

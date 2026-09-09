@@ -294,6 +294,11 @@ export default {
     current: 'الحالية',
   },
 
+  quotationHistory: {
+    title: 'السجل',
+    reason: 'السبب: {reason}',
+  },
+
   pricingSummary: {
     title: 'ملخص التسعير',
     subtotal: 'المجموع الفرعي',

@@ -277,7 +277,15 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
     return quotation
 
 
-def set_status(db: Session, quotation_no: str, new_status: str, reason: str | None, user_id: int) -> Quotation:
+_STATUS_CHANGE_LABELS = {
+    "Approved": "Quotation approved",
+    "Rejected": "Quotation rejected",
+    "Expired": "Quotation expired",
+    "Draft": "Quotation moved back to Draft",
+}
+
+
+def set_status(db: Session, quotation_no: str, new_status: str, reason: str | None, user_id: int | None) -> Quotation:
     quotation = get_quotation(db, quotation_no)
     assert_transition_allowed(QUOTATION_ALLOWED_TRANSITIONS, quotation.status, new_status, "quotation")
     if new_status in QUOTATION_STATUSES_REQUIRING_REASON:
@@ -293,8 +301,14 @@ def set_status(db: Session, quotation_no: str, new_status: str, reason: str | No
             "its content needs to be locked before a decision is recorded on it."
         )
 
+    # A specific, human-readable label per target status (rather than one
+    # generic "Status changed") is what makes get_audit_events/the
+    # frontend's quotation history read as a real timeline -- "Quotation
+    # approved" / "Quotation rejected" / "Quotation expired" / "Quotation
+    # moved back to Draft" -- instead of everything saying the same thing
+    # with the actual meaning buried in previous_value/new_value.
     audit_service.log_event(
-        db, ENTITY_TYPE, quotation.id, "Status changed", user_id,
+        db, ENTITY_TYPE, quotation.id, _STATUS_CHANGE_LABELS.get(new_status, "Status changed"), user_id,
         previous_value=quotation.status, new_value=new_status, reason=reason,
     )
     quotation.status = new_status
@@ -421,6 +435,15 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     document_service.create_document(
         db, project.project_no, f"Signed Quotation {quotation.quotation_no}", "Quotation", file, user_id,
     )
+    # Its own history line, distinct from the "Quotation approved" one
+    # set_status logs right below -- the upload and the approval happen
+    # together here, but they're still two separate facts worth being
+    # able to see separately in the quotation's history (e.g. who
+    # uploaded the file vs. whose action counted as the approval, if
+    # that were ever to diverge).
+    audit_service.log_event(
+        db, ENTITY_TYPE, quotation.id, "Approval document uploaded", user_id, new_value=file.filename,
+    )
 
     quotation = set_status(db, quotation_no, "Approved", None, user_id)
 
@@ -517,6 +540,67 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
         )
         db.commit()
     return quotation
+
+
+def record_document_activity(db: Session, quotation_no: str, action_label: str, user_id: int, detail: str | None = None) -> None:
+    """Logs a document-lifecycle event -- emailed, downloaded, printed --
+    that isn't itself a content edit or a status move, so the quotation's
+    history shows what actually happened to it end-to-end (who sent it,
+    when it was pulled down, not just when its status changed)."""
+    quotation = get_quotation(db, quotation_no)
+    audit_service.log_event(db, ENTITY_TYPE, quotation.id, action_label, user_id, new_value=detail)
+    db.commit()
+
+
+def check_and_expire_quotations(db: Session) -> int:
+    """Finds finalized Draft quotations whose validity date has passed
+    and moves them to Expired automatically -- the same transition
+    staff can already make manually from the status menu, just applied
+    the moment the deadline for a decision actually lapses instead of
+    only when someone happens to notice.
+
+    Only finalized quotations are eligible: set_status already refuses
+    to move an unfinalized Draft out of Draft (see its own guard), so a
+    quotation that was never actually finalized/sent is left alone even
+    with a stale validity date -- it was never really "offered" to
+    begin with, and a plain edit fixes the date whenever someone gets
+    back to it.
+
+    Called daily by the background scheduler (see main.py's lifespan),
+    same shape as the other check_and_notify_* functions elsewhere in
+    the codebase. Returns how many quotations were expired in this run.
+    """
+    today = date.today()
+    candidates = (
+        db.query(Quotation)
+        .filter(
+            Quotation.deleted_at.is_(None),
+            Quotation.status == "Draft",
+            Quotation.finalized_at.isnot(None),
+            Quotation.validity < today,
+        )
+        .all()
+    )
+
+    expired_count = 0
+    for quotation in candidates:
+        project = db.query(Project).filter(Project.id == quotation.project_id).first()
+        quotation_no = quotation.quotation_no
+        validity = quotation.validity
+        set_status(db, quotation_no, "Expired", "Automatically expired: validity date passed.", None)
+        if project is not None:
+            notification_service.notify_role(
+                db, "Administrator",
+                "Quotation expired",
+                f"Quotation {quotation_no} for project {project.project_no} passed its validity date "
+                f"({validity.isoformat()}) without a decision and was automatically marked Expired.",
+                "Project",
+                link_route_name="project-workspace",
+                link_params={"projectId": project.project_no},
+            )
+            db.commit()
+        expired_count += 1
+    return expired_count
 
 
 def _quotation_exists(db: Session, quotation_no: str) -> Quotation:

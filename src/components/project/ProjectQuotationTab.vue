@@ -95,6 +95,7 @@ async function handlePrint(): Promise<void> {
   try {
     const blob = await documentTemplateService.getQuotationDocumentPdf(quotation.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
+    void quotationStore.loadAuditEvents(quotation.id)
   } catch (error) {
     printWindow?.close()
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
@@ -113,6 +114,7 @@ async function handleDownloadDocument(): Promise<void> {
   try {
     const blob = await documentTemplateService.downloadQuotationDocument(quotation.id, documentLanguage.value)
     triggerBlobDownload(blob, `${quotation.id}.docx`)
+    void quotationStore.loadAuditEvents(quotation.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
@@ -198,6 +200,7 @@ async function handleSendEmail(): Promise<void> {
   isSendingEmail.value = true
   try {
     await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim(), documentLanguage.value)
+    void quotationStore.loadAuditEvents(quotation.id)
     resultDialogStore.showSuccess(t('project.quotationTab.quotationEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
   } catch (error) {
@@ -564,7 +567,11 @@ async function handleRevertToDraft(): Promise<void> {
     </div>
 
     <div class="no-print flex flex-col gap-6">
-      <QuotationRevisionHistory v-if="quotationStore.selectedQuotation" :revisions="quotationStore.selectedQuotation.revisions" />
+      <QuotationRevisionHistory
+        v-if="quotationStore.selectedQuotation"
+        :revisions="quotationStore.selectedQuotation.revisions"
+        :events="quotationStore.selectedQuotationAuditEvents"
+      />
     </div>
   </div>
 
