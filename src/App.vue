@@ -5,10 +5,12 @@ import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
 import ResultDialog from '@/components/common/ResultDialog.vue'
+import MobileBlockScreen from '@/components/common/MobileBlockScreen.vue'
 import KnowledgeChatDrawer from '@/components/knowledge/KnowledgeChatDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
 import { useIdleLogout } from '@/composables/useIdleLogout'
+import { useViewport } from '@/composables/useViewport'
 import { useCompanyStore } from '@/stores/companyStore'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -18,6 +20,7 @@ import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 const route = useRoute()
 const { t } = useI18n()
 const companyStore = useCompanyStore()
+const { isBelowTablet } = useViewport()
 
 useIdleLogout()
 
@@ -42,11 +45,14 @@ const layout = computed(() => {
 </script>
 
 <template>
-  <a href="#main-content" class="skip-link">{{ t('common.skipToMainContent') }}</a>
-  <component :is="layout" />
-  <ToastContainer />
-  <ResultDialog />
-  <NotificationDrawer />
-  <CommandPalette />
-  <KnowledgeChatDrawer />
+  <MobileBlockScreen v-if="isBelowTablet" />
+  <template v-else>
+    <a href="#main-content" class="skip-link">{{ t('common.skipToMainContent') }}</a>
+    <component :is="layout" />
+    <ToastContainer />
+    <ResultDialog />
+    <NotificationDrawer />
+    <CommandPalette />
+    <KnowledgeChatDrawer />
+  </template>
 </template>

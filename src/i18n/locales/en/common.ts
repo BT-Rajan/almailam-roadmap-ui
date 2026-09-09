@@ -108,4 +108,11 @@ export default {
     fileRequired: 'Upload the signed document to continue.',
     confirm: 'Confirm',
   },
+
+  mobileBlockScreen: {
+    title: 'Best experienced on a larger screen',
+    description:
+      'ServiceOS is a complex business application built for detailed, side-by-side work -- project workspaces, documents and workflow tracking are not designed for small mobile screens.',
+    recommendation: 'Please continue on a tablet, laptop or desktop.',
+  },
 }
