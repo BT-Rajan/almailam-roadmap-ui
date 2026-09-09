@@ -127,6 +127,18 @@ def get_default(db: Session, document_type: str, language: str) -> DocumentTempl
             DocumentTemplate.is_default.is_(True),
             DocumentTemplate.deleted_at.is_(None),
         )
+        # "Exactly one default per (document_type, language)" is only
+        # ever enforced in application code -- MySQL has no partial/
+        # filtered unique index to express that as a real constraint
+        # (see DocumentTemplate's own docstring, and migration 0086,
+        # which repairs any stray duplicate already sitting in the
+        # database). Without an explicit order, .first() on more than
+        # one match is undefined -- which one actually renders would be
+        # pinned to whatever a given query happened to return, not
+        # necessarily the one an admin most recently set. Ordering by
+        # id desc means that if a duplicate ever exists anyway, the most
+        # recently created default wins, deterministically, every time.
+        .order_by(DocumentTemplate.id.desc())
         .first()
     )
 
