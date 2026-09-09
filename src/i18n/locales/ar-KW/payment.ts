@@ -43,8 +43,6 @@ export default {
     noBillableDescription: 'لا يوجد لهذا المشروع أعمال تصميم أو إشراف مختارة، لذا لا توجد خطة دفع لإنشائها بعد.',
     addService: 'إضافة خدمة',
     title: 'خطة دفع المشروع',
-    readyForContract: 'تم اعتماد كل خطط الدفع المطلوبة — هذا المشروع جاهز للانتقال إلى العقد.',
-    advanceToContract: 'التقدم إلى العقد',
     projectMovedOn: 'انتقل هذا المشروع إلى {stage} — خطة الدفع أدناه معروضة للمرجعية فقط.',
     goToStage: 'الانتقال إلى {stage}',
     noPlanYetTitle: 'لا توجد خطة دفع بعد',

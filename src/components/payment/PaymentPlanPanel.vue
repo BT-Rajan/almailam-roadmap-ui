@@ -189,13 +189,6 @@ const approvedQuotation = () => quotationStore.quotations.find((quotation) => qu
 const allRequiredAgreementsApproved = () =>
   visibleStreams.value.length > 0 && visibleStreams.value.every((stream) => agreementForStream(stream)?.status === 'Approved')
 
-// Gates the "Advance to Contract" banner specifically -- once the
-// project has actually moved past Contract (Design, Government
-// Submission, Supervision), every agreement is still permanently
-// Approved, so allRequiredAgreementsApproved() alone would keep this
-// banner dangling forever on an old Payment Plan tab visit.
-const showAdvanceToContractBanner = () => allRequiredAgreementsApproved() && !hasProjectPassedStage(props.project.currentStage, 'Contract')
-
 // The stepper (WorkflowProgress.vue) lets staff jump back to this tab
 // from a project that's already moved past it (e.g. reviewing the
 // approved plan while the project now sits at Design) -- see
@@ -239,12 +232,24 @@ function openEditAgreement(agreement: FinancialAgreement): void {
   isAgreementFormOpen.value = true
 }
 
+// Once this approval was the last one a project needs (every visible
+// stream now Approved), there's nothing left to decide on this tab --
+// same "decision made -> move straight on" shape as the Quotation tab's
+// own Approve (handleConfirmApproval navigates to Payment Plan the
+// instant the quotation is Approved, with no separate "Advance" step in
+// between). This replaces the old manual "Advance to Contract" banner:
+// approving the last stream now takes staff straight to Contract with
+// its New Contract dialog already open on the approved quotation (see
+// handleAdvanceToContract).
 async function handleApproveAgreement(agreement: FinancialAgreement): Promise<void> {
   isApprovingStream.value = agreement.stream
   try {
     await store.approveAgreement(agreement.id)
     await projectStore.refreshProject(props.projectId)
     resultDialogStore.showSuccess(t('payment.planPanel.streamPlanApprovedTitle', { stream: agreementStreamLabel(agreement.stream) }), t('payment.planPanel.planApprovedDescription'))
+    if (allRequiredAgreementsApproved() && !hasProjectPassedStage(props.project.currentStage, 'Contract')) {
+      handleAdvanceToContract()
+    }
   } catch (error) {
     resultDialogStore.showError(t('payment.planPanel.couldNotApprove'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
@@ -428,14 +433,6 @@ async function handleSendEmail(): Promise<void> {
 
     <div class="flex flex-col gap-1">
       <h2 class="text-base font-semibold text-text-primary">{{ t('payment.planPanel.title') }}</h2>
-    </div>
-
-    <div
-      v-if="showAdvanceToContractBanner()"
-      class="flex flex-col items-start justify-between gap-3 rounded-lg border border-success-100 bg-success-50 px-4 py-3 tablet:flex-row tablet:items-center no-print"
-    >
-      <p class="text-sm text-success-700">{{ t('payment.planPanel.readyForContract') }}</p>
-      <BaseButton size="sm" :icon="advanceIcon" @click="handleAdvanceToContract">{{ t('payment.planPanel.advanceToContract') }}</BaseButton>
     </div>
 
     <div

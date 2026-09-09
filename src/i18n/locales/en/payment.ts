@@ -43,8 +43,6 @@ export default {
     noBillableDescription: "This project has no Design or Supervision work selected, so there's no payment plan to create yet.",
     addService: 'Add Service',
     title: 'Project Payment Plan',
-    readyForContract: 'Every required payment plan is approved — this project is ready for Contract.',
-    advanceToContract: 'Advance to Contract',
     projectMovedOn: 'This project has moved on to {stage} — the payment plan below is shown for reference.',
     goToStage: 'Go to {stage}',
     noPlanYetTitle: 'No payment plan yet',
