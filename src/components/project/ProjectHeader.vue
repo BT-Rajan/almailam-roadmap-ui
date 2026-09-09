@@ -34,10 +34,10 @@ const { t } = useI18n()
        this screen; @change-stage/@change-status/@add-service stay declared
        since PaymentPlanPanel.vue and others still rely on the same events
        existing on this component's contract. -->
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 p-4">
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 p-5">
     <div class="flex flex-wrap items-baseline gap-x-2">
       <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
-      <h1 class="text-base font-semibold text-text-primary">{{ project.projectName }}</h1>
+      <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
     </div>
 
     <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">

@@ -80,7 +80,7 @@ function segmentClasses(stage: WorkflowStage): string[] {
 function labelClasses(stage: WorkflowStage): string[] {
   const status = stepStatus(stage)
   return [
-    'flex-1 truncate text-center text-[10px] px-0.5 hover:text-accent-600 cursor-pointer',
+    'flex-1 truncate text-center text-xs px-0.5 hover:text-accent-600 cursor-pointer',
     status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted',
   ]
 }

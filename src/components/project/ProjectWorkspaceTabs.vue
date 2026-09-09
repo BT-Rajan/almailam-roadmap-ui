@@ -72,7 +72,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
       :id="`project-tab-${tab.key}`"
       type="button"
       role="tab"
-      class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2 text-sm font-medium transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
       :class="
         activeTab === tab.key
           ? 'border-accent-500 text-accent-700 dark:text-accent-400'

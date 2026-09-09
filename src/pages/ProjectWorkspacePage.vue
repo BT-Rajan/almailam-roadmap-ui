@@ -366,7 +366,7 @@ async function handleConfirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 p-4">
+  <div class="flex flex-col gap-6 p-6">
     <ErrorState v-if="error" :description="error" @retry="loadData" />
 
     <template v-else-if="isLoading">
