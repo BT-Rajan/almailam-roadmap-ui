@@ -18,7 +18,6 @@ import { useLocale } from '@/composables/useLocale'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import { useCompanyStore } from '@/stores/companyStore'
-import { useContractStore } from '@/stores/contractStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -56,7 +55,6 @@ const { visibleStreams, agreementForStream, obligationsForStream } = usePaymentA
 const store = usePaymentStore()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
-const contractStore = useContractStore()
 const companyStore = useCompanyStore()
 // Matches every other create/edit/delete-style action in the app
 // (Clients, Projects, Quotations, Contracts, Government Submissions) --
@@ -154,15 +152,6 @@ const stopSeedingDocumentLanguage = watch(
   { immediate: true },
 )
 
-// A contract having ever been signed for this project means its
-// financial terms are locked in -- a stream added to the project after
-// that (e.g. via "Add Service") shouldn't quietly get its own payment
-// plan created outside what the signed contract covers. Each stream
-// can only ever have one agreement anyway (project_id, stream is
-// unique), so this only actually matters for a stream that doesn't
-// have one yet.
-const hasSignedContract = computed(() => contractStore.contracts.some((contract) => contract.status !== 'Draft'))
-
 const hasAnyAgreement = computed(() => visibleStreams.value.some((stream) => agreementForStream(stream)))
 
 // Same "New X" toolbar button as ProjectQuotationTab.vue/
@@ -220,21 +209,6 @@ const projectHasMovedOn = () => hasProjectPassedStage(props.project.currentStage
 const currentStageLabel = () => t(getWorkflowStageLabelKey(props.project.currentStage))
 function goToCurrentStage(): void {
   emit('navigate-tab', getWorkflowStageTabKey(props.project.currentStage))
-}
-
-const anyAgreementMissing = () => visibleStreams.value.some((stream) => !agreementForStream(stream))
-
-const planExplainer = () => {
-  const parts: string[] = []
-  if (visibleStreams.value.includes('Design')) {
-    parts.push(t('payment.planPanel.explainerDesign'))
-  }
-  if (visibleStreams.value.includes('Supervision')) {
-    parts.push(t('payment.planPanel.explainerSupervision'))
-  }
-  if (parts.length === 2) return t('payment.planPanel.explainerBoth', { design: parts[0], supervision: parts[1] })
-  if (parts.length === 1) return t('payment.planPanel.explainerSingle', { part: parts[0] })
-  return ''
 }
 
 const SCHEDULE_COLUMNS = computed<SmartTableColumn<{ id: string; sequenceNumber: number; description: string; amountDue: number; dueDate: string }>[]>(() => [
@@ -454,7 +428,6 @@ async function handleSendEmail(): Promise<void> {
 
     <div class="flex flex-col gap-1">
       <h2 class="text-base font-semibold text-text-primary">{{ t('payment.planPanel.title') }}</h2>
-      <p v-if="anyAgreementMissing()" class="text-sm text-text-muted">{{ planExplainer() }} {{ t('payment.planPanel.everyPartMustBeApproved') }}</p>
     </div>
 
     <div
@@ -477,7 +450,7 @@ async function handleSendEmail(): Promise<void> {
       <BaseButton
         size="sm"
         :icon="Plus"
-        :disabled="hasSignedContract || !nextMissingStream"
+        :disabled="!nextMissingStream"
         class="no-print"
         @click="nextMissingStream && openCreateAgreement(nextMissingStream)"
       >
@@ -560,13 +533,11 @@ async function handleSendEmail(): Promise<void> {
           :icon="Wallet"
           :title="t('payment.planPanel.noPlanYetTitle')"
           :description="
-            hasSignedContract
-              ? t('payment.planPanel.noPlanLockedDescription')
-              : section.stream === 'Supervision'
-                ? t('payment.planPanel.noPlanSupervisionDescription')
-                : t('payment.planPanel.noPlanDesignDescription')
+            section.stream === 'Supervision'
+              ? t('payment.planPanel.noPlanSupervisionDescription')
+              : t('payment.planPanel.noPlanDesignDescription')
           "
-          :action-label="hasSignedContract ? undefined : t('payment.planPanel.createPaymentPlan')"
+          :action-label="t('payment.planPanel.createPaymentPlan')"
           @action="openCreateAgreement(section.stream)"
         />
 
