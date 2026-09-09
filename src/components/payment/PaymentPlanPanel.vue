@@ -99,34 +99,40 @@ function agreementStreamLabel(stream: string): string {
   return t(AGREEMENT_STREAM_LABEL_KEYS[stream] ?? getAgreementStreamLabel(stream as AgreementStream))
 }
 
-// Distinct from agreementStreamLabel above -- these name what the tab
-// itself covers ("Design and Permit Plan"), not just the billing
-// stream's own short name, since Design also covers licensing/permit
-// fees (see explainerDesign below).
-const STREAM_TAB_LABEL_KEYS: Record<AgreementStream, string> = {
-  Design: 'payment.planPanel.designAndPermitTab',
-  Supervision: 'payment.planPanel.supervisionTab',
+// Section headings -- distinct from agreementStreamLabel above, which
+// names just the billing stream ("Design"). These name what the
+// section itself covers ("Design and Permit Plan"), since Design also
+// bundles licensing/permit fees into its one agreement (see
+// explainerDesign below).
+const SECTION_LABEL_KEYS: Record<AgreementStream, string> = {
+  Design: 'payment.planPanel.designAndPermitSection',
+  Supervision: 'payment.planPanel.supervisionSection',
 }
-function streamTabLabel(stream: AgreementStream): string {
-  return t(STREAM_TAB_LABEL_KEYS[stream])
+function sectionLabel(stream: AgreementStream): string {
+  return t(SECTION_LABEL_KEYS[stream])
 }
 
-// Which stream's plan is currently shown -- a real sub-tab bar once
-// there's more than one visible stream, otherwise just whichever one
-// the project actually has. Reset whenever the visible set changes out
-// from under it (e.g. "Add Service" just added Supervision, or this is
-// the very first render) so it never points at a stream that's no
-// longer shown.
-const activeStream = ref<AgreementStream | undefined>(visibleStreams.value[0])
-watch(
-  visibleStreams,
-  (streams) => {
-    if (!activeStream.value || !streams.includes(activeStream.value)) {
-      activeStream.value = streams[0]
-    }
-  },
-  { immediate: true },
-)
+// One page, one set of controls -- no more per-stream sub-tabs. Every
+// visible stream's plan (and the read-only Permits summary below) is
+// shown as its own stacked section instead, same "everything on one
+// screen" shape as ProjectQuotationTab.vue/ProjectContractTab.vue.
+type PlanSection = { kind: 'stream'; stream: AgreementStream } | { kind: 'permits' }
+
+const selectedPermits = computed(() => props.project.selectedPermits ?? [])
+const hasPermits = computed(() => selectedPermits.value.length > 0)
+const permitsTotal = computed(() => selectedPermits.value.reduce((sum, permit) => sum + (permit.permitPrice ?? 0), 0))
+
+// Design, Permits, Supervision -- in that order, and only the ones
+// this project's scope actually includes.
+const sections = computed<PlanSection[]>(() => {
+  const list: PlanSection[] = []
+  if (visibleStreams.value.includes('Design')) list.push({ kind: 'stream', stream: 'Design' })
+  if (hasPermits.value) list.push({ kind: 'permits' })
+  if (visibleStreams.value.includes('Supervision')) list.push({ kind: 'stream', stream: 'Supervision' })
+  return list
+})
+
+const hasAnyScope = computed(() => visibleStreams.value.length > 0 || hasPermits.value)
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
@@ -314,8 +320,7 @@ async function handleConfirmDelete(): Promise<void> {
 // ProjectContractTab.vue: one "Decision" dropdown and one "Print/
 // Download" dropdown instead of a button per action. The generated
 // document always covers every visible stream's plan in one PDF (see
-// document_template_service.render_payment_plan_document), not just
-// whichever stream tab happens to be active.
+// document_template_service.render_payment_plan_document).
 const isDocumentMenuOpen = ref(false)
 const documentMenuRef = ref<HTMLElement>()
 const isDecisionMenuOpen = ref(false)
@@ -351,9 +356,16 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydownMenus)
 })
 
-async function handleApproveFromMenu(): Promise<void> {
+// Every visible stream still in Draft gets its own menu item -- e.g.
+// "Approve Design and Permit Plan" and "Approve Supervision Plan" can
+// both show at once, same as Quotation's Decision menu offering
+// Approve/Reject/Expire together.
+const draftStreams = computed(() => visibleStreams.value.filter((stream) => agreementForStream(stream)?.status === 'Draft'))
+const hasDecisionOptions = computed(() => draftStreams.value.length > 0)
+
+async function handleApproveFromMenu(stream: AgreementStream): Promise<void> {
   closeDecisionMenu()
-  const agreement = activeStream.value ? agreementForStream(activeStream.value) : undefined
+  const agreement = agreementForStream(stream)
   if (agreement) await handleApproveAgreement(agreement)
 }
 
@@ -424,7 +436,7 @@ async function handleSendEmail(): Promise<void> {
 <template>
   <div class="flex flex-col gap-8">
     <EmptyState
-      v-if="visibleStreams.length === 0"
+      v-if="!hasAnyScope"
       :icon="Wallet"
       :title="t('payment.planPanel.noBillableTitle')"
       :description="t('payment.planPanel.noBillableDescription')"
@@ -453,162 +465,165 @@ async function handleSendEmail(): Promise<void> {
       <BaseButton size="sm" :icon="advanceIcon" @click="goToCurrentStage">{{ t('payment.planPanel.goToStage', { stage: currentStageLabel() }) }}</BaseButton>
     </div>
 
-    <div v-if="visibleStreams.length > 0" class="flex flex-wrap items-center justify-between gap-3">
-      <div v-if="visibleStreams.length > 1" class="no-print flex gap-1 border-b border-border-light" role="tablist">
-        <button
-          v-for="stream in visibleStreams"
-          :key="stream"
-          type="button"
-          role="tab"
-          :aria-selected="activeStream === stream"
-          class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2.5 text-sm font-medium transition-colors duration-fast"
-          :class="
-            activeStream === stream
-              ? 'border-accent-500 text-accent-700 dark:text-accent-400'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          "
-          @click="activeStream = stream"
-        >
-          {{ streamTabLabel(stream) }}
-        </button>
-      </div>
-      <div v-else />
-
-      <div class="no-print flex flex-wrap items-center gap-2">
-        <div v-if="activeStream && agreementForStream(activeStream)?.status === 'Draft'" ref="decisionMenuRef" class="relative">
-          <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream === activeStream" @click="toggleDecisionMenu">
-            {{ t('payment.planPanel.decision') }}
-            <ChevronDown class="ms-1 h-3.5 w-3.5" />
-          </BaseButton>
-          <div
-            v-if="isDecisionMenuOpen"
-            role="menu"
-            class="absolute end-0 z-dropdown mt-1 w-56 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-              @click="handleApproveFromMenu"
-            >
-              <ShieldCheck class="h-4 w-4 text-success-600" />
-              <span>{{ t('payment.planPanel.approvePaymentPlan') }}</span>
-            </button>
-          </div>
-        </div>
-        <SelectBox v-if="hasAnyAgreement" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
-        <div v-if="hasAnyAgreement" ref="documentMenuRef" class="relative">
-          <BaseButton variant="secondary" size="sm" :icon="Printer" :loading="isPrinting || isDownloadingDocument" @click="toggleDocumentMenu">
-            {{ t('payment.planPanel.printOrDownload') }}
-            <ChevronDown class="ms-1 h-3.5 w-3.5" />
-          </BaseButton>
-          <div
-            v-if="isDocumentMenuOpen"
-            role="menu"
-            class="absolute end-0 z-dropdown mt-1 w-56 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-              @click="handlePrintFromMenu"
-            >
-              <Printer class="h-4 w-4 text-text-muted" />
-              <span>{{ t('payment.planPanel.printPaymentPlan') }}</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-              @click="handleDownloadFromMenu"
-            >
-              <Download class="h-4 w-4 text-text-muted" />
-              <span>{{ t('payment.planPanel.downloadDocument') }}</span>
-            </button>
-          </div>
-        </div>
-        <BaseButton v-if="hasAnyAgreement" variant="secondary" size="sm" :icon="Mail" @click="openEmailDialog">
-          {{ t('payment.planPanel.emailPaymentPlan') }}
+    <div v-if="hasAnyScope" class="no-print flex flex-wrap items-center justify-end gap-2">
+      <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
+        <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream !== undefined" @click="toggleDecisionMenu">
+          {{ t('payment.planPanel.decision') }}
+          <ChevronDown class="ms-1 h-3.5 w-3.5" />
         </BaseButton>
+        <div
+          v-if="isDecisionMenuOpen"
+          role="menu"
+          class="absolute end-0 z-dropdown mt-1 w-64 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+        >
+          <button
+            v-for="stream in draftStreams"
+            :key="stream"
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleApproveFromMenu(stream)"
+          >
+            <ShieldCheck class="h-4 w-4 text-success-600" />
+            <span>{{ t('payment.planPanel.approveStreamPlan', { stream: sectionLabel(stream) }) }}</span>
+          </button>
+        </div>
       </div>
+      <SelectBox v-if="hasAnyAgreement" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
+      <div v-if="hasAnyAgreement" ref="documentMenuRef" class="relative">
+        <BaseButton variant="secondary" size="sm" :icon="Printer" :loading="isPrinting || isDownloadingDocument" @click="toggleDocumentMenu">
+          {{ t('payment.planPanel.printOrDownload') }}
+          <ChevronDown class="ms-1 h-3.5 w-3.5" />
+        </BaseButton>
+        <div
+          v-if="isDocumentMenuOpen"
+          role="menu"
+          class="absolute end-0 z-dropdown mt-1 w-56 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handlePrintFromMenu"
+          >
+            <Printer class="h-4 w-4 text-text-muted" />
+            <span>{{ t('payment.planPanel.printPaymentPlan') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleDownloadFromMenu"
+          >
+            <Download class="h-4 w-4 text-text-muted" />
+            <span>{{ t('payment.planPanel.downloadDocument') }}</span>
+          </button>
+        </div>
+      </div>
+      <BaseButton v-if="hasAnyAgreement" variant="secondary" size="sm" :icon="Mail" @click="openEmailDialog">
+        {{ t('payment.planPanel.emailPaymentPlan') }}
+      </BaseButton>
     </div>
 
-    <div v-if="activeStream" class="flex flex-col gap-4">
-      <EmptyState
-        v-if="!agreementForStream(activeStream)"
-        :icon="Wallet"
-        :title="t('payment.planPanel.noPlanYetTitle')"
-        :description="
-          hasSignedContract
-            ? t('payment.planPanel.noPlanLockedDescription')
-            : activeStream === 'Supervision'
-              ? t('payment.planPanel.noPlanSupervisionDescription')
-              : t('payment.planPanel.noPlanDesignDescription')
-        "
-        :action-label="hasSignedContract ? undefined : t('payment.planPanel.createPaymentPlan')"
-        @action="openCreateAgreement(activeStream)"
-      />
+    <template v-for="section in sections" :key="section.kind === 'stream' ? section.stream : 'permits'">
+      <div v-if="section.kind === 'stream'" class="flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ sectionLabel(section.stream) }}</h3>
+          <StatusBadge
+            v-if="agreementForStream(section.stream)"
+            :label="agreementStatusLabel(agreementForStream(section.stream)!.status)"
+            :variant="agreementForStream(section.stream)!.status === 'Approved' ? 'success' : 'warning'"
+          />
+        </div>
 
-      <template v-else>
-        <Card>
-          <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between gap-3">
-              <StatusBadge
-                :label="agreementStatusLabel(agreementForStream(activeStream)!.status)"
-                :variant="agreementForStream(activeStream)!.status === 'Approved' ? 'success' : 'warning'"
-              />
-              <div class="flex flex-wrap items-center justify-end gap-2 no-print">
+        <EmptyState
+          v-if="!agreementForStream(section.stream)"
+          :icon="Wallet"
+          :title="t('payment.planPanel.noPlanYetTitle')"
+          :description="
+            hasSignedContract
+              ? t('payment.planPanel.noPlanLockedDescription')
+              : section.stream === 'Supervision'
+                ? t('payment.planPanel.noPlanSupervisionDescription')
+                : t('payment.planPanel.noPlanDesignDescription')
+          "
+          :action-label="hasSignedContract ? undefined : t('payment.planPanel.createPaymentPlan')"
+          @action="openCreateAgreement(section.stream)"
+        />
+
+        <template v-else>
+          <Card>
+            <div class="flex flex-col gap-4">
+              <div class="flex items-center justify-end gap-2 no-print">
                 <BaseButton
-                  v-if="agreementForStream(activeStream)!.status === 'Draft'"
+                  v-if="agreementForStream(section.stream)!.status === 'Draft'"
                   variant="secondary"
                   size="sm"
                   :icon="Pencil"
-                  @click="openEditAgreement(agreementForStream(activeStream)!)"
+                  @click="openEditAgreement(agreementForStream(section.stream)!)"
                 >
                   {{ t('payment.planPanel.edit') }}
                 </BaseButton>
                 <BaseButton
-                  v-if="agreementForStream(activeStream)!.status === 'Draft'"
+                  v-if="agreementForStream(section.stream)!.status === 'Draft'"
                   variant="ghost"
                   size="sm"
                   :icon="Trash2"
-                  @click="requestDeleteAgreement(agreementForStream(activeStream)!)"
+                  @click="requestDeleteAgreement(agreementForStream(section.stream)!)"
                 >
                   {{ t('payment.planPanel.delete') }}
                 </BaseButton>
               </div>
-            </div>
 
-            <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
-              <div>
-                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.totalAmount') }}</p>
-                <p class="text-sm font-semibold text-text-primary">{{ formatCurrency(agreementForStream(activeStream)!.contractAmount, agreementForStream(activeStream)!.currency) }}</p>
+              <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.totalAmount') }}</p>
+                  <p class="text-sm font-semibold text-text-primary">{{ formatCurrency(agreementForStream(section.stream)!.contractAmount, agreementForStream(section.stream)!.currency) }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.paymentMode') }}</p>
+                  <p class="text-sm text-text-primary">{{ paymentModeLabel(agreementForStream(section.stream)!.paymentMode) }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.agreementDate') }}</p>
+                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(section.stream)!.agreementDate) }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.startDate') }}</p>
+                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(section.stream)!.contractStartDate) }}</p>
+                </div>
               </div>
-              <div>
-                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.paymentMode') }}</p>
-                <p class="text-sm text-text-primary">{{ paymentModeLabel(agreementForStream(activeStream)!.paymentMode) }}</p>
-              </div>
-              <div>
-                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.agreementDate') }}</p>
-                <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(activeStream)!.agreementDate) }}</p>
-              </div>
-              <div>
-                <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.startDate') }}</p>
-                <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(activeStream)!.contractStartDate) }}</p>
-              </div>
-            </div>
 
-            <SmartTable :columns="SCHEDULE_COLUMNS" :rows="scheduleRows(activeStream)" row-key="id" :searchable="false">
-              <template #cell-amountDue="{ value }">
-                {{ formatCurrency(value as number, agreementForStream(activeStream)!.currency) }}
-              </template>
-            </SmartTable>
-          </div>
+              <SmartTable :columns="SCHEDULE_COLUMNS" :rows="scheduleRows(section.stream)" row-key="id" :searchable="false">
+                <template #cell-amountDue="{ value }">
+                  {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
+                </template>
+              </SmartTable>
+            </div>
+          </Card>
+
+          <PaymentHistoryPanel :events="store.auditEventsByAgreement[agreementForStream(section.stream)!.id] ?? []" />
+        </template>
+      </div>
+
+      <div v-else class="flex flex-col gap-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ t('payment.planPanel.permitsTitle') }}</h3>
+        <Card :padded="false">
+          <ul class="flex flex-col divide-y divide-border-light">
+            <li v-for="permit in selectedPermits" :key="permit.id" class="flex items-center justify-between gap-3 px-5 py-3">
+              <span class="text-sm text-text-secondary">{{ permit.permitName }}</span>
+              <span class="shrink-0 text-sm font-medium text-text-primary">
+                {{ permit.permitPrice != null ? formatCurrency(permit.permitPrice) : '—' }}
+              </span>
+            </li>
+            <li class="flex items-center justify-between gap-3 bg-bg-secondary px-5 py-3">
+              <span class="text-sm font-semibold text-text-primary">{{ t('payment.planPanel.totalPermitFees') }}</span>
+              <span class="shrink-0 text-sm font-semibold text-text-primary">{{ formatCurrency(permitsTotal) }}</span>
+            </li>
+          </ul>
         </Card>
-
-        <PaymentHistoryPanel :events="store.auditEventsByAgreement[agreementForStream(activeStream)!.id] ?? []" />
-      </template>
-    </div>
+      </div>
+    </template>
 
     <BaseDialog v-model="isEmailDialogOpen" :title="t('payment.planPanel.emailPaymentPlan')" size="sm">
       <TextInput v-model="emailTo" :label="t('payment.planPanel.recipientEmail')" type="email" required placeholder="client@example.com" />
