@@ -511,15 +511,20 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
-  // No session-restore-on-load here, deliberately -- a page refresh, a
-  // reopened tab, or a freshly relaunched browser all start logged out.
-  // (authStore no longer has a hydrate()/silent-cookie-restore step; see
-  // its tryRefresh() comment.) Only genuine mid-session token renewal
-  // (via httpClient's 401 retry, while the SPA is still running) uses the
-  // refresh cookie.
+  // Runs once (hydrate() no-ops on every navigation after the first): tries
+  // to silently resume a session from the httpOnly refresh cookie before
+  // this first navigation is allowed to resolve, so a hard refresh or a
+  // reopened tab doesn't force a full relogin when the session is still
+  // genuinely valid. main.ts already waits on router.isReady() before
+  // mounting, so this delays first paint slightly rather than flashing the
+  // login page and bouncing. A closed browser still logs the user out --
+  // the refresh cookie itself is session-only (no max_age) -- and every
+  // server-side limit (expiry, rotation, idle timeout) still applies
+  // exactly as before; see authStore.hydrate()/tryRefresh().
+  await authStore.hydrate()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Site/customer portal routes bounce to their own login, not the

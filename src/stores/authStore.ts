@@ -16,6 +16,15 @@ interface AuthState {
    */
   refreshPromise: Promise<boolean> | null
   /**
+   * In-flight startup hydration (see hydrate()). Shared the same way as
+   * refreshPromise so concurrent callers (in practice just the router
+   * guard, but cheap to make safe) await the same attempt instead of
+   * racing two refreshes off one single-use cookie.
+   */
+  hydrationPromise: Promise<void> | null
+  /** True once hydrate() has run (successfully or not) this page load, so it only ever runs once. */
+  hasHydrated: boolean
+  /**
    * One-shot message for the login page to show after a forced logout
    * (e.g. "You were signed out after 30 minutes of inactivity" -- see
    * useIdleLogout). Carried in memory rather than a ?reason= query
@@ -35,6 +44,8 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null,
     user: null,
     refreshPromise: null,
+    hydrationPromise: null,
+    hasHydrated: false,
     logoutReason: null,
   }),
 
@@ -86,10 +97,12 @@ export const useAuthStore = defineStore('auth', {
 
     /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success.
      * Safe to call concurrently -- overlapping calls share a single in-flight request.
-     * Used mid-session by the httpClient 401-retry (see services/httpClient.ts) to renew an
-     * expired access token transparently while the user is actively working in the same tab.
-     * Deliberately NOT called on app startup/page load: a session must not survive a page
-     * refresh, tab close, or browser restart (see router/index.ts's navigation guard). */
+     * Two callers: the httpClient 401-retry (see services/httpClient.ts), renewing an expired
+     * access token transparently mid-session, and hydrate() below, restoring a session on a
+     * fresh page load. Either way the actual limits on how long a session can be silently
+     * resumed are enforced server-side (refresh-token expiry, single-use rotation, and the
+     * inactivity backstop in auth_service.refresh) and by the cookie itself being a session
+     * cookie with no max_age, so it doesn't outlive the browser being closed. */
     async tryRefresh(): Promise<boolean> {
       if (this.refreshPromise) return this.refreshPromise
 
@@ -107,6 +120,35 @@ export const useAuthStore = defineStore('auth', {
       })()
 
       return this.refreshPromise
+    },
+
+    /** Runs once per page load, awaited by the router guard before the first navigation
+     * resolves (see router/index.ts). Tries to silently resume a session from the httpOnly
+     * refresh cookie instead of forcing a full relogin on every hard refresh/reopened tab --
+     * the cookie is already designed to be safely redeemable this way (rotated, revocable,
+     * capped by both absolute expiry and the idle-timeout backstop), so this only changes
+     * *when* it gets redeemed, not what it's trusted to do.
+     * tryRefresh() only returns a new access token, not the profile, so a successful
+     * hydration also fetches /me; if that fails (e.g. the account was deactivated in the
+     * meantime) the session is dropped the same as any other failed refresh. */
+    async hydrate(): Promise<void> {
+      if (this.hasHydrated) return
+      if (this.hydrationPromise) return this.hydrationPromise
+
+      this.hydrationPromise = (async () => {
+        const refreshed = await this.tryRefresh()
+        if (refreshed) {
+          try {
+            this.user = await authService.me()
+          } catch {
+            this._clearToken()
+          }
+        }
+        this.hasHydrated = true
+        this.hydrationPromise = null
+      })()
+
+      return this.hydrationPromise
     },
 
     _setToken(accessToken: string) {
