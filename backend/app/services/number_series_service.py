@@ -85,3 +85,38 @@ def next_number(db: Session, doc_type: str, year: int | None = None) -> str:
         return f"{year_suffix}{str(current).zfill(padding)}"
 
     return f"{prefix}-{year}-{str(current).zfill(padding)}"
+
+
+def next_task_number(db: Session, project_id: int, project_no: str) -> str:
+    """Task IDs are '{ProjectNo}-{3-digit}' (e.g. '2600007-001'), one
+    ever-incrementing counter per project that never resets by calendar
+    year -- a genuinely different shape from every other document type's
+    PREFIX-YEAR-### above (next_number), so this reuses number_series'
+    atomic claim-and-increment mechanics directly instead of routing
+    through it. Keyed by a synthetic per-project doc_type ('TASK-{id}')
+    with year pinned to 0 (unused, just a fixed second half of the
+    table's real unique key) rather than the (doc_type, year) pairing
+    every other row uses."""
+    doc_type = f"TASK-{project_id}"
+
+    db.execute(
+        text(
+            "INSERT INTO number_series (doc_type, year, prefix, next_number, padding) "
+            "VALUES (:doc_type, 0, 'TASK', 1, 3) "
+            "ON DUPLICATE KEY UPDATE doc_type = doc_type"
+        ),
+        {"doc_type": doc_type},
+    )
+
+    row = db.execute(
+        text("SELECT next_number FROM number_series WHERE doc_type = :doc_type AND year = 0 FOR UPDATE"),
+        {"doc_type": doc_type},
+    ).first()
+    current = row.next_number
+
+    db.execute(
+        text("UPDATE number_series SET next_number = next_number + 1 WHERE doc_type = :doc_type AND year = 0"),
+        {"doc_type": doc_type},
+    )
+
+    return f"{project_no}-{str(current).zfill(3)}"

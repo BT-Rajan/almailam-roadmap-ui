@@ -11,7 +11,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.services import audit_service, notification_service, project_service, timeline_service, user_service
-from app.services.number_series_service import next_number
+from app.services.number_series_service import next_task_number
 
 ENTITY_TYPE = "TASK"
 
@@ -107,13 +107,14 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     )
 
     task = Task(
-        task_no=next_number(db, "TASK"),
+        task_no=next_task_number(db, project.id, project.project_no),
         project_id=project.id,
         selected_activity_id=selected_activity_id,
         title=payload.title,
         assigned_to=assignee_id,
         priority=payload.priority,
         severity=payload.severity,
+        start_date=payload.startDate,
         due_date=payload.dueDate,
         due_time=payload.dueTime,
     )
@@ -143,6 +144,7 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
         ("title", "title"),
         ("priority", "priority"),
         ("severity", "severity"),
+        ("startDate", "start_date"),
         ("dueDate", "due_date"),
         ("dueTime", "due_time"),
     ):
@@ -169,6 +171,15 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
             changes["selected_activity_id"] = (task.selected_activity_id, new_activity_id)
             task.selected_activity_id = new_activity_id
 
+    # A 'Preset' service task (see project_service._create_service_tasks)
+    # graduates to 'Pending' the moment anything about it actually
+    # changes here -- the normal, expected way out of Preset (being
+    # reviewed and given a real owner/date), distinct from an explicit
+    # status change via set_status below.
+    if task.status == "Preset" and changes:
+        changes["status"] = (task.status, "Pending")
+        task.status = "Pending"
+
     audit_service.log_field_changes(db, ENTITY_TYPE, task.id, changes, user_id)
     db.commit()
     db.refresh(task)
@@ -190,13 +201,19 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
         previous_value=task.status, new_value=new_status, reason=reason,
     )
     task.status = new_status
-    if new_status == "Completed" and task.selected_activity_id is not None:
-        # Closing the last task linked to a Design activity auto-closes
-        # the activity itself -- see project_service.
-        # maybe_auto_close_design_activity, which no-ops if other linked
-        # tasks are still open or the activity was already closed by
-        # hand.
-        project_service.maybe_auto_close_design_activity(db, task.selected_activity_id, user_id)
+    if new_status == "Completed":
+        # Closing the last task linked to a Design activity/Permit/
+        # Supervision activity auto-closes it -- see project_service.
+        # maybe_auto_close_design_activity/maybe_auto_close_permit/
+        # maybe_auto_close_supervision_activity, each of which no-ops if
+        # other linked tasks are still open or it was already closed by
+        # hand. A task is linked to at most one of the three.
+        if task.selected_activity_id is not None:
+            project_service.maybe_auto_close_design_activity(db, task.selected_activity_id, user_id)
+        if task.selected_permit_id is not None:
+            project_service.maybe_auto_close_permit(db, task.selected_permit_id, user_id)
+        if task.selected_supervision_activity_id is not None:
+            project_service.maybe_auto_close_supervision_activity(db, task.selected_supervision_activity_id, user_id)
     db.commit()
     db.refresh(task)
     return task

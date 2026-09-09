@@ -60,7 +60,18 @@ CONTRACT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 CONTRACT_STATUSES_REQUIRING_REASON = {"Terminated"}
 
 # --- Tasks -- src/types/Task.ts: TaskStatus
+#
+# "Preset" (migration 0088) is the initial status for a system-generated
+# service task -- reachable only by creation, never a manual target (no
+# other state transitions back into it), so it isn't listed as a value
+# in any *other* row's set below. task_service.update_task moves a
+# Preset task to "Pending" itself the moment anything about it changes
+# (owner, dates, ...), which is the normal, expected way out of it; the
+# explicit transitions here (In Progress/Completed) cover a task
+# skipping straight past a plain reassignment into real work or being
+# closed immediately.
 TASK_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "Preset": {"Pending", "In Progress", "Completed"},
     "Pending": {"In Progress"},
     "In Progress": {"Completed", "Pending"},
     "Completed": {"In Progress"},

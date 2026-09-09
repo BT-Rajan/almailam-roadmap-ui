@@ -21,6 +21,7 @@ class TaskOut(BaseModel):
     assignedTo: str
     priority: str
     severity: str
+    startDate: date | None = None
     dueDate: date
     dueTime: str
     status: str
@@ -28,6 +29,10 @@ class TaskOut(BaseModel):
     # 0073) -- None for the common case of a plain to-do. Matches
     # SelectedActivityOut.id (str(ProjectSelectedActivity.id)).
     selectedActivityId: str | None = None
+    # Same idea, for Permit/Supervision tracks (migration 0088) -- see
+    # Task.selected_permit_id/selected_supervision_activity_id.
+    selectedPermitId: str | None = None
+    selectedSupervisionActivityId: str | None = None
 
     @staticmethod
     def from_model(task, project_no: str, assigned_to_name: str) -> "TaskOut":
@@ -38,10 +43,15 @@ class TaskOut(BaseModel):
             assignedTo=assigned_to_name,
             priority=task.priority,
             severity=task.severity,
+            startDate=task.start_date,
             dueDate=task.due_date,
             dueTime=task.due_time.strftime("%H:%M"),
             status=task.status,
             selectedActivityId=str(task.selected_activity_id) if task.selected_activity_id else None,
+            selectedPermitId=str(task.selected_permit_id) if task.selected_permit_id else None,
+            selectedSupervisionActivityId=(
+                str(task.selected_supervision_activity_id) if task.selected_supervision_activity_id else None
+            ),
         )
 
 
@@ -51,6 +61,7 @@ class TaskCreate(BaseModel):
     assignedTo: str
     priority: str = "Medium"
     severity: str = "Minor"
+    startDate: date | None = None
     dueDate: date
     dueTime: time
     # Optional: links this task to one of the project's own Design
@@ -69,6 +80,7 @@ class TaskUpdate(BaseModel):
     assignedTo: str | None = None
     priority: str | None = None
     severity: str | None = None
+    startDate: date | None = None
     dueDate: date | None = None
     dueTime: time | None = None
     status: str | None = None

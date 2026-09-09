@@ -160,7 +160,9 @@ def close_design_activity(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    activity = project_service.close_design_activity(db, project_no, activity_id, payload.status, current_user.id)
+    activity = project_service.close_design_activity(
+        db, project_no, activity_id, payload.status, current_user.id, payload.overrideNoDocument,
+    )
     return SelectedActivityOut.from_model(activity)
 
 
@@ -183,7 +185,9 @@ def set_permit_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    permit = project_service.set_permit_status(db, project_no, permit_id, payload.status, current_user.id)
+    permit = project_service.set_permit_status(
+        db, project_no, permit_id, payload.status, current_user.id, payload.overrideNoDocument,
+    )
     return SelectedPermitOut.from_model(permit)
 
 
@@ -195,7 +199,9 @@ def set_supervision_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    activity = project_service.set_supervision_status(db, project_no, activity_id, payload.status, current_user.id)
+    activity = project_service.set_supervision_status(
+        db, project_no, activity_id, payload.status, current_user.id, payload.overrideNoDocument,
+    )
     return SelectedSupervisionActivityOut.from_model(activity)
 
 

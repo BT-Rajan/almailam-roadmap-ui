@@ -439,6 +439,13 @@ class StageEligibilityOut(BaseModel):
 
 class CloseDesignActivityRequest(BaseModel):
     status: str = "Complete"
+    # Marking Complete normally requires a Project Closure document link
+    # already on file for this project (see project_link_document_
+    # service/ProjectLinkDocument, category='Project Closure') as
+    # completion evidence -- checking this instead lets staff confirm
+    # completion without one (project_service._assert_completion_
+    # evidence). Ignored for 'Cancelled'.
+    overrideNoDocument: bool = False
 
     @field_validator("status")
     @classmethod
@@ -449,12 +456,16 @@ class CloseDesignActivityRequest(BaseModel):
 
 
 class SetPermitStatusRequest(BaseModel):
-    """Permits have no sub-tasks -- the user sets this directly at
-    their own discretion (migration 0073), unlike Design's auto-close.
-    'Eligible' isn't settable here: it's computed
-    (project_service._recompute_permit_eligibility)."""
+    """Permits have no sub-tasks of their own status-wise (this is still
+    the only way any of a permit's status transitions happen), but do
+    now get auto-created Tasks (migration 0088) -- the user sets this
+    directly at their own discretion, same as before. 'Eligible' isn't
+    settable here: it's computed (project_service.
+    _recompute_permit_eligibility)."""
 
     status: str
+    # See CloseDesignActivityRequest.overrideNoDocument.
+    overrideNoDocument: bool = False
 
     @field_validator("status")
     @classmethod
@@ -465,11 +476,12 @@ class SetPermitStatusRequest(BaseModel):
 
 
 class SetSupervisionStatusRequest(BaseModel):
-    """Same shape as SetPermitStatusRequest -- Supervision also has no
-    sub-tasks (migration 0074), the user sets this directly based on
-    their own read of site-engineer reports."""
+    """Same shape as SetPermitStatusRequest -- the user sets this
+    directly based on their own read of site-engineer reports."""
 
     status: str
+    # See CloseDesignActivityRequest.overrideNoDocument.
+    overrideNoDocument: bool = False
 
     @field_validator("status")
     @classmethod
