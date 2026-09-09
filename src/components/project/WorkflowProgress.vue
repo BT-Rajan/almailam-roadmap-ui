@@ -87,7 +87,11 @@ function labelClasses(stage: WorkflowStage): string[] {
 </script>
 
 <template>
-  <div class="rounded-xl border border-border-light bg-bg-card p-3">
+  <!-- No card wrapper of its own -- this renders directly beneath
+       ProjectHeader.vue inside a single shared card (see
+       ProjectWorkspacePage.vue), separated only by a hairline, instead
+       of each being its own bordered box with a gap between them. -->
+  <div class="border-t border-border-light p-3">
     <div class="mb-2 flex items-center justify-between gap-3">
       <p class="text-sm font-medium text-text-primary">
         {{

@@ -381,23 +381,25 @@ async function handleConfirmDelete(): Promise<void> {
     <EmptyState v-else-if="!project" :title="t('project.workspacePage.notFoundTitle')" :description="t('project.workspacePage.notFoundDescription')" />
 
     <template v-else>
-      <ProjectHeader
-        :project="project"
-        :client="client"
-        @edit="isEditDialogOpen = true"
-        @change-stage="isStageDialogOpen = true"
-        @change-status="isStatusDialogOpen = true"
-        @add-service="openAddServiceDialog"
-        @delete="isDeleteDialogOpen = true"
-      />
+      <div class="rounded-xl border border-border-light bg-bg-card shadow-soft">
+        <ProjectHeader
+          :project="project"
+          :client="client"
+          @edit="isEditDialogOpen = true"
+          @change-stage="isStageDialogOpen = true"
+          @change-status="isStatusDialogOpen = true"
+          @add-service="openAddServiceDialog"
+          @delete="isDeleteDialogOpen = true"
+        />
 
-      <WorkflowProgress
-        class="no-print"
-        :current-stage="project.currentStage"
-        :includes-design="project.includesDesign"
-        :includes-supervision="project.includesSupervision"
-        @navigate-tab="activeTab = $event"
-      />
+        <WorkflowProgress
+          class="no-print"
+          :current-stage="project.currentStage"
+          :includes-design="project.includesDesign"
+          :includes-supervision="project.includesSupervision"
+          @navigate-tab="activeTab = $event"
+        />
+      </div>
 
       <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
