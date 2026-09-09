@@ -3,6 +3,7 @@ export default {
   unknownProject: 'مشروع غير معروف',
   unassigned: 'غير معيّن',
   workflowProgress: 'تقدم سير العمل',
+  workflowProgressStage: 'المرحلة {current} من {total} · {label}',
 
   status: {
     active: 'نشط',

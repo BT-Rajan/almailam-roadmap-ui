@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Bell, Calendar, Menu, MessageSquare, Search, Sparkles } from '@lucide/vue'
-import { onMounted } from 'vue'
+import { Bell, Calendar, ChevronLeft, ChevronRight, Menu, MessageSquare, Search, Sparkles } from '@lucide/vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import UserMenu from '@/components/navigation/UserMenu.vue'
+import { useLocale } from '@/composables/useLocale'
 import { useRbac } from '@/composables/useRbac'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
@@ -12,13 +13,19 @@ import { useNavigationStore } from '@/stores/navigationStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useSearchStore } from '@/stores/searchStore'
 
+const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { isRtl } = useLocale()
 const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
 const knowledgeStore = useKnowledgeStore()
 const { can } = useRbac()
+
+// The separator points the way the breadcrumb trail reads, which
+// reverses with reading direction.
+const separatorIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 onMounted(() => {
   void notificationStore.loadNotifications()
@@ -27,9 +34,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <header
-    class="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border-default)] bg-bg-header px-4 shadow-glass-sm lg:px-6"
-  >
+  <header class="flex h-16 shrink-0 items-center gap-4 border-b border-[var(--color-border-default)] bg-bg-header px-4 shadow-glass-sm lg:px-6">
     <div class="flex items-center gap-3">
       <button
         type="button"
@@ -53,7 +58,34 @@ onMounted(() => {
       </button>
     </div>
 
-    <div class="flex items-center gap-2">
+    <!-- Folded in from the old standalone Breadcrumb.vue bar (its own
+         h-11 row under this one) -- same trail, same component logic,
+         now sharing this row instead of costing a whole extra row's
+         height on every single page. Hidden below lg since this row is
+         already tight on space once the search box (also md+) and the
+         icon cluster are in play; the sidebar/page heading still orient
+         you on narrower screens. -->
+    <nav
+      v-if="route.meta.breadcrumbs?.length"
+      :aria-label="t('common.breadcrumbNav')"
+      class="hidden min-w-0 flex-1 items-center gap-1.5 truncate text-sm lg:flex"
+    >
+      <template v-for="(crumb, index) in route.meta.breadcrumbs" :key="`${crumb.label}-${index}`">
+        <component :is="separatorIcon" v-if="index > 0" :size="14" class="shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
+        <RouterLink
+          v-if="crumb.routeName"
+          :to="{ name: crumb.routeName }"
+          class="truncate text-[var(--color-text-secondary)] transition-colors duration-fast hover:text-[var(--color-text-primary)]"
+        >
+          {{ t(crumb.label) }}
+        </RouterLink>
+        <span v-else class="truncate font-medium text-[var(--color-text-primary)]">
+          {{ t(crumb.label) }}
+        </span>
+      </template>
+    </nav>
+
+    <div class="ms-auto flex items-center gap-2">
       <button
         v-if="can('knowledgebase.view') && knowledgeStore.isEnabled !== false"
         type="button"

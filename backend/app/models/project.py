@@ -158,6 +158,16 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # confirmation that the two shouldn't be conflated.
     supervision_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     supervision_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # migration 0087 -- the document_templates row this project's
+    # Payment Plan document was rendered against, pinned the first time
+    # it's generated (see
+    # document_template_service.render_payment_plan_document). Unlike
+    # Quotation/Contract there's no single "finalized" record to key
+    # off, so first generation is what defines the permanent version
+    # here.
+    payment_plan_template_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("document_templates.id", ondelete="RESTRICT"), nullable=True
+    )
     # Handover / project-completion (migration 0073) -- set by
     # project_service.try_complete_project once every planned Design/
     # Permit/Supervision item is Complete/Cancelled and the project's

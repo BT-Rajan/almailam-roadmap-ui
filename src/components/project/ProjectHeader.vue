@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { Building2, Calendar, Layers, Pencil, Plus, Trash2, User } from '@lucide/vue'
-import { computed } from 'vue'
+import { Building2, Calendar, Layers, Pencil, Trash2, User } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
-import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import StatusBadge from '@/components/common/StatusBadge.vue'
-import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -16,9 +12,7 @@ interface Props {
   client?: Client
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  client: undefined,
-})
+defineProps<Props>()
 
 defineEmits<{
   edit: []
@@ -29,76 +23,60 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const STAGE_LABEL_KEYS: Record<string, string> = {
-  Requirement: 'project.stage.requirement',
-  Quotation: 'project.stage.quotation',
-  'Payment Plan': 'project.stage.paymentPlan',
-  Contract: 'project.stage.contract',
-  Design: 'project.stage.design',
-  Supervision: 'project.stage.supervision',
-  'Government Submission': 'project.stage.governmentSubmission',
-}
-const stageLabel = computed(() => t(STAGE_LABEL_KEYS[props.project.currentStage] ?? getWorkflowStageLabel(props.project.currentStage)))
-
-const STATUS_LABEL_KEYS: Record<string, string> = {
-  Active: 'project.status.active',
-  'On Hold': 'project.status.onHold',
-  Cancelled: 'project.status.cancelled',
-  Completed: 'project.status.completed',
-}
-const statusLabel = computed(() => t(STATUS_LABEL_KEYS[props.project.status] ?? props.project.status))
-
-const PRIORITY_BADGE_LABEL_KEYS: Record<string, string> = {
-  High: 'project.priorityBadge.high',
-  Medium: 'project.priorityBadge.medium',
-  Low: 'project.priorityBadge.low',
-}
-const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.project.priority] ?? props.project.priority))
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-5 shadow-soft">
-    <div class="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
-      <div class="flex flex-col gap-1.5">
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
-        <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
-        <div class="flex flex-wrap items-center gap-4 text-sm text-text-muted">
-          <span class="inline-flex items-center gap-1.5">
-            <Building2 class="h-4 w-4 text-text-muted" />
-            {{ client?.companyName ?? t('project.unassigned') }}
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <User class="h-4 w-4 text-text-muted" />
-            {{ project.engineer }}
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <Layers class="h-4 w-4 text-text-muted" />
-            {{ project.service }}
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <Calendar class="h-4 w-4 text-text-muted" />
-            {{ formatDate(project.startDate) }}&ndash;{{ formatDate(project.targetDate) }}
-          </span>
-        </div>
-      </div>
+  <!-- Single row: id + name + the four meta facts + actions all share one
+       line now instead of stacking id/name, then meta, then a separate
+       badges/actions row underneath. Status and priority badges, and the
+       Add Service button, are hidden for now (not removed -- see the
+       commented-out block below) at the request of the person maintaining
+       this screen; @change-stage/@change-status/@add-service stay declared
+       since PaymentPlanPanel.vue and others still rely on the same events
+       existing on this component's contract. -->
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 p-4">
+    <div class="flex flex-wrap items-baseline gap-x-2">
+      <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
+      <h1 class="text-base font-semibold text-text-primary">{{ project.projectName }}</h1>
+    </div>
 
-      <div class="flex shrink-0 flex-wrap items-center gap-2">
-        <StatusBadge :label="stageLabel" variant="info" />
-        <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" />
-        <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
-        <!-- Change Stage / Change Status buttons hidden deliberately, not removed --
-             this is currently the only UI path that calls projectStore.setStage /
-             setStatus (see ProjectWorkspacePage.vue's @change-stage / @change-status
-             handlers and ProjectTransitionDialog), so hiding them means projects can
-             no longer be advanced through stages or moved to On Hold / Cancelled
-             from this screen. Uncomment to restore. -->
-        <!-- <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton> -->
-        <!-- <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton> -->
-        <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton>
-        <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
-        <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />
-      </div>
+    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+      <Building2 class="h-4 w-4 text-text-muted" />
+      {{ client?.companyName ?? t('project.unassigned') }}
+    </span>
+    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+      <User class="h-4 w-4 text-text-muted" />
+      {{ project.engineer }}
+    </span>
+    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+      <Layers class="h-4 w-4 text-text-muted" />
+      {{ project.service }}
+    </span>
+    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+      <Calendar class="h-4 w-4 text-text-muted" />
+      {{ formatDate(project.startDate) }}&ndash;{{ formatDate(project.targetDate) }}
+    </span>
+
+    <div class="ml-auto flex shrink-0 items-center gap-2">
+      <!-- Status badge (Active/On Hold/...), priority badge (Medium
+           Priority/...), and the Add Service button are hidden for now.
+           Change Stage / Change Status buttons were already hidden
+           earlier for the same reason they're commented rather than
+           deleted: this is currently the only UI path that calls
+           projectStore.setStage/setStatus (see ProjectWorkspacePage.vue's
+           @change-stage/@change-status handlers and
+           ProjectTransitionDialog) and the only caller of @add-service
+           (openAddServiceDialog) -- hiding these buttons means projects
+           can no longer be advanced through stages, moved to On Hold /
+           Cancelled, or have a service added from this screen. Uncomment
+           to restore any of them. -->
+      <!-- <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" showDot /> -->
+      <!-- <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" /> -->
+      <!-- <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton> -->
+      <!-- <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton> -->
+      <!-- <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton> -->
+      <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
+      <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />
     </div>
   </div>
 </template>

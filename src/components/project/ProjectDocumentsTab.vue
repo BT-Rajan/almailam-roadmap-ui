@@ -338,7 +338,7 @@ watch(() => [props.project.id, props.mode], loadDocumentsData)
   </template>
 
   <!-- Documents mode: four fixed categories. -->
-  <div v-else class="flex flex-col gap-8">
+  <div v-else class="flex flex-col gap-3">
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">

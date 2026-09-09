@@ -50,7 +50,12 @@ from app.core.file_storage import resolve_path, save_upload
 from app.core.number_to_words import amount_to_words
 from app.models.client import Client
 from app.models.contract import Contract
-from app.models.document_template import DOCUMENT_TEMPLATE_LANGUAGES, DOCUMENT_TEMPLATE_TYPES, DocumentTemplate
+from app.models.document_template import (
+    DOCUMENT_TEMPLATE_LANGUAGES,
+    DOCUMENT_TEMPLATE_ORIENTATIONS,
+    DOCUMENT_TEMPLATE_TYPES,
+    DocumentTemplate,
+)
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
@@ -216,6 +221,83 @@ def delete_template(db: Session, template_id: int, actor_id: int) -> None:
     )
     template.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def upload_background_image(db: Session, template_id: int, file, actor_id: int) -> DocumentTemplate:
+    """The scanned/exported company letterhead for this template --
+    composited full-bleed behind every page at render time (see
+    _docx_to_pdf), so the merged content looks like it was printed
+    directly onto the real paper. Purely presentation: it plays no part
+    in field mapping/merging (MERGE_FIELD_CATALOG never references it),
+    so replacing or removing it can never change what a document's text
+    says, only what's behind it."""
+    template = get_template(db, template_id)
+    if not (file.filename or "").lower().endswith((".png", ".jpg", ".jpeg")):
+        raise ValidationAppError("Only PNG or JPEG images are accepted for a template background.")
+    storage_key, original_filename, _size_bytes = save_upload(file, STORAGE_SUBDIRECTORY)
+    template.background_storage_key = storage_key
+    template.background_original_filename = original_filename
+    audit_service.log_event(
+        db, ENTITY_TYPE, template.id, f"{template.document_type} template background uploaded", actor_id,
+        new_value=original_filename,
+    )
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def remove_background_image(db: Session, template_id: int, actor_id: int) -> DocumentTemplate:
+    template = get_template(db, template_id)
+    if template.background_storage_key is None:
+        return template
+    previous_filename = template.background_original_filename
+    template.background_storage_key = None
+    template.background_original_filename = None
+    audit_service.log_event(
+        db, ENTITY_TYPE, template.id, f"{template.document_type} template background removed", actor_id,
+        previous_value=previous_filename,
+    )
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+# A0-ish upper bound rather than a tight one -- just enough to catch a
+# fat-fingered value (a margin in points instead of mm, say) without
+# the service second-guessing a legitimately wide letterhead margin.
+_MAX_MARGIN_MM = 60
+
+
+def update_layout(
+    db: Session,
+    template_id: int,
+    orientation: str,
+    margin_top_mm: int,
+    margin_right_mm: int,
+    margin_bottom_mm: int,
+    margin_left_mm: int,
+    actor_id: int,
+) -> DocumentTemplate:
+    template = get_template(db, template_id)
+    if orientation not in DOCUMENT_TEMPLATE_ORIENTATIONS:
+        raise ValidationAppError(f"orientation must be one of {DOCUMENT_TEMPLATE_ORIENTATIONS}")
+    for label, value in (
+        ("marginTopMm", margin_top_mm),
+        ("marginRightMm", margin_right_mm),
+        ("marginBottomMm", margin_bottom_mm),
+        ("marginLeftMm", margin_left_mm),
+    ):
+        if not (0 <= value <= _MAX_MARGIN_MM):
+            raise ValidationAppError(f"{label} must be between 0 and {_MAX_MARGIN_MM}mm.")
+    template.orientation = orientation
+    template.margin_top_mm = margin_top_mm
+    template.margin_right_mm = margin_right_mm
+    template.margin_bottom_mm = margin_bottom_mm
+    template.margin_left_mm = margin_left_mm
+    audit_service.log_event(db, ENTITY_TYPE, template.id, f"{template.document_type} template layout updated", actor_id)
+    db.commit()
+    db.refresh(template)
+    return template
 
 
 def _get_company_logo_path(db: Session) -> Path | None:
@@ -412,7 +494,25 @@ def _docx_to_html(document) -> str:
     return "".join(parts)
 
 
-def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
+def _background_image_data_uri(template: DocumentTemplate) -> str | None:
+    """The template's letterhead background as a data: URI WeasyPrint can
+    inline directly into the @page rule below -- same base64-embedding
+    approach _run_image_html already uses for a run's own picture, just
+    read from disk instead of a docx part. None if no background has
+    been uploaded, or its file has since gone missing (never expected in
+    practice, but a missing background should degrade to a plain page,
+    not fail the whole render)."""
+    if not template.background_storage_key:
+        return None
+    path = resolve_path(template.background_storage_key)
+    if not path.exists():
+        return None
+    media_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{media_type};base64,{encoded}"
+
+
+def _docx_to_pdf(docx_bytes: bytes, template: DocumentTemplate) -> bytes:
     """Converts a merged .docx to a real, selectable-text PDF for
     Print/Email, reusing the exact stack pdf_render.py already relies on
     for Government Forms (WeasyPrint + the bundled Noto Naskh Arabic
@@ -430,13 +530,27 @@ def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
     to it.
 
     Direction/alignment/font follow the template's own declared
-    `language` (DocumentTemplate.language) rather than always assuming
-    Arabic -- previously this forced right-to-left with an Arabic font
-    on every document, English ones included."""
-    direction, text_align, font_stack = _PDF_STYLE_BY_LANGUAGE[language]
-    html_lang = "ar" if language == "Arabic" else "en"
+    `language` rather than always assuming Arabic -- previously this
+    forced right-to-left with an Arabic font on every document, English
+    ones included. Page size/margins follow the template's own
+    orientation/margin_*_mm columns instead of a single hard-coded A4-
+    portrait/2.5cm-2cm layout, and, if the template has a background
+    image, it's set on the @page rule (not <body>) so it repeats behind
+    every page, full-bleed, the way a real letterhead sheet would --
+    WeasyPrint paints a @page background across the whole page box,
+    margins included, before the body's own margin-boxed content is laid
+    on top of it."""
+    direction, text_align, font_stack = _PDF_STYLE_BY_LANGUAGE[template.language]
+    html_lang = "ar" if template.language == "Arabic" else "en"
     document = Document(io.BytesIO(docx_bytes))
     body_html = _docx_to_html(document)
+
+    page_size = "A4 landscape" if template.orientation == "Landscape" else "A4 portrait"
+    background_uri = _background_image_data_uri(template)
+    page_background_css = (
+        f"background: url('{background_uri}') no-repeat; background-size: 100% 100%;" if background_uri else ""
+    )
+
     html_doc = f"""<!DOCTYPE html>
 <html dir="{direction}" lang="{html_lang}">
 <head>
@@ -446,7 +560,11 @@ def _docx_to_pdf(docx_bytes: bytes, language: str) -> bytes:
     font-family: 'NotoNaskhArabic';
     src: url('file://{FONT_PATH}');
   }}
-  @page {{ size: A4; margin: 2.5cm 2cm; }}
+  @page {{
+    size: {page_size};
+    margin: {template.margin_top_mm}mm {template.margin_right_mm}mm {template.margin_bottom_mm}mm {template.margin_left_mm}mm;
+    {page_background_css}
+  }}
   body {{
     font-family: {font_stack};
     direction: {direction};
@@ -478,15 +596,44 @@ def _resolve_language(db: Session, language: str | None) -> str:
     return company_service.get_settings(db).default_language
 
 
-def render_quotation_document(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
-    from app.services import quotation_service
+def _resolve_quotation_template(db: Session, quotation: Quotation, language: str) -> DocumentTemplate:
+    """The template this quotation should render against: its own
+    pinned document_template_id if one is set AND it matches the
+    requested language, otherwise the type's current default -- same
+    lookup render_quotation_document always used before pinning existed.
+    A pin only ever covers the one language it was set for; requesting
+    the *other* language later (a real but rare case) simply falls
+    through to that language's own default rather than the quotation
+    carrying two pins.
 
-    language = _resolve_language(db, language)
+    The pin itself is set here, once: the first time this quotation is
+    rendered *after* being finalized (finalized_at is set), so a later
+    template edit/re-upload can never change how an already-final
+    quotation prints if reopened and reprinted. Left unset while still
+    an editable Draft -- there's nothing "final" yet to lock to, and an
+    admin actively iterating on a template mid-project should keep
+    seeing their latest upload."""
+    if quotation.document_template_id is not None:
+        pinned = db.query(DocumentTemplate).filter(DocumentTemplate.id == quotation.document_template_id).first()
+        if pinned is not None and pinned.language == language:
+            return pinned
+
     template = get_default(db, "Quotation", language)
     if template is None:
         raise ValidationAppError(
             f"No default {language} Quotation template is configured. Upload one in Administration > Documents."
         )
+    if quotation.finalized_at is not None and quotation.document_template_id is None:
+        quotation.document_template_id = template.id
+        db.commit()
+    return template
+
+
+def render_quotation_document(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
+    from app.services import quotation_service
+
+    language = _resolve_language(db, language)
+    template = _resolve_quotation_template(db, quotation, language)
 
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
     client = (
@@ -536,19 +683,35 @@ def render_quotation_pdf(db: Session, quotation: Quotation, language: str | None
     PDF -- what Print and Email actually use, so both show the admin's
     real uploaded template rather than a separate hardcoded preview."""
     language = _resolve_language(db, language)
+    template = _resolve_quotation_template(db, quotation, language)
     content, filename = render_quotation_document(db, quotation, language)
-    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
+    return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
+
+
+def _resolve_contract_template(db: Session, contract: Contract, language: str) -> DocumentTemplate:
+    """See _resolve_quotation_template's docstring -- identical rule,
+    applied to Contract's own pin field."""
+    if contract.document_template_id is not None:
+        pinned = db.query(DocumentTemplate).filter(DocumentTemplate.id == contract.document_template_id).first()
+        if pinned is not None and pinned.language == language:
+            return pinned
+
+    template = get_default(db, "Contract", language)
+    if template is None:
+        raise ValidationAppError(
+            f"No default {language} Contract template is configured. Upload one in Administration > Documents."
+        )
+    if contract.finalized_at is not None and contract.document_template_id is None:
+        contract.document_template_id = template.id
+        db.commit()
+    return template
 
 
 def render_contract_document(db: Session, contract: Contract, language: str | None = None) -> tuple[bytes, str]:
     from app.services import contract_service
 
     language = _resolve_language(db, language)
-    template = get_default(db, "Contract", language)
-    if template is None:
-        raise ValidationAppError(
-            f"No default {language} Contract template is configured. Upload one in Administration > Documents."
-        )
+    template = _resolve_contract_template(db, contract, language)
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
     client = (
@@ -585,8 +748,32 @@ def render_contract_pdf(db: Session, contract: Contract, language: str | None = 
     """PDF counterpart of render_contract_document -- see
     render_quotation_pdf's docstring."""
     language = _resolve_language(db, language)
+    template = _resolve_contract_template(db, contract, language)
     content, filename = render_contract_document(db, contract, language)
-    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
+    return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
+
+
+def _resolve_payment_plan_template(db: Session, project: Project, language: str) -> DocumentTemplate:
+    """See _resolve_quotation_template's docstring for the general rule.
+    Payment Plan has no single "finalized" record to key the pin off
+    (it's derived from the project's FinancialAgreements, not one row),
+    so the pin is set on first generation instead: the first time
+    anyone renders a Payment Plan document for this project, whatever
+    the current default template is becomes permanent for it."""
+    if project.payment_plan_template_id is not None:
+        pinned = db.query(DocumentTemplate).filter(DocumentTemplate.id == project.payment_plan_template_id).first()
+        if pinned is not None and pinned.language == language:
+            return pinned
+
+    template = get_default(db, "Payment Plan", language)
+    if template is None:
+        raise ValidationAppError(
+            f"No default {language} Payment Plan template is configured. Upload one in Administration > Documents."
+        )
+    if project.payment_plan_template_id is None:
+        project.payment_plan_template_id = template.id
+        db.commit()
+    return template
 
 
 def render_payment_plan_document(db: Session, project: Project, language: str | None = None) -> tuple[bytes, str]:
@@ -602,11 +789,7 @@ def render_payment_plan_document(db: Session, project: Project, language: str | 
     from app.services import payment_service
 
     language = _resolve_language(db, language)
-    template = get_default(db, "Payment Plan", language)
-    if template is None:
-        raise ValidationAppError(
-            f"No default {language} Payment Plan template is configured. Upload one in Administration > Documents."
-        )
+    template = _resolve_payment_plan_template(db, project, language)
 
     client = db.query(Client).filter(Client.id == project.client_id).first()
 
@@ -652,8 +835,9 @@ def render_payment_plan_pdf(db: Session, project: Project, language: str | None 
     """PDF counterpart of render_payment_plan_document -- see
     render_quotation_pdf's docstring."""
     language = _resolve_language(db, language)
+    template = _resolve_payment_plan_template(db, project, language)
     content, filename = render_payment_plan_document(db, project, language)
-    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
+    return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
 
 
 # --- Visual field mapping -- lets an admin click a spot in an uploaded

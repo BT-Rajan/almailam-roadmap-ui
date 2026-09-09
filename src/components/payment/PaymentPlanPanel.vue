@@ -416,7 +416,7 @@ async function handleSendEmail(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
+  <div class="flex flex-col gap-3">
     <EmptyState
       v-if="!hasAnyScope"
       :icon="Wallet"

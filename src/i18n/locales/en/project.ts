@@ -3,6 +3,7 @@ export default {
   unknownProject: 'Unknown Project',
   unassigned: 'Unassigned',
   workflowProgress: 'Workflow Progress',
+  workflowProgressStage: 'Stage {current} of {total} · {label}',
 
   status: {
     active: 'Active',
