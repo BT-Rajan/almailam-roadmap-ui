@@ -45,6 +45,15 @@ class Quotation(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # ready to print. A quotation can't leave Draft status until this
     # is set (see quotation_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # migration 0087 -- the exact document_templates row this quotation
+    # was rendered against, pinned the first time it's rendered after
+    # finalized_at is set (see
+    # document_template_service.render_quotation_document). NULL for a
+    # still-editable Draft, which keeps following the type's current
+    # default -- there's nothing "final" yet to pin.
+    document_template_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("document_templates.id", ondelete="RESTRICT"), nullable=True
+    )
     # Signed-document approval -- otp_code_hash/otp_expires_at/
     # otp_attempts/otp_sent_at come from EmailOtpMixin and are inert
     # leftovers now (see its docstring); see quotation_service.

@@ -15,6 +15,18 @@ export interface DocumentTemplate {
   isDefault: boolean
   uploadedBy: string
   uploadedAt: string
+  // The letterhead image composited full-bleed behind every page of
+  // this template's rendered PDF (see backend
+  // document_template_service._docx_to_pdf) -- undefined/null if none
+  // has been uploaded yet, in which case the PDF renders on a plain
+  // white page.
+  backgroundFilename?: string | null
+  pageSize: 'A4'
+  orientation: 'Portrait' | 'Landscape'
+  marginTopMm: number
+  marginRightMm: number
+  marginBottomMm: number
+  marginLeftMm: number
 }
 
 // One entry from the backend's merge-field catalog (see

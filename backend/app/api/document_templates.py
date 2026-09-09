@@ -7,7 +7,13 @@ from app.core.database import get_db
 from app.core.exceptions import ValidationAppError
 from app.core.file_storage import resolve_path
 from app.models.user import User
-from app.schemas.document_template import DocumentTemplateOut, MergeField, TemplateLayout, TemplateMappingIn
+from app.schemas.document_template import (
+    DocumentTemplateOut,
+    MergeField,
+    TemplateLayout,
+    TemplateLayoutIn,
+    TemplateMappingIn,
+)
 from app.services import document_template_service
 
 router = APIRouter(prefix="/api/document-templates", tags=["document-templates"])
@@ -76,6 +82,40 @@ def save_template_mapping(
 @router.patch("/{template_id}/default", response_model=DocumentTemplateOut)
 def set_default(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     template = document_template_service.set_default(db, _parse_id(template_id), current_user.id)
+    return _to_out(db, template)
+
+
+@router.post("/{template_id}/background", response_model=DocumentTemplateOut)
+def upload_background(
+    template_id: str, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    """The letterhead image composited full-bleed behind every page of
+    this template's rendered PDF (see document_template_service.
+    _docx_to_pdf) -- purely presentation, never part of field mapping."""
+    template = document_template_service.upload_background_image(db, _parse_id(template_id), file, current_user.id)
+    return _to_out(db, template)
+
+
+@router.delete("/{template_id}/background", response_model=DocumentTemplateOut)
+def delete_background(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    template = document_template_service.remove_background_image(db, _parse_id(template_id), current_user.id)
+    return _to_out(db, template)
+
+
+@router.patch("/{template_id}/layout", response_model=DocumentTemplateOut)
+def update_layout(
+    template_id: str, payload: TemplateLayoutIn, db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    template = document_template_service.update_layout(
+        db,
+        _parse_id(template_id),
+        payload.orientation,
+        payload.marginTopMm,
+        payload.marginRightMm,
+        payload.marginBottomMm,
+        payload.marginLeftMm,
+        current_user.id,
+    )
     return _to_out(db, template)
 
 

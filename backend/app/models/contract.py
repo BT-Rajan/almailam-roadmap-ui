@@ -45,6 +45,11 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # A contract can't leave Draft status until this is set (see
     # contract_service.set_status).
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # migration 0087 -- see Quotation.document_template_id; same
+    # "pinned on first render after finalize" rule.
+    document_template_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("document_templates.id", ondelete="RESTRICT"), nullable=True
+    )
     # Signed-document approval -- otp_code_hash/otp_expires_at/
     # otp_attempts/otp_sent_at come from EmailOtpMixin and are inert
     # leftovers now (see its docstring); see contract_service.
