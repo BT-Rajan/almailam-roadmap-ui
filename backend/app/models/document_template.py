@@ -5,7 +5,7 @@ from app.core.database import Base
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
-DOCUMENT_TEMPLATE_TYPES = ("Quotation", "Contract")
+DOCUMENT_TEMPLATE_TYPES = ("Quotation", "Contract", "Payment Plan")
 DOCUMENT_TEMPLATE_LANGUAGES = ("English", "Arabic")
 
 

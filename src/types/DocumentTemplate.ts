@@ -1,6 +1,6 @@
 import type { AppLanguage } from '@/types/CompanySettings'
 
-export type DocumentTemplateType = 'Quotation' | 'Contract'
+export type DocumentTemplateType = 'Quotation' | 'Contract' | 'Payment Plan'
 
 export interface DocumentTemplate {
   id: string

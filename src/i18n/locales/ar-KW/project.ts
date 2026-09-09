@@ -313,6 +313,14 @@ export default {
     revisionIssued: 'المراجعة {revision} · صدر في {date}',
   },
 
+  contractDocumentsTab: {
+    projectPaperworkTitle: 'مستندات المشروع',
+    quotation: 'عرض السعر',
+    paymentPlan: 'خطة الدفع',
+    contract: 'العقد',
+    notAvailable: 'غير متوفر بعد',
+  },
+
   quotationPreview: {
     contentLocked: 'المحتوى مقفل',
     editing: 'قيد التعديل',

@@ -312,6 +312,14 @@ export default {
     revisionIssued: 'Revision {revision} · Issued {date}',
   },
 
+  contractDocumentsTab: {
+    projectPaperworkTitle: 'Project Paperwork',
+    quotation: 'Quotation',
+    paymentPlan: 'Payment Plan',
+    contract: 'Contract',
+    notAvailable: 'Not available yet',
+  },
+
   quotationPreview: {
     contentLocked: 'Content Locked',
     editing: 'Editing',

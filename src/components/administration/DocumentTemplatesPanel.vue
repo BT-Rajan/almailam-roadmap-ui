@@ -47,6 +47,11 @@ const SECTIONS = computed<{ type: DocumentTemplateType; title: string; descripti
     title: t('administration.documentTemplates.contractTitle'),
     description: t('administration.documentTemplates.contractDescription'),
   },
+  {
+    type: 'Payment Plan',
+    title: t('administration.documentTemplates.paymentPlanTitle'),
+    description: t('administration.documentTemplates.paymentPlanDescription'),
+  },
 ])
 
 const store = useDocumentTemplateStore()
@@ -65,8 +70,13 @@ const isDownloadingId = ref<string | undefined>(undefined)
 const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
 const isMapperOpen = ref(false)
 
+const TYPE_LABEL_KEYS: Record<DocumentTemplateType, string> = {
+  Quotation: 'administration.documentTemplates.quotation',
+  Contract: 'administration.documentTemplates.contract',
+  'Payment Plan': 'administration.documentTemplates.paymentPlan',
+}
 function typeLabel(type: DocumentTemplateType): string {
-  return type === 'Quotation' ? t('administration.documentTemplates.quotation') : t('administration.documentTemplates.contract')
+  return t(TYPE_LABEL_KEYS[type])
 }
 
 function languageLabel(language: AppLanguage): string {

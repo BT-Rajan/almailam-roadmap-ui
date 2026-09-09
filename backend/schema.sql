@@ -585,7 +585,7 @@ CREATE TABLE IF NOT EXISTS contract_revisions (
 -- constraint (no partial/filtered unique index in MySQL).
 CREATE TABLE IF NOT EXISTS document_templates (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    document_type       ENUM('Quotation','Contract') NOT NULL,
+    document_type       ENUM('Quotation','Contract','Payment Plan') NOT NULL,
     -- migration 0064 -- a document_type can have one default PER
     -- language (English and Arabic each get their own), not one shared
     -- default regardless of the template's actual language.

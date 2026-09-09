@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, File, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError, ValidationAppError
+from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.document_template import DocumentEmailRequest
 from app.schemas.payment import (
     AdjustmentCreate,
     AdjustmentOut,
@@ -21,7 +24,7 @@ from app.schemas.payment import (
     RefundCreate,
     RefundOut,
 )
-from app.services import payment_service
+from app.services import document_template_service, email_service, payment_service
 
 router = APIRouter(prefix="/api", tags=["payments"])
 
@@ -32,6 +35,13 @@ can_edit = require_permission("Finance", "edit")
 def _project_no(db: Session, project_id: int) -> str:
     project = db.query(Project).filter(Project.id == project_id).first()
     return project.project_no if project else ""
+
+
+def _project_by_no(db: Session, project_no: str) -> Project:
+    project = db.query(Project).filter(Project.project_no == project_no).first()
+    if project is None:
+        raise NotFoundError("Project")
+    return project
 
 
 def _user_name(db: Session, user_id: int | None) -> str:
@@ -283,3 +293,58 @@ def create_adjustment(
 @router.get("/financial-agreements/{agreement_id}/audit-events")
 def list_audit_events(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return payment_service.get_audit_events(db, payment_service.parse_agreement_id(agreement_id))
+
+
+# --- Payment Plan document -- unlike Quotation/Contract, this isn't one
+# record's own document: it merges every billing stream's agreement +
+# schedule the project actually has into a single PDF (see
+# document_template_service.render_payment_plan_document), so these are
+# scoped by project rather than by agreement id.
+
+
+@router.get("/projects/{project_no}/payment-plan/document")
+def download_payment_plan_document(project_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = _project_by_no(db, project_no)
+    content, filename = document_template_service.render_payment_plan_document(db, project, language)
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/projects/{project_no}/payment-plan/document/pdf")
+def download_payment_plan_document_pdf(project_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = _project_by_no(db, project_no)
+    content, filename = document_template_service.render_payment_plan_pdf(db, project, language)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        # inline, not attachment -- what Print opens in a new tab.
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.post("/projects/{project_no}/payment-plan/document/email", status_code=204)
+def email_payment_plan_document(
+    project_no: str,
+    payload: DocumentEmailRequest,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    project = _project_by_no(db, project_no)
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+    to_email = payload.toEmail or (client.email if client else None)
+    if not to_email:
+        raise ValidationAppError("No recipient email address on file for this project's client.")
+
+    content, filename = document_template_service.render_payment_plan_pdf(db, project, payload.language)
+    email_service.send_document_email(
+        to_email=to_email,
+        subject=f"Payment Plan -- {project.project_no}",
+        body_text=f"Please find attached the payment plan for project {project.project_no}.",
+        attachment_bytes=content,
+        attachment_filename=filename,
+        attachment_mimetype="application/pdf",
+        db=db,
+    )
