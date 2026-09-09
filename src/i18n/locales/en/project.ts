@@ -80,7 +80,6 @@ export default {
     addService: 'Add Service',
     editProject: 'Edit project',
     deleteProject: 'Delete project',
-    progress: 'Progress',
   },
 
   timeline: {
@@ -470,10 +469,6 @@ export default {
   workspacePage: {
     notFoundTitle: 'Project not found',
     notFoundDescription: 'This project may have been removed or the link is incorrect.',
-    service: 'Service',
-    client: 'Client',
-    fieldEngineer: 'Field Engineer',
-    timeline: 'Timeline',
     servicesAddedTitle: 'Services added',
     servicesAddedDescription: 'Cover the new work with a quotation, payment plan, and contract the same way as the rest of this project.',
     failedToAddServices: 'Failed to add services',

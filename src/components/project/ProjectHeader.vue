@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Building2, Pencil, Plus, Trash2, User } from '@lucide/vue'
+import { Building2, Calendar, Layers, Pencil, Plus, Trash2, User } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import ProgressBar from '@/components/common/ProgressBar.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 
@@ -64,13 +64,21 @@ const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.proj
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ project.projectNo }}</p>
         <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
         <div class="flex flex-wrap items-center gap-4 text-sm text-text-muted">
-          <span v-if="client" class="inline-flex items-center gap-1.5">
+          <span class="inline-flex items-center gap-1.5">
             <Building2 class="h-4 w-4 text-text-muted" />
-            {{ client.companyName }}
+            {{ client?.companyName ?? t('project.unassigned') }}
           </span>
           <span class="inline-flex items-center gap-1.5">
             <User class="h-4 w-4 text-text-muted" />
             {{ project.engineer }}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <Layers class="h-4 w-4 text-text-muted" />
+            {{ project.service }}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <Calendar class="h-4 w-4 text-text-muted" />
+            {{ formatDate(project.startDate) }}&ndash;{{ formatDate(project.targetDate) }}
           </span>
         </div>
       </div>
@@ -90,13 +98,6 @@ const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.proj
         <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton>
         <IconButton :icon="Pencil" :label="t('project.header.editProject')" size="sm" class="no-print" @click="$emit('edit')" />
         <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />
-      </div>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <span class="w-24 shrink-0 text-xs font-medium text-text-muted">{{ t('project.header.progress') }}</span>
-      <div class="max-w-md flex-1">
-        <ProgressBar :value="project.progress" show-label />
       </div>
     </div>
   </div>

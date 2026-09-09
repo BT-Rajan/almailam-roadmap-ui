@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { Building2, Calendar, Layers, User } from '@lucide/vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import InfoPanel from '@/components/common/InfoPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
@@ -39,7 +37,6 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ProjectUpdateInput } from '@/services/projectService'
 import type { AddServicesInput, ProjectWorkspaceTab, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
-import { formatDate } from '@/utils/dateFormatter'
 
 const route = useRoute()
 const router = useRouter()
@@ -393,18 +390,6 @@ async function handleConfirmDelete(): Promise<void> {
         @add-service="openAddServiceDialog"
         @delete="isDeleteDialogOpen = true"
       />
-
-      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4 no-print">
-        <InfoPanel :label="t('project.workspacePage.service')" :value="project.service" :icon="Layers" />
-        <InfoPanel :label="t('project.workspacePage.client')" :value="client?.companyName ?? t('project.unassigned')" :icon="Building2" color="info" />
-        <InfoPanel :label="t('project.workspacePage.fieldEngineer')" :value="project.engineer" :icon="User" color="ai" />
-        <InfoPanel
-          :label="t('project.workspacePage.timeline')"
-          :value="`${formatDate(project.startDate)} \u2013 ${formatDate(project.targetDate)}`"
-          :icon="Calendar"
-          color="warning"
-        />
-      </div>
 
       <WorkflowProgress
         class="no-print"

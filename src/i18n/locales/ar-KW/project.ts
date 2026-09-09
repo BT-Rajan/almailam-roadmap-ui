@@ -80,7 +80,6 @@ export default {
     addService: 'إضافة خدمة',
     editProject: 'تعديل المشروع',
     deleteProject: 'حذف المشروع',
-    progress: 'التقدم',
   },
 
   timeline: {
@@ -470,10 +469,6 @@ export default {
   workspacePage: {
     notFoundTitle: 'المشروع غير موجود',
     notFoundDescription: 'ربما تمت إزالة هذا المشروع أو أن الرابط غير صحيح.',
-    service: 'الخدمة',
-    client: 'العميل',
-    fieldEngineer: 'المهندس الميداني',
-    timeline: 'الجدول الزمني',
     servicesAddedTitle: 'تمت إضافة الخدمات',
     servicesAddedDescription: 'غطِّ العمل الجديد بعرض سعر وخطة دفع وعقد بنفس طريقة بقية هذا المشروع.',
     failedToAddServices: 'فشلت إضافة الخدمات',

@@ -72,12 +72,15 @@ function handleSelect(index: number): void {
 </script>
 
 <template>
-  <!-- Same plain rounded-xl border box (no Card header divider, same p-6
-       padding) the New Project/New Client wizards wrap their own Stepper
-       in -- so this stage stepper looks like the exact same UI element,
-       not a differently-styled sibling of it. -->
-  <div class="rounded-xl border border-border-light bg-bg-card p-6">
-    <h3 class="mb-6 text-sm font-semibold text-text-primary">{{ t('project.workflowProgress') }}</h3>
+  <!-- Slightly tighter than the New Project/New Client wizards' own Stepper
+       wrapper (p-4 vs their p-6, mb-3 vs mb-6): this stepper sits stacked on
+       top of the header, InfoPanel-free tab content, and the tab bar on
+       every single project page load, not shown once per wizard -- the
+       extra padding there earns its keep amortized over a whole flow; here
+       it was just eating into the vertical space available for the actual
+       tab content below it. -->
+  <div class="rounded-xl border border-border-light bg-bg-card p-4">
+    <h3 class="mb-3 text-sm font-semibold text-text-primary">{{ t('project.workflowProgress') }}</h3>
     <div class="overflow-x-auto pb-1">
       <div class="min-w-[720px]">
         <Stepper
