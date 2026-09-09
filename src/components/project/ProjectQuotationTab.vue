@@ -293,6 +293,11 @@ async function handleCreateQuotation(payload: QuotationCreateInput): Promise<voi
   isCreating.value = true
   try {
     const quotation = await quotationStore.createQuotation({ ...payload, projectId: props.project.id })
+    // Creating a quotation can move current_stage server-side (see
+    // quotation_service.create_quotation -> try_auto_advance_stage) --
+    // same "sync the shared store's cached copy" reasoning as
+    // handleConfirmApproval/handleConfirmReject/handleConfirmExpire.
+    await projectStore.refreshProject(props.project.id)
     resultDialogStore.showSuccess(t('project.quotationTab.quotationCreatedTitle'), t('common.createdSuccessfully', { no: quotation.quotationNo }))
     isCreateDialogOpen.value = false
   } catch (error) {
