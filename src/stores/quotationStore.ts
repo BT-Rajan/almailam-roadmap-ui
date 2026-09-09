@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 
 import { quotationService } from '@/services/quotationService'
 import type { QuotationCreateInput } from '@/services/quotationService'
-import type { Quotation } from '@/types/Quotation'
+import type { Quotation, QuotationAuditEvent } from '@/types/Quotation'
 
 interface QuotationStoreState {
   projectId: string | undefined
@@ -15,6 +15,10 @@ interface QuotationStoreState {
   // this quotation, then clears it) -- the two tabs otherwise have no
   // direct way to talk to each other.
   pendingContractQuotationId: string | undefined
+  // Keyed by quotation id -- document activity (downloads/prints/
+  // emails) and status changes, shown in QuotationRevisionHistory
+  // alongside content revisions.
+  auditEventsByQuotation: Record<string, QuotationAuditEvent[]>
 }
 
 export const useQuotationStore = defineStore('quotation', {
@@ -25,6 +29,7 @@ export const useQuotationStore = defineStore('quotation', {
     isLoading: false,
     error: undefined,
     pendingContractQuotationId: undefined,
+    auditEventsByQuotation: {},
   }),
 
   getters: {
@@ -105,6 +110,11 @@ export const useQuotationStore = defineStore('quotation', {
       const updated = await quotationService.confirmQuotationApproval(quotationId, file)
       this.quotations = this.quotations.map((q) => (q.id === quotationId ? updated : q))
       return updated
+    },
+
+    async loadAuditEvents(quotationId: string): Promise<void> {
+      const events = await quotationService.getAuditEvents(quotationId)
+      this.auditEventsByQuotation = { ...this.auditEventsByQuotation, [quotationId]: events }
     },
   },
 })

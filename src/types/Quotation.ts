@@ -15,6 +15,16 @@ export interface QuotationRevision {
   summary: string
 }
 
+export interface QuotationAuditEvent {
+  id: string
+  action: string
+  user: string
+  timestamp: string
+  previousValue?: string
+  newValue?: string
+  reason?: string
+}
+
 export interface Quotation {
   id: string
   projectId: string

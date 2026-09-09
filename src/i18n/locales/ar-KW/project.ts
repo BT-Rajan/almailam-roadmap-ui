@@ -292,6 +292,10 @@ export default {
     title: 'سجل المراجعات',
     emptyTitle: 'لا توجد مراجعات مسجلة',
     current: 'الحالية',
+    documentDownloaded: 'تم تنزيل المستند',
+    documentPrinted: 'تم طباعة المستند',
+    documentEmailed: 'تم إرسال المستند بالبريد الإلكتروني',
+    quotationApproved: 'تمت الموافقة على عرض السعر',
   },
 
   pricingSummary: {
@@ -301,12 +305,6 @@ export default {
     totalAmount: 'المبلغ الإجمالي',
   },
 
-  quotationList: {
-    title: 'عروض الأسعار',
-    emptyTitle: 'لا توجد عروض أسعار بعد',
-    emptyDescription: 'ستظهر هنا عروض الأسعار الصادرة لهذا المشروع.',
-    revisionIssued: 'المراجعة {revision} · صدر في {date}',
-  },
 
   contractList: {
     title: 'العقود',

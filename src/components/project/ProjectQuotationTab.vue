@@ -12,7 +12,6 @@ import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUpload
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
-import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
@@ -80,6 +79,18 @@ const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
 
+// Keeps the "download / email / approval time" activity in the
+// Revision History panel current -- reloaded whenever a different
+// quotation is selected, and again after any action below that adds a
+// new audit event (print, download, email, approve).
+watch(
+  () => quotationStore.selectedQuotationId,
+  (quotationId) => {
+    if (quotationId) quotationStore.loadAuditEvents(quotationId)
+  },
+  { immediate: true },
+)
+
 // Opens the same admin-uploaded/field-mapped template Download Document
 // merges, as a PDF, in a new tab -- so Print reflects that template
 // instead of the separate hardcoded on-screen preview below. The blank
@@ -96,6 +107,7 @@ async function handlePrint(): Promise<void> {
   try {
     const blob = await documentTemplateService.getQuotationDocumentPdf(quotation.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
+    quotationStore.loadAuditEvents(quotation.id)
   } catch (error) {
     printWindow?.close()
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
@@ -114,6 +126,7 @@ async function handleDownloadDocument(): Promise<void> {
   try {
     const blob = await documentTemplateService.downloadQuotationDocument(quotation.id, documentLanguage.value)
     triggerBlobDownload(blob, `${quotation.id}.docx`)
+    quotationStore.loadAuditEvents(quotation.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
@@ -201,6 +214,7 @@ async function handleSendEmail(): Promise<void> {
     await documentTemplateService.emailQuotationDocument(quotation.id, emailTo.value.trim(), documentLanguage.value)
     resultDialogStore.showSuccess(t('project.quotationTab.quotationEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
+    quotationStore.loadAuditEvents(quotation.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToSendEmail'), detail)
@@ -255,6 +269,7 @@ async function handleConfirmApproval(payload: { file: File }): Promise<void> {
   isApprovalSaving.value = true
   try {
     await quotationStore.confirmQuotationApproval(quotation.id, payload.file)
+    await quotationStore.loadAuditEvents(quotation.id)
     // confirmQuotationApproval can move current_stage server-side (see
     // quotation_service.set_status -> try_auto_advance_stage) -- same
     // "sync the shared store's cached copy" reasoning as
@@ -565,12 +580,11 @@ async function handleRevertToDraft(): Promise<void> {
     </div>
 
     <div class="no-print flex flex-col gap-6">
-      <QuotationList
-        :quotations="quotationStore.quotations"
-        :selected-quotation-id="quotationStore.selectedQuotationId"
-        @select="quotationStore.selectQuotation($event)"
+      <QuotationRevisionHistory
+        v-if="quotationStore.selectedQuotation"
+        :revisions="quotationStore.selectedQuotation.revisions"
+        :audit-events="quotationStore.auditEventsByQuotation[quotationStore.selectedQuotation.id] ?? []"
       />
-      <QuotationRevisionHistory v-if="quotationStore.selectedQuotation" :revisions="quotationStore.selectedQuotation.revisions" />
     </div>
   </div>
 

@@ -292,6 +292,10 @@ export default {
     title: 'Revision History',
     emptyTitle: 'No revisions recorded',
     current: 'Current',
+    documentDownloaded: 'Document downloaded',
+    documentPrinted: 'Document printed',
+    documentEmailed: 'Document emailed',
+    quotationApproved: 'Quotation approved',
   },
 
   pricingSummary: {
@@ -299,13 +303,6 @@ export default {
     subtotal: 'Subtotal',
     discount: 'Discount',
     totalAmount: 'Total Amount',
-  },
-
-  quotationList: {
-    title: 'Quotations',
-    emptyTitle: 'No quotations yet',
-    emptyDescription: 'Quotations issued for this project will appear here.',
-    revisionIssued: 'Revision {revision} · Issued {date}',
   },
 
   contractList: {
