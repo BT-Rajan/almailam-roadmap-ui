@@ -78,6 +78,12 @@ function emptyForm() {
 // actually billed through the Financial Agreement's prorated monthly
 // schedule once the project reaches Contract, not through this
 // quotation total.
+//
+// Permits get their own line here too (unitPrice = permitPrice, or 0 for
+// picks made before permit pricing existed) -- previously omitted, which
+// meant a permit could be promised in the Scope of Work text below while
+// never actually being billed. Line items and scope text are now both
+// built from these same three arrays so they can't drift apart again.
 function formFromProject(project: Project | undefined) {
   const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
     description: `${item.serviceName} - ${item.activityName}`,
@@ -89,9 +95,49 @@ function formFromProject(project: Project | undefined) {
     quantity: 1,
     unitPrice: activity.monthlyRate,
   }))
-  const lineItems = [...serviceLineItems, ...supervisionLineItems]
+  const permitLineItems = (project?.selectedPermits ?? []).map((permit) => ({
+    description: `Permits to Apply For - ${permit.permitName}`,
+    quantity: 1,
+    unitPrice: permit.permitPrice ?? 0,
+  }))
+  const lineItems = [...serviceLineItems, ...supervisionLineItems, ...permitLineItems]
   if (lineItems.length === 0) return emptyForm()
-  return { ...emptyForm(), lineItems }
+  return { ...emptyForm(), lineItems, scopePhasesText: buildScopeText(project) }
+}
+
+// Mirrors NewProjectWizardPage.vue's buildScopeText exactly, grouped the
+// same way (Architectural Design / Supervision Activities / Permits to
+// Apply For), reading from the same selectedActivities/
+// selectedSupervisionActivities/selectedPermits arrays the line items
+// above are built from. This is only the starting text in the textarea
+// -- staff can still edit it -- but it now starts in sync with what's
+// actually billed instead of starting blank and being retyped from
+// memory, which is what let a promised permit go unbilled before.
+function buildScopeText(project: Project | undefined): string {
+  const lines: string[] = []
+  const activitiesByService = new Map<string, string[]>()
+  for (const item of project?.selectedActivities ?? []) {
+    const list = activitiesByService.get(item.serviceName) ?? []
+    list.push(item.activityId === item.serviceId ? item.serviceName : item.activityName)
+    activitiesByService.set(item.serviceName, list)
+  }
+  for (const [serviceName, activityNames] of activitiesByService) {
+    lines.push(`${serviceName}:`)
+    activityNames.forEach((name) => lines.push(`- ${name}`))
+  }
+  const supervisionActivities = project?.selectedSupervisionActivities ?? []
+  if (supervisionActivities.length > 0) {
+    if (lines.length > 0) lines.push('')
+    lines.push('Supervision Activities:')
+    supervisionActivities.forEach((item) => lines.push(`- ${item.activityName}`))
+  }
+  const permits = project?.selectedPermits ?? []
+  if (permits.length > 0) {
+    if (lines.length > 0) lines.push('')
+    lines.push('Permits to Apply For:')
+    permits.forEach((permit) => lines.push(`- ${permit.permitName}`))
+  }
+  return lines.join('\n')
 }
 
 const form = reactive(formFromProject(props.project))
