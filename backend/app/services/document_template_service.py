@@ -139,6 +139,20 @@ def upload_template(db: Session, document_type: str, language: str, file, actor_
 
     storage_key, original_filename, size_bytes = save_upload(file, STORAGE_SUBDIRECTORY)
 
+    # Every upload becomes this (type, language) pair's active default
+    # immediately -- not just the first one. Leaving a re-upload inactive
+    # until someone remembered a separate "Set Default" click was a real
+    # trap: every generated document silently kept using whatever old
+    # template was still flagged default, with no indication anything
+    # was wrong, until an admin happened to notice. "Set Default" (see
+    # set_default below) still exists for deliberately reverting to an
+    # older upload later.
+    db.query(DocumentTemplate).filter(
+        DocumentTemplate.document_type == document_type,
+        DocumentTemplate.language == language,
+        DocumentTemplate.is_default.is_(True),
+    ).update({"is_default": False})
+
     template = DocumentTemplate(
         document_type=document_type,
         language=language,
@@ -146,11 +160,7 @@ def upload_template(db: Session, document_type: str, language: str, file, actor_
         original_filename=original_filename,
         file_size_bytes=size_bytes,
         uploaded_by=actor_id,
-        # The first template uploaded for a (type, language) pair becomes
-        # its default automatically -- otherwise "Download Document"
-        # would 404 with no default configured until an admin remembers
-        # to set one. Each language gets its own independent default.
-        is_default=get_default(db, document_type, language) is None,
+        is_default=True,
     )
     db.add(template)
     db.flush()
