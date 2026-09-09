@@ -125,10 +125,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
     case 'Requirement':
       return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Quotation':
-      return [
-        { key: 'overview', label: t('project.workspaceTabs.overview') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
-      ]
+      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Payment Plan':
       // No 'payment-plan' entry in this top-bar list -- same as
       // Contract/Design/Government Submission/Supervision below, the
