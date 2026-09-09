@@ -128,6 +128,36 @@ async function handleReassign(assignee: string): Promise<void> {
   }
 }
 
+async function handleStartDateChange(startDate: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskStartDate(taskStore.selectedTaskId, startDate)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
+  }
+}
+
+async function handleDueDateChange(dueDate: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskDueDate(taskStore.selectedTaskId, dueDate)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
+  }
+}
+
+async function handleDueTimeChange(dueTime: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskDueTime(taskStore.selectedTaskId, dueTime)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
+  }
+}
+
 const isDeleteConfirmOpen = ref(false)
 const isDeleting = ref(false)
 
@@ -230,6 +260,9 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
         @reassign="handleReassign"
+        @start-date-change="handleStartDateChange"
+        @due-date-change="handleDueDateChange"
+        @due-time-change="handleDueTimeChange"
         @delete="requestDelete"
       />
     </BaseDrawer>

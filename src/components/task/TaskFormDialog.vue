@@ -61,6 +61,7 @@ const projectId = ref('')
 const assignedTo = ref('')
 const priority = ref<TaskPriority>('Medium')
 const severity = ref<TaskSeverity>('Minor')
+const startDate = ref('')
 const dueDate = ref('')
 const dueTime = ref('17:00')
 // Optional -- links this task to one of the chosen project's own
@@ -133,6 +134,7 @@ function resetForm(): void {
   assignedTo.value = authStore.user?.id ?? ''
   priority.value = 'Medium'
   severity.value = 'Minor'
+  startDate.value = ''
   dueDate.value = ''
   dueTime.value = '17:00'
   selectedActivityId.value = ''
@@ -156,6 +158,7 @@ function submitTask(): void {
     assignedTo: assignedTo.value,
     priority: priority.value,
     severity: severity.value,
+    startDate: startDate.value || undefined,
     dueDate: dueDate.value,
     dueTime: dueTime.value,
     status: 'Pending',
@@ -209,6 +212,8 @@ function submitTask(): void {
           @update:model-value="severity = $event as TaskSeverity"
         />
       </div>
+
+      <DatePicker v-model="startDate" :label="t('task.formDialog.startDate')" />
 
       <div class="grid grid-cols-2 gap-4">
         <DatePicker v-model="dueDate" :label="t('task.formDialog.completionDate')" required :error="dueDateError" />

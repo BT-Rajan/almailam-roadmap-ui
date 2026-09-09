@@ -200,11 +200,11 @@ async function getStageEligibility(projectId: string): Promise<StageEligibility[
  * task is completed (see taskService.setTaskStatus).
  */
 async function closeDesignActivity(
-  projectId: string, activityId: string, status: 'Complete' | 'Cancelled',
+  projectId: string, activityId: string, status: 'Complete' | 'Cancelled', overrideNoDocument = false,
 ): Promise<SelectedServiceActivity> {
   try {
     return await apiClient.post<SelectedServiceActivity>(
-      `/api/projects/${projectId}/design-activities/${activityId}/close`, { status },
+      `/api/projects/${projectId}/design-activities/${activityId}/close`, { status, overrideNoDocument },
     )
   } catch (error) {
     console.error(`Failed to close design activity ${activityId} on project ${projectId}:`, error)
@@ -231,10 +231,12 @@ async function reopenDesignActivity(projectId: string, activityId: string): Prom
  * computed once its prerequisite Design activities are all Complete.
  */
 async function setPermitStatus(
-  projectId: string, permitId: string, status: 'In Progress' | 'Complete' | 'Cancelled',
+  projectId: string, permitId: string, status: 'In Progress' | 'Complete' | 'Cancelled', overrideNoDocument = false,
 ): Promise<SelectedPermit> {
   try {
-    return await apiClient.post<SelectedPermit>(`/api/projects/${projectId}/permits/${permitId}/status`, { status })
+    return await apiClient.post<SelectedPermit>(
+      `/api/projects/${projectId}/permits/${permitId}/status`, { status, overrideNoDocument },
+    )
   } catch (error) {
     console.error(`Failed to set status for permit ${permitId} on project ${projectId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update permit status')
@@ -247,11 +249,11 @@ async function setPermitStatus(
  * read of site-engineer reports. 'Eligible' isn't settable this way.
  */
 async function setSupervisionStatus(
-  projectId: string, activityId: string, status: 'In Progress' | 'Complete' | 'Cancelled',
+  projectId: string, activityId: string, status: 'In Progress' | 'Complete' | 'Cancelled', overrideNoDocument = false,
 ): Promise<SelectedSupervisionActivity> {
   try {
     return await apiClient.post<SelectedSupervisionActivity>(
-      `/api/projects/${projectId}/supervision-activities/${activityId}/status`, { status },
+      `/api/projects/${projectId}/supervision-activities/${activityId}/status`, { status, overrideNoDocument },
     )
   } catch (error) {
     console.error(`Failed to set status for supervision activity ${activityId} on project ${projectId}:`, error)

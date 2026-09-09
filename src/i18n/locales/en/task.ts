@@ -15,6 +15,7 @@ export default {
   },
 
   status: {
+    preset: 'Preset',
     pending: 'Pending',
     inProgress: 'In Progress',
     completed: 'Completed',
@@ -22,6 +23,7 @@ export default {
 
   overdue: 'Overdue',
   moveTo: 'Move to {status}',
+  presetFlag: 'Not reviewed yet',
 
   assignmentCard: {
     assignedTo: 'Assigned To',
@@ -36,7 +38,11 @@ export default {
     status: 'Status',
     priority: 'Priority',
     severity: 'Severity',
+    startDate: 'Start Date',
+    dueDate: 'Due Date',
+    dueTime: 'Due Time',
     delete: 'Delete Task',
+    presetFlagMessage: "This task hasn't been reviewed yet — assign an owner and date.",
   },
 
   board: {
@@ -71,6 +77,7 @@ export default {
     failedToUpdatePriority: 'Failed to update priority',
     failedToUpdateSeverity: 'Failed to update severity',
     failedToReassignTask: 'Failed to reassign task',
+    failedToUpdateSchedule: 'Failed to update the schedule',
     taskCreatedTitle: 'Task created',
     taskCreatedDescription: '"{title}" was assigned to {assignee}.',
     failedToCreateTask: 'Failed to create task',
@@ -94,6 +101,7 @@ export default {
     assigneeMe: '{name} (Me)',
     priority: 'Priority',
     severity: 'Severity',
+    startDate: 'Start Date (optional)',
     completionDate: 'Completion Date',
     completionTime: 'Completion Time',
     createTask: 'Create Task',

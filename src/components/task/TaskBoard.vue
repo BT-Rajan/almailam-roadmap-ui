@@ -21,6 +21,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const COLUMNS = computed<{ status: TaskStatus; label: string }[]>(() => [
+  { status: 'Preset', label: t('task.status.preset') },
   { status: 'Pending', label: t('task.status.pending') },
   { status: 'In Progress', label: t('task.status.inProgress') },
   { status: 'Completed', label: t('task.status.completed') },
@@ -32,7 +33,7 @@ function projectName(projectId: string): string {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
     <div
       v-for="column in COLUMNS"
       :key="column.status"

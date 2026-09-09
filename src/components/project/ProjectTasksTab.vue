@@ -175,6 +175,39 @@ async function handleReassign(assignee: string): Promise<void> {
   }
 }
 
+// Applied directly, no confirmation step -- a schedule tweak is routine,
+// same treatment as reassigning a task's owner just above (only status/
+// priority/delete go through the confirm dialog here).
+async function handleStartDateChange(startDate: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskStartDate(taskStore.selectedTaskId, startDate)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateSchedule'), detail)
+  }
+}
+
+async function handleDueDateChange(dueDate: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskDueDate(taskStore.selectedTaskId, dueDate)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateSchedule'), detail)
+  }
+}
+
+async function handleDueTimeChange(dueTime: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskDueTime(taskStore.selectedTaskId, dueTime)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateSchedule'), detail)
+  }
+}
+
 async function handleDeleteTask(): Promise<void> {
   if (!taskStore.selectedTaskId) return
   const title = taskStore.selectedTask?.title ?? ''
@@ -226,6 +259,9 @@ async function handleDeleteTask(): Promise<void> {
       @status-change="requestStatusChange"
       @priority-change="requestPriorityChange"
       @reassign="requestReassign"
+      @start-date-change="handleStartDateChange"
+      @due-date-change="handleDueDateChange"
+      @due-time-change="handleDueTimeChange"
       @delete="requestDelete"
     />
   </BaseDrawer>

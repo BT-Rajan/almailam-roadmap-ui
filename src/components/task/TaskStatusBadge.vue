@@ -13,6 +13,7 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const STATUS_LABEL_KEYS: Record<TaskStatus, string> = {
+  Preset: 'task.status.preset',
   Pending: 'task.status.pending',
   'In Progress': 'task.status.inProgress',
   Completed: 'task.status.completed',

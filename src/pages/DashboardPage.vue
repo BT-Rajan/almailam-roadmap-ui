@@ -99,6 +99,7 @@ const recentProjects = computed<ProjectSummary[]>(() =>
 )
 
 const TASK_STATUS_MAP: Record<TaskStatus, Task['status']> = {
+  Preset: 'todo',
   Pending: 'todo',
   'In Progress': 'in-progress',
   Completed: 'done',

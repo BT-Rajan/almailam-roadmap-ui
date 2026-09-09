@@ -15,12 +15,13 @@ const SEVERITY_VARIANTS: Record<TaskSeverity, BadgeVariant> = {
 }
 
 const STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
+  Preset: 'warning',
   Pending: 'neutral',
   'In Progress': 'info',
   Completed: 'success',
 }
 
-const STATUS_ORDER: TaskStatus[] = ['Pending', 'In Progress', 'Completed']
+const STATUS_ORDER: TaskStatus[] = ['Preset', 'Pending', 'In Progress', 'Completed']
 
 export function getTaskPriorityVariant(priority: TaskPriority): BadgeVariant {
   return PRIORITY_VARIANTS[priority]

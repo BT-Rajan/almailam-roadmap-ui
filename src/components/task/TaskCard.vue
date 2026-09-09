@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight } from '@lucide/vue'
+import { AlertTriangle, ArrowLeft, ArrowRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -33,6 +33,7 @@ const overdue = computed(() => isTaskOverdue(props.task))
 const nextStatus = computed(() => getNextTaskStatus(props.task.status))
 
 const STATUS_LABEL_KEYS: Record<TaskStatus, string> = {
+  Preset: 'task.status.preset',
   Pending: 'task.status.pending',
   'In Progress': 'task.status.inProgress',
   Completed: 'task.status.completed',
@@ -55,6 +56,11 @@ const moveToLabel = computed(() => (nextStatus.value ? t('task.moveTo', { status
     </div>
 
     <p class="truncate text-xs text-text-muted">{{ projectName }} &middot; {{ clientName }}</p>
+
+    <p v-if="task.status === 'Preset'" class="flex items-center gap-1 text-xs font-medium text-warning-700">
+      <AlertTriangle class="h-3.5 w-3.5 shrink-0" />
+      <span>{{ t('task.presetFlag') }}</span>
+    </p>
 
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">

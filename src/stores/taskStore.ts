@@ -75,7 +75,7 @@ export const useTaskStore = defineStore('task', {
     },
 
     tasksByStatus(): Record<TaskStatus, Task[]> {
-      const board = { Pending: [], 'In Progress': [], Completed: [] } as Record<TaskStatus, Task[]>
+      const board = { Preset: [], Pending: [], 'In Progress': [], Completed: [] } as Record<TaskStatus, Task[]>
       for (const task of this.filteredTasks) {
         board[task.status].push(task)
       }
@@ -146,6 +146,21 @@ export const useTaskStore = defineStore('task', {
 
     async updateTaskSeverity(taskId: string, severity: TaskSeverity) {
       const updated = await taskService.updateTask(taskId, { severity })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+    },
+
+    async updateTaskStartDate(taskId: string, startDate: string) {
+      const updated = await taskService.updateTask(taskId, { startDate })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+    },
+
+    async updateTaskDueDate(taskId: string, dueDate: string) {
+      const updated = await taskService.updateTask(taskId, { dueDate })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+    },
+
+    async updateTaskDueTime(taskId: string, dueTime: string) {
+      const updated = await taskService.updateTask(taskId, { dueTime })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 

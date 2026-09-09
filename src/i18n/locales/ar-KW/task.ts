@@ -15,6 +15,7 @@ export default {
   },
 
   status: {
+    preset: 'مبدئية',
     pending: 'قيد الانتظار',
     inProgress: 'قيد التنفيذ',
     completed: 'مكتملة',
@@ -22,6 +23,7 @@ export default {
 
   overdue: 'متأخرة',
   moveTo: 'نقل إلى {status}',
+  presetFlag: 'لم تتم مراجعتها بعد',
 
   assignmentCard: {
     assignedTo: 'مسندة إلى',
@@ -36,7 +38,11 @@ export default {
     status: 'الحالة',
     priority: 'الأولوية',
     severity: 'الخطورة',
+    startDate: 'تاريخ البدء',
+    dueDate: 'تاريخ الاستحقاق',
+    dueTime: 'وقت الاستحقاق',
     delete: 'حذف المهمة',
+    presetFlagMessage: 'لم تتم مراجعة هذه المهمة بعد — عيّن مسؤولاً وتاريخاً.',
   },
 
   board: {
@@ -71,6 +77,7 @@ export default {
     failedToUpdatePriority: 'فشل تحديث الأولوية',
     failedToUpdateSeverity: 'فشل تحديث الخطورة',
     failedToReassignTask: 'فشل إعادة إسناد المهمة',
+    failedToUpdateSchedule: 'فشل تحديث الجدول الزمني',
     taskCreatedTitle: 'تم إنشاء المهمة',
     taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
     failedToCreateTask: 'فشل إنشاء المهمة',
@@ -94,6 +101,7 @@ export default {
     assigneeMe: '{name} (أنا)',
     priority: 'الأولوية',
     severity: 'الخطورة',
+    startDate: 'تاريخ البدء (اختياري)',
     completionDate: 'تاريخ الإنجاز',
     completionTime: 'وقت الإنجاز',
     createTask: 'إنشاء مهمة',

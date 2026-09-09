@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
@@ -20,6 +21,7 @@ import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { usePaymentStore } from '@/stores/paymentStore'
+import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -65,8 +67,44 @@ const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectStore = useProjectStore()
+const linkDocumentStore = useProjectLinkDocumentStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
+
+// "For all service completions either there should be a document link
+// uploaded or click check boxes in right to override" -- marking a
+// Design activity/Permit/Supervision activity Complete is gated on this
+// project having at least one Project Closure document link on file
+// (reusing the existing link-document system as-is, see
+// AddLinkDocumentDialog.vue/projectLinkDocumentStore.ts) or the
+// specific row's own override checkbox. Project-scoped, not per-item --
+// there's no field linking a ProjectLinkDocument to the exact item it's
+// evidence for (see project_service._assert_completion_evidence on the
+// backend, which enforces the same rule for real). overrides is keyed
+// by "design:<id>" / "permit:<id>" / "supervision:<id>" so all three
+// item kinds share one reactive map without their id spaces colliding.
+type CompletionKind = 'design' | 'permit' | 'supervision'
+const overrides = reactive<Record<string, boolean>>({})
+function overrideKey(kind: CompletionKind, id: string): string {
+  return `${kind}:${id}`
+}
+const hasProjectClosureDocument = computed(
+  () => linkDocumentStore.documentsForCategory(props.project.id, 'Project Closure').length > 0,
+)
+function canMarkComplete(kind: CompletionKind, id: string): boolean {
+  return hasProjectClosureDocument.value || Boolean(overrides[overrideKey(kind, id)])
+}
+function setOverride(kind: CompletionKind, id: string, checked: boolean): void {
+  overrides[overrideKey(kind, id)] = checked
+}
+
+const isAddClosureDocDialogOpen = ref(false)
+function openAddClosureDocDialog(): void {
+  isAddClosureDocDialogOpen.value = true
+}
+
+onMounted(() => linkDocumentStore.loadForProject(props.project.id))
+watch(() => props.project.id, (projectId) => linkDocumentStore.loadForProject(projectId))
 
 // Guards each row's own Close/Reopen buttons individually so acting on
 // one activity doesn't disable the others while its request is in
@@ -76,7 +114,7 @@ const activityActionPendingId = ref<string>()
 async function closeDesignActivity(activityId: string, status: 'Complete' | 'Cancelled'): Promise<void> {
   activityActionPendingId.value = activityId
   try {
-    await projectService.closeDesignActivity(props.project.id, activityId, status)
+    await projectService.closeDesignActivity(props.project.id, activityId, status, overrides[overrideKey('design', activityId)])
     await projectStore.refreshProject(props.project.id)
     await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
@@ -100,14 +138,16 @@ async function reopenDesignActivity(activityId: string): Promise<void> {
   }
 }
 
-// Permits have no sub-tasks -- the user sets their status directly at
-// their own discretion (see project_service.set_permit_status).
+// The user always sets a Permit's status directly, at their own
+// discretion (see project_service.set_permit_status) -- on top of the
+// auto-close that happens once every task linked to it (see the Tasks
+// tab) is completed.
 const permitActionPendingId = ref<string>()
 
 async function setPermitStatus(permitId: string, status: 'In Progress' | 'Complete' | 'Cancelled'): Promise<void> {
   permitActionPendingId.value = permitId
   try {
-    await projectService.setPermitStatus(props.project.id, permitId, status)
+    await projectService.setPermitStatus(props.project.id, permitId, status, overrides[overrideKey('permit', permitId)])
     await projectStore.refreshProject(props.project.id)
     await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
@@ -118,14 +158,14 @@ async function setPermitStatus(permitId: string, status: 'In Progress' | 'Comple
   }
 }
 
-// Supervision has no sub-tasks either -- same direct-status pattern as
-// Permits, based on the user's own read of site-engineer reports.
+// Same direct-status pattern as Permits, based on the user's own read
+// of site-engineer reports, on top of the same task-driven auto-close.
 const supervisionActionPendingId = ref<string>()
 
 async function setSupervisionStatus(activityId: string, status: 'In Progress' | 'Complete' | 'Cancelled'): Promise<void> {
   supervisionActionPendingId.value = activityId
   try {
-    await projectService.setSupervisionStatus(props.project.id, activityId, status)
+    await projectService.setSupervisionStatus(props.project.id, activityId, status, overrides[overrideKey('supervision', activityId)])
     await projectStore.refreshProject(props.project.id)
     await loadHandoverStatus()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
@@ -861,8 +901,23 @@ function verificationResultLabel(result: string): string {
                       <BaseButton
                         variant="primary" size="sm" class="no-print"
                         :loading="activityActionPendingId === activity.id"
+                        :disabled="!canMarkComplete('design', activity.id)"
                         @click="closeDesignActivity(activity.id, 'Complete')"
                       >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                      <div v-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
+                        <label class="inline-flex items-center gap-1.5 text-text-muted">
+                          <input
+                            type="checkbox"
+                            class="h-3.5 w-3.5 rounded border-border-default"
+                            :checked="overrides[overrideKey('design', activity.id)]"
+                            @change="setOverride('design', activity.id, ($event.target as HTMLInputElement).checked)"
+                          />
+                          {{ t('project.overviewTab.overrideNoDocument') }}
+                        </label>
+                        <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
+                          {{ t('project.overviewTab.addClosureDocument') }}
+                        </button>
+                      </div>
                     </template>
                   </template>
                 </div>
@@ -920,8 +975,23 @@ function verificationResultLabel(result: string): string {
                     <BaseButton
                       variant="primary" size="sm" class="no-print"
                       :loading="permitActionPendingId === permit.id"
+                      :disabled="!canMarkComplete('permit', permit.id)"
                       @click="setPermitStatus(permit.id, 'Complete')"
                     >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                    <div v-if="!canMarkComplete('permit', permit.id)" class="flex items-center gap-2 text-xs no-print">
+                      <label class="inline-flex items-center gap-1.5 text-text-muted">
+                        <input
+                          type="checkbox"
+                          class="h-3.5 w-3.5 rounded border-border-default"
+                          :checked="overrides[overrideKey('permit', permit.id)]"
+                          @change="setOverride('permit', permit.id, ($event.target as HTMLInputElement).checked)"
+                        />
+                        {{ t('project.overviewTab.overrideNoDocument') }}
+                      </label>
+                      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
+                        {{ t('project.overviewTab.addClosureDocument') }}
+                      </button>
+                    </div>
                   </template>
                 </div>
               </div>
@@ -1011,8 +1081,23 @@ function verificationResultLabel(result: string): string {
                     <BaseButton
                       variant="primary" size="sm" class="no-print"
                       :loading="supervisionActionPendingId === activity.id"
+                      :disabled="!canMarkComplete('supervision', activity.id)"
                       @click="setSupervisionStatus(activity.id, 'Complete')"
                     >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                    <div v-if="!canMarkComplete('supervision', activity.id)" class="flex items-center gap-2 text-xs no-print">
+                      <label class="inline-flex items-center gap-1.5 text-text-muted">
+                        <input
+                          type="checkbox"
+                          class="h-3.5 w-3.5 rounded border-border-default"
+                          :checked="overrides[overrideKey('supervision', activity.id)]"
+                          @change="setOverride('supervision', activity.id, ($event.target as HTMLInputElement).checked)"
+                        />
+                        {{ t('project.overviewTab.overrideNoDocument') }}
+                      </label>
+                      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
+                        {{ t('project.overviewTab.addClosureDocument') }}
+                      </button>
+                    </div>
                   </template>
                 </template>
               </div>
@@ -1114,8 +1199,23 @@ function verificationResultLabel(result: string): string {
                     <BaseButton
                       variant="primary" size="sm" class="no-print"
                       :loading="permitActionPendingId === permit.id"
+                      :disabled="!canMarkComplete('permit', permit.id)"
                       @click="setPermitStatus(permit.id, 'Complete')"
                     >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+                    <div v-if="!canMarkComplete('permit', permit.id)" class="flex items-center gap-2 text-xs no-print">
+                      <label class="inline-flex items-center gap-1.5 text-text-muted">
+                        <input
+                          type="checkbox"
+                          class="h-3.5 w-3.5 rounded border-border-default"
+                          :checked="overrides[overrideKey('permit', permit.id)]"
+                          @change="setOverride('permit', permit.id, ($event.target as HTMLInputElement).checked)"
+                        />
+                        {{ t('project.overviewTab.overrideNoDocument') }}
+                      </label>
+                      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
+                        {{ t('project.overviewTab.addClosureDocument') }}
+                      </button>
+                    </div>
                   </template>
                 </div>
               </div>
@@ -1206,6 +1306,11 @@ function verificationResultLabel(result: string): string {
       "
       :is-submitting="paymentStore.isSubmitting"
       @submit="handleSubmitPaymentPlan"
+    />
+    <AddLinkDocumentDialog
+      v-model="isAddClosureDocDialogOpen"
+      :project-id="project.id"
+      category="Project Closure"
     />
   </div>
 </template>
