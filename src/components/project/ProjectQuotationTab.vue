@@ -12,7 +12,6 @@ import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUpload
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
-import QuotationList from '@/components/project/QuotationList.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
@@ -565,11 +564,6 @@ async function handleRevertToDraft(): Promise<void> {
     </div>
 
     <div class="no-print flex flex-col gap-6">
-      <QuotationList
-        :quotations="quotationStore.quotations"
-        :selected-quotation-id="quotationStore.selectedQuotationId"
-        @select="quotationStore.selectQuotation($event)"
-      />
       <QuotationRevisionHistory v-if="quotationStore.selectedQuotation" :revisions="quotationStore.selectedQuotation.revisions" />
     </div>
   </div>

@@ -301,13 +301,6 @@ export default {
     totalAmount: 'Total Amount',
   },
 
-  quotationList: {
-    title: 'Quotations',
-    emptyTitle: 'No quotations yet',
-    emptyDescription: 'Quotations issued for this project will appear here.',
-    revisionIssued: 'Revision {revision} · Issued {date}',
-  },
-
   contractList: {
     title: 'Contracts',
     emptyTitle: 'No contracts yet',
