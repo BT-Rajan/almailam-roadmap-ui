@@ -195,16 +195,24 @@ class ProjectOut(BaseModel):
     # project_service._recompute_permit_eligibility), independent of
     # Design/Supervision.
     selectedPermits: list[SelectedPermitOut] = Field(default_factory=list)
-    # Whether this project's workflow includes a Design and/or
-    # Supervision stage -- see project_service.compute_stage_flags for
-    # how these are derived. Drives which of the Design/Supervision
+    # Whether this project's workflow includes a Design, Government
+    # Submission (Permits), and/or Supervision stage -- see
+    # project_service.compute_stage_flags for how these are derived.
+    # Drives which of the Design/Government Submission/Supervision
     # stepper nodes and workspace tabs are shown on the frontend.
     includesDesign: bool = False
+    includesGovernmentSubmission: bool = False
     includesSupervision: bool = False
     # The project/plot address (migration 0063) -- fills a Quotation/
     # Contract document template's address placeholder. Distinct from
     # any of the client's own ClientAddress rows.
     siteAddress: str | None = None
+    # Handover stage fields (migration 0089) -- see Project.
+    # handover_payment_confirmed_at/handover_notes and
+    # project_service.confirm_handover_payment/update_handover_notes.
+    handoverPaymentConfirmedAt: datetime | None = None
+    handoverPaymentConfirmedBy: str | None = None
+    handoverNotes: str | None = None
 
     @staticmethod
     def from_model(
@@ -212,6 +220,8 @@ class ProjectOut(BaseModel):
         selected_supervision_activities: list | None = None,
         includes_design: bool = False, includes_supervision: bool = False,
         selected_permits: list | None = None,
+        includes_government_submission: bool = False,
+        handover_payment_confirmed_by_name: str | None = None,
     ) -> "ProjectOut":
         return ProjectOut(
             id=project.project_no,
@@ -239,9 +249,13 @@ class ProjectOut(BaseModel):
             supervisionStartDate=project.supervision_start_date,
             supervisionEndDate=project.supervision_end_date,
             includesDesign=includes_design,
+            includesGovernmentSubmission=includes_government_submission,
             includesSupervision=includes_supervision,
             siteAddress=project.site_address,
             selectedPermits=[SelectedPermitOut.from_model(p) for p in (selected_permits or [])],
+            handoverPaymentConfirmedAt=project.handover_payment_confirmed_at,
+            handoverPaymentConfirmedBy=handover_payment_confirmed_by_name,
+            handoverNotes=project.handover_notes,
         )
 
 
@@ -293,10 +307,13 @@ class HandoverChecklistItemOut(BaseModel):
 
 class HandoverStatusOut(BaseModel):
     """The project's own hand-over readiness/acknowledgment pair --
-    handoverSentAt is set once project_service.notify_handover_ready
-    has flagged the project ready (every track closed, fully paid);
-    the frontend uses it to decide whether the "Confirm Hand-over"
-    signed-document upload action is available yet."""
+    handoverSentAt is set once the project enters the Handover stage
+    (every included track closed -- see project_service.
+    _apply_stage_change's Handover-entry hook); the frontend uses it to
+    decide whether the "Confirm Hand-over" signed-document upload action
+    is available yet. Payment confirmation and closing notes are on
+    ProjectOut itself (handoverPaymentConfirmedAt/handoverNotes), not
+    duplicated here."""
 
     handoverSentAt: datetime | None = None
     handoverAcknowledgedAt: datetime | None = None
@@ -489,5 +506,9 @@ class SetSupervisionStatusRequest(BaseModel):
         if value not in ("In Progress", "Complete", "Cancelled"):
             raise ValueError("status must be 'In Progress', 'Complete', or 'Cancelled'")
         return value
+
+
+class HandoverNotesUpdateRequest(BaseModel):
+    notes: str = Field(default="", max_length=5000)
 
 

@@ -47,14 +47,10 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
 # execution checklist coming back.
 #
 # "Supervision" (migration 0056) is an independent add-on stage -- a
-# project can include Design, Supervision, both, or neither, depending
-# on which Design/Supervision activities were picked (see
-# project_service.compute_stage_flags). It comes after Government
-# Submission, not before it (construction supervision follows permit
-# approval, not design) -- the actual path through Contract -> [Design]
-# -> Government Submission -> [Supervision] depends on the project, not
-# a fixed straight line (see project_service._assert_stage_exit_criteria
-# and _auto_advance_target for how each project's own path is derived).
+# project can include Design, Government Submission (Permits),
+# Supervision, any combination, or none, depending on which
+# activities/permits were picked (see project_service.
+# compute_stage_flags).
 #
 # "Payment Plan" (migration 0061) sits between Quotation and Contract --
 # the financial agreement(s) (contract value, payment schedule) now have
@@ -62,6 +58,21 @@ PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
 # drafted, not created as an afterthought partway through Contract once
 # a signed contract already exists. See FinancialAgreement.status
 # (backend/app/models/payment.py) and payment_service.approve_agreement.
+#
+# "Handover" (migration 0089) replaces the old shape where Design ->
+# Government Submission -> Supervision was a fixed sequential chain and
+# "project completion" lived entirely outside the stage machine, as a
+# project.status flip gated by a separate _all_tracks_closed check.
+# Design, Government Submission, and Supervision now run in PARALLEL,
+# independent tracks off Contract -- a project takes whichever of the
+# three it actually includes (see compute_stage_flags), in no particular
+# order, and all of them converge on Handover once done (see
+# project_service._assert_stage_exit_criteria's Handover branch and
+# core/status_transitions.PROJECT_STAGE_ALLOWED_TRANSITIONS for the
+# actual graph). Handover itself is where the project's payment gets a
+# manual confirmation (handover_payment_confirmed_at below) and the
+# client's signed acknowledgment is collected (confirm_project_handover)
+# before project.status finally becomes "Completed".
 WORKFLOW_STAGES = (
     "Requirement",
     "Quotation",
@@ -70,6 +81,7 @@ WORKFLOW_STAGES = (
     "Design",
     "Government Submission",
     "Supervision",
+    "Handover",
 )
 PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # Status of one selected Design/Supervision activity instance on a
@@ -168,19 +180,38 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     payment_plan_template_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("document_templates.id", ondelete="RESTRICT"), nullable=True
     )
-    # Handover / project-completion (migration 0073) -- set by
-    # project_service.try_complete_project once every planned Design/
-    # Permit/Supervision item is Complete/Cancelled and the project's
-    # current total value is fully paid. handover_sent_at/
+    # Handover / project-completion (migration 0073, restructured around
+    # the real "Handover" WORKFLOW_STAGE in migration 0089) -- set by
+    # the Handover-entry hook in project_service._apply_stage_change,
+    # which only ever fires once every included Design/Permit/
+    # Supervision track is Complete/Cancelled (see
+    # _assert_stage_exit_criteria's Handover branch). handover_sent_at/
     # handover_acknowledged_at track the ready-for-handover notice and
     # the client's confirmation of it via a signed-document upload (see
     # notify_handover_ready/confirm_project_handover) -- EmailOtpMixin's
-    # columns below are inert leftovers now (see its docstring). status only
-    # becomes "Completed" once handover_acknowledged_at is set -- an
-    # email that fails to send never blocks this internally, it only
-    # notifies Administrators (see notify_role) so someone can resend.
+    # columns below are inert leftovers now (see its docstring). status
+    # only becomes "Completed" once handover_acknowledged_at is set, and
+    # confirm_project_handover requires handover_payment_confirmed_at
+    # first -- an email that fails to send never blocks this internally,
+    # it only notifies Administrators (see notify_role) so someone can
+    # resend.
     handover_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     handover_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Manual payment attestation from the Handover stage's Payment
+    # Confirmation tab (migration 0089) -- independent of the automatic
+    # payment_service.get_project_payment_status() reading shown
+    # alongside it as reference; required before confirm_project_
+    # handover accepts the signed acknowledgment (see
+    # project_service.confirm_handover_payment/unconfirm_handover_payment).
+    handover_payment_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    handover_payment_confirmed_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Free-text closing remarks for the Handover stage's Notes and
+    # Report tab (migration 0089) -- a single editable field, not a
+    # running log (see timeline_service for that). See
+    # project_service.update_handover_notes.
+    handover_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Notification guards for the two new periodic checks in
     # project_service (mirrors stale_notified_at's pattern above): a
     # project whose planned activities are all done but isn't yet

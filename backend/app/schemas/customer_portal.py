@@ -22,16 +22,19 @@ class CustomerProjectStatus(BaseModel):
     actualEndDate: date | None = None
     status: str
     progress: int
-    # The real workflow stage (Requirement/Quotation/Contract/Design/
-    # Government Submission/Supervision) -- alongside the coarser
-    # planning/active/on-hold/... `status` above, this is what lets the
-    # customer portal render the same stage stepper staff see in
-    # WorkflowProgress.vue instead of just a generic progress bar.
-    # includesDesign/includesSupervision mirror Project.includesDesign/
-    # includesSupervision so the stepper can filter out whichever of
-    # those two stages doesn't apply to this project, same as staff's.
+    # The real workflow stage (Requirement/Quotation/Payment Plan/
+    # Contract/Design/Government Submission/Supervision/Handover) --
+    # alongside the coarser planning/active/on-hold/... `status` above,
+    # this is what lets the customer portal render the same stage
+    # stepper staff see in WorkflowProgress.vue instead of just a
+    # generic progress bar. includesDesign/includesGovernmentSubmission/
+    # includesSupervision mirror Project.includesDesign/
+    # includesGovernmentSubmission/includesSupervision so the stepper
+    # can filter out whichever of the three parallel tracks doesn't
+    # apply to this project, same as staff's.
     currentStage: str
     includesDesign: bool
+    includesGovernmentSubmission: bool
     includesSupervision: bool
     summary: str
     engineerName: str

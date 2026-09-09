@@ -11,6 +11,7 @@ from app.schemas.common import PagedResponse
 from app.schemas.project import (
     AddServicesInput,
     CloseDesignActivityRequest,
+    HandoverNotesUpdateRequest,
     HandoverStatusOut,
     ProjectCreate,
     ProjectOut,
@@ -39,10 +40,18 @@ can_delete = require_permission("Projects", "delete")
 def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
     activities = project_service.get_selected_activities(db, project.id)
     supervision_activities = project_service.get_selected_supervision_activities(db, project.id)
-    includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
     permits = project_service.get_selected_permits(db, project.id)
+    includes_design, includes_government_submission, includes_supervision = project_service.compute_stage_flags(
+        activities, supervision_activities, permits,
+    )
+    handover_payment_confirmed_by_name = None
+    if project.handover_payment_confirmed_by:
+        confirmer = db.query(User).filter(User.id == project.handover_payment_confirmed_by).first()
+        handover_payment_confirmed_by_name = confirmer.full_name if confirmer else None
     return ProjectOut.from_model(
         project, engineer_name, activities, supervision_activities, includes_design, includes_supervision, permits,
+        includes_government_submission=includes_government_submission,
+        handover_payment_confirmed_by_name=handover_payment_confirmed_by_name,
     )
 
 
@@ -78,15 +87,21 @@ def list_projects(
         db, {p.id for p in result["items"]},
     )
     permits_by_project = project_service.get_selected_permits_batch(db, {p.id for p in result["items"]})
+    confirmed_by_ids = {p.handover_payment_confirmed_by for p in result["items"] if p.handover_payment_confirmed_by}
+    confirmed_by_names = project_service.engineer_names(db, confirmed_by_ids)
 
     def _out(p) -> ProjectOut:
         activities = activities_by_project.get(p.id, [])
         supervision_activities = supervision_activities_by_project.get(p.id, [])
         permits = permits_by_project.get(p.id, [])
-        includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
+        includes_design, includes_government_submission, includes_supervision = project_service.compute_stage_flags(
+            activities, supervision_activities, permits,
+        )
         return ProjectOut.from_model(
             p, names.get(p.engineer_id, "Unknown"), activities, supervision_activities,
             includes_design, includes_supervision, permits,
+            includes_government_submission=includes_government_submission,
+            handover_payment_confirmed_by_name=confirmed_by_names.get(p.handover_payment_confirmed_by),
         )
 
     result["items"] = [_out(p) for p in result["items"]]
@@ -277,6 +292,29 @@ def confirm_project_handover(
     current_user: User = Depends(can_edit),
 ):
     project = project_service.confirm_project_handover(db, project_no, file, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.post("/{project_no}/handover/confirm-payment", response_model=ProjectOut)
+def confirm_handover_payment(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.confirm_handover_payment(db, project_no, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.post("/{project_no}/handover/unconfirm-payment", response_model=ProjectOut)
+def unconfirm_handover_payment(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    project = project_service.unconfirm_handover_payment(db, project_no, current_user.id)
+    return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
+
+
+@router.patch("/{project_no}/handover/notes", response_model=ProjectOut)
+def update_handover_notes(
+    project_no: str,
+    payload: HandoverNotesUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    project = project_service.update_handover_notes(db, project_no, payload.notes, current_user.id)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 

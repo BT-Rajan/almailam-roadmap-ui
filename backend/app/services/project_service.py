@@ -384,7 +384,6 @@ def close_design_activity(
     try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(activity)
-    try_complete_project(db, project, user_id)
     return activity
 
 
@@ -416,10 +415,10 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     status already set by hand (Complete/Cancelled), and is a no-op
     for the common case of a task with no linked activity. Doesn't
     commit its own status change -- the caller's status-change
-    transaction covers that too -- but the stage-advance/completion
-    checks it may trigger (try_auto_advance_stage, try_complete_project)
-    do commit their own work partway through (a stage change, checklist
-    generation, the hand-over notice); that's fine, it just means this
+    transaction covers that too -- but the stage-advance check it may
+    trigger (try_auto_advance_stage, which can itself reach Handover and
+    fire the checklist/hand-over notice -- see _apply_stage_change) does
+    commit its own work partway through; that's fine, it just means this
     call and the caller's own commit each cover part of the same
     overall change."""
     activity = db.query(ProjectSelectedActivity).filter(ProjectSelectedActivity.id == activity_id).first()
@@ -437,7 +436,6 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
     if project is not None:
         db.flush()
         try_auto_advance_stage(db, project, user_id)
-        try_complete_project(db, project, user_id)
 
 
 def get_selected_permit(db: Session, project_id: int, permit_id: int) -> ProjectSelectedPermit:
@@ -480,7 +478,7 @@ def maybe_auto_close_permit(db: Session, permit_id: int, user_id: int) -> None:
     project = db.query(Project).filter(Project.id == permit.project_id).first()
     if project is not None:
         db.flush()
-        try_complete_project(db, project, user_id)
+        try_auto_advance_stage(db, project, user_id)
 
 
 def set_permit_status(
@@ -511,7 +509,7 @@ def set_permit_status(
     )
     db.commit()
     db.refresh(permit)
-    try_complete_project(db, project, user_id)
+    try_auto_advance_stage(db, project, user_id)
     return permit
 
 
@@ -562,7 +560,7 @@ def maybe_auto_close_supervision_activity(db: Session, activity_id: int, user_id
     project = db.query(Project).filter(Project.id == activity.project_id).first()
     if project is not None:
         db.flush()
-        try_complete_project(db, project, user_id)
+        try_auto_advance_stage(db, project, user_id)
 
 
 def set_supervision_status(
@@ -594,7 +592,7 @@ def set_supervision_status(
     )
     db.commit()
     db.refresh(activity)
-    try_complete_project(db, project, user_id)
+    try_auto_advance_stage(db, project, user_id)
     return activity
 
 
@@ -737,14 +735,21 @@ def add_selected_services(
     return project
 
 
-def compute_stage_flags(selected_activities: list, selected_supervision_activities: list) -> tuple[bool, bool]:
-    """(includes_design, includes_supervision) -- whether this project's
-    workflow should offer a Design stage/tab and/or a Supervision one
-    (see WORKFLOW_STAGES). Deterministic since migration 0059: Design
-    services and the single Supervision service are different branches
-    of the same catalog now, so which rows exist says everything --
-    no more name-matching against category/service names."""
-    return (len(selected_activities) > 0, len(selected_supervision_activities) > 0)
+def compute_stage_flags(
+    selected_activities: list, selected_supervision_activities: list, selected_permits: list,
+) -> tuple[bool, bool, bool]:
+    """(includes_design, includes_government_submission, includes_supervision)
+    -- whether this project's workflow should offer a Design/Government
+    Submission (Permits, shown as "Approvals & Permits")/Supervision
+    stage each (see WORKFLOW_STAGES). All three are independent,
+    parallel tracks off Contract (migration 0089) -- a project with none
+    of a given track's items selected skips that branch entirely, same
+    as Design/Supervision already did before Government Submission
+    joined them as conditional too. Deterministic since migration 0059:
+    Design/Supervision services are different catalog branches and
+    Permits their own selection, so which rows exist says everything --
+    no name-matching against category/service names."""
+    return (len(selected_activities) > 0, len(selected_permits) > 0, len(selected_supervision_activities) > 0)
 
 
 def create_project(db: Session, payload, user_id: int | None) -> Project:
@@ -938,22 +943,23 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # only one stage can be "previous_stage" for any given new_stage, so the
 # target alone is enough to know which check applies.
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
-    """See docs/PROJECT_WORKFLOW_MAP for the source diagram. Requirement
-    -> Quotation -> Payment Plan -> Contract -> [Design] -> Government
-    Submission is a straight line for every project, skipping Design
-    when the project doesn't include it (see compute_stage_flags);
-    Supervision, when the project includes it, comes after Government
-    Submission, not before it. Design, when it applies, must be
-    approved by the client before Government Submission begins (you
-    can't submit unapproved drawings to an authority for permit
-    approval) -- that's the "at least one design link" check below.
-    Government Submission itself must have at least one Approved
-    submission on file before Supervision (a real, billed stage -- see
-    migration 0059) begins. PROJECT_STAGE_ALLOWED_TRANSITIONS keeps
-    reopening paths backward (Government Submission -> Design,
-    Supervision -> Government Submission, for when an authority's
-    feedback or supervision findings require changes) -- those require
-    a reason like any other reopening.
+    """See docs/PROJECT_WORKFLOW_MAP for the source diagram (migration
+    0089). Requirement -> Quotation -> Payment Plan -> Contract is a
+    straight line for every project; from Contract, Design, Government
+    Submission (Permits, shown as "Approvals & Permits"), and
+    Supervision become independent PARALLEL tracks -- a project skips
+    whichever of the three it has no selected items for (see
+    compute_stage_flags), and the three impose no ordering on each
+    other (PROJECT_STAGE_ALLOWED_TRANSITIONS lets any of them move
+    freely to any other, purely a "which view is focused" pointer, not
+    a real gate). All three converge on Handover, which requires every
+    included track to be Complete/Cancelled (and, for Government
+    Submission specifically, at least one Approved submission on file --
+    you can't hand over a permit that was never actually granted) --
+    that unified check is the "elif new_stage == 'Handover'" branch
+    below, replacing what used to be two different sequential per-hop
+    checks (Design's own exit, then Government Submission's into
+    Supervision) back when the three were still a fixed chain.
 
     Payment Plan (migration 0061) requires an Approved quotation to
     enter (moved here from Contract's own entry criterion -- Contract
@@ -962,16 +968,24 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
     way into Contract), and requires every included stream's financial
     agreement to exist AND be Approved before leaving into Contract
     (strengthened from Contract's own former exit criterion, which only
-    checked existence -- see FinancialAgreement.status).
+    checked existence -- see FinancialAgreement.status). Permits have no
+    financial agreement of their own (AgreementStream is Design/
+    Supervision only), so they're not part of that check.
     """
-    if new_stage in ("Design", "Supervision"):
-        includes_design, includes_supervision = compute_stage_flags(
-            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+    if new_stage in ("Design", "Government Submission", "Supervision"):
+        includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+            get_selected_activities(db, project.id),
+            get_selected_supervision_activities(db, project.id),
+            get_selected_permits(db, project.id),
         )
         if new_stage == "Design" and not includes_design:
             raise ValidationAppError(
                 "This project's selected services/activities don't include Design work -- "
                 "there's no Design stage for it to move into."
+            )
+        if new_stage == "Government Submission" and not includes_government_submission:
+            raise ValidationAppError(
+                "This project has no Permits selected -- there's no Approvals & Permits stage for it to move into."
             )
         if new_stage == "Supervision" and not includes_supervision:
             raise ValidationAppError(
@@ -1033,8 +1047,10 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         # not just one. Only approval is required here, not that it's
         # fully paid -- payment is expected to happen across the
         # project's lifetime, tracked by the reminder job below.
-        includes_design, includes_supervision = compute_stage_flags(
-            get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+        includes_design, _, includes_supervision = compute_stage_flags(
+            get_selected_activities(db, project.id),
+            get_selected_supervision_activities(db, project.id),
+            get_selected_permits(db, project.id),
         )
         if includes_design:
             design_agreement = payment_service.get_agreement_by_project(db, project.project_no, "Design")
@@ -1051,15 +1067,14 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
     elif previous_stage == "Contract":
         # Gates leaving Contract into whichever of Design/Government
-        # Submission is actually next for this project -- not just
-        # "entering Design" specifically, since a project that doesn't
-        # include Design skips straight past it. A contract has to
-        # actually be signed, not merely exist as a Draft -- this is what
-        # "Documents Signed" means in practice (the separate
-        # documents_signed approval-process gate used to be checked here
-        # instead, but that's a second, easy-to-forget manual upload
-        # nothing else in the flow prompts anyone to do; the contract's
-        # own status is the real, already-visible signal for this).
+        # Submission/Supervision is actually next for this project (see
+        # _auto_advance_target) -- a contract has to actually be signed,
+        # not merely exist as a Draft -- this is what "Documents Signed"
+        # means in practice (the separate documents_signed
+        # approval-process gate used to be checked here instead, but
+        # that's a second, easy-to-forget manual upload nothing else in
+        # the flow prompts anyone to do; the contract's own status is
+        # the real, already-visible signal for this).
         signed_contract = (
             db.query(Contract)
             .filter(
@@ -1072,32 +1087,72 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if signed_contract is None:
             problems.append("a signed contract")
 
-    elif previous_stage == "Design":
-        # Gates leaving Design into Government Submission -- used to
-        # require just one saved drawing link for the whole project
-        # (see DesignDocumentDialog.vue); now that each selected Design
-        # activity has its own real status (migration 0073,
-        # close_design_activity/maybe_auto_close_design_activity above),
-        # this checks the thing that actually matters: every planned
-        # Design activity is Complete or Cancelled, not merely "one
-        # document exists somewhere." (Design/Government Submission stop
-        # being gated on each other at all once the parallel-tracks work
-        # lands in full -- see docs/PROJECT_WORKFLOW_MAP -- this is an
-        # interim tightening, not the final shape.)
-        unfinished_activities = [
-            a for a in get_selected_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
-        ]
-        if unfinished_activities:
-            problems.append(
-                f"every selected Design activity closed ({len(unfinished_activities)} still open: "
-                f"{', '.join(a.activity_name for a in unfinished_activities)})"
+    elif new_stage == "Handover":
+        # The convergence gate for all three parallel tracks -- every
+        # one this project actually includes has to be fully closed
+        # (used to be two different sequential per-hop checks, Design's
+        # own exit and Government Submission's into Supervision, back
+        # when they were still a fixed chain; now it's one unified
+        # AND-gate, checked once regardless of which of the three
+        # previous_stage happens to be). Reaching Handover at all is
+        # what _apply_stage_change's own Handover-entry hook treats as
+        # "ready" -- generating the checklist and notifying staff -- so
+        # this is the one place that readiness is actually decided.
+        includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+            get_selected_activities(db, project.id),
+            get_selected_supervision_activities(db, project.id),
+            get_selected_permits(db, project.id),
+        )
+        if includes_design:
+            unfinished_activities = [
+                a for a in get_selected_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
+            ]
+            if unfinished_activities:
+                problems.append(
+                    f"every Design activity closed ({len(unfinished_activities)} still open: "
+                    f"{', '.join(a.activity_name for a in unfinished_activities)})"
+                )
+        if includes_government_submission:
+            unfinished_permits = [
+                p for p in get_selected_permits(db, project.id) if p.status not in ("Complete", "Cancelled")
+            ]
+            if unfinished_permits:
+                problems.append(
+                    f"every Permit closed ({len(unfinished_permits)} still open: "
+                    f"{', '.join(p.permit_name for p in unfinished_permits)})"
+                )
+            # At least one of the project's government submissions
+            # actually has to have been Approved by the authority --
+            # mirrors the "at least one" bar the other two tracks use
+            # (not "every submission"), since a project can have several
+            # submissions to different authorities and only needs its
+            # permit(s) in hand, not a clean sweep.
+            has_approved_submission = (
+                db.query(GovernmentSubmission)
+                .filter(
+                    GovernmentSubmission.project_id == project.id,
+                    GovernmentSubmission.status == "Approved",
+                    GovernmentSubmission.deleted_at.is_(None),
+                )
+                .first()
+                is not None
             )
-        # An activity can be force-closed by a human even while a task
-        # under it (or a generic, unlinked one -- Task predates the
-        # activity link, see Task.selected_activity_id's docstring) is
-        # still open, so this is a separate check, not implied by the
-        # one above: nothing on the project's to-do list should be left
-        # dangling once Design is behind it.
+            if not has_approved_submission:
+                problems.append("at least one government submission Approved")
+        if includes_supervision:
+            unfinished_supervision = [
+                a for a in get_selected_supervision_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
+            ]
+            if unfinished_supervision:
+                problems.append(
+                    f"every Supervision activity closed ({len(unfinished_supervision)} still open: "
+                    f"{', '.join(a.activity_name for a in unfinished_supervision)})"
+                )
+        # An activity/permit can be force-closed by a human even while a
+        # task under it (or a generic, unlinked one) is still open, so
+        # this is a separate check, not implied by the ones above:
+        # nothing on the project's to-do list should be left dangling
+        # once it's handed over.
         open_tasks = (
             db.query(Task)
             .filter(Task.project_id == project.id, Task.deleted_at.is_(None), Task.status != "Completed")
@@ -1109,33 +1164,6 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                 f"{', '.join(t.title for t in open_tasks)})"
             )
 
-    elif previous_stage == "Government Submission" and new_stage == "Supervision":
-        # Gates leaving Government Submission into Supervision -- at
-        # least one of the project's government submissions actually has
-        # to have been Approved by the authority before supervision work
-        # (and its monthly billing) begins. Supervision used to be a
-        # placeholder stage with no exit criteria at all, which meant
-        # try_auto_advance_stage would move a project into it the moment
-        # *any* unrelated action (e.g. saving an edit to a design
-        # document) happened to run while the project sat in Government
-        # Submission -- well before the authority had actually signed
-        # off. Mirrors the "at least one" bar used for Design's own exit
-        # criterion above, not "every submission", since a project can
-        # have several submissions to different authorities and only
-        # needs its permit(s) in hand, not a clean sweep.
-        has_approved_submission = (
-            db.query(GovernmentSubmission)
-            .filter(
-                GovernmentSubmission.project_id == project.id,
-                GovernmentSubmission.status == "Approved",
-                GovernmentSubmission.deleted_at.is_(None),
-            )
-            .first()
-            is not None
-        )
-        if not has_approved_submission:
-            problems.append("at least one government submission Approved")
-
     if problems:
         raise ValidationAppError(
             f"Cannot move this project to '{new_stage}' yet -- missing: {'; '.join(problems)}."
@@ -1144,27 +1172,25 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers. Supervision, when a project includes it, is the
-# last stage and has no further stage to advance into; for a project
-# that doesn't include it, Government Submission is the terminal band
-# instead -- either way progress simply stops climbing at whichever
-# band it actually lands on, rather than jumping to 100 (there's no
-# separate "done" concept left to represent). A project that skips
-# Design and/or Supervision (see compute_stage_flags) still just jumps
-# straight to whichever band it actually lands on -- the bands
-# themselves don't shift around per project, so progress is always "how
-# far through the full 7-band scale", not "how far through this
-# project's own shorter path".
+# maintained numbers. Design, Government Submission (Permits), and
+# Supervision (migration 0089) are one shared band, not three separate
+# ones -- they're parallel tracks, not sequential stages, so there's no
+# single "how far through them" position to represent; current_stage
+# sitting on any one of the three (or having skipped straight past all
+# of them, for a project with none of the three) reads identically here.
+# Handover is the real next band after that, once every included track
+# converges into it.
 _STAGE_PROGRESS_BAND: dict[str, int] = {
     "Requirement": 0,
     "Quotation": 1,
     "Payment Plan": 2,
     "Contract": 3,
     "Design": 4,
-    "Government Submission": 5,
-    "Supervision": 6,
+    "Government Submission": 4,
+    "Supervision": 4,
+    "Handover": 5,
 }
-_PROGRESS_BAND_COUNT = 7
+_PROGRESS_BAND_COUNT = 6
 
 
 def recompute_progress(db: Session, project: Project) -> int:
@@ -1172,10 +1198,7 @@ def recompute_progress(db: Session, project: Project) -> int:
     jumps progress to that stage's band floor. status == "Completed"
     (set by confirm_project_handover, independent of current_stage --
     see the "project completion / hand-over" section below) is the one
-    exception: a completed project always reads 100%, regardless of
-    which band its current_stage still points at, since Design/Permit/
-    Supervision finishing in parallel doesn't correspond to any single
-    further stage to advance current_stage into. Does not commit --
+    exception: a completed project always reads 100%. Does not commit --
     callers already do."""
     if project.status == "Completed":
         project.progress = 100
@@ -1186,21 +1209,32 @@ def recompute_progress(db: Session, project: Project) -> int:
     return project.progress
 
 
-def _auto_advance_target(current_stage: str, includes_design: bool, includes_supervision: bool) -> str | None:
+def _auto_advance_target(
+    current_stage: str, includes_design: bool, includes_government_submission: bool, includes_supervision: bool,
+) -> str | None:
     """The one valid next stage for this project once its exit criteria
     (_assert_stage_exit_criteria) are met, so firing it automatically
     doesn't remove a real choice from anyone -- it just saves the
     separate manual click after the condition that already gates it
     becomes true (approving a quotation, approving a financial
-    agreement, signing a contract, saving a design link). Which stage
-    that actually is depends on the project -- Design is skipped when
-    this project doesn't include it, and Supervision (after Government
-    Submission) is skipped -- staying the terminal state -- when it
-    doesn't include that either (see compute_stage_flags). Reopening
-    (Government Submission -> Design, Supervision -> Government
-    Submission) stays manual -- an exceptional, reason-required
-    correction, not something that should ever happen as a side effect
-    of an unrelated action.
+    agreement, signing a contract, closing the last item on a track).
+
+    Design, Government Submission, and Supervision (migration 0089) are
+    parallel, not sequential -- once in Contract, this heads for
+    whichever of the three the project actually includes, arbitrarily
+    picking the first (there's no ordering between them, that's just
+    where current_stage's pointer lands); once sitting on any one of
+    the three, the only forward target is Handover, and
+    _assert_stage_exit_criteria's own Handover branch is what actually
+    decides whether every included track is done -- this function
+    doesn't duplicate that check, it just always proposes Handover and
+    lets the exit criteria silently reject it (via
+    try_auto_advance_stage's own try/except) until they're satisfied. A
+    project with none of the three tracks at all heads straight to
+    Handover from Contract, nothing to converge on. Reopening (Handover
+    back to one of the three) stays manual -- an exceptional,
+    reason-required correction, not something that should ever happen
+    as a side effect of an unrelated action.
 
     Requirement -> Quotation is likewise never listed here: unlike
     every other transition below, there's no other business event to
@@ -1217,11 +1251,15 @@ def _auto_advance_target(current_stage: str, includes_design: bool, includes_sup
     if current_stage == "Payment Plan":
         return "Contract"
     if current_stage == "Contract":
-        return "Design" if includes_design else "Government Submission"
-    if current_stage == "Design":
-        return "Government Submission"
-    if current_stage == "Government Submission":
-        return "Supervision" if includes_supervision else None
+        if includes_design:
+            return "Design"
+        if includes_government_submission:
+            return "Government Submission"
+        if includes_supervision:
+            return "Supervision"
+        return "Handover"
+    if current_stage in ("Design", "Government Submission", "Supervision"):
+        return "Handover"
     return None
 
 
@@ -1309,13 +1347,34 @@ def _apply_stage_change(
         previous_value=previous_stage, new_value=new_stage, reason=reason,
     )
     project.current_stage = new_stage
-    if previous_stage == "Contract" and new_stage in ("Design", "Government Submission"):
+    if previous_stage == "Contract":
         # The one and only time a project ever leaves Contract (see
         # PROJECT_STAGE_ALLOWED_TRANSITIONS -- there's no path back into
         # it) -- Design, Government Submission (Permits), and Supervision
-        # all become active tracks from here, whichever of them this
-        # project actually includes.
+        # all become active, parallel tracks from here, whichever of
+        # them this project actually includes (new_stage is just
+        # whichever one _auto_advance_target picked to land on first;
+        # _create_service_tasks itself covers every included track
+        # regardless of which one that was).
         _create_service_tasks(db, project, user_id)
+    if new_stage == "Handover":
+        # Design, Government Submission (Permits), and Supervision all
+        # converge here -- reaching this stage at all already means
+        # _assert_stage_exit_criteria's Handover branch confirmed every
+        # included track is closed, so there's nothing left to check;
+        # this just generates the (idempotent) hand-over checklist and
+        # notifies Administrators it's ready for the manual payment
+        # confirmation + signed acknowledgment steps (see
+        # confirm_handover_payment/confirm_project_handover below).
+        _generate_handover_checklist(db, project)
+        db.flush()
+        try:
+            notify_handover_ready(db, project.project_no, user_id)
+        except ValidationAppError:
+            # This project's client record is missing -- handover_sent_at
+            # stays unset; staff can retry via the manual re-notify path
+            # once that's fixed.
+            pass
     # A fresh staleness period starts now that the project has genuinely
     # moved -- otherwise a project that advances after being flagged
     # would stay permanently silenced (stale_notified_at would never get
@@ -1345,20 +1404,24 @@ def get_stage_eligibility(db: Session, project_no: str) -> list[dict]:
     (a pure check, no writes) rather than a second copy of the same
     rules, so the Stage dialog can show real-time eligibility instead of
     only failing after the fact on submit. Structurally-impossible
-    targets (Design/Supervision when the project doesn't include that
-    kind of work) are left out entirely rather than reported as
-    ineligible -- same "don't even offer it" behavior the dialog already
-    had via includesDesign/includesSupervision, just computed once here
-    instead of duplicated on the frontend.
+    targets (Design/Government Submission/Supervision when the project
+    doesn't include that kind of work) are left out entirely rather than
+    reported as ineligible -- same "don't even offer it" behavior the
+    dialog already had via includesDesign/includesSupervision, just
+    computed once here instead of duplicated on the frontend.
     """
     project = get_project(db, project_no)
-    includes_design, includes_supervision = compute_stage_flags(
-        get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+    includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+        get_selected_activities(db, project.id),
+        get_selected_supervision_activities(db, project.id),
+        get_selected_permits(db, project.id),
     )
 
     results: list[dict] = []
     for candidate in sorted(PROJECT_STAGE_ALLOWED_TRANSITIONS.get(project.current_stage, set())):
         if candidate == "Design" and not includes_design:
+            continue
+        if candidate == "Government Submission" and not includes_government_submission:
             continue
         if candidate == "Supervision" and not includes_supervision:
             continue
@@ -1380,18 +1443,14 @@ def set_stage(db: Session, project_no: str, new_stage: str, reason: str | None, 
     _assert_stage_exit_criteria(db, project, previous_stage, new_stage)
     if new_stage in PROJECT_STAGE_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the project to '{new_stage}'.")
-    # Reopening Government Submission back to Design (an authority's
-    # feedback requiring changes), and reopening Supervision back to
-    # Government Submission (supervision findings requiring
-    # re-submission), are corrections -- not the normal forward flow
-    # that also targets Design (from Contract) or Supervision (from
-    # Government Submission) -- can't live in the target-only
-    # REQUIRING_REASON table, since that only keys on the target state,
-    # not where the transition came from.
-    if previous_stage == "Government Submission" and new_stage == "Design":
-        assert_reason_given(reason, "A reason is required to send the project back to Design.")
-    if previous_stage == "Supervision" and new_stage == "Government Submission":
-        assert_reason_given(reason, "A reason is required to send the project back to Approvals & Permits.")
+    # Reopening one of the three parallel tracks after Handover is a
+    # correction -- can't live in the target-only REQUIRING_REASON table
+    # above, since that only keys on the target state, not where the
+    # transition came from, and Design/Government Submission/Supervision
+    # are also each other's normal, reason-free lateral targets (moving
+    # focus between peer tracks isn't a "reopening" of anything).
+    if previous_stage == "Handover" and new_stage in ("Design", "Government Submission", "Supervision"):
+        assert_reason_given(reason, "A reason is required to reopen this project's tracks after Handover.")
 
     _apply_stage_change(db, project, new_stage, reason, user_id)
 
@@ -1418,10 +1477,14 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     yet -- "not yet eligible" is the expected, common case here, not a
     failure the caller's own action should be blocked by.
     """
-    includes_design, includes_supervision = compute_stage_flags(
-        get_selected_activities(db, project.id), get_selected_supervision_activities(db, project.id),
+    includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+        get_selected_activities(db, project.id),
+        get_selected_supervision_activities(db, project.id),
+        get_selected_permits(db, project.id),
     )
-    target_stage = _auto_advance_target(project.current_stage, includes_design, includes_supervision)
+    target_stage = _auto_advance_target(
+        project.current_stage, includes_design, includes_government_submission, includes_supervision,
+    )
     if target_stage is None:
         return
     try:
@@ -1784,34 +1847,18 @@ def check_and_notify_stale_projects(db: Session) -> int:
 
 # --- project completion / hand-over -------------------------------------
 #
-# The three parallel tracks (Design, Permit, Supervision) each carry
-# their own status independently of current_stage/WORKFLOW_STAGES --
-# project.status gaining "Completed" (migration 0073) is what actually
-# closes a project out, gated on every planned item across all three
-# tracks being Complete/Cancelled AND the project's current total value
-# being fully paid, followed by staff confirming the client's signed
-# hand-over acknowledgment (confirm_project_handover), the same
-# client-confirmation shape used at every other stage in this app.
-
-
-def _all_tracks_closed(db: Session, project: Project) -> bool:
-    """Every planned Design activity, Permit, and Supervision activity
-    is Complete or Cancelled, AND every task on the project is Completed
-    (migration 0088 gives Permits/Supervision real sub-tasks too, same
-    as Design already had) -- the first of the two conditions
-    try_complete_project waits on."""
-    design_open = any(a.status not in ("Complete", "Cancelled") for a in get_selected_activities(db, project.id))
-    permit_open = any(p.status not in ("Complete", "Cancelled") for p in get_selected_permits(db, project.id))
-    supervision_open = any(
-        a.status not in ("Complete", "Cancelled") for a in get_selected_supervision_activities(db, project.id)
-    )
-    open_tasks = (
-        db.query(Task)
-        .filter(Task.project_id == project.id, Task.deleted_at.is_(None), Task.status != "Completed")
-        .first()
-        is not None
-    )
-    return not (design_open or permit_open or supervision_open or open_tasks)
+# The three parallel tracks (Design, Government Submission/Permits,
+# Supervision) each carry their own status independently, but converge
+# on the real "Handover" workflow stage (migration 0089) once every
+# track this project actually includes is Complete/Cancelled and every
+# task on the project is Completed -- see _assert_stage_exit_criteria's
+# Handover branch, which is the one place that AND-gate is checked now
+# (reaching the stage at all already proves it). Payment is no longer a
+# precondition to REACH Handover -- it's confirmed from inside it (see
+# confirm_handover_payment below), required before the final step,
+# confirm_project_handover (the client's signed hand-over
+# acknowledgment), which is what actually flips project.status to
+# "Completed".
 
 
 def _generate_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
@@ -1855,52 +1902,19 @@ def _generate_handover_checklist(db: Session, project: Project) -> list[Handover
     return list(existing.values())
 
 
-def try_complete_project(db: Session, project: Project, user_id: int | None) -> None:
-    """Checked after any Design/Permit/Supervision item closes and
-    after a payment is recorded (see payment_service.
-    _try_complete_project_after_payment) -- once every planned item
-    across all three tracks is Complete/Cancelled AND the project's
-    current total value is fully paid, generates the hand-over
-    checklist (idempotent) and notifies Administrators the project is
-    ready. Does not itself flip project.status -- that only happens
-    once staff confirm the client's signed hand-over acknowledgment
-    (confirm_project_handover). Never re-notifies automatically once
-    handover_sent_at is set -- notify_handover_ready is the manual
-    re-notify path if the record needs to go out again. Commits."""
-    db.flush()
-    if project.status == "Completed" or project.handover_sent_at is not None:
-        return
-    if not _all_tracks_closed(db, project):
-        return
-    if not payment_service.get_project_payment_status(db, project)["fullyPaid"]:
-        return
-
-    _generate_handover_checklist(db, project)
-    db.commit()
-    db.refresh(project)
-
-    try:
-        notify_handover_ready(db, project.project_no, user_id)
-    except ValidationAppError:
-        # This project's client record is missing -- handover_sent_at
-        # stays unset, so the next try_complete_project call (from any
-        # future track close or payment) retries. Completion readiness
-        # itself (everything above) doesn't depend on this succeeding.
-        pass
-
-
 def notify_handover_ready(db: Session, project_no: str, user_id: int | None) -> Project:
     """Notifies Administrators that a project is ready for hand-over --
-    every planned Design/Permit/Supervision item closed, fully paid.
-    Normally called by try_complete_project the moment the project
-    becomes ready; also directly callable as a manual re-notify action.
-    Previously this emailed the client an OTP code to read back; now
-    the next step is a manual one (staff collect the client's signed
-    hand-over acknowledgment and confirm it via confirm_project_
-    handover below), so this only needs to tell staff to go do that --
-    there's no client-facing code to send. Requires the hand-over
-    checklist to already exist (try_complete_project always generates
-    it first)."""
+    reaching the Handover stage already means every included track is
+    closed (see _assert_stage_exit_criteria). Normally called by
+    _apply_stage_change the moment the project enters Handover; also
+    directly callable as a manual re-notify action. Previously this
+    emailed the client an OTP code to read back; now the next step is a
+    manual one (staff confirm payment via confirm_handover_payment, then
+    collect the client's signed hand-over acknowledgment and confirm it
+    via confirm_project_handover below), so this only needs to tell
+    staff to go do that -- there's no client-facing code to send.
+    Requires the hand-over checklist to already exist (the Handover-entry
+    hook in _apply_stage_change always generates it first)."""
     project = get_project(db, project_no)
     client = db.query(Client).filter(Client.id == project.client_id).first()
     if client is None:
@@ -1931,6 +1945,54 @@ def notify_handover_ready(db: Session, project_no: str, user_id: int | None) -> 
     return project
 
 
+def confirm_handover_payment(db: Session, project_no: str, user_id: int | None) -> Project:
+    """Manual attestation, from the Handover stage's Payment Confirmation
+    tab, that this project's payment has been received in full --
+    independent of (and not required to match) the automatic
+    payment_service.get_project_payment_status() reading the same tab
+    shows alongside it as reference: staff can confirm by hand even if
+    obligation tracking is incomplete (e.g. a payment collected outside
+    the system). Required before confirm_project_handover will accept
+    the signed hand-over acknowledgment below."""
+    project = get_project(db, project_no)
+    if project.current_stage != "Handover":
+        raise ValidationAppError("This project hasn't reached the Handover stage yet.")
+    project.handover_payment_confirmed_at = datetime.now(timezone.utc)
+    project.handover_payment_confirmed_by = user_id
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over payment confirmed", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def unconfirm_handover_payment(db: Session, project_no: str, user_id: int | None) -> Project:
+    """Undoes confirm_handover_payment -- e.g. confirmed by mistake, or
+    before the final signed acknowledgment is uploaded."""
+    project = get_project(db, project_no)
+    if project.handover_payment_confirmed_at is None:
+        raise ValidationAppError("Payment hasn't been confirmed for this project.")
+    project.handover_payment_confirmed_at = None
+    project.handover_payment_confirmed_by = None
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over payment confirmation undone", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def update_handover_notes(db: Session, project_no: str, notes: str, user_id: int | None) -> Project:
+    """Free-text closing remarks for the Handover stage's Notes and
+    Report tab -- a single editable field, not a running log (see
+    timeline_service for that)."""
+    project = get_project(db, project_no)
+    if project.current_stage != "Handover":
+        raise ValidationAppError("This project hasn't reached the Handover stage yet.")
+    project.handover_notes = notes
+    audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over notes updated", user_id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 def confirm_project_handover(db: Session, project_no: str, file: UploadFile, user_id: int | None) -> Project:
     """Records the client's hand-over acknowledgment -- the last
     client-facing confirmation in the workflow. Previously an email OTP
@@ -1941,12 +2003,15 @@ def confirm_project_handover(db: Session, project_no: str, file: UploadFile, use
     manual action rather than a hard-gated one -- the signed upload is
     the evidence, not a cryptographic proof. Only reachable once
     notify_handover_ready has actually flagged the project ready
-    (handover_sent_at set); on success, flips project.status to
+    (handover_sent_at set) AND payment has been confirmed
+    (confirm_handover_payment); on success, flips project.status to
     'Completed' via the normal set_status path (same transition
     validation/audit logging every other status change gets)."""
     project = get_project(db, project_no)
     if project.handover_sent_at is None:
         raise ValidationAppError("This project isn't ready for hand-over yet.")
+    if project.handover_payment_confirmed_at is None:
+        raise ValidationAppError("Confirm payment received (Payment Confirmation tab) before completing hand-over.")
     assert_pdf_upload(file)
 
     document_service.create_document(
@@ -1964,27 +2029,25 @@ def confirm_project_handover(db: Session, project_no: str, file: UploadFile, use
 
 
 def check_and_notify_unpaid_completed_projects(db: Session) -> int:
-    """Finds Active projects whose Design/Permit/Supervision items are
-    all Complete/Cancelled but aren't yet fully paid, and notifies
-    every Administrator once per episode -- unpaid_completion_
-    notified_at prevents re-notifying every run; cleared once payment
-    completes (try_complete_project doesn't clear it itself since it
-    only ever runs forward to completion, so it's cleared here instead,
-    the moment the condition that caused the alert stops being true).
-    Same "periodic check, plain callable function" shape as
-    check_and_notify_stale_projects above."""
+    """Finds projects that have reached the Handover stage (every
+    included Design/Permit/Supervision track already closed -- see
+    _assert_stage_exit_criteria's Handover branch) but haven't had
+    payment confirmed yet (confirm_handover_payment), and notifies every
+    Administrator once per episode -- unpaid_completion_notified_at
+    prevents re-notifying every run; cleared here the moment payment
+    gets confirmed (nothing else clears it). Same "periodic check, plain
+    callable function" shape as check_and_notify_stale_projects above."""
     candidates = (
         db.query(Project)
-        .filter(Project.deleted_at.is_(None), Project.status == "Active")
+        .filter(Project.deleted_at.is_(None), Project.current_stage == "Handover", Project.status != "Completed")
         .all()
     )
 
     notified_count = 0
     for project in candidates:
-        fully_paid = payment_service.get_project_payment_status(db, project)["fullyPaid"]
-        all_closed = _all_tracks_closed(db, project)
+        payment_confirmed = project.handover_payment_confirmed_at is not None
 
-        if all_closed and not fully_paid:
+        if not payment_confirmed:
             if project.unpaid_completion_notified_at is None:
                 notification_service.notify_role(
                     db, "Administrator",

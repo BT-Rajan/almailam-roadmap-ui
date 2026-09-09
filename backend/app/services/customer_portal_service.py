@@ -158,7 +158,10 @@ def get_project_view(db: Session, project: Project) -> dict:
         .all()
     )
     supervision_activities = project_service.get_selected_supervision_activities(db, project.id)
-    includes_design, includes_supervision = project_service.compute_stage_flags(activities, supervision_activities)
+    permits = project_service.get_selected_permits(db, project.id)
+    includes_design, includes_government_submission, includes_supervision = project_service.compute_stage_flags(
+        activities, supervision_activities, permits,
+    )
 
     today = datetime.now(timezone.utc).date()
     milestones = [
@@ -274,6 +277,7 @@ def get_project_view(db: Session, project: Project) -> dict:
             "progress": project.progress,
             "currentStage": project.current_stage,
             "includesDesign": includes_design,
+            "includesGovernmentSubmission": includes_government_submission,
             "includesSupervision": includes_supervision,
             "summary": summary,
             "engineerName": engineer.full_name if engineer else "Al Mailam Team",

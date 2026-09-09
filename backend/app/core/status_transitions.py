@@ -100,39 +100,47 @@ TASK_STATUSES_REQUIRING_REASON: set[str] = set()
 # Submission is now the last stage, with no further stage to advance
 # into.
 #
-# "Supervision" (migration 0056) is an independent add-on stage that
-# comes after Government Submission, not before it -- a project can
-# include Design, Supervision, both, or neither (see
-# project_service.compute_stage_flags). Contract can be followed
-# directly by Design or Government Submission (skipping Design when the
-# project doesn't include it); Government Submission is followed by
-# Supervision when the project includes it, or is simply the terminal
-# stage when it doesn't. This table is deliberately the permissive
-# superset of every structurally possible edge; whether a given project
-# is actually allowed into "Design"/"Supervision" specifically (i.e.
-# whether it includes that kind of work at all) is enforced separately,
-# in project_service._assert_stage_exit_criteria.
+# "Supervision" (migration 0056) is an independent add-on stage -- a
+# project can include Design, Government Submission (Permits),
+# Supervision, any combination, or none (see
+# project_service.compute_stage_flags).
 #
 # "Payment Plan" (migration 0061) sits between Quotation and Contract --
 # the project's financial agreement(s) now have to be generated and
 # explicitly approved before a contract is even drafted.
+#
+# Design/Government Submission/Supervision run in PARALLEL, not
+# sequentially, as of migration 0089 (the "Handover" stage) -- Contract
+# can be followed by any of the three (whichever this project actually
+# includes; _auto_advance_target picks one arbitrarily as the initial
+# landing spot, there's no real ordering), each of the three can move
+# freely to either of the other two (a lateral "which track is
+# currently focused" pointer, not a real gate -- staff can already work
+# any of them regardless of current_stage via the stepper), and all
+# three lead to Handover, the new terminal stage where the client's
+# hand-over is actually confirmed. This table is deliberately the
+# permissive superset of every structurally possible edge; whether a
+# given project is actually allowed into "Design"/"Government
+# Submission"/"Supervision" specifically (i.e. whether it includes that
+# kind of work at all), and whether every included track is actually
+# done before Handover, is enforced separately, in
+# project_service._assert_stage_exit_criteria.
 PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Requirement": {"Quotation"},
     "Quotation": {"Payment Plan"},
     "Payment Plan": {"Contract"},
-    "Contract": {"Design", "Government Submission"},
-    "Design": {"Government Submission"},
-    # Supervision (forward, when included) and Design (the one reopening
-    # path backward -- an authority's feedback can require design
-    # changes) both lead out of Government Submission. Only the Design
-    # direction needs a reason (see PROJECT_STAGE_STATUSES_REQUIRING_
-    # REASON below and project_service.set_stage) -- Supervision is the
-    # normal forward path, not a correction.
-    "Government Submission": {"Design", "Supervision"},
-    # The one reopening path out of Supervision -- mirrors Government
-    # Submission's own reopening path back to Design, in case supervision
-    # work turns up something that needs re-submission.
-    "Supervision": {"Government Submission"},
+    "Contract": {"Design", "Government Submission", "Supervision"},
+    "Design": {"Government Submission", "Supervision", "Handover"},
+    "Government Submission": {"Design", "Supervision", "Handover"},
+    "Supervision": {"Design", "Government Submission", "Handover"},
+    # The one reopening path out of Handover -- back to any of the three
+    # parallel tracks, in case something turns up after convergence that
+    # needs redoing. Requires a reason (see project_service.set_stage,
+    # not the target-only REQUIRING_REASON table below, since Design/
+    # Government Submission/Supervision are also each other's normal,
+    # reason-free lateral targets and REQUIRING_REASON can't tell "from
+    # Handover" apart from "from a peer track").
+    "Handover": {"Design", "Government Submission", "Supervision"},
 }
 PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 
