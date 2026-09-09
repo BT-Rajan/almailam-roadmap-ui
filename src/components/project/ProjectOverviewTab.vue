@@ -673,52 +673,6 @@ function verificationResultLabel(result: string): string {
       />
       <p v-else-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
 
-      <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.servicesLabel') }}</p>
-        <ul class="flex flex-col gap-1">
-          <li
-            v-for="item in project.selectedActivities"
-            :key="item.activityId"
-            class="flex items-center justify-between gap-3 text-sm text-text-secondary"
-          >
-            <span>{{ item.activityName }}</span>
-            <span class="shrink-0 text-text-muted">{{ formatCurrency(item.fixedCost) }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="project.selectedSupervisionActivities && project.selectedSupervisionActivities.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.supervisionMonthlyLabel') }}</p>
-        <p class="mb-1.5 text-xs text-text-muted">
-          {{ project.supervisionStartDate ? formatDate(project.supervisionStartDate) : t('project.overviewTab.notSet') }} –
-          {{ project.supervisionEndDate ? formatDate(project.supervisionEndDate) : t('project.overviewTab.ongoing') }}
-        </p>
-        <ul class="flex flex-col gap-1">
-          <li
-            v-for="item in project.selectedSupervisionActivities"
-            :key="item.activityId"
-            class="flex items-center justify-between gap-3 text-sm text-text-secondary"
-          >
-            <span>{{ item.activityName }} ({{ formatDate(item.startDate) }} – {{ formatDate(item.endDate) }})</span>
-            <span class="shrink-0 text-text-muted">{{ formatCurrency(item.monthlyRate) }}/mo</span>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="project.selectedPermits && project.selectedPermits.length > 0" class="mt-3 border-t border-border-light pt-3">
-        <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</p>
-        <ul class="flex flex-col gap-1">
-          <li
-            v-for="permit in project.selectedPermits"
-            :key="permit.id"
-            class="flex items-center justify-between gap-3 text-sm text-text-secondary"
-          >
-            <span>{{ permit.permitName }}</span>
-            <span class="shrink-0 text-text-muted">{{ permit.permitPrice != null ? formatCurrency(permit.permitPrice) : '—' }}</span>
-          </li>
-        </ul>
-      </div>
-
       <template v-if="stageContext === 'Requirement' && !isScopeLocked">
         <div v-if="!hasScopeText" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           <AlertTriangle class="h-4 w-4 shrink-0" />

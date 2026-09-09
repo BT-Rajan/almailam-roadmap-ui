@@ -9,16 +9,22 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
-import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { todayIso } from '@/utils/dateFormatter'
 import type { QuotationCreateInput, QuotationLineItemInput } from '@/services/quotationService'
+import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
+import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { validators } from '@/utils/validators'
-import type { SelectOption } from '@/types/Ui'
+
+// The quotation always prices in the company's one operating currency --
+// there was never actually a need for staff to pick a different one per
+// quotation, so this isn't user-facing (see item 5 of the malformed-UI
+// feedback this replaced the currency SelectBox for).
+const QUOTATION_CURRENCY = 'KWD'
 
 const props = defineProps<{
   modelValue: boolean
@@ -29,6 +35,7 @@ const props = defineProps<{
   // staff would otherwise be re-typing the same services and prices by
   // hand. Still fully editable afterwards; this only seeds the form.
   project?: Project
+  client?: Client
 }>()
 
 const emit = defineEmits<{
@@ -37,13 +44,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const CURRENCY_OPTIONS: SelectOption[] = [
-  { label: 'KWD', value: 'KWD' },
-  { label: 'USD', value: 'USD' },
-  { label: 'AED', value: 'AED' },
-  { label: 'EUR', value: 'EUR' },
-]
 
 interface DraftLineItem {
   description: string
@@ -58,7 +58,6 @@ function emptyLineItem(): DraftLineItem {
 function emptyForm() {
   return {
     validity: '',
-    currency: 'KWD',
     discountAmount: 0,
     notes: '',
     termsText: '',
@@ -154,7 +153,7 @@ function handleConfirm(): void {
   emit('confirm', {
     projectId: '', // filled in by the caller, which already has the project in scope
     validity: form.validity,
-    currency: form.currency,
+    currency: QUOTATION_CURRENCY,
     discountAmount: form.discountAmount,
     notes: form.notes.trim() || undefined,
     termsAndConditions: form.termsText
@@ -178,9 +177,11 @@ function handleConfirm(): void {
   <BaseDialog :model-value="modelValue" :title="t('project.newQuotationDialog.title')" size="lg" @update:model-value="emit('update:modelValue', $event)">
     <div class="flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :min="todayIso()" :error="errors.validity" />
-        <SelectBox v-model="form.currency" :label="t('project.newQuotationDialog.currency')" :options="CURRENCY_OPTIONS" />
+        <TextInput :model-value="client ? getClientDisplayName(client) : ''" :label="t('project.newQuotationDialog.client')" disabled />
+        <TextInput :model-value="project ? `${project.projectName} (${project.projectNo})` : ''" :label="t('project.newQuotationDialog.project')" disabled />
       </div>
+
+      <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :min="todayIso()" :error="errors.validity" />
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
@@ -230,7 +231,7 @@ function handleConfirm(): void {
                 </td>
                 <td class="px-3 py-2 text-end align-top">
                   <span class="inline-block pt-2 text-sm font-medium text-text-primary">
-                    {{ formatCurrency(item.quantity * item.unitPrice, form.currency) }}
+                    {{ formatCurrency(item.quantity * item.unitPrice, QUOTATION_CURRENCY) }}
                   </span>
                 </td>
                 <td class="px-2 py-2 text-end align-top">
@@ -284,16 +285,16 @@ function handleConfirm(): void {
       <div class="flex flex-col gap-2 text-sm">
         <div class="flex items-center justify-between text-text-secondary">
           <span>{{ t('project.newQuotationDialog.subtotal') }}</span>
-          <span class="font-medium text-text-primary">{{ formatCurrency(subtotal, form.currency) }}</span>
+          <span class="font-medium text-text-primary">{{ formatCurrency(subtotal, QUOTATION_CURRENCY) }}</span>
         </div>
         <div v-if="form.discountAmount > 0" class="flex items-center justify-between text-text-secondary">
           <span>{{ t('project.newQuotationDialog.discount') }}</span>
-          <span class="font-medium text-danger-700">-{{ formatCurrency(form.discountAmount, form.currency) }}</span>
+          <span class="font-medium text-danger-700">-{{ formatCurrency(form.discountAmount, QUOTATION_CURRENCY) }}</span>
         </div>
         <Divider />
         <div class="flex items-center justify-between">
           <span class="text-sm font-semibold text-text-primary">{{ t('project.newQuotationDialog.total') }}</span>
-          <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, form.currency) }}</span>
+          <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, QUOTATION_CURRENCY) }}</span>
         </div>
       </div>
     </div>

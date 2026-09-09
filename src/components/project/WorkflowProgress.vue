@@ -122,6 +122,18 @@ function segmentClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
   ]
 }
 
+// Fixed-width tick instead of flex-1 -- these sit beside a label in a
+// horizontal row (unlike the linear segments, which stack full-width
+// above their label), so a growing bar would fight the label for space.
+function parallelSegmentClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
+  return [
+    'h-1.5 w-6 shrink-0 rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+    status === 'complete' ? 'bg-success-500' : '',
+    status === 'current' ? 'bg-info-500' : '',
+    status === 'upcoming' ? 'bg-border-default' : '',
+  ]
+}
+
 function labelClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
   return [
     'truncate text-xs hover:text-accent-600 cursor-pointer',
@@ -178,18 +190,18 @@ const currentStepIndex = computed(() => {
 
           <!-- Parallel band: Permit (top), Design (middle), Supervision
                (bottom) -- only the rows this project actually includes. -->
-          <div v-if="hasParallelBand" class="flex flex-1 flex-col justify-center gap-1.5">
+          <div v-if="hasParallelBand" class="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
             <button
               v-for="stage in visibleParallelStages"
               :key="stage"
               type="button"
-              class="flex items-center gap-1.5"
+              class="flex min-w-0 items-center gap-1.5"
               :aria-label="t('common.goToStep', { step: LINEAR_STAGES.length + 1, label: stageLabel(stage) })"
               :aria-current="parallelStepStatus(stage) === 'current' ? 'step' : undefined"
               @click="handleSelect(stage)"
             >
-              <span :class="segmentClasses(parallelStepStatus(stage))" />
-              <span :class="[...labelClasses(parallelStepStatus(stage)), 'shrink-0']">{{ stageLabel(stage) }}</span>
+              <span :class="parallelSegmentClasses(parallelStepStatus(stage))" />
+              <span :class="[...labelClasses(parallelStepStatus(stage)), 'min-w-0 flex-1 text-start']">{{ stageLabel(stage) }}</span>
             </button>
           </div>
 

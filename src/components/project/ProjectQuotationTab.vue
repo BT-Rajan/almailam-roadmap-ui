@@ -580,6 +580,6 @@ async function handleRevertToDraft(): Promise<void> {
     </div>
   </div>
 
-  <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :loading="isCreating" @confirm="handleCreateQuotation" />
+  <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :client="client" :loading="isCreating" @confirm="handleCreateQuotation" />
 </template>
 
