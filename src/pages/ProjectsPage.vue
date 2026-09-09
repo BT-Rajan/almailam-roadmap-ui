@@ -64,6 +64,7 @@ const STAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('project.stage.design'), value: 'Design' },
   { label: t('project.stage.supervision'), value: 'Supervision' },
   { label: t('project.stage.governmentSubmission'), value: 'Government Submission' },
+  { label: t('project.stage.handover'), value: 'Handover' },
 ])
 
 const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
@@ -108,6 +109,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 function stageLabel(stage: string): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))

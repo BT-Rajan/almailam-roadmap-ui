@@ -176,11 +176,12 @@ async function setSupervisionStatus(activityId: string, status: 'In Progress' | 
   }
 }
 
-// Hand-over: populated (checklist non-empty) once every planned Design/
-// Permit/Supervision item is closed and payment is fully settled (see
-// project_service.try_complete_project) -- independent of stageContext
-// since it can become true while viewing any stage's tab, so it's
-// loaded unconditionally rather than gated by loadStageDataIfNeeded.
+// Hand-over: populated (checklist non-empty) once every included
+// Design/Permit/Supervision track is closed -- the project enters the
+// real "Handover" workflow stage at that point (see WorkflowStage).
+// Loaded unconditionally rather than gated by loadStageDataIfNeeded
+// since staff can land here for a project already past Handover too
+// (reviewing after the fact via the stepper).
 const handoverStatus = ref<HandoverStatus>()
 
 async function loadHandoverStatus(): Promise<void> {
@@ -191,7 +192,15 @@ async function loadHandoverStatus(): Promise<void> {
   }
 }
 
-const showHandoverCard = computed(() => props.project.status === 'Completed' || (handoverStatus.value?.checklist.length ?? 0) > 0)
+// Gated to the Handover stage's own Overview tab now that Handover is a
+// real WorkflowStage (it used to show on every stage's Overview once
+// ready, back when hand-over readiness lived outside the stage
+// machine) -- status === 'Completed' stays included so a project
+// viewed after the fact (stepper jumped elsewhere) still shows its
+// hand-over record.
+const showHandoverCard = computed(
+  () => props.stageContext === 'Handover' || props.project.status === 'Completed',
+)
 
 const isHandoverDialogOpen = ref(false)
 const isHandoverSaving = ref(false)
@@ -262,6 +271,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 function stageLabel(stage: string): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
@@ -611,6 +621,9 @@ function verificationResultLabel(result: string): string {
         <p v-if="project.status === 'Completed' && handoverStatus?.handoverAcknowledgedAt" class="text-sm text-text-secondary">
           {{ t('project.overviewTab.handover.acknowledgedOnFragment', { date: formatDateTime(handoverStatus.handoverAcknowledgedAt) }) }}
         </p>
+        <p v-else-if="handoverStatus?.handoverSentAt && !project.handoverPaymentConfirmedAt" class="text-sm text-warning-700">
+          {{ t('project.overviewTab.handover.confirmPaymentFirst') }}
+        </p>
         <p v-else-if="handoverStatus?.handoverSentAt" class="text-sm text-text-secondary">
           {{ t('project.overviewTab.handover.readySinceFragment', { date: formatDateTime(handoverStatus.handoverSentAt) }) }}
         </p>
@@ -621,6 +634,7 @@ function verificationResultLabel(result: string): string {
           size="sm"
           :icon="Mail"
           :loading="isHandoverSaving"
+          :disabled="!project.handoverPaymentConfirmedAt"
           class="no-print"
           @click="isHandoverDialogOpen = true"
         >

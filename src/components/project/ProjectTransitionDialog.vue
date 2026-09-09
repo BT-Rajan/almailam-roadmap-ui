@@ -23,16 +23,18 @@ const props = withDefaults(
     currentValue: string
     loading?: boolean
     // Only meaningful for kind="stage" -- whether this project's
-    // workflow includes a Design/Supervision stage at all, so a project
-    // that skips one isn't offered it as a stage to move into.
+    // workflow includes a Design/Government Submission (Permits)/
+    // Supervision stage at all, so a project that skips one isn't
+    // offered it as a stage to move into.
     includesDesign?: boolean
+    includesGovernmentSubmission?: boolean
     includesSupervision?: boolean
     // Only meaningful for kind="stage" -- which project to check real
     // exit-criteria eligibility for (see eligibility below). Status
     // changes have no equivalent server-side eligibility check.
     projectId?: string
   }>(),
-  { includesDesign: true, includesSupervision: true, projectId: undefined },
+  { includesDesign: true, includesGovernmentSubmission: true, includesSupervision: true, projectId: undefined },
 )
 
 const emit = defineEmits<{
@@ -53,6 +55,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
@@ -76,6 +79,7 @@ const baseOptions = computed(() => {
   const targets = (table[props.currentValue] ?? []).filter((value) => {
     if (props.kind !== 'stage') return true
     if (value === 'Design') return props.includesDesign
+    if (value === 'Government Submission') return props.includesGovernmentSubmission
     if (value === 'Supervision') return props.includesSupervision
     return true
   })

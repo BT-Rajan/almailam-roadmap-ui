@@ -3,12 +3,18 @@ import type { ProjectPriority, ProjectStatus, ProjectWorkspaceTabKey, WorkflowSt
 import type { SelectedActivityStatus } from '@/types/ServiceCatalog'
 import type { SelectedPermitStatus } from '@/types/Project'
 
-// "Supervision" is an independent add-on stage that comes after
-// Government Submission (Approvals & Permits), not before it -- a
-// project can include Design, Supervision, both, or neither, and the
-// stepper (WorkflowProgress.vue) filters this full list down to
-// whichever stages actually apply to the project being viewed (see
-// Project.includesDesign/includesSupervision).
+// Design, Government Submission (Approvals & Permits), and Supervision
+// are three independent, PARALLEL tracks off Contract -- a project
+// includes any combination of the three, or none, and none of the
+// three is ordered relative to the other two (see
+// Project.includesDesign/includesGovernmentSubmission/
+// includesSupervision, and WorkflowProgress.vue, which draws them as
+// one branching band rather than three stops on a line). Their
+// relative order in this array is therefore arbitrary -- nothing
+// compares two of the three against each other via
+// hasProjectPassedStage below, only against a genuinely-sequential
+// stage like 'Contract'. All three converge on 'Handover', the real
+// terminal stage.
 export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Requirement',
   'Quotation',
@@ -17,6 +23,7 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
   'Design',
   'Government Submission',
   'Supervision',
+  'Handover',
 ]
 
 // True once the project's real current stage is strictly past
@@ -48,6 +55,7 @@ const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
   Design: 'Design',
   Supervision: 'Supervision',
   'Government Submission': 'Approvals & Permits',
+  Handover: 'Handover',
 }
 
 export function getWorkflowStageLabel(stage: WorkflowStage | string): string {
@@ -69,6 +77,7 @@ const WORKFLOW_STAGE_LABEL_KEYS: Record<WorkflowStage, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 
 export function getWorkflowStageLabelKey(stage: WorkflowStage): string {
@@ -107,6 +116,7 @@ const WORKFLOW_STAGE_TAB_KEYS: Record<WorkflowStage, ProjectWorkspaceTabKey> = {
   Design: 'design',
   Supervision: 'supervision',
   'Government Submission': 'government',
+  Handover: 'handover',
 }
 
 export function getWorkflowStageTabKey(stage: WorkflowStage): ProjectWorkspaceTabKey {

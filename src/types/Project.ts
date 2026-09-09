@@ -14,16 +14,24 @@ export type ProjectStatus = 'Active' | 'On Hold' | 'Cancelled' | 'Completed'
 // History instead of a separate stage. "Enquiry" was itself renamed to
 // "Requirement" (displayed to users as "Scope") -- its scope-of-work
 // editing (edit / save & proceed) lives directly on ProjectOverviewTab's
-// own Scope card rather than a dedicated tab of its own. "Execution &
-// Tracking" and "Completed" were removed entirely -- "Government
-// Submission" is now the terminal stage. "Supervision" sits alongside
-// "Design" -- a project can include either, both, or neither, depending
-// on Project.includesDesign/includesSupervision below. "Payment Plan"
+// own Scope card rather than a dedicated tab of its own. "Payment Plan"
 // sits between Quotation and Contract -- the project's financial
 // agreement(s) have to be generated and explicitly approved (see
 // FinancialAgreement.status in types/Payment.ts) before a contract is
-// even drafted. See backend/app/models/project.py's WORKFLOW_STAGES
-// comment.
+// even drafted.
+//
+// Design, Government Submission ("Approvals & Permits" to users), and
+// Supervision are three independent PARALLEL tracks off Contract, not a
+// sequential chain -- a project includes any combination of the three
+// (or none), depending on Project.includesDesign/
+// includesGovernmentSubmission/includesSupervision below, and the three
+// impose no ordering on each other (see WorkflowProgress.vue, which
+// draws them as one branching band -- Permit on top, Design center,
+// Supervision below -- rather than three stops on a line). All three
+// converge on "Handover", the real terminal stage, where payment gets
+// manually confirmed and the client's signed acknowledgment is
+// collected before the project's status finally becomes "Completed".
+// See backend/app/models/project.py's WORKFLOW_STAGES comment.
 export type WorkflowStage =
   | 'Requirement'
   | 'Quotation'
@@ -32,6 +40,7 @@ export type WorkflowStage =
   | 'Design'
   | 'Supervision'
   | 'Government Submission'
+  | 'Handover'
 
 // One entry per structurally-reachable next stage for this project
 // right now -- see projectService.getStageEligibility and backend
@@ -157,16 +166,26 @@ export interface Project {
   supervisionMonthlyTotal?: number
   supervisionStartDate?: string | null
   supervisionEndDate?: string | null
-  // Whether this project's workflow includes a Design and/or
-  // Supervision stage -- derived server-side from which of
-  // selectedActivities/selectedSupervisionActivities have rows, see
-  // backend project_service.compute_stage_flags. Drives which of the
-  // Design/Supervision stepper nodes and workspace tabs are shown.
+  // Whether this project's workflow includes a Design, Government
+  // Submission (Permits), and/or Supervision stage -- derived
+  // server-side from which of selectedActivities/selectedPermits/
+  // selectedSupervisionActivities have rows, see backend
+  // project_service.compute_stage_flags. Drives which of the three
+  // parallel stepper branches and workspace tabs are shown.
   includesDesign: boolean
+  includesGovernmentSubmission: boolean
   includesSupervision: boolean
   // Permits this project needs to apply for, each with its own
   // eligibility/closure lifecycle. See SelectedPermit.
   selectedPermits?: SelectedPermit[]
+  // Handover stage fields -- see HandoverStatus below for the
+  // sent/acknowledged pair and checklist; these three live directly on
+  // the project since they're set from inside the Handover stage's own
+  // Payment Confirmation / Notes and Report tabs (see
+  // projectService.confirmHandoverPayment/updateHandoverNotes).
+  handoverPaymentConfirmedAt?: string | null
+  handoverPaymentConfirmedBy?: string | null
+  handoverNotes?: string | null
 }
 
 export type ProjectViewMode = 'grid' | 'table'
@@ -192,6 +211,9 @@ export type ProjectWorkspaceTabKey =
   | 'contract'
   | 'contract-documents'
   | 'tasks'
+  | 'handover'
+  | 'handover-payment'
+  | 'handover-notes'
 
 export interface ProjectWorkspaceTab {
   key: ProjectWorkspaceTabKey
@@ -227,14 +249,16 @@ export interface HandoverChecklistItem {
   completedAt: string
 }
 
-// Populated (checklist non-empty) once every planned Design/Permit/
-// Supervision item is Complete/Cancelled AND the project's current
-// value is fully paid (see project_service.try_complete_project) --
-// handoverSentAt is set at that point (project_service.
-// notify_handover_ready), before staff have confirmed anything; it's
-// what gates the "Confirm Hand-over" signed-document upload action
-// being available. handoverAcknowledgedAt is set once that upload is
-// confirmed, the moment project.status flips to 'Completed'.
+// Populated (checklist non-empty) once every included Design/Permit/
+// Supervision track is Complete/Cancelled -- the project enters the
+// real "Handover" workflow stage at that point (see WorkflowStage),
+// which is what generates this checklist and sets handoverSentAt (see
+// backend project_service._apply_stage_change's Handover-entry hook),
+// before staff have confirmed anything; it's what gates the "Confirm
+// Hand-over" signed-document upload action being available (on top of
+// Project.handoverPaymentConfirmedAt also being required first).
+// handoverAcknowledgedAt is set once that upload is confirmed, the
+// moment project.status flips to 'Completed'.
 export interface HandoverStatus {
   handoverSentAt?: string | null
   handoverAcknowledgedAt?: string | null

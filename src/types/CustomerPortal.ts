@@ -11,11 +11,14 @@ export interface CustomerProjectStatus {
   status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled'
   progress: number
   // The real workflow stage, same value staff see -- drives
-  // ProjectStageProgress.vue's stepper. includesDesign/includesSupervision
-  // mirror Project.includesDesign/includesSupervision, filtering the
-  // stepper down to whichever of those two stages actually applies.
+  // ProjectStageProgress.vue's stepper. includesDesign/
+  // includesGovernmentSubmission/includesSupervision mirror Project.
+  // includesDesign/includesGovernmentSubmission/includesSupervision,
+  // filtering the stepper down to whichever of the three parallel
+  // tracks actually applies.
   currentStage: WorkflowStage
   includesDesign: boolean
+  includesGovernmentSubmission: boolean
   includesSupervision: boolean
   summary: string
   engineerName: string

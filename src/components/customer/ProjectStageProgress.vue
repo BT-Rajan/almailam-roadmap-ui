@@ -16,6 +16,7 @@ import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
 interface Props {
   currentStage: WorkflowStage
   includesDesign: boolean
+  includesGovernmentSubmission: boolean
   includesSupervision: boolean
 }
 
@@ -30,15 +31,24 @@ const STAGE_LABEL_KEYS: Record<WorkflowStage, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 
 function stageLabel(stage: WorkflowStage): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
 }
 
+// Design, Government Submission (Permits), and Supervision are three
+// independent parallel tracks off Contract (see WorkflowStage) -- this
+// simple linear Stepper can't draw the actual branching shape
+// WorkflowProgress.vue does for staff, so it just filters each out when
+// this project doesn't include that track, same as before, now
+// extended to Government Submission too (previously shown
+// unconditionally).
 const visibleStages = computed<WorkflowStage[]>(() =>
   WORKFLOW_STAGES.filter((stage) => {
     if (stage === 'Design') return props.includesDesign
+    if (stage === 'Government Submission') return props.includesGovernmentSubmission
     if (stage === 'Supervision') return props.includesSupervision
     return true
   }),

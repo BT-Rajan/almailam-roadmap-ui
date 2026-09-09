@@ -100,6 +100,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   Design: 'project.stage.design',
   Supervision: 'project.stage.supervision',
   'Government Submission': 'project.stage.governmentSubmission',
+  Handover: 'project.stage.handover',
 }
 function stageLabel(stage: string): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))

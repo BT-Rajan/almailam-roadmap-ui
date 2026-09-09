@@ -32,6 +32,7 @@ export default {
     design: 'التصميم',
     supervision: 'الإشراف',
     governmentSubmission: 'الموافقات والتراخيص',
+    handover: 'التسليم',
   },
 
   quotationStatus: {
@@ -96,6 +97,8 @@ export default {
     documents: 'المستندات',
     paymentPlan: 'خطة الدفع',
     paymentStatus: 'حالة الدفع',
+    paymentConfirmation: 'تأكيد الدفع',
+    notesAndReport: 'الملاحظات والتقرير',
   },
 
   governmentTab: {
@@ -217,11 +220,12 @@ export default {
     messageClient: 'مراسلة العميل',
     viewFullProfile: 'عرض الملف الكامل',
     handover: {
-      title: 'التسليم',
+      title: 'قائمة الخدمات المكتملة',
       acknowledged: 'تم التأكيد',
       awaitingAcknowledgment: 'بانتظار التأكيد',
-      readyToSend: 'تم إغلاق جميع البنود المخطط لها وتسوية الدفعات — جاهز للتسليم.',
-      readySinceFragment: 'جاهز للتسليم منذ {date}. بانتظار تأكيد العميل الموقّع.',
+      readyToSend: 'تم إغلاق جميع بنود التصميم والموافقات والتصاريح والإشراف المخطط لها — جاهز للتسليم.',
+      readySinceFragment: 'جاهز للتسليم منذ {date}. أكّد الدفع (تبويب تأكيد الدفع) واحصل على إقرار العميل الموقّع.',
+      confirmPaymentFirst: 'أكّد استلام الدفعة (تبويب تأكيد الدفع) قبل إتمام التسليم.',
       acknowledgedOnFragment: 'أكّد العميل التسليم في {date}.',
       confirmHandover: 'تأكيد التسليم',
       confirmDialogTitle: 'تأكيد التسليم',
@@ -666,5 +670,36 @@ export default {
     comment: 'تعليق',
     commentPlaceholder: 'أضف أي ملاحظات حول هذا التحديث',
     addUpdate: 'إضافة تحديث',
+  },
+
+  handoverPaymentTab: {
+    autoStatusTitle: 'حالة الدفع (تلقائي)',
+    noBillableStreams: 'لا يوجد لهذا المشروع أعمال تصميم أو إشراف قابلة للفوترة.',
+    noPlanYet: 'لا توجد خطة دفع بعد',
+    autoFullyPaid: 'مدفوع بالكامل',
+    autoNotFullyPaid: 'غير مدفوع بالكامل',
+    manualTitle: 'التأكيد اليدوي',
+    manualDescription: 'أكّد استلام الدفعة بالكامل لهذا المشروع، بشكل مستقل عن الحالة التلقائية أعلاه — مثلاً لدفعة تم استلامها خارج النظام.',
+    confirmed: 'مؤكد',
+    notConfirmed: 'غير مؤكد',
+    confirmedByFragment: 'أكّده {name} في {date}.',
+    unknownUser: 'غير معروف',
+    confirmPayment: 'تأكيد استلام الدفعة',
+    undoConfirmation: 'التراجع عن التأكيد',
+    confirmedTitle: 'تم تأكيد الدفع',
+    failedToConfirm: 'فشل تأكيد الدفع',
+    unconfirmedTitle: 'تم التراجع عن تأكيد الدفع',
+    failedToUnconfirm: 'فشل التراجع عن تأكيد الدفع',
+  },
+
+  handoverNotesTab: {
+    notesTitle: 'ملاحظات الإغلاق',
+    notesPlaceholder: 'أي ملاحظات ختامية لتسليم هذا المشروع...',
+    saveNotes: 'حفظ الملاحظات',
+    savedTitle: 'تم حفظ الملاحظات',
+    failedToSave: 'فشل حفظ الملاحظات',
+    reportTitle: 'تقرير المشروع',
+    reportDescription: 'اعرض هذا المشروع ضمن تقرير أداء المشاريع الكامل.',
+    viewReport: 'عرض التقرير',
   },
 }

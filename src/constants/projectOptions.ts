@@ -24,43 +24,43 @@ export const PROJECT_SERVICES: string[] = [
 // Merged into a single "Review" stage -- a correction cycle during
 // review is logged as a note on the project instead of a separate
 // stage hop. "Execution & Tracking" and "Completed" were removed
-// entirely. "Supervision" is an independent add-on stage that comes
-// after "Government Submission" (Approvals & Permits), not before it --
-// a project can include Design, Supervision, both, or neither
-// (Project.includesDesign/includesSupervision), so this is deliberately
-// the permissive superset of every structurally possible edge, same as
-// the backend's own table; whether "Design"/"Supervision" specifically
-// applies to a given project is enforced server-side, not by which
-// options this offers. "Payment Plan" sits between Quotation and
-// Contract -- the project's financial agreement(s) have to be
-// generated and approved before a contract is even drafted. See
-// backend/app/core/status_transitions.py's own comment.
+// entirely. "Payment Plan" sits between Quotation and Contract -- the
+// project's financial agreement(s) have to be generated and approved
+// before a contract is even drafted.
+//
+// Design, Government Submission (Permits, "Approvals & Permits"), and
+// Supervision run in PARALLEL off Contract, not sequentially -- a
+// project includes any combination of the three, or none
+// (Project.includesDesign/includesGovernmentSubmission/
+// includesSupervision), so this is deliberately the permissive
+// superset of every structurally possible edge, same as the backend's
+// own table; whether each specifically applies to a given project is
+// enforced server-side, not by which options this offers. Each of the
+// three can move freely to either of the other two (a lateral "which
+// track is focused" pointer, not a real gate), and all three lead to
+// "Handover", the real terminal stage.
 export const PROJECT_STAGE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Requirement: ['Quotation'],
   Quotation: ['Payment Plan'],
   'Payment Plan': ['Contract'],
-  Contract: ['Design', 'Government Submission'],
-  Design: ['Government Submission'],
-  // Supervision (forward, when included) and Design (the one reopening
-  // path backward) both lead out of Government Submission -- only the
-  // Design direction requires a reason (see isStageReasonRequired
-  // below).
-  'Government Submission': ['Design', 'Supervision'],
-  // The one reopening path out of Supervision, mirroring Government
-  // Submission's own reopening path back to Design.
-  Supervision: ['Government Submission'],
+  Contract: ['Design', 'Government Submission', 'Supervision'],
+  Design: ['Government Submission', 'Supervision', 'Handover'],
+  'Government Submission': ['Design', 'Supervision', 'Handover'],
+  Supervision: ['Design', 'Government Submission', 'Handover'],
+  // The one reopening path out of Handover -- back to any of the three
+  // parallel tracks, in case something turns up after convergence that
+  // needs redoing.
+  Handover: ['Design', 'Government Submission', 'Supervision'],
 }
 
-// "Government Submission" -> "Design" (an authority's feedback
-// requiring changes) and "Supervision" -> "Government Submission"
-// (supervision findings requiring re-submission) are corrections, not
-// the normal forward flow that also targets Design (from Contract) or
-// Supervision (from Government Submission), so this has to be a (from,
-// to) check rather than a flat set of target states.
+// Reopening one of the three parallel tracks after Handover is a
+// correction -- can't live in a flat set of target states, since Design/
+// Government Submission/Supervision are also each other's normal,
+// reason-free lateral targets and a flat set can't tell "from Handover"
+// apart from "from a peer track".
 export function isStageReasonRequired(from: string, to: string): boolean {
-  if (from === 'Government Submission' && to === 'Design') return true
-  if (from === 'Supervision' && to === 'Government Submission') return true
-  return false
+  const parallelTracks = ['Design', 'Government Submission', 'Supervision']
+  return from === 'Handover' && parallelTracks.includes(to)
 }
 
 // "Completed" is a real terminal status now, but it's never a manual

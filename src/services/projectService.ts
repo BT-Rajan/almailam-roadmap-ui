@@ -369,9 +369,8 @@ async function confirmRequirementScope(projectId: string): Promise<ScopeOfWork> 
 /**
  * The project's hand-over readiness: whether Administrators have been
  * notified it's ready, and the generated hand-over checklist (empty
- * until every Design/Permit/Supervision item is closed and payment is
- * fully settled). See project_service.try_complete_project / GET
- * /{project_no}/handover.
+ * until the project reaches the Handover stage -- every included
+ * Design/Permit/Supervision track closed). See GET /{project_no}/handover.
  */
 async function getHandoverStatus(projectId: string): Promise<HandoverStatus> {
   try {
@@ -414,6 +413,47 @@ async function confirmProjectHandover(projectId: string, file: File): Promise<Pr
   }
 }
 
+/**
+ * Manual attestation, from the Handover stage's Payment Confirmation
+ * tab, that this project's payment has been received in full --
+ * independent of the automatic obligation-tracking status shown
+ * alongside it. Required before confirmProjectHandover will accept the
+ * signed hand-over acknowledgment. See project_service.
+ * confirm_handover_payment.
+ */
+async function confirmHandoverPayment(projectId: string): Promise<Project> {
+  try {
+    return await apiClient.post<Project>(`/api/projects/${projectId}/handover/confirm-payment`, {})
+  } catch (error) {
+    console.error(`Failed to confirm hand-over payment for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm hand-over payment')
+  }
+}
+
+/** Undoes confirmHandoverPayment -- e.g. confirmed by mistake. */
+async function unconfirmHandoverPayment(projectId: string): Promise<Project> {
+  try {
+    return await apiClient.post<Project>(`/api/projects/${projectId}/handover/unconfirm-payment`, {})
+  } catch (error) {
+    console.error(`Failed to undo hand-over payment confirmation for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to undo hand-over payment confirmation')
+  }
+}
+
+/**
+ * Saves the Handover stage's free-text closing notes (Notes and Report
+ * tab) -- a single editable field, not a running log. See
+ * project_service.update_handover_notes.
+ */
+async function updateHandoverNotes(projectId: string, notes: string): Promise<Project> {
+  try {
+    return await apiClient.patch<Project>(`/api/projects/${projectId}/handover/notes`, { notes })
+  } catch (error) {
+    console.error(`Failed to save hand-over notes for project ${projectId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to save hand-over notes')
+  }
+}
+
 export const projectService = {
   getProjects,
   getProjectsPage,
@@ -435,4 +475,7 @@ export const projectService = {
   getHandoverStatus,
   notifyHandoverReady,
   confirmProjectHandover,
+  confirmHandoverPayment,
+  unconfirmHandoverPayment,
+  updateHandoverNotes,
 }

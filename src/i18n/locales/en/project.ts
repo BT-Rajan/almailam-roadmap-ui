@@ -32,6 +32,7 @@ export default {
     design: 'Design',
     supervision: 'Supervision',
     governmentSubmission: 'Approvals & Permits',
+    handover: 'Handover',
   },
 
   quotationStatus: {
@@ -96,6 +97,8 @@ export default {
     documents: 'Documents',
     paymentPlan: 'Payment Plan',
     paymentStatus: 'Payment Status',
+    paymentConfirmation: 'Payment Confirmation',
+    notesAndReport: 'Notes and Report',
   },
 
   governmentTab: {
@@ -217,11 +220,12 @@ export default {
     messageClient: 'Message Client',
     viewFullProfile: 'View Full Profile',
     handover: {
-      title: 'Hand-over',
+      title: 'Completed Services Checklist',
       acknowledged: 'Acknowledged',
       awaitingAcknowledgment: 'Awaiting Acknowledgment',
-      readyToSend: 'Every planned item is closed and payment is settled — ready for hand-over.',
-      readySinceFragment: "Ready for hand-over since {date}. Awaiting the client's signed acknowledgment.",
+      readyToSend: 'Every planned item across Design, Approvals & Permits, and Supervision is closed — ready for hand-over.',
+      readySinceFragment: "Ready for hand-over since {date}. Confirm payment (Payment Confirmation tab) and collect the client's signed acknowledgment.",
+      confirmPaymentFirst: 'Confirm payment received (Payment Confirmation tab) before completing hand-over.',
       acknowledgedOnFragment: 'Client acknowledged hand-over on {date}.',
       confirmHandover: 'Confirm Hand-over',
       confirmDialogTitle: 'Confirm Hand-over',
@@ -666,5 +670,36 @@ export default {
     comment: 'Comment',
     commentPlaceholder: 'Add any notes about this update',
     addUpdate: 'Add Update',
+  },
+
+  handoverPaymentTab: {
+    autoStatusTitle: 'Payment Status (auto)',
+    noBillableStreams: 'This project has no billable Design or Supervision work.',
+    noPlanYet: 'No payment plan yet',
+    autoFullyPaid: 'Fully paid',
+    autoNotFullyPaid: 'Not fully paid',
+    manualTitle: 'Manual Confirmation',
+    manualDescription: 'Confirm payment has been received in full for this project, independent of the automatic status above -- e.g. for a payment collected outside the system.',
+    confirmed: 'Confirmed',
+    notConfirmed: 'Not Confirmed',
+    confirmedByFragment: 'Confirmed by {name} on {date}.',
+    unknownUser: 'Unknown',
+    confirmPayment: 'Confirm Payment Received',
+    undoConfirmation: 'Undo Confirmation',
+    confirmedTitle: 'Payment confirmed',
+    failedToConfirm: 'Failed to confirm payment',
+    unconfirmedTitle: 'Payment confirmation undone',
+    failedToUnconfirm: 'Failed to undo payment confirmation',
+  },
+
+  handoverNotesTab: {
+    notesTitle: 'Closing Notes',
+    notesPlaceholder: 'Any final remarks for this project’s hand-over...',
+    saveNotes: 'Save Notes',
+    savedTitle: 'Notes saved',
+    failedToSave: 'Failed to save notes',
+    reportTitle: 'Project Report',
+    reportDescription: 'View this project in the full project performance report.',
+    viewReport: 'View Report',
   },
 }

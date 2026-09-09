@@ -26,6 +26,8 @@ const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/pro
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentStatusPanel = defineAsyncComponent(() => import('@/components/payment/PaymentStatusPanel.vue'))
 const PaymentPlanPanel = defineAsyncComponent(() => import('@/components/payment/PaymentPlanPanel.vue'))
+const ProjectHandoverPaymentTab = defineAsyncComponent(() => import('@/components/project/ProjectHandoverPaymentTab.vue'))
+const ProjectHandoverNotesTab = defineAsyncComponent(() => import('@/components/project/ProjectHandoverNotesTab.vue'))
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -99,6 +101,9 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   design: 'Design',
   supervision: 'Supervision',
   government: 'Government Submission',
+  handover: 'Handover',
+  'handover-payment': 'Handover',
+  'handover-notes': 'Handover',
 }
 
 watch(
@@ -134,7 +139,7 @@ watch(
 // straight there, not loop back to the Overview it was just clicked
 // from -- so only route stepper-style "I'm arriving at this stage"
 // events through this, never ProjectOverviewTab's own navigate-tab.
-const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission']
+const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission', 'Handover']
 
 function handleStageArrival(tab: ProjectWorkspaceTabKey): void {
   const stage = STAGE_TAB_KEYS[tab]
@@ -212,6 +217,20 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'government', label: t('project.workspaceTabs.documents') },
         { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
+    case 'Handover':
+      // Where Design/Government Submission/Supervision all converge --
+      // Overview keeps the existing auto-updated completed-services
+      // checklist and hand-over notice/acknowledgment actions (see
+      // ProjectOverviewTab.vue's showHandoverCard), now gated to this
+      // stage specifically instead of showing on every stage's Overview.
+      // Payment Confirmation and Notes and Report are new, dedicated
+      // tabs -- neither reuses the generic 'documents' shape the other
+      // stages' second tab has.
+      return [
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'handover-payment', label: t('project.workspaceTabs.paymentConfirmation') },
+        { key: 'handover-notes', label: t('project.workspaceTabs.notesAndReport') },
+      ]
     default:
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
@@ -229,7 +248,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'contract-documents', 'design', 'supervision', 'government', 'payment-status', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'contract-documents', 'design', 'supervision', 'government', 'payment-status', 'tasks', 'handover-payment', 'handover-notes']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -421,7 +440,11 @@ async function handleConfirmDelete(): Promise<void> {
           class="no-print"
           :current-stage="project.currentStage"
           :includes-design="project.includesDesign"
+          :includes-government-submission="project.includesGovernmentSubmission"
           :includes-supervision="project.includesSupervision"
+          :selected-activities="project.selectedActivities"
+          :selected-permits="project.selectedPermits"
+          :selected-supervision-activities="project.selectedSupervisionActivities"
           @navigate-tab="handleStageArrival"
         />
 
@@ -475,6 +498,12 @@ async function handleConfirmDelete(): Promise<void> {
       <div v-else-if="activeTab === 'payment-status'" id="project-tabpanel-payment-status" role="tabpanel" aria-labelledby="project-tab-payment-status" tabindex="0">
         <PaymentStatusPanel :project-id="projectId" :project="project" :client="client" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
       </div>
+      <div v-else-if="activeTab === 'handover-payment'" id="project-tabpanel-handover-payment" role="tabpanel" aria-labelledby="project-tab-handover-payment" tabindex="0">
+        <ProjectHandoverPaymentTab :project="project" />
+      </div>
+      <div v-else-if="activeTab === 'handover-notes'" id="project-tabpanel-handover-notes" role="tabpanel" aria-labelledby="project-tab-handover-notes" tabindex="0">
+        <ProjectHandoverNotesTab :project="project" />
+      </div>
 
       <ProjectEditDialog
         v-model="isEditDialogOpen"
@@ -496,6 +525,7 @@ async function handleConfirmDelete(): Promise<void> {
         kind="stage"
         :current-value="project.currentStage"
         :includes-design="project.includesDesign"
+        :includes-government-submission="project.includesGovernmentSubmission"
         :includes-supervision="project.includesSupervision"
         :project-id="project.id"
         :loading="isStageSaving"

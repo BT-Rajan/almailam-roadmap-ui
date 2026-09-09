@@ -129,6 +129,7 @@ onMounted(() => loadProject())
     <ProjectStageProgress
       :current-stage="projectData.currentStage"
       :includes-design="projectData.includesDesign"
+      :includes-government-submission="projectData.includesGovernmentSubmission"
       :includes-supervision="projectData.includesSupervision"
     />
 

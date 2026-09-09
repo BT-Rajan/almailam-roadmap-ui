@@ -293,8 +293,8 @@ async function handleSignFromMenu(): Promise<void> {
 // requires at least one billable stream, but leaves signing somewhere
 // sane rather than a tab key nothing renders.
 function nextTabAfterSigning(): ProjectWorkspaceTabKey {
-  const hasDesignOrPermits = props.project.includesDesign || (props.project.selectedPermits?.length ?? 0) > 0
-  if (hasDesignOrPermits) return 'design'
+  if (props.project.includesDesign) return 'design'
+  if (props.project.includesGovernmentSubmission) return 'government'
   if (props.project.includesSupervision) return 'supervision'
   return 'overview'
 }
