@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Printer, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -164,6 +164,14 @@ const stopSeedingDocumentLanguage = watch(
 const hasSignedContract = computed(() => contractStore.contracts.some((contract) => contract.status !== 'Draft'))
 
 const hasAnyAgreement = computed(() => visibleStreams.value.some((stream) => agreementForStream(stream)))
+
+// Same "New X" toolbar button as ProjectQuotationTab.vue/
+// ProjectContractTab.vue -- whichever visible stream doesn't have an
+// agreement yet is next up; once every stream has one, there's nothing
+// left to create and the button disappears. A project needing both
+// Design and Supervision plans just gets this pointed at Supervision
+// once Design's is created.
+const nextMissingStream = computed(() => visibleStreams.value.find((stream) => !agreementForStream(stream)))
 
 const isAgreementFormOpen = ref(false)
 const agreementFormMode = ref<'create' | 'edit'>('create')
@@ -465,64 +473,75 @@ async function handleSendEmail(): Promise<void> {
       <BaseButton size="sm" :icon="advanceIcon" @click="goToCurrentStage">{{ t('payment.planPanel.goToStage', { stage: currentStageLabel() }) }}</BaseButton>
     </div>
 
-    <div v-if="hasAnyScope" class="no-print flex flex-wrap items-center justify-end gap-2">
-      <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
-        <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream !== undefined" @click="toggleDecisionMenu">
-          {{ t('payment.planPanel.decision') }}
-          <ChevronDown class="ms-1 h-3.5 w-3.5" />
-        </BaseButton>
-        <div
-          v-if="isDecisionMenuOpen"
-          role="menu"
-          class="absolute end-0 z-dropdown mt-1 w-64 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
-        >
-          <button
-            v-for="stream in draftStreams"
-            :key="stream"
-            type="button"
-            role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-            @click="handleApproveFromMenu(stream)"
-          >
-            <ShieldCheck class="h-4 w-4 text-success-600" />
-            <span>{{ t('payment.planPanel.approveStreamPlan', { stream: sectionLabel(stream) }) }}</span>
-          </button>
-        </div>
-      </div>
-      <SelectBox v-if="hasAnyAgreement" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
-      <div v-if="hasAnyAgreement" ref="documentMenuRef" class="relative">
-        <BaseButton variant="secondary" size="sm" :icon="Printer" :loading="isPrinting || isDownloadingDocument" @click="toggleDocumentMenu">
-          {{ t('payment.planPanel.printOrDownload') }}
-          <ChevronDown class="ms-1 h-3.5 w-3.5" />
-        </BaseButton>
-        <div
-          v-if="isDocumentMenuOpen"
-          role="menu"
-          class="absolute end-0 z-dropdown mt-1 w-56 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-            @click="handlePrintFromMenu"
-          >
-            <Printer class="h-4 w-4 text-text-muted" />
-            <span>{{ t('payment.planPanel.printPaymentPlan') }}</span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-            @click="handleDownloadFromMenu"
-          >
-            <Download class="h-4 w-4 text-text-muted" />
-            <span>{{ t('payment.planPanel.downloadDocument') }}</span>
-          </button>
-        </div>
-      </div>
-      <BaseButton v-if="hasAnyAgreement" variant="secondary" size="sm" :icon="Mail" @click="openEmailDialog">
-        {{ t('payment.planPanel.emailPaymentPlan') }}
+    <div v-if="hasAnyScope" class="flex flex-wrap items-center justify-between gap-2">
+      <BaseButton
+        size="sm"
+        :icon="Plus"
+        :disabled="hasSignedContract || !nextMissingStream"
+        class="no-print"
+        @click="nextMissingStream && openCreateAgreement(nextMissingStream)"
+      >
+        {{ t('payment.planPanel.createPaymentPlan') }}
       </BaseButton>
+      <div class="no-print flex flex-wrap items-center gap-2">
+        <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
+          <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream !== undefined" @click="toggleDecisionMenu">
+            {{ t('payment.planPanel.decision') }}
+            <ChevronDown class="ms-1 h-3.5 w-3.5" />
+          </BaseButton>
+          <div
+            v-if="isDecisionMenuOpen"
+            role="menu"
+            class="absolute end-0 z-dropdown mt-1 w-64 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+          >
+            <button
+              v-for="stream in draftStreams"
+              :key="stream"
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+              @click="handleApproveFromMenu(stream)"
+            >
+              <ShieldCheck class="h-4 w-4 text-success-600" />
+              <span>{{ t('payment.planPanel.approveStreamPlan', { stream: sectionLabel(stream) }) }}</span>
+            </button>
+          </div>
+        </div>
+        <SelectBox v-if="hasAnyAgreement" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
+        <div v-if="hasAnyAgreement" ref="documentMenuRef" class="relative">
+          <BaseButton variant="secondary" size="sm" :icon="Printer" :loading="isPrinting || isDownloadingDocument" @click="toggleDocumentMenu">
+            {{ t('payment.planPanel.printOrDownload') }}
+            <ChevronDown class="ms-1 h-3.5 w-3.5" />
+          </BaseButton>
+          <div
+            v-if="isDocumentMenuOpen"
+            role="menu"
+            class="absolute end-0 z-dropdown mt-1 w-56 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+              @click="handlePrintFromMenu"
+            >
+              <Printer class="h-4 w-4 text-text-muted" />
+              <span>{{ t('payment.planPanel.printPaymentPlan') }}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+              @click="handleDownloadFromMenu"
+            >
+              <Download class="h-4 w-4 text-text-muted" />
+              <span>{{ t('payment.planPanel.downloadDocument') }}</span>
+            </button>
+          </div>
+        </div>
+        <BaseButton v-if="hasAnyAgreement" variant="secondary" size="sm" :icon="Mail" @click="openEmailDialog">
+          {{ t('payment.planPanel.emailPaymentPlan') }}
+        </BaseButton>
+      </div>
     </div>
 
     <template v-for="section in sections" :key="section.kind === 'stream' ? section.stream : 'permits'">

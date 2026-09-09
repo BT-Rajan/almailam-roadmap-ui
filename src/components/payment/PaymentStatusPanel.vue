@@ -1,28 +1,31 @@
 <script setup lang="ts">
-import { Banknote, RefreshCcw, Wallet } from '@lucide/vue'
-import { ref } from 'vue'
+import { Banknote, Wallet } from '@lucide/vue'
+import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import Card from '@/components/common/Card.vue'
+import DatePicker from '@/components/common/DatePicker.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import FinancialActionDialog from '@/components/payment/FinancialActionDialog.vue'
-import ObligationActionDialog from '@/components/payment/ObligationActionDialog.vue'
-import PaymentRecordsList from '@/components/payment/PaymentRecordsList.vue'
-import PaymentSummaryCards from '@/components/payment/PaymentSummaryCards.vue'
-import PaymentTimeline from '@/components/payment/PaymentTimeline.vue'
-import RecordPaymentDialog from '@/components/payment/RecordPaymentDialog.vue'
+import NumberInput from '@/components/common/NumberInput.vue'
+import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextInput from '@/components/common/TextInput.vue'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import type { AdjustmentType, AgreementStream, FinancialAgreement, Payment, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
+import { formatCurrency } from '@/utils/currencyFormatter'
+import { getAgreementStreamLabel, getObligationAmountPending } from '@/utils/paymentHelpers'
+import type { Client } from '@/types/Client'
+import type { AgreementStream, PaymentMode, RecordPaymentInput } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
+import type { SelectOption } from '@/types/Ui'
 
 interface Props {
   projectId: string
   project: Project
+  client: Client | undefined
 }
 
 const props = defineProps<Props>()
@@ -32,17 +35,13 @@ const emit = defineEmits<{
   'add-service': []
 }>()
 
-const { visibleStreams, agreementForStream, obligationsForStream, summaryForStream, outstandingObligationsForStream } = usePaymentAgreements(
+const { visibleStreams, agreementForStream, outstandingObligationsForStream, summaryForStream } = usePaymentAgreements(
   () => props.projectId,
   () => props.project,
 )
 
 const store = usePaymentStore()
 const projectStore = useProjectStore()
-// Matches every other create/edit/delete-style action in the app
-// (Clients, Projects, Quotations, Contracts, Government Submissions) --
-// an explicit acknowledgment dialog for actions that change money on
-// record, not a toast that could be missed.
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
 
@@ -62,102 +61,124 @@ function agreementStreamLabel(stream: string): string {
   return t(AGREEMENT_STREAM_LABEL_KEYS[stream] ?? getAgreementStreamLabel(stream as AgreementStream))
 }
 
-const isRecordPaymentOpen = ref(false)
-const preselectedObligationId = ref<string | undefined>(undefined)
-const financialActionMode = ref<'refund' | 'adjustment'>('refund')
-const isFinancialActionOpen = ref(false)
-const obligationActionMode = ref<'cancel' | 'waive'>('cancel')
-const isObligationActionOpen = ref(false)
-const targetObligation = ref<PaymentObligation | undefined>(undefined)
-// Which agreement the currently-open Record Payment / Refund / Adjustment
-// / Cancel / Waive dialog is acting on -- a project can have both a
-// Design and a Supervision agreement at once (migration 0059), so unlike
-// before there's no single implicit "the" agreement any of these can
-// default to.
-const activeAgreement = ref<FinancialAgreement | undefined>(undefined)
+// Just the 3 modes staff actually record payments against here --
+// PAYMENT_MODES itself (backend/app/models/payment.py) still has the
+// other 4 (Bank Transfer, Credit Card, Debit Card, Other) for other
+// contexts (e.g. an agreement's own default payment_mode), this screen
+// just doesn't offer them as a payment-entry choice.
+const PAYMENT_MODE_OPTIONS: SelectOption[] = [
+  { label: 'Cash', value: 'Cash', labelKey: 'payment.paymentMode.cash' },
+  { label: 'Cheque', value: 'Cheque', labelKey: 'payment.paymentMode.cheque' },
+  { label: 'Online Payment', value: 'Online Payment', labelKey: 'payment.paymentMode.onlinePayment' },
+]
 
 const streamsWithAgreement = () => visibleStreams.value.filter((stream) => agreementForStream(stream))
 const streamsMissingAgreement = () => visibleStreams.value.filter((stream) => !agreementForStream(stream))
 
-function openRecordPayment(agreement: FinancialAgreement, obligation?: PaymentObligation): void {
-  activeAgreement.value = agreement
-  preselectedObligationId.value = obligation?.id
-  isRecordPaymentOpen.value = true
+// The earliest not-yet-settled installment on this stream's schedule --
+// "Expected Amount" mirrors this so staff see what's actually due before
+// typing in what was received, same "oldest obligation first" ordering
+// the submit below allocates against.
+function nextObligationFor(stream: AgreementStream) {
+  return outstandingObligationsForStream(stream)
+    .slice()
+    .sort((a, b) => a.sequenceNumber - b.sequenceNumber)[0]
+}
+function expectedAmountFor(stream: AgreementStream): number {
+  const next = nextObligationFor(stream)
+  return next ? getObligationAmountPending(next) : 0
 }
 
-function openFinancialAction(agreement: FinancialAgreement, mode: 'refund' | 'adjustment'): void {
-  activeAgreement.value = agreement
-  financialActionMode.value = mode
-  isFinancialActionOpen.value = true
+interface EntryForm {
+  paymentDate: string
+  paymentMode: PaymentMode
+  referenceNumber: string
+  actualAmount: number
 }
 
-function openObligationAction(agreement: FinancialAgreement, mode: 'cancel' | 'waive', obligation: PaymentObligation): void {
-  activeAgreement.value = agreement
-  obligationActionMode.value = mode
-  targetObligation.value = obligation
-  isObligationActionOpen.value = true
+function freshForm(stream: AgreementStream): EntryForm {
+  return {
+    paymentDate: new Date().toISOString().slice(0, 10),
+    paymentMode: 'Cash',
+    referenceNumber: '',
+    actualAmount: expectedAmountFor(stream),
+  }
 }
 
-async function handleRecordPayment(input: RecordPaymentInput, proofFile: File | undefined): Promise<void> {
+// One independent form per stream -- a project can be recording a
+// Design payment and a Supervision payment at the same time.
+const forms = reactive<Partial<Record<AgreementStream, EntryForm>>>({})
+function formFor(stream: AgreementStream): EntryForm {
+  const existing = forms[stream]
+  if (existing) return existing
+  const created = freshForm(stream)
+  forms[stream] = created
+  return created
+}
+
+// Applied automatically, oldest outstanding obligation first -- staff
+// enter what was actually received, not which installment(s) it
+// settles.
+function allocationsFor(stream: AgreementStream, amount: number) {
+  const obligations = outstandingObligationsForStream(stream)
+    .slice()
+    .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+  let remaining = amount
+  const result: { obligationId: string; amount: number }[] = []
+  for (const obligation of obligations) {
+    if (remaining <= 0) break
+    const allocated = Math.round(Math.min(getObligationAmountPending(obligation), remaining) * 100) / 100
+    if (allocated > 0) result.push({ obligationId: obligation.id, amount: allocated })
+    remaining = Math.round((remaining - allocated) * 100) / 100
+  }
+  return result
+}
+
+function totalOutstandingFor(stream: AgreementStream): number {
+  return Math.round(
+    outstandingObligationsForStream(stream).reduce((sum, obligation) => sum + getObligationAmountPending(obligation), 0) * 100,
+  ) / 100
+}
+
+function canSubmitFor(stream: AgreementStream): boolean {
+  const form = formFor(stream)
+  return form.actualAmount > 0 && form.actualAmount <= totalOutstandingFor(stream) + 0.009
+}
+
+function receivableFor(stream: AgreementStream): number {
+  const summary = summaryForStream(stream)
+  if (!summary) return 0
+  return Math.round((summary.contractAmount - summary.totalReceived) * 100) / 100
+}
+
+const submittingStream = ref<AgreementStream | undefined>(undefined)
+
+async function handleRecordPayment(stream: AgreementStream): Promise<void> {
+  const agreement = agreementForStream(stream)
+  const form = formFor(stream)
+  if (!agreement || !canSubmitFor(stream)) return
+  submittingStream.value = stream
   try {
-    const payment = await store.recordPayment(input, 'Rajan Kumar')
-    if (proofFile) {
-      await store.attachPaymentProof(payment.id, proofFile, input.agreementId)
+    const input: RecordPaymentInput = {
+      agreementId: agreement.id,
+      projectId: props.projectId,
+      amountReceived: form.actualAmount,
+      paymentDate: form.paymentDate,
+      paymentMode: form.paymentMode,
+      referenceNumber: form.referenceNumber.trim() || undefined,
+      payer: props.client?.companyName || props.project.projectName,
+      allocations: allocationsFor(stream, form.actualAmount),
     }
+    await store.recordPayment(input, 'Rajan Kumar')
     // Keeps the shared project store's cached data (e.g. amounts shown
     // elsewhere in the workspace) in sync with what was just recorded.
     await projectStore.refreshProject(props.projectId)
     resultDialogStore.showSuccess(t('payment.statusPanel.paymentRecordedTitle'), t('payment.statusPanel.paymentRecordedDescription'))
-    isRecordPaymentOpen.value = false
+    forms[stream] = freshForm(stream)
   } catch (error) {
     resultDialogStore.showError(t('payment.statusPanel.couldNotRecordPayment'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  }
-}
-
-async function handleDownloadProof(payment: Payment): Promise<void> {
-  if (!payment.proofFileName) return
-  try {
-    await store.downloadPaymentProof(payment.id, payment.proofFileName)
-  } catch (error) {
-    resultDialogStore.showError(t('payment.statusPanel.couldNotDownloadProof'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  }
-}
-
-async function handleRefund(input: { obligationId: string; refundAmount: number; refundDate: string; reason: string; authorisingUser: string; reference?: string }): Promise<void> {
-  if (!activeAgreement.value) return
-  try {
-    await store.recordRefund({ ...input, agreementId: activeAgreement.value.id })
-    resultDialogStore.showSuccess(t('payment.statusPanel.refundRecordedTitle'), t('payment.statusPanel.refundRecordedDescription'))
-    isFinancialActionOpen.value = false
-  } catch {
-    resultDialogStore.showError(t('payment.statusPanel.couldNotRecordRefund'), t('common.pleaseTryAgain'))
-  }
-}
-
-async function handleAdjustment(input: { obligationId: string; type: AdjustmentType; amount: number; reason: string; authorisingUser: string }): Promise<void> {
-  if (!activeAgreement.value) return
-  try {
-    await store.recordAdjustment({ ...input, agreementId: activeAgreement.value.id })
-    resultDialogStore.showSuccess(t('payment.statusPanel.adjustmentAppliedTitle'), t('payment.statusPanel.adjustmentAppliedDescription'))
-    isFinancialActionOpen.value = false
-  } catch {
-    resultDialogStore.showError(t('payment.statusPanel.couldNotApplyAdjustment'), t('common.pleaseTryAgain'))
-  }
-}
-
-async function handleObligationActionConfirm(reason: string): Promise<void> {
-  if (!activeAgreement.value || !targetObligation.value) return
-  try {
-    if (obligationActionMode.value === 'cancel') {
-      await store.cancelObligation(targetObligation.value.id, activeAgreement.value.id, reason, 'Rajan Kumar')
-      resultDialogStore.showSuccess(t('payment.statusPanel.obligationCancelledTitle'))
-    } else {
-      await store.waiveObligation(targetObligation.value.id, activeAgreement.value.id, reason, 'Rajan Kumar')
-      resultDialogStore.showSuccess(t('payment.statusPanel.obligationWaivedTitle'))
-    }
-    isObligationActionOpen.value = false
-  } catch {
-    resultDialogStore.showError(t('payment.statusPanel.couldNotCompleteAction'), t('common.pleaseTryAgain'))
+  } finally {
+    submittingStream.value = undefined
   }
 }
 </script>
@@ -197,59 +218,78 @@ async function handleObligationActionConfirm(reason: string): Promise<void> {
           />
         </div>
 
-        <PaymentSummaryCards :summary="summaryForStream(stream)!" :currency="agreementForStream(stream)!.currency" />
-
-        <div class="flex flex-wrap items-center justify-end gap-2 no-print">
-          <BaseButton variant="secondary" size="sm" :icon="Banknote" @click="openRecordPayment(agreementForStream(stream)!)">{{ t('payment.statusPanel.recordPayment') }}</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click="openFinancialAction(agreementForStream(stream)!, 'refund')">{{ t('payment.statusPanel.issueRefund') }}</BaseButton>
-          <BaseButton variant="ghost" size="sm" :icon="RefreshCcw" @click="openFinancialAction(agreementForStream(stream)!, 'adjustment')">{{ t('payment.statusPanel.applyAdjustment') }}</BaseButton>
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+          <div class="rounded-lg border border-border-light p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('payment.statusPanel.totalContractAmount') }}</p>
+            <p class="text-lg font-semibold text-text-primary">{{ formatCurrency(summaryForStream(stream)!.contractAmount, agreementForStream(stream)!.currency) }}</p>
+          </div>
+          <div class="rounded-lg border border-border-light p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('payment.statusPanel.totalReceived') }}</p>
+            <p class="text-lg font-semibold text-success-600">{{ formatCurrency(summaryForStream(stream)!.totalReceived, agreementForStream(stream)!.currency) }}</p>
+          </div>
+          <div class="rounded-lg border border-border-light p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('payment.statusPanel.totalReceivable') }}</p>
+            <p class="text-lg font-semibold text-text-primary">{{ formatCurrency(receivableFor(stream), agreementForStream(stream)!.currency) }}</p>
+          </div>
         </div>
 
-        <PaymentTimeline
-          :obligations="obligationsForStream(stream)"
-          :currency="agreementForStream(stream)!.currency"
-          @record-payment="(obligation) => openRecordPayment(agreementForStream(stream)!, obligation)"
-          @cancel="(obligation) => openObligationAction(agreementForStream(stream)!, 'cancel', obligation)"
-          @waive="(obligation) => openObligationAction(agreementForStream(stream)!, 'waive', obligation)"
-        />
+        <Card>
+          <template #header>
+            <h4 class="text-sm font-semibold text-text-primary">{{ t('payment.statusPanel.recordPayment') }}</h4>
+          </template>
 
-        <PaymentRecordsList
-          :payments="store.paymentsByAgreement[agreementForStream(stream)!.id] ?? []"
-          :currency="agreementForStream(stream)!.currency"
-          @download="handleDownloadProof"
-        />
+          <div v-if="totalOutstandingFor(stream) <= 0" class="text-sm text-text-muted">
+            {{ t('payment.statusPanel.fullySettled') }}
+          </div>
+          <div v-else class="flex flex-col gap-4">
+            <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+              <DatePicker v-model="formFor(stream).paymentDate" :label="t('payment.statusPanel.paymentDate')" required />
+              <SelectBox
+                :model-value="formFor(stream).paymentMode"
+                :label="t('payment.statusPanel.paymentMode')"
+                :options="PAYMENT_MODE_OPTIONS"
+                @update:model-value="formFor(stream).paymentMode = $event as PaymentMode"
+              />
+              <TextInput
+                v-model="formFor(stream).referenceNumber"
+                :label="t('payment.statusPanel.referenceNumber')"
+                :placeholder="t('payment.statusPanel.referenceNumberPlaceholder')"
+              />
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">{{ t('payment.statusPanel.expectedAmount') }}</label>
+                <p class="rounded-lg border border-border-light bg-bg-secondary px-3 py-2 text-sm text-text-secondary">
+                  {{ formatCurrency(expectedAmountFor(stream), agreementForStream(stream)!.currency) }}
+                </p>
+              </div>
+              <NumberInput
+                :model-value="formFor(stream).actualAmount"
+                :label="t('payment.statusPanel.actualAmount')"
+                :min="0"
+                step="0.01"
+                required
+                :error="
+                  formFor(stream).actualAmount > totalOutstandingFor(stream) + 0.009
+                    ? t('payment.statusPanel.exceedsOutstanding', { amount: formatCurrency(totalOutstandingFor(stream), agreementForStream(stream)!.currency) })
+                    : undefined
+                "
+                @update:model-value="formFor(stream).actualAmount = Number($event)"
+              />
+            </div>
+
+            <div class="flex justify-end">
+              <BaseButton
+                size="sm"
+                :icon="Banknote"
+                :loading="submittingStream === stream"
+                :disabled="!canSubmitFor(stream)"
+                @click="handleRecordPayment(stream)"
+              >
+                {{ t('payment.statusPanel.recordPayment') }}
+              </BaseButton>
+            </div>
+          </div>
+        </Card>
       </div>
     </template>
-
-    <RecordPaymentDialog
-      v-if="activeAgreement"
-      v-model="isRecordPaymentOpen"
-      :agreement-id="activeAgreement.id"
-      :project-id="projectId"
-      :currency="activeAgreement.currency"
-      :outstanding-obligations="outstandingObligationsForStream(activeAgreement.stream)"
-      :preselected-obligation-id="preselectedObligationId"
-      :is-submitting="store.isSubmitting"
-      @submit="handleRecordPayment"
-    />
-
-    <FinancialActionDialog
-      v-if="activeAgreement"
-      v-model="isFinancialActionOpen"
-      :mode="financialActionMode"
-      :obligations="obligationsForStream(activeAgreement.stream)"
-      :currency="activeAgreement.currency"
-      :is-submitting="store.isSubmitting"
-      @submit-refund="handleRefund"
-      @submit-adjustment="handleAdjustment"
-    />
-
-    <ObligationActionDialog
-      v-model="isObligationActionOpen"
-      :mode="obligationActionMode"
-      :obligation="targetObligation"
-      :is-submitting="store.isSubmitting"
-      @confirm="handleObligationActionConfirm"
-    />
   </div>
 </template>
