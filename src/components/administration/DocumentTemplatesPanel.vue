@@ -47,6 +47,11 @@ const SECTIONS = computed<{ type: DocumentTemplateType; title: string; descripti
     title: t('administration.documentTemplates.contractTitle'),
     description: t('administration.documentTemplates.contractDescription'),
   },
+  {
+    type: 'Payment Plan',
+    title: t('administration.documentTemplates.paymentPlanTitle'),
+    description: t('administration.documentTemplates.paymentPlanDescription'),
+  },
 ])
 
 const store = useDocumentTemplateStore()
@@ -65,8 +70,13 @@ const isDownloadingId = ref<string | undefined>(undefined)
 const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
 const isMapperOpen = ref(false)
 
+const TYPE_LABEL_KEYS: Record<DocumentTemplateType, string> = {
+  Quotation: 'administration.documentTemplates.quotation',
+  Contract: 'administration.documentTemplates.contract',
+  'Payment Plan': 'administration.documentTemplates.paymentPlan',
+}
 function typeLabel(type: DocumentTemplateType): string {
-  return type === 'Quotation' ? t('administration.documentTemplates.quotation') : t('administration.documentTemplates.contract')
+  return t(TYPE_LABEL_KEYS[type])
 }
 
 function languageLabel(language: AppLanguage): string {
@@ -250,9 +260,14 @@ async function confirmDelete(): Promise<void> {
         <p class="text-xs text-text-muted">
           Word (.docx) only. Any layout works -- once uploaded, use each template's
           <MapPin class="inline h-3 w-3 align-text-bottom" /> "Map fields" button to click merge fields into place
-          visually, or hand-type <code class="rounded bg-bg-secondary px-1 py-0.5">{{ PLACEHOLDER_SYNTAX_EXAMPLE }}</code>
+          visually (recommended -- avoids typos and broken placeholders), or hand-type
+          <code class="rounded bg-bg-secondary px-1 py-0.5">{{ PLACEHOLDER_SYNTAX_EXAMPLE }}</code>
           placeholders and, inside a table row, docxtpl's <code class="rounded bg-bg-secondary px-1 py-0.5">{{ ROW_LOOP_SYNTAX_EXAMPLE }}</code>
           row-loop syntax yourself in Word.
+        </p>
+        <p class="text-xs font-medium text-accent-700">
+          This immediately becomes the active template for this document type and language, replacing whichever one
+          was active before.
         </p>
         <SelectBox
           v-model="uploadLanguage"

@@ -34,7 +34,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   patch: [value: Partial<Contract>]
-  saveAsFinal: [value: Partial<Contract>]
 }>()
 
 const { t } = useI18n()
@@ -45,8 +44,10 @@ const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'EUR', value: 'EUR' },
 ]
 
-// Same edit-mode flow as QuotationPreview -- click Edit to unlock changes,
-// Save/Save as Final to lock them back down.
+// Same edit-mode flow as QuotationPreview -- click Edit to unlock
+// changes, Save to persist them as a new draft revision. Finalizing
+// (locking content) only happens via the toolbar's Decision actions,
+// same as QuotationPreview -- there's no separate "Save as Final" here.
 const isEditing = ref(false)
 
 interface DraftClause {
@@ -115,11 +116,6 @@ function saveDraft(): void {
   isEditing.value = false
 }
 
-function saveAsFinal(): void {
-  emit('saveAsFinal', buildPatch())
-  isEditing.value = false
-}
-
 const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
   Draft: 'project.contractStatus.draft',
   Signed: 'project.contractStatus.signed',
@@ -149,8 +145,7 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
           </BaseButton>
           <template v-else-if="isEditing">
             <BaseButton variant="ghost" size="sm" :icon="X" @click="cancelEditing">{{ t('common.cancel') }}</BaseButton>
-            <BaseButton variant="secondary" size="sm" :icon="Check" @click="saveDraft">{{ t('common.save') }}</BaseButton>
-            <BaseButton size="sm" @click="saveAsFinal">{{ t('project.quotationPreview.saveAsFinal') }}</BaseButton>
+            <BaseButton size="sm" :icon="Check" @click="saveDraft">{{ t('common.save') }}</BaseButton>
           </template>
         </div>
       </div>

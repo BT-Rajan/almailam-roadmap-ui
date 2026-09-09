@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 
 import { contractService } from '@/services/contractService'
 import type { ContractCreateInput } from '@/services/contractService'
-import type { Contract } from '@/types/Contract'
+import type { Contract, ContractAuditEvent } from '@/types/Contract'
 
 interface ContractStoreState {
   projectId: string | undefined
@@ -10,6 +10,10 @@ interface ContractStoreState {
   selectedContractId: string | undefined
   isLoading: boolean
   error: string | undefined
+  // Keyed by contract id -- document activity (downloads/prints/
+  // emails) and status changes, shown in ContractRevisionHistory
+  // alongside content revisions.
+  auditEventsByContract: Record<string, ContractAuditEvent[]>
 }
 
 export const useContractStore = defineStore('contract', {
@@ -19,6 +23,7 @@ export const useContractStore = defineStore('contract', {
     selectedContractId: undefined,
     isLoading: false,
     error: undefined,
+    auditEventsByContract: {},
   }),
 
   getters: {
@@ -86,6 +91,11 @@ export const useContractStore = defineStore('contract', {
       const updated = await contractService.confirmContractSigning(contractId, file)
       this.contracts = this.contracts.map((c) => (c.id === contractId ? updated : c))
       return updated
+    },
+
+    async loadAuditEvents(contractId: string): Promise<void> {
+      const events = await contractService.getAuditEvents(contractId)
+      this.auditEventsByContract = { ...this.auditEventsByContract, [contractId]: events }
     },
   },
 })

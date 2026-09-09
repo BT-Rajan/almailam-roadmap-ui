@@ -94,7 +94,7 @@ function handleUploaderError(message: string): void {
         <SelectBox v-model="form.identification.documentType" :label="t('client.identificationStep.documentType')" required :options="identificationTypeOptions" />
         <TextInput v-model="form.identification.documentNumber" :label="t('client.identificationStep.documentNumber')" required :error="errors.documentNumber" />
         <DatePicker v-model="form.identification.issueDate" :label="t('client.identificationStep.issueDate')" required :max="maxDate" :error="errors.issueDate" />
-        <DatePicker v-model="form.identification.expiryDate" :label="t('client.identificationStep.expiryDate')" required :error="errors.expiryDate" />
+        <DatePicker v-model="form.identification.expiryDate" :label="t('client.identificationStep.expiryDate')" required :min="maxDate" :error="errors.expiryDate" />
         <TextInput v-model="form.identification.issuingCountry" :label="t('client.identificationStep.issuingCountry')" required :error="errors.issuingCountry" />
       </div>
     </FormSection>

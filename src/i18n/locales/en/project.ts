@@ -168,6 +168,10 @@ export default {
     viewCivilId: 'View Civil ID Attachment',
     paymentPlanTitle: 'Payment Plan',
     goToPaymentPlan: 'Go to Payment Plan',
+    createPaymentPlan: 'Create Payment Plan',
+    paymentPlanCreatedTitle: 'Payment plan created',
+    paymentPlanCreatedDescription: '{stream} payment plan was created.',
+    failedToCreatePaymentPlan: 'Failed to create payment plan',
     quotationNumber: 'Quotation Number',
     quotationDate: 'Quotation Date',
     quotationAmount: 'Quotation Amount',
@@ -292,6 +296,11 @@ export default {
     title: 'Revision History',
     emptyTitle: 'No revisions recorded',
     current: 'Current',
+    documentDownloaded: 'Document downloaded',
+    documentPrinted: 'Document printed',
+    documentEmailed: 'Document emailed',
+    quotationApproved: 'Quotation approved',
+    contractSigned: 'Contract signed',
   },
 
   quotationHistory: {
@@ -306,18 +315,18 @@ export default {
     totalAmount: 'Total Amount',
   },
 
-  contractList: {
-    title: 'Contracts',
-    emptyTitle: 'No contracts yet',
-    emptyDescription: 'Contracts issued for this project will appear here.',
-    revisionIssued: 'Revision {revision} · Issued {date}',
+  contractDocumentsTab: {
+    projectPaperworkTitle: 'Project Paperwork',
+    quotation: 'Quotation',
+    paymentPlan: 'Payment Plan',
+    contract: 'Contract',
+    notAvailable: 'Not available yet',
   },
 
   quotationPreview: {
     contentLocked: 'Content Locked',
     editing: 'Editing',
     editable: 'Editable',
-    saveAsFinal: 'Save as Final',
     companyTagline: 'Engineering Design & Government Approvals',
     revision: 'Revision {revision}',
     billTo: 'Bill To',
@@ -360,9 +369,10 @@ export default {
 
   contractTab: {
     newContract: 'New Contract',
-    changeStatus: 'Change Status',
+    decision: 'Decision',
+    moveToDraft: 'Move to Draft',
     reopenForEditing: 'Reopen for Editing',
-    saveAsFinal: 'Save as Final',
+    printOrDownload: 'Print / Download',
     printContract: 'Print Contract',
     downloadDocument: 'Download Document',
     emailContract: 'Email Contract',
@@ -377,6 +387,7 @@ export default {
     failedToCreateContract: 'Failed to create contract',
     failedToUpdateContract: 'Failed to update contract',
     failedToFinalizeContract: 'Failed to finalize contract',
+    failedToRevertToDraft: 'Failed to move contract back to Draft',
     noEligibleQuotationTitle: 'No eligible quotation',
     noEligibleQuotationDescriptionShort: 'A contract can only be generated from a quotation that has been Approved and saved as Final.',
     noEligibleQuotationDescriptionLong: 'A contract can only be generated from a quotation that has been Approved and saved as Final. Finalize and approve a quotation on the Quotation tab first.',

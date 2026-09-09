@@ -168,6 +168,10 @@ export default {
     viewCivilId: 'عرض مرفق البطاقة المدنية',
     paymentPlanTitle: 'خطة الدفع',
     goToPaymentPlan: 'الانتقال إلى خطة الدفع',
+    createPaymentPlan: 'إنشاء خطة دفع',
+    paymentPlanCreatedTitle: 'تم إنشاء خطة الدفع',
+    paymentPlanCreatedDescription: 'تم إنشاء خطة دفع {stream}.',
+    failedToCreatePaymentPlan: 'فشل إنشاء خطة الدفع',
     quotationNumber: 'رقم عرض السعر',
     quotationDate: 'تاريخ عرض السعر',
     quotationAmount: 'مبلغ عرض السعر',
@@ -292,6 +296,11 @@ export default {
     title: 'سجل المراجعات',
     emptyTitle: 'لا توجد مراجعات مسجلة',
     current: 'الحالية',
+    documentDownloaded: 'تم تنزيل المستند',
+    documentPrinted: 'تم طباعة المستند',
+    documentEmailed: 'تم إرسال المستند بالبريد الإلكتروني',
+    quotationApproved: 'تمت الموافقة على عرض السعر',
+    contractSigned: 'تم توقيع العقد',
   },
 
   quotationHistory: {
@@ -306,18 +315,18 @@ export default {
     totalAmount: 'المبلغ الإجمالي',
   },
 
-  contractList: {
-    title: 'العقود',
-    emptyTitle: 'لا توجد عقود بعد',
-    emptyDescription: 'ستظهر هنا العقود الصادرة لهذا المشروع.',
-    revisionIssued: 'المراجعة {revision} · صدر في {date}',
+  contractDocumentsTab: {
+    projectPaperworkTitle: 'مستندات المشروع',
+    quotation: 'عرض السعر',
+    paymentPlan: 'خطة الدفع',
+    contract: 'العقد',
+    notAvailable: 'غير متوفر بعد',
   },
 
   quotationPreview: {
     contentLocked: 'المحتوى مقفل',
     editing: 'قيد التعديل',
     editable: 'قابل للتعديل',
-    saveAsFinal: 'حفظ كنهائي',
     companyTagline: 'التصميم الهندسي والموافقات الحكومية',
     revision: 'المراجعة {revision}',
     billTo: 'إرسال الفاتورة إلى',
@@ -360,9 +369,10 @@ export default {
 
   contractTab: {
     newContract: 'عقد جديد',
-    changeStatus: 'تغيير الحالة',
+    decision: 'القرار',
+    moveToDraft: 'إعادة إلى مسودة',
     reopenForEditing: 'إعادة الفتح للتعديل',
-    saveAsFinal: 'حفظ كنهائي',
+    printOrDownload: 'طباعة / تنزيل',
     printContract: 'طباعة العقد',
     downloadDocument: 'تنزيل المستند',
     emailContract: 'إرسال العقد بالبريد',
@@ -377,6 +387,7 @@ export default {
     failedToCreateContract: 'فشل إنشاء العقد',
     failedToUpdateContract: 'فشل تحديث العقد',
     failedToFinalizeContract: 'فشل اعتماد العقد كنهائي',
+    failedToRevertToDraft: 'فشل إعادة العقد إلى مسودة',
     noEligibleQuotationTitle: 'لا يوجد عرض سعر مؤهل',
     noEligibleQuotationDescriptionShort: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي.',
     noEligibleQuotationDescriptionLong: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي. اعتمد عرض السعر كنهائي ووافق عليه من تبويب عرض السعر أولاً.',

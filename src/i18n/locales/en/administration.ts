@@ -616,8 +616,12 @@ export default {
     contractTitle: 'Contract Templates',
     contractDescription:
       'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a contract.',
+    paymentPlanTitle: 'Payment Plan Templates',
+    paymentPlanDescription:
+      'Each language’s default .docx is merged with a project’s live payment plan data (every billing stream it has an agreement for) when "Download Document" is used on the Payment Plan page.',
     quotation: 'quotation',
     contract: 'contract',
+    paymentPlan: 'payment plan',
     uploadDocx: 'Upload .docx',
     noTemplatesForType: 'No {type} templates uploaded yet.',
     noLanguageTemplates: 'No {language} {type} template uploaded yet.',

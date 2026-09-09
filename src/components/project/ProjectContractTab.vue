@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Download, Lock, LockOpen, Mail, Plus, Printer, ShieldCheck } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ChevronDown, Download, LockOpen, Mail, Plus, Printer, ShieldCheck, Undo2 } from '@lucide/vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -9,12 +9,9 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
-import StatusTransitionDialog from '@/components/project/StatusTransitionDialog.vue'
-import { CONTRACT_ALLOWED_TRANSITIONS, isContractReasonRequired } from '@/constants/quotationContractOptions'
 import { documentTemplateService } from '@/services/documentTemplateService'
 import { useCompanyStore } from '@/stores/companyStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -64,14 +61,33 @@ const stopSeedingDocumentLanguage = watch(
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
-const isStatusDialogOpen = ref(false)
-const isStatusSaving = ref(false)
 
-// Terminated is a dead end (no further transitions) -- hide the button
-// entirely rather than open a dialog with nothing to pick.
-const hasStatusOptions = computed(
-  () => (CONTRACT_ALLOWED_TRANSITIONS[contractStore.selectedContract?.status ?? ''] ?? []).length > 0,
+// Keeps the "download / email / signed time" activity in the Revision
+// History panel current -- reloaded whenever a different contract is
+// selected, and again after any action below that adds a new audit
+// event (print, download, email, sign). Mirrors
+// ProjectQuotationTab.vue's own copy of this exactly.
+watch(
+  () => contractStore.selectedContractId,
+  (contractId) => {
+    if (contractId) contractStore.loadAuditEvents(contractId)
+  },
+  { immediate: true },
 )
+
+// Same toolbar shape as ProjectQuotationTab.vue: one "Decision" dropdown
+// with a single item ("Sign", where Quotation has "Approve"), shown
+// only while the contract is still Draft -- exactly Quotation's own
+// v-if condition, not a status-dependent set of items. Once signed,
+// this dropdown is gone for good, same as Quotation's Decision dropdown
+// never comes back once a quotation is Approved.
+const hasDecisionOptions = computed(() => contractStore.selectedContract?.status === 'Draft')
+
+// Once any contract for this project has ever been signed, its terms
+// are locked in -- "New Contract" is disabled the same way Quotation's
+// "New Quotation" is disabled once one's Approved (see
+// ProjectQuotationTab.vue's hasApprovedQuotation).
+const hasSignedContract = computed(() => contractStore.contracts.some((contract) => contract.status !== 'Draft'))
 
 // A contract must come from a specific quotation that's Approved and
 // Final (see contract_service.create_contract) -- this is that
@@ -149,6 +165,7 @@ async function handlePrint(): Promise<void> {
   try {
     const blob = await documentTemplateService.getContractDocumentPdf(contract.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     printWindow?.close()
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
@@ -167,12 +184,69 @@ async function handleDownloadDocument(): Promise<void> {
   try {
     const blob = await documentTemplateService.downloadContractDocument(contract.id, documentLanguage.value)
     triggerBlobDownload(blob, `${contract.id}.docx`)
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
   } finally {
     isDownloadingDocument.value = false
   }
+}
+
+// Same merged-trigger toolbar pattern as ProjectQuotationTab.vue: one
+// "Print/Download" dropdown instead of two competing top-level buttons,
+// and one "Decision" dropdown instead of one button per possible status
+// action. Plain click-toggle + outside-click/Escape close -- see
+// ProjectQuotationTab.vue's own copy of this for why it doesn't need
+// UserMenu.vue's teleported-to-body positioning.
+const isDocumentMenuOpen = ref(false)
+const documentMenuRef = ref<HTMLElement>()
+const isDecisionMenuOpen = ref(false)
+const decisionMenuRef = ref<HTMLElement>()
+
+function toggleDocumentMenu(): void {
+  isDocumentMenuOpen.value = !isDocumentMenuOpen.value
+}
+
+function closeDocumentMenu(): void {
+  isDocumentMenuOpen.value = false
+}
+
+function toggleDecisionMenu(): void {
+  isDecisionMenuOpen.value = !isDecisionMenuOpen.value
+}
+
+function closeDecisionMenu(): void {
+  isDecisionMenuOpen.value = false
+}
+
+function handleClickOutsideMenus(event: MouseEvent): void {
+  const target = event.target as Node
+  if (isDocumentMenuOpen.value && !documentMenuRef.value?.contains(target)) closeDocumentMenu()
+  if (isDecisionMenuOpen.value && !decisionMenuRef.value?.contains(target)) closeDecisionMenu()
+}
+
+function handleKeydownMenus(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  if (isDocumentMenuOpen.value) closeDocumentMenu()
+  if (isDecisionMenuOpen.value) closeDecisionMenu()
+}
+
+window.addEventListener('mousedown', handleClickOutsideMenus)
+window.addEventListener('keydown', handleKeydownMenus)
+onBeforeUnmount(() => {
+  window.removeEventListener('mousedown', handleClickOutsideMenus)
+  window.removeEventListener('keydown', handleKeydownMenus)
+})
+
+async function handlePrintFromMenu(): Promise<void> {
+  closeDocumentMenu()
+  await handlePrint()
+}
+
+async function handleDownloadFromMenu(): Promise<void> {
+  closeDocumentMenu()
+  await handleDownloadDocument()
 }
 
 const isEmailDialogOpen = ref(false)
@@ -182,11 +256,29 @@ const emailTo = ref('')
 const isSigningDialogOpen = ref(false)
 const isSigningSaving = ref(false)
 
-// Draft + finalized -- content locked, ready for a decision -- mirrors
-// hasStatusOptions' own "must be finalized" gate.
-const canSign = computed(
-  () => contractStore.selectedContract?.status === 'Draft' && Boolean(contractStore.selectedContract?.finalizedAt),
-)
+// A contract has to be finalized (content locked) before it can be
+// signed -- mirrors ProjectQuotationTab.vue's ensureFinalized, which
+// this replaces the manual "Save as Final" toolbar toggle with. No-op
+// (and doesn't re-finalize) if it already is.
+async function ensureFinalized(): Promise<boolean> {
+  const contract = contractStore.selectedContract
+  if (!contract) return false
+  if (contract.finalizedAt) return true
+  try {
+    await contractStore.finalizeContract(contract.id)
+    return true
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    resultDialogStore.showError(t('project.contractTab.failedToFinalizeContract'), detail)
+    return false
+  }
+}
+
+async function handleSignFromMenu(): Promise<void> {
+  closeDecisionMenu()
+  if (!(await ensureFinalized())) return
+  isSigningDialogOpen.value = true
+}
 
 async function handleConfirmSigning(payload: { file: File }): Promise<void> {
   const contract = contractStore.selectedContract
@@ -194,10 +286,11 @@ async function handleConfirmSigning(payload: { file: File }): Promise<void> {
   isSigningSaving.value = true
   try {
     const signed = await contractStore.confirmContractSigning(contract.id, payload.file)
+    await contractStore.loadAuditEvents(contract.id)
     // confirmContractSigning can move current_stage server-side (see
     // contract_service.set_status -> try_auto_advance_stage) -- same
     // "sync the shared store's cached copy" reasoning as
-    // handleStatusConfirm below.
+    // handleCreateContract above.
     await projectStore.refreshProject(props.project.id)
     isSigningDialogOpen.value = false
     const description = signed.confirmationEmailSent === false
@@ -225,6 +318,7 @@ async function handleSendEmail(): Promise<void> {
     await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim(), documentLanguage.value)
     resultDialogStore.showSuccess(t('project.contractTab.contractEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToSendEmail'), detail)
@@ -244,16 +338,16 @@ async function handlePatch(patch: Partial<Contract>): Promise<void> {
   }
 }
 
-async function handleFinalizeToggle(): Promise<void> {
+// Escape hatch for a contract that got finalized (by a Decision action
+// above) but never actually left Draft -- e.g. the signing dialog was
+// opened but no file was ever confirmed. Mirrors
+// ProjectQuotationTab.vue's handleReopenForEditing exactly.
+async function handleReopenForEditing(): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
   isFinalizing.value = true
   try {
-    if (contract.finalizedAt) {
-      await contractStore.reopenContract(contract.id)
-    } else {
-      await contractStore.finalizeContract(contract.id)
-    }
+    await contractStore.reopenContract(contract.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('project.contractTab.failedToUpdateContract'), detail)
@@ -262,98 +356,103 @@ async function handleFinalizeToggle(): Promise<void> {
   }
 }
 
-// Save-as-Final from inside the edit view: persist whatever was changed,
-// then finalize -- sequential, not parallel, so finalize can't land
-// before the content it's supposed to lock in has actually been saved.
-async function handleSaveAsFinal(patch: Partial<Contract>): Promise<void> {
-  const contract = contractStore.selectedContract
-  if (!contract) return
-  isFinalizing.value = true
-  try {
-    await contractStore.updateContract(contract.id, patch)
-    await contractStore.finalizeContract(contract.id)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.contractTab.failedToFinalizeContract'), detail)
-  } finally {
-    isFinalizing.value = false
-  }
-}
+// Expired -> Draft -- reopens the content for editing automatically
+// (see contract_service.set_status), so this is the one transition
+// that needs neither a reason nor a finalize step first. Mirrors
+// ProjectQuotationTab.vue's handleRevertToDraft exactly.
+const isRevertingToDraft = ref(false)
 
-// Signed -> Active -> Expired/Terminated, and back to Draft from
-// Expired. "Signed" is deliberately not offered here (see
-// CONTRACT_ALLOWED_TRANSITIONS' own comment) -- the only path to it is
-// a confirmed signed-document upload, handled by handleConfirmSigning
-// above.
-async function handleStatusConfirm(payload: { value: string; reason?: string }): Promise<void> {
+async function handleRevertToDraft(): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
-  isStatusSaving.value = true
+  isRevertingToDraft.value = true
   try {
-    await contractStore.setContractStatus(contract.id, payload.value, payload.reason)
-    isStatusDialogOpen.value = false
+    await contractStore.setContractStatus(contract.id, 'Draft')
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('common.failedToChangeStatus'), detail)
+    resultDialogStore.showError(t('project.contractTab.failedToRevertToDraft'), detail)
   } finally {
-    isStatusSaving.value = false
+    isRevertingToDraft.value = false
   }
 }
 </script>
 
 <template>
-  <div class="flex items-center justify-between no-print">
-    <BaseButton size="sm" :icon="Plus" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
-    <div class="flex items-center gap-2">
+  <div class="flex items-center justify-between">
+    <BaseButton size="sm" :icon="Plus" :disabled="hasSignedContract" class="no-print" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
+    <div class="no-print flex items-center gap-2">
+      <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
+        <BaseButton size="sm" :icon="ShieldCheck" :loading="isSigningSaving || isFinalizing" @click="toggleDecisionMenu">
+          {{ t('project.contractTab.decision') }}
+          <ChevronDown class="ms-1 h-3.5 w-3.5" />
+        </BaseButton>
+        <div
+          v-if="isDecisionMenuOpen"
+          role="menu"
+          class="absolute start-0 z-dropdown mt-1 w-52 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleSignFromMenu"
+          >
+            <ShieldCheck class="h-4 w-4 text-success-600" />
+            <span>{{ t('project.contractTab.signContract') }}</span>
+          </button>
+        </div>
+      </div>
       <BaseButton
-        v-if="canSign"
-        size="sm"
-        :icon="ShieldCheck"
-        :loading="isSigningSaving"
-        @click="isSigningDialogOpen = true"
-      >
-        {{ t('project.contractTab.signContract') }}
-      </BaseButton>
-      <BaseButton
-        v-if="contractStore.selectedContract && hasStatusOptions"
+        v-if="contractStore.selectedContract?.status === 'Expired'"
         variant="secondary"
         size="sm"
-        :icon="ArrowLeftRight"
-        @click="isStatusDialogOpen = true"
+        :icon="Undo2"
+        :loading="isRevertingToDraft"
+        @click="handleRevertToDraft"
       >
-        {{ t('project.contractTab.changeStatus') }}
+        {{ t('project.contractTab.moveToDraft') }}
       </BaseButton>
       <BaseButton
-        v-if="contractStore.selectedContract?.status === 'Draft'"
+        v-if="contractStore.selectedContract?.status === 'Draft' && contractStore.selectedContract.finalizedAt"
         variant="secondary"
         size="sm"
-        :icon="contractStore.selectedContract.finalizedAt ? LockOpen : Lock"
+        :icon="LockOpen"
         :loading="isFinalizing"
-        @click="handleFinalizeToggle"
+        @click="handleReopenForEditing"
       >
-        {{ contractStore.selectedContract.finalizedAt ? t('project.contractTab.reopenForEditing') : t('project.contractTab.saveAsFinal') }}
+        {{ t('project.contractTab.reopenForEditing') }}
       </BaseButton>
       <SelectBox v-if="contractStore.selectedContract" v-model="documentLanguage" :options="LANGUAGE_OPTIONS" class="w-28" />
-      <BaseButton
-        v-if="contractStore.selectedContract"
-        variant="secondary"
-        size="sm"
-        :icon="Printer"
-        :loading="isPrinting"
-        @click="handlePrint"
-      >
-        {{ t('project.contractTab.printContract') }}
-      </BaseButton>
-      <BaseButton
-        v-if="contractStore.selectedContract"
-        variant="secondary"
-        size="sm"
-        :icon="Download"
-        :loading="isDownloadingDocument"
-        @click="handleDownloadDocument"
-      >
-        {{ t('project.contractTab.downloadDocument') }}
-      </BaseButton>
+      <div v-if="contractStore.selectedContract" ref="documentMenuRef" class="relative">
+        <BaseButton variant="secondary" size="sm" :icon="Printer" :loading="isPrinting || isDownloadingDocument" @click="toggleDocumentMenu">
+          {{ t('project.contractTab.printOrDownload') }}
+          <ChevronDown class="ms-1 h-3.5 w-3.5" />
+        </BaseButton>
+        <div
+          v-if="isDocumentMenuOpen"
+          role="menu"
+          class="absolute end-0 z-dropdown mt-1 w-52 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handlePrintFromMenu"
+          >
+            <Printer class="h-4 w-4 text-text-muted" />
+            <span>{{ t('project.contractTab.printContract') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
+            @click="handleDownloadFromMenu"
+          >
+            <Download class="h-4 w-4 text-text-muted" />
+            <span>{{ t('project.contractTab.downloadDocument') }}</span>
+          </button>
+        </div>
+      </div>
       <BaseButton
         v-if="contractStore.selectedContract"
         variant="secondary"
@@ -397,17 +496,14 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
         :project="project"
         :client="client"
         @patch="handlePatch"
-        @save-as-final="handleSaveAsFinal"
       />
     </div>
 
     <div class="flex flex-col gap-6 no-print">
-      <ContractList
-        :contracts="contractStore.contracts"
-        :selected-contract-id="contractStore.selectedContractId"
-        @select="contractStore.selectContract($event)"
+      <ContractRevisionHistory
+        :revisions="contractStore.selectedContract.revisions"
+        :audit-events="contractStore.auditEventsByContract[contractStore.selectedContract.id] ?? []"
       />
-      <ContractRevisionHistory :revisions="contractStore.selectedContract.revisions" />
     </div>
   </div>
 
@@ -418,15 +514,5 @@ async function handleStatusConfirm(payload: { value: string; reason?: string }):
     :default-client-representative="client?.contactPerson"
     :loading="isCreating"
     @confirm="handleCreateContract"
-  />
-  <StatusTransitionDialog
-    v-if="contractStore.selectedContract"
-    v-model="isStatusDialogOpen"
-    title="Change Contract Status"
-    :current-value="contractStore.selectedContract.status"
-    :allowed-transitions="CONTRACT_ALLOWED_TRANSITIONS"
-    :is-reason-required="isContractReasonRequired"
-    :loading="isStatusSaving"
-    @confirm="handleStatusConfirm"
   />
 </template>

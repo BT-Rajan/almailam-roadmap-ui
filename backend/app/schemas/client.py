@@ -15,7 +15,7 @@ from app.models.client import (
     IDENTIFICATION_TYPES,
     PREFERRED_CHANNELS,
 )
-from app.schemas.common import not_future_validator
+from app.schemas.common import not_future_validator, not_past_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -433,6 +433,7 @@ class ClientIdentificationCreate(BaseModel):
     issuingCountry: str = Field(min_length=1, max_length=80)
     _check = field_validator("documentType")(_enum_validator(IDENTIFICATION_TYPES, "documentType"))
     _check_issue_date = field_validator("issueDate")(not_future_validator("issueDate"))
+    _check_expiry_not_past = field_validator("expiryDate")(not_past_validator("expiryDate"))
 
     @field_validator("expiryDate")
     @classmethod
@@ -463,6 +464,8 @@ class ClientIdentificationUpdate(BaseModel):
         if value is not None and value > date.today():
             raise ValueError("issueDate cannot be in the future")
         return value
+
+    _check_expiry_not_past = field_validator("expiryDate")(not_past_validator("expiryDate"))
 
     @field_validator("expiryDate")
     @classmethod

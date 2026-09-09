@@ -13,6 +13,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
+import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -25,7 +26,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { documentRequirementService } from '@/services/documentRequirementService'
 import { projectService } from '@/services/projectService'
 import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
-import type { AgreementStream } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
 import type { HandoverStatus, Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
@@ -389,6 +390,35 @@ const paymentPlanAgreements = computed(() => {
   return streams.map((stream) => ({ stream, agreement: paymentStore.getAgreementByProject(props.project.id, stream) }))
 })
 
+// Whichever visible stream doesn't have a plan yet -- undefined once
+// every one does, at which point there's nothing left to create here
+// and the header action goes back to just opening the full tab.
+const nextMissingPaymentPlanStream = computed(() => paymentPlanAgreements.value.find((row) => !row.agreement)?.stream)
+
+const isPaymentPlanFormOpen = ref(false)
+const paymentPlanFormStream = ref<AgreementStream>('Design')
+
+function openCreatePaymentPlan(): void {
+  if (!nextMissingPaymentPlanStream.value) return
+  paymentPlanFormStream.value = nextMissingPaymentPlanStream.value
+  isPaymentPlanFormOpen.value = true
+}
+
+// Creates the agreement right here instead of sending staff to the
+// Payment Plan tab just to open the same dialog -- paymentPlanAgreements
+// above reads straight from paymentStore.agreements, so the result
+// (the newly created Draft plan) shows in this card immediately once
+// createAgreement resolves, no extra fetch needed.
+async function handleSubmitPaymentPlan(input: CreateAgreementInput): Promise<void> {
+  try {
+    const agreement = await paymentStore.createAgreement(input, 'Rajan Kumar')
+    toastStore.show('success', t('project.overviewTab.paymentPlanCreatedTitle'), t('project.overviewTab.paymentPlanCreatedDescription', { stream: getAgreementStreamLabel(agreement.stream) }))
+    isPaymentPlanFormOpen.value = false
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.failedToCreatePaymentPlan'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  }
+}
+
 // The contract's own linked quotation (contract.quotationNo) rather than
 // quotationStore.latestQuotation -- once a contract exists it should
 // always point at exactly the quotation it was generated from, not
@@ -696,7 +726,17 @@ function verificationResultLabel(result: string): string {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.paymentPlanTitle') }}</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">{{ t('project.overviewTab.goToPaymentPlan') }}</BaseButton>
+          <BaseButton
+            v-if="nextMissingPaymentPlanStream"
+            size="sm"
+            class="no-print"
+            @click="openCreatePaymentPlan"
+          >
+            {{ t('project.overviewTab.createPaymentPlan') }}
+          </BaseButton>
+          <BaseButton v-else variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'payment-plan')">
+            {{ t('project.overviewTab.goToPaymentPlan') }}
+          </BaseButton>
         </div>
       </template>
       <div class="flex flex-col gap-4">
@@ -1153,5 +1193,19 @@ function verificationResultLabel(result: string): string {
       :forms="fillDialogForm ? [fillDialogForm] : []"
     />
     <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
+    <AgreementFormDialog
+      v-model="isPaymentPlanFormOpen"
+      :project-id="project.id"
+      :stream="paymentPlanFormStream"
+      mode="create"
+      :existing-obligations="[]"
+      :approved-contract="
+        paymentPlanQuotation
+          ? { quotationNo: paymentPlanQuotation.quotationNo, contractValue: paymentPlanQuotation.amount, currency: paymentPlanQuotation.currency }
+          : undefined
+      "
+      :is-submitting="paymentStore.isSubmitting"
+      @submit="handleSubmitPaymentPlan"
+    />
   </div>
 </template>

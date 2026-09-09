@@ -1,6 +1,6 @@
 import type { ClientWizardAddressDraft, ClientWizardContactDraft, ClientWizardForm, ClientWizardIdentificationDraft } from '@/types/ClientWizard'
 import type { ClientPreferredChannel } from '@/types/Client'
-import { todayIso } from '@/utils/dateFormatter'
+import { isPastDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 export type FieldErrors = Record<string, string>
@@ -182,6 +182,7 @@ export function validateIdentification(
   else if (isFutureDate(identification.issueDate)) errors.issueDate = 'Issue date cannot be in the future'
 
   if (!identification.expiryDate) errors.expiryDate = 'Expiry date is required'
+  else if (isPastDate(identification.expiryDate)) errors.expiryDate = 'Expiry date cannot be in the past'
   else if (identification.issueDate && identification.expiryDate <= identification.issueDate) {
     errors.expiryDate = 'Expiry date must be after the issue date'
   }

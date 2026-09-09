@@ -1,21 +1,24 @@
-"""Admin-uploaded .docx templates for Quotation/Contract documents.
+"""Admin-uploaded .docx templates for Quotation/Contract/Payment Plan
+documents.
 
 An Administrator uploads a .docx per (document_type, language) --
-Quotation or Contract, English or Arabic -- under Administration >
-Documents and marks one as the default for that pair (migration 0064:
-each document_type carries two defaults side by side, not one shared
-one). When a project's Quotation/Contract tab asks for the actual
-document, the requested language's default template's placeholders
-({{ field }}, and {%tr for ... %} row loops inside a table -- both
-standard docxtpl/Jinja2 syntax) are merged with that record's live data
-via render_quotation_document/render_contract_document below, and the
+Quotation, Contract, or Payment Plan (migration 0085), English or
+Arabic -- under Administration > Documents and marks one as the default
+for that pair (migration 0064: each document_type carries two defaults
+side by side, not one shared one). When a project's Quotation/Contract/
+Payment Plan tab asks for the actual document, the requested language's
+default template's placeholders ({{ field }}, and {%tr for ... %} row
+loops inside a table -- both standard docxtpl/Jinja2 syntax) are merged
+with that record's live data via render_quotation_document/
+render_contract_document/render_payment_plan_document below, and the
 merged .docx is the download.
 
-render_quotation_pdf/render_contract_pdf below convert that same merged
-.docx to PDF (via _docx_to_pdf) so "Print" and "Email" can use the
-identical, admin-configured template instead of the separate hardcoded
-on-screen preview (QuotationPreview.vue/ContractPreview.vue) those
-actions used to print. _docx_to_pdf reads the template's own `language`
+render_quotation_pdf/render_contract_pdf/render_payment_plan_pdf below
+convert that same merged .docx to PDF (via _docx_to_pdf) so "Print" and
+"Email" can use the identical, admin-configured template instead of the
+separate hardcoded on-screen preview (QuotationPreview.vue/
+ContractPreview.vue) those actions used to print. _docx_to_pdf reads the
+template's own `language`
 to decide text direction/font rather than always assuming Arabic --
 previously every rendered PDF was forced right-to-left with an Arabic
 font even when the uploaded template (and its content) was plain
@@ -124,6 +127,18 @@ def get_default(db: Session, document_type: str, language: str) -> DocumentTempl
             DocumentTemplate.is_default.is_(True),
             DocumentTemplate.deleted_at.is_(None),
         )
+        # "Exactly one default per (document_type, language)" is only
+        # ever enforced in application code -- MySQL has no partial/
+        # filtered unique index to express that as a real constraint
+        # (see DocumentTemplate's own docstring, and migration 0086,
+        # which repairs any stray duplicate already sitting in the
+        # database). Without an explicit order, .first() on more than
+        # one match is undefined -- which one actually renders would be
+        # pinned to whatever a given query happened to return, not
+        # necessarily the one an admin most recently set. Ordering by
+        # id desc means that if a duplicate ever exists anyway, the most
+        # recently created default wins, deterministically, every time.
+        .order_by(DocumentTemplate.id.desc())
         .first()
     )
 
@@ -136,6 +151,20 @@ def upload_template(db: Session, document_type: str, language: str, file, actor_
 
     storage_key, original_filename, size_bytes = save_upload(file, STORAGE_SUBDIRECTORY)
 
+    # Every upload becomes this (type, language) pair's active default
+    # immediately -- not just the first one. Leaving a re-upload inactive
+    # until someone remembered a separate "Set Default" click was a real
+    # trap: every generated document silently kept using whatever old
+    # template was still flagged default, with no indication anything
+    # was wrong, until an admin happened to notice. "Set Default" (see
+    # set_default below) still exists for deliberately reverting to an
+    # older upload later.
+    db.query(DocumentTemplate).filter(
+        DocumentTemplate.document_type == document_type,
+        DocumentTemplate.language == language,
+        DocumentTemplate.is_default.is_(True),
+    ).update({"is_default": False})
+
     template = DocumentTemplate(
         document_type=document_type,
         language=language,
@@ -143,11 +172,7 @@ def upload_template(db: Session, document_type: str, language: str, file, actor_
         original_filename=original_filename,
         file_size_bytes=size_bytes,
         uploaded_by=actor_id,
-        # The first template uploaded for a (type, language) pair becomes
-        # its default automatically -- otherwise "Download Document"
-        # would 404 with no default configured until an admin remembers
-        # to set one. Each language gets its own independent default.
-        is_default=get_default(db, document_type, language) is None,
+        is_default=True,
     )
     db.add(template)
     db.flush()
@@ -564,6 +589,73 @@ def render_contract_pdf(db: Session, contract: Contract, language: str | None = 
     return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
 
 
+def render_payment_plan_document(db: Session, project: Project, language: str | None = None) -> tuple[bytes, str]:
+    """Unlike Quotation/Contract, a project's payment plan isn't one
+    record -- it's up to two FinancialAgreements (one per billing
+    stream, see AGREEMENT_STREAMS), each with its own obligations
+    schedule. This merges whichever streams the project actually has an
+    agreement for into a single document: one summary row per stream in
+    `streams`, and every obligation across all of them (tagged with its
+    stream) in one flat `schedule` table -- a stream with no agreement
+    yet is simply absent from both, rather than rendered empty."""
+    from app.models.payment import AGREEMENT_STREAMS
+    from app.services import payment_service
+
+    language = _resolve_language(db, language)
+    template = get_default(db, "Payment Plan", language)
+    if template is None:
+        raise ValidationAppError(
+            f"No default {language} Payment Plan template is configured. Upload one in Administration > Documents."
+        )
+
+    client = db.query(Client).filter(Client.id == project.client_id).first()
+
+    streams: list[dict] = []
+    schedule: list[dict] = []
+    for stream in AGREEMENT_STREAMS:
+        agreement = payment_service.get_agreement_by_project(db, project.project_no, stream)
+        if agreement is None:
+            continue
+        streams.append({
+            "stream": stream,
+            "status": agreement.status,
+            "amount": f"{float(agreement.contract_amount):.2f}",
+            "currency": agreement.currency,
+            "payment_mode": agreement.payment_mode,
+            "agreement_date": agreement.agreement_date.strftime("%d %B %Y"),
+            "start_date": agreement.contract_start_date.strftime("%d %B %Y"),
+        })
+        for obligation in payment_service.get_obligations(db, agreement.id):
+            schedule.append({
+                "stream": stream,
+                "sequence_number": str(obligation.sequence_number),
+                "description": obligation.description,
+                "amount_due": f"{float(obligation.amount_due):.2f}",
+                "currency": agreement.currency,
+                "due_date": obligation.due_date.strftime("%d %B %Y"),
+            })
+
+    context = {
+        "project_name": project.project_name,
+        "project_no": project.project_no,
+        "project_address": project.site_address or "",
+        "client_name": client.company_name if client else "",
+        "issue_date": datetime.now(timezone.utc).strftime("%d %B %Y"),
+        "streams": streams,
+        "schedule": schedule,
+    }
+    filename = f"{project.project_no}-Payment-Plan.docx"
+    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
+
+
+def render_payment_plan_pdf(db: Session, project: Project, language: str | None = None) -> tuple[bytes, str]:
+    """PDF counterpart of render_payment_plan_document -- see
+    render_quotation_pdf's docstring."""
+    language = _resolve_language(db, language)
+    content, filename = render_payment_plan_document(db, project, language)
+    return _docx_to_pdf(content, language), filename.removesuffix(".docx") + ".pdf"
+
+
 # --- Visual field mapping -- lets an admin click a spot in an uploaded
 # template and place a merge field there instead of hand-typing {{ field
 # }}/{%tr %} syntax into Word. The catalog below is the single source of
@@ -637,6 +729,43 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
             "columns": [
                 {"key": "title", "label": "Title"},
                 {"key": "content", "label": "Content"},
+            ],
+        },
+    ],
+    "Payment Plan": [
+        {"key": "logo", "label": "Company Logo", "kind": "text"},
+        {"key": "project_name", "label": "Project Name", "kind": "text"},
+        {"key": "project_no", "label": "Project No.", "kind": "text"},
+        {"key": "project_address", "label": "Project/Site Address", "kind": "text"},
+        {"key": "client_name", "label": "Client Name", "kind": "text"},
+        {"key": "issue_date", "label": "Issue Date", "kind": "text"},
+        {
+            "key": "streams",
+            "label": "Plan Summary (one row per billing stream)",
+            "kind": "repeating_table",
+            "loopVar": "plan",
+            "columns": [
+                {"key": "stream", "label": "Stream"},
+                {"key": "status", "label": "Status"},
+                {"key": "amount", "label": "Total Amount"},
+                {"key": "currency", "label": "Currency"},
+                {"key": "payment_mode", "label": "Payment Mode"},
+                {"key": "agreement_date", "label": "Agreement Date"},
+                {"key": "start_date", "label": "Start Date"},
+            ],
+        },
+        {
+            "key": "schedule",
+            "label": "Payment Schedule (every installment, all streams)",
+            "kind": "repeating_table",
+            "loopVar": "row",
+            "columns": [
+                {"key": "stream", "label": "Stream"},
+                {"key": "sequence_number", "label": "No."},
+                {"key": "description", "label": "Installment"},
+                {"key": "amount_due", "label": "Amount"},
+                {"key": "currency", "label": "Currency"},
+                {"key": "due_date", "label": "Due Date"},
             ],
         },
     ],

@@ -16,7 +16,7 @@ from app.schemas.contract import (
     ContractUpdate,
 )
 from app.schemas.document_template import DocumentEmailRequest
-from app.services import contract_service, document_template_service, email_service
+from app.services import audit_service, contract_service, document_template_service, email_service
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
@@ -129,9 +129,16 @@ def add_revision(
 
 
 @router.get("/{contract_no}/document")
-def download_document(contract_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document(
+    contract_no: str,
+    language: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_view),
+):
     contract = contract_service.get_contract(db, contract_no)
     content, filename = document_template_service.render_contract_document(db, contract, language)
+    audit_service.log_event(db, contract_service.ENTITY_TYPE, contract.id, "Document downloaded", current_user.id, new_value=filename)
+    db.commit()
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -140,9 +147,18 @@ def download_document(contract_no: str, language: str | None = None, db: Session
 
 
 @router.get("/{contract_no}/document/pdf")
-def download_document_pdf(contract_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_document_pdf(
+    contract_no: str,
+    language: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_view),
+):
     contract = contract_service.get_contract(db, contract_no)
     content, filename = document_template_service.render_contract_pdf(db, contract, language)
+    # Logged as "Document printed", distinct from "Document downloaded"
+    # above, so the history reads as what staff actually did.
+    audit_service.log_event(db, contract_service.ENTITY_TYPE, contract.id, "Document printed", current_user.id, new_value=filename)
+    db.commit()
     return Response(
         content=content,
         media_type="application/pdf",
@@ -155,7 +171,7 @@ def email_document(
     contract_no: str,
     payload: DocumentEmailRequest,
     db: Session = Depends(get_db),
-    _=Depends(can_view),
+    current_user: User = Depends(can_view),
 ):
     contract = contract_service.get_contract(db, contract_no)
     project = db.query(Project).filter(Project.id == contract.project_id).first()
@@ -174,6 +190,8 @@ def email_document(
         attachment_mimetype="application/pdf",
         db=db,
     )
+    audit_service.log_event(db, contract_service.ENTITY_TYPE, contract.id, "Document emailed", current_user.id, new_value=to_email)
+    db.commit()
 
 
 @router.get("/{contract_no}/audit-events")

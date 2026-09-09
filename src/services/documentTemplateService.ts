@@ -159,6 +159,33 @@ async function emailContractDocument(contractNo: string, toEmail?: string, langu
   }
 }
 
+/** Downloads the merged Payment Plan document -- unlike Quotation/
+ * Contract, this isn't one record's own document: the backend merges
+ * every billing stream's agreement + schedule the project actually has
+ * into one document, so it's scoped by project rather than by
+ * agreement id. See downloadQuotationDocument. */
+async function downloadPaymentPlanDocument(projectNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/projects/${projectNo}/payment-plan/document${query}`, 'Failed to generate payment plan document')
+}
+
+/** PDF counterpart of downloadPaymentPlanDocument -- see
+ * getQuotationDocumentPdf. */
+async function getPaymentPlanDocumentPdf(projectNo: string, language?: AppLanguage): Promise<Blob> {
+  const query = language ? `?language=${language}` : ''
+  return _downloadBlob(`/api/projects/${projectNo}/payment-plan/document/pdf${query}`, 'Failed to generate payment plan PDF')
+}
+
+/** Emails the merged Payment Plan PDF -- see emailQuotationDocument. */
+async function emailPaymentPlanDocument(projectNo: string, toEmail?: string, language?: AppLanguage): Promise<void> {
+  try {
+    await apiClient.post(`/api/projects/${projectNo}/payment-plan/document/email`, { toEmail, language })
+  } catch (error) {
+    console.error(`Failed to email payment plan for project ${projectNo}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to email payment plan')
+  }
+}
+
 export const documentTemplateService = {
   getTemplates,
   uploadTemplate,
@@ -174,4 +201,7 @@ export const documentTemplateService = {
   getContractDocumentPdf,
   emailQuotationDocument,
   emailContractDocument,
+  downloadPaymentPlanDocument,
+  getPaymentPlanDocumentPdf,
+  emailPaymentPlanDocument,
 }

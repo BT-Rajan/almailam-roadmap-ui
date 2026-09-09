@@ -20,6 +20,7 @@ import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 // shipping with the page on first load.
 const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/project/ProjectQuotationTab.vue'))
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
+const ContractDocumentsTab = defineAsyncComponent(() => import('@/components/project/ContractDocumentsTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
@@ -125,10 +126,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
     case 'Requirement':
       return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Quotation':
-      return [
-        { key: 'overview', label: t('project.workspaceTabs.overview') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
-      ]
+      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Payment Plan':
       // No 'payment-plan' entry in this top-bar list -- same as
       // Contract/Design/Government Submission/Supervision below, the
@@ -142,7 +140,6 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'payment-status', label: t('project.workspaceTabs.paymentStatus') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Contract':
       // No Payments tab here -- Payment Plan is its own stage now (the
@@ -150,11 +147,14 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // project ever reaches Contract), reachable any time via the
       // Workflow Progress stepper's own Payment Plan step. Duplicating
       // that same view behind a top-tab in every later stage as well
-      // was the thing being removed.
+      // was the thing being removed. Its own 'contract-documents' key
+      // (not the generic 'documents' the other stages below share) --
+      // a curated, read-only summary of this project's paperwork
+      // (client ID, quotation, payment plan, contract), not the
+      // editable any-file documents manager.
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
-        { key: 'documents', label: t('project.workspaceTabs.documents') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
+        { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
       ]
     case 'Design':
       // Reuses the existing 'design' tab key (ProjectDocumentsTab's
@@ -204,7 +204,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
 // quotation/contract/design/etc, never part of TABS) is never affected
 // by this.
 watch(TABS, (tabs) => {
-  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'design', 'supervision', 'government', 'payment-status', 'tasks']
+  const topBarKeys: ProjectWorkspaceTabKey[] = ['overview', 'documents', 'contract-documents', 'design', 'supervision', 'government', 'payment-status', 'tasks']
   if (topBarKeys.includes(activeTab.value) && !tabs.some((tab) => tab.key === activeTab.value)) {
     activeTab.value = 'overview'
   }
@@ -412,9 +412,18 @@ async function handleConfirmDelete(): Promise<void> {
       </div>
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
-        <PaymentPlanPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
+        <PaymentPlanPanel :project-id="projectId" :project="project" :client="client" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
       </div>
       <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" />
+      <div
+        v-else-if="activeTab === 'contract-documents'"
+        id="project-tabpanel-contract-documents"
+        role="tabpanel"
+        aria-labelledby="project-tab-contract-documents"
+        tabindex="0"
+      >
+        <ContractDocumentsTab :project="project" />
+      </div>
       <div
         v-else-if="activeTab === 'documents' || activeTab === 'design'"
         :id="activeTab === 'documents' ? 'project-tabpanel-documents' : undefined"
@@ -432,7 +441,7 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectTasksTab :project="project" />
       </div>
       <div v-else-if="activeTab === 'payment-status'" id="project-tabpanel-payment-status" role="tabpanel" aria-labelledby="project-tab-payment-status" tabindex="0">
-        <PaymentStatusPanel :project-id="projectId" :project="project" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
+        <PaymentStatusPanel :project-id="projectId" :project="project" :client="client" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
       </div>
 
       <ProjectEditDialog
