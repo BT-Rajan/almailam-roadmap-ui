@@ -66,5 +66,26 @@ export const useDocumentTemplateStore = defineStore('documentTemplate', {
       const blob = await documentTemplateService.downloadTemplate(template.id)
       triggerBlobDownload(blob, template.originalFilename)
     },
+
+    async uploadBackground(templateId: string, file: File): Promise<void> {
+      const updated = await documentTemplateService.uploadBackground(templateId, file)
+      const index = this.templates.findIndex((template) => template.id === templateId)
+      if (index !== -1) this.templates[index] = updated
+    },
+
+    async removeBackground(templateId: string): Promise<void> {
+      const updated = await documentTemplateService.removeBackground(templateId)
+      const index = this.templates.findIndex((template) => template.id === templateId)
+      if (index !== -1) this.templates[index] = updated
+    },
+
+    async updateLayout(
+      templateId: string,
+      settings: { orientation: 'Portrait' | 'Landscape'; marginTopMm: number; marginRightMm: number; marginBottomMm: number; marginLeftMm: number },
+    ): Promise<void> {
+      const updated = await documentTemplateService.updateLayout(templateId, settings)
+      const index = this.templates.findIndex((template) => template.id === templateId)
+      if (index !== -1) this.templates[index] = updated
+    },
   },
 })

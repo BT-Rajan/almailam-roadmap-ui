@@ -23,6 +23,13 @@ class DocumentTemplateOut(BaseModel):
     isDefault: bool
     uploadedBy: str
     uploadedAt: datetime
+    backgroundFilename: str | None = None
+    pageSize: str
+    orientation: str
+    marginTopMm: int
+    marginRightMm: int
+    marginBottomMm: int
+    marginLeftMm: int
 
     @staticmethod
     def from_model(template, uploaded_by_name: str) -> "DocumentTemplateOut":
@@ -35,7 +42,26 @@ class DocumentTemplateOut(BaseModel):
             isDefault=template.is_default,
             uploadedBy=uploaded_by_name,
             uploadedAt=template.created_at,
+            backgroundFilename=template.background_original_filename,
+            pageSize=template.page_size,
+            orientation=template.orientation,
+            marginTopMm=template.margin_top_mm,
+            marginRightMm=template.margin_right_mm,
+            marginBottomMm=template.margin_bottom_mm,
+            marginLeftMm=template.margin_left_mm,
         )
+
+
+class TemplateLayoutIn(BaseModel):
+    """Body for PATCH .../layout -- orientation + the four page margins,
+    the settings _docx_to_pdf reads to build the @page rule (see
+    document_template_service.update_layout)."""
+
+    orientation: str
+    marginTopMm: int
+    marginRightMm: int
+    marginBottomMm: int
+    marginLeftMm: int
 
 
 class MergeFieldColumn(BaseModel):

@@ -55,6 +55,64 @@ async function getMergeFields(documentType: DocumentTemplateType): Promise<Merge
   return apiClient.get<MergeField[]>(`/api/document-templates/merge-fields?documentType=${documentType}`)
 }
 
+/**
+ * Uploads (or replaces) this template's letterhead background image --
+ * composited full-bleed behind every page at render time. Multipart,
+ * same convention as uploadTemplate above.
+ */
+async function uploadBackground(templateId: string, file: File): Promise<DocumentTemplate> {
+  const authStore = useAuthStore()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const doRequest = () =>
+    fetch(`/api/document-templates/${templateId}/background`, {
+      method: 'POST',
+      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
+      credentials: 'include',
+      body: formData,
+    })
+
+  try {
+    let response = await doRequest()
+    if (response.status === 401) {
+      const refreshed = await authStore.tryRefresh()
+      if (refreshed) response = await doRequest()
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Failed to upload template background:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to upload template background')
+  }
+}
+
+async function removeBackground(templateId: string): Promise<DocumentTemplate> {
+  try {
+    return await apiClient.delete<DocumentTemplate>(`/api/document-templates/${templateId}/background`)
+  } catch (error) {
+    console.error('Failed to remove template background:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to remove template background')
+  }
+}
+
+/** Orientation + the four page margins _docx_to_pdf uses to build the
+ * @page rule -- see backend document_template_service.update_layout. */
+async function updateLayout(
+  templateId: string,
+  settings: { orientation: 'Portrait' | 'Landscape'; marginTopMm: number; marginRightMm: number; marginBottomMm: number; marginLeftMm: number },
+): Promise<DocumentTemplate> {
+  try {
+    return await apiClient.patch<DocumentTemplate>(`/api/document-templates/${templateId}/layout`, settings)
+  } catch (error) {
+    console.error('Failed to update template layout:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update template layout')
+  }
+}
+
 /** The uploaded template's paragraphs/tables, as plain editable text. */
 async function getTemplateLayout(templateId: string): Promise<TemplateLayout> {
   return apiClient.get<TemplateLayout>(`/api/document-templates/${templateId}/layout`)
@@ -195,6 +253,9 @@ export const documentTemplateService = {
   setDefaultTemplate,
   deleteTemplate,
   downloadTemplate,
+  uploadBackground,
+  removeBackground,
+  updateLayout,
   downloadQuotationDocument,
   downloadContractDocument,
   getQuotationDocumentPdf,

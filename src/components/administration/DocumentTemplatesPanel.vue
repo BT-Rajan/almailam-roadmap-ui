@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, CheckCircle2, Download, MapPin, Trash2, Upload, UserRound } from '@lucide/vue'
+import { CalendarClock, CheckCircle2, Download, Image, MapPin, Trash2, Upload, UserRound } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -13,6 +13,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
 import TemplateFieldMapperDialog from '@/components/administration/TemplateFieldMapperDialog.vue'
+import TemplateLayoutDialog from '@/components/administration/TemplateLayoutDialog.vue'
 import { useDocumentTemplateStore } from '@/stores/documentTemplateStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { AppLanguage } from '@/types/CompanySettings'
@@ -70,6 +71,14 @@ const isDownloadingId = ref<string | undefined>(undefined)
 const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
 const isMapperOpen = ref(false)
 
+const layoutTargetId = ref<string | undefined>(undefined)
+const isLayoutOpen = ref(false)
+// Looked up live from the store (not a snapshot captured at open time)
+// so the dialog reflects its own uploadBackground/updateLayout writes
+// immediately, the same way store.byType/byTypeAndLanguage already
+// keep the list itself live.
+const layoutTarget = computed<DocumentTemplate | undefined>(() => store.templates.find((template) => template.id === layoutTargetId.value))
+
 const TYPE_LABEL_KEYS: Record<DocumentTemplateType, string> = {
   Quotation: 'administration.documentTemplates.quotation',
   Contract: 'administration.documentTemplates.contract',
@@ -86,6 +95,11 @@ function languageLabel(language: AppLanguage): string {
 function openFieldMapper(template: DocumentTemplate): void {
   mappingTarget.value = template
   isMapperOpen.value = true
+}
+
+function openLayoutDialog(template: DocumentTemplate): void {
+  layoutTargetId.value = template.id
+  isLayoutOpen.value = true
 }
 
 onMounted(() => {
@@ -232,6 +246,7 @@ async function confirmDelete(): Promise<void> {
                     {{ t('administration.documentTemplates.setDefault') }}
                   </BaseButton>
                   <IconButton :icon="MapPin" :label="t('administration.documentTemplates.mapFields')" size="sm" @click="openFieldMapper(template)" />
+                  <IconButton :icon="Image" :label="t('administration.documentTemplates.layout')" size="sm" @click="openLayoutDialog(template)" />
                   <IconButton
                     :icon="Download"
                     :label="t('administration.documentTemplates.downloadTemplate')"
@@ -295,5 +310,6 @@ async function confirmDelete(): Promise<void> {
     />
 
     <TemplateFieldMapperDialog v-model="isMapperOpen" :template="mappingTarget" @saved="store.loadTemplates()" />
+    <TemplateLayoutDialog v-model="isLayoutOpen" :template="layoutTarget" />
   </div>
 </template>

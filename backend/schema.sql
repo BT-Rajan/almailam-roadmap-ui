@@ -308,12 +308,22 @@ CREATE TABLE IF NOT EXISTS projects (
     -- are captured independently at project setup.
     supervision_start_date DATE NULL,
     supervision_end_date   DATE NULL,
+    -- migration 0087 -- the document_templates row this project's
+    -- Payment Plan document was rendered against, pinned the first
+    -- time it's generated (see
+    -- document_template_service.render_payment_plan_document). Unlike
+    -- Quotation/Contract there's no single "finalized" record to key
+    -- off, so first generation is what defines the permanent version
+    -- here.
+    payment_plan_template_id BIGINT UNSIGNED NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_scope_approved_by FOREIGN KEY (scope_approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_projects_payment_plan_template FOREIGN KEY (payment_plan_template_id)
+        REFERENCES document_templates(id) ON DELETE RESTRICT,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
@@ -490,11 +500,20 @@ CREATE TABLE IF NOT EXISTS quotations (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every quotation, not just those).
     finalized_at        DATETIME NULL,
+    -- migration 0087 -- the exact document_templates row this
+    -- quotation was rendered against, pinned the first time it's
+    -- rendered after finalized_at is set (see
+    -- document_template_service.render_quotation_document). NULL for
+    -- a still-editable Draft, which keeps following the type's current
+    -- default -- there's nothing "final" yet to pin.
+    document_template_id BIGINT UNSIGNED NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME NULL,
     CONSTRAINT fk_quotations_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_quotations_prepared_by FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_quotations_document_template FOREIGN KEY (document_template_id)
+        REFERENCES document_templates(id) ON DELETE RESTRICT,
     INDEX idx_quotations_project (project_id),
     INDEX idx_quotations_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -545,12 +564,17 @@ CREATE TABLE IF NOT EXISTS contracts (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every contract, not just those).
     finalized_at            DATETIME NULL,
+    -- migration 0087 -- see quotations.document_template_id above;
+    -- same "pinned on first render after finalize" rule.
+    document_template_id   BIGINT UNSIGNED NULL,
     created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at              DATETIME NULL,
     CONSTRAINT fk_contracts_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_contracts_prepared_by FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_contracts_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_contracts_document_template FOREIGN KEY (document_template_id)
+        REFERENCES document_templates(id) ON DELETE RESTRICT,
     INDEX idx_contracts_project (project_id),
     INDEX idx_contracts_status (status),
     INDEX idx_contracts_quotation (quotation_id)
@@ -593,6 +617,20 @@ CREATE TABLE IF NOT EXISTS document_templates (
     storage_key         VARCHAR(300) NOT NULL,
     original_filename   VARCHAR(255) NOT NULL,
     file_size_bytes     BIGINT UNSIGNED NOT NULL,
+    -- migration 0087 -- the letterhead image composited full-bleed
+    -- behind every page (see document_template_service._docx_to_pdf);
+    -- NULL means render on a plain white page, same as before this
+    -- existed.
+    background_storage_key         VARCHAR(300) NULL,
+    background_original_filename   VARCHAR(255) NULL,
+    -- migration 0087 -- page_size stays a column (not hard-coded) for
+    -- future paper sizes even though 'A4' is the only option today.
+    page_size           ENUM('A4') NOT NULL DEFAULT 'A4',
+    orientation          ENUM('Portrait','Landscape') NOT NULL DEFAULT 'Portrait',
+    margin_top_mm        SMALLINT UNSIGNED NOT NULL DEFAULT 25,
+    margin_right_mm      SMALLINT UNSIGNED NOT NULL DEFAULT 20,
+    margin_bottom_mm     SMALLINT UNSIGNED NOT NULL DEFAULT 25,
+    margin_left_mm       SMALLINT UNSIGNED NOT NULL DEFAULT 20,
     is_default          TINYINT(1) NOT NULL DEFAULT 0,
     uploaded_by         BIGINT UNSIGNED NOT NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
