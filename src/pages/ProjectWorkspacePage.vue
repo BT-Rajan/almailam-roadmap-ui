@@ -121,6 +121,31 @@ watch(
   { immediate: true },
 )
 
+// Design, Supervision, and Government Submission (Approvals & Permits)
+// each have a dedicated Documents/activities tab alongside Overview --
+// but *arriving* at one of those stages (the stepper's own step click,
+// or a stage's auto-advance like Contract's Decision navigating here
+// once signed) should land on that stage's Overview card first, same as
+// every other stage already does, not skip straight past it into the
+// activities list. The dedicated tab is still one click away on the top
+// bar. This is deliberately narrower than just "activeTab = $event":
+// ProjectOverviewTab's own "Go to Documents" button also targets these
+// same tab keys, and that explicit in-context click should still jump
+// straight there, not loop back to the Overview it was just clicked
+// from -- so only route stepper-style "I'm arriving at this stage"
+// events through this, never ProjectOverviewTab's own navigate-tab.
+const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission']
+
+function handleStageArrival(tab: ProjectWorkspaceTabKey): void {
+  const stage = STAGE_TAB_KEYS[tab]
+  if (stage && STAGE_OVERVIEW_DEFAULT_STAGES.includes(stage)) {
+    stageContext.value = stage
+    activeTab.value = 'overview'
+    return
+  }
+  activeTab.value = tab
+}
+
 const TABS = computed<ProjectWorkspaceTab[]>(() => {
   switch (stageContext.value) {
     case 'Requirement':
@@ -397,7 +422,7 @@ async function handleConfirmDelete(): Promise<void> {
           :current-stage="project.currentStage"
           :includes-design="project.includesDesign"
           :includes-supervision="project.includesSupervision"
-          @navigate-tab="activeTab = $event"
+          @navigate-tab="handleStageArrival"
         />
 
         <!-- Tabs now sit directly on the bottom edge of the same card as
@@ -419,9 +444,9 @@ async function handleConfirmDelete(): Promise<void> {
       </div>
       <ProjectQuotationTab v-else-if="activeTab === 'quotation'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
       <div v-else-if="activeTab === 'payment-plan'" id="project-tabpanel-payment-plan" role="tabpanel" aria-labelledby="project-tab-payment-plan" tabindex="0">
-        <PaymentPlanPanel :project-id="projectId" :project="project" :client="client" @navigate-tab="activeTab = $event" @add-service="openAddServiceDialog" />
+        <PaymentPlanPanel :project-id="projectId" :project="project" :client="client" @navigate-tab="handleStageArrival" @add-service="openAddServiceDialog" />
       </div>
-      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="activeTab = $event" />
+      <ProjectContractTab v-else-if="activeTab === 'contract'" :project="project" :client="client" @navigate-tab="handleStageArrival" />
       <div
         v-else-if="activeTab === 'contract-documents'"
         id="project-tabpanel-contract-documents"
