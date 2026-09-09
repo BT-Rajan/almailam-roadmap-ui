@@ -366,7 +366,7 @@ async function handleConfirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6">
+  <div class="flex flex-col gap-3 p-4">
     <ErrorState v-if="error" :description="error" @retry="loadData" />
 
     <template v-else-if="isLoading">
@@ -381,7 +381,7 @@ async function handleConfirmDelete(): Promise<void> {
     <EmptyState v-else-if="!project" :title="t('project.workspacePage.notFoundTitle')" :description="t('project.workspacePage.notFoundDescription')" />
 
     <template v-else>
-      <div class="rounded-xl border border-border-light bg-bg-card shadow-soft">
+      <div class="overflow-hidden rounded-xl border border-border-light bg-bg-card shadow-soft">
         <ProjectHeader
           :project="project"
           :client="client"
@@ -399,9 +399,14 @@ async function handleConfirmDelete(): Promise<void> {
           :includes-supervision="project.includesSupervision"
           @navigate-tab="activeTab = $event"
         />
-      </div>
 
-      <ProjectWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
+        <!-- Tabs now sit directly on the bottom edge of the same card as
+             the header/stepper (its own border-b becomes the card's
+             bottom edge) instead of being a separate row with a gap
+             above and below it -- one border crossing instead of two,
+             and one less gap to scroll past. -->
+        <ProjectWorkspaceTabs class="border-t border-border-light" :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
+      </div>
 
       <div
         v-if="activeTab === 'overview' || activeTab === 'requirement'"
