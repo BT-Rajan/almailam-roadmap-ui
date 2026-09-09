@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { getProjectPriorityVariant, getProjectStatusVariant } from '@/utils/projectHelpers'
 import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -29,17 +29,6 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const STAGE_LABEL_KEYS: Record<string, string> = {
-  Requirement: 'project.stage.requirement',
-  Quotation: 'project.stage.quotation',
-  'Payment Plan': 'project.stage.paymentPlan',
-  Contract: 'project.stage.contract',
-  Design: 'project.stage.design',
-  Supervision: 'project.stage.supervision',
-  'Government Submission': 'project.stage.governmentSubmission',
-}
-const stageLabel = computed(() => t(STAGE_LABEL_KEYS[props.project.currentStage] ?? getWorkflowStageLabel(props.project.currentStage)))
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
@@ -84,8 +73,12 @@ const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.proj
       </div>
 
       <div class="flex shrink-0 flex-wrap items-center gap-2">
-        <StatusBadge :label="stageLabel" variant="info" />
-        <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" />
+        <!-- The current stage used to be repeated here as its own badge,
+             on top of the same fact shown by the "current" circle in
+             WorkflowProgress.vue immediately below this header, and again
+             as that circle's own step label. Dropped as a pure duplicate --
+             stage is now shown in exactly one place. -->
+        <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" showDot />
         <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
         <!-- Change Stage / Change Status buttons hidden deliberately, not removed --
              this is currently the only UI path that calls projectStore.setStage /

@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Stepper from '@/components/common/Stepper.vue'
 import type { ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { WORKFLOW_STAGES, getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey } from '@/utils/projectHelpers'
 
@@ -28,7 +27,7 @@ function stageLabel(stage: WorkflowStage): string {
 }
 
 // Every one of these stages jumps to the tab that covers it -- this
-// stepper is now the only place Quotation/Contract/Design/Supervision/
+// stepper is the only place Quotation/Contract/Design/Supervision/
 // Government Submission are reachable from (their own tab buttons were
 // removed as exact duplicates of these same stage names). Requirement
 // (formerly Enquiry, displayed as "Scope") jumps to the 'requirement'
@@ -36,9 +35,6 @@ function stageLabel(stage: WorkflowStage): string {
 // -- its scope-of-work editing (edit / save & proceed) lives directly on
 // that tab's own Scope card. Government Submission is the terminal
 // stage -- there is no further stage past it.
-// Requirement/Quotation/Contract/Government Submission are common to
-// every project; Design and Supervision only show up as steps when this
-// project actually includes that kind of work.
 const visibleStages = computed<WorkflowStage[]>(() =>
   WORKFLOW_STAGES.filter((stage) => {
     if (stage === 'Design') return props.includesDesign
@@ -47,50 +43,80 @@ const visibleStages = computed<WorkflowStage[]>(() =>
   }),
 )
 
-const steps = computed(() => visibleStages.value.map((stage) => ({ label: stageLabel(stage) })))
-
 // Rank = position in the full, unfiltered WORKFLOW_STAGES sequence, not
 // in visibleStages -- Design/Supervision can drop in or out of
-// visibleStages as a project's selected activities change (see
-// compute_stage_flags), which would otherwise shift every later
-// step's render-array position and desync it from currentStepRank,
-// making already-completed steps render as if nothing were done (see
-// Stepper.vue's stepRanks prop).
-const stepRanks = computed(() => visibleStages.value.map((stage) => WORKFLOW_STAGES.indexOf(stage)))
+// visibleStages as a project's selected activities change, which would
+// otherwise shift every later step's render-array position and desync
+// it from currentStageRank, silently turning already-completed steps
+// grey.
+const currentStageRank = computed(() => WORKFLOW_STAGES.indexOf(props.currentStage))
+const currentVisibleIndex = computed(() => visibleStages.value.indexOf(props.currentStage))
 
-const currentStepRank = computed(() => WORKFLOW_STAGES.indexOf(props.currentStage))
+function stepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upcoming' {
+  const rank = WORKFLOW_STAGES.indexOf(stage)
+  if (rank < currentStageRank.value) return 'complete'
+  if (rank === currentStageRank.value) return 'current'
+  return 'upcoming'
+}
 
-// Every visible stage has a destination now (see STAGE_TABS above), so
-// every step is navigable regardless of its complete/current/upcoming
-// status.
-const isStepNavigable = (): boolean => true
+function handleSelect(stage: WorkflowStage): void {
+  emit('navigate-tab', getWorkflowStageTabKey(stage))
+}
 
-function handleSelect(index: number): void {
-  const stage = visibleStages.value[index]
-  if (stage) emit('navigate-tab', getWorkflowStageTabKey(stage))
+// Completed = green, current = info (blue), upcoming = neutral border --
+// same three-color convention as the wizard Stepper, just rendered as a
+// segment instead of a circle so all six-to-seven stages fit on one
+// slim row instead of a tall circle-and-label grid.
+function segmentClasses(stage: WorkflowStage): string[] {
+  const status = stepStatus(stage)
+  return [
+    'h-1.5 flex-1 rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+    status === 'complete' ? 'bg-success-500' : '',
+    status === 'current' ? 'bg-info-500' : '',
+    status === 'upcoming' ? 'bg-border-default' : '',
+  ]
+}
+
+function labelClasses(stage: WorkflowStage): string[] {
+  const status = stepStatus(stage)
+  return [
+    'flex-1 truncate text-center text-[10px] px-0.5 hover:text-accent-600 cursor-pointer',
+    status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted',
+  ]
 }
 </script>
 
 <template>
-  <!-- Slightly tighter than the New Project/New Client wizards' own Stepper
-       wrapper (p-4 vs their p-6, mb-3 vs mb-6): this stepper sits stacked on
-       top of the header, InfoPanel-free tab content, and the tab bar on
-       every single project page load, not shown once per wizard -- the
-       extra padding there earns its keep amortized over a whole flow; here
-       it was just eating into the vertical space available for the actual
-       tab content below it. -->
-  <div class="rounded-xl border border-border-light bg-bg-card p-4">
-    <h3 class="mb-3 text-sm font-semibold text-text-primary">{{ t('project.workflowProgress') }}</h3>
+  <div class="rounded-xl border border-border-light bg-bg-card p-3">
+    <div class="mb-2 flex items-center justify-between gap-3">
+      <p class="text-sm font-medium text-text-primary">
+        {{
+          t('project.workflowProgressStage', {
+            current: currentVisibleIndex + 1,
+            total: visibleStages.length,
+            label: stageLabel(currentStage),
+          })
+        }}
+      </p>
+    </div>
     <div class="overflow-x-auto pb-1">
-      <div class="min-w-[720px]">
-        <Stepper
-          :steps="steps"
-          :current-step="currentStepRank"
-          :step-ranks="stepRanks"
-          clickable
-          :is-step-navigable="isStepNavigable"
-          @select="handleSelect"
-        />
+      <div class="min-w-[420px]">
+        <div class="flex items-center gap-1" role="group" :aria-label="t('project.workflowProgress')">
+          <button
+            v-for="stage in visibleStages"
+            :key="stage"
+            type="button"
+            :class="segmentClasses(stage)"
+            :aria-label="t('common.goToStep', { step: visibleStages.indexOf(stage) + 1, label: stageLabel(stage) })"
+            :aria-current="stepStatus(stage) === 'current' ? 'step' : undefined"
+            @click="handleSelect(stage)"
+          />
+        </div>
+        <div class="mt-1 flex items-start gap-1">
+          <button v-for="stage in visibleStages" :key="stage" type="button" :class="labelClasses(stage)" @click="handleSelect(stage)">
+            {{ stageLabel(stage) }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
