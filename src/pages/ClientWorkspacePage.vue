@@ -242,12 +242,13 @@ async function handleToggleStatus(): Promise<void> {
 
 async function handleConfirmDeleteClient(): Promise<void> {
   if (!client.value) return
+  const { id, companyName } = client.value
   isDeleteClientSaving.value = true
   try {
-    await clientStore.deleteClient(client.value.id)
+    await clientStore.deleteClient(id)
     resultDialogStore.showSuccess(
       t('client.workspacePage.resultDialog.clientDeletedTitle'),
-      t('client.workspacePage.resultDialog.wasRemoved', { name: client.value.companyName }),
+      t('client.workspacePage.resultDialog.wasRemoved', { name: companyName }),
     )
     isDeleteClientDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.CLIENTS })

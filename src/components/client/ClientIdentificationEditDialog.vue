@@ -76,9 +76,11 @@ function handleConfirm(): void {
       : ''
   errors.expiryDate = !form.expiryDate
     ? 'Expiry date is required'
-    : form.issueDate && form.expiryDate <= form.issueDate
-      ? 'Expiry date must be after the issue date'
-      : ''
+    : form.expiryDate < maxDate
+      ? 'Expiry date cannot be in the past'
+      : form.issueDate && form.expiryDate <= form.issueDate
+        ? 'Expiry date must be after the issue date'
+        : ''
   errors.issuingCountry = form.issuingCountry.trim() ? '' : 'Issuing country is required'
   if (errors.documentNumber || errors.issueDate || errors.expiryDate || errors.issuingCountry) return
 
@@ -96,7 +98,7 @@ function handleConfirm(): void {
       <SelectBox v-model="form.documentType" :label="t('client.identificationEditDialog.documentType')" :options="identificationTypeOptions" />
       <TextInput v-model="form.documentNumber" :label="t('client.identificationEditDialog.documentNumber')" required :error="errors.documentNumber" />
       <DatePicker v-model="form.issueDate" :label="t('client.identificationEditDialog.issueDate')" required :max="maxDate" :error="errors.issueDate" />
-      <DatePicker v-model="form.expiryDate" :label="t('client.identificationEditDialog.expiryDate')" required :error="errors.expiryDate" />
+      <DatePicker v-model="form.expiryDate" :label="t('client.identificationEditDialog.expiryDate')" required :min="maxDate" :error="errors.expiryDate" />
       <TextInput v-model="form.issuingCountry" :label="t('client.identificationEditDialog.issuingCountry')" required :error="errors.issuingCountry" />
     </div>
 
