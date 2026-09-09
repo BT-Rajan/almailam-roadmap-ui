@@ -22,13 +22,17 @@ import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Contract } from '@/types/Contract'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 
 const props = defineProps<{
   project: Project
   client: Client | undefined
+}>()
+
+const emit = defineEmits<{
+  'navigate-tab': [tab: ProjectWorkspaceTabKey]
 }>()
 
 const contractStore = useContractStore()
@@ -280,6 +284,21 @@ async function handleSignFromMenu(): Promise<void> {
   isSigningDialogOpen.value = true
 }
 
+// Where signing lands next -- Design if the project's scope includes any
+// Design work or Permits (both live on the Design tab's checklist, see
+// ProjectOverviewTab.vue's Design-stage card), otherwise Supervision,
+// which is only ever reached this way when it's the sole selected
+// service. 'overview' is just a safety net for a contract signed on a
+// project with neither -- shouldn't happen given Payment Plan already
+// requires at least one billable stream, but leaves signing somewhere
+// sane rather than a tab key nothing renders.
+function nextTabAfterSigning(): ProjectWorkspaceTabKey {
+  const hasDesignOrPermits = props.project.includesDesign || (props.project.selectedPermits?.length ?? 0) > 0
+  if (hasDesignOrPermits) return 'design'
+  if (props.project.includesSupervision) return 'supervision'
+  return 'overview'
+}
+
 async function handleConfirmSigning(payload: { file: File }): Promise<void> {
   const contract = contractStore.selectedContract
   if (!contract) return
@@ -297,6 +316,9 @@ async function handleConfirmSigning(payload: { file: File }): Promise<void> {
       ? t('project.contractTab.signingDialog.signedDescriptionEmailFailed')
       : t('project.contractTab.signingDialog.signedDescription')
     resultDialogStore.showSuccess(t('project.contractTab.signingDialog.signedTitle'), description)
+    // Same "decision made -> move straight on" shape as Quotation's and
+    // Payment Plan's own Approve -- no separate "Advance" step in between.
+    emit('navigate-tab', nextTabAfterSigning())
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('project.contractTab.signingDialog.failedToConfirm'), detail)
