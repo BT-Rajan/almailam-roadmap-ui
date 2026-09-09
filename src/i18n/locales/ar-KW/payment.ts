@@ -72,6 +72,8 @@ export default {
       number: '#',
       installment: 'الدفعة',
       amount: 'المبلغ',
+      received: 'المستلم',
+      status: 'الحالة',
       dueDate: 'تاريخ الاستحقاق',
     },
     deletePlanTitle: 'حذف خطة الدفع',

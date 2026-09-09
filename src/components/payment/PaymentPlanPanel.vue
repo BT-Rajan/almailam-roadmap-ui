@@ -24,10 +24,10 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
-import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
+import { computeObligationStatus, getAgreementStreamLabel, getObligationStatusVariant } from '@/utils/paymentHelpers'
 import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
-import type { AgreementStream, CreateAgreementInput, FinancialAgreement } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, FinancialAgreement, ObligationStatus } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -204,18 +204,50 @@ function goToCurrentStage(): void {
   emit('navigate-tab', getWorkflowStageTabKey(props.project.currentStage))
 }
 
-const SCHEDULE_COLUMNS = computed<SmartTableColumn<{ id: string; sequenceNumber: number; description: string; amountDue: number; dueDate: string }>[]>(() => [
+const OBLIGATION_STATUS_LABEL_KEYS: Record<string, string> = {
+  Scheduled: 'payment.obligationStatus.scheduled',
+  Due: 'payment.obligationStatus.due',
+  'Partially Paid': 'payment.obligationStatus.partiallyPaid',
+  Paid: 'payment.obligationStatus.paid',
+  Overdue: 'payment.obligationStatus.overdue',
+  'Partially Overdue': 'payment.obligationStatus.partiallyOverdue',
+  Cancelled: 'payment.obligationStatus.cancelled',
+  Waived: 'payment.obligationStatus.waived',
+}
+function obligationStatusLabel(status: string): string {
+  return t(OBLIGATION_STATUS_LABEL_KEYS[status] ?? status)
+}
+
+const SCHEDULE_COLUMNS = computed<
+  SmartTableColumn<{ id: string; sequenceNumber: number; description: string; amountDue: number; amountReceived: number; status: string; dueDate: string }>[]
+>(() => [
   { key: 'sequenceNumber', label: t('payment.planPanel.columns.number'), width: '48px' },
   { key: 'description', label: t('payment.planPanel.columns.installment') },
   { key: 'amountDue', label: t('payment.planPanel.columns.amount'), align: 'right' },
+  { key: 'amountReceived', label: t('payment.planPanel.columns.received'), align: 'right' },
+  { key: 'status', label: t('payment.planPanel.columns.status') },
   { key: 'dueDate', label: t('payment.planPanel.columns.dueDate') },
 ])
 
+// amountReceived and a live status (Paid / Partially Paid / Overdue /
+// etc., same computeObligationStatus already used by PaymentStatusPanel
+// and the cross-project Payments page) were tracked on every obligation
+// but never actually shown on this schedule -- staff had to jump to the
+// separate Payment Status tab just to see what had come in against a
+// plan they were already looking at here.
 function scheduleRows(stream: AgreementStream) {
   return obligationsForStream(stream)
     .slice()
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-    .map((o) => ({ id: o.id, sequenceNumber: o.sequenceNumber, description: o.description, amountDue: o.amountDue, dueDate: formatDate(o.dueDate) }))
+    .map((o) => ({
+      id: o.id,
+      sequenceNumber: o.sequenceNumber,
+      description: o.description,
+      amountDue: o.amountDue,
+      amountReceived: o.amountReceived,
+      status: computeObligationStatus(o),
+      dueDate: formatDate(o.dueDate),
+    }))
 }
 
 function openCreateAgreement(stream: AgreementStream): void {
@@ -584,6 +616,12 @@ async function handleSendEmail(): Promise<void> {
               <SmartTable :columns="SCHEDULE_COLUMNS" :rows="scheduleRows(section.stream)" row-key="id" :searchable="false">
                 <template #cell-amountDue="{ value }">
                   {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
+                </template>
+                <template #cell-amountReceived="{ value }">
+                  {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
+                </template>
+                <template #cell-status="{ value }">
+                  <StatusBadge :label="obligationStatusLabel(value as string)" :variant="getObligationStatusVariant(value as ObligationStatus)" />
                 </template>
               </SmartTable>
             </div>

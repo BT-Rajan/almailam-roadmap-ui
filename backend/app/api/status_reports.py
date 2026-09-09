@@ -1,16 +1,18 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_permission
 from app.core.database import get_db
 from app.core.exceptions import PermissionDeniedError
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.status_report import StatusReportAttachRequest, StatusReportOut
-from app.services import company_service, status_report_service
+from app.services import company_service, project_service, status_report_service
 
 router = APIRouter(prefix="/api/status-reports", tags=["status-reports"])
+
+can_view_documents = require_permission("Documents", "view")
 
 
 def _require_recipient_or_admin(db: Session, current_user: User) -> None:
@@ -46,6 +48,22 @@ def _report_out(db: Session, report) -> StatusReportOut:
 def list_inbox(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     _require_recipient_or_admin(db, current_user)
     reports = status_report_service.list_inbox(db)
+    return [_report_out(db, r) for r in reports]
+
+
+@router.get("/project/{project_no}", response_model=list[StatusReportOut])
+def list_reports_for_project(
+    project_no: str,
+    db: Session = Depends(get_db),
+    _=Depends(can_view_documents),
+):
+    """Backs the Supervision stage's Documents tab calendar -- same
+    Documents view/edit/delete permission as project link documents
+    (project_link_documents.py), since this is just another read-only
+    view into a project's own documentation, not the recipient-only
+    inbox above."""
+    project = project_service.get_project(db, project_no)
+    reports = status_report_service.list_reports_for_project(db, project.id)
     return [_report_out(db, r) for r in reports]
 
 

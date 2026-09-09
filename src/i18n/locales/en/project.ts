@@ -150,6 +150,28 @@ export default {
     removeDocumentConfirmMessage: 'Remove {name}? This cannot be undone from the app.',
   },
 
+  supervisionReportsTab: {
+    title: 'Daily Status Reports',
+    subtitle: 'Field reports filed by the site engineer for this project.',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    weekdaySun: 'Sun',
+    weekdayMon: 'Mon',
+    weekdayTue: 'Tue',
+    weekdayWed: 'Wed',
+    weekdayThu: 'Thu',
+    weekdayFri: 'Fri',
+    weekdaySat: 'Sat',
+    noReportsTitle: 'No reports this month',
+    noReportsDescription: 'Status reports filed by the site engineer for this project will appear here.',
+    reportNo: 'Report No.',
+    receiptHandover: 'Receipt/Handover',
+    supervision: 'Supervision',
+    notes: 'Notes',
+    statusPendingReview: 'Pending Review',
+    statusReviewed: 'Reviewed',
+  },
+
   overviewTab: {
     scopeTitle: 'Scope of Work',
     servicesLabel: 'Services',

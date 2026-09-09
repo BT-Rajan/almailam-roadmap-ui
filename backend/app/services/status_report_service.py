@@ -252,6 +252,21 @@ def file_todays_report(
     return report
 
 
+def list_reports_for_project(db: Session, project_id: int) -> list[StatusReport]:
+    """Every report filed against this project, Pending or Attached,
+    across whichever engineer(s) filed them -- backs the read-only
+    calendar shown on the project's own Supervision > Documents tab
+    (distinct from list_reports_for_engineer above, which is scoped the
+    other way, to one engineer's own portal calendar across all their
+    projects)."""
+    return (
+        db.query(StatusReport)
+        .filter(StatusReport.project_id == project_id)
+        .order_by(StatusReport.report_date.desc())
+        .all()
+    )
+
+
 def list_inbox(db: Session) -> list[StatusReport]:
     """Every report not yet reviewed, oldest first -- the recipient's
     queue, not scoped to any one project since a single recipient

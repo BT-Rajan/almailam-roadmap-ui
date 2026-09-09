@@ -14,4 +14,12 @@ async function attachReport(reportId: string, input: StatusReportAttachInput): P
   return apiClient.post<StatusReport>(`/api/status-reports/${reportId}/attach`, input)
 }
 
-export const statusReportService = { getInbox, attachReport }
+// Every report (Pending or Attached) filed against one project -- backs
+// the read-only calendar on that project's own Supervision > Documents
+// tab, distinct from getInbox above (the recipient's cross-project
+// review queue).
+async function getForProject(projectNo: string): Promise<StatusReport[]> {
+  return apiClient.get<StatusReport[]>(`/api/status-reports/project/${projectNo}`)
+}
+
+export const statusReportService = { getInbox, attachReport, getForProject }

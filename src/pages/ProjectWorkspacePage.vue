@@ -22,6 +22,7 @@ const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/proj
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ContractDocumentsTab = defineAsyncComponent(() => import('@/components/project/ContractDocumentsTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
+const SupervisionStatusReportsTab = defineAsyncComponent(() => import('@/components/project/SupervisionStatusReportsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
 const PaymentStatusPanel = defineAsyncComponent(() => import('@/components/payment/PaymentStatusPanel.vue'))
@@ -198,10 +199,13 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Supervision':
-      // Plain placeholder for now -- reuses the generic 'documents' mode
-      // (no supervision-specific document type/filtering yet), same as
-      // the Contract/Government Submission stages' own Documents tab.
-      // No Payments tab here either -- see the Contract case above.
+      // 'supervision' tab key now renders SupervisionStatusReportsTab.vue --
+      // the daily field status reports filed by the site engineer for
+      // this project (via the Site Engineer Portal), shown as a
+      // read-only calendar, rather than the generic link-documents
+      // manager the Contract/Government Submission stages' Documents
+      // tab still uses. No Payments tab here either -- see the Contract
+      // case above.
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'supervision', label: t('project.workspaceTabs.documents') },
@@ -489,7 +493,7 @@ async function handleConfirmDelete(): Promise<void> {
         <ProjectDocumentsTab :project="project" :mode="activeTab" />
       </div>
       <div v-else-if="activeTab === 'supervision'" id="project-tabpanel-supervision" role="tabpanel" aria-labelledby="project-tab-supervision" tabindex="0">
-        <ProjectDocumentsTab :project="project" mode="documents" />
+        <SupervisionStatusReportsTab :project="project" />
       </div>
       <ProjectGovernmentTab v-else-if="activeTab === 'government'" :project-id="projectId" />
       <div v-else-if="activeTab === 'tasks'" id="project-tabpanel-tasks" role="tabpanel" aria-labelledby="project-tab-tasks" tabindex="0">

@@ -72,6 +72,8 @@ export default {
       number: '#',
       installment: 'Installment',
       amount: 'Amount',
+      received: 'Received',
+      status: 'Status',
       dueDate: 'Due Date',
     },
     deletePlanTitle: 'Delete payment plan',

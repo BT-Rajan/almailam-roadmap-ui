@@ -8,6 +8,13 @@ interface StatusReportInboxState {
   reports: StatusReport[]
   isLoading: boolean
   error: string | undefined
+  // Separate from `reports` (the recipient's cross-project inbox queue)
+  // -- this holds one project's full report history (Pending + Attached),
+  // keyed by project number, for the read-only calendar on that
+  // project's own Supervision > Documents tab.
+  projectReports: Record<string, StatusReport[]>
+  isProjectLoading: boolean
+  projectError: string | undefined
 }
 
 export const useStatusReportStore = defineStore('statusReportInbox', {
@@ -15,6 +22,9 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
     reports: [],
     isLoading: false,
     error: undefined,
+    projectReports: {},
+    isProjectLoading: false,
+    projectError: undefined,
   }),
 
   actions: {
@@ -27,6 +37,18 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
         this.error = 'Unable to load the status report inbox. Please try again.'
       } finally {
         this.isLoading = false
+      }
+    },
+
+    async loadForProject(projectNo: string) {
+      this.isProjectLoading = true
+      this.projectError = undefined
+      try {
+        this.projectReports = { ...this.projectReports, [projectNo]: await statusReportService.getForProject(projectNo) }
+      } catch {
+        this.projectError = 'Unable to load status reports for this project. Please try again.'
+      } finally {
+        this.isProjectLoading = false
       }
     },
 

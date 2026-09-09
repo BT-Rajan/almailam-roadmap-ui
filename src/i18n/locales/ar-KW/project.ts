@@ -150,6 +150,28 @@ export default {
     removeDocumentConfirmMessage: 'إزالة {name}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
   },
 
+  supervisionReportsTab: {
+    title: 'تقارير الحالة اليومية',
+    subtitle: 'التقارير الميدانية التي يقدمها مهندس الموقع لهذا المشروع.',
+    previousMonth: 'الشهر السابق',
+    nextMonth: 'الشهر التالي',
+    weekdaySun: 'أحد',
+    weekdayMon: 'إثنين',
+    weekdayTue: 'ثلاثاء',
+    weekdayWed: 'أربعاء',
+    weekdayThu: 'خميس',
+    weekdayFri: 'جمعة',
+    weekdaySat: 'سبت',
+    noReportsTitle: 'لا توجد تقارير هذا الشهر',
+    noReportsDescription: 'ستظهر هنا تقارير الحالة التي يقدمها مهندس الموقع لهذا المشروع.',
+    reportNo: 'رقم التقرير',
+    receiptHandover: 'الاستلام/التسليم',
+    supervision: 'الإشراف',
+    notes: 'ملاحظات',
+    statusPendingReview: 'بانتظار المراجعة',
+    statusReviewed: 'تمت المراجعة',
+  },
+
   overviewTab: {
     scopeTitle: 'نطاق العمل',
     servicesLabel: 'الخدمات',
