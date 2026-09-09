@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { Ban, CheckCircle2, ChevronDown, Clock, Download, LockOpen, Mail, Plus, Printer, ShieldCheck, Undo2 } from '@lucide/vue'
+import { ChevronDown, Download, LockOpen, Mail, Plus, Printer, ShieldCheck, Undo2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import ContractList from '@/components/project/ContractList.vue'
 import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
@@ -65,17 +62,32 @@ const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const isFinalizing = ref(false)
 
+// Keeps the "download / email / signed time" activity in the Revision
+// History panel current -- reloaded whenever a different contract is
+// selected, and again after any action below that adds a new audit
+// event (print, download, email, sign). Mirrors
+// ProjectQuotationTab.vue's own copy of this exactly.
+watch(
+  () => contractStore.selectedContractId,
+  (contractId) => {
+    if (contractId) contractStore.loadAuditEvents(contractId)
+  },
+  { immediate: true },
+)
+
 // Same toolbar shape as ProjectQuotationTab.vue: one "Decision" dropdown
-// whose contents depend on the contract's current status, rather than a
-// separate top-level button per action. Shown whenever the current
-// status has an actionable next step -- Draft (sign), Signed (activate),
-// or Active (expire/terminate). Expired -> Draft is its own dedicated
-// "Move to Draft" button below, same treatment as Quotation's Rejected/
-// Expired -> Draft revert.
-const hasDecisionOptions = computed(() => {
-  const status = contractStore.selectedContract?.status
-  return status === 'Draft' || status === 'Signed' || status === 'Active'
-})
+// with a single item ("Sign", where Quotation has "Approve"), shown
+// only while the contract is still Draft -- exactly Quotation's own
+// v-if condition, not a status-dependent set of items. Once signed,
+// this dropdown is gone for good, same as Quotation's Decision dropdown
+// never comes back once a quotation is Approved.
+const hasDecisionOptions = computed(() => contractStore.selectedContract?.status === 'Draft')
+
+// Once any contract for this project has ever been signed, its terms
+// are locked in -- "New Contract" is disabled the same way Quotation's
+// "New Quotation" is disabled once one's Approved (see
+// ProjectQuotationTab.vue's hasApprovedQuotation).
+const hasSignedContract = computed(() => contractStore.contracts.some((contract) => contract.status !== 'Draft'))
 
 // A contract must come from a specific quotation that's Approved and
 // Final (see contract_service.create_contract) -- this is that
@@ -153,6 +165,7 @@ async function handlePrint(): Promise<void> {
   try {
     const blob = await documentTemplateService.getContractDocumentPdf(contract.id, documentLanguage.value)
     openBlobInWindow(blob, printWindow)
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     printWindow?.close()
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
@@ -171,6 +184,7 @@ async function handleDownloadDocument(): Promise<void> {
   try {
     const blob = await documentTemplateService.downloadContractDocument(contract.id, documentLanguage.value)
     triggerBlobDownload(blob, `${contract.id}.docx`)
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToGenerateDocument'), detail)
@@ -272,11 +286,11 @@ async function handleConfirmSigning(payload: { file: File }): Promise<void> {
   isSigningSaving.value = true
   try {
     const signed = await contractStore.confirmContractSigning(contract.id, payload.file)
+    await contractStore.loadAuditEvents(contract.id)
     // confirmContractSigning can move current_stage server-side (see
     // contract_service.set_status -> try_auto_advance_stage) -- same
     // "sync the shared store's cached copy" reasoning as
-    // handleConfirmActivate/handleConfirmExpire/handleConfirmTerminate
-    // below.
+    // handleCreateContract above.
     await projectStore.refreshProject(props.project.id)
     isSigningDialogOpen.value = false
     const description = signed.confirmationEmailSent === false
@@ -304,6 +318,7 @@ async function handleSendEmail(): Promise<void> {
     await documentTemplateService.emailContractDocument(contract.id, emailTo.value.trim(), documentLanguage.value)
     resultDialogStore.showSuccess(t('project.contractTab.contractEmailedTitle'), t('common.sentTo', { email: emailTo.value.trim() }))
     isEmailDialogOpen.value = false
+    contractStore.loadAuditEvents(contract.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     resultDialogStore.showError(t('common.failedToSendEmail'), detail)
@@ -341,93 +356,6 @@ async function handleReopenForEditing(): Promise<void> {
   }
 }
 
-function handleActivateFromMenu(): void {
-  closeDecisionMenu()
-  isActivateDialogOpen.value = true
-}
-
-function handleExpireFromMenu(): void {
-  closeDecisionMenu()
-  isExpireDialogOpen.value = true
-}
-
-function handleTerminateFromMenu(): void {
-  closeDecisionMenu()
-  openTerminateDialog()
-}
-
-const isActivateDialogOpen = ref(false)
-const isActivating = ref(false)
-
-async function handleConfirmActivate(): Promise<void> {
-  const contract = contractStore.selectedContract
-  if (!contract) return
-  isActivating.value = true
-  try {
-    await contractStore.setContractStatus(contract.id, 'Active')
-    isActivateDialogOpen.value = false
-    resultDialogStore.showSuccess(
-      t('project.contractTab.activateDialog.activatedTitle'),
-      t('project.contractTab.activateDialog.activatedDescription', { no: contract.contractNo }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.contractTab.activateDialog.failedToActivate'), detail)
-  } finally {
-    isActivating.value = false
-  }
-}
-
-const isExpireDialogOpen = ref(false)
-const isExpiring = ref(false)
-
-async function handleConfirmExpire(): Promise<void> {
-  const contract = contractStore.selectedContract
-  if (!contract) return
-  isExpiring.value = true
-  try {
-    await contractStore.setContractStatus(contract.id, 'Expired')
-    isExpireDialogOpen.value = false
-    resultDialogStore.showSuccess(
-      t('project.contractTab.expireDialog.expiredTitle'),
-      t('project.contractTab.expireDialog.expiredDescription', { no: contract.contractNo }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.contractTab.expireDialog.failedToExpire'), detail)
-  } finally {
-    isExpiring.value = false
-  }
-}
-
-const isTerminateDialogOpen = ref(false)
-const isTerminating = ref(false)
-const terminateReason = ref('')
-
-function openTerminateDialog(): void {
-  terminateReason.value = ''
-  isTerminateDialogOpen.value = true
-}
-
-async function handleConfirmTerminate(): Promise<void> {
-  const contract = contractStore.selectedContract
-  if (!contract || !terminateReason.value.trim()) return
-  isTerminating.value = true
-  try {
-    await contractStore.setContractStatus(contract.id, 'Terminated', terminateReason.value.trim())
-    isTerminateDialogOpen.value = false
-    resultDialogStore.showSuccess(
-      t('project.contractTab.terminateDialog.terminatedTitle'),
-      t('project.contractTab.terminateDialog.terminatedDescription', { no: contract.contractNo }),
-    )
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.contractTab.terminateDialog.failedToTerminate'), detail)
-  } finally {
-    isTerminating.value = false
-  }
-}
-
 // Expired -> Draft -- reopens the content for editing automatically
 // (see contract_service.set_status), so this is the one transition
 // that needs neither a reason nor a finalize step first. Mirrors
@@ -451,7 +379,7 @@ async function handleRevertToDraft(): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between">
-    <BaseButton size="sm" :icon="Plus" class="no-print" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
+    <BaseButton size="sm" :icon="Plus" :disabled="hasSignedContract" class="no-print" @click="openCreateDialog">{{ t('project.contractTab.newContract') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
         <BaseButton size="sm" :icon="ShieldCheck" :loading="isSigningSaving || isFinalizing" @click="toggleDecisionMenu">
@@ -464,7 +392,6 @@ async function handleRevertToDraft(): Promise<void> {
           class="absolute start-0 z-dropdown mt-1 w-52 rounded-lg border border-border-light bg-bg-card py-1.5 shadow-elevated"
         >
           <button
-            v-if="contractStore.selectedContract?.status === 'Draft'"
             type="button"
             role="menuitem"
             class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
@@ -473,36 +400,6 @@ async function handleRevertToDraft(): Promise<void> {
             <ShieldCheck class="h-4 w-4 text-success-600" />
             <span>{{ t('project.contractTab.signContract') }}</span>
           </button>
-          <button
-            v-if="contractStore.selectedContract?.status === 'Signed'"
-            type="button"
-            role="menuitem"
-            class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-            @click="handleActivateFromMenu"
-          >
-            <CheckCircle2 class="h-4 w-4 text-success-600" />
-            <span>{{ t('project.contractTab.activateContract') }}</span>
-          </button>
-          <template v-if="contractStore.selectedContract?.status === 'Active'">
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-              @click="handleExpireFromMenu"
-            >
-              <Clock class="h-4 w-4 text-warning-600" />
-              <span>{{ t('project.contractTab.markExpired') }}</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2.5 px-3.5 py-2 text-start text-sm text-text-primary transition-colors duration-fast hover:bg-bg-hover"
-              @click="handleTerminateFromMenu"
-            >
-              <Ban class="h-4 w-4 text-danger-600" />
-              <span>{{ t('project.contractTab.terminateContract') }}</span>
-            </button>
-          </template>
         </div>
       </div>
       <BaseButton
@@ -584,46 +481,6 @@ async function handleRevertToDraft(): Promise<void> {
     @confirm="handleConfirmSigning"
   />
 
-  <ConfirmationDialog
-    v-if="contractStore.selectedContract"
-    v-model="isActivateDialogOpen"
-    :title="t('project.contractTab.activateDialog.title')"
-    :message="t('project.contractTab.activateDialog.message', { no: contractStore.selectedContract.contractNo })"
-    :confirm-label="t('project.contractTab.activateDialog.confirmLabel')"
-    :loading="isActivating"
-    @confirm="handleConfirmActivate"
-  />
-
-  <ConfirmationDialog
-    v-if="contractStore.selectedContract"
-    v-model="isExpireDialogOpen"
-    :title="t('project.contractTab.expireDialog.title')"
-    :message="t('project.contractTab.expireDialog.message', { no: contractStore.selectedContract.contractNo })"
-    :confirm-label="t('project.contractTab.expireDialog.confirmLabel')"
-    confirm-variant="danger"
-    :loading="isExpiring"
-    @confirm="handleConfirmExpire"
-  />
-
-  <BaseDialog v-if="contractStore.selectedContract" v-model="isTerminateDialogOpen" :title="t('project.contractTab.terminateDialog.title')" size="sm">
-    <div class="flex flex-col gap-4">
-      <p class="text-sm text-text-secondary">{{ t('project.contractTab.terminateDialog.message', { no: contractStore.selectedContract.contractNo }) }}</p>
-      <TextArea
-        v-model="terminateReason"
-        :label="t('project.contractTab.terminateDialog.reasonLabel')"
-        :placeholder="t('project.contractTab.terminateDialog.reasonPlaceholder')"
-        required
-        :rows="3"
-      />
-    </div>
-    <template #footer>
-      <BaseButton variant="secondary" :disabled="isTerminating" @click="isTerminateDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
-      <BaseButton variant="danger" :loading="isTerminating" :disabled="!terminateReason.trim()" @click="handleConfirmTerminate">
-        {{ t('project.contractTab.terminateDialog.confirmLabel') }}
-      </BaseButton>
-    </template>
-  </BaseDialog>
-
   <EmptyState
     v-if="!contractStore.selectedContract"
     :title="t('project.contractTab.noContractSelectedTitle')"
@@ -643,12 +500,10 @@ async function handleRevertToDraft(): Promise<void> {
     </div>
 
     <div class="flex flex-col gap-6 no-print">
-      <ContractList
-        :contracts="contractStore.contracts"
-        :selected-contract-id="contractStore.selectedContractId"
-        @select="contractStore.selectContract($event)"
+      <ContractRevisionHistory
+        :revisions="contractStore.selectedContract.revisions"
+        :audit-events="contractStore.auditEventsByContract[contractStore.selectedContract.id] ?? []"
       />
-      <ContractRevisionHistory :revisions="contractStore.selectedContract.revisions" />
     </div>
   </div>
 

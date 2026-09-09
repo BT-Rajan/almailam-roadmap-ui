@@ -155,7 +155,6 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Design':
       // Reuses the existing 'design' tab key (ProjectDocumentsTab's

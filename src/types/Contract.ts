@@ -14,6 +14,16 @@ export interface ContractRevision {
   summary: string
 }
 
+export interface ContractAuditEvent {
+  id: string
+  action: string
+  user: string
+  timestamp: string
+  previousValue?: string
+  newValue?: string
+  reason?: string
+}
+
 export interface Contract {
   id: string
   projectId: string

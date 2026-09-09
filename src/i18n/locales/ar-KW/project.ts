@@ -296,6 +296,7 @@ export default {
     documentPrinted: 'تم طباعة المستند',
     documentEmailed: 'تم إرسال المستند بالبريد الإلكتروني',
     quotationApproved: 'تمت الموافقة على عرض السعر',
+    contractSigned: 'تم توقيع العقد',
   },
 
   pricingSummary: {
@@ -305,13 +306,6 @@ export default {
     totalAmount: 'المبلغ الإجمالي',
   },
 
-
-  contractList: {
-    title: 'العقود',
-    emptyTitle: 'لا توجد عقود بعد',
-    emptyDescription: 'ستظهر هنا العقود الصادرة لهذا المشروع.',
-    revisionIssued: 'المراجعة {revision} · صدر في {date}',
-  },
 
   contractDocumentsTab: {
     projectPaperworkTitle: 'مستندات المشروع',
@@ -368,9 +362,6 @@ export default {
   contractTab: {
     newContract: 'عقد جديد',
     decision: 'القرار',
-    activateContract: 'تفعيل العقد',
-    markExpired: 'تعليم كمنتهي الصلاحية',
-    terminateContract: 'إنهاء العقد',
     moveToDraft: 'إعادة إلى مسودة',
     reopenForEditing: 'إعادة الفتح للتعديل',
     printOrDownload: 'طباعة / تنزيل',
@@ -399,32 +390,6 @@ export default {
       signedTitle: 'تم توقيع العقد',
       signedDescription: 'تم تسجيل توقيع العميل. تم إرسال نسخة من العقد الموقّع إليه عبر البريد الإلكتروني.',
       signedDescriptionEmailFailed: 'تم تسجيل توقيع العميل، لكن تعذّر إرسال بريد التأكيد. استخدم "إرسال المستند بالبريد" أدناه لإرسال نسخة إليه بعد إصلاح المشكلة.',
-    },
-    activateDialog: {
-      title: 'تفعيل العقد',
-      message: 'سيؤدي هذا إلى تعليم {no} كنشط.',
-      confirmLabel: 'تفعيل العقد',
-      activatedTitle: 'تم تفعيل العقد',
-      activatedDescription: 'تم تعليم {no} كنشط.',
-      failedToActivate: 'فشل تفعيل العقد',
-    },
-    expireDialog: {
-      title: 'إنهاء صلاحية العقد',
-      message: 'سيؤدي هذا إلى تعليم {no} كمنتهي الصلاحية.',
-      confirmLabel: 'إنهاء صلاحية العقد',
-      expiredTitle: 'انتهت صلاحية العقد',
-      expiredDescription: 'تم تعليم {no} كمنتهي الصلاحية.',
-      failedToExpire: 'فشل إنهاء صلاحية العقد',
-    },
-    terminateDialog: {
-      title: 'إنهاء العقد',
-      message: 'سيؤدي هذا إلى تعليم {no} كمُنهى. لا يمكن التراجع عن هذا.',
-      reasonLabel: 'سبب الإنهاء',
-      reasonPlaceholder: 'لماذا يتم إنهاء هذا العقد؟',
-      confirmLabel: 'إنهاء العقد',
-      terminatedTitle: 'تم إنهاء العقد',
-      terminatedDescription: 'تم تعليم {no} كمُنهى.',
-      failedToTerminate: 'فشل إنهاء العقد',
     },
   },
 

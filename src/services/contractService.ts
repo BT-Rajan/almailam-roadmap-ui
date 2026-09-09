@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { Contract } from '@/types/Contract'
+import type { Contract, ContractAuditEvent } from '@/types/Contract'
 
 /**
  * Fetch contracts for a specific project from backend API
@@ -148,6 +148,20 @@ async function confirmContractSigning(contractId: string, file: File): Promise<C
   }
 }
 
+/**
+ * Fetch the audit trail for a contract -- includes document activity
+ * (downloads, prints, emails) and status changes (e.g. the moment it
+ * was signed), used to surface those alongside content revisions.
+ */
+async function getAuditEvents(contractId: string): Promise<ContractAuditEvent[]> {
+  try {
+    return await apiClient.get<ContractAuditEvent[]>(`/api/contracts/${contractId}/audit-events`)
+  } catch (error) {
+    console.error(`Failed to fetch audit events for contract ${contractId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
+  }
+}
+
 export const contractService = {
   getContractsByProject,
   getContractById,
@@ -159,4 +173,5 @@ export const contractService = {
   finalizeContract,
   reopenContract,
   confirmContractSigning,
+  getAuditEvents,
 }

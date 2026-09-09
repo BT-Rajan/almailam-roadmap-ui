@@ -296,6 +296,7 @@ export default {
     documentPrinted: 'Document printed',
     documentEmailed: 'Document emailed',
     quotationApproved: 'Quotation approved',
+    contractSigned: 'Contract signed',
   },
 
   pricingSummary: {
@@ -303,13 +304,6 @@ export default {
     subtotal: 'Subtotal',
     discount: 'Discount',
     totalAmount: 'Total Amount',
-  },
-
-  contractList: {
-    title: 'Contracts',
-    emptyTitle: 'No contracts yet',
-    emptyDescription: 'Contracts issued for this project will appear here.',
-    revisionIssued: 'Revision {revision} · Issued {date}',
   },
 
   contractDocumentsTab: {
@@ -367,9 +361,6 @@ export default {
   contractTab: {
     newContract: 'New Contract',
     decision: 'Decision',
-    activateContract: 'Activate Contract',
-    markExpired: 'Mark Expired',
-    terminateContract: 'Terminate Contract',
     moveToDraft: 'Move to Draft',
     reopenForEditing: 'Reopen for Editing',
     printOrDownload: 'Print / Download',
@@ -398,32 +389,6 @@ export default {
       signedTitle: 'Contract signed',
       signedDescription: "The client's signature was recorded. A copy of the signed contract was emailed to them.",
       signedDescriptionEmailFailed: "The client's signature was recorded, but the confirmation email could not be sent. Use \"Email Document\" below to send them a copy once the issue is fixed.",
-    },
-    activateDialog: {
-      title: 'Activate Contract',
-      message: 'This marks {no} as Active.',
-      confirmLabel: 'Activate Contract',
-      activatedTitle: 'Contract activated',
-      activatedDescription: '{no} was marked as Active.',
-      failedToActivate: 'Failed to activate contract',
-    },
-    expireDialog: {
-      title: 'Expire Contract',
-      message: 'This marks {no} as Expired.',
-      confirmLabel: 'Expire Contract',
-      expiredTitle: 'Contract expired',
-      expiredDescription: '{no} was marked as Expired.',
-      failedToExpire: 'Failed to expire contract',
-    },
-    terminateDialog: {
-      title: 'Terminate Contract',
-      message: 'This marks {no} as Terminated. This cannot be undone.',
-      reasonLabel: 'Reason for Termination',
-      reasonPlaceholder: 'Why is this contract being terminated?',
-      confirmLabel: 'Terminate Contract',
-      terminatedTitle: 'Contract terminated',
-      terminatedDescription: '{no} was marked as Terminated.',
-      failedToTerminate: 'Failed to terminate contract',
     },
   },
 
