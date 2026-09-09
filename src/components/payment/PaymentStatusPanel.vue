@@ -184,7 +184,7 @@ async function handleRecordPayment(stream: AgreementStream): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
+  <div class="flex flex-col gap-3">
     <EmptyState
       v-if="visibleStreams.length === 0"
       :icon="Wallet"

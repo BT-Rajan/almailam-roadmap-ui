@@ -48,7 +48,7 @@ watch(() => props.projectId, loadData)
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-3">
     <ErrorState
       v-if="governmentSubmissionStore.error || projectFormStore.error"
       :description="governmentSubmissionStore.error || projectFormStore.error"
