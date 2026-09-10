@@ -130,9 +130,6 @@ async function handleUnconfirmPayment(): Promise<void> {
       </template>
       <div class="flex flex-col gap-3">
         <p class="text-sm text-text-secondary">{{ t('project.handoverPaymentTab.manualDescription') }}</p>
-        <p v-if="handoverStatus && !handoverStatus.stageReached && handoverStatus.notReadyReason" class="text-sm text-warning-700">
-          {{ handoverStatus.notReadyReason }}
-        </p>
         <div v-if="project.handoverPaymentConfirmedAt" class="flex flex-wrap items-center justify-between gap-3">
           <p class="flex items-center gap-2 text-sm text-success-700">
             <CheckCircle2 class="h-4 w-4 shrink-0" />
@@ -152,7 +149,6 @@ async function handleUnconfirmPayment(): Promise<void> {
           size="sm"
           :icon="ShieldCheck"
           :loading="isSaving"
-          :disabled="handoverStatus !== undefined && !handoverStatus.stageReached"
           class="self-start no-print"
           @click="handleConfirmPayment"
         >
