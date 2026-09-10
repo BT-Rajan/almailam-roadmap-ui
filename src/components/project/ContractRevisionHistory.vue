@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { History } from '@lucide/vue'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TablePagination from '@/components/common/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import type { ContractAuditEvent, ContractRevision } from '@/types/Contract'
 import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 
@@ -62,29 +64,46 @@ const entries = computed<HistoryEntry[]>(() => {
 
   return [...revisionEntries, ...activityEntries].sort((a, b) => b.date.localeCompare(a.date))
 })
+
+const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize, resetPage } =
+  usePagination(() => entries.value.length)
+const pagedEntries = computed(() => entries.value.slice(startIndex.value, endIndex.value))
+watch([() => props.revisions, () => props.auditEvents], () => resetPage())
 </script>
 
 <template>
-  <Card>
+  <Card :padded="false">
     <template #header>
       <h3 class="text-sm font-semibold text-text-primary">{{ t('project.revisionHistory.title') }}</h3>
     </template>
 
-    <EmptyState v-if="entries.length === 0" :icon="History" :title="t('project.revisionHistory.emptyTitle')" />
+    <EmptyState v-if="entries.length === 0" :icon="History" :title="t('project.revisionHistory.emptyTitle')" class="p-5" />
 
-    <ul v-else class="flex flex-col gap-4">
-      <li
-        v-for="entry in entries"
-        :key="entry.id"
-        class="flex flex-col gap-1 border-s-2 border-border-light ps-3"
-      >
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-text-primary">{{ entry.title }}</span>
-          <StatusBadge v-if="entry.isCurrentRevision" :label="t('project.revisionHistory.current')" variant="success" size="sm" />
-        </div>
-        <p class="text-xs text-text-muted">{{ entry.byline }}</p>
-        <p v-if="entry.description" class="text-sm text-text-secondary">{{ entry.description }}</p>
-      </li>
-    </ul>
+    <template v-else>
+      <ul class="flex flex-col gap-4 p-5">
+        <li
+          v-for="entry in pagedEntries"
+          :key="entry.id"
+          class="flex flex-col gap-1 border-s-2 border-border-light ps-3"
+        >
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-text-primary">{{ entry.title }}</span>
+            <StatusBadge v-if="entry.isCurrentRevision" :label="t('project.revisionHistory.current')" variant="success" size="sm" />
+          </div>
+          <p class="text-xs text-text-muted">{{ entry.byline }}</p>
+          <p v-if="entry.description" class="text-sm text-text-secondary">{{ entry.description }}</p>
+        </li>
+      </ul>
+      <TablePagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :total-items="totalItems"
+        :start-index="startIndex"
+        :end-index="endIndex"
+        :page-size="pageSize"
+        @page-change="goToPage"
+        @page-size-change="setPageSize"
+      />
+    </template>
   </Card>
 </template>

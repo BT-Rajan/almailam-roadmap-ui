@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import TablePagination from '@/components/common/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import type { FinancialAuditEvent } from '@/types/Payment'
 import { formatDateTime } from '@/utils/dateFormatter'
 
@@ -17,6 +19,11 @@ const { t } = useI18n()
 
 const sortedEvents = computed(() => [...props.events].sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
 
+const { currentPage, pageSize, totalItems, totalPages, startIndex, endIndex, goToPage, setPageSize, resetPage } =
+  usePagination(() => sortedEvents.value.length)
+const pagedEvents = computed(() => sortedEvents.value.slice(startIndex.value, endIndex.value))
+watch(() => props.events, () => resetPage())
+
 const formatTimestamp = formatDateTime
 </script>
 
@@ -28,19 +35,31 @@ const formatTimestamp = formatDateTime
 
     <EmptyState v-if="sortedEvents.length === 0" :title="t('payment.historyPanel.emptyTitle')" :description="t('payment.historyPanel.emptyDescription')" />
 
-    <ul v-else class="divide-y divide-border-light">
-      <li v-for="event in sortedEvents" :key="event.id" class="flex flex-col gap-1 px-4 py-3">
-        <div class="flex items-center justify-between gap-3">
-          <p class="text-sm font-medium text-text-primary">{{ event.action }}</p>
-          <p class="text-xs text-text-muted">{{ formatTimestamp(event.timestamp) }}</p>
-        </div>
-        <p class="text-xs text-text-muted">{{ t('payment.historyPanel.by', { user: event.user }) }}</p>
-        <p v-if="event.previousValue || event.newValue" class="text-xs text-text-secondary">
-          <span v-if="event.previousValue">{{ event.previousValue }} → </span>
-          <span v-if="event.newValue">{{ event.newValue }}</span>
-        </p>
-        <p v-if="event.reason" class="text-xs italic text-text-muted">{{ t('payment.historyPanel.reason', { reason: event.reason }) }}</p>
-      </li>
-    </ul>
+    <template v-else>
+      <ul class="divide-y divide-border-light">
+        <li v-for="event in pagedEvents" :key="event.id" class="flex flex-col gap-1 px-4 py-3">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-medium text-text-primary">{{ event.action }}</p>
+            <p class="text-xs text-text-muted">{{ formatTimestamp(event.timestamp) }}</p>
+          </div>
+          <p class="text-xs text-text-muted">{{ t('payment.historyPanel.by', { user: event.user }) }}</p>
+          <p v-if="event.previousValue || event.newValue" class="text-xs text-text-secondary">
+            <span v-if="event.previousValue">{{ event.previousValue }} → </span>
+            <span v-if="event.newValue">{{ event.newValue }}</span>
+          </p>
+          <p v-if="event.reason" class="text-xs italic text-text-muted">{{ t('payment.historyPanel.reason', { reason: event.reason }) }}</p>
+        </li>
+      </ul>
+      <TablePagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :total-items="totalItems"
+        :start-index="startIndex"
+        :end-index="endIndex"
+        :page-size="pageSize"
+        @page-change="goToPage"
+        @page-size-change="setPageSize"
+      />
+    </template>
   </Card>
 </template>

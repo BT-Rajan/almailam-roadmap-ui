@@ -11,6 +11,8 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import TablePagination from '@/components/common/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
 import ClientAddressEditDialog from '@/components/client/ClientAddressEditDialog.vue'
 import ClientContactEditDialog from '@/components/client/ClientContactEditDialog.vue'
@@ -91,6 +93,19 @@ const TABS = computed<ClientWorkspaceTab[]>(() => [
 
 const client = computed(() => clientStore.getClientById(clientId.value))
 const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
+const {
+  currentPage: projectsPage,
+  pageSize: projectsPageSize,
+  totalItems: projectsTotalItems,
+  totalPages: projectsTotalPages,
+  startIndex: projectsStartIndex,
+  endIndex: projectsEndIndex,
+  goToPage: goToProjectsPage,
+  setPageSize: setProjectsPageSize,
+  resetPage: resetProjectsPage,
+} = usePagination(() => clientProjects.value.length)
+const pagedClientProjects = computed(() => clientProjects.value.slice(projectsStartIndex.value, projectsEndIndex.value))
+watch(clientProjects, () => resetProjectsPage())
 // Same eligibility rule NewProjectWizardPage.vue and the backend both
 // enforce (status === 'Active') -- mirrored here so this button never
 // leads to a dead end where the client silently isn't selectable on
@@ -611,13 +626,25 @@ function createProjectForClient(): void {
         />
         <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
           <ProjectCard
-            v-for="project in clientProjects"
+            v-for="project in pagedClientProjects"
             :key="project.id"
             :project="project"
             :client="client"
             @open="openProject"
           />
         </div>
+        <TablePagination
+          v-if="clientProjects.length > 0"
+          class="mt-4 rounded-xl border border-border-light bg-bg-card"
+          :current-page="projectsPage"
+          :total-pages="projectsTotalPages"
+          :total-items="projectsTotalItems"
+          :start-index="projectsStartIndex"
+          :end-index="projectsEndIndex"
+          :page-size="projectsPageSize"
+          @page-change="goToProjectsPage"
+          @page-size-change="setProjectsPageSize"
+        />
       </div>
 
 
