@@ -17,6 +17,7 @@ import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { TaskInput } from '@/services/taskService'
 import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project, WorkflowStage } from '@/types/Project'
@@ -39,6 +40,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const taskStore = useTaskStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const clientStore = useClientStore()
@@ -180,6 +182,17 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
     await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+    // Completing a task can be exactly what closes the last open item
+    // under a Design activity/Permit/Supervision activity (see backend
+    // task_service.set_status -> maybe_auto_close_design_activity/
+    // maybe_auto_close_permit/maybe_auto_close_supervision_activity),
+    // which can itself be what the project's stage was waiting on --
+    // none of that reaches this tab's own project prop on its own since
+    // taskStore only ever mutates its own task list, never the project
+    // store. Refresh so the stepper/tabs/handover checklist elsewhere
+    // on this page reflect it immediately instead of only catching up
+    // whenever something else happens to reload the project.
+    if (status === 'Completed') await projectStore.refreshProject(props.project.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('project.tasksTab.failedToUpdateStatus'), detail)

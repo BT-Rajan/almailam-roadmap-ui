@@ -138,7 +138,19 @@ PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Requirement": {"Quotation"},
     "Quotation": {"Payment Plan"},
     "Payment Plan": {"Contract"},
-    "Contract": {"Design", "Government Submission", "Supervision"},
+    # "Handover" is a direct target too, not just the three parallel
+    # tracks -- a project that includes none of Design/Government
+    # Submission/Supervision has nothing to converge on and heads
+    # straight there from Contract (see project_service.
+    # _auto_advance_target's own "return 'Handover'" fallback). Without
+    # this, that fallback proposed a transition this table didn't
+    # actually allow, and assert_transition_allowed's ConflictError
+    # -- a different exception type than the ValidationAppError
+    # try_auto_advance_stage's "not ready yet, no-op" catch expects --
+    # went uncaught, turning a routine auto-advance check (run on nearly
+    # every read/write touching such a project) into a surfaced 409 on
+    # an action that otherwise had nothing to do with the project stage.
+    "Contract": {"Design", "Government Submission", "Supervision", "Handover"},
     "Design": {"Government Submission", "Supervision", "Handover"},
     "Government Submission": {"Design", "Supervision", "Handover"},
     "Supervision": {"Design", "Government Submission", "Handover"},

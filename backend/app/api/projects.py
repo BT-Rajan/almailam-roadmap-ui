@@ -108,8 +108,23 @@ def list_projects(
 
 
 @router.get("/{project_no}", response_model=ProjectOut)
-def get_project(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def get_project(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_view)):
     project = project_service.get_project(db, project_no)
+    # Self-heals a project that already met some stage's exit criteria
+    # (an agreement got Approved, a contract got Signed, the last
+    # Design/Permit/Supervision item closed, ...) but never actually
+    # advanced -- e.g. the event that made it eligible fired through a
+    # path that didn't happen to re-check. Mirrors _handover_status_out's
+    # identical self-heal for the Handover tab specifically, extended
+    # here to every stage: this is the endpoint every "view this
+    # project" screen calls (including the stepper), so a stage that
+    # should have already moved on shows correctly on the next load
+    # instead of needing staff to stumble into some unrelated action
+    # that happens to re-check it. try_auto_advance_stage is a safe,
+    # idempotent no-op when the exit criteria aren't met yet.
+    project_service.try_auto_advance_stage(db, project, current_user.id)
+    db.commit()
+    db.refresh(project)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
