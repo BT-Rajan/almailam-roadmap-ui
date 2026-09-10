@@ -56,12 +56,35 @@ const visibleStages = computed<WorkflowStage[]>(() =>
 
 const steps = computed(() => visibleStages.value.map((stage) => ({ label: stageLabel(stage) })))
 
-// Rank = position in the full, unfiltered WORKFLOW_STAGES sequence --
-// see WorkflowProgress.vue's identical stepRanks for why this can't
-// just be the render-array index.
-const stepRanks = computed(() => visibleStages.value.map((stage) => WORKFLOW_STAGES.indexOf(stage)))
+// Rank = position in a *banded* sequence, not the raw WORKFLOW_STAGES
+// index -- Design/Government Submission/Supervision share one band
+// (mirrors backend project_service._STAGE_PROGRESS_BAND) since they're
+// parallel tracks with no real ordering among themselves (see
+// WORKFLOW_STAGES's own comment). Using each one's distinct array
+// index here instead would let currentStage sitting on any one of them
+// read the *other* two as strictly before or after it -- e.g.
+// currentStage = 'Design' while Government Submission has already
+// finished would compare Government Submission's higher raw index as
+// still "upcoming" (grey) even though it's actually done, and the
+// reverse (a not-yet-started track misread as "complete") is exactly
+// as possible. Banding them together makes every visible track in the
+// parallel band read as the same status (all "current" while the
+// project sits in the band, all "complete" once it reaches Handover)
+// instead of an arbitrary subset flickering grey based on array order.
+const STAGE_BAND: Record<WorkflowStage, number> = {
+  Requirement: 0,
+  Quotation: 1,
+  'Payment Plan': 2,
+  Contract: 3,
+  Design: 4,
+  'Government Submission': 4,
+  Supervision: 4,
+  Handover: 5,
+}
 
-const currentStepRank = computed(() => WORKFLOW_STAGES.indexOf(props.currentStage))
+const stepRanks = computed(() => visibleStages.value.map((stage) => STAGE_BAND[stage]))
+
+const currentStepRank = computed(() => STAGE_BAND[props.currentStage])
 </script>
 
 <template>
