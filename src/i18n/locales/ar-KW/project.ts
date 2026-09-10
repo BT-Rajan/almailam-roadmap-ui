@@ -245,6 +245,7 @@ export default {
     handover: {
       title: 'قائمة الخدمات المكتملة',
       acknowledged: 'تم التأكيد',
+      notReadyYet: 'غير جاهز بعد',
       awaitingAcknowledgment: 'بانتظار التأكيد',
       readyToSend: 'تم إغلاق جميع بنود التصميم والموافقات والتصاريح والإشراف المخطط لها — جاهز للتسليم.',
       readySinceFragment: 'جاهز للتسليم منذ {date}. أكّد الدفع (تبويب تأكيد الدفع) واحصل على إقرار العميل الموقّع.',

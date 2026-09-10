@@ -1880,6 +1880,39 @@ def check_and_notify_stale_projects(db: Session) -> int:
 # "Completed".
 
 
+def get_handover_readiness(db: Session, project: Project) -> tuple[bool, str | None]:
+    """Whether this project could enter (or has already entered) the
+    Handover stage right now, and -- if not -- exactly what's still
+    open. A pure, non-raising read of the same _assert_stage_exit_
+    criteria check try_auto_advance_stage itself relies on, so a
+    project that isn't ready yet can be explained to staff (which
+    Design activities/Permits/Supervision items/tasks are still open)
+    instead of just showing an empty checklist with no reason why."""
+    if project.current_stage == "Handover":
+        return True, None
+    try:
+        _assert_stage_exit_criteria(db, project, project.current_stage, "Handover")
+    except ValidationAppError as error:
+        return False, str(error)
+    return True, None
+
+
+def refresh_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
+    """Public wrapper around _generate_handover_checklist for callers
+    outside this module (see api/projects.py's GET handover-status) --
+    safe to call regardless of the project's actual current_stage,
+    since it only ever adds a row for a Design activity/Permit/
+    Supervision activity that is *currently* Complete. Calling this on
+    every read of the hand-over tab (rather than only once, from
+    _apply_stage_change's Handover-entry hook) is what lets the
+    "Completed Services Checklist" reflect items closed after the
+    project's last actual stage transition, instead of a stale
+    snapshot frozen at whatever moment it was first generated."""
+    checklist = _generate_handover_checklist(db, project)
+    db.commit()
+    return checklist
+
+
 def _generate_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
     """One row per Complete (not Cancelled -- nothing to hand over on a
     descoped item) Design activity/Permit/Supervision activity.
