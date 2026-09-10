@@ -24,6 +24,7 @@ export default {
   employeeActivity: 'نشاط الموظفين',
   projectTree: 'شجرة مراحل ومهام المشروع',
   clientProjects: 'مشاريع العملاء',
+  paymentLedger: 'سجل المدفوعات',
   administration: 'الإدارة',
   users: 'المستخدمون',
   catalogs: 'الكتالوجات',

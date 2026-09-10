@@ -1,10 +1,20 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
-from app.schemas.report import ChartDataPoint, ClientWithProjects, LineChartDataPoint, ReportMetric, ReportSection
-from app.services import project_service, report_service
+from app.schemas.report import (
+    ChartDataPoint,
+    ClientWithProjects,
+    LineChartDataPoint,
+    PaymentLedgerEntry,
+    PaymentProjections,
+    ReportMetric,
+    ReportSection,
+)
+from app.services import client_service, project_service, report_service
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -64,6 +74,30 @@ def payments_received_by_month(months: int = 6, db: Session = Depends(get_db), _
 @router.get("/clients-projects", response_model=list[ClientWithProjects])
 def clients_projects(db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.clients_with_projects(db)
+
+
+@router.get("/payment-ledger", response_model=list[PaymentLedgerEntry])
+def payment_ledger(
+    projectNo: str | None = None,
+    clientId: str | None = None,
+    startDate: date | None = None,
+    endDate: date | None = None,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    resolved_client_id = client_service.parse_client_id(clientId) if clientId else None
+    return report_service.payment_ledger(db, projectNo, resolved_client_id, startDate, endDate)
+
+
+@router.get("/payment-projections", response_model=PaymentProjections)
+def payment_projections(
+    projectNo: str | None = None,
+    clientId: str | None = None,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    resolved_client_id = client_service.parse_client_id(clientId) if clientId else None
+    return report_service.payment_projections(db, projectNo, resolved_client_id)
 
 
 @router.get("/projects/{project_no}", response_model=list[ReportSection])

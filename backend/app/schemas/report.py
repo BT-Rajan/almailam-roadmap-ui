@@ -45,3 +45,39 @@ class ClientWithProjects(BaseModel):
     clientName: str
     clientStatus: str
     projects: list[ClientProjectSummary]
+
+
+class PaymentLedgerEntry(BaseModel):
+    paymentNo: str
+    date: str
+    projectNo: str
+    projectName: str
+    clientName: str
+    service: str
+    amount: float
+    currency: str
+    mode: str
+    reference: str | None = None
+    payer: str
+
+
+class ProjectionByMonth(BaseModel):
+    month: str
+    amount: float
+
+
+class ProjectionByProject(BaseModel):
+    projectNo: str
+    projectName: str
+    amount: float
+
+
+class ProjectionByService(BaseModel):
+    service: str
+    amount: float
+
+
+class PaymentProjections(BaseModel):
+    byMonth: list[ProjectionByMonth]
+    byProject: list[ProjectionByProject]
+    byService: list[ProjectionByService]

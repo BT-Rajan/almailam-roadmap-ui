@@ -369,6 +369,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/reports/payment-ledger',
+      name: ROUTE_NAMES.REPORT_PAYMENT_LEDGER,
+      component: () => import('@/pages/PaymentLedgerReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.paymentLedger' },
+        ],
+      },
+    },
+    {
       path: '/admin',
       name: ROUTE_NAMES.ADMIN,
       component: () => import('@/pages/AdministrationPage.vue'),

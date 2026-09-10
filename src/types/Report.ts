@@ -42,6 +42,42 @@ export interface ClientWithProjects {
   projects: ClientProjectSummary[]
 }
 
+export interface PaymentLedgerEntry {
+  paymentNo: string
+  date: string
+  projectNo: string
+  projectName: string
+  clientName: string
+  service: string
+  amount: number
+  currency: string
+  mode: string
+  reference: string | null
+  payer: string
+}
+
+export interface ProjectionByMonth {
+  month: string
+  amount: number
+}
+
+export interface ProjectionByProject {
+  projectNo: string
+  projectName: string
+  amount: number
+}
+
+export interface ProjectionByService {
+  service: string
+  amount: number
+}
+
+export interface PaymentProjections {
+  byMonth: ProjectionByMonth[]
+  byProject: ProjectionByProject[]
+  byService: ProjectionByService[]
+}
+
 export interface ProjectReportData {
   projectId: string
   projectName: string
