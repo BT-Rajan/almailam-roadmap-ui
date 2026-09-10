@@ -212,6 +212,23 @@ async function loadHandoverStatus(): Promise<void> {
   }
 }
 
+// Same shared usePagination/TablePagination.vue pair as every other
+// list in the app -- sliced client-side against the checklist already
+// fetched above.
+const {
+  currentPage: handoverChecklistPage,
+  pageSize: handoverChecklistPageSize,
+  totalItems: handoverChecklistTotalItems,
+  totalPages: handoverChecklistTotalPages,
+  startIndex: handoverChecklistStartIndex,
+  endIndex: handoverChecklistEndIndex,
+  goToPage: goToHandoverChecklistPage,
+  setPageSize: setHandoverChecklistPageSize,
+  resetPage: resetHandoverChecklistPage,
+} = usePagination(() => handoverStatus.value?.checklist.length ?? 0)
+const pagedHandoverChecklist = computed(() => (handoverStatus.value?.checklist ?? []).slice(handoverChecklistStartIndex.value, handoverChecklistEndIndex.value))
+watch(() => handoverStatus.value?.checklist, () => resetHandoverChecklistPage())
+
 // Gated to the Handover stage's own Overview tab now that Handover is a
 // real WorkflowStage (it used to show on every stage's Overview once
 // ready, back when hand-over readiness lived outside the stage
@@ -627,7 +644,7 @@ function verificationResultLabel(result: string): string {
 
       <ul v-if="handoverStatus?.checklist.length" class="flex flex-col gap-1.5">
         <li
-          v-for="item in handoverStatus.checklist"
+          v-for="item in pagedHandoverChecklist"
           :key="item.id"
           class="flex items-center gap-2 text-sm text-text-secondary"
         >
@@ -636,6 +653,18 @@ function verificationResultLabel(result: string): string {
           <span class="text-xs text-text-muted">({{ item.sourceType }})</span>
         </li>
       </ul>
+      <TablePagination
+        v-if="handoverChecklistTotalItems > 0"
+        class="mt-2 rounded-xl border border-border-light"
+        :current-page="handoverChecklistPage"
+        :total-pages="handoverChecklistTotalPages"
+        :total-items="handoverChecklistTotalItems"
+        :start-index="handoverChecklistStartIndex"
+        :end-index="handoverChecklistEndIndex"
+        :page-size="handoverChecklistPageSize"
+        @page-change="goToHandoverChecklistPage"
+        @page-size-change="setHandoverChecklistPageSize"
+      />
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border-light pt-3">
         <p v-if="project.status === 'Completed' && handoverStatus?.handoverAcknowledgedAt" class="text-sm text-text-secondary">
