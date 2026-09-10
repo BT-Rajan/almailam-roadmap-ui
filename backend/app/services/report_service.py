@@ -134,6 +134,45 @@ def summary_metrics(db: Session) -> list[dict]:
     ]
 
 
+def clients_with_projects(db: Session) -> list[dict]:
+    """Every non-deleted client alongside every one of their non-deleted
+    projects and its current status/stage/progress -- one aggregate query
+    plus one grouping pass in Python, rather than the frontend calling
+    GET /api/projects?clientId=X once per client (an N+1 request pattern
+    that gets slower the more clients exist). Clients with zero projects
+    still appear, with an empty projects list, so the report reflects
+    every client on file, not just the ones with active work."""
+    clients = db.query(Client).filter(Client.deleted_at.is_(None)).order_by(Client.company_name.asc()).all()
+    projects = (
+        db.query(Project)
+        .filter(Project.deleted_at.is_(None))
+        .order_by(Project.project_name.asc())
+        .all()
+    )
+    projects_by_client: dict[int, list[Project]] = {}
+    for project in projects:
+        projects_by_client.setdefault(project.client_id, []).append(project)
+
+    return [
+        {
+            "clientId": str(client.id),
+            "clientName": client.company_name,
+            "clientStatus": client.status,
+            "projects": [
+                {
+                    "projectNo": project.project_no,
+                    "projectName": project.project_name,
+                    "status": project.status,
+                    "currentStage": project.current_stage,
+                    "progress": project.progress,
+                }
+                for project in projects_by_client.get(client.id, [])
+            ],
+        }
+        for client in clients
+    ]
+
+
 def project_report(db: Session, project: Project) -> list[dict]:
     task_counts = dict(
         db.query(Task.status, func.count(Task.id))

@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { ChartDataPoint, LineChartData, ReportMetric, ReportSection } from '@/types/Report'
+import type { ChartDataPoint, ClientWithProjects, LineChartData, ReportMetric, ReportSection } from '@/types/Report'
 
 async function getSummary(): Promise<ReportMetric[]> {
   return apiClient.get<ReportMetric[]>('/api/reports/summary')
@@ -45,6 +45,10 @@ async function getProjectReport(projectNo: string): Promise<ReportSection[]> {
   return apiClient.get<ReportSection[]>(`/api/reports/projects/${projectNo}`)
 }
 
+async function getClientsWithProjects(): Promise<ClientWithProjects[]> {
+  return apiClient.get<ClientWithProjects[]>('/api/reports/clients-projects')
+}
+
 export const reportService = {
   getSummary,
   getProjectsByStatus,
@@ -57,4 +61,5 @@ export const reportService = {
   getDocumentsByStatus,
   getPaymentsReceivedByMonth,
   getProjectReport,
+  getClientsWithProjects,
 }

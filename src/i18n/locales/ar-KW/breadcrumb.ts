@@ -23,6 +23,7 @@ export default {
   teamWorkload: 'عبء عمل الفريق',
   employeeActivity: 'نشاط الموظفين',
   projectTree: 'شجرة مراحل ومهام المشروع',
+  clientProjects: 'مشاريع العملاء',
   administration: 'الإدارة',
   users: 'المستخدمون',
   catalogs: 'الكتالوجات',

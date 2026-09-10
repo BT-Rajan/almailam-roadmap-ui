@@ -30,3 +30,18 @@ class ReportSection(BaseModel):
     title: str
     description: str | None = None
     metrics: list[ReportMetric] | None = None
+
+
+class ClientProjectSummary(BaseModel):
+    projectNo: str
+    projectName: str
+    status: str
+    currentStage: str
+    progress: int
+
+
+class ClientWithProjects(BaseModel):
+    clientId: str
+    clientName: str
+    clientStatus: str
+    projects: list[ClientProjectSummary]

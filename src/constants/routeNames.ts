@@ -22,6 +22,7 @@ export const ROUTE_NAMES = {
   REPORT_WORKLOAD: 'report-workload',
   REPORT_EMPLOYEE_ACTIVITY: 'report-employee-activity',
   REPORT_PROJECT_TREE: 'report-project-tree',
+  REPORT_CLIENT_PROJECTS: 'report-client-projects',
   ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
   ADMIN_CATALOGS: 'admin-catalogs',

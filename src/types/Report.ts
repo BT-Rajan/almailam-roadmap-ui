@@ -27,6 +27,21 @@ export interface ReportSection {
   metrics?: ReportMetric[]
 }
 
+export interface ClientProjectSummary {
+  projectNo: string
+  projectName: string
+  status: string
+  currentStage: string
+  progress: number
+}
+
+export interface ClientWithProjects {
+  clientId: string
+  clientName: string
+  clientStatus: string
+  projects: ClientProjectSummary[]
+}
+
 export interface ProjectReportData {
   projectId: string
   projectName: string

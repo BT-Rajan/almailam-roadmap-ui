@@ -23,6 +23,7 @@ export default {
   teamWorkload: 'Team Workload',
   employeeActivity: 'Employee Activity',
   projectTree: 'Project Stage & Task Tree',
+  clientProjects: 'Client Projects',
   administration: 'Administration',
   users: 'Users',
   catalogs: 'Catalogs',
