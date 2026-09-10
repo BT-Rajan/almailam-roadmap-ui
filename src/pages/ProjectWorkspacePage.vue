@@ -395,12 +395,14 @@ async function handleConfirmStatus(payload: { value: string; reason?: string }):
 
 async function handleConfirmDelete(): Promise<void> {
   if (!project.value) return
+  const projectId = project.value.id
+  const projectName = project.value.projectName
   isDeleteSaving.value = true
   try {
-    await projectStore.deleteProject(project.value.id)
+    await projectStore.deleteProject(projectId)
     resultDialogStore.showSuccess(
       t('project.workspacePage.projectDeletedTitle'),
-      t('project.workspacePage.wasRemoved', { name: project.value.projectName }),
+      t('project.workspacePage.wasRemoved', { name: projectName }),
     )
     isDeleteDialogOpen.value = false
     router.push({ name: ROUTE_NAMES.PROJECTS })
