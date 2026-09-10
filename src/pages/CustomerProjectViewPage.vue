@@ -128,6 +128,7 @@ onMounted(() => loadProject())
     <!-- Workflow Stage -->
     <ProjectStageProgress
       :current-stage="projectData.currentStage"
+      :is-completed="projectData.status === 'completed'"
       :includes-design="projectData.includesDesign"
       :includes-government-submission="projectData.includesGovernmentSubmission"
       :includes-supervision="projectData.includesSupervision"

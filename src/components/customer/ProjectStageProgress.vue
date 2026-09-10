@@ -15,6 +15,15 @@ import { WORKFLOW_STAGES, getWorkflowStageLabel } from '@/utils/projectHelpers'
 // anywhere -- a customer has no internal tab to jump to.
 interface Props {
   currentStage: WorkflowStage
+  // Handover's own band rank never exceeds every other stage's, so
+  // going by currentStage's rank alone it can only ever read as
+  // "current" (blue), never "complete" (green) -- current_stage stays
+  // "Handover" even once the project is genuinely done (there's no
+  // separate WorkflowStage for that). A plain boolean rather than
+  // passing the project's own status enum through, since staff and
+  // customer-portal projects don't share one status type/casing --
+  // each caller already knows what "completed" means for its own data.
+  isCompleted: boolean
   includesDesign: boolean
   includesGovernmentSubmission: boolean
   includesSupervision: boolean
@@ -58,8 +67,7 @@ const steps = computed(() => visibleStages.value.map((stage) => ({ label: stageL
 
 // Rank = position in a *banded* sequence, not the raw WORKFLOW_STAGES
 // index -- Design/Government Submission/Supervision share one band
-// (mirrors backend project_service._STAGE_PROGRESS_BAND) since they're
-// parallel tracks with no real ordering among themselves (see
+// since they're parallel tracks with no real ordering among themselves (see
 // WORKFLOW_STAGES's own comment). Using each one's distinct array
 // index here instead would let currentStage sitting on any one of them
 // read the *other* two as strictly before or after it -- e.g.
@@ -84,7 +92,12 @@ const STAGE_BAND: Record<WorkflowStage, number> = {
 
 const stepRanks = computed(() => visibleStages.value.map((stage) => STAGE_BAND[stage]))
 
-const currentStepRank = computed(() => STAGE_BAND[props.currentStage])
+// One rank past Handover's own once the project is actually Completed,
+// same trick WorkflowProgress.vue's currentStageRank uses for "past all
+// linear stages" -- so Handover's rank compares strictly less than
+// this and reads "complete" (green) instead of getting stuck at
+// "current" (blue) forever.
+const currentStepRank = computed(() => (props.isCompleted ? STAGE_BAND.Handover + 1 : STAGE_BAND[props.currentStage]))
 </script>
 
 <template>

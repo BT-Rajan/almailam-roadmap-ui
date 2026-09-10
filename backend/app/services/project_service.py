@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import UploadFile
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, NotFoundError, ValidationAppError
@@ -18,6 +18,7 @@ from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
 from app.models.document import ProjectDocument, ProjectLinkDocument
 from app.models.handover_checklist import HandoverChecklistItem
+from app.models.payment import FinancialAgreement, Payment
 from app.models.permit_selection import ProjectSelectedPermit
 from app.models.prerequisite import PermitPrerequisite, SupervisionPrerequisite
 from app.models.project import (
@@ -1230,40 +1231,73 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers. Design, Government Submission (Permits), and
-# Supervision (migration 0089) are one shared band, not three separate
-# ones -- they're parallel tracks, not sequential stages, so there's no
-# single "how far through them" position to represent; current_stage
-# sitting on any one of the three (or having skipped straight past all
-# of them, for a project with none of the three) reads identically here.
-# Handover is the real next band after that, once every included track
-# converges into it.
-_STAGE_PROGRESS_BAND: dict[str, int] = {
-    "Requirement": 0,
-    "Quotation": 1,
-    "Payment Plan": 2,
-    "Contract": 3,
-    "Design": 4,
-    "Government Submission": 4,
-    "Supervision": 4,
-    "Handover": 5,
-}
-_PROGRESS_BAND_COUNT = 6
+# maintained numbers. Weighted by what's actually been delivered, not an
+# even split across stages: Requirement/Quotation/Payment Plan earn
+# nothing (there's no signed commitment yet to measure progress
+# against) -- Contract signed is the first real milestone, worth 10%.
+# The three parallel tracks (Design/Government Submission/Supervision,
+# migration 0089) share 40% equally among however many of them this
+# project actually includes -- they're parallel, not sequential, so
+# there's no single "how far through them" position, only each one's own
+# fraction of its selected items Complete/Cancelled. Payment received
+# (across every financial agreement on the project) is worth another
+# 40%. The last 10% is Handover -- but rather than a partial credit for
+# merely reaching that stage, it's folded into the status == "Completed"
+# shortcut below, so 100% and "the client's signed acknowledgment is in"
+# are the same moment, not two different ways of saying "done".
+def _track_completion_fraction(items: list) -> float:
+    if not items:
+        return 0.0
+    done = sum(1 for item in items if item.status in ("Complete", "Cancelled"))
+    return done / len(items)
 
 
 def recompute_progress(db: Session, project: Project) -> int:
-    """Derives project.progress from current_stage -- entering a stage
-    jumps progress to that stage's band floor. status == "Completed"
-    (set by confirm_project_handover, independent of current_stage --
-    see the "project completion / hand-over" section below) is the one
-    exception: a completed project always reads 100%. Does not commit --
-    callers already do."""
+    """Does not commit -- callers already do."""
     if project.status == "Completed":
         project.progress = 100
         return project.progress
-    band = _STAGE_PROGRESS_BAND[project.current_stage]
-    progress = round(band * 100 / _PROGRESS_BAND_COUNT)
-    project.progress = max(0, min(100, progress))
+
+    if project.current_stage in ("Requirement", "Quotation", "Payment Plan", "Contract"):
+        project.progress = 0
+        return project.progress
+
+    # Past Contract means it's already signed -- PROJECT_STAGE_ALLOWED_
+    # TRANSITIONS has no path back into "Contract", and leaving it in
+    # the first place already required a signed/active Contract on file
+    # (see _assert_stage_exit_criteria's "previous_stage == Contract"
+    # branch) -- so reaching here at all is exactly "contract completed".
+    progress = 10.0
+
+    selected_activities = get_selected_activities(db, project.id)
+    selected_permits = get_selected_permits(db, project.id)
+    selected_supervision_activities = get_selected_supervision_activities(db, project.id)
+    includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+        selected_activities, selected_supervision_activities, selected_permits,
+    )
+    included_track_count = sum((includes_design, includes_government_submission, includes_supervision))
+    if included_track_count > 0:
+        track_weight = 40 / included_track_count
+        if includes_design:
+            progress += track_weight * _track_completion_fraction(selected_activities)
+        if includes_government_submission:
+            progress += track_weight * _track_completion_fraction(selected_permits)
+        if includes_supervision:
+            progress += track_weight * _track_completion_fraction(selected_supervision_activities)
+
+    total_contract_amount = (
+        db.query(func.sum(FinancialAgreement.contract_amount))
+        .filter(FinancialAgreement.project_id == project.id)
+        .scalar()
+        or 0
+    )
+    if total_contract_amount > 0:
+        total_received = (
+            db.query(func.sum(Payment.amount_received)).filter(Payment.project_id == project.id).scalar() or 0
+        )
+        progress += 40 * min(float(total_received) / float(total_contract_amount), 1.0)
+
+    project.progress = max(0, min(100, round(progress)))
     return project.progress
 
 

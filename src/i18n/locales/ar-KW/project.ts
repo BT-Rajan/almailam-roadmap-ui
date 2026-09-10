@@ -257,6 +257,13 @@ export default {
       confirmedTitle: 'تم تأكيد التسليم',
       confirmedDescription: 'أصبح المشروع الآن مكتملاً.',
       failedToConfirm: 'فشل تأكيد التسليم',
+      archivePromptTitle: 'أرشفة هذا المشروع؟',
+      archivePromptMessage: 'اكتمل هذا المشروع الآن. هل تريد أرشفته لإزالته من قائمة المشاريع النشطة؟ يمكنك استعادته لاحقًا من المشاريع المحذوفة.',
+      archiveYes: 'نعم، أرشفة',
+      archiveNo: 'لا، إبقاء نشط',
+      archivedTitle: 'تمت أرشفة المشروع',
+      archivedDescription: 'تم نقل المشروع خارج قائمة المشاريع النشطة.',
+      failedToArchive: 'فشلت أرشفة المشروع',
     },
     fields: {
       service: 'الخدمة',
