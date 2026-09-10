@@ -1,3 +1,25 @@
+-- Single source of truth for a fresh database -- install.sh's fresh-DB
+-- mode (and reset_db_from_schema.sh) load only this file, no
+-- migrations. backend/migrations/*.sql exist purely to patch an
+-- already-running live database with real data up to the same state
+-- (see migration 0001's own header comment); every one of their
+-- cumulative effects through migration 0089 (handover_stage) is already
+-- factored in here, so a fresh install never needs to run them.
+--
+-- Two deliberately-dropped pieces of dead history, kept out rather than
+-- carried forward for their own sake: `pending_client_onboardings`
+-- (migration 0072, for an email-OTP client-onboarding flow no code
+-- anywhere still references) and `projects.type_activity_total`
+-- (migration 0041, superseded by supervision_monthly_total -- the
+-- rename in migration 0059 only fires when a database reaches it with
+-- the old column still present and the new one not yet there, which
+-- never happens starting fresh from this file).
+--
+-- Regenerate by applying schema.sql + every migrations/*.sql file in
+-- order against a scratch database, then diff its structure
+-- (information_schema.COLUMNS/TABLE_CONSTRAINTS) against this file's
+-- own loaded structure to find what's drifted.
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -105,9 +127,17 @@ CREATE TABLE IF NOT EXISTS clients (
     email                           VARCHAR(120) NOT NULL,
     city                            VARCHAR(80)  NOT NULL,
     status                          ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
-    onboarding_state                ENUM('Information Required','Documents Required','Under Review','Ready','Rejected','Suspended')
+    onboarding_state                ENUM('Information Required','Documents Required','Pending Verification','Ready','Rejected','Suspended')
                                         NOT NULL DEFAULT 'Ready',
     onboarding_notified_at          DATETIME NULL,
+    -- EmailOtpMixin -- inert (nothing writes these anymore, see the
+    -- mixin's own docstring): the client email-OTP read-back step was
+    -- replaced by staff uploading a scan of the client's physically
+    -- signed copy instead. Kept rather than a destructive drop.
+    otp_code_hash                   VARCHAR(255) NULL,
+    otp_expires_at                  DATETIME NULL,
+    otp_attempts                    SMALLINT NOT NULL DEFAULT 0,
+    otp_sent_at                     DATETIME NULL,
     ind_full_legal_name             VARCHAR(150) NULL,
     ind_preferred_name              VARCHAR(100) NULL,
     ind_nationality                 VARCHAR(80)  NULL,
@@ -259,13 +289,20 @@ CREATE TABLE IF NOT EXISTS projects (
     -- it, so it stays a single free-text field rather than structured
     -- street/city/etc columns.
     site_address    VARCHAR(300) NULL,
-    -- Internal approval of the scope-of-work text above -- set by the
-    -- Requirement stage's Approve action (migration 0038), which is what
-    -- gates the automatic move to "Quotation". scope_approved_at/_by
-    -- record when/who; both NULL until first approved.
-    scope_status        ENUM('Draft','Approved') NOT NULL DEFAULT 'Draft',
-    scope_approved_at   DATETIME NULL,
-    scope_approved_by   BIGINT UNSIGNED NULL,
+    -- Sole sign-off gating the move out of "Requirement" (migration
+    -- 0082, replacing the earlier internal Approve step dropped in
+    -- migration 0079) -- the project associate's own direct
+    -- confirmation that the scope-of-work text above is final. NULL
+    -- until confirmed; see project_service.confirm_requirement_scope.
+    scope_client_confirmed_at DATETIME NULL,
+    -- EmailOtpMixin -- inert (nothing writes these anymore, see the
+    -- mixin's own docstring): the client email-OTP read-back step was
+    -- replaced by staff uploading a scan of the client's physically
+    -- signed copy instead.
+    otp_code_hash    VARCHAR(255) NULL,
+    otp_expires_at   DATETIME NULL,
+    otp_attempts     SMALLINT NOT NULL DEFAULT 0,
+    otp_sent_at      DATETIME NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
     service         VARCHAR(100) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,
@@ -274,32 +311,36 @@ CREATE TABLE IF NOT EXISTS projects (
     -- project timeline note now, not a separate stage. "Enquiry" was
     -- itself renamed to "Requirement" (migration 0038) -- see
     -- project_scope_revisions below for the scope-of-work revision
-    -- history that stage now manages. "Execution & Tracking" and
-    -- "Completed" were removed entirely (migration 0051), along with
-    -- the 5-gate Approval Process that used to gate entry into them --
-    -- "Government Submission" is now the terminal stage. "Supervision"
-    -- (migration 0056) sits alongside "Design" -- a project can include
-    -- either, both, or neither (see project_service.compute_stage_flags).
-    -- "Payment Plan" (migration 0061) sits between Quotation and
-    -- Contract -- the financial agreement(s) have to be generated and
-    -- approved before a contract is drafted.
-    current_stage   ENUM('Requirement','Quotation','Payment Plan','Contract','Design','Supervision','Government Submission')
+    -- history that stage now manages. "Execution & Tracking" and the
+    -- old terminal "Completed" stage were removed entirely (migration
+    -- 0051). "Supervision" (migration 0056) and "Government Submission"
+    -- are, along with "Design", three independent PARALLEL tracks off
+    -- Contract, not stops on a line -- a project includes any
+    -- combination of the three, or none (see project_service.
+    -- compute_stage_flags); PROJECT_STAGE_ALLOWED_TRANSITIONS is the
+    -- real source of truth for which hops are actually legal. "Payment
+    -- Plan" (migration 0061) sits between Quotation and Contract -- the
+    -- financial agreement(s) have to be generated and approved before a
+    -- contract is drafted. "Handover" (migration 0089) is the new real
+    -- terminal stage all three parallel tracks converge into once
+    -- every included one is closed.
+    current_stage   ENUM('Requirement','Quotation','Payment Plan','Contract','Design','Government Submission','Supervision','Handover')
                         NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
     start_date      DATE NOT NULL,
     target_date     DATE NOT NULL,
-    -- No "Completed" value (removed in migration 0051) -- a project
-    -- never reaches a terminal "done" status, only Active/On
-    -- Hold/Cancelled.
-    status          ENUM('Active','On Hold','Cancelled') NOT NULL DEFAULT 'Active',
+    -- "Completed" (migration 0089) is only ever reached via
+    -- confirm_project_handover (the client's signed hand-over
+    -- acknowledgment), never a plain manual status change -- see
+    -- PROJECT_STATUS_ALLOWED_TRANSITIONS. No transition out of it.
+    status          ENUM('Active','On Hold','Cancelled','Completed') NOT NULL DEFAULT 'Active',
     stale_notified_at DATETIME NULL,
     service_total   DECIMAL(12,2) NULL,
     -- Nominal combined monthly rate across this project's selected
-    -- Supervision activities (migration 0059, renamed from
-    -- type_activity_total) -- informational only, not prorated; the real
-    -- billed schedule lives in payment_obligations once a Supervision
-    -- financial agreement exists (see payment_calculations.
+    -- Supervision activities -- informational only, not prorated; the
+    -- real billed schedule lives in payment_obligations once a
+    -- Supervision financial agreement exists (see payment_calculations.
     -- generate_prorated_monthly_schedule).
     supervision_monthly_total DECIMAL(12,2) NULL,
     -- The overall Supervision engagement window for this project,
@@ -319,11 +360,34 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
+    -- Handover stage fields (migration 0089) -- handover_sent_at is set
+    -- the moment every included Design/Government Submission/
+    -- Supervision track closes (see _apply_stage_change's Handover-entry
+    -- hook / notify_handover_ready); handover_acknowledged_at is set by
+    -- confirm_project_handover, the same moment status finally becomes
+    -- "Completed". handover_payment_confirmed_at/_by is a separate
+    -- manual attestation from the Payment Confirmation tab (see
+    -- project_service.confirm_handover_payment) -- required before
+    -- confirm_project_handover will accept the signed acknowledgment.
+    -- handover_notes is a single free-text field from the Handover
+    -- stage's own Notes tab, not a running log.
+    handover_sent_at DATETIME NULL,
+    handover_acknowledged_at DATETIME NULL,
+    handover_payment_confirmed_at DATETIME NULL,
+    handover_payment_confirmed_by BIGINT UNSIGNED NULL,
+    handover_notes  TEXT NULL,
+    -- Notification guards for two periodic checks in project_service,
+    -- same pattern as stale_notified_at above -- cleared explicitly
+    -- wherever the underlying condition resolves (payment completes /
+    -- target_date is pushed out), not just left to expire.
+    unpaid_completion_notified_at DATETIME NULL,
+    overdue_notified_at DATETIME NULL,
     CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_projects_engineer FOREIGN KEY (engineer_id) REFERENCES users(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_projects_scope_approved_by FOREIGN KEY (scope_approved_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_projects_payment_plan_template FOREIGN KEY (payment_plan_template_id)
         REFERENCES document_templates(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_projects_handover_payment_confirmed_by FOREIGN KEY (handover_payment_confirmed_by)
+        REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
     INDEX idx_projects_deleted_at (deleted_at)
@@ -353,8 +417,48 @@ CREATE TABLE IF NOT EXISTS project_selected_activities (
     activity_id     VARCHAR(20) NOT NULL,
     activity_name   VARCHAR(150) NOT NULL,
     fixed_cost      DECIMAL(12,2) NOT NULL,
+    -- migration 0073/0088 -- closed once every task linked to this
+    -- activity (see tasks.selected_activity_id) is Completed, or by
+    -- hand (see project_service.close_design_activity). "Cancelled" is
+    -- a descoped activity that was never going to be finished, so it
+    -- stops blocking project completion without pretending it was done.
+    status          ENUM('Not Started','In Progress','Complete','Cancelled') NOT NULL DEFAULT 'Not Started',
+    closed_at       DATETIME NULL,
+    closed_by       BIGINT UNSIGNED NULL,
     CONSTRAINT fk_project_selected_activities_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_selected_activities_closed_by FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_project_selected_activities_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- A Permit picked at project setup (migration 0089, in the unified
+-- ServicePickerDialog) -- the missing counterpart to
+-- project_selected_activities/project_selected_supervision_activities
+-- that Permits never had before (they used to just be a name/price
+-- snapshot with no lifecycle of their own). status starts "Planned"
+-- and becomes "Eligible" once its admin-defined prerequisite Design
+-- activities (see permit_prerequisites below) are all Complete;
+-- "In Progress"/"Complete"/"Cancelled" are set directly by the user --
+-- Permits have no sub-tasks of their own status-wise, unlike Design.
+CREATE TABLE IF NOT EXISTS project_selected_permits (
+    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id              BIGINT UNSIGNED NOT NULL,
+    permit_catalog_item_id  BIGINT UNSIGNED NULL,
+    permit_name             VARCHAR(150) NOT NULL,
+    status                  ENUM('Planned','Eligible','In Progress','Complete','Cancelled') NOT NULL DEFAULT 'Planned',
+    eligibility_met_at      DATETIME NULL,
+    eligibility_notified_at DATETIME NULL,
+    closed_at               DATETIME NULL,
+    closed_by               BIGINT UNSIGNED NULL,
+    -- Snapshotted from permit_catalog_items.fixed_cost at selection
+    -- time (migration 0084) -- NULL for rows selected before permit
+    -- pricing existed.
+    permit_price            DECIMAL(12,2) NULL,
+    CONSTRAINT fk_project_selected_permits_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_selected_permits_catalog_item FOREIGN KEY (permit_catalog_item_id)
+        REFERENCES permit_catalog_items(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_selected_permits_closed_by FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_project_selected_permits_project (project_id),
+    INDEX idx_project_selected_permits_catalog_item (permit_catalog_item_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS government_authorities (
@@ -414,6 +518,12 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     project_id                  BIGINT UNSIGNED NOT NULL,
     authority_id                BIGINT UNSIGNED NOT NULL,
     form_id                     BIGINT UNSIGNED NOT NULL,
+    -- Which Permit item (project_selected_permits below) this
+    -- submission is for, if any (migration 0089) -- informational
+    -- only; a Permit's own status is the sole signal that gates
+    -- Handover (see _assert_stage_exit_criteria), independent of
+    -- whether any submission for it exists or is Approved.
+    project_selected_permit_id  BIGINT UNSIGNED NULL,
     status                      ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected','Withdrawn') NOT NULL DEFAULT 'Draft',
     submitted_date               DATE NULL,
     expected_decision_date       DATE NULL,
@@ -438,8 +548,11 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     CONSTRAINT fk_government_submissions_form FOREIGN KEY (form_id) REFERENCES government_forms(id) ON DELETE RESTRICT,
     CONSTRAINT fk_government_submissions_proof_submission_by FOREIGN KEY (proof_of_submission_uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_government_submissions_proof_response_by FOREIGN KEY (proof_of_response_uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_government_submissions_selected_permit FOREIGN KEY (project_selected_permit_id)
+        REFERENCES project_selected_permits(id) ON DELETE SET NULL,
     INDEX idx_government_submissions_project (project_id),
-    INDEX idx_government_submissions_status (status)
+    INDEX idx_government_submissions_status (status),
+    INDEX idx_government_submissions_selected_permit (project_selected_permit_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS submission_documents (
@@ -500,6 +613,11 @@ CREATE TABLE IF NOT EXISTS quotations (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every quotation, not just those).
     finalized_at        DATETIME NULL,
+    -- EmailOtpMixin -- inert, see clients.otp_code_hash above.
+    otp_code_hash       VARCHAR(255) NULL,
+    otp_expires_at      DATETIME NULL,
+    otp_attempts        SMALLINT NOT NULL DEFAULT 0,
+    otp_sent_at         DATETIME NULL,
     -- migration 0087 -- the exact document_templates row this
     -- quotation was rendered against, pinned the first time it's
     -- rendered after finalized_at is set (see
@@ -564,6 +682,11 @@ CREATE TABLE IF NOT EXISTS contracts (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every contract, not just those).
     finalized_at            DATETIME NULL,
+    -- EmailOtpMixin -- inert, see clients.otp_code_hash above.
+    otp_code_hash           VARCHAR(255) NULL,
+    otp_expires_at          DATETIME NULL,
+    otp_attempts            SMALLINT NOT NULL DEFAULT 0,
+    otp_sent_at             DATETIME NULL,
     -- migration 0087 -- see quotations.document_template_id above;
     -- same "pinned on first render after finalize" rule.
     document_template_id   BIGINT UNSIGNED NULL,
@@ -638,6 +761,39 @@ CREATE TABLE IF NOT EXISTS document_templates (
     deleted_at          DATETIME NULL,
     CONSTRAINT fk_document_templates_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_document_templates_type (document_type, language, is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- A document an admin can flag as typically needed for one or more
+-- catalog activities (migration 0073) -- e.g. "Site Survey Report"
+-- might be linked to both a Design activity and a Permit. Purely
+-- informational/reference: nothing enforces it against task or
+-- activity closure, it only surfaces as a reference checklist on the
+-- project's tabs (see document_requirement_links below for the links
+-- themselves).
+CREATE TABLE IF NOT EXISTS document_requirements (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    description     VARCHAR(500) NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Many-to-many: which catalog activity/permit a document_requirements
+-- row applies to (a single requirement can cover more than one
+-- activity). target_catalog_id is not a real FK -- it points at
+-- service_catalog_activities.id when target_type is 'Design' or
+-- 'Supervision', or permit_catalog_items.id when it's 'Permit' (a
+-- column can't conditionally FK two different tables), same tradeoff
+-- handover_checklist_items.source_id below makes.
+CREATE TABLE IF NOT EXISTS document_requirement_links (
+    id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    document_requirement_id     BIGINT UNSIGNED NOT NULL,
+    target_type                 ENUM('Design','Permit','Supervision') NOT NULL,
+    target_catalog_id           BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_document_requirement_links_requirement FOREIGN KEY (document_requirement_id)
+        REFERENCES document_requirements(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_document_requirement_links_target (document_requirement_id, target_type, target_catalog_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS financial_agreements (
@@ -911,21 +1067,52 @@ CREATE TABLE IF NOT EXISTS tasks (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     task_no         VARCHAR(20) NOT NULL UNIQUE,
     project_id      BIGINT UNSIGNED NOT NULL,
+    -- Optional link to the Design activity/Permit/Supervision activity
+    -- this task belongs to (migration 0088) -- at most one of the
+    -- three; a task with none is just a generic to-do. Every one of the
+    -- three tracks gets one auto-generated task per selected item the
+    -- moment the project leaves Contract (see project_service.
+    -- _create_service_tasks), and closing the last task linked to an
+    -- item auto-closes that item too (see task_service.set_status ->
+    -- project_service.maybe_auto_close_design_activity/maybe_auto_close_
+    -- permit/maybe_auto_close_supervision_activity).
+    selected_activity_id BIGINT UNSIGNED NULL,
+    selected_permit_id   BIGINT UNSIGNED NULL,
+    selected_supervision_activity_id BIGINT UNSIGNED NULL,
+    -- When work on this task is meant to begin, alongside due_date/
+    -- due_time below (when it's meant to be done by) -- always set on
+    -- an auto-created service task (the project's own start date);
+    -- optional on a manually-created one.
+    start_date      DATE NULL,
     title           VARCHAR(200) NOT NULL,
     assigned_to     BIGINT UNSIGNED NOT NULL,
     priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
     severity        ENUM('Critical','Major','Minor') NOT NULL DEFAULT 'Minor',
     due_date        DATE NOT NULL,
     due_time        TIME NOT NULL,
-    status          ENUM('Pending','In Progress','Completed') NOT NULL DEFAULT 'Pending',
+    -- "Preset" (migration 0088) is the initial status for a system-
+    -- generated service task, distinct from "Pending" (a manually-
+    -- created task's own default) -- graduates to "Pending" the moment
+    -- anything about it is edited; the UI treats a task still sitting
+    -- in "Preset" as flagged, needing review.
+    status          ENUM('Preset','Pending','In Progress','Completed') NOT NULL DEFAULT 'Pending',
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_tasks_assignee FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_tasks_selected_activity FOREIGN KEY (selected_activity_id)
+        REFERENCES project_selected_activities(id) ON DELETE SET NULL,
+    CONSTRAINT fk_tasks_selected_permit FOREIGN KEY (selected_permit_id)
+        REFERENCES project_selected_permits(id) ON DELETE SET NULL,
+    CONSTRAINT fk_tasks_selected_supervision_activity FOREIGN KEY (selected_supervision_activity_id)
+        REFERENCES project_selected_supervision_activities(id) ON DELETE SET NULL,
     INDEX idx_tasks_project (project_id),
     INDEX idx_tasks_status (status),
-    INDEX idx_tasks_assignee (assigned_to)
+    INDEX idx_tasks_assignee (assigned_to),
+    INDEX idx_tasks_selected_activity (selected_activity_id),
+    INDEX idx_tasks_selected_permit (selected_permit_id),
+    INDEX idx_tasks_selected_supervision_activity (selected_supervision_activity_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -1023,6 +1210,10 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME NULL,
+    -- migration 0084 -- snapshotted onto each ProjectSelectedPermit as
+    -- permit_price at selection time (see project_selected_permits
+    -- below); NULL/0 rows selected before permit pricing existed.
+    fixed_cost      DECIMAL(12,2) NOT NULL DEFAULT 0,
     INDEX idx_permit_catalog_items_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -1030,6 +1221,41 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
 -- here rather than left for an admin to type in by hand on day one.
 -- Still fully admin-editable afterward from Admin > Permit Catalog.
 INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
+
+-- Which Design activities have to be Complete before a given permit
+-- becomes "Eligible" to apply for (migration 0089, Admin > Permit
+-- Catalog) -- see project_service._recompute_permit_eligibility. A
+-- permit with no rows here at all is eligible immediately.
+CREATE TABLE IF NOT EXISTS permit_prerequisites (
+    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    permit_catalog_item_id  BIGINT UNSIGNED NOT NULL,
+    design_activity_id      BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_permit_prerequisites_permit FOREIGN KEY (permit_catalog_item_id)
+        REFERENCES permit_catalog_items(id) ON DELETE CASCADE,
+    CONSTRAINT fk_permit_prerequisites_design_activity FOREIGN KEY (design_activity_id)
+        REFERENCES service_catalog_activities(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_permit_prerequisites_pair (permit_catalog_item_id, design_activity_id),
+    INDEX idx_permit_prerequisites_design_activity (design_activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Same shape and rationale as permit_prerequisites above, for
+-- Supervision activities instead of Permits -- which Design activities
+-- have to be Complete before a Supervision activity becomes "Eligible"
+-- to start (see project_service._recompute_supervision_eligibility).
+-- Both supervision_activity_id and design_activity_id point at
+-- service_catalog_activities -- Supervision and Design activities
+-- share the one catalog table.
+CREATE TABLE IF NOT EXISTS supervision_prerequisites (
+    id                          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    supervision_activity_id     BIGINT UNSIGNED NOT NULL,
+    design_activity_id          BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_supervision_prerequisites_supervision_activity FOREIGN KEY (supervision_activity_id)
+        REFERENCES service_catalog_activities(id) ON DELETE CASCADE,
+    CONSTRAINT fk_supervision_prerequisites_design_activity FOREIGN KEY (design_activity_id)
+        REFERENCES service_catalog_activities(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_supervision_prerequisites_pair (supervision_activity_id, design_activity_id),
+    INDEX idx_supervision_prerequisites_design_activity (design_activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- One row per Supervision activity checked in the New Project wizard --
 -- snapshot of name/rate/dates at creation time, same reasoning as
@@ -1049,9 +1275,25 @@ CREATE TABLE IF NOT EXISTS project_selected_supervision_activities (
     activity_name   VARCHAR(150) NOT NULL,
     monthly_rate    DECIMAL(12,2) NOT NULL,
     start_date      DATE NOT NULL,
-    end_date        DATE NULL,
+    -- Required (migration 0081) -- an activity with no end date could
+    -- reach Payment Plan with no way to actually build its day-prorated
+    -- monthly billing schedule.
+    end_date        DATE NOT NULL,
+    -- "Planned" until its required Design activities (see
+    -- supervision_prerequisites below) are all Complete, at which point
+    -- it flips to "Eligible" (eligibility_met_at/_notified_at) --
+    -- staff then close it by hand whenever they judge it done (see
+    -- project_service.set_supervision_status), no sub-tasks gate this
+    -- one the way Design's own linked-task check does.
+    status          ENUM('Planned','Eligible','In Progress','Complete','Cancelled') NOT NULL DEFAULT 'Planned',
+    eligibility_met_at DATETIME NULL,
+    eligibility_notified_at DATETIME NULL,
+    closed_at       DATETIME NULL,
+    closed_by       BIGINT UNSIGNED NULL,
     CONSTRAINT fk_project_selected_supervision_activities_project FOREIGN KEY (project_id)
         REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_selected_supervision_activities_closed_by FOREIGN KEY (closed_by)
+        REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_project_selected_supervision_activities_project (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -1102,6 +1344,27 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     CONSTRAINT fk_project_timeline_events_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_timeline_events_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_project_timeline_events_project (project_id, event_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per completed (not Cancelled -- nothing to hand over on a
+-- descoped item) Design activity/Permit/Supervision activity (migration
+-- 0089) -- the project's hand-over record, generated once every
+-- included track is closed (see project_service._generate_handover_
+-- checklist, called from _apply_stage_change's Handover-entry hook).
+-- The unique constraint is what makes generation idempotent even if
+-- that check runs more than once for the same project. source_id is
+-- not a real FK -- like document_requirement_links.target_catalog_id
+-- above, it points at whichever table source_type names, and a column
+-- can't conditionally FK three different tables.
+CREATE TABLE IF NOT EXISTS handover_checklist_items (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id      BIGINT UNSIGNED NOT NULL,
+    source_type     ENUM('Design','Permit','Supervision') NOT NULL,
+    source_id       BIGINT UNSIGNED NOT NULL,
+    title           VARCHAR(150) NOT NULL,
+    completed_at    DATETIME NOT NULL,
+    CONSTRAINT fk_handover_checklist_items_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_handover_checklist_items_source (project_id, source_type, source_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- The execution-step checklist, the Project Approval Process (5
@@ -1190,6 +1453,29 @@ CREATE TABLE IF NOT EXISTS email_settings (
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_email_settings_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Admin-editable subject/body for one of the app's automated emails
+-- (migration 0069) -- exactly one row per key, not admin-creatable/
+-- deletable like document_templates. email_template_service.render()
+-- falls back to its own DEFAULT_TEMPLATES (the app's original hardcoded
+-- copy) for any key with no row here yet, so this table is allowed to
+-- start empty -- a row only needs to exist once an admin actually edits
+-- that template. The five *_otp keys that used to exist here were
+-- removed (migration 0080) once every confirmation flow switched from
+-- an emailed OTP code to a signed-document upload.
+CREATE TABLE IF NOT EXISTS email_templates (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `key`           ENUM('client_welcome','project_created','requirement_confirmed','quotation_approved',
+                          'contract_signed','permit_application_submitted','permit_response_received',
+                          'payment_received','payment_reminder') NOT NULL,
+    subject         VARCHAR(300) NOT NULL,
+    body            TEXT NOT NULL,
+    updated_by      BIGINT UNSIGNED NOT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_email_templates_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_email_templates_key (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
