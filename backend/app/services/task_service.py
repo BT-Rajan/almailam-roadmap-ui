@@ -214,6 +214,24 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
             project_service.maybe_auto_close_permit(db, task.selected_permit_id, user_id)
         if task.selected_supervision_activity_id is not None:
             project_service.maybe_auto_close_supervision_activity(db, task.selected_supervision_activity_id, user_id)
+        # "Every task closed" is itself one of Handover's own exit
+        # criteria (see project_service._assert_stage_exit_criteria),
+        # independent of whichever activity/permit/supervision item the
+        # task happens to be linked to (or not linked to at all -- a
+        # generic task counts too). The three calls above only ever
+        # re-check the stage when they actually close a linked item, so
+        # completing the *last* open task -- generic, or one whose
+        # activity/permit/supervision was already closed earlier by
+        # hand -- was never re-triggering this check on its own,
+        # leaving a project stuck just short of Handover even once
+        # every real condition was already satisfied. try_auto_advance_
+        # stage is a safe, idempotent no-op when the exit criteria
+        # aren't met yet, so calling it unconditionally here as well
+        # costs nothing on every other task completion.
+        project = db.query(Project).filter(Project.id == task.project_id).first()
+        if project is not None:
+            db.flush()
+            project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(task)
     return task
