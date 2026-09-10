@@ -9,6 +9,7 @@ from app.schemas.report import (
     ChartDataPoint,
     ClientWithProjects,
     EmployeePerformance,
+    FinancialPeriodSummary,
     LineChartDataPoint,
     PaymentLedgerEntry,
     PaymentProjections,
@@ -104,6 +105,11 @@ def payment_projections(
 @router.get("/employee-performance", response_model=list[EmployeePerformance])
 def employee_performance(year: int, month: int, db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.employee_performance(db, year, month)
+
+
+@router.get("/financial-summary", response_model=FinancialPeriodSummary)
+def financial_summary(startDate: date, endDate: date, db: Session = Depends(get_db), _=Depends(can_view)):
+    return report_service.financial_period_summary(db, startDate, endDate)
 
 
 @router.get("/projects/{project_no}", response_model=list[ReportSection])

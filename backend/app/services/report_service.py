@@ -279,6 +279,60 @@ def employee_performance(db: Session, year: int, month: int) -> list[dict]:
     return sorted(results, key=lambda entry: entry["employeeName"])
 
 
+def financial_period_summary(db: Session, start_date: date, end_date: date) -> dict:
+    """One period's financial snapshot -- total received (payments
+    recorded in the period), total due (obligations that fell due in the
+    period, regardless of whether they were paid), and how much of that
+    billing is still outstanding/overdue as of today. Both bounds are
+    inclusive (unlike activity_service's exclusive-end convention) --
+    callers pass a calendar period's actual first/last day directly, no
+    "day after" adjustment needed. Meant to be called twice (once for
+    the period being looked at, once for whatever it's being compared
+    against) and diffed by the caller -- kept as a single-period query
+    rather than baking the comparison in here, so it stays reusable for
+    anything else that just wants "how did we do in period X"."""
+    total_received = (
+        db.query(func.sum(Payment.amount_received))
+        .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
+        .scalar()
+        or 0
+    )
+    payment_count = (
+        db.query(func.count(Payment.id))
+        .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
+        .scalar()
+        or 0
+    )
+    obligations_due = (
+        db.query(PaymentObligation)
+        .filter(PaymentObligation.due_date >= start_date, PaymentObligation.due_date <= end_date)
+        .all()
+    )
+    today = date.today()
+    total_due = 0.0
+    total_outstanding = 0.0
+    total_overdue = 0.0
+    for obligation in obligations_due:
+        due_amount = float(obligation.amount_due)
+        total_due += due_amount
+        if obligation.manual_status is not None:
+            continue
+        remaining = max(due_amount - float(obligation.amount_received), 0.0)
+        total_outstanding += remaining
+        if remaining > 0 and obligation.due_date < today:
+            total_overdue += remaining
+
+    return {
+        "startDate": start_date.isoformat(),
+        "endDate": end_date.isoformat(),
+        "totalReceived": float(total_received),
+        "totalDue": total_due,
+        "totalOutstanding": total_outstanding,
+        "totalOverdue": total_overdue,
+        "paymentCount": payment_count,
+    }
+
+
 def clients_with_projects(db: Session) -> list[dict]:
     """Every non-deleted client alongside every one of their non-deleted
     projects and its current status/stage/progress -- one aggregate query

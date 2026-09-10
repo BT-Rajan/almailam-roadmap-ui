@@ -25,6 +25,7 @@ export const ROUTE_NAMES = {
   REPORT_CLIENT_PROJECTS: 'report-client-projects',
   REPORT_PAYMENT_LEDGER: 'report-payment-ledger',
   REPORT_EMPLOYEE_PERFORMANCE: 'report-employee-performance',
+  REPORT_MONTHLY_FINANCIALS: 'report-monthly-financials',
   ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
   ADMIN_CATALOGS: 'admin-catalogs',

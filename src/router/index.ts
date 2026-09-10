@@ -397,6 +397,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/reports/monthly-financials',
+      name: ROUTE_NAMES.REPORT_MONTHLY_FINANCIALS,
+      component: () => import('@/pages/MonthlyFinancialsReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.monthlyFinancials' },
+        ],
+      },
+    },
+    {
       path: '/admin',
       name: ROUTE_NAMES.ADMIN,
       component: () => import('@/pages/AdministrationPage.vue'),

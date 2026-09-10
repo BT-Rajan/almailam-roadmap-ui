@@ -89,3 +89,13 @@ class EmployeePerformance(BaseModel):
     assigned: int
     completed: int
     completionRate: int
+
+
+class FinancialPeriodSummary(BaseModel):
+    startDate: str
+    endDate: str
+    totalReceived: float
+    totalDue: float
+    totalOutstanding: float
+    totalOverdue: float
+    paymentCount: int

@@ -3,6 +3,7 @@ import type {
   ChartDataPoint,
   ClientWithProjects,
   EmployeePerformance,
+  FinancialPeriodSummary,
   LineChartData,
   PaymentLedgerEntry,
   PaymentProjections,
@@ -87,6 +88,10 @@ async function getEmployeePerformance(year: number, month: number): Promise<Empl
   return apiClient.get<EmployeePerformance[]>(`/api/reports/employee-performance?year=${year}&month=${month}`)
 }
 
+async function getFinancialSummary(startDate: string, endDate: string): Promise<FinancialPeriodSummary> {
+  return apiClient.get<FinancialPeriodSummary>(`/api/reports/financial-summary?startDate=${startDate}&endDate=${endDate}`)
+}
+
 export const reportService = {
   getSummary,
   getProjectsByStatus,
@@ -103,4 +108,5 @@ export const reportService = {
   getPaymentLedger,
   getPaymentProjections,
   getEmployeePerformance,
+  getFinancialSummary,
 }

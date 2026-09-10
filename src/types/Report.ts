@@ -86,6 +86,16 @@ export interface EmployeePerformance {
   completionRate: number
 }
 
+export interface FinancialPeriodSummary {
+  startDate: string
+  endDate: string
+  totalReceived: number
+  totalDue: number
+  totalOutstanding: number
+  totalOverdue: number
+  paymentCount: number
+}
+
 export interface ProjectReportData {
   projectId: string
   projectName: string

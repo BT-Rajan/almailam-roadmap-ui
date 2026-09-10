@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BarChart3, Building2, GitBranch, Gauge, ListTree, Receipt, TrendingUp, Users } from '@lucide/vue'
+import { BarChart3, Building2, GitBranch, Gauge, LineChart, ListTree, Receipt, TrendingUp, Users } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -129,6 +129,19 @@ const reports = computed(() => [
       t('report.listPage.employeePerformanceMetric3'),
     ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_EMPLOYEE_PERFORMANCE }),
+  },
+  {
+    id: 'monthly-financials',
+    title: t('report.listPage.monthlyFinancialsTitle'),
+    description: t('report.listPage.monthlyFinancialsDescription'),
+    icon: LineChart,
+    color: 'success',
+    metrics: [
+      t('report.listPage.monthlyFinancialsMetric1'),
+      t('report.listPage.monthlyFinancialsMetric2'),
+      t('report.listPage.monthlyFinancialsMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_MONTHLY_FINANCIALS }),
   },
 ])
 </script>
