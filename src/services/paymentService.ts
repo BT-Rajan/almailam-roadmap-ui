@@ -157,6 +157,23 @@ async function approveAgreement(agreementId: string): Promise<FinancialAgreement
   }
 }
 
+/** Reopens an Approved agreement back to Draft so its schedule can be
+ * corrected -- e.g. a Design & Permit plan whose last installment falls
+ * after the contract's intended expiry date, which contract creation
+ * rejects but neither an Adjustment nor a Refund can fix (see
+ * payment_service.reopen_agreement). Rejected by the backend once any
+ * Payment is recorded against this agreement, or once the project
+ * already has a Contract on file. `reason` is required and goes on the
+ * audit trail. */
+async function reopenAgreement(agreementId: string, reason: string): Promise<FinancialAgreement> {
+  try {
+    return await apiClient.post<FinancialAgreement>(`/api/financial-agreements/${agreementId}/reopen`, { reason })
+  } catch (error) {
+    console.error('Failed to reopen agreement:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to reopen agreement')
+  }
+}
+
 /**
  * Edits a Draft financial agreement's terms and regenerates its
  * installment schedule -- rejected by the backend once the agreement is
@@ -377,6 +394,7 @@ export const paymentService = {
   updateAgreement,
   deleteAgreement,
   approveAgreement,
+  reopenAgreement,
   recordPayment,
   attachPaymentProof,
   downloadPaymentProof,

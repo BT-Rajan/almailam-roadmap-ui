@@ -64,6 +64,7 @@ export default {
     paymentPlanEmailedTitle: 'تم إرسال خطة الدفع',
     edit: 'تعديل',
     delete: 'حذف',
+    reopenForEditing: 'إعادة الفتح للتعديل',
     totalAmount: 'المبلغ الإجمالي',
     paymentMode: 'طريقة الدفع',
     agreementDate: 'تاريخ الاتفاقية',
@@ -89,6 +90,17 @@ export default {
     couldNotDelete: 'تعذّر حذف خطة الدفع',
     deletePaymentPlanConfirmTitle: 'حذف خطة الدفع',
     deletePaymentPlanConfirmMessage: 'حذف خطة دفع {stream}؟ هذا يزيل جدول الدفعات المرتبط بها أيضًا. لا يمكن التراجع عن هذا.',
+    planReopenedTitle: 'تمت إعادة فتح خطة الدفع',
+    planReopenedDescription: 'الخطة الآن في حالة مسودة -- عدّل جدولها ثم اعتمدها مرة أخرى.',
+    couldNotReopen: 'تعذّرت إعادة فتح خطة الدفع',
+    reopenDialog: {
+      title: 'إعادة فتح خطة الدفع للتعديل',
+      message:
+        'سيؤدي هذا إلى إعادة خطة دفع {stream} إلى حالة المسودة حتى يمكن تصحيح جدولها -- مثلاً إذا كان تاريخ استحقاق آخر قسط بعد تاريخ انتهاء العقد المقصود. لا يمكن ذلك إلا إذا لم يتم تسجيل أي دفعة عليها بعد ولا يوجد عقد بعد لهذا المشروع.',
+      reasonLabel: 'السبب',
+      reasonPlaceholder: 'لماذا يتم إعادة فتح هذه الخطة؟',
+      confirmLabel: 'إعادة الفتح',
+    },
   },
 
   statusPanel: {

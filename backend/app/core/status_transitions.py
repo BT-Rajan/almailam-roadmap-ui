@@ -150,15 +150,21 @@ PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 # Added alongside "Payment Plan" becoming a real workflow stage
 # (migration 0061) -- a freshly-created agreement is a Draft (its
 # obligations/schedule already exist, same as always, but it isn't yet
-# what gates advancing the project) until explicitly Approved. Terminal
-# once Approved: a payment plan that needs to change after approval is
-# adjusted via a real Adjustment/refund against its obligations, not
-# reopened back to Draft.
+# what gates advancing the project) until explicitly Approved. Most
+# post-approval corrections are a real Adjustment/Refund against the
+# obligations, not a reopen back to Draft -- but neither of those can
+# move a due_date or resize the schedule itself, so Approved -> Draft
+# is allowed too, for the one thing they can't cover (see
+# payment_service.reopen_agreement's own guard: only when no Payment
+# has been recorded yet and the project has no Contract on file, same
+# two conditions _assert_agreement_editable already requires for a
+# plain edit). Requires a reason, since undoing an approval is
+# significant enough to want one on the record.
 FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Draft": {"Approved"},
-    "Approved": set(),
+    "Approved": {"Draft"},
 }
-FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = set()
+FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = {"Draft"}
 
 # --- Project Status -- src/types/Project.ts: ProjectStatus
 #

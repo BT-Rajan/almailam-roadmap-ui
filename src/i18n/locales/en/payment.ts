@@ -64,6 +64,7 @@ export default {
     paymentPlanEmailedTitle: 'Payment plan emailed',
     edit: 'Edit',
     delete: 'Delete',
+    reopenForEditing: 'Reopen for editing',
     totalAmount: 'Total Amount',
     paymentMode: 'Payment Mode',
     agreementDate: 'Agreement Date',
@@ -89,6 +90,17 @@ export default {
     couldNotDelete: 'Could not delete payment plan',
     deletePaymentPlanConfirmTitle: 'Delete payment plan',
     deletePaymentPlanConfirmMessage: "Delete the {stream} payment plan? This removes its installment schedule too. This can't be undone.",
+    planReopenedTitle: 'Payment plan reopened',
+    planReopenedDescription: 'The plan is back in Draft -- edit its schedule, then approve it again.',
+    couldNotReopen: 'Could not reopen payment plan',
+    reopenDialog: {
+      title: 'Reopen payment plan for editing',
+      message:
+        "This moves the {stream} payment plan back to Draft so its schedule can be corrected -- e.g. if its last installment falls after the contract's intended expiry date. Only possible while no payment has been recorded against it and no contract exists yet for this project.",
+      reasonLabel: 'Reason',
+      reasonPlaceholder: 'Why is this plan being reopened?',
+      confirmLabel: 'Reopen',
+    },
   },
 
   statusPanel: {

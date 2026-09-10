@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, RotateCcw, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -13,6 +13,7 @@ import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useLocale } from '@/composables/useLocale'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
@@ -170,6 +171,10 @@ const isApprovingStream = ref<AgreementStream | undefined>(undefined)
 const isDeleteConfirmOpen = ref(false)
 const isDeleting = ref(false)
 const agreementPendingDelete = ref<FinancialAgreement | undefined>(undefined)
+const isReopenDialogOpen = ref(false)
+const isReopening = ref(false)
+const reopenReason = ref('')
+const agreementBeingReopened = ref<FinancialAgreement | undefined>(undefined)
 
 // The project's Approved quotation, if any -- used to pre-fill Total
 // Amount and Currency on the "Create Payment Plan" form instead of
@@ -332,6 +337,39 @@ async function handleConfirmDelete(): Promise<void> {
     resultDialogStore.showError(t('payment.planPanel.couldNotDelete'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Approved is meant to be terminal -- this is the deliberate, narrow
+// exception: a plan whose schedule needs a date/amount fix that neither
+// Adjustment nor Refund can make (see payment_service.reopen_agreement).
+// The backend re-checks its own two safety conditions (no Payment
+// recorded, no Contract on file) regardless of what this dialog shows,
+// so a stale button click still fails safely with a clear message.
+function openReopenDialog(agreement: FinancialAgreement): void {
+  agreementBeingReopened.value = agreement
+  reopenReason.value = ''
+  isReopenDialogOpen.value = true
+}
+
+async function handleConfirmReopen(): Promise<void> {
+  if (!agreementBeingReopened.value || !reopenReason.value.trim()) return
+  isReopening.value = true
+  try {
+    await store.reopenAgreement(agreementBeingReopened.value.id, reopenReason.value.trim())
+    // The project's stage may have just stepped back from Contract to
+    // Payment Plan (see reopen_agreement's docstring) -- refresh so the
+    // stepper/banner reflect that immediately instead of on next visit.
+    await projectStore.refreshProject(props.projectId)
+    resultDialogStore.showSuccess(
+      t('payment.planPanel.planReopenedTitle'),
+      t('payment.planPanel.planReopenedDescription'),
+    )
+    isReopenDialogOpen.value = false
+  } catch (error) {
+    resultDialogStore.showError(t('payment.planPanel.couldNotReopen'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isReopening.value = false
   }
 }
 
@@ -592,6 +630,15 @@ async function handleSendEmail(): Promise<void> {
                 >
                   {{ t('payment.planPanel.delete') }}
                 </BaseButton>
+                <BaseButton
+                  v-if="agreementForStream(section.stream)!.status === 'Approved'"
+                  variant="ghost"
+                  size="sm"
+                  :icon="RotateCcw"
+                  @click="openReopenDialog(agreementForStream(section.stream)!)"
+                >
+                  {{ t('payment.planPanel.reopenForEditing') }}
+                </BaseButton>
               </div>
 
               <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
@@ -675,6 +722,25 @@ async function handleSendEmail(): Promise<void> {
       :is-submitting="store.isSubmitting"
       @submit="handleSubmitAgreement"
     />
+
+    <BaseDialog v-if="agreementBeingReopened" v-model="isReopenDialogOpen" :title="t('payment.planPanel.reopenDialog.title')" size="sm">
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-text-secondary">{{ t('payment.planPanel.reopenDialog.message', { stream: agreementStreamLabel(agreementBeingReopened.stream) }) }}</p>
+        <TextArea
+          v-model="reopenReason"
+          :label="t('payment.planPanel.reopenDialog.reasonLabel')"
+          :placeholder="t('payment.planPanel.reopenDialog.reasonPlaceholder')"
+          required
+          :rows="3"
+        />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="isReopening" @click="isReopenDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
+        <BaseButton variant="danger" :loading="isReopening" :disabled="!reopenReason.trim()" @click="handleConfirmReopen">
+          {{ t('payment.planPanel.reopenDialog.confirmLabel') }}
+        </BaseButton>
+      </template>
+    </BaseDialog>
 
     <ConfirmationDialog
       v-model="isDeleteConfirmOpen"
