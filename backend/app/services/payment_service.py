@@ -889,7 +889,19 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
                 continue
 
             agreement = get_agreement(db, obligation.agreement_id)
-            project = db.query(Project).filter(Project.id == agreement.project_id).first()
+            # Excludes a soft-deleted project's own obligations -- see
+            # project_service.delete_project's docstring. A deleted
+            # project's financial agreements/obligations are left alone
+            # on disk, but reminders (client emails and engineer
+            # notifications alike) are exactly the kind of ongoing
+            # tracking a deleted project should no longer generate.
+            project = (
+                db.query(Project)
+                .filter(Project.id == agreement.project_id, Project.deleted_at.is_(None))
+                .first()
+            )
+            if project is None:
+                continue
 
             # The internal Engineer notification (unchanged from before --
             # still needs a project with an Engineer assigned, still

@@ -1741,32 +1741,28 @@ def get_audit_events(db: Session, project_no: str) -> list[dict]:
 
 
 def delete_project(db: Session, project_no: str, actor_id: int) -> None:
+    """Soft-deletes unconditionally -- deliberately NOT gated on how many
+    quotations/contracts/tasks/documents/government submissions the
+    project has. Nothing is removed from disk: every one of those child
+    records stays exactly as it was, still reachable through the audit
+    trail and _project_exists() above. The only thing this changes is
+    that get_project()/list_projects() (and everything downstream that
+    calls them) stop seeing this project at all, so it drops out of
+    tracking, billing reminders, and stage-advancement immediately --
+    see check_and_notify_payment_reminders' and check_and_expire_
+    quotations' own deleted-project filters for the two places that
+    would otherwise have kept acting on a "deleted" project's still-open
+    financial records. Fully reversible via restore_project.
+
+    A previous version of this blocked the delete entirely whenever any
+    child record existed, on the theory that a soft-deleted project's
+    real FK constraints never fire to protect against orphaned-looking
+    records. That protection isn't needed for a soft delete (nothing is
+    actually orphaned -- the rows are all still there, just hidden), and
+    in practice it made routine archival impossible for any project that
+    had ever been quoted or invoiced, which is nearly all of them.
+    """
     project = get_project(db, project_no)
-
-    # Same reasoning as client_service.delete_client()'s active-projects
-    # check: this is a soft-delete (deleted_at set, not a real row
-    # removal), so the real FK constraints on these child tables' project_id
-    # never fire to protect against it -- without this check, a project
-    # with real quotations/contracts/tasks/documents/submissions still on
-    # file could be "deleted" while those records kept silently pointing
-    # at it. Queried directly against the models here (not through each
-    # sibling service module) to avoid a circular import, since those
-    # modules already import project_service themselves for
-    # assert_project_open_for_new_work().
-    child_counts = {
-        "quotation(s)": db.query(Quotation).filter(Quotation.project_id == project.id, Quotation.deleted_at.is_(None)).count(),
-        "contract(s)": db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).count(),
-        "task(s)": db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).count(),
-        "document(s)": db.query(ProjectDocument).filter(ProjectDocument.project_id == project.id, ProjectDocument.deleted_at.is_(None)).count(),
-        "government submission(s)": db.query(GovernmentSubmission).filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None)).count(),
-    }
-    existing = [f"{count} {label}" for label, count in child_counts.items() if count > 0]
-    if existing:
-        raise ValidationAppError(
-            f"This project still has {', '.join(existing)} on file and cannot be deleted. "
-            "Remove or reassign those first."
-        )
-
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project deleted", actor_id, previous_value=project.project_name)
     project.deleted_at = datetime.now(timezone.utc)
     db.commit()

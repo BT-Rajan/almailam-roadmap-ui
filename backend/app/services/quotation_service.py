@@ -584,21 +584,30 @@ def check_and_expire_quotations(db: Session) -> int:
 
     expired_count = 0
     for quotation in candidates:
-        project = db.query(Project).filter(Project.id == quotation.project_id).first()
+        # Skips a soft-deleted project's own quotations entirely -- no
+        # status flip, no admin notification. See project_service.
+        # delete_project's docstring: a deleted project should generate
+        # no further tracking activity at all, not even this kind.
+        project = (
+            db.query(Project)
+            .filter(Project.id == quotation.project_id, Project.deleted_at.is_(None))
+            .first()
+        )
+        if project is None:
+            continue
         quotation_no = quotation.quotation_no
         validity = quotation.validity
         set_status(db, quotation_no, "Expired", "Automatically expired: validity date passed.", None)
-        if project is not None:
-            notification_service.notify_role(
-                db, "Administrator",
-                "Quotation expired",
-                f"Quotation {quotation_no} for project {project.project_no} passed its validity date "
-                f"({validity.isoformat()}) without a decision and was automatically marked Expired.",
-                "Project",
-                link_route_name="project-workspace",
-                link_params={"projectId": project.project_no},
-            )
-            db.commit()
+        notification_service.notify_role(
+            db, "Administrator",
+            "Quotation expired",
+            f"Quotation {quotation_no} for project {project.project_no} passed its validity date "
+            f"({validity.isoformat()}) without a decision and was automatically marked Expired.",
+            "Project",
+            link_route_name="project-workspace",
+            link_params={"projectId": project.project_no},
+        )
+        db.commit()
         expired_count += 1
     return expired_count
 
