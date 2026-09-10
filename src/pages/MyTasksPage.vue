@@ -65,6 +65,16 @@ async function handlePriorityChange(priority: TaskPriority): Promise<void> {
   }
 }
 
+async function handleTitleChange(title: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateTitle'), detail)
+  }
+}
+
 async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
@@ -150,6 +160,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
+        @title-change="handleTitleChange"
         @reassign="handleReassign"
         @delete="requestDelete"
       />

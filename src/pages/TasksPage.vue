@@ -128,6 +128,16 @@ async function handleReassign(assignee: string): Promise<void> {
   }
 }
 
+async function handleTitleChange(title: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateTitle'), detail)
+  }
+}
+
 async function handleStartDateChange(startDate: string): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
@@ -259,6 +269,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
+        @title-change="handleTitleChange"
         @reassign="handleReassign"
         @start-date-change="handleStartDateChange"
         @due-date-change="handleDueDateChange"

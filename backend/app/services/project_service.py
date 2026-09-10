@@ -360,25 +360,48 @@ def _assert_completion_evidence(db: Session, project: Project, override_no_docum
         )
 
 
+def _assert_design_tasks_complete(db: Session, activity_id: int) -> None:
+    """Gates marking a Design activity Complete (never Cancelled -- a
+    descoped activity doesn't need its tasks finished) on every task
+    linked to it (Task.selected_activity_id) already being Completed.
+    An activity with no linked tasks at all passes through -- nothing
+    to wait on. Unlike _assert_completion_evidence just below, this has
+    no override: task completion is a real, load-bearing signal (it's
+    also what maybe_auto_close_design_activity uses to close the
+    activity automatically), not a paperwork formality, so it isn't
+    something a checkbox should be able to skip past."""
+    linked_tasks = (
+        db.query(Task).filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None)).all()
+    )
+    if any(task.status != "Completed" for task in linked_tasks):
+        raise ValidationAppError(
+            "All tasks linked to this Design activity must be Completed before it can be marked Complete."
+        )
+
+
 def close_design_activity(
     db: Session, project_no: str, activity_id: int, new_status: str, user_id: int, override_no_document: bool = False,
 ) -> ProjectSelectedActivity:
-    """Direct user action -- closes a Design activity regardless of its
-    linked tasks' state ("user has full control", independent of the
-    task-driven auto-close below). new_status is 'Complete' or
-    'Cancelled' -- the latter for a descoped activity that was never
-    going to be finished, so it stops blocking project completion
-    without pretending it was actually done. Also tries auto-advancing
-    the stage (same as every other stage-completing action) -- closing
-    the last open Design activity is exactly what Design's own exit
-    criterion checks, so nothing should be left waiting on a separate
-    manual "move stage" click that doesn't currently exist in the UI."""
+    """Direct user action -- closes a Design activity. new_status is
+    'Complete' or 'Cancelled' -- the latter for a descoped activity that
+    was never going to be finished, so it stops blocking project
+    completion without pretending it was actually done. Marking it
+    Complete requires every linked task to already be Completed (see
+    _assert_design_tasks_complete) -- this used to be independent of
+    the task-driven auto-close below ("user has full control"), which
+    let staff mark a Design service complete while its own tasks were
+    still open. Also tries auto-advancing the stage (same as every
+    other stage-completing action) -- closing the last open Design
+    activity is exactly what Design's own exit criterion checks, so
+    nothing should be left waiting on a separate manual "move stage"
+    click that doesn't currently exist in the UI."""
     if new_status not in ("Complete", "Cancelled"):
         raise ValidationAppError("new_status must be 'Complete' or 'Cancelled'.")
     project = get_project(db, project_no)
-    if new_status == "Complete":
-        _assert_completion_evidence(db, project, override_no_document)
     activity = get_selected_activity(db, project.id, activity_id)
+    if new_status == "Complete":
+        _assert_design_tasks_complete(db, activity.id)
+        _assert_completion_evidence(db, project, override_no_document)
     _set_design_activity_status(db, activity, new_status, user_id, auto=False)
     db.flush()
     try_auto_advance_stage(db, project, user_id)

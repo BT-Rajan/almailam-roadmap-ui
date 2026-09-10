@@ -206,6 +206,18 @@ async function handleReassign(assignee: string): Promise<void> {
   }
 }
 
+// Same treatment as reassign/schedule changes just above -- a title
+// correction is routine, no confirmation step.
+async function handleTitleChange(title: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateTitle'), detail)
+  }
+}
+
 // Applied directly, no confirmation step -- a schedule tweak is routine,
 // same treatment as reassigning a task's owner just above (only status/
 // priority/delete go through the confirm dialog here).
@@ -301,6 +313,7 @@ async function handleDeleteTask(): Promise<void> {
       :client-name="clientName"
       @status-change="requestStatusChange"
       @priority-change="requestPriorityChange"
+      @title-change="handleTitleChange"
       @reassign="requestReassign"
       @start-date-change="handleStartDateChange"
       @due-date-change="handleDueDateChange"
