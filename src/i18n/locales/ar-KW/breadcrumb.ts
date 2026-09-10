@@ -22,6 +22,7 @@ export default {
   projectPerformance: 'أداء المشروع',
   teamWorkload: 'عبء عمل الفريق',
   employeeActivity: 'نشاط الموظفين',
+  projectTree: 'شجرة مراحل ومهام المشروع',
   administration: 'الإدارة',
   users: 'المستخدمون',
   catalogs: 'الكتالوجات',

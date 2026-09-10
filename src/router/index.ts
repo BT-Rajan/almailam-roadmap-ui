@@ -341,6 +341,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/reports/project-tree',
+      name: ROUTE_NAMES.REPORT_PROJECT_TREE,
+      component: () => import('@/pages/ProjectTreeReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.projectTree' },
+        ],
+      },
+    },
+    {
       path: '/admin',
       name: ROUTE_NAMES.ADMIN,
       component: () => import('@/pages/AdministrationPage.vue'),

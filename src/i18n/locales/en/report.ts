@@ -36,6 +36,11 @@ export default {
     employeeActivityMetric1: 'Employeewise breakdown',
     employeeActivityMetric2: 'Today / Week / Month / Custom',
     employeeActivityMetric3: 'CSV export',
+    projectTreeTitle: 'Project Stage & Task Tree',
+    projectTreeDescription: 'Pick a project and see every stage, track, activity, and task -- completed vs. pending -- in one tree.',
+    projectTreeMetric1: 'Stages -> tracks -> activities -> tasks',
+    projectTreeMetric2: 'Complete / In Progress / Upcoming',
+    projectTreeMetric3: 'Includes unlinked tasks',
     viewReport: 'View Report',
     aboutReports: 'About Reports',
     aboutExecutiveLabel: 'Executive Summary:',
@@ -139,6 +144,26 @@ export default {
     noActivity: 'No activity in this range',
     loadFailed: 'Failed to load activity',
     exportFailed: 'Failed to export activity',
+  },
+
+  projectTreePage: {
+    pageTitle: 'Project Stage & Task Tree',
+    pageSubtitle: 'Every stage, track, activity, and task for one project, so-far-completed vs. pending, in one tree.',
+    project: 'Project',
+    unknownClient: 'Unknown client',
+    progress: '{percent}% complete',
+    trackItems: 'Design/Permit/Supervision Items',
+    tasks: 'Tasks',
+    noItems: 'No items selected for this track.',
+    noTasks: 'No tasks linked to this item.',
+    taskCount: 'no tasks | {count} task | {count} tasks',
+    generalTasks: 'General Tasks (not linked to a specific activity)',
+    loadFailed: 'Failed to load this project',
+    status: {
+      complete: 'Complete',
+      current: 'In Progress',
+      upcoming: 'Upcoming',
+    },
   },
 
   inboxPage: {

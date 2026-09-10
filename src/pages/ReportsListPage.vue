@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BarChart3, ListTree, TrendingUp, Users } from '@lucide/vue'
+import { BarChart3, GitBranch, ListTree, TrendingUp, Users } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -77,6 +77,19 @@ const reports = computed(() => [
       t('report.listPage.employeeActivityMetric3'),
     ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_EMPLOYEE_ACTIVITY }),
+  },
+  {
+    id: 'project-tree',
+    title: t('report.listPage.projectTreeTitle'),
+    description: t('report.listPage.projectTreeDescription'),
+    icon: GitBranch,
+    color: 'info',
+    metrics: [
+      t('report.listPage.projectTreeMetric1'),
+      t('report.listPage.projectTreeMetric2'),
+      t('report.listPage.projectTreeMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_PROJECT_TREE }),
   },
 ])
 </script>

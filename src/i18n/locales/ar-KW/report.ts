@@ -33,6 +33,11 @@ export default {
     employeeActivityMetric1: 'تفصيل حسب الموظف',
     employeeActivityMetric2: 'اليوم / الأسبوع / الشهر / مخصص',
     employeeActivityMetric3: 'تصدير CSV',
+    projectTreeTitle: 'شجرة مراحل ومهام المشروع',
+    projectTreeDescription: 'اختر مشروعًا واطّلع على كل مرحلة ومسار ونشاط ومهمة -- المكتمل مقابل المعلّق -- في شجرة واحدة.',
+    projectTreeMetric1: 'مراحل ← مسارات ← أنشطة ← مهام',
+    projectTreeMetric2: 'مكتمل / قيد التنفيذ / قادم',
+    projectTreeMetric3: 'يشمل المهام غير المرتبطة',
     viewReport: 'عرض التقرير',
     aboutReports: 'حول التقارير',
     aboutExecutiveLabel: 'التقرير التنفيذي الموجز:',
@@ -132,6 +137,26 @@ export default {
     noActivity: 'لا يوجد نشاط خلال هذه الفترة',
     loadFailed: 'فشل تحميل النشاط',
     exportFailed: 'فشل تصدير النشاط',
+  },
+
+  projectTreePage: {
+    pageTitle: 'شجرة مراحل ومهام المشروع',
+    pageSubtitle: 'كل مرحلة ومسار ونشاط ومهمة لمشروع واحد، المكتمل مقابل المعلق، في شجرة واحدة.',
+    project: 'المشروع',
+    unknownClient: 'عميل غير معروف',
+    progress: '{percent}% مكتمل',
+    trackItems: 'عناصر التصميم/التصريح/الإشراف',
+    tasks: 'المهام',
+    noItems: 'لا توجد عناصر محددة لهذا المسار.',
+    noTasks: 'لا توجد مهام مرتبطة بهذا العنصر.',
+    taskCount: 'لا مهام | مهمة واحدة | {count} مهام',
+    generalTasks: 'مهام عامة (غير مرتبطة بنشاط محدد)',
+    loadFailed: 'فشل تحميل هذا المشروع',
+    status: {
+      complete: 'مكتمل',
+      current: 'قيد التنفيذ',
+      upcoming: 'قادم',
+    },
   },
 
   inboxPage: {
