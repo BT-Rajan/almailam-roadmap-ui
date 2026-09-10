@@ -17,7 +17,6 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
 from app.models.document import ProjectDocument, ProjectLinkDocument
-from app.models.government import GovernmentSubmission
 from app.models.handover_checklist import HandoverChecklistItem
 from app.models.permit_selection import ProjectSelectedPermit
 from app.models.prerequisite import PermitPrerequisite, SupervisionPrerequisite
@@ -1177,6 +1176,19 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"{', '.join(a.activity_name for a in unfinished_activities)})"
                 )
         if includes_government_submission:
+            # Symmetric with Design/Supervision just below/above --
+            # every selected Permit's own status (Complete/Cancelled) is
+            # the authoritative "is this done" signal, same as an
+            # activity's. This used to also require a GovernmentSubmission
+            # row on file with status Approved, but Permits have no
+            # sub-tasks and no other gate gating "Complete" (see
+            # set_permit_status -- staff can close a permit by hand,
+            # e.g. an authority approval obtained and evidenced outside
+            # this system's own Submission tracking), so that extra
+            # check could block Handover indefinitely on a permit
+            # everyone -- including this exit criterion's own "every
+            # Permit closed" check just above -- already agrees is done,
+            # with no visible link telling staff what to do about it.
             unfinished_permits = [
                 p for p in get_selected_permits(db, project.id) if p.status not in ("Complete", "Cancelled")
             ]
@@ -1185,24 +1197,6 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"every Permit closed ({len(unfinished_permits)} still open: "
                     f"{', '.join(p.permit_name for p in unfinished_permits)})"
                 )
-            # At least one of the project's government submissions
-            # actually has to have been Approved by the authority --
-            # mirrors the "at least one" bar the other two tracks use
-            # (not "every submission"), since a project can have several
-            # submissions to different authorities and only needs its
-            # permit(s) in hand, not a clean sweep.
-            has_approved_submission = (
-                db.query(GovernmentSubmission)
-                .filter(
-                    GovernmentSubmission.project_id == project.id,
-                    GovernmentSubmission.status == "Approved",
-                    GovernmentSubmission.deleted_at.is_(None),
-                )
-                .first()
-                is not None
-            )
-            if not has_approved_submission:
-                problems.append("at least one government submission Approved")
         if includes_supervision:
             unfinished_supervision = [
                 a for a in get_selected_supervision_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
@@ -2055,10 +2049,17 @@ def confirm_handover_payment(db: Session, project_no: str, user_id: int | None) 
     shows alongside it as reference: staff can confirm by hand even if
     obligation tracking is incomplete (e.g. a payment collected outside
     the system). Required before confirm_project_handover will accept
-    the signed hand-over acknowledgment below."""
+    the signed hand-over acknowledgment below.
+
+    Deliberately gated on nothing else -- not the project's current
+    stage, not any other track's completion. This is staff attesting a
+    fact about money already received, which doesn't become less true
+    just because some other Handover exit criterion (an open task, an
+    unclosed track) hasn't cleared yet; requiring the project to already
+    be sitting in "Handover" here only forced staff to wait on an
+    unrelated blocker before they could even record a fact that's
+    already true."""
     project = get_project(db, project_no)
-    if project.current_stage != "Handover":
-        raise ValidationAppError("This project hasn't reached the Handover stage yet.")
     project.handover_payment_confirmed_at = datetime.now(timezone.utc)
     project.handover_payment_confirmed_by = user_id
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over payment confirmed", user_id)
