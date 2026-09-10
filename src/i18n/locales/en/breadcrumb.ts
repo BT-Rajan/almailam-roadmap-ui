@@ -25,6 +25,7 @@ export default {
   projectTree: 'Project Stage & Task Tree',
   clientProjects: 'Client Projects',
   paymentLedger: 'Payment Ledger',
+  employeePerformance: 'Employee Performance',
   administration: 'Administration',
   users: 'Users',
   catalogs: 'Catalogs',

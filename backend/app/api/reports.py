@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.schemas.report import (
     ChartDataPoint,
     ClientWithProjects,
+    EmployeePerformance,
     LineChartDataPoint,
     PaymentLedgerEntry,
     PaymentProjections,
@@ -98,6 +99,11 @@ def payment_projections(
 ):
     resolved_client_id = client_service.parse_client_id(clientId) if clientId else None
     return report_service.payment_projections(db, projectNo, resolved_client_id)
+
+
+@router.get("/employee-performance", response_model=list[EmployeePerformance])
+def employee_performance(year: int, month: int, db: Session = Depends(get_db), _=Depends(can_view)):
+    return report_service.employee_performance(db, year, month)
 
 
 @router.get("/projects/{project_no}", response_model=list[ReportSection])

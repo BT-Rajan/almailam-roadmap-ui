@@ -81,3 +81,11 @@ class PaymentProjections(BaseModel):
     byMonth: list[ProjectionByMonth]
     byProject: list[ProjectionByProject]
     byService: list[ProjectionByService]
+
+
+class EmployeePerformance(BaseModel):
+    userId: str
+    employeeName: str
+    assigned: int
+    completed: int
+    completionRate: int

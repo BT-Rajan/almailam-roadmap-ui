@@ -78,6 +78,14 @@ export interface PaymentProjections {
   byService: ProjectionByService[]
 }
 
+export interface EmployeePerformance {
+  userId: string
+  employeeName: string
+  assigned: number
+  completed: number
+  completionRate: number
+}
+
 export interface ProjectReportData {
   projectId: string
   projectName: string

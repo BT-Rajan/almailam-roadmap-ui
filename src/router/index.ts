@@ -383,6 +383,20 @@ const router = createRouter({
       },
     },
     {
+      path: '/reports/employee-performance',
+      name: ROUTE_NAMES.REPORT_EMPLOYEE_PERFORMANCE,
+      component: () => import('@/pages/EmployeePerformanceReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.employeePerformance' },
+        ],
+      },
+    },
+    {
       path: '/admin',
       name: ROUTE_NAMES.ADMIN,
       component: () => import('@/pages/AdministrationPage.vue'),
