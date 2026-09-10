@@ -21,6 +21,7 @@ export default {
   executiveSummary: 'Executive Summary',
   projectPerformance: 'Project Performance',
   teamWorkload: 'Team Workload',
+  employeeActivity: 'Employee Activity',
   administration: 'Administration',
   users: 'Users',
   catalogs: 'Catalogs',

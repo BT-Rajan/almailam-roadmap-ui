@@ -21,6 +21,7 @@ export default {
   executiveSummary: 'الملخص التنفيذي',
   projectPerformance: 'أداء المشروع',
   teamWorkload: 'عبء عمل الفريق',
+  employeeActivity: 'نشاط الموظفين',
   administration: 'الإدارة',
   users: 'المستخدمون',
   catalogs: 'الكتالوجات',
