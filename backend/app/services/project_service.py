@@ -209,6 +209,31 @@ def get_selected_activity(db: Session, project_id: int, activity_id: int) -> Pro
     return activity
 
 
+def _auto_complete_linked_tasks(db: Session, task_filter, user_id: int | None) -> None:
+    """Closes out any task still open under a Design activity/Permit/
+    Supervision activity that is itself being force-closed (Complete or
+    Cancelled) directly by a user, on top of whatever the task-driven
+    auto-close path already covers. Permits and Supervision activities
+    are explicitly closeable "anytime as they deem fit" regardless of
+    their own linked tasks' status (see set_permit_status/
+    set_supervision_status), and even Design allows Cancelled without
+    every linked task Completed (a descoped activity doesn't need its
+    tasks finished) -- without this, a task nobody individually touched
+    stays open forever under a parent the user already declared done,
+    and later silently blocks Handover's "every task closed" gate even
+    though every service reads as finished. A no-op when nothing linked
+    is still open (the common case, e.g. Design's own Complete path,
+    which already required every linked task Completed beforehand)."""
+    open_tasks = db.query(Task).filter(task_filter, Task.deleted_at.is_(None), Task.status != "Completed").all()
+    for task in open_tasks:
+        previous = task.status
+        task.status = "Completed"
+        audit_service.log_event(
+            db, "TASK", task.id, "Task auto-completed (parent service closed)", user_id,
+            previous_value=previous, new_value="Completed",
+        )
+
+
 def _set_design_activity_status(
     db: Session, activity: ProjectSelectedActivity, new_status: str, user_id: int | None, auto: bool
 ) -> None:
@@ -221,6 +246,8 @@ def _set_design_activity_status(
         "Design activity auto-closed (all linked tasks completed)" if auto else "Design activity closed",
         user_id, previous_value=previous, new_value=new_status,
     )
+    if not auto:
+        _auto_complete_linked_tasks(db, Task.selected_activity_id == activity.id, user_id)
     if new_status == "Complete":
         project = db.query(Project).filter(Project.id == activity.project_id).first()
         if project is not None:
@@ -530,6 +557,8 @@ def set_permit_status(
         db, ENTITY_TYPE, project.id, "Permit status changed", user_id,
         previous_value=previous, new_value=new_status,
     )
+    if new_status in ("Complete", "Cancelled"):
+        _auto_complete_linked_tasks(db, Task.selected_permit_id == permit.id, user_id)
     db.commit()
     db.refresh(permit)
     try_auto_advance_stage(db, project, user_id)
@@ -613,6 +642,8 @@ def set_supervision_status(
         db, ENTITY_TYPE, project.id, "Supervision activity status changed", user_id,
         previous_value=previous, new_value=new_status,
     )
+    if new_status in ("Complete", "Cancelled"):
+        _auto_complete_linked_tasks(db, Task.selected_supervision_activity_id == activity.id, user_id)
     db.commit()
     db.refresh(activity)
     try_auto_advance_stage(db, project, user_id)

@@ -66,7 +66,20 @@ const visibleParallelStages = computed<WorkflowStage[]>(() =>
 )
 const hasParallelBand = computed(() => visibleParallelStages.value.length > 0)
 
-const currentStageRank = computed(() => LINEAR_STAGES.indexOf(props.currentStage))
+// Once the project has moved into the parallel band or Handover,
+// props.currentStage is no longer one of LINEAR_STAGES at all, so a
+// plain LINEAR_STAGES.indexOf lookup returns -1 -- with the comparisons
+// below, that read every linear stage (including Contract) as "upcoming"
+// again instead of "complete" the moment the project left Contract,
+// turning their segments from green back to grey. Treat "past all four
+// linear stages" as its own rank (LINEAR_STAGES.length) so every one of
+// them still compares as strictly less than it and stays complete.
+const currentStageRank = computed(() => {
+  if (PARALLEL_STAGES.includes(props.currentStage) || props.currentStage === 'Handover') {
+    return LINEAR_STAGES.length
+  }
+  return LINEAR_STAGES.indexOf(props.currentStage)
+})
 
 function linearStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upcoming' {
   const rank = LINEAR_STAGES.indexOf(stage)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BarChart3, TrendingUp, Users } from '@lucide/vue'
+import { BarChart3, Building2, GitBranch, Gauge, LineChart, ListTree, Receipt, TrendingUp, Users } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -8,6 +8,22 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 
 const router = useRouter()
 const { t } = useI18n()
+
+// One lookup per Tailwind-color-driven class set below, keyed by the same
+// `color` string each report entry already carries -- previously three
+// nested ternaries per class list, which silently fell through to
+// success-* for any color beyond primary/info/success. Extending the grid
+// with more reports (warning/danger accents included) is now just adding
+// a key here instead of a fourth ternary branch in every template spot.
+const COLOR_CLASSES: Record<string, { bg: string; icon: string; dot: string; link: string }> = {
+  primary: { bg: 'bg-primary-50', icon: 'text-primary-600', dot: 'bg-primary-300', link: 'text-primary-600 hover:text-primary-700' },
+  info: { bg: 'bg-info-50', icon: 'text-info-600', dot: 'bg-info-300', link: 'text-info-600 hover:text-info-700' },
+  success: { bg: 'bg-success-50', icon: 'text-success-600', dot: 'bg-success-300', link: 'text-success-600 hover:text-success-700' },
+  warning: { bg: 'bg-warning-50', icon: 'text-warning-600', dot: 'bg-warning-300', link: 'text-warning-600 hover:text-warning-700' },
+}
+function colorClasses(color: string) {
+  return COLOR_CLASSES[color] ?? COLOR_CLASSES.success
+}
 
 const reports = computed(() => [
   {
@@ -49,6 +65,84 @@ const reports = computed(() => [
     ],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_WORKLOAD }),
   },
+  {
+    id: 'employee-activity',
+    title: t('report.listPage.employeeActivityTitle'),
+    description: t('report.listPage.employeeActivityDescription'),
+    icon: ListTree,
+    color: 'warning',
+    metrics: [
+      t('report.listPage.employeeActivityMetric1'),
+      t('report.listPage.employeeActivityMetric2'),
+      t('report.listPage.employeeActivityMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_EMPLOYEE_ACTIVITY }),
+  },
+  {
+    id: 'project-tree',
+    title: t('report.listPage.projectTreeTitle'),
+    description: t('report.listPage.projectTreeDescription'),
+    icon: GitBranch,
+    color: 'info',
+    metrics: [
+      t('report.listPage.projectTreeMetric1'),
+      t('report.listPage.projectTreeMetric2'),
+      t('report.listPage.projectTreeMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_PROJECT_TREE }),
+  },
+  {
+    id: 'client-projects',
+    title: t('report.listPage.clientProjectsTitle'),
+    description: t('report.listPage.clientProjectsDescription'),
+    icon: Building2,
+    color: 'success',
+    metrics: [
+      t('report.listPage.clientProjectsMetric1'),
+      t('report.listPage.clientProjectsMetric2'),
+      t('report.listPage.clientProjectsMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_CLIENT_PROJECTS }),
+  },
+  {
+    id: 'payment-ledger',
+    title: t('report.listPage.paymentLedgerTitle'),
+    description: t('report.listPage.paymentLedgerDescription'),
+    icon: Receipt,
+    color: 'primary',
+    metrics: [
+      t('report.listPage.paymentLedgerMetric1'),
+      t('report.listPage.paymentLedgerMetric2'),
+      t('report.listPage.paymentLedgerMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_PAYMENT_LEDGER }),
+  },
+  {
+    id: 'employee-performance',
+    title: t('report.listPage.employeePerformanceTitle'),
+    description: t('report.listPage.employeePerformanceDescription'),
+    icon: Gauge,
+    color: 'info',
+    metrics: [
+      t('report.listPage.employeePerformanceMetric1'),
+      t('report.listPage.employeePerformanceMetric2'),
+      t('report.listPage.employeePerformanceMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_EMPLOYEE_PERFORMANCE }),
+  },
+  {
+    id: 'monthly-financials',
+    title: t('report.listPage.monthlyFinancialsTitle'),
+    description: t('report.listPage.monthlyFinancialsDescription'),
+    icon: LineChart,
+    color: 'success',
+    metrics: [
+      t('report.listPage.monthlyFinancialsMetric1'),
+      t('report.listPage.monthlyFinancialsMetric2'),
+      t('report.listPage.monthlyFinancialsMetric3'),
+    ],
+    action: () => router.push({ name: ROUTE_NAMES.REPORT_MONTHLY_FINANCIALS }),
+  },
 ])
 </script>
 
@@ -61,7 +155,7 @@ const reports = computed(() => [
     </div>
 
     <!-- Reports Grid -->
-    <div class="grid grid-cols-1 tablet:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-3 gap-6">
       <Card
         v-for="report in reports"
         :key="report.id"
@@ -71,8 +165,8 @@ const reports = computed(() => [
       >
         <div class="space-y-4">
           <!-- Icon -->
-          <div :class="['w-12 h-12 rounded-lg flex items-center justify-center', report.color === 'primary' ? 'bg-primary-50' : report.color === 'info' ? 'bg-info-50' : 'bg-success-50']">
-            <component :is="report.icon" :class="['h-6 w-6', report.color === 'primary' ? 'text-primary-600' : report.color === 'info' ? 'text-info-600' : 'text-success-600']" />
+          <div :class="['w-12 h-12 rounded-lg flex items-center justify-center', colorClasses(report.color).bg]">
+            <component :is="report.icon" :class="['h-6 w-6', colorClasses(report.color).icon]" />
           </div>
 
           <!-- Content -->
@@ -84,14 +178,14 @@ const reports = computed(() => [
           <!-- Metrics -->
           <div class="space-y-1 pt-2 border-t border-border-light">
             <div v-for="metric in report.metrics" :key="metric" class="text-xs text-text-muted">
-              <span class="inline-block w-1.5 h-1.5 rounded-full me-2" :class="report.color === 'primary' ? 'bg-primary-300' : report.color === 'info' ? 'bg-info-300' : 'bg-success-300'" />
+              <span class="inline-block w-1.5 h-1.5 rounded-full me-2" :class="colorClasses(report.color).dot" />
               {{ metric }}
             </div>
           </div>
 
           <!-- CTA -->
           <div class="pt-2">
-            <button class="text-sm font-medium transition-colors" :class="report.color === 'primary' ? 'text-primary-600 hover:text-primary-700' : report.color === 'info' ? 'text-info-600 hover:text-info-700' : 'text-success-600 hover:text-success-700'">
+            <button class="text-sm font-medium transition-colors" :class="colorClasses(report.color).link">
               {{ t('report.listPage.viewReport') }} →
             </button>
           </div>

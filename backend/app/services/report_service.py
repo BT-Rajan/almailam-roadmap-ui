@@ -12,6 +12,7 @@ from app.models.payment import FinancialAgreement, Payment, PaymentObligation
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
+from app.models.user import User
 from app.services.payment_service import get_financial_summary
 
 
@@ -131,6 +132,243 @@ def summary_metrics(db: Session) -> list[dict]:
         {"label": "Overdue Tasks", "value": overdue_tasks, "color": "danger"},
         {"label": "Total Received", "value": float(total_received), "unit": "KWD", "color": "success"},
         {"label": "Total Pending", "value": float(total_pending), "unit": "KWD", "color": "warning"},
+    ]
+
+
+def _ledger_project_client_filter(query, project_no: str | None, client_id: int | None):
+    if project_no:
+        query = query.filter(Project.project_no == project_no)
+    if client_id is not None:
+        query = query.filter(Project.client_id == client_id)
+    return query
+
+
+def payment_ledger(
+    db: Session, project_no: str | None = None, client_id: int | None = None,
+    start_date: date | None = None, end_date: date | None = None,
+) -> list[dict]:
+    """The actual, recorded ledger -- one row per Payment ever received,
+    joined to the project/agreement it was recorded against so it can be
+    filtered project-wise or client-wise (and by date) without the
+    caller having to resolve those joins itself. Payment is otherwise
+    immutable once recorded (see its own model comment), so this is a
+    straightforward append-only history, not a computed balance."""
+    query = (
+        db.query(Payment, Project, FinancialAgreement)
+        .join(Project, Payment.project_id == Project.id)
+        .join(FinancialAgreement, Payment.agreement_id == FinancialAgreement.id)
+    )
+    query = _ledger_project_client_filter(query, project_no, client_id)
+    if start_date:
+        query = query.filter(Payment.payment_date >= start_date)
+    if end_date:
+        query = query.filter(Payment.payment_date <= end_date)
+    rows = query.order_by(Payment.payment_date.desc(), Payment.id.desc()).all()
+
+    client_ids = {project.client_id for _, project, _ in rows}
+    client_names = (
+        {c.id: c.company_name for c in db.query(Client).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
+    )
+
+    return [
+        {
+            "paymentNo": f"PMT-{payment.id:03d}",
+            "date": payment.payment_date.isoformat(),
+            "projectNo": project.project_no,
+            "projectName": project.project_name,
+            "clientName": client_names.get(project.client_id, ""),
+            "service": agreement.stream,
+            "amount": float(payment.amount_received),
+            "currency": agreement.currency,
+            "mode": payment.payment_mode,
+            "reference": payment.reference_number,
+            "payer": payment.payer,
+        }
+        for payment, project, agreement in rows
+    ]
+
+
+def _outstanding_obligations_query(db: Session, project_no: str | None, client_id: int | None):
+    """Every obligation still owed -- due minus received is positive and
+    it hasn't been manually written off (Cancelled/Waived, see
+    OBLIGATION_OVERRIDE_ALLOWED_TRANSITIONS) -- the same "what's left to
+    collect" definition summary_metrics' totalPending already uses,
+    scoped down to one project/client when asked."""
+    query = (
+        db.query(PaymentObligation, FinancialAgreement, Project)
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
+        .join(Project, FinancialAgreement.project_id == Project.id)
+        .filter(PaymentObligation.manual_status.is_(None))
+        .filter((PaymentObligation.amount_due - PaymentObligation.amount_received) > 0)
+    )
+    return _ledger_project_client_filter(query, project_no, client_id)
+
+
+def payment_projections(db: Session, project_no: str | None = None, client_id: int | None = None) -> dict:
+    """Expected-but-not-yet-received income, grouped three ways -- by the
+    month it falls due, by project, and by service (agreement stream) --
+    so "what's still coming in" can be read whichever way is useful,
+    without three separate round trips."""
+    rows = _outstanding_obligations_query(db, project_no, client_id).all()
+
+    by_month: dict[str, float] = {}
+    by_project: dict[str, dict] = {}
+    by_service: dict[str, float] = {}
+
+    for obligation, agreement, project in rows:
+        outstanding = float(obligation.amount_due) - float(obligation.amount_received)
+        month_key = obligation.due_date.strftime("%Y-%m")
+        by_month[month_key] = by_month.get(month_key, 0.0) + outstanding
+
+        project_entry = by_project.setdefault(
+            project.project_no, {"projectNo": project.project_no, "projectName": project.project_name, "amount": 0.0}
+        )
+        project_entry["amount"] += outstanding
+
+        by_service[agreement.stream] = by_service.get(agreement.stream, 0.0) + outstanding
+
+    return {
+        "byMonth": [{"month": month, "amount": amount} for month, amount in sorted(by_month.items())],
+        "byProject": sorted(by_project.values(), key=lambda entry: entry["projectNo"]),
+        "byService": [{"service": service, "amount": amount} for service, amount in sorted(by_service.items())],
+    }
+
+
+def employee_performance(db: Session, year: int, month: int) -> list[dict]:
+    """Assigned-vs-completed task counts per employee for one calendar
+    month -- "assigned" is every non-deleted task due that month
+    currently assigned to them (their workload for the month, regardless
+    of when it was created or who it's since been reassigned to/from),
+    "completed" is the subset of those specific tasks that are actually
+    Completed. Only employees with at least one task due in the month
+    appear -- there's nothing to report for someone with zero workload
+    that month."""
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    rows = (
+        db.query(Task.assigned_to, Task.status, func.count(Task.id))
+        .filter(Task.deleted_at.is_(None), Task.due_date >= start, Task.due_date < end)
+        .group_by(Task.assigned_to, Task.status)
+        .all()
+    )
+
+    by_user: dict[int, dict[str, int]] = {}
+    for assigned_to, status, count in rows:
+        entry = by_user.setdefault(assigned_to, {"assigned": 0, "completed": 0})
+        entry["assigned"] += count
+        if status == "Completed":
+            entry["completed"] += count
+
+    user_ids = list(by_user.keys())
+    names = (
+        {u.id: u.full_name for u in db.query(User.id, User.full_name).filter(User.id.in_(user_ids)).all()}
+        if user_ids
+        else {}
+    )
+
+    results = [
+        {
+            "userId": str(user_id),
+            "employeeName": names.get(user_id, "Unknown"),
+            "assigned": data["assigned"],
+            "completed": data["completed"],
+            "completionRate": round(data["completed"] * 100 / data["assigned"]) if data["assigned"] else 0,
+        }
+        for user_id, data in by_user.items()
+    ]
+    return sorted(results, key=lambda entry: entry["employeeName"])
+
+
+def financial_period_summary(db: Session, start_date: date, end_date: date) -> dict:
+    """One period's financial snapshot -- total received (payments
+    recorded in the period), total due (obligations that fell due in the
+    period, regardless of whether they were paid), and how much of that
+    billing is still outstanding/overdue as of today. Both bounds are
+    inclusive (unlike activity_service's exclusive-end convention) --
+    callers pass a calendar period's actual first/last day directly, no
+    "day after" adjustment needed. Meant to be called twice (once for
+    the period being looked at, once for whatever it's being compared
+    against) and diffed by the caller -- kept as a single-period query
+    rather than baking the comparison in here, so it stays reusable for
+    anything else that just wants "how did we do in period X"."""
+    total_received = (
+        db.query(func.sum(Payment.amount_received))
+        .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
+        .scalar()
+        or 0
+    )
+    payment_count = (
+        db.query(func.count(Payment.id))
+        .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
+        .scalar()
+        or 0
+    )
+    obligations_due = (
+        db.query(PaymentObligation)
+        .filter(PaymentObligation.due_date >= start_date, PaymentObligation.due_date <= end_date)
+        .all()
+    )
+    today = date.today()
+    total_due = 0.0
+    total_outstanding = 0.0
+    total_overdue = 0.0
+    for obligation in obligations_due:
+        due_amount = float(obligation.amount_due)
+        total_due += due_amount
+        if obligation.manual_status is not None:
+            continue
+        remaining = max(due_amount - float(obligation.amount_received), 0.0)
+        total_outstanding += remaining
+        if remaining > 0 and obligation.due_date < today:
+            total_overdue += remaining
+
+    return {
+        "startDate": start_date.isoformat(),
+        "endDate": end_date.isoformat(),
+        "totalReceived": float(total_received),
+        "totalDue": total_due,
+        "totalOutstanding": total_outstanding,
+        "totalOverdue": total_overdue,
+        "paymentCount": payment_count,
+    }
+
+
+def clients_with_projects(db: Session) -> list[dict]:
+    """Every non-deleted client alongside every one of their non-deleted
+    projects and its current status/stage/progress -- one aggregate query
+    plus one grouping pass in Python, rather than the frontend calling
+    GET /api/projects?clientId=X once per client (an N+1 request pattern
+    that gets slower the more clients exist). Clients with zero projects
+    still appear, with an empty projects list, so the report reflects
+    every client on file, not just the ones with active work."""
+    clients = db.query(Client).filter(Client.deleted_at.is_(None)).order_by(Client.company_name.asc()).all()
+    projects = (
+        db.query(Project)
+        .filter(Project.deleted_at.is_(None))
+        .order_by(Project.project_name.asc())
+        .all()
+    )
+    projects_by_client: dict[int, list[Project]] = {}
+    for project in projects:
+        projects_by_client.setdefault(project.client_id, []).append(project)
+
+    return [
+        {
+            "clientId": str(client.id),
+            "clientName": client.company_name,
+            "clientStatus": client.status,
+            "projects": [
+                {
+                    "projectNo": project.project_no,
+                    "projectName": project.project_name,
+                    "status": project.status,
+                    "currentStage": project.current_stage,
+                    "progress": project.progress,
+                }
+                for project in projects_by_client.get(client.id, [])
+            ],
+        }
+        for client in clients
     ]
 
 

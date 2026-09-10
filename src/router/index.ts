@@ -327,6 +327,90 @@ const router = createRouter({
       },
     },
     {
+      path: '/reports/employee-activity',
+      name: ROUTE_NAMES.REPORT_EMPLOYEE_ACTIVITY,
+      component: () => import('@/pages/EmployeeActivityReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.employeeActivity' },
+        ],
+      },
+    },
+    {
+      path: '/reports/project-tree',
+      name: ROUTE_NAMES.REPORT_PROJECT_TREE,
+      component: () => import('@/pages/ProjectTreeReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.projectTree' },
+        ],
+      },
+    },
+    {
+      path: '/reports/client-projects',
+      name: ROUTE_NAMES.REPORT_CLIENT_PROJECTS,
+      component: () => import('@/pages/ClientProjectsReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.clientProjects' },
+        ],
+      },
+    },
+    {
+      path: '/reports/payment-ledger',
+      name: ROUTE_NAMES.REPORT_PAYMENT_LEDGER,
+      component: () => import('@/pages/PaymentLedgerReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.paymentLedger' },
+        ],
+      },
+    },
+    {
+      path: '/reports/employee-performance',
+      name: ROUTE_NAMES.REPORT_EMPLOYEE_PERFORMANCE,
+      component: () => import('@/pages/EmployeePerformanceReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.employeePerformance' },
+        ],
+      },
+    },
+    {
+      path: '/reports/monthly-financials',
+      name: ROUTE_NAMES.REPORT_MONTHLY_FINANCIALS,
+      component: () => import('@/pages/MonthlyFinancialsReportPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.reports', routeName: ROUTE_NAMES.REPORTS },
+          { label: 'breadcrumb.monthlyFinancials' },
+        ],
+      },
+    },
+    {
       path: '/admin',
       name: ROUTE_NAMES.ADMIN,
       component: () => import('@/pages/AdministrationPage.vue'),
