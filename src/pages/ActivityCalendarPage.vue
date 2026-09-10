@@ -314,6 +314,9 @@ function handleSeverityChange(severity: Parameters<typeof taskStore.updateTaskSe
 function handleReassign(assignee: string): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
 }
+function handleTitleChange(title: string): void {
+  if (taskStore.selectedTaskId) taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+}
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
   const task = await taskStore.createTask(input)
@@ -526,6 +529,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
+        @title-change="handleTitleChange"
         @reassign="handleReassign"
       />
     </BaseDrawer>

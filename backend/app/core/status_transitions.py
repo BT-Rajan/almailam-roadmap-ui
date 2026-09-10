@@ -70,9 +70,18 @@ CONTRACT_STATUSES_REQUIRING_REASON = {"Terminated"}
 # explicit transitions here (In Progress/Completed) cover a task
 # skipping straight past a plain reassignment into real work or being
 # closed immediately.
+#
+# "Pending" includes "Completed" as well as "In Progress" -- a task
+# finished in one sitting (no separate "In Progress" step logged) is
+# routine, not exceptional, so it shouldn't be forced through an
+# intermediate status the user never actually was in. Previously
+# missing here, which silently rejected every direct Pending ->
+# Completed change from the Task Details drawer (the drawer's status
+# dropdown always offers all three statuses with no awareness of which
+# transitions the backend actually allows).
 TASK_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Preset": {"Pending", "In Progress", "Completed"},
-    "Pending": {"In Progress"},
+    "Pending": {"In Progress", "Completed"},
     "In Progress": {"Completed", "Pending"},
     "Completed": {"In Progress"},
 }

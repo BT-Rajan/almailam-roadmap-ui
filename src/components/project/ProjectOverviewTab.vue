@@ -26,6 +26,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { documentRequirementService } from '@/services/documentRequirementService'
 import { projectService } from '@/services/projectService'
@@ -70,6 +71,7 @@ const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectStore = useProjectStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
+const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
@@ -85,6 +87,15 @@ const { t } = useI18n()
 // backend, which enforces the same rule for real). overrides is keyed
 // by "design:<id>" / "permit:<id>" / "supervision:<id>" so all three
 // item kinds share one reactive map without their id spaces colliding.
+//
+// Design activities have a second, non-overridable gate on top of
+// this: every task linked to the activity (Task.selectedActivityId)
+// must already be Completed (mirrors project_service.
+// _assert_design_tasks_complete on the backend, which enforces the
+// same rule for real). Unlike the document-evidence gate, there's no
+// checkbox to skip this one -- task completion is a real signal, not
+// a paperwork formality, so canMarkComplete short-circuits to false
+// for 'design' before it ever looks at overrides/hasProjectClosureDocument.
 type CompletionKind = 'design' | 'permit' | 'supervision'
 const overrides = reactive<Record<string, boolean>>({})
 function overrideKey(kind: CompletionKind, id: string): string {
@@ -93,12 +104,23 @@ function overrideKey(kind: CompletionKind, id: string): string {
 const hasProjectClosureDocument = computed(
   () => linkDocumentStore.documentsForCategory(props.project.id, 'Project Closure').length > 0,
 )
+function designActivityTasksComplete(activityId: string): boolean {
+  const linkedTasks = taskStore
+    .tasksByProject(props.project.id)
+    .filter((task) => task.selectedActivityId === activityId)
+  return linkedTasks.every((task) => task.status === 'Completed')
+}
 function canMarkComplete(kind: CompletionKind, id: string): boolean {
+  if (kind === 'design' && !designActivityTasksComplete(id)) return false
   return hasProjectClosureDocument.value || Boolean(overrides[overrideKey(kind, id)])
 }
 function setOverride(kind: CompletionKind, id: string, checked: boolean): void {
   overrides[overrideKey(kind, id)] = checked
 }
+
+onMounted(() => {
+  if (taskStore.tasks.length === 0) taskStore.loadTasks()
+})
 
 const isAddClosureDocDialogOpen = ref(false)
 function openAddClosureDocDialog(): void {
@@ -921,7 +943,10 @@ function verificationResultLabel(result: string): string {
                         :disabled="!canMarkComplete('design', activity.id)"
                         @click="closeDesignActivity(activity.id, 'Complete')"
                       >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                      <div v-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
+                      <p v-if="!designActivityTasksComplete(activity.id)" class="text-xs text-text-muted no-print">
+                        {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
+                      </p>
+                      <div v-else-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
                         <label class="inline-flex items-center gap-1.5 text-text-muted">
                           <input
                             type="checkbox"

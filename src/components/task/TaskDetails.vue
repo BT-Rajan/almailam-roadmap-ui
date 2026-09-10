@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { AlertTriangle, Trash2 } from '@lucide/vue'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   'status-change': [status: TaskStatus]
   'priority-change': [priority: TaskPriority]
   'severity-change': [severity: TaskSeverity]
+  'title-change': [title: string]
   'start-date-change': [startDate: string]
   'due-date-change': [dueDate: string]
   'due-time-change': [dueTime: string]
@@ -34,6 +36,27 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// Local draft so keystrokes don't fire a save on every character --
+// only commit on blur, and only if the title actually changed. Reset
+// whenever a different task is opened (props.task.title changes out
+// from under an unedited draft).
+const titleDraft = ref(props.task.title)
+watch(
+  () => props.task.title,
+  (title) => {
+    titleDraft.value = title
+  },
+)
+function commitTitleChange(): void {
+  const trimmed = titleDraft.value.trim()
+  if (trimmed.length === 0) {
+    titleDraft.value = props.task.title
+    return
+  }
+  if (trimmed !== props.task.title) emit('title-change', trimmed)
+  titleDraft.value = trimmed
+}
 
 const STATUS_OPTIONS: SelectOption[] = [
   { label: 'Pending', value: 'Pending', labelKey: 'task.status.pending' },
@@ -69,7 +92,12 @@ const details = computed(() => [
       <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">{{ t('task.overdue') }}</span>
     </div>
 
-    <p class="text-base font-semibold leading-snug text-text-primary">{{ task.title }}</p>
+    <TextInput
+      v-model="titleDraft"
+      :label="t('task.details.title')"
+      @blur="commitTitleChange"
+      @keydown.enter="($event.target as HTMLInputElement)?.blur()"
+    />
 
     <div v-if="task.status === 'Preset'" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
       <AlertTriangle class="h-4 w-4 shrink-0" />

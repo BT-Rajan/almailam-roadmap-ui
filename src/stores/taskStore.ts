@@ -134,6 +134,11 @@ export const useTaskStore = defineStore('task', {
     // completely lost the moment the page was reloaded, even though
     // taskService.updateTask() already existed, fully built and
     // correct, and nothing ever called it.
+    async updateTaskTitle(taskId: string, title: string) {
+      const updated = await taskService.updateTask(taskId, { title })
+      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+    },
+
     async updateTaskStatus(taskId: string, status: TaskStatus, reason?: string) {
       const updated = await taskService.updateTask(taskId, { status, reason })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))

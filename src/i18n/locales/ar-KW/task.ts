@@ -31,6 +31,7 @@ export default {
   },
 
   details: {
+    title: 'العنوان',
     projectDetailsTitle: 'تفاصيل المهمة',
     project: 'المشروع',
     client: 'العميل',
@@ -76,6 +77,7 @@ export default {
     failedToUpdateStatus: 'فشل تحديث الحالة',
     failedToUpdatePriority: 'فشل تحديث الأولوية',
     failedToUpdateSeverity: 'فشل تحديث الخطورة',
+    failedToUpdateTitle: 'فشل تحديث العنوان',
     failedToReassignTask: 'فشل إعادة إسناد المهمة',
     failedToUpdateSchedule: 'فشل تحديث الجدول الزمني',
     taskCreatedTitle: 'تم إنشاء المهمة',
