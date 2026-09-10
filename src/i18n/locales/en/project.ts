@@ -257,6 +257,13 @@ export default {
       confirmedTitle: 'Hand-over confirmed',
       confirmedDescription: 'The project is now marked Completed.',
       failedToConfirm: 'Failed to confirm hand-over',
+      archivePromptTitle: 'Archive this project?',
+      archivePromptMessage: 'This project is now complete. Archive it now to move it out of the active project list? You can restore it later from Deleted Projects.',
+      archiveYes: 'Yes, Archive',
+      archiveNo: 'No, Keep Active',
+      archivedTitle: 'Project archived',
+      archivedDescription: 'The project has been moved out of the active list.',
+      failedToArchive: 'Failed to archive project',
     },
     fields: {
       service: 'Service',

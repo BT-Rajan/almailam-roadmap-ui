@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -264,6 +265,16 @@ const showHandoverCard = computed(
 const isHandoverDialogOpen = ref(false)
 const isHandoverSaving = ref(false)
 
+// Asked once, right after the project actually completes -- not a
+// stage/status option of its own, just a convenience offer to get a
+// finished project out of the active list immediately instead of
+// leaving that for whenever someone happens to notice it's done and
+// archives it by hand later. "No" is a real, equally-valid answer:
+// the project stays exactly as it is (Completed, still active) with
+// nothing else to undo.
+const isArchivePromptOpen = ref(false)
+const isArchiving = ref(false)
+
 async function handleConfirmHandover(payload: { file: File }): Promise<void> {
   isHandoverSaving.value = true
   try {
@@ -272,10 +283,25 @@ async function handleConfirmHandover(payload: { file: File }): Promise<void> {
     await loadHandoverStatus()
     isHandoverDialogOpen.value = false
     toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
+    isArchivePromptOpen.value = true
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.handover.failedToConfirm'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isHandoverSaving.value = false
+  }
+}
+
+async function handleArchiveConfirm(): Promise<void> {
+  isArchiving.value = true
+  try {
+    await projectStore.deleteProject(props.project.id)
+    isArchivePromptOpen.value = false
+    toastStore.show('success', t('project.overviewTab.handover.archivedTitle'), t('project.overviewTab.handover.archivedDescription'))
+    router.push({ name: ROUTE_NAMES.PROJECTS })
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.handover.failedToArchive'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isArchiving.value = false
   }
 }
 
@@ -732,6 +758,16 @@ function verificationResultLabel(result: string): string {
         :title="t('project.overviewTab.handover.confirmDialogTitle')"
         :description="t('project.overviewTab.handover.confirmDialogDescription')"
         @confirm="handleConfirmHandover"
+      />
+
+      <ConfirmationDialog
+        v-model="isArchivePromptOpen"
+        :title="t('project.overviewTab.handover.archivePromptTitle')"
+        :message="t('project.overviewTab.handover.archivePromptMessage')"
+        :confirm-label="t('project.overviewTab.handover.archiveYes')"
+        :cancel-label="t('project.overviewTab.handover.archiveNo')"
+        :loading="isArchiving"
+        @confirm="handleArchiveConfirm"
       />
     </Card>
 

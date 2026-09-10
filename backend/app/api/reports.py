@@ -113,6 +113,15 @@ def financial_summary(startDate: date, endDate: date, db: Session = Depends(get_
 
 
 @router.get("/projects/{project_no}", response_model=list[ReportSection])
-def project_report(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def project_report(project_no: str, db: Session = Depends(get_db), current_user=Depends(can_view)):
     project = project_service.get_project(db, project_no)
+    # Same self-heal as GET /api/projects/{project_no} (see that
+    # endpoint's own comment) -- this report is often the first thing
+    # opened for a project that hasn't been viewed through the workspace
+    # since its stage/progress last became stale, so it needs the same
+    # freshening rather than trusting whatever was last persisted.
+    project_service.try_auto_advance_stage(db, project, current_user.id)
+    project_service.recompute_progress(db, project)
+    db.commit()
+    db.refresh(project)
     return report_service.project_report(db, project)

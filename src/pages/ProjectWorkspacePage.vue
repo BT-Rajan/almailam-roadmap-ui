@@ -443,6 +443,7 @@ async function handleConfirmDelete(): Promise<void> {
         <WorkflowProgress
           class="no-print"
           :current-stage="project.currentStage"
+          :project-status="project.status"
           :includes-design="project.includesDesign"
           :includes-government-submission="project.includesGovernmentSubmission"
           :includes-supervision="project.includesSupervision"

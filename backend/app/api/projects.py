@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.exceptions import ValidationAppError
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.schemas.common import PagedResponse
@@ -123,6 +124,12 @@ def get_project(project_no: str, db: Session = Depends(get_db), current_user: Us
     # that happens to re-check it. try_auto_advance_stage is a safe,
     # idempotent no-op when the exit criteria aren't met yet.
     project_service.try_auto_advance_stage(db, project, current_user.id)
+    # progress is weighted by things that change without a stage
+    # transition too -- a payment recorded, one more Design/Permit/
+    # Supervision item closed -- so it's recomputed on every read here,
+    # not just alongside a stage change (see project_service.
+    # recompute_progress's own callers elsewhere for those).
+    project_service.recompute_progress(db, project)
     db.commit()
     db.refresh(project)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
@@ -286,6 +293,23 @@ def _handover_status_out(db: Session, project, user_id: int | None) -> HandoverS
     project_service.try_auto_advance_stage(db, project, user_id)
     db.commit()
     db.refresh(project)
+
+    # Self-heals the other half of reaching Handover: notify_handover_ready
+    # normally fires automatically the instant a project's stage actually
+    # transitions into "Handover" (see _apply_stage_change's own hook),
+    # but a project already sitting at Handover from before that ever ran
+    # -- or whose client record was briefly missing when it first
+    # qualified, see that hook's own try/except -- never gets a second
+    # chance: try_auto_advance_stage above is a no-op once current_stage
+    # is already "Handover", so nothing else ever retries this. Without
+    # handover_sent_at set, confirm_project_handover refuses forever, with
+    # no way for staff to complete the project at all.
+    if project.current_stage == "Handover" and project.handover_sent_at is None:
+        try:
+            project_service.notify_handover_ready(db, project.project_no, user_id)
+            db.refresh(project)
+        except ValidationAppError:
+            pass
 
     # Always reflects the real, current status of every Design
     # activity/Permit/Supervision item -- not a stale snapshot frozen

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ProjectWorkspaceTabKey, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
+import type { ProjectStatus, ProjectWorkspaceTabKey, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey } from '@/utils/projectHelpers'
 
@@ -16,6 +16,13 @@ import { getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey
 // project actually includes render, so the band is 1-3 rows tall.
 interface Props {
   currentStage: WorkflowStage
+  // Handover only ever reads 'current' (blue) at best off currentStage
+  // alone -- current_stage stays "Handover" even once the project is
+  // genuinely done (there's no separate WorkflowStage for that), so
+  // this is the one segment that needs project.status too, to tell
+  // "reached Handover" apart from "the client's signed acknowledgment
+  // is actually in" (see handoverStepStatus below).
+  projectStatus: ProjectStatus
   includesDesign: boolean
   includesGovernmentSubmission: boolean
   includesSupervision: boolean
@@ -116,6 +123,7 @@ function parallelStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upc
 }
 
 function handoverStepStatus(): 'complete' | 'current' | 'upcoming' {
+  if (props.projectStatus === 'Completed') return 'complete'
   if (props.currentStage === 'Handover') return 'current'
   return 'upcoming'
 }
