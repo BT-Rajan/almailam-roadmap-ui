@@ -4,7 +4,7 @@ from fastapi import UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import AppError, NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
@@ -1119,7 +1119,17 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             elif supervision_agreement.status != "Approved":
                 problems.append("the Supervision financial agreement approved")
 
-    elif previous_stage == "Contract":
+    # Not part of the if/elif chain above -- these two are independent
+    # conditions on previous_stage and new_stage respectively, and both
+    # have to apply together for a project with none of Design/
+    # Government Submission/Supervision selected, whose only forward
+    # target from Contract is Handover directly (see
+    # _auto_advance_target's "return 'Handover'" fallback): it still
+    # needs a signed contract on file (nothing else checks that for
+    # such a project) *and* every task closed (the Handover branch
+    # below), not just one or the other. An elif here used to let
+    # whichever came first win, silently skipping the other.
+    if previous_stage == "Contract":
         # Gates leaving Contract into whichever of Design/Government
         # Submission/Supervision is actually next for this project (see
         # _auto_advance_target) -- a contract has to actually be signed,
@@ -1141,7 +1151,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if signed_contract is None:
             problems.append("a signed contract")
 
-    elif new_stage == "Handover":
+    if new_stage == "Handover":
         # The convergence gate for all three parallel tracks -- every
         # one this project actually includes has to be fully closed
         # (used to be two different sequential per-hop checks, Design's
@@ -1544,7 +1554,16 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     try:
         assert_transition_allowed(PROJECT_STAGE_ALLOWED_TRANSITIONS, project.current_stage, target_stage, "project")
         _assert_stage_exit_criteria(db, project, project.current_stage, target_stage)
-    except ValidationAppError:
+    except AppError:
+        # Not yet eligible (ValidationAppError, the expected/common case)
+        # or the proposed target isn't a transition this table allows
+        # right now (ConflictError) -- either way this is a best-effort
+        # "advance it if it's ready" check, never something the caller's
+        # own unrelated action should fail because of. Catching the
+        # narrower ValidationAppError alone let a ConflictError from
+        # assert_transition_allowed escape uncaught (see
+        # PROJECT_STAGE_ALLOWED_TRANSITIONS' own comment on the Contract
+        # -> Handover case that used to hit exactly this).
         return
     _apply_stage_change(db, project, target_stage, None, user_id, event_label="Stage auto-advanced")
 
