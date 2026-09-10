@@ -101,6 +101,13 @@ export default {
       reasonPlaceholder: 'Why is this plan being reopened?',
       confirmLabel: 'Reopen',
     },
+    obligationPaymentDialog: {
+      title: 'Record Payment — {installment}',
+      pendingAmount: 'Amount Pending',
+      recordedTitle: 'Payment recorded',
+      recordedDescription: 'The installment has been updated.',
+      couldNotRecord: 'Could not record payment',
+    },
   },
 
   statusPanel: {

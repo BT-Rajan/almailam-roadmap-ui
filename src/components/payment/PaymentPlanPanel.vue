@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, RotateCcw, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
@@ -8,7 +8,9 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
+import DatePicker from '@/components/common/DatePicker.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import NumberInput from '@/components/common/NumberInput.vue'
 import PaymentHistoryPanel from '@/components/payment/PaymentHistoryPanel.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
@@ -25,10 +27,10 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
-import { computeObligationStatus, getAgreementStreamLabel, getObligationStatusVariant } from '@/utils/paymentHelpers'
+import { computeObligationStatus, getAgreementStreamLabel, getObligationAmountPending, getObligationStatusVariant } from '@/utils/paymentHelpers'
 import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
-import type { AgreementStream, CreateAgreementInput, FinancialAgreement, ObligationStatus } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -253,6 +255,96 @@ function scheduleRows(stream: AgreementStream) {
       status: computeObligationStatus(o),
       dueDate: formatDate(o.dueDate),
     }))
+}
+
+// Same restricted set of entry-time modes as PaymentStatusPanel.vue's
+// own "Record Payment" form -- PAYMENT_MODE_LABEL_KEYS above still
+// covers the full 7 for *display* (e.g. an agreement's own default
+// payment_mode), this is just what staff can pick when logging an
+// actual payment received.
+const OBLIGATION_PAYMENT_MODE_OPTIONS: SelectOption[] = [
+  { label: 'Cash', value: 'Cash', labelKey: 'payment.paymentMode.cash' },
+  { label: 'Cheque', value: 'Cheque', labelKey: 'payment.paymentMode.cheque' },
+  { label: 'Online Payment', value: 'Online Payment', labelKey: 'payment.paymentMode.onlinePayment' },
+]
+
+// Clicking a row in the schedule table below records a payment against
+// that one specific installment -- separate from (and more targeted
+// than) PaymentStatusPanel.vue's stream-level form, which allocates a
+// lump sum across outstanding obligations oldest-first automatically.
+// amountReceived/status are never set directly: recordPayment below
+// always goes through the same backend endpoint PaymentStatusPanel
+// uses, so the live status this obligation (and every other view of
+// it -- Payment Status tab, the cross-project Payments page) shows is
+// recalculated the same way everywhere the instant the store's
+// obligations are refreshed.
+const isObligationPaymentDialogOpen = ref(false)
+const obligationBeingPaid = ref<{ stream: AgreementStream; obligation: PaymentObligation } | undefined>(undefined)
+const obligationPaymentForm = reactive({
+  paymentDate: new Date().toISOString().slice(0, 10),
+  paymentMode: 'Cash' as PaymentMode,
+  referenceNumber: '',
+  amount: 0,
+})
+const isSubmittingObligationPayment = ref(false)
+
+const pendingForObligationBeingPaid = computed(() =>
+  obligationBeingPaid.value ? getObligationAmountPending(obligationBeingPaid.value.obligation) : 0,
+)
+const canSubmitObligationPayment = computed(
+  () => obligationPaymentForm.amount > 0 && obligationPaymentForm.amount <= pendingForObligationBeingPaid.value + 0.009,
+)
+
+function handleObligationRowClick(stream: AgreementStream, row: { id: string }): void {
+  const obligation = obligationsForStream(stream).find((o) => o.id === row.id)
+  if (!obligation) return
+  // Nothing left to collect on a settled/cancelled/waived installment.
+  const status = computeObligationStatus(obligation)
+  if (status === 'Paid' || status === 'Cancelled' || status === 'Waived') return
+
+  obligationBeingPaid.value = { stream, obligation }
+  obligationPaymentForm.paymentDate = new Date().toISOString().slice(0, 10)
+  obligationPaymentForm.paymentMode = 'Cash'
+  obligationPaymentForm.referenceNumber = ''
+  obligationPaymentForm.amount = getObligationAmountPending(obligation)
+  isObligationPaymentDialogOpen.value = true
+}
+
+async function handleSubmitObligationPayment(): Promise<void> {
+  if (!obligationBeingPaid.value || !canSubmitObligationPayment.value) return
+  const { stream, obligation } = obligationBeingPaid.value
+  const agreement = agreementForStream(stream)
+  if (!agreement) return
+
+  isSubmittingObligationPayment.value = true
+  try {
+    const input: RecordPaymentInput = {
+      agreementId: agreement.id,
+      projectId: props.projectId,
+      amountReceived: obligationPaymentForm.amount,
+      paymentDate: obligationPaymentForm.paymentDate,
+      paymentMode: obligationPaymentForm.paymentMode,
+      referenceNumber: obligationPaymentForm.referenceNumber.trim() || undefined,
+      payer: props.client?.companyName || props.project.projectName,
+      allocations: [{ obligationId: obligation.id, amount: obligationPaymentForm.amount }],
+    }
+    await store.recordPayment(input, 'Rajan Kumar')
+    // Keeps the shared project store's cached data (e.g. amounts shown
+    // elsewhere in the workspace) in sync with what was just recorded.
+    await projectStore.refreshProject(props.projectId)
+    resultDialogStore.showSuccess(
+      t('payment.planPanel.obligationPaymentDialog.recordedTitle'),
+      t('payment.planPanel.obligationPaymentDialog.recordedDescription'),
+    )
+    isObligationPaymentDialogOpen.value = false
+  } catch (error) {
+    resultDialogStore.showError(
+      t('payment.planPanel.obligationPaymentDialog.couldNotRecord'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    isSubmittingObligationPayment.value = false
+  }
 }
 
 function openCreateAgreement(stream: AgreementStream): void {
@@ -660,7 +752,13 @@ async function handleSendEmail(): Promise<void> {
                 </div>
               </div>
 
-              <SmartTable :columns="SCHEDULE_COLUMNS" :rows="scheduleRows(section.stream)" row-key="id" :searchable="false">
+              <SmartTable
+                :columns="SCHEDULE_COLUMNS"
+                :rows="scheduleRows(section.stream)"
+                row-key="id"
+                :searchable="false"
+                @row-click="handleObligationRowClick(section.stream, $event)"
+              >
                 <template #cell-amountDue="{ value }">
                   {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
                 </template>
@@ -722,6 +820,57 @@ async function handleSendEmail(): Promise<void> {
       :is-submitting="store.isSubmitting"
       @submit="handleSubmitAgreement"
     />
+
+    <BaseDialog
+      v-if="obligationBeingPaid"
+      v-model="isObligationPaymentDialogOpen"
+      :title="t('payment.planPanel.obligationPaymentDialog.title', { installment: obligationBeingPaid.obligation.description })"
+      size="sm"
+    >
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-text-secondary">{{ t('payment.planPanel.obligationPaymentDialog.pendingAmount') }}</label>
+          <p class="rounded-lg border border-border-light bg-bg-secondary px-3 py-2 text-sm text-text-secondary">
+            {{ formatCurrency(pendingForObligationBeingPaid, agreementForStream(obligationBeingPaid.stream)!.currency) }}
+          </p>
+        </div>
+        <DatePicker v-model="obligationPaymentForm.paymentDate" :label="t('payment.statusPanel.paymentDate')" required />
+        <SelectBox
+          :model-value="obligationPaymentForm.paymentMode"
+          :label="t('payment.statusPanel.paymentMode')"
+          :options="OBLIGATION_PAYMENT_MODE_OPTIONS"
+          @update:model-value="obligationPaymentForm.paymentMode = $event as PaymentMode"
+        />
+        <TextInput
+          v-model="obligationPaymentForm.referenceNumber"
+          :label="t('payment.statusPanel.referenceNumber')"
+          :placeholder="t('payment.statusPanel.referenceNumberPlaceholder')"
+        />
+        <NumberInput
+          :model-value="obligationPaymentForm.amount"
+          :label="t('payment.statusPanel.actualAmount')"
+          :min="0"
+          step="0.01"
+          required
+          :error="
+            obligationPaymentForm.amount > pendingForObligationBeingPaid + 0.009
+              ? t('payment.statusPanel.exceedsOutstanding', {
+                  amount: formatCurrency(pendingForObligationBeingPaid, agreementForStream(obligationBeingPaid.stream)!.currency),
+                })
+              : undefined
+          "
+          @update:model-value="obligationPaymentForm.amount = Number($event)"
+        />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="isSubmittingObligationPayment" @click="isObligationPaymentDialogOpen = false">
+          {{ t('common.cancel') }}
+        </BaseButton>
+        <BaseButton :loading="isSubmittingObligationPayment" :disabled="!canSubmitObligationPayment" @click="handleSubmitObligationPayment">
+          {{ t('payment.statusPanel.recordPayment') }}
+        </BaseButton>
+      </template>
+    </BaseDialog>
 
     <BaseDialog v-if="agreementBeingReopened" v-model="isReopenDialogOpen" :title="t('payment.planPanel.reopenDialog.title')" size="sm">
       <div class="flex flex-col gap-4">

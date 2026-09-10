@@ -101,6 +101,13 @@ export default {
       reasonPlaceholder: 'لماذا يتم إعادة فتح هذه الخطة؟',
       confirmLabel: 'إعادة الفتح',
     },
+    obligationPaymentDialog: {
+      title: 'تسجيل دفعة — {installment}',
+      pendingAmount: 'المبلغ المستحق',
+      recordedTitle: 'تم تسجيل الدفعة',
+      recordedDescription: 'تم تحديث القسط.',
+      couldNotRecord: 'تعذّر تسجيل الدفعة',
+    },
   },
 
   statusPanel: {
