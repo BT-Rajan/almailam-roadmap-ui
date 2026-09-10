@@ -11,10 +11,12 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
+import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -110,6 +112,24 @@ watch(() => props.project.id, (projectId) => linkDocumentStore.loadForProject(pr
 // one activity doesn't disable the others while its request is in
 // flight.
 const activityActionPendingId = ref<string>()
+
+// The Design stage's own "services overview" (its selected design
+// activities) paginated the same way as every other list in the app --
+// see usePagination/TablePagination.vue. Sliced client-side since the
+// full list already lives on the loaded project.
+const {
+  currentPage: designActivitiesPage,
+  pageSize: designActivitiesPageSize,
+  totalItems: designActivitiesTotalItems,
+  totalPages: designActivitiesTotalPages,
+  startIndex: designActivitiesStartIndex,
+  endIndex: designActivitiesEndIndex,
+  goToPage: goToDesignActivitiesPage,
+  setPageSize: setDesignActivitiesPageSize,
+  resetPage: resetDesignActivitiesPage,
+} = usePagination(() => props.project.selectedActivities?.length ?? 0)
+const pagedDesignActivities = computed(() => (props.project.selectedActivities ?? []).slice(designActivitiesStartIndex.value, designActivitiesEndIndex.value))
+watch(() => props.project.selectedActivities, () => resetDesignActivitiesPage())
 
 async function closeDesignActivity(activityId: string, status: 'Complete' | 'Cancelled'): Promise<void> {
   activityActionPendingId.value = activityId
@@ -844,7 +864,7 @@ function verificationResultLabel(result: string): string {
           <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.designActivitiesTitle') }}</span>
           <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="flex flex-col gap-2">
             <div
-              v-for="activity in project.selectedActivities"
+              v-for="activity in pagedDesignActivities"
               :key="activity.id ?? activity.activityId"
               class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
@@ -907,6 +927,18 @@ function verificationResultLabel(result: string): string {
             </div>
           </div>
           <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignActivitiesYet') }}</p>
+          <TablePagination
+            v-if="designActivitiesTotalItems > 0"
+            class="rounded-xl border border-border-light"
+            :current-page="designActivitiesPage"
+            :total-pages="designActivitiesTotalPages"
+            :total-items="designActivitiesTotalItems"
+            :start-index="designActivitiesStartIndex"
+            :end-index="designActivitiesEndIndex"
+            :page-size="designActivitiesPageSize"
+            @page-change="goToDesignActivitiesPage"
+            @page-size-change="setDesignActivitiesPageSize"
+          />
         </div>
 
         <div class="flex flex-col gap-2">
