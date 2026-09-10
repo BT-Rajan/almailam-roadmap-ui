@@ -784,6 +784,21 @@ def add_selected_services(
         db, project.id, "note", title="Additional services added", description=added_names, actor_id=user_id,
     )
 
+    # Services added here bypass the one-time "leaving Contract"
+    # transition that normally auto-generates each activity's task (see
+    # _apply_stage_change/_create_service_tasks) -- that hook only ever
+    # fires once per project, but this function explicitly lets staff
+    # add more Design/Supervision activities "at any point in its
+    # lifecycle", including long after Contract was left. Without this
+    # call, an activity added here would sit with no linked task at all,
+    # silently breaking the "every Design activity gets a task" plan and
+    # the auto-close behavior that depends on it (maybe_auto_close_design_
+    # activity / _assert_design_tasks_complete). Idempotent against
+    # activities/permits already covered by an earlier call, so this is
+    # safe even if some of what's selected already has tasks.
+    db.flush()
+    _create_service_tasks(db, project, user_id)
+
     db.commit()
     db.refresh(project)
     return project
@@ -1412,22 +1427,36 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
             link_route_name="tasks",
         )
 
+    created_count = 0
+
     for activity in get_selected_activities(db, project.id):
         if activity.id in existing_activity_ids or activity.status in ("Complete", "Cancelled"):
             continue
         _add_task(activity.activity_name, selected_activity_id=activity.id)
+        created_count += 1
 
     for permit in get_selected_permits(db, project.id):
         if permit.id in existing_permit_ids or permit.status in ("Complete", "Cancelled"):
             continue
         _add_task(permit.permit_name, selected_permit_id=permit.id)
+        created_count += 1
 
     for activity in get_selected_supervision_activities(db, project.id):
         if activity.id in existing_supervision_ids or activity.status in ("Complete", "Cancelled"):
             continue
         _add_task(activity.activity_name, selected_supervision_activity_id=activity.id)
+        created_count += 1
 
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Service tasks created", user_id)
+    # Only log when this call actually generated something -- it's now
+    # called both at the one-time Contract exit (see _apply_stage_change)
+    # and again whenever add_selected_services adds more activities to a
+    # project later (idempotent either way, via the existing_*_ids skips
+    # above), and the second caller frequently has nothing new to create
+    # (e.g. only Supervision was added and every Design activity already
+    # has a task). A no-op "Service tasks created" audit entry would be
+    # actively misleading in that case.
+    if created_count:
+        audit_service.log_event(db, ENTITY_TYPE, project.id, "Service tasks created", user_id)
 
 
 def _apply_stage_change(
