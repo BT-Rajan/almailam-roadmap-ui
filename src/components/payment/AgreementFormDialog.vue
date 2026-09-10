@@ -1,16 +1,22 @@
 <script setup lang="ts">
+import { Plus, Trash2 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
-import FormActionBar from '@/components/common/FormActionBar.vue'
-import FormSection from '@/components/common/FormSection.vue'
+import Divider from '@/components/common/Divider.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import type { Client } from '@/types/Client'
 import type { AgreementStream, CreateAgreementInput, FinancialAgreement, PaymentMilestoneInput, PaymentMode, PaymentObligation } from '@/types/Payment'
+import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
+import { getClientDisplayName } from '@/utils/clientHelpers'
+import { formatCurrency } from '@/utils/currencyFormatter'
 import { todayIso } from '@/utils/dateFormatter'
 
 interface ApprovedQuotation {
@@ -22,6 +28,12 @@ interface ApprovedQuotation {
 interface Props {
   modelValue: boolean
   projectId: string
+  // Same read-only identity context NewQuotationDialog.vue shows at the
+  // top of its form -- staff building a payment plan should see which
+  // client/project it's for exactly the same way they do when building
+  // a quotation, not have to infer it from the panel behind the dialog.
+  project?: Project
+  client?: Client
   // Which stream this agreement is for -- fixed by the caller (the panel
   // only ever offers "Create Agreement" for a stream this project
   // actually includes and doesn't already have an agreement for), not a
@@ -47,6 +59,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  project: undefined,
+  client: undefined,
   isSubmitting: false,
   approvedContract: undefined,
   mode: 'create',
@@ -79,15 +93,18 @@ const CURRENCY_OPTIONS: SelectOption[] = [
   { label: 'EUR', value: 'EUR' },
 ]
 
-const INSTALLMENT_COUNT_OPTIONS: SelectOption[] = [1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: String(n) }))
-
 // The default 4-installment plan requested for this project: 25% at
 // signup, 25% when the design is approved, 25% when the approval is
-// filed, and the balance (folded into the last row so rounding never
-// leaves a gap) at handover. Used to seed the milestone rows the
-// moment "Milestone plan" is picked or the count is changed to 4 --
-// still fully editable afterward.
+// filed, and the balance at handover. Used only to seed the initial
+// rows on create -- rows are freely added/removed from there on,
+// exactly like NewQuotationDialog.vue's line items (no separate "row
+// count" control).
 const DEFAULT_FOUR_MILESTONE_LABELS = ['At signup', 'On design approval', 'On approval filed', 'At handover to client']
+const MAX_MILESTONES = 5
+
+function buildDefaultMilestones(): PaymentMilestoneInput[] {
+  return DEFAULT_FOUR_MILESTONE_LABELS.map((description) => ({ description, percentage: 25, dueDate: '' }))
+}
 
 const contractAmount = ref(0)
 const currency = ref('KWD')
@@ -95,42 +112,17 @@ const contractStartDate = ref(new Date().toISOString().slice(0, 10))
 const agreementDate = ref(new Date().toISOString().slice(0, 10))
 const quotationReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
-const milestoneCount = ref(4)
 const milestones = ref<PaymentMilestoneInput[]>([])
+const milestoneErrors = ref<string[]>([])
 
 const isSupervision = computed(() => props.stream === 'Supervision')
 // Design & Permit is always billed as installments now -- 1 installment
-// is exactly a single one-time payment (generate_milestone_schedule
-// puts 100% of the contract amount on that one row), so there's no
-// separate "One-time" structure/toggle needed alongside this one.
+// is exactly a single one-time payment, so there's no separate
+// "One-time" structure/toggle needed alongside this one.
 const isMilestonePlan = computed(() => !isSupervision.value)
 
-function evenSplitPercentages(count: number): number[] {
-  const base = Math.floor((100 / count) * 100) / 100
-  const percentages = Array<number>(count).fill(base)
-  percentages[count - 1] = Math.round((100 - base * (count - 1)) * 100) / 100
-  return percentages
-}
-
-function buildDefaultMilestones(count: number): PaymentMilestoneInput[] {
-  const percentages = count === 4 ? [25, 25, 25, 25] : evenSplitPercentages(count)
-  return percentages.map((percentage, index) => ({
-    description: count === 4 ? DEFAULT_FOUR_MILESTONE_LABELS[index] : `Installment ${index + 1}`,
-    percentage,
-    dueDate: '',
-  }))
-}
-
-// Bound directly to the "Number of Installments" SelectBox rather than a
-// watch(milestoneCount, ...) -- a watcher would also fire (and clobber
-// the real prefilled rows with fresh defaults) the moment resetForm's
-// edit-mode branch sets milestoneCount.value from existingObligations.
-function handleMilestoneCountChange(count: number): void {
-  milestoneCount.value = count
-  milestones.value = buildDefaultMilestones(count)
-}
-
 function resetForm(): void {
+  milestoneErrors.value = []
   const existing = props.existingAgreement
   if (isEditMode.value && existing) {
     contractAmount.value = existing.contractAmount
@@ -140,7 +132,6 @@ function resetForm(): void {
     quotationReference.value = existing.quotationReference ?? ''
     paymentMode.value = existing.paymentMode
     const rows = [...props.existingObligations].sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-    milestoneCount.value = rows.length || 1
     milestones.value = rows.map((obligation) => ({
       description: obligation.description,
       percentage: Math.round((obligation.amountDue / existing.contractAmount) * 10000) / 100,
@@ -155,8 +146,7 @@ function resetForm(): void {
   agreementDate.value = new Date().toISOString().slice(0, 10)
   quotationReference.value = props.approvedContract?.quotationNo ?? ''
   paymentMode.value = 'Bank Transfer'
-  milestoneCount.value = 4
-  milestones.value = buildDefaultMilestones(4)
+  milestones.value = buildDefaultMilestones()
 }
 
 watch(
@@ -166,12 +156,27 @@ watch(
   },
 )
 
+function addMilestone(): void {
+  if (milestones.value.length >= MAX_MILESTONES) return
+  milestones.value.push({ description: '', percentage: 0, dueDate: '' })
+}
+
+function removeMilestone(index: number): void {
+  if (milestones.value.length === 1) return // always keep at least one row
+  milestones.value.splice(index, 1)
+}
+
+function milestoneAmount(milestone: PaymentMilestoneInput): number {
+  return contractAmount.value * ((milestone.percentage || 0) / 100)
+}
+
 const milestoneTotal = computed(() => Math.round(milestones.value.reduce((sum, m) => sum + (m.percentage || 0), 0) * 100) / 100)
+const milestoneTotalValid = computed(() => Math.abs(milestoneTotal.value - 100) <= 0.5)
 const milestonesValid = computed(
   () =>
     milestones.value.length > 0 &&
-    milestones.value.length <= 5 &&
-    Math.abs(milestoneTotal.value - 100) <= 0.5 &&
+    milestones.value.length <= MAX_MILESTONES &&
+    milestoneTotalValid.value &&
     milestones.value.every((m) => m.description.trim().length > 0 && m.dueDate.length > 0 && m.percentage > 0),
 )
 
@@ -186,7 +191,16 @@ const canSubmit = computed(() => {
 })
 
 function handleSubmit(): void {
+  const itemErrors = milestones.value.map((m) => {
+    if (!m.description.trim()) return t('payment.agreementFormDialog.descriptionRequired')
+    if (m.percentage <= 0) return t('payment.agreementFormDialog.percentageRequired')
+    if (!m.dueDate) return t('payment.agreementFormDialog.dueDateRequired')
+    return ''
+  })
+  milestoneErrors.value = itemErrors
+
   if (!canSubmit.value) return
+
   const input: CreateAgreementInput = isSupervision.value
     ? {
         projectId: props.projectId,
@@ -211,7 +225,7 @@ function handleSubmit(): void {
   emit('submit', input)
 }
 
-function handleClose(): void {
+function closeDialog(): void {
   emit('update:modelValue', false)
 }
 </script>
@@ -223,14 +237,16 @@ function handleClose(): void {
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <FormSection
-      v-if="isSupervision"
-      :title="t('payment.agreementFormDialog.supervisionBilling')"
-      :description="t('payment.agreementFormDialog.supervisionBillingDescription')"
-    >
+    <div class="flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+        <TextInput :model-value="client ? getClientDisplayName(client) : ''" :label="t('payment.agreementFormDialog.client')" disabled />
+        <TextInput :model-value="project ? `${project.projectName} (${project.projectNo})` : ''" :label="t('payment.agreementFormDialog.project')" disabled />
+      </div>
+
+      <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
+
+      <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
-        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
         <TextInput
           v-model="quotationReference"
           :label="t('payment.agreementFormDialog.quotationReference')"
@@ -238,77 +254,107 @@ function handleClose(): void {
           :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
         />
       </div>
-    </FormSection>
 
-    <FormSection v-else :title="t('payment.agreementFormDialog.paymentPlan')" :description="t('payment.agreementFormDialog.paymentPlanDescription')">
-      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
-          <div class="flex gap-2">
-            <div class="w-24 shrink-0">
-              <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
+      <template v-else>
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
+            <div class="flex gap-2">
+              <div class="w-24 shrink-0">
+                <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
+              </div>
+              <NumberInput class="flex-1" :model-value="contractAmount" :min="0" step="0.01" required @update:model-value="contractAmount = Number($event)" />
             </div>
-            <NumberInput
-              class="flex-1"
-              :model-value="contractAmount"
-              :min="0"
-              step="0.01"
-              required
-              @update:model-value="contractAmount = Number($event)"
-            />
           </div>
+          <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" />
         </div>
-        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
-        <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" />
+
         <TextInput
           v-model="quotationReference"
           :label="t('payment.agreementFormDialog.quotationReference')"
           disabled
           :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
         />
-      </div>
-    </FormSection>
+      </template>
 
-    <FormSection
-      :title="t('payment.agreementFormDialog.paymentModeTitle')"
-      :description="isSupervision ? t('payment.agreementFormDialog.paymentModeDescriptionSupervision') : t('payment.agreementFormDialog.paymentModeDescriptionMilestone')"
-    >
       <SelectBox :model-value="paymentMode" :label="t('payment.agreementFormDialog.paymentModeTitle')" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
-    </FormSection>
 
-    <FormSection
-      v-if="isMilestonePlan"
-      :title="t('payment.agreementFormDialog.installments')"
-      :description="t('payment.agreementFormDialog.installmentsDescription')"
-    >
-      <SelectBox
-        :model-value="String(milestoneCount)"
-        :label="t('payment.agreementFormDialog.numberOfInstallments')"
-        :options="INSTALLMENT_COUNT_OPTIONS"
-        @update:model-value="handleMilestoneCountChange(Number($event))"
-      />
+      <div v-if="isMilestonePlan" class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.installments') }}</label>
+          <BaseButton variant="ghost" size="sm" :icon="Plus" :disabled="milestones.length >= MAX_MILESTONES" @click="addMilestone">
+            {{ t('payment.agreementFormDialog.addInstallment') }}
+          </BaseButton>
+        </div>
 
-      <div class="mt-3 flex flex-col gap-2">
-        <div v-for="(milestone, index) in milestones" :key="index" class="grid grid-cols-1 gap-2 rounded-lg border border-border-light p-3 tablet:grid-cols-[2fr_1fr_1fr]">
-          <TextInput v-model="milestone.description" :label="t('payment.agreementFormDialog.installmentLabel', { number: index + 1 })" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" />
-          <NumberInput :model-value="milestone.percentage" :label="t('payment.agreementFormDialog.percentOfContract')" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
-          <DatePicker v-model="milestone.dueDate" :label="t('payment.agreementFormDialog.dueDate')" required />
+        <div class="overflow-x-auto rounded-lg border border-border-light">
+          <table class="w-full min-w-[560px] border-collapse">
+            <thead>
+              <tr class="border-b border-border-light bg-bg-secondary">
+                <th class="px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {{ t('payment.agreementFormDialog.columnInstallment') }}
+                </th>
+                <th class="w-24 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {{ t('payment.agreementFormDialog.columnPercent') }}
+                </th>
+                <th class="w-36 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {{ t('payment.agreementFormDialog.columnDueDate') }}
+                </th>
+                <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {{ t('payment.agreementFormDialog.columnAmount') }}
+                </th>
+                <th class="w-10 px-2 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(milestone, index) in milestones" :key="index" class="border-b border-border-light last:border-0">
+                <td class="px-3 py-2 align-top">
+                  <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="milestoneErrors[index]" />
+                </td>
+                <td class="px-3 py-2 align-top">
+                  <NumberInput :model-value="milestone.percentage" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
+                </td>
+                <td class="px-3 py-2 align-top">
+                  <DatePicker v-model="milestone.dueDate" />
+                </td>
+                <td class="px-3 py-2 text-end align-top">
+                  <span class="inline-block pt-2 text-sm font-medium text-text-primary">{{ formatCurrency(milestoneAmount(milestone), currency) }}</span>
+                </td>
+                <td class="px-2 py-2 text-end align-top">
+                  <IconButton
+                    :icon="Trash2"
+                    :label="t('payment.agreementFormDialog.removeInstallment', { number: index + 1 })"
+                    size="sm"
+                    :disabled="milestones.length === 1"
+                    @click="removeMilestone(index)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <p class="mt-2 text-xs" :class="Math.abs(milestoneTotal - 100) <= 0.5 ? 'text-text-muted' : 'font-medium text-danger-600'">
-        {{ t('payment.agreementFormDialog.total', { percent: milestoneTotal }) }} {{ Math.abs(milestoneTotal - 100) <= 0.5 ? '' : t('payment.agreementFormDialog.mustAddUpTo100') }}
-      </p>
-    </FormSection>
+      <Divider v-if="isMilestonePlan" />
+
+      <div v-if="isMilestonePlan" class="flex flex-col gap-2 text-sm">
+        <div class="flex items-center justify-between text-text-secondary">
+          <span>{{ t('payment.agreementFormDialog.milestoneTotal') }}</span>
+          <span :class="milestoneTotalValid ? 'font-medium text-text-primary' : 'font-medium text-danger-600'">{{ t('payment.agreementFormDialog.total', { percent: milestoneTotal }) }}</span>
+        </div>
+        <Divider />
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-text-primary">{{ t('payment.agreementFormDialog.totalAmount') }}</span>
+          <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(contractAmount, currency) }}</span>
+        </div>
+      </div>
+    </div>
 
     <template #footer>
-      <FormActionBar
-        :submit-label="isEditMode ? t('payment.agreementFormDialog.saveChanges') : t('payment.agreementFormDialog.createTitle')"
-        :loading="isSubmitting"
-        :disabled="!canSubmit"
-        @submit="handleSubmit"
-        @cancel="handleClose"
-      />
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton :loading="isSubmitting" :disabled="!canSubmit" @click="handleSubmit">
+        {{ isEditMode ? t('payment.agreementFormDialog.saveChanges') : t('payment.agreementFormDialog.createTitle') }}
+      </BaseButton>
     </template>
   </BaseDialog>
 </template>

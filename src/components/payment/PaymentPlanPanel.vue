@@ -661,6 +661,8 @@ async function handleSendEmail(): Promise<void> {
     <AgreementFormDialog
       v-model="isAgreementFormOpen"
       :project-id="projectId"
+      :project="project"
+      :client="client"
       :stream="agreementFormStream"
       :mode="agreementFormMode"
       :existing-agreement="agreementBeingEdited"

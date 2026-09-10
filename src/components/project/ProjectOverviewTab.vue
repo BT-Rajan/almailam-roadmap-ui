@@ -1325,6 +1325,8 @@ function verificationResultLabel(result: string): string {
     <AgreementFormDialog
       v-model="isPaymentPlanFormOpen"
       :project-id="project.id"
+      :project="project"
+      :client="client"
       :stream="paymentPlanFormStream"
       mode="create"
       :existing-obligations="[]"
