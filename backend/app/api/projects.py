@@ -6,7 +6,6 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
-from app.models.handover_checklist import HandoverChecklistItem
 from app.schemas.common import PagedResponse
 from app.schemas.project import (
     AddServicesInput,
@@ -262,26 +261,36 @@ def confirm_requirement_scope(
     return _scope_of_work_out(db, project)
 
 
-def _handover_status_out(db: Session, project) -> HandoverStatusOut:
-    checklist = (
-        db.query(HandoverChecklistItem)
-        .filter(HandoverChecklistItem.project_id == project.id)
-        .order_by(HandoverChecklistItem.source_type.asc(), HandoverChecklistItem.id.asc())
-        .all()
-    )
-    return HandoverStatusOut.from_model(project, checklist)
+def _handover_status_out(db: Session, project, user_id: int | None) -> HandoverStatusOut:
+    # Self-heals a project that already met Handover's exit criteria at
+    # some point but never got a chance to actually advance (e.g. the
+    # event that made it eligible didn't happen to re-check -- see
+    # task_service.set_status) -- cheap and always safe to attempt on
+    # every read of this tab, not just when some other action happens
+    # to trigger it.
+    project_service.try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(project)
+
+    # Always reflects the real, current status of every Design
+    # activity/Permit/Supervision item -- not a stale snapshot frozen
+    # at whatever moment the project first (if ever) actually entered
+    # Handover.
+    checklist = project_service.refresh_handover_checklist(db, project)
+    stage_reached, not_ready_reason = project_service.get_handover_readiness(db, project)
+    return HandoverStatusOut.from_model(project, checklist, stage_reached, not_ready_reason)
 
 
 @router.get("/{project_no}/handover", response_model=HandoverStatusOut)
-def get_handover_status(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def get_handover_status(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_view)):
     project = project_service.get_project(db, project_no)
-    return _handover_status_out(db, project)
+    return _handover_status_out(db, project, current_user.id)
 
 
 @router.post("/{project_no}/handover/notify-ready", response_model=HandoverStatusOut)
 def notify_handover_ready(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     project = project_service.notify_handover_ready(db, project_no, current_user.id)
-    return _handover_status_out(db, project)
+    return _handover_status_out(db, project, current_user.id)
 
 
 @router.post("/{project_no}/handover/confirm", response_model=ProjectOut)

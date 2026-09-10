@@ -245,6 +245,7 @@ export default {
     handover: {
       title: 'Completed Services Checklist',
       acknowledged: 'Acknowledged',
+      notReadyYet: 'Not Ready Yet',
       awaitingAcknowledgment: 'Awaiting Acknowledgment',
       readyToSend: 'Every planned item across Design, Approvals & Permits, and Supervision is closed — ready for hand-over.',
       readySinceFragment: "Ready for hand-over since {date}. Confirm payment (Payment Confirmation tab) and collect the client's signed acknowledgment.",

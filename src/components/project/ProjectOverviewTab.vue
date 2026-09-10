@@ -657,12 +657,24 @@ function verificationResultLabel(result: string): string {
             variant="success"
           />
           <StatusBadge
+            v-else-if="handoverStatus && !handoverStatus.stageReached"
+            :label="t('project.overviewTab.handover.notReadyYet')"
+            variant="neutral"
+          />
+          <StatusBadge
             v-else
             :label="t('project.overviewTab.handover.awaitingAcknowledgment')"
             variant="warning"
           />
         </div>
       </template>
+
+      <p
+        v-if="project.status !== 'Completed' && handoverStatus && !handoverStatus.stageReached && handoverStatus.notReadyReason"
+        class="text-sm text-text-secondary"
+      >
+        {{ handoverStatus.notReadyReason }}
+      </p>
 
       <ul v-if="handoverStatus?.checklist.length" class="flex flex-col gap-1.5">
         <li
@@ -698,14 +710,14 @@ function verificationResultLabel(result: string): string {
         <p v-else-if="handoverStatus?.handoverSentAt" class="text-sm text-text-secondary">
           {{ t('project.overviewTab.handover.readySinceFragment', { date: formatDateTime(handoverStatus.handoverSentAt) }) }}
         </p>
-        <p v-else class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
+        <p v-else-if="handoverStatus?.stageReached" class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
 
         <BaseButton
           v-if="project.status !== 'Completed' && client"
           size="sm"
           :icon="Mail"
           :loading="isHandoverSaving"
-          :disabled="!project.handoverPaymentConfirmedAt"
+          :disabled="!project.handoverPaymentConfirmedAt || !handoverStatus?.stageReached"
           class="no-print"
           @click="isHandoverDialogOpen = true"
         >

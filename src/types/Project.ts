@@ -263,4 +263,12 @@ export interface HandoverStatus {
   handoverSentAt?: string | null
   handoverAcknowledgedAt?: string | null
   checklist: HandoverChecklistItem[]
+  // Live, computed on every read (see backend project_service.
+  // get_handover_readiness) -- true once the project has actually
+  // reached the Handover stage. notReadyReason names exactly what's
+  // still open (a Design activity, Permit, Supervision item, or task)
+  // when it's false, instead of leaving a not-yet-ready project's
+  // checklist looking empty with no explanation.
+  stageReached: boolean
+  notReadyReason?: string | null
 }
