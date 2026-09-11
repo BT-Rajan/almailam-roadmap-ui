@@ -142,6 +142,13 @@ export const usePaymentStore = defineStore('payment', {
   },
 
   actions: {
+    // Shared by updateAgreement/approveAgreement/reopenAgreement below --
+    // all patch the same agreement into the local cache after a mutating
+    // call succeeds.
+    patchAgreementInCache(agreementId: string, updated: FinancialAgreement): void {
+      this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+    },
+
     async loadAll() {
       this.isLoading = true
       this.error = undefined
@@ -203,7 +210,7 @@ export const usePaymentStore = defineStore('payment', {
       this.isSubmitting = true
       try {
         const updated = await paymentService.updateAgreement(agreementId, input)
-        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        this.patchAgreementInCache(agreementId, updated)
         // The schedule was regenerated server-side -- refetch this
         // agreement's obligations rather than trying to patch the old
         // ones in place, since their count/ids may have changed entirely.
@@ -235,7 +242,7 @@ export const usePaymentStore = defineStore('payment', {
       this.isSubmitting = true
       try {
         const updated = await paymentService.approveAgreement(agreementId)
-        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        this.patchAgreementInCache(agreementId, updated)
         return updated
       } finally {
         this.isSubmitting = false
@@ -246,7 +253,7 @@ export const usePaymentStore = defineStore('payment', {
       this.isSubmitting = true
       try {
         const updated = await paymentService.reopenAgreement(agreementId, reason)
-        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        this.patchAgreementInCache(agreementId, updated)
         return updated
       } finally {
         this.isSubmitting = false

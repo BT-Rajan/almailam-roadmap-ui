@@ -36,6 +36,30 @@ def _invalidate_cache() -> None:
     _CACHE = None
 
 
+def _insert_role_definitions(db: Session, roles: list[str]) -> None:
+    """Shared by _ensure_seeded's fresh-install path and
+    _backfill_missing_roles below -- both insert a RoleDefinition (+ one
+    RolePermission row per module) for each role in `roles`, from the
+    same ROLE_PERMISSIONS defaults. Caller owns the commit/rollback,
+    since the two call sites handle IntegrityError slightly differently
+    (one also invalidates the cache on success)."""
+    for role in roles:
+        definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
+        db.add(definition)
+        db.flush()
+        for module in PERMISSION_MODULES:
+            flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
+            db.add(
+                RolePermission(
+                    role_id=definition.id,
+                    module=module,
+                    can_view=bool(flags.get("view", False)),
+                    can_edit=bool(flags.get("edit", False)),
+                    can_delete=bool(flags.get("delete", False)),
+                )
+            )
+
+
 def _ensure_seeded(db: Session) -> None:
     if db.query(RoleDefinition).first() is not None:
         _backfill_missing_roles(db)
@@ -56,21 +80,7 @@ def _ensure_seeded(db: Session) -> None:
     # there either way -- so just roll back our half-done attempt
     # instead of surfacing a raw 500/409 to whichever request lost.
     try:
-        for role in ROLES:
-            definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
-            db.add(definition)
-            db.flush()
-            for module in PERMISSION_MODULES:
-                flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
-                db.add(
-                    RolePermission(
-                        role_id=definition.id,
-                        module=module,
-                        can_view=bool(flags.get("view", False)),
-                        can_edit=bool(flags.get("edit", False)),
-                        can_delete=bool(flags.get("delete", False)),
-                    )
-                )
+        _insert_role_definitions(db, ROLES)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -90,21 +100,7 @@ def _backfill_missing_roles(db: Session) -> None:
     if not missing_roles:
         return
     try:
-        for role in missing_roles:
-            definition = RoleDefinition(role=role, description=ROLE_DESCRIPTIONS[role])
-            db.add(definition)
-            db.flush()
-            for module in PERMISSION_MODULES:
-                flags = ROLE_PERMISSIONS.get(role, {}).get(module, {})
-                db.add(
-                    RolePermission(
-                        role_id=definition.id,
-                        module=module,
-                        can_view=bool(flags.get("view", False)),
-                        can_edit=bool(flags.get("edit", False)),
-                        can_delete=bool(flags.get("delete", False)),
-                    )
-                )
+        _insert_role_definitions(db, missing_roles)
         db.commit()
         _invalidate_cache()
     except IntegrityError:

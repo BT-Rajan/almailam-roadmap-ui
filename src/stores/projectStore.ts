@@ -189,31 +189,34 @@ export const useProjectStore = defineStore('project', {
       return project
     },
 
-    async updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {
-      const updated = await projectService.updateProject(projectId, input)
+    // Shared by updateProject/setStage/addServices/setStatus/refreshProject below --
+    // all patch the same project into both caches after a mutating call succeeds.
+    patchProjectInCache(projectId: string, updated: Project): void {
       this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
       this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+    },
+
+    async updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {
+      const updated = await projectService.updateProject(projectId, input)
+      this.patchProjectInCache(projectId, updated)
       return updated
     },
 
     async setStage(projectId: string, currentStage: string, reason?: string): Promise<Project> {
       const updated = await projectService.setStage(projectId, currentStage, reason)
-      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
-      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      this.patchProjectInCache(projectId, updated)
       return updated
     },
 
     async addServices(projectId: string, input: AddServicesInput): Promise<Project> {
       const updated = await projectService.addServices(projectId, input)
-      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
-      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      this.patchProjectInCache(projectId, updated)
       return updated
     },
 
     async setStatus(projectId: string, status: string, reason?: string): Promise<Project> {
       const updated = await projectService.setStatus(projectId, status, reason)
-      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
-      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      this.patchProjectInCache(projectId, updated)
       return updated
     },
 
@@ -224,8 +227,7 @@ export const useProjectStore = defineStore('project', {
     async refreshProject(projectId: string): Promise<void> {
       const updated = await projectService.getProjectById(projectId)
       if (!updated) return
-      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
-      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      this.patchProjectInCache(projectId, updated)
     },
 
     async deleteProject(projectId: string): Promise<void> {

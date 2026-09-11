@@ -54,6 +54,40 @@ function isFutureDate(value: string): boolean {
   return value > todayIso()
 }
 
+/** Shared by validateBasicInfo and validateClientEditForm below -- both forms carry the
+ * same individualProfile/organisationProfile shape and apply identical required/format
+ * rules to it, just as part of two differently-shaped outer forms (onboarding vs edit). */
+function validateProfileFields(
+  errors: FieldErrors,
+  clientType: string,
+  individualProfile: { fullLegalName: string; nationality: string; dateOfBirth: string },
+  organisationProfile: {
+    legalName: string
+    organisationType: string
+    registrationNumber: string
+    countryOfRegistration: string
+    dateOfIncorporation: string
+    website: string
+  },
+): void {
+  if (clientType === 'Individual') {
+    const p = individualProfile
+    if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
+    if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
+    if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
+    else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
+  } else {
+    const p = organisationProfile
+    if (!p.legalName.trim()) errors.legalName = 'Legal name is required'
+    if (!p.organisationType.trim()) errors.organisationType = 'Organisation type is required'
+    if (!p.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required'
+    if (!p.countryOfRegistration.trim()) errors.countryOfRegistration = 'Country of registration is required'
+    if (!p.dateOfIncorporation.trim()) errors.dateOfIncorporation = 'Date of incorporation is required'
+    else if (isFutureDate(p.dateOfIncorporation)) errors.dateOfIncorporation = 'Date of incorporation cannot be in the future'
+    if (p.website.trim() && !WEBSITE_PATTERN.test(p.website.trim())) errors.website = 'Enter a valid website address'
+  }
+}
+
 /**
  * Step 0 (Client Type / basic info). Mirrors the required + format rules
  * the backend enforces (app/schemas/client.py's ClientCreate,
@@ -71,22 +105,7 @@ export function validateBasicInfo(form: ClientWizardForm): FieldErrors {
 
   if (!form.accountManagerId.trim()) errors.accountManagerId = 'Account manager is required'
 
-  if (form.clientType === 'Individual') {
-    const p = form.individualProfile
-    if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
-    if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
-    if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
-    else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
-  } else {
-    const p = form.organisationProfile
-    if (!p.legalName.trim()) errors.legalName = 'Legal name is required'
-    if (!p.organisationType.trim()) errors.organisationType = 'Organisation type is required'
-    if (!p.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required'
-    if (!p.countryOfRegistration.trim()) errors.countryOfRegistration = 'Country of registration is required'
-    if (!p.dateOfIncorporation.trim()) errors.dateOfIncorporation = 'Date of incorporation is required'
-    else if (isFutureDate(p.dateOfIncorporation)) errors.dateOfIncorporation = 'Date of incorporation cannot be in the future'
-    if (p.website.trim() && !WEBSITE_PATTERN.test(p.website.trim())) errors.website = 'Enter a valid website address'
-  }
+  validateProfileFields(errors, form.clientType, form.individualProfile, form.organisationProfile)
 
   return errors
 }
@@ -250,22 +269,7 @@ export function validateClientEditForm(form: ClientEditForm, clientType: 'Indivi
   if (!form.city.trim()) errors.city = 'City is required'
   if (!form.accountManagerId?.trim()) errors.accountManagerId = 'Account manager is required'
 
-  if (clientType === 'Individual') {
-    const p = form.individualProfile
-    if (!p.fullLegalName.trim()) errors.fullLegalName = 'Full legal name is required'
-    if (!p.nationality.trim()) errors.nationality = 'Nationality is required'
-    if (!p.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required'
-    else if (isFutureDate(p.dateOfBirth)) errors.dateOfBirth = 'Date of birth cannot be in the future'
-  } else {
-    const p = form.organisationProfile
-    if (!p.legalName.trim()) errors.legalName = 'Legal name is required'
-    if (!p.organisationType.trim()) errors.organisationType = 'Organisation type is required'
-    if (!p.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required'
-    if (!p.countryOfRegistration.trim()) errors.countryOfRegistration = 'Country of registration is required'
-    if (!p.dateOfIncorporation.trim()) errors.dateOfIncorporation = 'Date of incorporation is required'
-    else if (isFutureDate(p.dateOfIncorporation)) errors.dateOfIncorporation = 'Date of incorporation cannot be in the future'
-    if (p.website.trim() && !WEBSITE_PATTERN.test(p.website.trim())) errors.website = 'Enter a valid website address'
-  }
+  validateProfileFields(errors, clientType, form.individualProfile, form.organisationProfile)
 
   return errors
 }
