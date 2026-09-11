@@ -1,6 +1,6 @@
 from datetime import date, time
 
-from sqlalchemy import Date, Enum, ForeignKey, String, Time
+from sqlalchemy import Date, Enum, ForeignKey, Index, String, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -20,6 +20,16 @@ TASK_STATUSES = ("Preset", "Pending", "In Progress", "Completed")
 
 class Task(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "tasks"
+    # See migration 0091. idx_tasks_deleted_due_date backs
+    # sort_and_paginate's own default sort for every Tasks list call
+    # (task_service.list_tasks: `sort or "dueDate"`) -- that runs on
+    # every page load, not just a filtered subset. idx_tasks_deleted_status
+    # backs a project's own Tasks tab (scoped to one stage's service
+    # tasks) and the Task Board's status grouping.
+    __table_args__ = (
+        Index("idx_tasks_deleted_due_date", "deleted_at", "due_date"),
+        Index("idx_tasks_deleted_status", "deleted_at", "status"),
+    )
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     task_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
