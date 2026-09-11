@@ -48,6 +48,15 @@ const isRevealed = ref(false)
 
 defineExpose({
   focus: (options?: FocusOptions) => inputRef.value?.focus(options),
+  // Browser-saved credentials (and some autofill flows in general) set
+  // the DOM value directly and can fire the 'input' event late -- on
+  // the page's first user interaction, not necessarily before it -- so
+  // a form that submits on that very first click can read this
+  // component's v-model as still empty and fail validation, even
+  // though the field visibly has a value. Callers that need the value
+  // to be right *at the moment of submission* (see StaffLoginForm's
+  // signIn) should read this directly rather than trust v-model alone.
+  getValue: () => inputRef.value?.value ?? '',
 })
 
 const isPasswordToggle = computed(() => props.type === 'password' && props.showPasswordToggle)
