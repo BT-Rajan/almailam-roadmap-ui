@@ -15,6 +15,12 @@ interface StatusReportInboxState {
   projectReports: Record<string, StatusReport[]>
   isProjectLoading: boolean
   projectError: string | undefined
+  // One task's own attached report history -- see TaskFieldReportHistory.vue.
+  // Only ever Attached reports (a report is only linked to a task once
+  // reviewed and attached), keyed by task number.
+  taskReports: Record<string, StatusReport[]>
+  isTaskLoading: boolean
+  taskError: string | undefined
 }
 
 export const useStatusReportStore = defineStore('statusReportInbox', {
@@ -25,6 +31,9 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
     projectReports: {},
     isProjectLoading: false,
     projectError: undefined,
+    taskReports: {},
+    isTaskLoading: false,
+    taskError: undefined,
   }),
 
   actions: {
@@ -49,6 +58,18 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
         this.projectError = 'Unable to load status reports for this project. Please try again.'
       } finally {
         this.isProjectLoading = false
+      }
+    },
+
+    async loadForTask(taskNo: string) {
+      this.isTaskLoading = true
+      this.taskError = undefined
+      try {
+        this.taskReports = { ...this.taskReports, [taskNo]: await statusReportService.getForTask(taskNo) }
+      } catch {
+        this.taskError = 'Unable to load this task\'s report history. Please try again.'
+      } finally {
+        this.isTaskLoading = false
       }
     },
 

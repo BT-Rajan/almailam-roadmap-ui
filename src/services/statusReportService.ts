@@ -22,4 +22,11 @@ async function getForProject(projectNo: string): Promise<StatusReport[]> {
   return apiClient.get<StatusReport[]>(`/api/status-reports/project/${projectNo}`)
 }
 
-export const statusReportService = { getInbox, attachReport, getForProject }
+// Every report attached to one specific task -- backs the "task
+// history" shown on a Design/Permit/Supervision task once it's
+// assigned to a site engineer.
+async function getForTask(taskNo: string): Promise<StatusReport[]> {
+  return apiClient.get<StatusReport[]>(`/api/status-reports/task/${taskNo}`)
+}
+
+export const statusReportService = { getInbox, attachReport, getForProject, getForTask }

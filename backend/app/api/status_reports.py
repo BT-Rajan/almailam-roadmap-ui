@@ -8,11 +8,12 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.status_report import StatusReportAttachRequest, StatusReportOut
-from app.services import company_service, project_service, status_report_service
+from app.services import company_service, project_service, status_report_service, task_service
 
 router = APIRouter(prefix="/api/status-reports", tags=["status-reports"])
 
 can_view_documents = require_permission("Documents", "view")
+can_view_projects = require_permission("Projects", "view")
 
 
 def _require_recipient_or_admin(db: Session, current_user: User) -> None:
@@ -64,6 +65,21 @@ def list_reports_for_project(
     inbox above."""
     project = project_service.get_project(db, project_no)
     reports = status_report_service.list_reports_for_project(db, project.id)
+    return [_report_out(db, r) for r in reports]
+
+
+@router.get("/task/{task_no}", response_model=list[StatusReportOut])
+def list_reports_for_task(
+    task_no: str,
+    db: Session = Depends(get_db),
+    _=Depends(can_view_projects),
+):
+    """Backs the "task history" shown on a Design/Permit/Supervision
+    task once it's assigned to a site engineer -- the Projects view
+    permission (not Documents) since this is reached from the Tasks
+    tab/Task details, not the Documents area."""
+    task = task_service.get_task(db, task_no)
+    reports = status_report_service.list_reports_for_task(db, task.id)
     return [_report_out(db, r) for r in reports]
 
 

@@ -108,4 +108,12 @@ export default {
     completionTime: 'وقت الإنجاز',
     createTask: 'إنشاء مهمة',
   },
+
+  fieldReportHistory: {
+    title: 'سجل المهمة',
+    emptyTitle: 'لا توجد تقارير ميدانية بعد',
+    emptyDescription: 'ستظهر هنا التقارير التي راجعها مهندس الموقع لهذه المهمة.',
+    by: 'بواسطة {name}',
+    untitled: 'تقرير ميداني',
+  },
 }

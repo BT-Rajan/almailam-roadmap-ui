@@ -108,4 +108,12 @@ export default {
     completionTime: 'Completion Time',
     createTask: 'Create Task',
   },
+
+  fieldReportHistory: {
+    title: 'Task History',
+    emptyTitle: 'No field reports yet',
+    emptyDescription: "This site engineer's reviewed reports for this task will appear here.",
+    by: 'By {name}',
+    untitled: 'Field report',
+  },
 }

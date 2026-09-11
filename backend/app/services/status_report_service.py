@@ -267,6 +267,20 @@ def list_reports_for_project(db: Session, project_id: int) -> list[StatusReport]
     )
 
 
+def list_reports_for_task(db: Session, task_id: int) -> list[StatusReport]:
+    """Every report attached to this specific task (attach_report links
+    a report to at most one task) -- backs the "task history" shown on
+    a Design/Permit/Supervision-track task once it's assigned to a site
+    engineer: each entry here is one of that engineer's own field
+    reports, reviewed and attached against this exact task."""
+    return (
+        db.query(StatusReport)
+        .filter(StatusReport.attached_task_id == task_id)
+        .order_by(StatusReport.report_date.desc())
+        .all()
+    )
+
+
 def list_inbox(db: Session) -> list[StatusReport]:
     """Every report not yet reviewed, oldest first -- the recipient's
     queue, not scoped to any one project since a single recipient

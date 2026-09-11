@@ -10,6 +10,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
+import TaskFieldReportHistory from '@/components/task/TaskFieldReportHistory.vue'
 import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
 import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
@@ -157,6 +158,8 @@ const details = computed(() => [
         </div>
       </div>
     </div>
+
+    <TaskFieldReportHistory :task="task" />
 
     <BaseButton variant="danger" size="sm" :icon="Trash2" class="self-start no-print" @click="emit('delete')">
       {{ t('task.details.delete') }}

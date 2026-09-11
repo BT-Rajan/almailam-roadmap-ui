@@ -16,18 +16,6 @@ import type { Project } from '@/types/Project'
 import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
-const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High', labelKey: 'task.priority.high' },
-  { label: 'Medium', value: 'Medium', labelKey: 'task.priority.medium' },
-  { label: 'Low', value: 'Low', labelKey: 'task.priority.low' },
-]
-
-const SEVERITY_OPTIONS: SelectOption[] = [
-  { label: 'Critical', value: 'Critical', labelKey: 'task.severity.critical' },
-  { label: 'Major', value: 'Major', labelKey: 'task.severity.major' },
-  { label: 'Minor', value: 'Minor', labelKey: 'task.severity.minor' },
-]
-
 const props = defineProps<{
   modelValue: boolean
   projects: Project[]
@@ -197,21 +185,6 @@ function submitTask(): void {
         required
         @update:model-value="assignedTo = $event"
       />
-
-      <div class="grid grid-cols-2 gap-4">
-        <SelectBox
-          :model-value="priority"
-          :label="t('task.formDialog.priority')"
-          :options="PRIORITY_OPTIONS"
-          @update:model-value="priority = $event as TaskPriority"
-        />
-        <SelectBox
-          :model-value="severity"
-          :label="t('task.formDialog.severity')"
-          :options="SEVERITY_OPTIONS"
-          @update:model-value="severity = $event as TaskSeverity"
-        />
-      </div>
 
       <DatePicker v-model="startDate" :label="t('task.formDialog.startDate')" />
 
