@@ -89,11 +89,26 @@ function scopeSummaryFromQuotation(quotation: Quotation): string {
 }
 
 const form = reactive(emptyForm())
-const clauseErrors = reactive<string[]>([])
+// One entry per clause, keyed by which field failed -- previously a
+// single string per row was always rendered under the Title input, so
+// a missing Content (with a fine Title) showed its error next to the
+// wrong field (same bug as NewQuotationDialog.vue's line items).
+interface ClauseError {
+  title?: string
+  content?: string
+}
+const clauseErrors = reactive<ClauseError[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
-  contractValue: [validators.required('Contract value is required')],
+  // required alone would let 0 through (0 isn't null/undefined/''),
+  // matching neither the backend's own ContractCreate.contractValue
+  // (Field(gt=0)) nor the NumberInput's :min="0.01" hint below, which
+  // is display-only and doesn't actually stop someone from typing 0.
+  contractValue: [
+    validators.required('Contract value is required'),
+    () => form.contractValue > 0 || t('project.newContractDialog.contractValueMustBePositive'),
+  ],
   expiryDate: [validators.required('Expiry date is required'), validators.notPastDate('Expiry date cannot be in the past')],
   clientRepresentative: [validators.required("Client representative's name is required")],
   scopeSummary: [validators.required('Scope summary is required')],
@@ -139,13 +154,14 @@ function handleConfirm(): void {
   // template's standard terms), but a clause that's been started can't
   // be saved half-empty -- both title and content are required once a
   // row exists at all.
-  const itemErrors = form.clauses.map((clause) => {
-    if (!clause.title.trim()) return 'Clause title is required'
-    if (!clause.content.trim()) return 'Clause content is required'
-    return ''
+  const itemErrors: ClauseError[] = form.clauses.map((clause) => {
+    const rowError: ClauseError = {}
+    if (!clause.title.trim()) rowError.title = t('project.newContractDialog.clauseTitleRequired')
+    if (!clause.content.trim()) rowError.content = t('project.newContractDialog.clauseContentRequired')
+    return rowError
   })
   clauseErrors.splice(0, clauseErrors.length, ...itemErrors)
-  const clausesValid = itemErrors.every((error) => !error)
+  const clausesValid = itemErrors.every((rowError) => Object.keys(rowError).length === 0)
 
   const formValid = validateAll(form)
   if (!formValid || !clausesValid) return
@@ -210,11 +226,11 @@ function handleConfirm(): void {
         <div v-for="(clause, index) in form.clauses" :key="index" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
           <div class="flex items-start gap-2">
             <div class="flex-1">
-              <TextInput v-model="clause.title" :placeholder="t('project.newContractDialog.clauseTitlePlaceholder')" :error="clauseErrors[index]" />
+              <TextInput v-model="clause.title" :placeholder="t('project.newContractDialog.clauseTitlePlaceholder')" :error="clauseErrors[index]?.title" />
             </div>
             <IconButton :icon="Trash2" :label="t('project.newContractDialog.removeClause', { number: index + 1 })" size="sm" @click="removeClause(index)" />
           </div>
-          <TextArea v-model="clause.content" :placeholder="t('project.newContractDialog.clauseContentPlaceholder')" :rows="2" />
+          <TextArea v-model="clause.content" :placeholder="t('project.newContractDialog.clauseContentPlaceholder')" :rows="2" :error="clauseErrors[index]?.content" />
         </div>
       </div>
     </div>
