@@ -2,10 +2,9 @@
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -14,7 +13,6 @@ import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import TaskList from '@/components/task/TaskList.vue'
 import { usePagination } from '@/composables/usePagination'
-import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { TaskInput } from '@/services/taskService'
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -38,7 +36,6 @@ const props = defineProps<{
   stageContext?: WorkflowStage
 }>()
 
-const router = useRouter()
 const taskStore = useTaskStore()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
@@ -155,7 +152,7 @@ async function handleConfirmPendingChange(): Promise<void> {
   }
 }
 
-const isDrawerOpen = computed({
+const isTaskDialogOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
   set: (value: boolean) => {
     if (!value) taskStore.clearSelectedTask()
@@ -278,11 +275,8 @@ async function handleDeleteTask(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex items-center justify-between no-print">
+  <div class="flex items-center justify-end no-print">
     <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('project.tasksTab.newTask') }}</BaseButton>
-    <BaseButton variant="ghost" size="sm" @click="router.push({ name: ROUTE_NAMES.TASKS })">
-      {{ t('project.tasksTab.viewTaskBoard') }}
-    </BaseButton>
   </div>
 
   <div v-if="taskStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -318,7 +312,7 @@ async function handleDeleteTask(): Promise<void> {
     @create="handleCreateTask"
   />
 
-  <BaseDrawer v-model="isDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+  <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
     <TaskDetails
       v-if="taskStore.selectedTask"
       :task="taskStore.selectedTask"
@@ -333,7 +327,7 @@ async function handleDeleteTask(): Promise<void> {
       @due-time-change="handleDueTimeChange"
       @delete="requestDelete"
     />
-  </BaseDrawer>
+  </BaseDialog>
 
   <ConfirmationDialog
     v-model="isConfirmDialogOpen"

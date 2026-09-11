@@ -104,48 +104,57 @@ const details = computed(() => [
       <span>{{ t('task.details.presetFlagMessage') }}</span>
     </div>
 
-    <DetailPanel :title="t('task.details.projectDetailsTitle')" :items="details" />
+    <!-- Now rendered inside a wide modal (BaseDialog size="lg") rather
+         than the old narrow drawer, so the read-only context and the
+         editable controls sit side by side instead of stacked the full
+         height of the screen. Single column below tablet width. -->
+    <div class="grid grid-cols-1 gap-5 tablet:grid-cols-2">
+      <div class="flex flex-col gap-5">
+        <DetailPanel :title="t('task.details.projectDetailsTitle')" :items="details" />
+        <TaskAssignmentCard :assigned-to="task.assignedTo" @reassign="emit('reassign', $event)" />
+      </div>
 
-    <TaskAssignmentCard :assigned-to="task.assignedTo" @reassign="emit('reassign', $event)" />
+      <div class="flex flex-col gap-5">
+        <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-4">
+          <SelectBox
+            :model-value="task.status"
+            :options="STATUS_OPTIONS"
+            :label="t('task.details.status')"
+            @update:model-value="emit('status-change', $event as TaskStatus)"
+          />
+          <SelectBox
+            :model-value="task.priority"
+            :options="PRIORITY_OPTIONS"
+            :label="t('task.details.priority')"
+            @update:model-value="emit('priority-change', $event as TaskPriority)"
+          />
+          <SelectBox
+            :model-value="task.severity"
+            :options="SEVERITY_OPTIONS"
+            :label="t('task.details.severity')"
+            @update:model-value="emit('severity-change', $event as TaskSeverity)"
+          />
+        </div>
 
-    <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-4">
-      <SelectBox
-        :model-value="task.status"
-        :options="STATUS_OPTIONS"
-        :label="t('task.details.status')"
-        @update:model-value="emit('status-change', $event as TaskStatus)"
-      />
-      <SelectBox
-        :model-value="task.priority"
-        :options="PRIORITY_OPTIONS"
-        :label="t('task.details.priority')"
-        @update:model-value="emit('priority-change', $event as TaskPriority)"
-      />
-      <SelectBox
-        :model-value="task.severity"
-        :options="SEVERITY_OPTIONS"
-        :label="t('task.details.severity')"
-        @update:model-value="emit('severity-change', $event as TaskSeverity)"
-      />
-    </div>
-
-    <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-4">
-      <DatePicker
-        :model-value="task.startDate ?? ''"
-        :label="t('task.details.startDate')"
-        @update:model-value="emit('start-date-change', $event)"
-      />
-      <div class="grid grid-cols-2 gap-4">
-        <DatePicker
-          :model-value="task.dueDate"
-          :label="t('task.details.dueDate')"
-          @update:model-value="emit('due-date-change', $event)"
-        />
-        <TimePicker
-          :model-value="task.dueTime"
-          :label="t('task.details.dueTime')"
-          @update:model-value="emit('due-time-change', $event)"
-        />
+        <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-4">
+          <DatePicker
+            :model-value="task.startDate ?? ''"
+            :label="t('task.details.startDate')"
+            @update:model-value="emit('start-date-change', $event)"
+          />
+          <div class="grid grid-cols-2 gap-4">
+            <DatePicker
+              :model-value="task.dueDate"
+              :label="t('task.details.dueDate')"
+              @update:model-value="emit('due-date-change', $event)"
+            />
+            <TimePicker
+              :model-value="task.dueTime"
+              :label="t('task.details.dueTime')"
+              @update:model-value="emit('due-time-change', $event)"
+            />
+          </div>
+        </div>
       </div>
     </div>
 

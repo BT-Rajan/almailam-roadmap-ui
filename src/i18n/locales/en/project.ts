@@ -441,7 +441,6 @@ export default {
 
   tasksTab: {
     newTask: 'New Task',
-    viewTaskBoard: 'View Task Board',
     taskCreatedTitle: 'Task created',
     taskCreatedDescription: '"{title}" was assigned to {assignee}.',
     failedToCreateTask: 'Failed to create task',

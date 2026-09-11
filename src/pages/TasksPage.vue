@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
@@ -56,7 +56,7 @@ const assigneeOptions = computed<SelectOption[]>(() => [
   ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.name })),
 ])
 
-const isDrawerOpen = computed({
+const isTaskDialogOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
   set: (value: boolean) => {
     if (!value) taskStore.clearSelectedTask()
@@ -260,7 +260,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       @advance="advanceTask"
     />
 
-    <BaseDrawer v-model="isDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+    <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
       <TaskDetails
         v-if="taskStore.selectedTask"
         :task="taskStore.selectedTask"
@@ -276,7 +276,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @due-time-change="handleDueTimeChange"
         @delete="requestDelete"
       />
-    </BaseDrawer>
+    </BaseDialog>
 
     <TaskFormDialog
       v-model="isCreateDialogOpen"

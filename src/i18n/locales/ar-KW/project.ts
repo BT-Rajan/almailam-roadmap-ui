@@ -441,7 +441,6 @@ export default {
 
   tasksTab: {
     newTask: 'مهمة جديدة',
-    viewTaskBoard: 'عرض لوحة المهام',
     taskCreatedTitle: 'تم إنشاء المهمة',
     taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
     failedToCreateTask: 'فشل إنشاء المهمة',

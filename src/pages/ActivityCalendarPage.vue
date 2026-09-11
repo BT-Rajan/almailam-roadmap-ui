@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -269,7 +270,7 @@ async function ensureTasksLoaded() {
   tasksLoaded.value = true
 }
 
-const isTaskDrawerOpen = computed({
+const isTaskDialogOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
   set: (value: boolean) => {
     if (!value) taskStore.clearSelectedTask()
@@ -520,7 +521,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
     </BaseDrawer>
 
     <!-- Task Details -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
-    <BaseDrawer v-model="isTaskDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+    <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
       <TaskDetails
         v-if="taskStore.selectedTask"
         :task="taskStore.selectedTask"
@@ -532,7 +533,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @title-change="handleTitleChange"
         @reassign="handleReassign"
       />
-    </BaseDrawer>
+    </BaseDialog>
 
     <!-- Create Task -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
     <TaskFormDialog
