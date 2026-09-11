@@ -70,7 +70,7 @@ class DocumentVersionOut(BaseModel):
     originalFilename: str
 
     @staticmethod
-    def from_model(version, document_id_for_numbering: int, document_no: str, uploaded_by_name: str) -> "DocumentVersionOut":
+    def from_model(version, document_no: str, uploaded_by_name: str) -> "DocumentVersionOut":
         return DocumentVersionOut(
             # The real database id, not a synthetic "DOCV-doc-revision"
             # string -- needed so a specific version can actually be

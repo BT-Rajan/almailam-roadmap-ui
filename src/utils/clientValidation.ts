@@ -91,7 +91,7 @@ export function validateBasicInfo(form: ClientWizardForm): FieldErrors {
   return errors
 }
 
-export interface ContactsValidationResult {
+interface ContactsValidationResult {
   /** One error object per contact row, indices matching form.contacts. */
   rowErrors: FieldErrors[]
   /** Cross-row errors (duplicates) that don't belong to a single field. */

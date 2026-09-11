@@ -41,5 +41,3 @@ export function useViewport() {
     isBelowTablet: computed(() => width.value < MOBILE_BREAKPOINT_PX),
   }
 }
-
-export { MOBILE_BREAKPOINT_PX }

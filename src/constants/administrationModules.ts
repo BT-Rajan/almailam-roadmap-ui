@@ -10,7 +10,7 @@ export interface AdministrationModule {
   routeName: RouteNameValue
 }
 
-export interface AdministrationModuleGroup {
+interface AdministrationModuleGroup {
   label: string
   labelKey: string
   description: string
@@ -124,9 +124,3 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
     ],
   },
 ]
-
-// Flat list of every module across all groups -- kept for anything that
-// needs to search/filter/count modules without caring about grouping.
-export const ADMINISTRATION_MODULES: AdministrationModule[] = ADMINISTRATION_MODULE_GROUPS.flatMap(
-  (group) => group.modules,
-)

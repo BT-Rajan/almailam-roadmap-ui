@@ -35,15 +35,6 @@ def get_current_user(
     return user
 
 
-def require_role(*allowed_roles: str):
-    def _check(user: User = Depends(get_current_user)) -> User:
-        if user.role not in allowed_roles:
-            raise PermissionDeniedError()
-        return user
-
-    return _check
-
-
 def require_permission(module: str, action: str):
     def _check(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
         if not has_permission(db, user.role, module, action):

@@ -127,44 +127,6 @@ export interface ClientDocument {
   fileSize: string
 }
 
-export interface ClientDocumentVersion {
-  id: string
-  documentId: string
-  version: number
-  uploadedBy: string
-  uploadDate: string
-  notes: string
-  originalFilename: string
-}
-
-export interface OnboardingCheckContext {
-  client: Client
-  documents: ClientDocument[]
-  contacts: ClientContact[]
-  addresses: ClientAddress[]
-  identifications: ClientIdentification[]
-}
-
-export interface ClientOnboardingRequirement {
-  label: string
-  /** i18n key resolved for display -- `label` itself stays the stable English key used to track completion (see satisfiedByLabel). */
-  labelKey: string
-  category: 'Information' | 'Document' | 'Identification'
-  required: boolean
-  isSatisfied: (ctx: OnboardingCheckContext) => boolean
-}
-
-export interface ClientVerification {
-  id: string
-  clientId: string
-  item: string
-  result: ClientVerificationResult
-  verifiedBy: string
-  verifiedDate: string
-  notes?: string
-  documentId?: string
-}
-
 export type ClientViewMode = 'grid' | 'table'
 
 export type ClientWorkspaceTabKey = 'overview' | 'contacts' | 'identification' | 'documents' | 'projects'

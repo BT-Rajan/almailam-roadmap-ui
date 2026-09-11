@@ -75,7 +75,7 @@ async function createTask(input: TaskInput): Promise<Task> {
   }
 }
 
-export type TaskUpdateInput = Partial<TaskInput> & { reason?: string }
+type TaskUpdateInput = Partial<TaskInput> & { reason?: string }
 
 /**
  * Update a task via backend API

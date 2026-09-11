@@ -129,7 +129,7 @@ def list_versions(document_no: str, db: Session = Depends(get_db), _=Depends(can
     document = document_service.get_document(db, document_no)
     versions = document_service.get_versions(db, document.id)
     return [
-        DocumentVersionOut.from_model(v, document.id, document.document_no, document_service.user_name(db, v.uploaded_by))
+        DocumentVersionOut.from_model(v, document.document_no, document_service.user_name(db, v.uploaded_by))
         for v in versions
     ]
 
@@ -150,7 +150,7 @@ def add_version(
 ):
     document = document_service.get_document(db, document_no)
     version = document_service.add_version(db, document_no, file, notes, current_user.id)
-    return DocumentVersionOut.from_model(version, document.id, document.document_no, current_user.full_name)
+    return DocumentVersionOut.from_model(version, document.document_no, current_user.full_name)
 
 
 @router.get("/{document_no}/audit-events")

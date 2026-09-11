@@ -42,19 +42,6 @@ def _resolve_smtp_config(db: Session) -> dict | None:
     return email_settings_service.get_smtp_credentials(db)
 
 
-def is_configured(db: Session | None = None) -> bool:
-    """Whether a real send would succeed right now -- an env override,
-    or a saved-and-tested mailbox. Opens its own session when the
-    caller doesn't already have one (e.g. a UI hint outside a request)."""
-    if db is not None:
-        return _resolve_smtp_config(db) is not None
-    session = SessionLocal()
-    try:
-        return _resolve_smtp_config(session) is not None
-    finally:
-        session.close()
-
-
 def send_email(to_email: str, subject: str, body_text: str, db: Optional[Session] = None) -> None:
     """Plain-text send, no attachment -- OTP codes and the onboarding
     welcome email (see client_service.py) use this directly;

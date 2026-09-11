@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationAppError
+from app.core.exceptions import NotFoundError, ValidationAppError
 from app.models.project import Project
 from app.models.status_report import StatusReport
 from app.models.task import Task
@@ -112,19 +112,6 @@ def list_engineer_projects(db: Session, engineer_id: int) -> list[Project]:
         .order_by(Project.project_name.asc())
         .all()
     )
-
-
-def _assert_owns_report(report: StatusReport, engineer_id: int) -> None:
-    if report.engineer_id != engineer_id:
-        raise PermissionDeniedError()
-
-
-def get_own_report(db: Session, report_id: int, engineer_id: int) -> StatusReport:
-    report = db.query(StatusReport).filter(StatusReport.id == report_id).first()
-    if report is None:
-        raise NotFoundError("Status report")
-    _assert_owns_report(report, engineer_id)
-    return report
 
 
 def get_todays_report_for_project(db: Session, engineer_id: int, project_id: int) -> StatusReport | None:

@@ -354,9 +354,7 @@ async function submitWizard(): Promise<void> {
       form.value.identificationFile,
       // Was hardcoded to 'Identity Document' regardless of what was
       // actually selected -- an entity client uploading its Trade
-      // Licence here was filed under the wrong category and never
-      // satisfied the "Trade licence" onboarding requirement (see
-      // ORGANISATION_REQUIREMENTS in clientOptions.ts).
+      // Licence here was filed under the wrong category.
       form.value.identificationFile ? getDocumentCategoryForIdentificationType(form.value.identification.documentType) : undefined,
       form.value.identificationFile ? `${form.value.identification.documentType} - ${displayName}` : undefined,
     )

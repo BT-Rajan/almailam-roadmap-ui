@@ -1,9 +1,9 @@
 import { computed } from 'vue'
 import { useAuth } from '@/composables/useAuthComposable'
 
-export type UserRole = 'Administrator' | 'Project Manager' | 'Engineer' | 'Document Controller' | 'Viewer'
+type UserRole = 'Administrator' | 'Project Manager' | 'Engineer' | 'Document Controller' | 'Viewer'
 
-export interface Permission {
+interface Permission {
   name: string
   roles: UserRole[]
 }
