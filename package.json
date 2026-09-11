@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.ts --fix",
     "test:e2e": "playwright test",
+    "test:e2e:workflow": "playwright test -c e2e-workflow/playwright.workflow.config.ts",
     "test:component": "vitest run"
   },
   "dependencies": {
