@@ -392,7 +392,7 @@ function goToCreatedClient(): void {
     </BaseDialog>
 
     <div class="rounded-xl border border-border-light bg-bg-card p-6">
-      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" clickable @select="goToStep" />
+      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" variant="bar" clickable @select="goToStep" />
 
       <div class="mt-8">
         <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" :errors="basicInfoErrors" @view-duplicate="viewDuplicate" />

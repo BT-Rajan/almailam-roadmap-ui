@@ -3,6 +3,8 @@ import { Check } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { stepBarClasses, stepLabelClasses } from '@/utils/stepperStyle'
+
 interface WizardStep {
   label: string
   description?: string
@@ -11,6 +13,13 @@ interface WizardStep {
 interface Props {
   steps: WizardStep[]
   currentStep: number
+  // 'circle' (default): numbered circles + connecting line, used by the
+  // client/project creation wizards. 'bar': a colored bar sitting above
+  // each label with no connector -- same treatment as the project
+  // workspace's Workflow Progress bar (see WorkflowProgress.vue), so a
+  // project or client's stage progress reads identically whether it's
+  // shown as a wizard-in-progress or as a workflow already underway.
+  variant?: 'circle' | 'bar'
   // When true, steps already passed through (status "complete") become
   // clickable, emitting `select` to jump back to them directly instead
   // of only ever being reachable by repeatedly clicking "Back". Default
@@ -40,7 +49,7 @@ interface Props {
   stepRanks?: number[]
 }
 
-const props = withDefaults(defineProps<Props>(), { clickable: false, isStepNavigable: undefined, stepRanks: undefined })
+const props = withDefaults(defineProps<Props>(), { variant: 'circle', clickable: false, isStepNavigable: undefined, stepRanks: undefined })
 
 const { t } = useI18n()
 
@@ -93,7 +102,27 @@ function connectorClasses(index: number): string[] {
 </script>
 
 <template>
-  <ol class="flex items-start">
+  <!-- Bar variant: colored segment above each label, no connector --
+       segments reuse the exact same stepStatus/isNavigable logic as the
+       circle variant below, just rendered differently. -->
+  <div v-if="variant === 'bar'" class="flex items-stretch gap-2">
+    <component
+      :is="isNavigable(index) ? 'button' : 'div'"
+      v-for="(step, index) in steps"
+      :key="step.label"
+      :type="isNavigable(index) ? 'button' : undefined"
+      class="flex flex-1 flex-col items-stretch gap-1"
+      :class="isNavigable(index) ? 'cursor-pointer' : ''"
+      :aria-label="isNavigable(index) ? t('common.goToStep', { step: index + 1, label: step.label }) : undefined"
+      :aria-current="stepStatus(index) === 'current' ? 'step' : undefined"
+      @click="handleStepClick(index)"
+    >
+      <span :class="[...stepBarClasses(stepStatus(index)), 'w-full']" />
+      <span :class="[...stepLabelClasses(stepStatus(index)), 'text-center']">{{ step.label }}</span>
+    </component>
+  </div>
+
+  <ol v-else class="flex items-start">
     <li v-for="(step, index) in steps" :key="step.label" class="flex flex-1 items-center last:flex-none">
       <!-- The whole circle+label column is the click target when
            navigable, not just the small circle -- a step's name is a

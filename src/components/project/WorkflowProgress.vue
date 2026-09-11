@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { ProjectStatus, ProjectWorkspaceTabKey, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey } from '@/utils/projectHelpers'
+import { stepBarClasses, stepLabelClasses } from '@/utils/stepperStyle'
 
 // Design, Government Submission (Permits), and Supervision are three
 // independent PARALLEL tracks, not three stops on a line -- Contract
@@ -132,42 +133,25 @@ function handleSelect(stage: WorkflowStage): void {
   emit('navigate-tab', getWorkflowStageTabKey(stage))
 }
 
-// Completed = green, current = info (blue), upcoming = neutral border --
-// same three-color convention as the wizard Stepper.
+// Color rules (complete = green, current = info/blue, upcoming = neutral
+// border) live in src/utils/stepperStyle.ts -- shared with Stepper.vue's
+// own "bar" variant (used by the client/project creation wizards) so
+// there's exactly one definition of the three-color convention, not a
+// copy per component. Only sizing is local: linear segments fill their
+// column (w-full, same as the wizard Stepper's bar steps), while the
+// parallel band's ticks sit beside a label in a row and need a fixed
+// width instead (w-6 shrink-0) so a growing bar doesn't fight the label
+// for space.
 function segmentClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
-  return [
-    // Sits inside a column-flex button (flex-col items-stretch): "flex-1"
-    // here would set the *main-axis* (vertical) size in that context, not
-    // width -- with flex-basis 0% and no explicit height on the button,
-    // that collapses this bar toward 0px tall regardless of h-1.5, making
-    // every linear segment (Scope/Quotation/Payment Plan/Contract/
-    // Handover) invisible. items-stretch on the parent already gives this
-    // span full width for free; w-full just makes that explicit instead
-    // of relying on a flex-grow value that fights the fixed height.
-    'h-1.5 w-full rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-    status === 'complete' ? 'bg-success-500' : '',
-    status === 'current' ? 'bg-info-500' : '',
-    status === 'upcoming' ? 'bg-border-default' : '',
-  ]
+  return [...stepBarClasses(status), 'w-full']
 }
 
-// Fixed-width tick instead of flex-1 -- these sit beside a label in a
-// horizontal row (unlike the linear segments, which stack full-width
-// above their label), so a growing bar would fight the label for space.
 function parallelSegmentClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
-  return [
-    'h-1.5 w-6 shrink-0 rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-    status === 'complete' ? 'bg-success-500' : '',
-    status === 'current' ? 'bg-info-500' : '',
-    status === 'upcoming' ? 'bg-border-default' : '',
-  ]
+  return [...stepBarClasses(status), 'w-6 shrink-0']
 }
 
 function labelClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
-  return [
-    'truncate text-xs hover:text-accent-600 cursor-pointer',
-    status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted',
-  ]
+  return stepLabelClasses(status)
 }
 
 // "Stage N of M" summary -- the parallel band counts as exactly one
