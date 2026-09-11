@@ -3,8 +3,9 @@
 -- migrations. backend/migrations/*.sql exist purely to patch an
 -- already-running live database with real data up to the same state
 -- (see migration 0001's own header comment); every one of their
--- cumulative effects through migration 0089 (handover_stage) is already
--- factored in here, so a fresh install never needs to run them.
+-- cumulative effects through migration 0090 (widen_project_service_
+-- column) is already factored in here, so a fresh install never needs
+-- to run them.
 --
 -- Two deliberately-dropped pieces of dead history, kept out rather than
 -- carried forward for their own sake: `pending_client_onboardings`
@@ -304,7 +305,7 @@ CREATE TABLE IF NOT EXISTS projects (
     otp_attempts     SMALLINT NOT NULL DEFAULT 0,
     otp_sent_at      DATETIME NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
-    service         VARCHAR(100) NOT NULL,
+    service         VARCHAR(2000) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,
     -- "Correction" was merged into "Review" (migration 0019) -- a
     -- correction cycle during review is logged as a reason-carrying

@@ -126,7 +126,17 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     client_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    service: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Comma-joined summary of the distinct service/Supervision/Permit
+    # names picked in the New Project wizard's service picker (see
+    # NewProjectWizardPage.handleServicesConfirmed) -- a display label,
+    # not a normalized reference to the service catalog. 100 chars was
+    # too narrow for this: each catalog service name alone can run to
+    # 150 (see SelectedActivityIn.serviceName), so joining more than a
+    # couple of distinct services/categories -- entirely possible with
+    # a large catalog -- overflowed it. Widened to 2000, matching
+    # projects.description's own cap, rather than picking a new
+    # arbitrary ceiling (migration 0090).
+    service: Mapped[str] = mapped_column(String(2000), nullable=False)
     engineer_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )

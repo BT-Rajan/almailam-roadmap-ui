@@ -344,7 +344,11 @@ class ProjectCreate(BaseModel):
     projectName: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     clientId: str
-    service: str = Field(min_length=1, max_length=100)
+    # See Project.service's own comment (backend/app/models/project.py) --
+    # a comma-joined display summary, not a catalog reference, so it
+    # needs real headroom for a large service catalog. Must match that
+    # column's width (migration 0090).
+    service: str = Field(min_length=1, max_length=2000)
     engineerId: str
     priority: str = "Medium"
     startDate: date
@@ -396,7 +400,7 @@ class ProjectUpdate(BaseModel):
     projectName: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     siteAddress: str | None = Field(default=None, max_length=300)
-    service: str | None = Field(default=None, min_length=1, max_length=100)
+    service: str | None = Field(default=None, min_length=1, max_length=2000)
     engineerId: str | None = None
     priority: str | None = None
     # progress is deliberately not here -- it's computed from
