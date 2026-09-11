@@ -211,6 +211,8 @@ export default {
     emailAddress: 'Email Address',
     preferredLanguage: 'Preferred Language',
     accountManager: 'Account Manager',
+    accountManagerLoadFailed: 'Unable to load account managers.',
+    retry: 'Retry',
   },
 
   contactAddressStep: {

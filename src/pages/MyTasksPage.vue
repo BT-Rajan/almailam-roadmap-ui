@@ -16,7 +16,7 @@ import type { TaskInput } from '@/services/taskService'
 import { useAuthStore } from '@/stores/authStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
+import type { TaskStatus } from '@/types/Task'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -55,16 +55,6 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   }
 }
 
-async function handlePriorityChange(priority: TaskPriority): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdatePriority'), detail)
-  }
-}
-
 async function handleTitleChange(title: string): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
@@ -72,16 +62,6 @@ async function handleTitleChange(title: string): Promise<void> {
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('task.taskActions.failedToUpdateTitle'), detail)
-  }
-}
-
-async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateSeverity'), detail)
   }
 }
 
@@ -158,8 +138,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         :project-name="selectedTaskProjectName"
         :client-name="selectedTaskClientName"
         @status-change="handleStatusChange"
-        @priority-change="handlePriorityChange"
-        @severity-change="handleSeverityChange"
         @title-change="handleTitleChange"
         @reassign="handleReassign"
         @delete="requestDelete"

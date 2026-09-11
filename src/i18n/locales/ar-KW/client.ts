@@ -211,6 +211,8 @@ export default {
     emailAddress: 'البريد الإلكتروني',
     preferredLanguage: 'اللغة المفضلة',
     accountManager: 'مدير الحساب',
+    accountManagerLoadFailed: 'تعذر تحميل قائمة مديري الحسابات.',
+    retry: 'إعادة المحاولة',
   },
 
   contactAddressStep: {

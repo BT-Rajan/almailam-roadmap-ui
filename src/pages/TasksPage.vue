@@ -21,7 +21,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
-import type { TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
+import type { TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
@@ -33,13 +33,6 @@ onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
 const isCreateDialogOpen = ref(false)
-
-const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'All Priorities', value: 'All', labelKey: 'task.tasksPage.allPriorities' },
-  { label: 'High', value: 'High', labelKey: 'task.priority.high' },
-  { label: 'Medium', value: 'Medium', labelKey: 'task.priority.medium' },
-  { label: 'Low', value: 'Low', labelKey: 'task.priority.low' },
-]
 
 const projectOptions = computed<SelectOption[]>(() => [
   { label: 'All Projects', value: 'All', labelKey: 'task.tasksPage.allProjects' },
@@ -95,26 +88,6 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('task.taskActions.failedToUpdateStatus'), detail)
-  }
-}
-
-async function handlePriorityChange(priority: TaskPriority): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdatePriority'), detail)
-  }
-}
-
-async function handleSeverityChange(severity: TaskSeverity): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateSeverity'), detail)
   }
 }
 
@@ -219,13 +192,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       @clear="taskStore.clearFilters"
     >
       <template #filters>
-        <div class="w-40">
-          <SelectBox
-            :model-value="taskStore.priorityFilter"
-            :options="PRIORITY_OPTIONS"
-            @update:model-value="taskStore.setPriorityFilter($event as TaskPriority | 'All')"
-          />
-        </div>
         <div class="w-56">
           <SelectBox
             :model-value="taskStore.projectFilter"
@@ -267,8 +233,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         :project-name="selectedTaskProjectName"
         :client-name="selectedTaskClientName"
         @status-change="handleStatusChange"
-        @priority-change="handlePriorityChange"
-        @severity-change="handleSeverityChange"
         @title-change="handleTitleChange"
         @reassign="handleReassign"
         @start-date-change="handleStartDateChange"

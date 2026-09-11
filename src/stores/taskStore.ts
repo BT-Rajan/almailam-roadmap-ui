@@ -6,7 +6,7 @@ import type { TaskInput } from '@/services/taskService'
 import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
 import type { Project } from '@/types/Project'
-import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
+import type { Task, TaskStatus } from '@/types/Task'
 
 interface TaskStoreState {
   tasks: Task[]
@@ -14,7 +14,6 @@ interface TaskStoreState {
   isLoading: boolean
   error: string | undefined
   searchTerm: string
-  priorityFilter: TaskPriority | 'All'
   projectFilter: string | 'All'
   assigneeFilter: string | 'All'
   selectedTaskId: string | undefined
@@ -27,7 +26,6 @@ export const useTaskStore = defineStore('task', {
     isLoading: false,
     error: undefined,
     searchTerm: '',
-    priorityFilter: 'All',
     projectFilter: 'All',
     assigneeFilter: 'All',
     selectedTaskId: undefined,
@@ -57,18 +55,16 @@ export const useTaskStore = defineStore('task', {
 
       return state.tasks.filter((task) => {
         const matchesSearch = term.length === 0 || task.title.toLowerCase().includes(term)
-        const matchesPriority = state.priorityFilter === 'All' || task.priority === state.priorityFilter
         const matchesProject = state.projectFilter === 'All' || task.projectId === state.projectFilter
         const matchesAssignee = state.assigneeFilter === 'All' || task.assignedTo === state.assigneeFilter
 
-        return matchesSearch && matchesPriority && matchesProject && matchesAssignee
+        return matchesSearch && matchesProject && matchesAssignee
       })
     },
 
     hasActiveFilters(state): boolean {
       return (
         state.searchTerm.trim().length > 0 ||
-        state.priorityFilter !== 'All' ||
         state.projectFilter !== 'All' ||
         state.assigneeFilter !== 'All'
       )
@@ -133,7 +129,10 @@ export const useTaskStore = defineStore('task', {
     // -- every change made through the Task Details drawer was
     // completely lost the moment the page was reloaded, even though
     // taskService.updateTask() already existed, fully built and
-    // correct, and nothing ever called it.
+    // correct, and nothing ever called it. (Priority/Severity are no
+    // longer editable from the UI at all -- see updateTaskPriority/
+    // updateTaskSeverity removal -- but the fields themselves still
+    // exist on Task, defaulted server-side.)
     async updateTaskTitle(taskId: string, title: string) {
       const updated = await taskService.updateTask(taskId, { title })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
@@ -141,16 +140,6 @@ export const useTaskStore = defineStore('task', {
 
     async updateTaskStatus(taskId: string, status: TaskStatus, reason?: string) {
       const updated = await taskService.updateTask(taskId, { status, reason })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
-    },
-
-    async updateTaskPriority(taskId: string, priority: TaskPriority) {
-      const updated = await taskService.updateTask(taskId, { priority })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
-    },
-
-    async updateTaskSeverity(taskId: string, severity: TaskSeverity) {
-      const updated = await taskService.updateTask(taskId, { severity })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
     },
 
@@ -195,10 +184,6 @@ export const useTaskStore = defineStore('task', {
       this.searchTerm = term
     },
 
-    setPriorityFilter(priority: TaskPriority | 'All') {
-      this.priorityFilter = priority
-    },
-
     setProjectFilter(projectId: string | 'All') {
       this.projectFilter = projectId
     },
@@ -209,7 +194,6 @@ export const useTaskStore = defineStore('task', {
 
     clearFilters() {
       this.searchTerm = ''
-      this.priorityFilter = 'All'
       this.projectFilter = 'All'
       this.assigneeFilter = 'All'
     },

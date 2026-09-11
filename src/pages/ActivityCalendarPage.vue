@@ -260,7 +260,7 @@ function closeDetailsPanel() {
 // Every activity either already IS a task, or can spin one off. Both paths
 // go through the exact same store/components as the Task Board at /tasks
 // (see TasksPage.vue) rather than a parallel implementation here, so
-// editing status/priority/severity or creating a task behaves identically
+// editing status or creating a task behaves identically
 // wherever it's opened from.
 
 const tasksLoaded = ref(false)
@@ -305,12 +305,6 @@ async function handleActivityClick(activity: ActivityRecord) {
 
 function handleStatusChange(status: Parameters<typeof taskStore.updateTaskStatus>[1]): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
-}
-function handlePriorityChange(priority: Parameters<typeof taskStore.updateTaskPriority>[1]): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
-}
-function handleSeverityChange(severity: Parameters<typeof taskStore.updateTaskSeverity>[1]): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskSeverity(taskStore.selectedTaskId, severity)
 }
 function handleReassign(assignee: string): void {
   if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
@@ -528,8 +522,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         :project-name="selectedTaskProjectName"
         :client-name="selectedTaskClientName"
         @status-change="handleStatusChange"
-        @priority-change="handlePriorityChange"
-        @severity-change="handleSeverityChange"
         @title-change="handleTitleChange"
         @reassign="handleReassign"
       />
