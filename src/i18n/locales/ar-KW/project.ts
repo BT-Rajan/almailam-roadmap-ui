@@ -582,6 +582,8 @@ export default {
     viewProjectWorkspace: 'عرض مساحة عمل المشروع',
     failedToCreateProject: 'فشل إنشاء المشروع',
     couldNotLoadServiceCatalog: 'تعذّر تحميل كتالوج الخدمات',
+    couldNotLoadClients: 'تعذر تحميل قائمة العملاء.',
+    couldNotLoadEngineers: 'تعذر تحميل قائمة المهندسين.',
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
     fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',
     earlierFieldsNeedAttention: 'بعض الحقول السابقة تحتاج إلى مراجعة قبل إنشاء هذا المشروع.',

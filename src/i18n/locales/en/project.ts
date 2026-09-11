@@ -582,6 +582,8 @@ export default {
     viewProjectWorkspace: 'View Project Workspace',
     failedToCreateProject: 'Failed to create project',
     couldNotLoadServiceCatalog: 'Could not load the service catalog',
+    couldNotLoadClients: 'Unable to load clients.',
+    couldNotLoadEngineers: 'Unable to load engineers.',
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
     fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
     earlierFieldsNeedAttention: 'Some earlier fields need attention before this project can be created.',

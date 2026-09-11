@@ -1,9 +1,11 @@
+import logging
 from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core.database import SessionLocal
 from app.core.exceptions import AppError, NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
@@ -34,6 +36,8 @@ from app.services import audit_service, client_service, company_service, documen
 from app.services.number_series_service import next_number, next_task_number
 
 ENTITY_TYPE = "PROJECT"
+
+logger = logging.getLogger("app")
 
 # Columns the project list can be sorted on via ?sort=field / ?sort=-field.
 # Deliberately limited to real columns on the table -- "clientName" and
@@ -821,7 +825,7 @@ def compute_stage_flags(
     return (len(selected_activities) > 0, len(selected_permits) > 0, len(selected_supervision_activities) > 0)
 
 
-def create_project(db: Session, payload, user_id: int | None) -> Project:
+def create_project(db: Session, payload, user_id: int | None, background_tasks: BackgroundTasks | None = None) -> Project:
     client = client_service.get_client(db, client_service.parse_client_id(payload.clientId))
     if client.onboarding_state != "Ready":
         raise ValidationAppError(
@@ -904,8 +908,39 @@ def create_project(db: Session, payload, user_id: int | None) -> Project:
     db.commit()
     db.refresh(project)
 
-    _send_project_created_email(db, client, project, engineer)
+    # Backgrounded when possible (see client_service.create_client_full's
+    # identical treatment of its own welcome email) so a slow mail
+    # server doesn't add to how long the person creating this project
+    # has to wait for their confirmation -- purely informational either
+    # way, so background_tasks being unavailable (e.g. scripts/
+    # create_test_data.py, which has no request/response cycle for a
+    # background task to run in) just falls back to the old inline send.
+    if background_tasks is not None:
+        background_tasks.add_task(_send_project_created_email_task, client.id, project.id, engineer.id)
+    else:
+        _send_project_created_email(db, client, project, engineer)
     return project
+
+
+def _send_project_created_email_task(client_id: int, project_id: int, engineer_id: int) -> None:
+    """Runs via BackgroundTasks, after create_project's response has
+    already gone back to the browser -- FastAPI tears down the request's
+    own `db` dependency before background tasks execute (see
+    app/core/database.py's get_db), so this opens its own session and
+    re-fetches everything by id rather than reusing the request-scoped
+    objects."""
+    db = SessionLocal()
+    try:
+        client = db.query(Client).filter(Client.id == client_id).first()
+        project = db.query(Project).filter(Project.id == project_id).first()
+        engineer = db.query(User).filter(User.id == engineer_id).first()
+        if not client or not project or not engineer:
+            return
+        _send_project_created_email(db, client, project, engineer)
+    except Exception:
+        logger.exception("Unexpected error sending project-created email for project_id=%s", project_id)
+    finally:
+        db.close()
 
 
 def _send_project_created_email(db: Session, client: Client, project: Project, engineer: User) -> None:

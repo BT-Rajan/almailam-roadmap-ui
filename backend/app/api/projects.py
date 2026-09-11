@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -138,10 +138,11 @@ def get_project(project_no: str, db: Session = Depends(get_db), current_user: Us
 @router.post("", response_model=ProjectOut, status_code=201)
 def create_project(
     payload: ProjectCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    project = project_service.create_project(db, payload, current_user.id)
+    project = project_service.create_project(db, payload, current_user.id, background_tasks)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
