@@ -224,13 +224,19 @@ export const useClientStore = defineStore('client', {
       return client
     },
 
+    // Shared by updateClient/setClientStatus below -- both patch the same
+    // client into both caches after a mutating call succeeds.
+    patchClientInCache(clientId: string, updated: Client) {
+      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
+      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+    },
+
     // Persists an edit to an existing client's profile via the backend
     // API and updates the cached copy in both `clients` (workspace page)
     // and `pageItems` (browse table) so the change shows up immediately.
     async updateClient(clientId: string, input: ClientUpdateInput) {
       const updated = await clientService.updateClient(clientId, input)
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      this.patchClientInCache(clientId, updated)
       return updated
     },
 
@@ -239,8 +245,7 @@ export const useClientStore = defineStore('client', {
     // general-purpose profile PATCH.
     async setClientStatus(clientId: string, status: Client['status']) {
       const updated = await clientService.setStatus(clientId, status)
-      this.clients = this.clients.map((c) => (c.id === clientId ? updated : c))
-      this.pageItems = this.pageItems.map((c) => (c.id === clientId ? updated : c))
+      this.patchClientInCache(clientId, updated)
       return updated
     },
 

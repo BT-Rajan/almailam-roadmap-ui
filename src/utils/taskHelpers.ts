@@ -1,18 +1,6 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { Task, TaskPriority, TaskSeverity, TaskStatus } from '@/types/Task'
+import type { Task, TaskStatus } from '@/types/Task'
 import { formatDateTime } from '@/utils/dateFormatter'
-
-const PRIORITY_VARIANTS: Record<TaskPriority, BadgeVariant> = {
-  High: 'danger',
-  Medium: 'warning',
-  Low: 'neutral',
-}
-
-const SEVERITY_VARIANTS: Record<TaskSeverity, BadgeVariant> = {
-  Critical: 'danger',
-  Major: 'warning',
-  Minor: 'info',
-}
 
 const STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
   Preset: 'warning',
@@ -22,14 +10,6 @@ const STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
 }
 
 const STATUS_ORDER: TaskStatus[] = ['Preset', 'Pending', 'In Progress', 'Completed']
-
-export function getTaskPriorityVariant(priority: TaskPriority): BadgeVariant {
-  return PRIORITY_VARIANTS[priority]
-}
-
-export function getTaskSeverityVariant(severity: TaskSeverity): BadgeVariant {
-  return SEVERITY_VARIANTS[severity]
-}
 
 export function getTaskStatusVariant(status: TaskStatus): BadgeVariant {
   return STATUS_VARIANTS[status]

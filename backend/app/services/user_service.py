@@ -38,6 +38,19 @@ def get_user(db: Session, user_id: int) -> User:
     return user
 
 
+def _save_new_user(db: Session, user: User, actor_id: int | None) -> User:
+    """Shared tail of create_user and create_client_portal_user below --
+    both persist a freshly-built User and audit-log the creation. Each
+    caller already holds the temporary password from before calling
+    this, so only the refreshed User is returned here."""
+    db.add(user)
+    db.flush()
+    audit_service.log_event(db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, str]:
     if db.query(User).filter(User.email == payload.email).first() is not None:
         raise ConflictError("A user with this email already exists.")
@@ -59,13 +72,7 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
         role=payload.role,
         is_active=True,
     )
-    db.add(user)
-    db.flush()
-    audit_service.log_event(
-        db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role
-    )
-    db.commit()
-    db.refresh(user)
+    user = _save_new_user(db, user, actor_id)
     return user, temporary_password
 
 
@@ -96,11 +103,7 @@ def create_client_portal_user(db: Session, client: Client, actor_id: int | None)
         client_id=client.id,
         is_active=True,
     )
-    db.add(user)
-    db.flush()
-    audit_service.log_event(db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role)
-    db.commit()
-    db.refresh(user)
+    user = _save_new_user(db, user, actor_id)
     return user, temporary_password
 
 
