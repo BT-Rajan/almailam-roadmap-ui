@@ -12,6 +12,7 @@ from app.schemas.document_template import DocumentEmailRequest
 from app.schemas.payment import (
     AdjustmentCreate,
     AdjustmentOut,
+    AgreementReopenInput,
     FinancialAgreementCreate,
     FinancialAgreementOut,
     FinancialAgreementUpdate,
@@ -110,6 +111,19 @@ def delete_agreement(agreement_id: str, db: Session = Depends(get_db), current_u
 @router.post("/financial-agreements/{agreement_id}/approve", response_model=FinancialAgreementOut)
 def approve_agreement(agreement_id: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     agreement = payment_service.approve_agreement(db, payment_service.parse_agreement_id(agreement_id), current_user.id)
+    return _agreement_out(db, agreement)
+
+
+@router.post("/financial-agreements/{agreement_id}/reopen", response_model=FinancialAgreementOut)
+def reopen_agreement(
+    agreement_id: str,
+    payload: AgreementReopenInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    agreement = payment_service.reopen_agreement(
+        db, payment_service.parse_agreement_id(agreement_id), payload.reason, current_user.id
+    )
     return _agreement_out(db, agreement)
 
 

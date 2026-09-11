@@ -8,6 +8,7 @@ from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.status_transitions import (
     FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS,
+    FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON,
     OBLIGATION_OVERRIDE_ALLOWED_TRANSITIONS,
     OBLIGATION_OVERRIDE_STATUSES_REQUIRING_REASON,
 )
@@ -374,6 +375,74 @@ def approve_agreement(db: Session, agreement_id: int, user_id: int) -> Financial
     audit_service.log_event(db, ENTITY_TYPE, agreement.id, "Agreement Approved", user_id)
     agreement.status = "Approved"
     _try_auto_advance_project_stage(db, agreement.project_id, user_id)
+
+    db.commit()
+    db.refresh(agreement)
+    return agreement
+
+
+def reopen_agreement(db: Session, agreement_id: int, reason: str, user_id: int) -> FinancialAgreement:
+    """Reopens an Approved payment plan back to Draft so its schedule
+    can actually be corrected -- the escape hatch update_agreement's own
+    error message points to ("use an Adjustment or Refund instead")
+    doesn't cover every case: Adjustment only changes an obligation's
+    amount_due and Refund only reverses money already received, so
+    neither can move a due_date or resize the schedule. Without this, a
+    plan whose last installment falls after the contract's intended
+    expiry date (see contract_service._assert_design_emi_within_
+    completion_date) was a genuine dead end -- Approved was terminal, no
+    other action could touch a due_date, and the plan had to be Approved
+    before Contract was even reachable in the first place.
+
+    Same two conditions _assert_agreement_editable already requires for
+    a plain edit, checked again here since this is a different entry
+    point: refuses if any Payment has been recorded against this
+    agreement (its allocations point at specific obligation rows an edit
+    would delete and regenerate out from under it), and refuses if the
+    project already has a Contract on file (reopening the numbers a
+    Contract was built from would silently invalidate it).
+
+    If the project's stage had already auto-advanced to "Contract" on
+    the strength of this approval, steps it back to "Payment Plan" to
+    match -- the has_contract check above guarantees no Contract record
+    actually exists yet, so stepping back is always safe here. Once
+    reopened, update_agreement works normally (it already requires
+    Draft), and re-approving afterwards re-triggers the same auto-
+    advance this reversed.
+    """
+    agreement = get_agreement(db, agreement_id)
+    assert_transition_allowed(FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS, agreement.status, "Draft", "financial agreement")
+    if "Draft" in FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON:
+        assert_reason_given(reason, "A reason is required to reopen an approved payment plan for editing.")
+
+    if get_payments(db, agreement.id):
+        raise ValidationAppError(
+            "This payment plan already has payments recorded against it and can no longer be reopened -- "
+            "use an Adjustment or Refund instead."
+        )
+    has_contract = (
+        db.query(Contract)
+        .filter(Contract.project_id == agreement.project_id, Contract.deleted_at.is_(None))
+        .first()
+        is not None
+    )
+    if has_contract:
+        raise ValidationAppError(
+            "This project already has a contract on file, so its payment plan can no longer be reopened."
+        )
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, agreement.id, "Agreement reopened for editing", user_id, reason=reason,
+    )
+    agreement.status = "Draft"
+
+    project = db.query(Project).filter(Project.id == agreement.project_id).first()
+    if project is not None and project.current_stage == "Contract":
+        project.current_stage = "Payment Plan"
+        audit_service.log_event(
+            db, "PROJECT", project.id, "Stage reverted to Payment Plan", user_id,
+            reason=f"Its {agreement.stream} payment plan was reopened for editing: {reason}",
+        )
 
     db.commit()
     db.refresh(agreement)
@@ -889,7 +958,19 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
                 continue
 
             agreement = get_agreement(db, obligation.agreement_id)
-            project = db.query(Project).filter(Project.id == agreement.project_id).first()
+            # Excludes a soft-deleted project's own obligations -- see
+            # project_service.delete_project's docstring. A deleted
+            # project's financial agreements/obligations are left alone
+            # on disk, but reminders (client emails and engineer
+            # notifications alike) are exactly the kind of ongoing
+            # tracking a deleted project should no longer generate.
+            project = (
+                db.query(Project)
+                .filter(Project.id == agreement.project_id, Project.deleted_at.is_(None))
+                .first()
+            )
+            if project is None:
+                continue
 
             # The internal Engineer notification (unchanged from before --
             # still needs a project with an Engineer assigned, still

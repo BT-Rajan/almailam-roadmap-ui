@@ -31,6 +31,7 @@ export default {
   },
 
   details: {
+    title: 'Title',
     projectDetailsTitle: 'Task Details',
     project: 'Project',
     client: 'Client',
@@ -76,6 +77,7 @@ export default {
     failedToUpdateStatus: 'Failed to update status',
     failedToUpdatePriority: 'Failed to update priority',
     failedToUpdateSeverity: 'Failed to update severity',
+    failedToUpdateTitle: 'Failed to update title',
     failedToReassignTask: 'Failed to reassign task',
     failedToUpdateSchedule: 'Failed to update the schedule',
     taskCreatedTitle: 'Task created',

@@ -30,3 +30,72 @@ class ReportSection(BaseModel):
     title: str
     description: str | None = None
     metrics: list[ReportMetric] | None = None
+
+
+class ClientProjectSummary(BaseModel):
+    projectNo: str
+    projectName: str
+    status: str
+    currentStage: str
+    progress: int
+
+
+class ClientWithProjects(BaseModel):
+    clientId: str
+    clientName: str
+    clientStatus: str
+    projects: list[ClientProjectSummary]
+
+
+class PaymentLedgerEntry(BaseModel):
+    paymentNo: str
+    date: str
+    projectNo: str
+    projectName: str
+    clientName: str
+    service: str
+    amount: float
+    currency: str
+    mode: str
+    reference: str | None = None
+    payer: str
+
+
+class ProjectionByMonth(BaseModel):
+    month: str
+    amount: float
+
+
+class ProjectionByProject(BaseModel):
+    projectNo: str
+    projectName: str
+    amount: float
+
+
+class ProjectionByService(BaseModel):
+    service: str
+    amount: float
+
+
+class PaymentProjections(BaseModel):
+    byMonth: list[ProjectionByMonth]
+    byProject: list[ProjectionByProject]
+    byService: list[ProjectionByService]
+
+
+class EmployeePerformance(BaseModel):
+    userId: str
+    employeeName: str
+    assigned: int
+    completed: int
+    completionRate: int
+
+
+class FinancialPeriodSummary(BaseModel):
+    startDate: str
+    endDate: str
+    totalReceived: float
+    totalDue: float
+    totalOutstanding: float
+    totalOverdue: float
+    paymentCount: int

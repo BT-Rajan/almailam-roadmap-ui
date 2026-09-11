@@ -242,6 +242,17 @@ export const usePaymentStore = defineStore('payment', {
       }
     },
 
+    async reopenAgreement(agreementId: string, reason: string): Promise<FinancialAgreement> {
+      this.isSubmitting = true
+      try {
+        const updated = await paymentService.reopenAgreement(agreementId, reason)
+        this.agreements = this.agreements.map((agreement) => (agreement.id === agreementId ? updated : agreement))
+        return updated
+      } finally {
+        this.isSubmitting = false
+      }
+    },
+
     async recordPayment(input: Parameters<typeof paymentService.recordPayment>[0], createdBy: string): Promise<Payment> {
       this.isSubmitting = true
       try {

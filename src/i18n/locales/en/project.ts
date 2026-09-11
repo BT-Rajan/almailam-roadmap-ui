@@ -218,6 +218,7 @@ export default {
     reopenActivity: 'Reopen',
     overrideNoDocument: 'Override — no document',
     addClosureDocument: 'Add Project Closure document',
+    tasksMustBeCompleteFirst: 'Complete all tasks linked to this activity before marking it complete.',
     activityClosed: 'Activity updated',
     activityReopened: 'Activity reopened',
     failedToCloseActivity: 'Failed to update the activity',
@@ -244,6 +245,7 @@ export default {
     handover: {
       title: 'Completed Services Checklist',
       acknowledged: 'Acknowledged',
+      notReadyYet: 'Not Ready Yet',
       awaitingAcknowledgment: 'Awaiting Acknowledgment',
       readyToSend: 'Every planned item across Design, Approvals & Permits, and Supervision is closed — ready for hand-over.',
       readySinceFragment: "Ready for hand-over since {date}. Confirm payment (Payment Confirmation tab) and collect the client's signed acknowledgment.",
@@ -255,6 +257,13 @@ export default {
       confirmedTitle: 'Hand-over confirmed',
       confirmedDescription: 'The project is now marked Completed.',
       failedToConfirm: 'Failed to confirm hand-over',
+      archivePromptTitle: 'Archive this project?',
+      archivePromptMessage: 'This project is now complete. Archive it now to move it out of the active project list? You can restore it later from Deleted Projects.',
+      archiveYes: 'Yes, Archive',
+      archiveNo: 'No, Keep Active',
+      archivedTitle: 'Project archived',
+      archivedDescription: 'The project has been moved out of the active list.',
+      failedToArchive: 'Failed to archive project',
     },
     fields: {
       service: 'Service',
@@ -432,12 +441,12 @@ export default {
 
   tasksTab: {
     newTask: 'New Task',
-    viewTaskBoard: 'View Task Board',
     taskCreatedTitle: 'Task created',
     taskCreatedDescription: '"{title}" was assigned to {assignee}.',
     failedToCreateTask: 'Failed to create task',
     failedToUpdateStatus: 'Failed to update status',
     failedToUpdatePriority: 'Failed to update priority',
+    failedToUpdateTitle: 'Failed to update title',
     failedToReassignTask: 'Failed to reassign task',
     failedToUpdateSchedule: 'Failed to update the schedule',
     changeStatusTitle: 'Change status',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, ShieldCheck } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -13,7 +13,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDateTime } from '@/utils/dateFormatter'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import type { Project } from '@/types/Project'
+import type { HandoverStatus, Project } from '@/types/Project'
 
 const props = defineProps<{
   project: Project
@@ -27,6 +27,22 @@ const { visibleStreams, summaryForStream } = usePaymentAgreements(
   () => props.project.id,
   () => props.project,
 )
+
+// GET /handover self-heals the project's stage on every read (see
+// backend project_service.try_auto_advance_stage) -- fetching it here
+// too, not just from the Overview tab, means arriving at this tab
+// directly still corrects a project that was already eligible for
+// Handover but never actually got there, instead of "Confirm Payment
+// Received" failing with a stale-sounding error a moment later.
+const handoverStatus = ref<HandoverStatus>()
+onMounted(async () => {
+  try {
+    handoverStatus.value = await projectService.getHandoverStatus(props.project.id)
+    if (handoverStatus.value.stageReached) await projectStore.refreshProject(props.project.id)
+  } catch {
+    handoverStatus.value = undefined
+  }
+})
 
 // Auto-computed reference status -- every visible billing stream's
 // contract amount fully received. Shown alongside (never gating) the
@@ -128,7 +144,14 @@ async function handleUnconfirmPayment(): Promise<void> {
             {{ t('project.handoverPaymentTab.undoConfirmation') }}
           </BaseButton>
         </div>
-        <BaseButton v-else size="sm" :icon="ShieldCheck" :loading="isSaving" class="self-start no-print" @click="handleConfirmPayment">
+        <BaseButton
+          v-else
+          size="sm"
+          :icon="ShieldCheck"
+          :loading="isSaving"
+          class="self-start no-print"
+          @click="handleConfirmPayment"
+        >
           {{ t('project.handoverPaymentTab.confirmPayment') }}
         </BaseButton>
       </div>

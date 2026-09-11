@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ProjectWorkspaceTabKey, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
+import type { ProjectStatus, ProjectWorkspaceTabKey, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey } from '@/utils/projectHelpers'
 
@@ -16,6 +16,13 @@ import { getWorkflowStageLabel, getWorkflowStageLabelKey, getWorkflowStageTabKey
 // project actually includes render, so the band is 1-3 rows tall.
 interface Props {
   currentStage: WorkflowStage
+  // Handover only ever reads 'current' (blue) at best off currentStage
+  // alone -- current_stage stays "Handover" even once the project is
+  // genuinely done (there's no separate WorkflowStage for that), so
+  // this is the one segment that needs project.status too, to tell
+  // "reached Handover" apart from "the client's signed acknowledgment
+  // is actually in" (see handoverStepStatus below).
+  projectStatus: ProjectStatus
   includesDesign: boolean
   includesGovernmentSubmission: boolean
   includesSupervision: boolean
@@ -66,7 +73,20 @@ const visibleParallelStages = computed<WorkflowStage[]>(() =>
 )
 const hasParallelBand = computed(() => visibleParallelStages.value.length > 0)
 
-const currentStageRank = computed(() => LINEAR_STAGES.indexOf(props.currentStage))
+// Once the project has moved into the parallel band or Handover,
+// props.currentStage is no longer one of LINEAR_STAGES at all, so a
+// plain LINEAR_STAGES.indexOf lookup returns -1 -- with the comparisons
+// below, that read every linear stage (including Contract) as "upcoming"
+// again instead of "complete" the moment the project left Contract,
+// turning their segments from green back to grey. Treat "past all four
+// linear stages" as its own rank (LINEAR_STAGES.length) so every one of
+// them still compares as strictly less than it and stays complete.
+const currentStageRank = computed(() => {
+  if (PARALLEL_STAGES.includes(props.currentStage) || props.currentStage === 'Handover') {
+    return LINEAR_STAGES.length
+  }
+  return LINEAR_STAGES.indexOf(props.currentStage)
+})
 
 function linearStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upcoming' {
   const rank = LINEAR_STAGES.indexOf(stage)
@@ -103,6 +123,7 @@ function parallelStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upc
 }
 
 function handoverStepStatus(): 'complete' | 'current' | 'upcoming' {
+  if (props.projectStatus === 'Completed') return 'complete'
   if (props.currentStage === 'Handover') return 'current'
   return 'upcoming'
 }

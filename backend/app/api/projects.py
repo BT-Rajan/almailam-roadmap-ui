@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.core.exceptions import ValidationAppError
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
-from app.models.handover_checklist import HandoverChecklistItem
 from app.schemas.common import PagedResponse
 from app.schemas.project import (
     AddServicesInput,
@@ -109,8 +109,29 @@ def list_projects(
 
 
 @router.get("/{project_no}", response_model=ProjectOut)
-def get_project(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def get_project(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_view)):
     project = project_service.get_project(db, project_no)
+    # Self-heals a project that already met some stage's exit criteria
+    # (an agreement got Approved, a contract got Signed, the last
+    # Design/Permit/Supervision item closed, ...) but never actually
+    # advanced -- e.g. the event that made it eligible fired through a
+    # path that didn't happen to re-check. Mirrors _handover_status_out's
+    # identical self-heal for the Handover tab specifically, extended
+    # here to every stage: this is the endpoint every "view this
+    # project" screen calls (including the stepper), so a stage that
+    # should have already moved on shows correctly on the next load
+    # instead of needing staff to stumble into some unrelated action
+    # that happens to re-check it. try_auto_advance_stage is a safe,
+    # idempotent no-op when the exit criteria aren't met yet.
+    project_service.try_auto_advance_stage(db, project, current_user.id)
+    # progress is weighted by things that change without a stage
+    # transition too -- a payment recorded, one more Design/Permit/
+    # Supervision item closed -- so it's recomputed on every read here,
+    # not just alongside a stage change (see project_service.
+    # recompute_progress's own callers elsewhere for those).
+    project_service.recompute_progress(db, project)
+    db.commit()
+    db.refresh(project)
     return _project_out(db, project, project_service.engineer_name(db, project.engineer_id))
 
 
@@ -262,26 +283,53 @@ def confirm_requirement_scope(
     return _scope_of_work_out(db, project)
 
 
-def _handover_status_out(db: Session, project) -> HandoverStatusOut:
-    checklist = (
-        db.query(HandoverChecklistItem)
-        .filter(HandoverChecklistItem.project_id == project.id)
-        .order_by(HandoverChecklistItem.source_type.asc(), HandoverChecklistItem.id.asc())
-        .all()
-    )
-    return HandoverStatusOut.from_model(project, checklist)
+def _handover_status_out(db: Session, project, user_id: int | None) -> HandoverStatusOut:
+    # Self-heals a project that already met Handover's exit criteria at
+    # some point but never got a chance to actually advance (e.g. the
+    # event that made it eligible didn't happen to re-check -- see
+    # task_service.set_status) -- cheap and always safe to attempt on
+    # every read of this tab, not just when some other action happens
+    # to trigger it.
+    project_service.try_auto_advance_stage(db, project, user_id)
+    db.commit()
+    db.refresh(project)
+
+    # Self-heals the other half of reaching Handover: notify_handover_ready
+    # normally fires automatically the instant a project's stage actually
+    # transitions into "Handover" (see _apply_stage_change's own hook),
+    # but a project already sitting at Handover from before that ever ran
+    # -- or whose client record was briefly missing when it first
+    # qualified, see that hook's own try/except -- never gets a second
+    # chance: try_auto_advance_stage above is a no-op once current_stage
+    # is already "Handover", so nothing else ever retries this. Without
+    # handover_sent_at set, confirm_project_handover refuses forever, with
+    # no way for staff to complete the project at all.
+    if project.current_stage == "Handover" and project.handover_sent_at is None:
+        try:
+            project_service.notify_handover_ready(db, project.project_no, user_id)
+            db.refresh(project)
+        except ValidationAppError:
+            pass
+
+    # Always reflects the real, current status of every Design
+    # activity/Permit/Supervision item -- not a stale snapshot frozen
+    # at whatever moment the project first (if ever) actually entered
+    # Handover.
+    checklist = project_service.refresh_handover_checklist(db, project)
+    stage_reached, not_ready_reason = project_service.get_handover_readiness(db, project)
+    return HandoverStatusOut.from_model(project, checklist, stage_reached, not_ready_reason)
 
 
 @router.get("/{project_no}/handover", response_model=HandoverStatusOut)
-def get_handover_status(project_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+def get_handover_status(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_view)):
     project = project_service.get_project(db, project_no)
-    return _handover_status_out(db, project)
+    return _handover_status_out(db, project, current_user.id)
 
 
 @router.post("/{project_no}/handover/notify-ready", response_model=HandoverStatusOut)
 def notify_handover_ready(project_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
     project = project_service.notify_handover_ready(db, project_no, current_user.id)
-    return _handover_status_out(db, project)
+    return _handover_status_out(db, project, current_user.id)
 
 
 @router.post("/{project_no}/handover/confirm", response_model=ProjectOut)

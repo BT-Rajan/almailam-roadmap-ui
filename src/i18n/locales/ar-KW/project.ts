@@ -218,6 +218,7 @@ export default {
     reopenActivity: 'إعادة فتح',
     overrideNoDocument: 'تجاوز — بدون مستند',
     addClosureDocument: 'إضافة مستند إغلاق المشروع',
+    tasksMustBeCompleteFirst: 'أكمل جميع المهام المرتبطة بهذا النشاط قبل وضع علامة عليه كمكتمل.',
     activityClosed: 'تم تحديث النشاط',
     activityReopened: 'تمت إعادة فتح النشاط',
     failedToCloseActivity: 'فشل تحديث النشاط',
@@ -244,6 +245,7 @@ export default {
     handover: {
       title: 'قائمة الخدمات المكتملة',
       acknowledged: 'تم التأكيد',
+      notReadyYet: 'غير جاهز بعد',
       awaitingAcknowledgment: 'بانتظار التأكيد',
       readyToSend: 'تم إغلاق جميع بنود التصميم والموافقات والتصاريح والإشراف المخطط لها — جاهز للتسليم.',
       readySinceFragment: 'جاهز للتسليم منذ {date}. أكّد الدفع (تبويب تأكيد الدفع) واحصل على إقرار العميل الموقّع.',
@@ -255,6 +257,13 @@ export default {
       confirmedTitle: 'تم تأكيد التسليم',
       confirmedDescription: 'أصبح المشروع الآن مكتملاً.',
       failedToConfirm: 'فشل تأكيد التسليم',
+      archivePromptTitle: 'أرشفة هذا المشروع؟',
+      archivePromptMessage: 'اكتمل هذا المشروع الآن. هل تريد أرشفته لإزالته من قائمة المشاريع النشطة؟ يمكنك استعادته لاحقًا من المشاريع المحذوفة.',
+      archiveYes: 'نعم، أرشفة',
+      archiveNo: 'لا، إبقاء نشط',
+      archivedTitle: 'تمت أرشفة المشروع',
+      archivedDescription: 'تم نقل المشروع خارج قائمة المشاريع النشطة.',
+      failedToArchive: 'فشلت أرشفة المشروع',
     },
     fields: {
       service: 'الخدمة',
@@ -432,12 +441,12 @@ export default {
 
   tasksTab: {
     newTask: 'مهمة جديدة',
-    viewTaskBoard: 'عرض لوحة المهام',
     taskCreatedTitle: 'تم إنشاء المهمة',
     taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
     failedToCreateTask: 'فشل إنشاء المهمة',
     failedToUpdateStatus: 'فشل تحديث الحالة',
     failedToUpdatePriority: 'فشل تحديث الأولوية',
+    failedToUpdateTitle: 'فشل تحديث العنوان',
     failedToReassignTask: 'فشل إعادة إسناد المهمة',
     failedToUpdateSchedule: 'فشل تحديث الجدول الزمني',
     changeStatusTitle: 'تغيير الحالة',

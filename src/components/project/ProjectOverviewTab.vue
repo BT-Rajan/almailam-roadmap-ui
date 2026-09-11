@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
+import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -26,6 +27,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { documentRequirementService } from '@/services/documentRequirementService'
 import { projectService } from '@/services/projectService'
@@ -70,6 +72,7 @@ const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
 const projectStore = useProjectStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
+const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
@@ -85,6 +88,15 @@ const { t } = useI18n()
 // backend, which enforces the same rule for real). overrides is keyed
 // by "design:<id>" / "permit:<id>" / "supervision:<id>" so all three
 // item kinds share one reactive map without their id spaces colliding.
+//
+// Design activities have a second, non-overridable gate on top of
+// this: every task linked to the activity (Task.selectedActivityId)
+// must already be Completed (mirrors project_service.
+// _assert_design_tasks_complete on the backend, which enforces the
+// same rule for real). Unlike the document-evidence gate, there's no
+// checkbox to skip this one -- task completion is a real signal, not
+// a paperwork formality, so canMarkComplete short-circuits to false
+// for 'design' before it ever looks at overrides/hasProjectClosureDocument.
 type CompletionKind = 'design' | 'permit' | 'supervision'
 const overrides = reactive<Record<string, boolean>>({})
 function overrideKey(kind: CompletionKind, id: string): string {
@@ -93,12 +105,23 @@ function overrideKey(kind: CompletionKind, id: string): string {
 const hasProjectClosureDocument = computed(
   () => linkDocumentStore.documentsForCategory(props.project.id, 'Project Closure').length > 0,
 )
+function designActivityTasksComplete(activityId: string): boolean {
+  const linkedTasks = taskStore
+    .tasksByProject(props.project.id)
+    .filter((task) => task.selectedActivityId === activityId)
+  return linkedTasks.every((task) => task.status === 'Completed')
+}
 function canMarkComplete(kind: CompletionKind, id: string): boolean {
+  if (kind === 'design' && !designActivityTasksComplete(id)) return false
   return hasProjectClosureDocument.value || Boolean(overrides[overrideKey(kind, id)])
 }
 function setOverride(kind: CompletionKind, id: string, checked: boolean): void {
   overrides[overrideKey(kind, id)] = checked
 }
+
+onMounted(() => {
+  if (taskStore.tasks.length === 0) taskStore.loadTasks()
+})
 
 const isAddClosureDocDialogOpen = ref(false)
 function openAddClosureDocDialog(): void {
@@ -242,6 +265,16 @@ const showHandoverCard = computed(
 const isHandoverDialogOpen = ref(false)
 const isHandoverSaving = ref(false)
 
+// Asked once, right after the project actually completes -- not a
+// stage/status option of its own, just a convenience offer to get a
+// finished project out of the active list immediately instead of
+// leaving that for whenever someone happens to notice it's done and
+// archives it by hand later. "No" is a real, equally-valid answer:
+// the project stays exactly as it is (Completed, still active) with
+// nothing else to undo.
+const isArchivePromptOpen = ref(false)
+const isArchiving = ref(false)
+
 async function handleConfirmHandover(payload: { file: File }): Promise<void> {
   isHandoverSaving.value = true
   try {
@@ -250,10 +283,25 @@ async function handleConfirmHandover(payload: { file: File }): Promise<void> {
     await loadHandoverStatus()
     isHandoverDialogOpen.value = false
     toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
+    isArchivePromptOpen.value = true
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.handover.failedToConfirm'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isHandoverSaving.value = false
+  }
+}
+
+async function handleArchiveConfirm(): Promise<void> {
+  isArchiving.value = true
+  try {
+    await projectStore.deleteProject(props.project.id)
+    isArchivePromptOpen.value = false
+    toastStore.show('success', t('project.overviewTab.handover.archivedTitle'), t('project.overviewTab.handover.archivedDescription'))
+    router.push({ name: ROUTE_NAMES.PROJECTS })
+  } catch (error) {
+    toastStore.show('error', t('project.overviewTab.handover.failedToArchive'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isArchiving.value = false
   }
 }
 
@@ -635,12 +683,24 @@ function verificationResultLabel(result: string): string {
             variant="success"
           />
           <StatusBadge
+            v-else-if="handoverStatus && !handoverStatus.stageReached"
+            :label="t('project.overviewTab.handover.notReadyYet')"
+            variant="neutral"
+          />
+          <StatusBadge
             v-else
             :label="t('project.overviewTab.handover.awaitingAcknowledgment')"
             variant="warning"
           />
         </div>
       </template>
+
+      <p
+        v-if="project.status !== 'Completed' && handoverStatus && !handoverStatus.stageReached && handoverStatus.notReadyReason"
+        class="text-sm text-text-secondary"
+      >
+        {{ handoverStatus.notReadyReason }}
+      </p>
 
       <ul v-if="handoverStatus?.checklist.length" class="flex flex-col gap-1.5">
         <li
@@ -676,14 +736,14 @@ function verificationResultLabel(result: string): string {
         <p v-else-if="handoverStatus?.handoverSentAt" class="text-sm text-text-secondary">
           {{ t('project.overviewTab.handover.readySinceFragment', { date: formatDateTime(handoverStatus.handoverSentAt) }) }}
         </p>
-        <p v-else class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
+        <p v-else-if="handoverStatus?.stageReached" class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
 
         <BaseButton
           v-if="project.status !== 'Completed' && client"
           size="sm"
           :icon="Mail"
           :loading="isHandoverSaving"
-          :disabled="!project.handoverPaymentConfirmedAt"
+          :disabled="!project.handoverPaymentConfirmedAt || !handoverStatus?.stageReached"
           class="no-print"
           @click="isHandoverDialogOpen = true"
         >
@@ -698,6 +758,16 @@ function verificationResultLabel(result: string): string {
         :title="t('project.overviewTab.handover.confirmDialogTitle')"
         :description="t('project.overviewTab.handover.confirmDialogDescription')"
         @confirm="handleConfirmHandover"
+      />
+
+      <ConfirmationDialog
+        v-model="isArchivePromptOpen"
+        :title="t('project.overviewTab.handover.archivePromptTitle')"
+        :message="t('project.overviewTab.handover.archivePromptMessage')"
+        :confirm-label="t('project.overviewTab.handover.archiveYes')"
+        :cancel-label="t('project.overviewTab.handover.archiveNo')"
+        :loading="isArchiving"
+        @confirm="handleArchiveConfirm"
       />
     </Card>
 
@@ -921,7 +991,10 @@ function verificationResultLabel(result: string): string {
                         :disabled="!canMarkComplete('design', activity.id)"
                         @click="closeDesignActivity(activity.id, 'Complete')"
                       >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                      <div v-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
+                      <p v-if="!designActivityTasksComplete(activity.id)" class="text-xs text-text-muted no-print">
+                        {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
+                      </p>
+                      <div v-else-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
                         <label class="inline-flex items-center gap-1.5 text-text-muted">
                           <input
                             type="checkbox"
@@ -1325,6 +1398,8 @@ function verificationResultLabel(result: string): string {
     <AgreementFormDialog
       v-model="isPaymentPlanFormOpen"
       :project-id="project.id"
+      :project="project"
+      :client="client"
       :stream="paymentPlanFormStream"
       mode="create"
       :existing-obligations="[]"

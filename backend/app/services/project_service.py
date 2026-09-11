@@ -1,10 +1,10 @@
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import UploadFile
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import AppError, NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.core.status_transitions import (
@@ -17,8 +17,8 @@ from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
 from app.models.document import ProjectDocument, ProjectLinkDocument
-from app.models.government import GovernmentSubmission
 from app.models.handover_checklist import HandoverChecklistItem
+from app.models.payment import FinancialAgreement, Payment
 from app.models.permit_selection import ProjectSelectedPermit
 from app.models.prerequisite import PermitPrerequisite, SupervisionPrerequisite
 from app.models.project import (
@@ -209,6 +209,31 @@ def get_selected_activity(db: Session, project_id: int, activity_id: int) -> Pro
     return activity
 
 
+def _auto_complete_linked_tasks(db: Session, task_filter, user_id: int | None) -> None:
+    """Closes out any task still open under a Design activity/Permit/
+    Supervision activity that is itself being force-closed (Complete or
+    Cancelled) directly by a user, on top of whatever the task-driven
+    auto-close path already covers. Permits and Supervision activities
+    are explicitly closeable "anytime as they deem fit" regardless of
+    their own linked tasks' status (see set_permit_status/
+    set_supervision_status), and even Design allows Cancelled without
+    every linked task Completed (a descoped activity doesn't need its
+    tasks finished) -- without this, a task nobody individually touched
+    stays open forever under a parent the user already declared done,
+    and later silently blocks Handover's "every task closed" gate even
+    though every service reads as finished. A no-op when nothing linked
+    is still open (the common case, e.g. Design's own Complete path,
+    which already required every linked task Completed beforehand)."""
+    open_tasks = db.query(Task).filter(task_filter, Task.deleted_at.is_(None), Task.status != "Completed").all()
+    for task in open_tasks:
+        previous = task.status
+        task.status = "Completed"
+        audit_service.log_event(
+            db, "TASK", task.id, "Task auto-completed (parent service closed)", user_id,
+            previous_value=previous, new_value="Completed",
+        )
+
+
 def _set_design_activity_status(
     db: Session, activity: ProjectSelectedActivity, new_status: str, user_id: int | None, auto: bool
 ) -> None:
@@ -221,6 +246,8 @@ def _set_design_activity_status(
         "Design activity auto-closed (all linked tasks completed)" if auto else "Design activity closed",
         user_id, previous_value=previous, new_value=new_status,
     )
+    if not auto:
+        _auto_complete_linked_tasks(db, Task.selected_activity_id == activity.id, user_id)
     if new_status == "Complete":
         project = db.query(Project).filter(Project.id == activity.project_id).first()
         if project is not None:
@@ -360,25 +387,48 @@ def _assert_completion_evidence(db: Session, project: Project, override_no_docum
         )
 
 
+def _assert_design_tasks_complete(db: Session, activity_id: int) -> None:
+    """Gates marking a Design activity Complete (never Cancelled -- a
+    descoped activity doesn't need its tasks finished) on every task
+    linked to it (Task.selected_activity_id) already being Completed.
+    An activity with no linked tasks at all passes through -- nothing
+    to wait on. Unlike _assert_completion_evidence just below, this has
+    no override: task completion is a real, load-bearing signal (it's
+    also what maybe_auto_close_design_activity uses to close the
+    activity automatically), not a paperwork formality, so it isn't
+    something a checkbox should be able to skip past."""
+    linked_tasks = (
+        db.query(Task).filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None)).all()
+    )
+    if any(task.status != "Completed" for task in linked_tasks):
+        raise ValidationAppError(
+            "All tasks linked to this Design activity must be Completed before it can be marked Complete."
+        )
+
+
 def close_design_activity(
     db: Session, project_no: str, activity_id: int, new_status: str, user_id: int, override_no_document: bool = False,
 ) -> ProjectSelectedActivity:
-    """Direct user action -- closes a Design activity regardless of its
-    linked tasks' state ("user has full control", independent of the
-    task-driven auto-close below). new_status is 'Complete' or
-    'Cancelled' -- the latter for a descoped activity that was never
-    going to be finished, so it stops blocking project completion
-    without pretending it was actually done. Also tries auto-advancing
-    the stage (same as every other stage-completing action) -- closing
-    the last open Design activity is exactly what Design's own exit
-    criterion checks, so nothing should be left waiting on a separate
-    manual "move stage" click that doesn't currently exist in the UI."""
+    """Direct user action -- closes a Design activity. new_status is
+    'Complete' or 'Cancelled' -- the latter for a descoped activity that
+    was never going to be finished, so it stops blocking project
+    completion without pretending it was actually done. Marking it
+    Complete requires every linked task to already be Completed (see
+    _assert_design_tasks_complete) -- this used to be independent of
+    the task-driven auto-close below ("user has full control"), which
+    let staff mark a Design service complete while its own tasks were
+    still open. Also tries auto-advancing the stage (same as every
+    other stage-completing action) -- closing the last open Design
+    activity is exactly what Design's own exit criterion checks, so
+    nothing should be left waiting on a separate manual "move stage"
+    click that doesn't currently exist in the UI."""
     if new_status not in ("Complete", "Cancelled"):
         raise ValidationAppError("new_status must be 'Complete' or 'Cancelled'.")
     project = get_project(db, project_no)
-    if new_status == "Complete":
-        _assert_completion_evidence(db, project, override_no_document)
     activity = get_selected_activity(db, project.id, activity_id)
+    if new_status == "Complete":
+        _assert_design_tasks_complete(db, activity.id)
+        _assert_completion_evidence(db, project, override_no_document)
     _set_design_activity_status(db, activity, new_status, user_id, auto=False)
     db.flush()
     try_auto_advance_stage(db, project, user_id)
@@ -507,6 +557,8 @@ def set_permit_status(
         db, ENTITY_TYPE, project.id, "Permit status changed", user_id,
         previous_value=previous, new_value=new_status,
     )
+    if new_status in ("Complete", "Cancelled"):
+        _auto_complete_linked_tasks(db, Task.selected_permit_id == permit.id, user_id)
     db.commit()
     db.refresh(permit)
     try_auto_advance_stage(db, project, user_id)
@@ -590,6 +642,8 @@ def set_supervision_status(
         db, ENTITY_TYPE, project.id, "Supervision activity status changed", user_id,
         previous_value=previous, new_value=new_status,
     )
+    if new_status in ("Complete", "Cancelled"):
+        _auto_complete_linked_tasks(db, Task.selected_supervision_activity_id == activity.id, user_id)
     db.commit()
     db.refresh(activity)
     try_auto_advance_stage(db, project, user_id)
@@ -729,6 +783,21 @@ def add_selected_services(
     timeline_service.create_system_event(
         db, project.id, "note", title="Additional services added", description=added_names, actor_id=user_id,
     )
+
+    # Services added here bypass the one-time "leaving Contract"
+    # transition that normally auto-generates each activity's task (see
+    # _apply_stage_change/_create_service_tasks) -- that hook only ever
+    # fires once per project, but this function explicitly lets staff
+    # add more Design/Supervision activities "at any point in its
+    # lifecycle", including long after Contract was left. Without this
+    # call, an activity added here would sit with no linked task at all,
+    # silently breaking the "every Design activity gets a task" plan and
+    # the auto-close behavior that depends on it (maybe_auto_close_design_
+    # activity / _assert_design_tasks_complete). Idempotent against
+    # activities/permits already covered by an earlier call, so this is
+    # safe even if some of what's selected already has tasks.
+    db.flush()
+    _create_service_tasks(db, project, user_id)
 
     db.commit()
     db.refresh(project)
@@ -1065,7 +1134,17 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
             elif supervision_agreement.status != "Approved":
                 problems.append("the Supervision financial agreement approved")
 
-    elif previous_stage == "Contract":
+    # Not part of the if/elif chain above -- these two are independent
+    # conditions on previous_stage and new_stage respectively, and both
+    # have to apply together for a project with none of Design/
+    # Government Submission/Supervision selected, whose only forward
+    # target from Contract is Handover directly (see
+    # _auto_advance_target's "return 'Handover'" fallback): it still
+    # needs a signed contract on file (nothing else checks that for
+    # such a project) *and* every task closed (the Handover branch
+    # below), not just one or the other. An elif here used to let
+    # whichever came first win, silently skipping the other.
+    if previous_stage == "Contract":
         # Gates leaving Contract into whichever of Design/Government
         # Submission/Supervision is actually next for this project (see
         # _auto_advance_target) -- a contract has to actually be signed,
@@ -1087,7 +1166,7 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
         if signed_contract is None:
             problems.append("a signed contract")
 
-    elif new_stage == "Handover":
+    if new_stage == "Handover":
         # The convergence gate for all three parallel tracks -- every
         # one this project actually includes has to be fully closed
         # (used to be two different sequential per-hop checks, Design's
@@ -1113,6 +1192,19 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"{', '.join(a.activity_name for a in unfinished_activities)})"
                 )
         if includes_government_submission:
+            # Symmetric with Design/Supervision just below/above --
+            # every selected Permit's own status (Complete/Cancelled) is
+            # the authoritative "is this done" signal, same as an
+            # activity's. This used to also require a GovernmentSubmission
+            # row on file with status Approved, but Permits have no
+            # sub-tasks and no other gate gating "Complete" (see
+            # set_permit_status -- staff can close a permit by hand,
+            # e.g. an authority approval obtained and evidenced outside
+            # this system's own Submission tracking), so that extra
+            # check could block Handover indefinitely on a permit
+            # everyone -- including this exit criterion's own "every
+            # Permit closed" check just above -- already agrees is done,
+            # with no visible link telling staff what to do about it.
             unfinished_permits = [
                 p for p in get_selected_permits(db, project.id) if p.status not in ("Complete", "Cancelled")
             ]
@@ -1121,24 +1213,6 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"every Permit closed ({len(unfinished_permits)} still open: "
                     f"{', '.join(p.permit_name for p in unfinished_permits)})"
                 )
-            # At least one of the project's government submissions
-            # actually has to have been Approved by the authority --
-            # mirrors the "at least one" bar the other two tracks use
-            # (not "every submission"), since a project can have several
-            # submissions to different authorities and only needs its
-            # permit(s) in hand, not a clean sweep.
-            has_approved_submission = (
-                db.query(GovernmentSubmission)
-                .filter(
-                    GovernmentSubmission.project_id == project.id,
-                    GovernmentSubmission.status == "Approved",
-                    GovernmentSubmission.deleted_at.is_(None),
-                )
-                .first()
-                is not None
-            )
-            if not has_approved_submission:
-                problems.append("at least one government submission Approved")
         if includes_supervision:
             unfinished_supervision = [
                 a for a in get_selected_supervision_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
@@ -1172,40 +1246,73 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
 
 # --- workflow stage / progress -- merged so "how far along is this
 # project" is always one consistent story instead of two independently
-# maintained numbers. Design, Government Submission (Permits), and
-# Supervision (migration 0089) are one shared band, not three separate
-# ones -- they're parallel tracks, not sequential stages, so there's no
-# single "how far through them" position to represent; current_stage
-# sitting on any one of the three (or having skipped straight past all
-# of them, for a project with none of the three) reads identically here.
-# Handover is the real next band after that, once every included track
-# converges into it.
-_STAGE_PROGRESS_BAND: dict[str, int] = {
-    "Requirement": 0,
-    "Quotation": 1,
-    "Payment Plan": 2,
-    "Contract": 3,
-    "Design": 4,
-    "Government Submission": 4,
-    "Supervision": 4,
-    "Handover": 5,
-}
-_PROGRESS_BAND_COUNT = 6
+# maintained numbers. Weighted by what's actually been delivered, not an
+# even split across stages: Requirement/Quotation/Payment Plan earn
+# nothing (there's no signed commitment yet to measure progress
+# against) -- Contract signed is the first real milestone, worth 10%.
+# The three parallel tracks (Design/Government Submission/Supervision,
+# migration 0089) share 40% equally among however many of them this
+# project actually includes -- they're parallel, not sequential, so
+# there's no single "how far through them" position, only each one's own
+# fraction of its selected items Complete/Cancelled. Payment received
+# (across every financial agreement on the project) is worth another
+# 40%. The last 10% is Handover -- but rather than a partial credit for
+# merely reaching that stage, it's folded into the status == "Completed"
+# shortcut below, so 100% and "the client's signed acknowledgment is in"
+# are the same moment, not two different ways of saying "done".
+def _track_completion_fraction(items: list) -> float:
+    if not items:
+        return 0.0
+    done = sum(1 for item in items if item.status in ("Complete", "Cancelled"))
+    return done / len(items)
 
 
 def recompute_progress(db: Session, project: Project) -> int:
-    """Derives project.progress from current_stage -- entering a stage
-    jumps progress to that stage's band floor. status == "Completed"
-    (set by confirm_project_handover, independent of current_stage --
-    see the "project completion / hand-over" section below) is the one
-    exception: a completed project always reads 100%. Does not commit --
-    callers already do."""
+    """Does not commit -- callers already do."""
     if project.status == "Completed":
         project.progress = 100
         return project.progress
-    band = _STAGE_PROGRESS_BAND[project.current_stage]
-    progress = round(band * 100 / _PROGRESS_BAND_COUNT)
-    project.progress = max(0, min(100, progress))
+
+    if project.current_stage in ("Requirement", "Quotation", "Payment Plan", "Contract"):
+        project.progress = 0
+        return project.progress
+
+    # Past Contract means it's already signed -- PROJECT_STAGE_ALLOWED_
+    # TRANSITIONS has no path back into "Contract", and leaving it in
+    # the first place already required a signed/active Contract on file
+    # (see _assert_stage_exit_criteria's "previous_stage == Contract"
+    # branch) -- so reaching here at all is exactly "contract completed".
+    progress = 10.0
+
+    selected_activities = get_selected_activities(db, project.id)
+    selected_permits = get_selected_permits(db, project.id)
+    selected_supervision_activities = get_selected_supervision_activities(db, project.id)
+    includes_design, includes_government_submission, includes_supervision = compute_stage_flags(
+        selected_activities, selected_supervision_activities, selected_permits,
+    )
+    included_track_count = sum((includes_design, includes_government_submission, includes_supervision))
+    if included_track_count > 0:
+        track_weight = 40 / included_track_count
+        if includes_design:
+            progress += track_weight * _track_completion_fraction(selected_activities)
+        if includes_government_submission:
+            progress += track_weight * _track_completion_fraction(selected_permits)
+        if includes_supervision:
+            progress += track_weight * _track_completion_fraction(selected_supervision_activities)
+
+    total_contract_amount = (
+        db.query(func.sum(FinancialAgreement.contract_amount))
+        .filter(FinancialAgreement.project_id == project.id)
+        .scalar()
+        or 0
+    )
+    if total_contract_amount > 0:
+        total_received = (
+            db.query(func.sum(Payment.amount_received)).filter(Payment.project_id == project.id).scalar() or 0
+        )
+        progress += 40 * min(float(total_received) / float(total_contract_amount), 1.0)
+
+    project.progress = max(0, min(100, round(progress)))
     return project.progress
 
 
@@ -1320,22 +1427,36 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
             link_route_name="tasks",
         )
 
+    created_count = 0
+
     for activity in get_selected_activities(db, project.id):
         if activity.id in existing_activity_ids or activity.status in ("Complete", "Cancelled"):
             continue
         _add_task(activity.activity_name, selected_activity_id=activity.id)
+        created_count += 1
 
     for permit in get_selected_permits(db, project.id):
         if permit.id in existing_permit_ids or permit.status in ("Complete", "Cancelled"):
             continue
         _add_task(permit.permit_name, selected_permit_id=permit.id)
+        created_count += 1
 
     for activity in get_selected_supervision_activities(db, project.id):
         if activity.id in existing_supervision_ids or activity.status in ("Complete", "Cancelled"):
             continue
         _add_task(activity.activity_name, selected_supervision_activity_id=activity.id)
+        created_count += 1
 
-    audit_service.log_event(db, ENTITY_TYPE, project.id, "Service tasks created", user_id)
+    # Only log when this call actually generated something -- it's now
+    # called both at the one-time Contract exit (see _apply_stage_change)
+    # and again whenever add_selected_services adds more activities to a
+    # project later (idempotent either way, via the existing_*_ids skips
+    # above), and the second caller frequently has nothing new to create
+    # (e.g. only Supervision was added and every Design activity already
+    # has a task). A no-op "Service tasks created" audit entry would be
+    # actively misleading in that case.
+    if created_count:
+        audit_service.log_event(db, ENTITY_TYPE, project.id, "Service tasks created", user_id)
 
 
 def _apply_stage_change(
@@ -1490,7 +1611,16 @@ def try_auto_advance_stage(db: Session, project: Project, user_id: int | None) -
     try:
         assert_transition_allowed(PROJECT_STAGE_ALLOWED_TRANSITIONS, project.current_stage, target_stage, "project")
         _assert_stage_exit_criteria(db, project, project.current_stage, target_stage)
-    except ValidationAppError:
+    except AppError:
+        # Not yet eligible (ValidationAppError, the expected/common case)
+        # or the proposed target isn't a transition this table allows
+        # right now (ConflictError) -- either way this is a best-effort
+        # "advance it if it's ready" check, never something the caller's
+        # own unrelated action should fail because of. Catching the
+        # narrower ValidationAppError alone let a ConflictError from
+        # assert_transition_allowed escape uncaught (see
+        # PROJECT_STAGE_ALLOWED_TRANSITIONS' own comment on the Contract
+        # -> Handover case that used to hit exactly this).
         return
     _apply_stage_change(db, project, target_stage, None, user_id, event_label="Stage auto-advanced")
 
@@ -1741,32 +1871,28 @@ def get_audit_events(db: Session, project_no: str) -> list[dict]:
 
 
 def delete_project(db: Session, project_no: str, actor_id: int) -> None:
+    """Soft-deletes unconditionally -- deliberately NOT gated on how many
+    quotations/contracts/tasks/documents/government submissions the
+    project has. Nothing is removed from disk: every one of those child
+    records stays exactly as it was, still reachable through the audit
+    trail and _project_exists() above. The only thing this changes is
+    that get_project()/list_projects() (and everything downstream that
+    calls them) stop seeing this project at all, so it drops out of
+    tracking, billing reminders, and stage-advancement immediately --
+    see check_and_notify_payment_reminders' and check_and_expire_
+    quotations' own deleted-project filters for the two places that
+    would otherwise have kept acting on a "deleted" project's still-open
+    financial records. Fully reversible via restore_project.
+
+    A previous version of this blocked the delete entirely whenever any
+    child record existed, on the theory that a soft-deleted project's
+    real FK constraints never fire to protect against orphaned-looking
+    records. That protection isn't needed for a soft delete (nothing is
+    actually orphaned -- the rows are all still there, just hidden), and
+    in practice it made routine archival impossible for any project that
+    had ever been quoted or invoiced, which is nearly all of them.
+    """
     project = get_project(db, project_no)
-
-    # Same reasoning as client_service.delete_client()'s active-projects
-    # check: this is a soft-delete (deleted_at set, not a real row
-    # removal), so the real FK constraints on these child tables' project_id
-    # never fire to protect against it -- without this check, a project
-    # with real quotations/contracts/tasks/documents/submissions still on
-    # file could be "deleted" while those records kept silently pointing
-    # at it. Queried directly against the models here (not through each
-    # sibling service module) to avoid a circular import, since those
-    # modules already import project_service themselves for
-    # assert_project_open_for_new_work().
-    child_counts = {
-        "quotation(s)": db.query(Quotation).filter(Quotation.project_id == project.id, Quotation.deleted_at.is_(None)).count(),
-        "contract(s)": db.query(Contract).filter(Contract.project_id == project.id, Contract.deleted_at.is_(None)).count(),
-        "task(s)": db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).count(),
-        "document(s)": db.query(ProjectDocument).filter(ProjectDocument.project_id == project.id, ProjectDocument.deleted_at.is_(None)).count(),
-        "government submission(s)": db.query(GovernmentSubmission).filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None)).count(),
-    }
-    existing = [f"{count} {label}" for label, count in child_counts.items() if count > 0]
-    if existing:
-        raise ValidationAppError(
-            f"This project still has {', '.join(existing)} on file and cannot be deleted. "
-            "Remove or reassign those first."
-        )
-
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Project deleted", actor_id, previous_value=project.project_name)
     project.deleted_at = datetime.now(timezone.utc)
     db.commit()
@@ -1861,6 +1987,39 @@ def check_and_notify_stale_projects(db: Session) -> int:
 # "Completed".
 
 
+def get_handover_readiness(db: Session, project: Project) -> tuple[bool, str | None]:
+    """Whether this project could enter (or has already entered) the
+    Handover stage right now, and -- if not -- exactly what's still
+    open. A pure, non-raising read of the same _assert_stage_exit_
+    criteria check try_auto_advance_stage itself relies on, so a
+    project that isn't ready yet can be explained to staff (which
+    Design activities/Permits/Supervision items/tasks are still open)
+    instead of just showing an empty checklist with no reason why."""
+    if project.current_stage == "Handover":
+        return True, None
+    try:
+        _assert_stage_exit_criteria(db, project, project.current_stage, "Handover")
+    except ValidationAppError as error:
+        return False, str(error)
+    return True, None
+
+
+def refresh_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
+    """Public wrapper around _generate_handover_checklist for callers
+    outside this module (see api/projects.py's GET handover-status) --
+    safe to call regardless of the project's actual current_stage,
+    since it only ever adds a row for a Design activity/Permit/
+    Supervision activity that is *currently* Complete. Calling this on
+    every read of the hand-over tab (rather than only once, from
+    _apply_stage_change's Handover-entry hook) is what lets the
+    "Completed Services Checklist" reflect items closed after the
+    project's last actual stage transition, instead of a stale
+    snapshot frozen at whatever moment it was first generated."""
+    checklist = _generate_handover_checklist(db, project)
+    db.commit()
+    return checklist
+
+
 def _generate_handover_checklist(db: Session, project: Project) -> list[HandoverChecklistItem]:
     """One row per Complete (not Cancelled -- nothing to hand over on a
     descoped item) Design activity/Permit/Supervision activity.
@@ -1953,10 +2112,17 @@ def confirm_handover_payment(db: Session, project_no: str, user_id: int | None) 
     shows alongside it as reference: staff can confirm by hand even if
     obligation tracking is incomplete (e.g. a payment collected outside
     the system). Required before confirm_project_handover will accept
-    the signed hand-over acknowledgment below."""
+    the signed hand-over acknowledgment below.
+
+    Deliberately gated on nothing else -- not the project's current
+    stage, not any other track's completion. This is staff attesting a
+    fact about money already received, which doesn't become less true
+    just because some other Handover exit criterion (an open task, an
+    unclosed track) hasn't cleared yet; requiring the project to already
+    be sitting in "Handover" here only forced staff to wait on an
+    unrelated blocker before they could even record a fact that's
+    already true."""
     project = get_project(db, project_no)
-    if project.current_stage != "Handover":
-        raise ValidationAppError("This project hasn't reached the Handover stage yet.")
     project.handover_payment_confirmed_at = datetime.now(timezone.utc)
     project.handover_payment_confirmed_by = user_id
     audit_service.log_event(db, ENTITY_TYPE, project.id, "Hand-over payment confirmed", user_id)

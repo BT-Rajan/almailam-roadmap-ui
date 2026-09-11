@@ -132,9 +132,11 @@ setRules({
   clientId: [validators.required('Please select a client')],
   selectedActivities: [
     () =>
-      form.selectedActivities.length > 0 || form.selectedSupervisionActivities.length > 0
+      form.selectedActivities.length > 0 ||
+      form.selectedSupervisionActivities.length > 0 ||
+      form.selectedPermits.length > 0
         ? true
-        : 'Please select at least one service or Supervision activity',
+        : 'Please select at least one service, Supervision activity, or permit',
   ],
   engineer: [validators.required('Please assign an engineer')],
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
@@ -164,6 +166,14 @@ function handleServicesConfirmed(payload: ServicePickerConfirmPayload): void {
   form.selectedPermits = payload.permits
   const names = new Set(payload.design.map((item) => item.serviceName))
   if (payload.supervision.length > 0) names.add('Supervision')
+  // Permits-only selections previously left `names` empty here, so
+  // `form.service` ended up '' -- ProjectCreate.service is required
+  // (min_length=1) server-side, so submitting a permits-only project
+  // failed at the backend with "Please check the 'service' field."
+  // instead of anywhere the user could see why. Permits are a valid
+  // standalone selection (see ServicePickerDialog's own canConfirm),
+  // so they need to be represented in the summary too.
+  if (payload.permits.length > 0) names.add('Permits')
   form.service = [...names].join(', ')
 }
 

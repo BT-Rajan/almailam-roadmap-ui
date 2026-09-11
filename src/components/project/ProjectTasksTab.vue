@@ -2,10 +2,9 @@
 import { Plus } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -14,9 +13,9 @@ import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import TaskList from '@/components/task/TaskList.vue'
 import { usePagination } from '@/composables/usePagination'
-import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { TaskInput } from '@/services/taskService'
 import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project, WorkflowStage } from '@/types/Project'
@@ -37,8 +36,8 @@ const props = defineProps<{
   stageContext?: WorkflowStage
 }>()
 
-const router = useRouter()
 const taskStore = useTaskStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
 const clientStore = useClientStore()
@@ -153,7 +152,7 @@ async function handleConfirmPendingChange(): Promise<void> {
   }
 }
 
-const isDrawerOpen = computed({
+const isTaskDialogOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
   set: (value: boolean) => {
     if (!value) taskStore.clearSelectedTask()
@@ -180,6 +179,17 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
     await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
+    // Completing a task can be exactly what closes the last open item
+    // under a Design activity/Permit/Supervision activity (see backend
+    // task_service.set_status -> maybe_auto_close_design_activity/
+    // maybe_auto_close_permit/maybe_auto_close_supervision_activity),
+    // which can itself be what the project's stage was waiting on --
+    // none of that reaches this tab's own project prop on its own since
+    // taskStore only ever mutates its own task list, never the project
+    // store. Refresh so the stepper/tabs/handover checklist elsewhere
+    // on this page reflect it immediately instead of only catching up
+    // whenever something else happens to reload the project.
+    if (status === 'Completed') await projectStore.refreshProject(props.project.id)
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('project.tasksTab.failedToUpdateStatus'), detail)
@@ -203,6 +213,18 @@ async function handleReassign(assignee: string): Promise<void> {
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('project.tasksTab.failedToReassignTask'), detail)
+  }
+}
+
+// Same treatment as reassign/schedule changes just above -- a title
+// correction is routine, no confirmation step.
+async function handleTitleChange(title: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.tasksTab.failedToUpdateTitle'), detail)
   }
 }
 
@@ -253,11 +275,8 @@ async function handleDeleteTask(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex items-center justify-between no-print">
+  <div class="flex items-center justify-end no-print">
     <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('project.tasksTab.newTask') }}</BaseButton>
-    <BaseButton variant="ghost" size="sm" @click="router.push({ name: ROUTE_NAMES.TASKS })">
-      {{ t('project.tasksTab.viewTaskBoard') }}
-    </BaseButton>
   </div>
 
   <div v-if="taskStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -293,7 +312,7 @@ async function handleDeleteTask(): Promise<void> {
     @create="handleCreateTask"
   />
 
-  <BaseDrawer v-model="isDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+  <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
     <TaskDetails
       v-if="taskStore.selectedTask"
       :task="taskStore.selectedTask"
@@ -301,13 +320,14 @@ async function handleDeleteTask(): Promise<void> {
       :client-name="clientName"
       @status-change="requestStatusChange"
       @priority-change="requestPriorityChange"
+      @title-change="handleTitleChange"
       @reassign="requestReassign"
       @start-date-change="handleStartDateChange"
       @due-date-change="handleDueDateChange"
       @due-time-change="handleDueTimeChange"
       @delete="requestDelete"
     />
-  </BaseDrawer>
+  </BaseDialog>
 
   <ConfirmationDialog
     v-model="isConfirmDialogOpen"

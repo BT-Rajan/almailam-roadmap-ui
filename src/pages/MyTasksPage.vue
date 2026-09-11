@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -24,7 +24,7 @@ const taskStore = useTaskStore()
 const toastStore = useToastStore()
 const isCreateDialogOpen = ref(false)
 
-const isDrawerOpen = computed({
+const isTaskDialogOpen = computed({
   get: () => Boolean(taskStore.selectedTaskId),
   set: (value: boolean) => {
     if (!value) taskStore.clearSelectedTask()
@@ -62,6 +62,16 @@ async function handlePriorityChange(priority: TaskPriority): Promise<void> {
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('task.taskActions.failedToUpdatePriority'), detail)
+  }
+}
+
+async function handleTitleChange(title: string): Promise<void> {
+  if (!taskStore.selectedTaskId) return
+  try {
+    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('task.taskActions.failedToUpdateTitle'), detail)
   }
 }
 
@@ -141,7 +151,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       @open="taskStore.selectTask"
     />
 
-    <BaseDrawer v-model="isDrawerOpen" :title="taskStore.selectedTask?.id" width="md">
+    <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
       <TaskDetails
         v-if="taskStore.selectedTask"
         :task="taskStore.selectedTask"
@@ -150,10 +160,11 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         @status-change="handleStatusChange"
         @priority-change="handlePriorityChange"
         @severity-change="handleSeverityChange"
+        @title-change="handleTitleChange"
         @reassign="handleReassign"
         @delete="requestDelete"
       />
-    </BaseDrawer>
+    </BaseDialog>
 
     <TaskFormDialog
       v-model="isCreateDialogOpen"

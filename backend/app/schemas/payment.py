@@ -305,6 +305,10 @@ class RefundCreate(BaseModel):
     reference: str | None = Field(default=None, max_length=60)
 
 
+class AgreementReopenInput(BaseModel):
+    reason: str = Field(min_length=1)
+
+
 class AdjustmentOut(BaseModel):
     id: str
     agreementId: str

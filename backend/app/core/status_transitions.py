@@ -70,9 +70,18 @@ CONTRACT_STATUSES_REQUIRING_REASON = {"Terminated"}
 # explicit transitions here (In Progress/Completed) cover a task
 # skipping straight past a plain reassignment into real work or being
 # closed immediately.
+#
+# "Pending" includes "Completed" as well as "In Progress" -- a task
+# finished in one sitting (no separate "In Progress" step logged) is
+# routine, not exceptional, so it shouldn't be forced through an
+# intermediate status the user never actually was in. Previously
+# missing here, which silently rejected every direct Pending ->
+# Completed change from the Task Details drawer (the drawer's status
+# dropdown always offers all three statuses with no awareness of which
+# transitions the backend actually allows).
 TASK_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Preset": {"Pending", "In Progress", "Completed"},
-    "Pending": {"In Progress"},
+    "Pending": {"In Progress", "Completed"},
     "In Progress": {"Completed", "Pending"},
     "Completed": {"In Progress"},
 }
@@ -129,7 +138,19 @@ PROJECT_STAGE_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Requirement": {"Quotation"},
     "Quotation": {"Payment Plan"},
     "Payment Plan": {"Contract"},
-    "Contract": {"Design", "Government Submission", "Supervision"},
+    # "Handover" is a direct target too, not just the three parallel
+    # tracks -- a project that includes none of Design/Government
+    # Submission/Supervision has nothing to converge on and heads
+    # straight there from Contract (see project_service.
+    # _auto_advance_target's own "return 'Handover'" fallback). Without
+    # this, that fallback proposed a transition this table didn't
+    # actually allow, and assert_transition_allowed's ConflictError
+    # -- a different exception type than the ValidationAppError
+    # try_auto_advance_stage's "not ready yet, no-op" catch expects --
+    # went uncaught, turning a routine auto-advance check (run on nearly
+    # every read/write touching such a project) into a surfaced 409 on
+    # an action that otherwise had nothing to do with the project stage.
+    "Contract": {"Design", "Government Submission", "Supervision", "Handover"},
     "Design": {"Government Submission", "Supervision", "Handover"},
     "Government Submission": {"Design", "Supervision", "Handover"},
     "Supervision": {"Design", "Government Submission", "Handover"},
@@ -150,15 +171,21 @@ PROJECT_STAGE_STATUSES_REQUIRING_REASON: set[str] = set()
 # Added alongside "Payment Plan" becoming a real workflow stage
 # (migration 0061) -- a freshly-created agreement is a Draft (its
 # obligations/schedule already exist, same as always, but it isn't yet
-# what gates advancing the project) until explicitly Approved. Terminal
-# once Approved: a payment plan that needs to change after approval is
-# adjusted via a real Adjustment/refund against its obligations, not
-# reopened back to Draft.
+# what gates advancing the project) until explicitly Approved. Most
+# post-approval corrections are a real Adjustment/Refund against the
+# obligations, not a reopen back to Draft -- but neither of those can
+# move a due_date or resize the schedule itself, so Approved -> Draft
+# is allowed too, for the one thing they can't cover (see
+# payment_service.reopen_agreement's own guard: only when no Payment
+# has been recorded yet and the project has no Contract on file, same
+# two conditions _assert_agreement_editable already requires for a
+# plain edit). Requires a reason, since undoing an approval is
+# significant enough to want one on the record.
 FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Draft": {"Approved"},
-    "Approved": set(),
+    "Approved": {"Draft"},
 }
-FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = set()
+FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON: set[str] = {"Draft"}
 
 # --- Project Status -- src/types/Project.ts: ProjectStatus
 #

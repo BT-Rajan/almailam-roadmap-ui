@@ -313,18 +313,30 @@ class HandoverStatusOut(BaseModel):
     decide whether the "Confirm Hand-over" signed-document upload action
     is available yet. Payment confirmation and closing notes are on
     ProjectOut itself (handoverPaymentConfirmedAt/handoverNotes), not
-    duplicated here."""
+    duplicated here.
+
+    stageReached/notReadyReason are a live read (see project_service.
+    get_handover_readiness), computed fresh on every request rather
+    than derived from handoverSentAt -- a project can satisfy every
+    exit criterion without handoverSentAt ever having been set (e.g.
+    its client record was briefly missing when it first qualified, see
+    _apply_stage_change's own try/except around notify_handover_ready).
+    """
 
     handoverSentAt: datetime | None = None
     handoverAcknowledgedAt: datetime | None = None
     checklist: list[HandoverChecklistItemOut] = Field(default_factory=list)
+    stageReached: bool = False
+    notReadyReason: str | None = None
 
     @staticmethod
-    def from_model(project, checklist: list) -> "HandoverStatusOut":
+    def from_model(project, checklist: list, stage_reached: bool, not_ready_reason: str | None) -> "HandoverStatusOut":
         return HandoverStatusOut(
             handoverSentAt=project.handover_sent_at,
             handoverAcknowledgedAt=project.handover_acknowledged_at,
             checklist=[HandoverChecklistItemOut.from_model(item) for item in checklist],
+            stageReached=stage_reached,
+            notReadyReason=not_ready_reason,
         )
 
 
