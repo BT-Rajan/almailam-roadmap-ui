@@ -382,7 +382,7 @@ function goToCreatedProject(): void {
     <PageHeader :title="t('project.newWizard.title')" :subtitle="t('project.newWizard.subtitle')" />
 
     <div class="rounded-xl border border-border-light bg-bg-card p-6">
-      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" variant="bar" />
+      <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" />
 
       <div class="mt-8">
         <FormSection
