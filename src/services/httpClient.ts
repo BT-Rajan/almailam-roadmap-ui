@@ -5,6 +5,15 @@ import { useAuthStore } from '@/stores/authStore'
 // Set VITE_API_BASE_URL in .env.local to point at a different backend (e.g. in prod).
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
+// A hung request (dropped wifi, a stalled connection, a backend that
+// never responds) previously left a "Submitting..." button spinning
+// forever, with no way to know whether to keep waiting or try again --
+// fetch() itself has no timeout at all by default. File uploads get a
+// longer budget since a multi-MB PDF genuinely can take longer than a
+// plain JSON call.
+const DEFAULT_TIMEOUT_MS = 20_000
+const UPLOAD_TIMEOUT_MS = 60_000
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -43,6 +52,28 @@ async function extractErrorMessage(response: Response): Promise<string> {
   }
 }
 
+// Wraps every fetch() call in this file with a timeout and normalizes
+// the two ways a request can fail before a response ever comes back:
+// aborted-for-timeout, and a genuine network failure (offline, DNS,
+// server unreachable, CORS). Both surface as an ApiError with a plain,
+// actionable message instead of fetch's own browser-internal string
+// (e.g. "Failed to fetch", "The user aborted a request") reaching
+// someone mid-form.
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'This is taking longer than expected. Please check your connection and try again.')
+    }
+    throw new ApiError(0, 'Unable to reach the server. Please check your connection and try again.')
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 // Multipart upload counterpart to request<T>() -- FormData bodies (a
 // file plus a few string fields) can't go through the JSON path above:
 // no Content-Type header here at all, since the browser has to set its
@@ -60,12 +91,16 @@ export async function requestForm<T>(
   const headers: Record<string, string> = {}
   if (authStore.accessToken) headers.Authorization = `Bearer ${authStore.accessToken}`
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: formData,
-  })
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}${path}`,
+    {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: formData,
+    },
+    UPLOAD_TIMEOUT_MS,
+  )
 
   if (response.status === 401 && !options._retried) {
     const refreshed = await authStore.tryRefresh()
@@ -91,15 +126,19 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     headers.Authorization = `Bearer ${authStore.accessToken}`
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    // The refresh token now lives in an httpOnly cookie (never touched by
-    // this code) instead of localStorage -- 'include' is what makes the
-    // browser actually send/accept it, same-origin or cross-origin.
-    credentials: 'include',
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}${path}`,
+    {
+      method: options.method ?? 'GET',
+      headers,
+      // The refresh token now lives in an httpOnly cookie (never touched by
+      // this code) instead of localStorage -- 'include' is what makes the
+      // browser actually send/accept it, same-origin or cross-origin.
+      credentials: 'include',
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    },
+    DEFAULT_TIMEOUT_MS,
+  )
 
   if (response.status === 401 && !options.skipAuth && !options._retried) {
     const refreshed = await authStore.tryRefresh()

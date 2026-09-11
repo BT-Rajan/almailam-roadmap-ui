@@ -60,8 +60,27 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         errors = exc.errors()
         first = errors[0] if errors else None
-        field = ".".join(str(p) for p in first["loc"] if p != "body") if first else ""
-        message = f"Please check the '{field}' field." if field else "Please check your input."
+        if not first:
+            return _error_response("Please check your input.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        field = ".".join(str(p) for p in first["loc"] if p != "body")
+        if first["type"] == "missing":
+            message = f"'{field}' is required." if field else "A required field is missing."
+        else:
+            # Pydantic prefixes a field_validator's own `raise
+            # ValueError(...)` with "Value error, " -- stripping that lets
+            # this app's own specific, hand-written validator messages
+            # (e.g. app/schemas/client.py's _phone_validator: "mobile must
+            # be a valid phone number (at least 7 digits)",
+            # _kuwait_mobile_validator, the expiry-after-issue-date checks)
+            # reach the user exactly as written, instead of every one of
+            # them being discarded in favor of a generic "Please check the
+            # '{field}' field." that never said what was actually wrong --
+            # the same silent-message-loss bug httpClient.ts's
+            # extractErrorMessage() comment already documents for AppError,
+            # just one layer deeper, for Pydantic's own validation errors.
+            raw_message = first.get("msg", "")
+            stripped = raw_message.removeprefix("Value error, ")
+            message = stripped if stripped else (f"Please check the '{field}' field." if field else "Please check your input.")
         return _error_response(message, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     @app.exception_handler(IntegrityError)

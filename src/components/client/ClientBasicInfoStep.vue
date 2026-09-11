@@ -99,7 +99,20 @@ const languageOptions = computed<SelectOption[]>(() => [
 
     <FormSection :title="t('client.basicInfoStep.assignment')" :description="t('client.basicInfoStep.assignmentDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.accountManagerId" :label="t('client.basicInfoStep.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
+        <div>
+          <SelectBox v-model="form.accountManagerId" :label="t('client.basicInfoStep.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
+          <!-- The account manager list is required to complete this step
+               but loads from a separate request (userStore.loadUsers()) --
+               previously a failed load just left the dropdown silently
+               empty with no indication why, or any way to recover short
+               of reloading the whole page. -->
+          <p v-if="userStore.error && accountManagerOptions.length === 0" class="mt-1.5 flex items-center gap-1.5 text-xs text-danger-700">
+            {{ t('client.basicInfoStep.accountManagerLoadFailed') }}
+            <button type="button" class="font-medium underline underline-offset-2" @click="userStore.loadUsers()">
+              {{ t('client.basicInfoStep.retry') }}
+            </button>
+          </p>
+        </div>
       </div>
     </FormSection>
   </div>

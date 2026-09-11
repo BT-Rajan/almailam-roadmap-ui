@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -121,6 +121,7 @@ def merge_clients(
 
 @router.post("/full", response_model=ClientOut, status_code=201)
 def create_client_full(
+    background_tasks: BackgroundTasks,
     payload: str = Form(...),
     documentCategory: str | None = Form(default=None),
     documentTitle: str | None = Form(default=None),
@@ -139,7 +140,7 @@ def create_client_full(
     """
     parsed = ClientFullCreate.model_validate(json.loads(payload))
     client = client_service.create_client_full(
-        db, parsed, identificationFile, documentCategory, documentTitle, current_user.id
+        db, parsed, identificationFile, documentCategory, documentTitle, current_user.id, background_tasks
     )
     names = _account_manager_names(db, [client])
     return _client_out(client, names)
