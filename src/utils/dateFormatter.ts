@@ -5,6 +5,14 @@ export function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+/** `fromIso` (YYYY-MM-DD) shifted by `days` (negative to go back), returned as YYYY-MM-DD.
+ * For DatePicker `min`/`max` bounds and range checks -- e.g. `addDaysIso(todayIso(), 180)`. */
+export function addDaysIso(fromIso: string, days: number): string {
+  const date = new Date(`${fromIso}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 const DISPLAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: '2-digit',
   month: 'short',

@@ -3,7 +3,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, condecimal, field_validator
 
 from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
-from app.schemas.common import not_past_validator
+from app.schemas.common import max_days_from_today_validator, not_past_validator
 
 
 def _enum_validator(allowed: tuple[str, ...], label: str):
@@ -356,6 +356,12 @@ class ProjectCreate(BaseModel):
     siteAddress: str | None = Field(default=None, max_length=300)
 
     _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
+    # Same near-term-only reasoning as every other startDate/scheduling
+    # field in this app (see not_past_validator/max_days_from_today_validator
+    # in app/schemas/common.py) -- can't be in the past, and can't be
+    # scheduled more than 180 days out either.
+    _check_start_not_past = field_validator("startDate")(not_past_validator("startDate"))
+    _check_start_within_180_days = field_validator("startDate")(max_days_from_today_validator("startDate", 180))
 
     @field_validator("targetDate")
     @classmethod

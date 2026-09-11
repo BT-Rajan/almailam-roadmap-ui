@@ -40,6 +40,20 @@ def not_past_validator(label: str):
     return _check
 
 
+def max_days_from_today_validator(label: str, days: int):
+    """Field validator factory for a date that shouldn't be scheduled
+    too far out (a Project's own startDate -- see ProjectCreate) --
+    caps how many days ahead of today the value can be. None-safe, same
+    reasoning as not_future_validator/not_past_validator above."""
+
+    def _check(value: date | None) -> date | None:
+        if value is not None and (value - date.today()).days > days:
+            raise ValueError(f"{label} cannot be more than {days} days from today")
+        return value
+
+    return _check
+
+
 class ErrorResponse(BaseModel):
     error: str
 

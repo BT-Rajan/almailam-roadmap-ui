@@ -9,7 +9,6 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import ServicePickerDialog from '@/components/project/ServicePickerDialog.vue'
 import type { ServicePickerConfirmPayload } from '@/components/project/ServicePickerDialog.vue'
@@ -28,7 +27,7 @@ import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate } from '@/utils/dateFormatter'
+import { addDaysIso, formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 const router = useRouter()
@@ -45,12 +44,6 @@ const WIZARD_STEPS = computed(() => [
   { label: t('project.newWizard.steps.clientService') },
   { label: t('project.newWizard.steps.projectDetails') },
   { label: t('project.newWizard.steps.reviewConfirm') },
-])
-
-const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
-  { label: t('project.priority.high'), value: 'High' },
-  { label: t('project.priority.medium'), value: 'Medium' },
-  { label: t('project.priority.low'), value: 'Low' },
 ])
 
 const currentStep = ref(0)
@@ -90,6 +83,10 @@ const form = reactive({
 const supervisionMonthlyTotal = computed(() =>
   form.selectedSupervisionActivities.reduce((sum, item) => sum + item.monthlyRate, 0),
 )
+
+// Project Start Date's own upper bound -- see the startDate validation
+// rule below for why 180 days.
+const maxStartDate = computed(() => addDaysIso(todayIso(), 180))
 
 // Scope of Work is a plain preview, derived entirely from whatever was
 // picked in the unified service picker -- "scope = services +
@@ -141,8 +138,22 @@ setRules({
   ],
   engineer: [validators.required('Please assign an engineer')],
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
-  startDate: [validators.required('Start date is required')],
-  targetDate: [validators.required('Target date is required')],
+  // Project Start Date: can't be in the past, and can't be more than
+  // 180 days out either -- keeps this an actual near-term start, not a
+  // placeholder date for a project that isn't really starting yet.
+  startDate: [
+    validators.required('Start date is required'),
+    validators.notPastDate('Start date cannot be earlier than today'),
+    validators.maxDaysFromToday(180, 'Start date cannot be more than 180 days from today'),
+  ],
+  // `() => form.startDate` is read live at validation time, so this
+  // stays correct as the person edits Start Date after already having
+  // picked a Target Date. Strict (must be after, not just same-day) to
+  // match the backend's own ProjectCreate.target_after_start check.
+  targetDate: [
+    validators.required('Target date is required'),
+    validators.notBeforeDate(() => form.startDate, 'Target date must be after the start date', true),
+  ],
 })
 
 function handleServicesConfirmed(payload: ServicePickerConfirmPayload): void {
@@ -430,7 +441,6 @@ function goToCreatedProject(): void {
               :options="engineerOptions"
               :error="errors.engineer"
             />
-            <RadioGroup v-model="form.priority" :label="t('project.newWizard.priority')" :options="PRIORITY_OPTIONS" :vertical="false" />
           </div>
         </FormSection>
 
@@ -453,8 +463,21 @@ function goToCreatedProject(): void {
             :hint="t('project.newWizard.siteAddressHint')"
           />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <DatePicker v-model="form.startDate" :label="t('project.newWizard.startDate')" required :error="errors.startDate" />
-            <DatePicker v-model="form.targetDate" :label="t('project.newWizard.targetDate')" required :error="errors.targetDate" />
+            <DatePicker
+              v-model="form.startDate"
+              :label="t('project.newWizard.startDate')"
+              required
+              :min="todayIso()"
+              :max="maxStartDate"
+              :error="errors.startDate"
+            />
+            <DatePicker
+              v-model="form.targetDate"
+              :label="t('project.newWizard.targetDate')"
+              required
+              :min="form.startDate ? addDaysIso(form.startDate, 1) : todayIso()"
+              :error="errors.targetDate"
+            />
           </div>
         </FormSection>
 

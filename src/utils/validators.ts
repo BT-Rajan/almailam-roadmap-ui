@@ -1,5 +1,5 @@
 import type { ValidationRule } from '@/types/Validation'
-import { todayIso } from '@/utils/dateFormatter'
+import { addDaysIso, todayIso } from '@/utils/dateFormatter'
 
 export const validators = {
   required: (message = 'This field is required'): ValidationRule => (value) => {
@@ -85,5 +85,25 @@ export const validators = {
   notFutureDate: (message = 'This date cannot be in the future'): ValidationRule => (value) => {
     if (!value) return true
     return String(value) <= todayIso() ? true : message
+  },
+
+  // ISO "YYYY-MM-DD" date-only, same lexicographic-comparison convention
+  // as notPastDate/notFutureDate above.
+  maxDaysFromToday: (days: number, message?: string): ValidationRule => (value) => {
+    if (!value) return true
+    const msg = message || `This date cannot be more than ${days} days from today`
+    return String(value) <= addDaysIso(todayIso(), days) ? true : msg
+  },
+
+  // `getOtherValue` is read at validation time (not when setRules() is
+  // called), so it can safely be a closure over a reactive field --
+  // e.g. `validators.notBeforeDate(() => form.startDate)` -- to keep the
+  // comparison live as the other field changes. `strict: true` requires
+  // the date to be strictly after (same day fails too), for pairs where
+  // the backend itself enforces that (see ProjectCreate.target_after_start).
+  notBeforeDate: (getOtherValue: () => unknown, message = 'This date cannot be before the start date', strict = false): ValidationRule => (value) => {
+    const other = getOtherValue()
+    if (!value || !other) return true
+    return (strict ? String(value) > String(other) : String(value) >= String(other)) ? true : message
   },
 }
