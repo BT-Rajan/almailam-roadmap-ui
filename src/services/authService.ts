@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/httpClient'
 
-export interface TokenResponse {
+interface TokenResponse {
   access_token: string
   token_type: string
 }

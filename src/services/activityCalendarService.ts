@@ -67,7 +67,7 @@ export interface DailySummary {
 /**
  * Activity filter criteria
  */
-export interface ActivityFilter {
+interface ActivityFilter {
   startDate: string
   endDate: string
   projectId?: string

@@ -8,7 +8,7 @@
 // the app's buttons/badges/links/focus rings instead of only being saved
 // to a database column nothing reads.
 
-export type AccentShade = 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
+type AccentShade = 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
 
 // Fraction of white mixed in for tints (50-400), 0 at the base color
 // (500), and fraction of black mixed in for shades (600-900). Mirrors
@@ -40,7 +40,7 @@ function mix([r, g, b]: [number, number, number], toward: [number, number, numbe
  * separated triplets (the form Tailwind's rgb(var(...) / <alpha-value>)
  * pattern expects) -- undefined if the input isn't a valid #rrggbb hex.
  */
-export function generateAccentScaleTriplets(baseHex: string): Record<AccentShade, string> | undefined {
+function generateAccentScaleTriplets(baseHex: string): Record<AccentShade, string> | undefined {
   const base = hexToRgb(baseHex)
   if (!base) return undefined
 

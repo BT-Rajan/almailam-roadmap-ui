@@ -9,4 +9,3 @@ export interface FieldError {
   message: string
 }
 
-export type ValidationResult = FieldError[]

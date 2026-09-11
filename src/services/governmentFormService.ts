@@ -8,7 +8,7 @@ import type { ProjectDocument } from '@/types/Document'
 export type FormInput = Omit<GovernmentForm, 'id' | 'sampleFileName'>
 export type AuthorityInput = Omit<GovernmentAuthority, 'id'>
 
-export interface FormFillInput {
+interface FormFillInput {
   projectId: string
   context: Record<string, string>
   title?: string

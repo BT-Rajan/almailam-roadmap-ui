@@ -15,13 +15,6 @@ def parse_template_id(raw: str) -> int:
     return int(text)
 
 
-def parse_message_id(raw: str) -> int:
-    text = raw.removeprefix("MSG-") if raw.upper().startswith("MSG-") else raw
-    if not text.isdigit():
-        raise ValidationAppError("Invalid message id.")
-    return int(text)
-
-
 def list_templates(db: Session, channel: str | None = None) -> list[MessageTemplate]:
     query = db.query(MessageTemplate)
     if channel:

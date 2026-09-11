@@ -51,7 +51,7 @@ async function extractErrorMessage(response: Response): Promise<string> {
 // (document uploads, the signed-PDF confirmation dialogs) gets the
 // same session-refresh handling as every JSON call already does,
 // instead of each hand-rolling its own fetch.
-export async function requestForm<T>(
+async function requestForm<T>(
   path: string,
   formData: FormData,
   options: { _retried?: boolean } = {},
@@ -83,7 +83,7 @@ export async function requestForm<T>(
   return (await response.json()) as T
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const authStore = useAuthStore()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
 

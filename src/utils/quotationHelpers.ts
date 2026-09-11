@@ -8,7 +8,7 @@ const STATUS_VARIANTS: Record<QuotationStatus, BadgeVariant> = {
   Expired: 'neutral',
 }
 
-export interface QuotationPricing {
+interface QuotationPricing {
   subtotal: number
   discount: number
   total: number

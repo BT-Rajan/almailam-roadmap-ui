@@ -16,7 +16,7 @@ interface OverlayEntry {
 let nextId = 1
 const openStack: OverlayEntry[] = []
 
-export interface OverlayHandle {
+interface OverlayHandle {
   isTopmost: () => boolean
 }
 

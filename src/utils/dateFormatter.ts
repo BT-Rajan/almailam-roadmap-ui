@@ -48,13 +48,6 @@ export function formatDateTime(isoDateTime: string): string {
   return date.toLocaleString('en-GB', DISPLAY_FORMAT_WITH_TIME)
 }
 
-/** D/M/YYYY with Western digits, matching the lettered templates' own date style (e.g. 28/9/2025). */
-export function formatDateNumeric(isoDate: string): string {
-  const date = new Date(isoDate)
-  if (Number.isNaN(date.getTime())) return isoDate
-  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
-}
-
 /** Compact "5 Jan" style, for widgets too narrow for the full year (dashboard cards, due-date chips). */
 export function formatShortDate(isoDate: string): string {
   const date = new Date(isoDate)

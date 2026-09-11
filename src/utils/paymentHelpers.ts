@@ -54,7 +54,7 @@ export function getObligationAmountPending(obligation: PaymentObligation): numbe
   return Math.max(0, obligation.amountDue - obligation.amountReceived)
 }
 
-export function getObligationAmountOverdue(obligation: PaymentObligation, today: number = todayTimestamp()): number {
+function getObligationAmountOverdue(obligation: PaymentObligation, today: number = todayTimestamp()): number {
   const status = computeObligationStatus(obligation, today)
   if (status === 'Overdue' || status === 'Partially Overdue') return getObligationAmountPending(obligation)
   return 0
@@ -80,7 +80,7 @@ export function getObligationStatusVariant(status: ObligationStatus): BadgeVaria
  * An obligation further in the schedule must never be shown as "next"
  * while an earlier one remains unpaid.
  */
-export function getNextPaymentObligation(obligations: PaymentObligation[], today: number = todayTimestamp()): PaymentObligation | undefined {
+function getNextPaymentObligation(obligations: PaymentObligation[], today: number = todayTimestamp()): PaymentObligation | undefined {
   return [...obligations]
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
     .find((obligation) => {
@@ -89,7 +89,7 @@ export function getNextPaymentObligation(obligations: PaymentObligation[], today
     })
 }
 
-export function getDaysUntilDue(dueDate: string, today: number = todayTimestamp()): number {
+function getDaysUntilDue(dueDate: string, today: number = todayTimestamp()): number {
   const dueTimestamp = startOfDay(new Date(dueDate))
   return Math.round((dueTimestamp - today) / 86_400_000)
 }
@@ -147,75 +147,4 @@ export function getFinancialSummary(agreement: FinancialAgreement, obligations: 
     nextPaymentDaysUntilDue,
     nextPaymentIsOverdue,
   }
-}
-
-const FREQUENCY_INTERVAL_MONTHS: Partial<Record<string, number>> = {
-  Monthly: 1,
-  Quarterly: 3,
-  'Half-yearly': 6,
-  Yearly: 12,
-}
-
-interface CreateAgreementScheduleInput {
-  contractAmount: number
-  contractStartDate: string
-  contractEndDate?: string
-  paymentFrequency: string
-}
-
-interface GeneratedObligation {
-  sequenceNumber: number
-  description: string
-  amountDue: number
-  dueDate: string
-}
-
-/**
- * Generates an even payment schedule between the contract start and end
- * dates for a given frequency — see Pass 19A section 3. 'One-time' and
- * 'Custom' schedules are created directly by the user instead (custom
- * schedules do not fit an even split).
- */
-export function generateEvenSchedule(agreement: CreateAgreementScheduleInput): GeneratedObligation[] {
-  if (agreement.paymentFrequency === 'One-time') {
-    return [{ sequenceNumber: 1, description: 'Full payment', amountDue: agreement.contractAmount, dueDate: agreement.contractStartDate }]
-  }
-
-  const intervalMonths = FREQUENCY_INTERVAL_MONTHS[agreement.paymentFrequency]
-  if (!intervalMonths || !agreement.contractEndDate) {
-    return [{ sequenceNumber: 1, description: 'Full payment', amountDue: agreement.contractAmount, dueDate: agreement.contractStartDate }]
-  }
-
-  const start = new Date(agreement.contractStartDate)
-  const end = new Date(agreement.contractEndDate)
-  const installments: GeneratedObligation[] = []
-  const cursor = new Date(start)
-  let sequenceNumber = 1
-
-  while (cursor <= end) {
-    installments.push({
-      sequenceNumber,
-      description: `Installment ${sequenceNumber}`,
-      amountDue: 0,
-      dueDate: cursor.toISOString().slice(0, 10),
-    })
-    cursor.setMonth(cursor.getMonth() + intervalMonths)
-    sequenceNumber += 1
-  }
-
-  if (installments.length === 0) {
-    installments.push({ sequenceNumber: 1, description: 'Full payment', amountDue: agreement.contractAmount, dueDate: agreement.contractStartDate })
-    return installments
-  }
-
-  // Split evenly, folding any rounding remainder into the final
-  // installment so the schedule always sums exactly to the contract
-  // amount (avoids under/over-collecting by a few cents).
-  const baseAmount = Math.floor((agreement.contractAmount / installments.length) * 100) / 100
-  const roundingRemainder = Math.round((agreement.contractAmount - baseAmount * installments.length) * 100) / 100
-
-  return installments.map((installment, index) => ({
-    ...installment,
-    amountDue: index === installments.length - 1 ? Math.round((baseAmount + roundingRemainder) * 100) / 100 : baseAmount,
-  }))
 }

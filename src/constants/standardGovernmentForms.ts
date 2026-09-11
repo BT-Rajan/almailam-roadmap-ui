@@ -7,7 +7,7 @@ import type { GovernmentFormCategory, GovernmentFormLanguage } from '@/types/Gov
 // nothing here is written to the backend until an admin picks it, and
 // every field (template text, service tags, status) stays editable
 // afterwards like any other form record.
-export interface StandardGovernmentFormSeed {
+interface StandardGovernmentFormSeed {
   formCode: string
   title: string
   category: GovernmentFormCategory

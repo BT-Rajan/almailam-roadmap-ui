@@ -11,7 +11,7 @@ import type {
   ReportSection,
 } from '@/types/Report'
 
-export interface PaymentLedgerFilter {
+interface PaymentLedgerFilter {
   projectNo?: string
   clientId?: string
   startDate?: string

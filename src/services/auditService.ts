@@ -14,7 +14,7 @@ export interface AuditLog {
   changedAt: string
 }
 
-export interface AuditLogQuery {
+interface AuditLogQuery {
   entityType?: string
   entityId?: string
   changedBy?: string
