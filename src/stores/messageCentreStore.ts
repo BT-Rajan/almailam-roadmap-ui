@@ -1,15 +1,13 @@
 import { defineStore } from 'pinia'
 
-import { clientService } from '@/services/clientService'
 import { messageService } from '@/services/messageService'
-import { projectService } from '@/services/projectService'
+import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import type { Client } from '@/types/Client'
 import type { MessageChannel, MessageLogEntry, MessageTemplate, SendMessagePayload } from '@/types/Message'
 import type { Project } from '@/types/Project'
 
 interface MessageCentreStoreState {
-  clients: Client[]
-  projects: Project[]
   templates: MessageTemplate[]
   log: MessageLogEntry[]
   isLoading: boolean
@@ -22,8 +20,6 @@ interface MessageCentreStoreState {
 
 export const useMessageCentreStore = defineStore('messageCentre', {
   state: (): MessageCentreStoreState => ({
-    clients: [],
-    projects: [],
     templates: [],
     log: [],
     isLoading: false,
@@ -35,12 +31,27 @@ export const useMessageCentreStore = defineStore('messageCentre', {
   }),
 
   getters: {
-    filteredClients(state): Client[] {
-      const term = state.searchTerm.trim().toLowerCase()
-      if (term.length === 0) return state.clients
+    // clientStore/projectStore are the single, canonical places these
+    // full lists live -- this store used to keep two more independently-
+    // fetched copies of the exact same data (loadAll below). Client
+    // needs its full contact fields here (composing a message needs
+    // mobile/email), which clientStore's list already carries -- this
+    // isn't a slimmed-down lookup, just no longer a duplicate fetch of
+    // the same full records.
+    clients(): Client[] {
+      return useClientStore().clients
+    },
 
-      return state.clients.filter(
-        (client) =>
+    projects(): Project[] {
+      return useProjectStore().projects
+    },
+
+    filteredClients(): Client[] {
+      const term = this.searchTerm.trim().toLowerCase()
+      if (term.length === 0) return this.clients
+
+      return this.clients.filter(
+        (client: Client) =>
           client.companyName.toLowerCase().includes(term) ||
           client.contactPerson.toLowerCase().includes(term) ||
           client.mobile.toLowerCase().includes(term) ||
@@ -53,16 +64,16 @@ export const useMessageCentreStore = defineStore('messageCentre', {
       return state.searchTerm.trim().length > 0
     },
 
-    getClientById(state) {
-      return (clientId: string): Client | undefined => state.clients.find((client) => client.id === clientId)
+    getClientById(): (clientId: string) => Client | undefined {
+      return (clientId: string) => useClientStore().getClientById(clientId)
     },
 
-    getProjectById(state) {
-      return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
 
-    getProjectsForClient(state) {
-      return (clientId: string): Project[] => state.projects.filter((project) => project.clientId === clientId)
+    getProjectsForClient(): (clientId: string) => Project[] {
+      return (clientId: string) => this.projects.filter((project: Project) => project.clientId === clientId)
     },
 
     selectedClient(): Client | undefined {
@@ -84,14 +95,14 @@ export const useMessageCentreStore = defineStore('messageCentre', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [clients, projects, templates, log] = await Promise.all([
-          clientService.getClients(),
-          projectService.getProjects(),
+        const clientStore = useClientStore()
+        const projectStore = useProjectStore()
+        const [templates, log] = await Promise.all([
           messageService.getTemplates(),
           messageService.getMessageLog(),
+          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
+          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
         ])
-        this.clients = clients
-        this.projects = projects
         this.templates = templates
         this.log = log
       } catch {

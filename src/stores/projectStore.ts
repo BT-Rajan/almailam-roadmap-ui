@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 
-import { clientService } from '@/services/clientService'
 import { projectService } from '@/services/projectService'
 import type { ProjectCreateInput, ProjectUpdateInput } from '@/services/projectService'
 import { useAuthStore } from '@/stores/authStore'
+import { useClientStore } from '@/stores/clientStore'
 import type { Client } from '@/types/Client'
 import type { AddServicesInput, Project, ProjectPriority, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 
@@ -16,7 +16,6 @@ interface ProjectPaginationState {
 
 interface ProjectStoreState {
   projects: Project[]
-  clients: Client[]
   isLoading: boolean
   error: string | undefined
   searchTerm: string
@@ -41,7 +40,6 @@ interface ProjectStoreState {
 export const useProjectStore = defineStore('project', {
   state: (): ProjectStoreState => ({
     projects: [],
-    clients: [],
     isLoading: false,
     error: undefined,
     searchTerm: '',
@@ -67,8 +65,31 @@ export const useProjectStore = defineStore('project', {
       )
     },
 
-    getClientById(state) {
-      return (clientId: string): Client | undefined => state.clients.find((client) => client.id === clientId)
+    // clientStore is the single, canonical place the full client list
+    // lives -- this used to be a second, independently-fetched copy of
+    // the exact same data (loadProjects/loadProjectsPage both called
+    // clientService.getClients() themselves). Delegating keeps every
+    // existing `projectStore.clients` / `projectStore.getClientById`
+    // call site working unchanged while removing that duplicate fetch.
+    clients(): Client[] {
+      return useClientStore().clients
+    },
+
+    getClientById(): (clientId: string) => Client | undefined {
+      return (clientId: string) => useClientStore().getClientById(clientId)
+    },
+
+    // Same reasoning as clientStore.clientById -- built once per change
+    // to `projects`, not per lookup, so getProjectById is O(1) instead of
+    // an O(n) `.find()` run once per row by every list that resolves a
+    // project name (Tasks, Documents, Payments, Government Submissions,
+    // Message Centre, ...).
+    projectById(state): Map<string, Project> {
+      return new Map(state.projects.map((project) => [project.id, project]))
+    },
+
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => this.projectById.get(projectId)
     },
   },
 
@@ -77,9 +98,8 @@ export const useProjectStore = defineStore('project', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [projects, clients] = await Promise.all([projectService.getProjects(), clientService.getClients()])
+        const [projects] = await Promise.all([projectService.getProjects(), useClientStore().loadClients()])
         this.projects = projects
-        this.clients = clients
       } catch {
         this.error = 'Unable to load projects. Please try again.'
       } finally {
@@ -95,8 +115,9 @@ export const useProjectStore = defineStore('project', {
       this.isPageLoading = true
       this.error = undefined
       try {
-        if (this.clients.length === 0) {
-          this.clients = await clientService.getClients()
+        const clientStore = useClientStore()
+        if (clientStore.clients.length === 0) {
+          await clientStore.loadClients()
         }
         const authStore = useAuthStore()
         const result = await projectService.getProjectsPage({

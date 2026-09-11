@@ -3,14 +3,13 @@ import { defineStore } from 'pinia'
 import { governmentFormService } from '@/services/governmentFormService'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
 import type { FollowupCreateInput, SubmissionCreateInput } from '@/services/governmentSubmissionService'
-import { projectService } from '@/services/projectService'
+import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
 import type { GovernmentSubmission, ResponseOutcome, SubmissionFollowup, SubmissionStatus } from '@/types/Submission'
 
 interface GovernmentSubmissionStoreState {
   submissions: GovernmentSubmission[]
-  projects: Project[]
   authorities: GovernmentAuthority[]
   forms: GovernmentForm[]
   isLoading: boolean
@@ -27,7 +26,6 @@ interface GovernmentSubmissionStoreState {
 export const useGovernmentSubmissionStore = defineStore('governmentSubmission', {
   state: (): GovernmentSubmissionStoreState => ({
     submissions: [],
-    projects: [],
     authorities: [],
     forms: [],
     isLoading: false,
@@ -44,9 +42,10 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
   getters: {
     filteredSubmissions(state): GovernmentSubmission[] {
       const term = state.searchTerm.trim().toLowerCase()
+      const projectStore = useProjectStore()
 
       return state.submissions.filter((submission) => {
-        const project = state.projects.find((item) => item.id === submission.projectId)
+        const project = projectStore.getProjectById(submission.projectId)
         const matchesSearch =
           term.length === 0 ||
           submission.submissionNo.toLowerCase().includes(term) ||
@@ -63,8 +62,16 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       return state.searchTerm.trim().length > 0 || state.statusFilter !== 'All' || state.authorityFilter !== 'All'
     },
 
-    getProjectById(state) {
-      return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    // projectStore is the single, canonical place the full project list
+    // lives -- see projectStore's own comment on `clients` for why this
+    // delegates rather than keeping (and independently fetching) a
+    // second copy.
+    projects(): Project[] {
+      return useProjectStore().projects
+    },
+
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
 
     getAuthorityById(state) {
@@ -92,14 +99,14 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       this.isLoading = true
       this.error = undefined
       try {
-        const [submissions, projects, authorities, forms] = await Promise.all([
+        const projectStore = useProjectStore()
+        const [submissions, , authorities, forms] = await Promise.all([
           governmentSubmissionService.getSubmissions(),
-          projectService.getProjects(),
+          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
           governmentFormService.getAuthorities(),
           governmentFormService.getForms(),
         ])
         this.submissions = submissions
-        this.projects = projects
         this.authorities = authorities
         this.forms = forms
       } catch {
