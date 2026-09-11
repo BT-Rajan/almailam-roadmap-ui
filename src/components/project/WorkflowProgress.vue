@@ -136,7 +136,15 @@ function handleSelect(stage: WorkflowStage): void {
 // same three-color convention as the wizard Stepper.
 function segmentClasses(status: 'complete' | 'current' | 'upcoming'): string[] {
   return [
-    'h-1.5 flex-1 rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+    // Sits inside a column-flex button (flex-col items-stretch): "flex-1"
+    // here would set the *main-axis* (vertical) size in that context, not
+    // width -- with flex-basis 0% and no explicit height on the button,
+    // that collapses this bar toward 0px tall regardless of h-1.5, making
+    // every linear segment (Scope/Quotation/Payment Plan/Contract/
+    // Handover) invisible. items-stretch on the parent already gives this
+    // span full width for free; w-full just makes that explicit instead
+    // of relying on a flex-grow value that fights the fixed height.
+    'h-1.5 w-full rounded-full transition-colors duration-fast cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
     status === 'complete' ? 'bg-success-500' : '',
     status === 'current' ? 'bg-info-500' : '',
     status === 'upcoming' ? 'bg-border-default' : '',
