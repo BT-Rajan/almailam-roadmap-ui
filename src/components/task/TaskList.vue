@@ -4,8 +4,6 @@ import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
-import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
 import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Project } from '@/types/Project'
@@ -52,8 +50,6 @@ function projectName(projectId: string): string {
           </div>
 
           <div class="flex shrink-0 items-center gap-3">
-            <TaskPriorityBadge :priority="task.priority" />
-            <TaskSeverityBadge :severity="task.severity" />
             <TaskStatusBadge :status="task.status" />
             <span
               class="w-32 text-end text-xs font-medium"

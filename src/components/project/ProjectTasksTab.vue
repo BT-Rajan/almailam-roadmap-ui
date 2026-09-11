@@ -19,7 +19,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Project, WorkflowStage } from '@/types/Project'
-import type { TaskPriority, TaskStatus } from '@/types/Task'
+import type { TaskStatus } from '@/types/Task'
 import { useUserStore } from '@/stores/userStore'
 
 const props = defineProps<{
@@ -73,7 +73,6 @@ const clientName = computed(() => clientStore.getClientById(props.project.client
 
 type PendingChange =
   | { kind: 'status'; value: TaskStatus }
-  | { kind: 'priority'; value: TaskPriority }
   | { kind: 'reassign'; value: string }
   | { kind: 'delete' }
 
@@ -85,7 +84,6 @@ const confirmDialogTitle = computed(() => {
   if (!pendingChange.value) return ''
   return {
     status: t('project.tasksTab.changeStatusTitle'),
-    priority: t('project.tasksTab.changePriorityTitle'),
     reassign: t('project.tasksTab.reassignTaskTitle'),
     delete: t('project.tasksTab.deleteTaskTitle'),
   }[pendingChange.value.kind]
@@ -97,8 +95,6 @@ const confirmDialogMessage = computed(() => {
   switch (pendingChange.value.kind) {
     case 'status':
       return t('project.tasksTab.changeStatusMessage', { title: task.title, from: task.status, to: pendingChange.value.value })
-    case 'priority':
-      return t('project.tasksTab.changePriorityMessage', { title: task.title, from: task.priority, to: pendingChange.value.value })
     case 'reassign': {
       const assigneeUserId = pendingChange.value.value
       const nextAssignee = userStore.users.find((user) => user.id === assigneeUserId)?.name ?? t('project.tasksTab.thisUser')
@@ -113,11 +109,6 @@ const confirmDialogMessage = computed(() => {
 
 function requestStatusChange(status: TaskStatus): void {
   pendingChange.value = { kind: 'status', value: status }
-  isConfirmDialogOpen.value = true
-}
-
-function requestPriorityChange(priority: TaskPriority): void {
-  pendingChange.value = { kind: 'priority', value: priority }
   isConfirmDialogOpen.value = true
 }
 
@@ -139,8 +130,6 @@ async function handleConfirmPendingChange(): Promise<void> {
   try {
     if (pendingChange.value.kind === 'status') {
       await handleStatusChange(pendingChange.value.value)
-    } else if (pendingChange.value.kind === 'priority') {
-      await handlePriorityChange(pendingChange.value.value)
     } else if (pendingChange.value.kind === 'reassign') {
       await handleReassign(pendingChange.value.value)
     } else {
@@ -196,16 +185,6 @@ async function handleStatusChange(status: TaskStatus): Promise<void> {
   }
 }
 
-async function handlePriorityChange(priority: TaskPriority): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskPriority(taskStore.selectedTaskId, priority)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('project.tasksTab.failedToUpdatePriority'), detail)
-  }
-}
-
 async function handleReassign(assignee: string): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
@@ -230,7 +209,7 @@ async function handleTitleChange(title: string): Promise<void> {
 
 // Applied directly, no confirmation step -- a schedule tweak is routine,
 // same treatment as reassigning a task's owner just above (only status/
-// priority/delete go through the confirm dialog here).
+// delete go through the confirm dialog here).
 async function handleStartDateChange(startDate: string): Promise<void> {
   if (!taskStore.selectedTaskId) return
   try {
@@ -319,7 +298,6 @@ async function handleDeleteTask(): Promise<void> {
       :project-name="project.projectName"
       :client-name="clientName"
       @status-change="requestStatusChange"
-      @priority-change="requestPriorityChange"
       @title-change="handleTitleChange"
       @reassign="requestReassign"
       @start-date-change="handleStartDateChange"

@@ -5,8 +5,6 @@ import { useI18n } from 'vue-i18n'
 
 import Avatar from '@/components/common/Avatar.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import TaskPriorityBadge from '@/components/task/TaskPriorityBadge.vue'
-import TaskSeverityBadge from '@/components/task/TaskSeverityBadge.vue'
 import { useLocale } from '@/composables/useLocale'
 import { formatTaskDueDateTime, getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Task, TaskStatus } from '@/types/Task'
@@ -49,10 +47,6 @@ const moveToLabel = computed(() => (nextStatus.value ? t('task.moveTo', { status
   >
     <div class="flex items-start justify-between gap-2">
       <p class="text-sm font-semibold leading-snug text-text-primary">{{ task.title }}</p>
-      <div class="flex shrink-0 items-center gap-1">
-        <TaskPriorityBadge :priority="task.priority" />
-        <TaskSeverityBadge :severity="task.severity" />
-      </div>
     </div>
 
     <p class="truncate text-xs text-text-muted">{{ projectName }} &middot; {{ clientName }}</p>
