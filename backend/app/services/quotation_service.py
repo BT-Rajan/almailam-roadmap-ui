@@ -125,6 +125,18 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     _assert_valid_client(db, project)
     project_service.assert_project_open_for_new_work(project)
     amount = compute_amount([(item.quantity, item.unitPrice) for item in payload.lineItems], payload.discountAmount)
+    if amount < 0:
+        # discountAmount only has a >= 0 floor at the schema level
+        # (QuotationCreate) -- nothing there can also check it against
+        # the line items' own subtotal, since Pydantic validates each
+        # payload in isolation. A discount larger than the subtotal
+        # would otherwise silently produce a negative quotation total,
+        # which is meaningless on a real document sent to a client and
+        # would carry through to whatever Contract/Payment Plan gets
+        # built from this amount later.
+        raise ValidationAppError(
+            f"The discount ({payload.discountAmount:.2f} {payload.currency}) cannot be more than the line items subtotal."
+        )
 
     # Not blocked -- staff sometimes do legitimately need another
     # quotation once one's already Approved (a scope change mid-project,
@@ -253,6 +265,15 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
         ]
 
     new_amount = compute_amount(line_items_for_calc, discount)
+    if new_amount < 0:
+        # Same subtotal-vs-discount guard as create_quotation -- payload
+        # validation alone can't catch this here either, since discount
+        # and line items can be edited independently of each other (see
+        # QuotationUpdate: both optional) and the check needs whichever
+        # one wasn't sent in this particular request, from the DB.
+        raise ValidationAppError(
+            f"The discount ({discount:.2f} {quotation.currency}) cannot be more than the line items subtotal."
+        )
     if new_amount != quotation.amount:
         changes["amount"] = (quotation.amount, new_amount)
         quotation.amount = new_amount
