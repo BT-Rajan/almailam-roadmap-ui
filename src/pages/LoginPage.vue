@@ -5,10 +5,12 @@ import { useRoute, useRouter } from 'vue-router'
 import StaffLoginForm from '@/components/auth/StaffLoginForm.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { useCompanyStore } from '@/stores/companyStore'
 import { safeRedirectPath } from '@/utils/safeRedirect'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const companyStore = useCompanyStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -35,7 +37,7 @@ async function handleSuccess(): Promise<void> {
          leaving it plain sans undid the richness everywhere else. -->
     <h1 class="font-display text-2xl text-[var(--color-text-primary)]">{{ t('auth.loginPage.title') }}</h1>
     <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
-      {{ t('auth.loginPage.subtitle') }}
+      {{ t('auth.loginPage.subtitle', { companyName: companyStore.branding?.companyName || t('common.appName') }) }}
     </p>
 
     <div class="mt-6">

@@ -3,8 +3,15 @@ import { Compass } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
 import BrandMark from '@/components/common/BrandMark.vue'
+import { useCompanyStore } from '@/stores/companyStore'
 
 const { t } = useI18n()
+// Loaded at app boot (App.vue) and fully public, same as BrandMark's
+// own logo lookup just below -- safe to read here on the sign-in
+// screen before any auth exists. Falls back to the generic app name
+// (i18n's appName) if branding hasn't loaded yet or no company name
+// is set, rather than showing a blank wordmark.
+const companyStore = useCompanyStore()
 </script>
 
 <template>
@@ -23,7 +30,7 @@ const { t } = useI18n()
         <BrandMark size-class="h-10 w-10">
           <Compass class="h-5 w-5 text-white" :stroke-width="1.75" />
         </BrandMark>
-        <span class="text-lg font-semibold tracking-wide text-[var(--color-text-primary)]">ServiceOS</span>
+        <span class="text-lg font-semibold tracking-wide text-[var(--color-text-primary)]">{{ companyStore.branding?.companyName || t('common.appName') }}</span>
       </div>
 
       <div>
@@ -51,7 +58,7 @@ const { t } = useI18n()
           <BrandMark size-class="h-10 w-10">
             <Compass class="h-5 w-5 text-white" :stroke-width="1.75" />
           </BrandMark>
-          <span class="text-lg font-semibold text-[var(--color-text-primary)]">ServiceOS</span>
+          <span class="text-lg font-semibold text-[var(--color-text-primary)]">{{ companyStore.branding?.companyName || t('common.appName') }}</span>
         </div>
 
         <div
