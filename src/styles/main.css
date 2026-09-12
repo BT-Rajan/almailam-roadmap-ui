@@ -60,12 +60,23 @@
     --color-border-focus: theme('colors.accent.500');
 
     /* Elevation. Tuned for surfaces sitting on the light page -- a warm,
-       low-opacity black shadow reads clearly against #f2f2f4. */
+       low-opacity black shadow reads clearly against #f2f2f4. A second,
+       wider layer is added under --shadow-elevated/--shadow-glass (same
+       rgb(23 23 26) base as the layer beside it, just a softer, more
+       diffuse spread) so raised surfaces get the same sense of depth
+       dark mode's own two/three-layer recipe already has, instead of a
+       single tight line that reads flat next to it. */
     --shadow-soft: 0 1px 2px 0 rgb(23 23 26 / 0.06), 0 1px 3px 0 rgb(23 23 26 / 0.08);
     --shadow-medium: 0 4px 8px -2px rgb(23 23 26 / 0.10), 0 2px 4px -2px rgb(23 23 26 / 0.06);
-    --shadow-elevated: 0 12px 24px -4px rgb(23 23 26 / 0.14), 0 4px 8px -2px rgb(23 23 26 / 0.08);
-    --shadow-glass: 0 8px 32px 0 rgb(23 23 26 / 0.10), inset 0 1px 0 0 rgb(255 255 255 / 0.5);
-    --shadow-glass-sm: 0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.4);
+    --shadow-elevated:
+      0 12px 24px -4px rgb(23 23 26 / 0.14),
+      0 4px 8px -2px rgb(23 23 26 / 0.08),
+      0 32px 56px -12px rgb(23 23 26 / 0.10);
+    --shadow-glass:
+      0 8px 32px 0 rgb(23 23 26 / 0.10),
+      0 24px 48px -12px rgb(23 23 26 / 0.08),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.6);
+    --shadow-glass-sm: 0 2px 12px 0 rgb(23 23 26 / 0.08), inset 0 1px 0 0 rgb(255 255 255 / 0.5);
     --shadow-glow-accent: 0 0 0 1px rgb(var(--color-accent-500) / 0.25), 0 6px 18px -4px rgb(var(--color-accent-500) / 0.35);
 
     /* Categorical chart palette (reports). A single source of truth so
@@ -143,6 +154,18 @@
     @apply font-sans transition-colors duration-normal;
     color: var(--color-text-primary);
     background-color: #f2f2f4;
+    /* Same wash the dark theme gets below -- soft accent glows plus a
+       little pure-white lift -- just at a fraction of the opacity so it
+       reads as depth on a light page rather than mud. Without this the
+       light page was a single flat fill with all of the "living
+       background" quality coming only from AmbientBackground.vue's own
+       blurred blobs; this gives the base layer underneath them the same
+       gentle gradient dark mode has instead of flat #f2f2f4. */
+    background-image:
+      radial-gradient(at 15% 0%, rgb(var(--color-accent-500) / 0.07) 0px, transparent 55%),
+      radial-gradient(at 85% 0%, rgb(255 255 255 / 0.6) 0px, transparent 55%),
+      radial-gradient(at 0% 60%, rgb(var(--color-accent-500) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgb(255 255 255 / 0.5) 0px, transparent 50%);
     background-attachment: fixed;
     background-size: cover;
     min-height: 100vh;
@@ -403,10 +426,15 @@
 /* Jade accent heading color -- used sparingly for hero headings (e.g. the
    dashboard greeting) so a couple of premium moments stand out against
    the otherwise-neutral heading color, without recoloring every heading
-   in the app. Solid in light mode; the dark theme keeps its gradient
-   treatment (see .dark override below). */
+   in the app. Both themes get a gradient treatment now -- light's stays
+   in the 500->700 range (darker than dark mode's 200->600) so it keeps
+   its contrast against a light page; .dark below still needs its own
+   lighter stops. */
 .text-gradient-accent {
-  color: theme('colors.accent.600');
+  background-image: linear-gradient(120deg, theme('colors.accent.500'), theme('colors.accent.700') 65%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 .dark .text-gradient-accent {
@@ -465,23 +493,25 @@
 }
 
 /* Rich graphite brand surface used for primary brand touches (logo mark,
-   primary buttons) for the "Uber-black" premium feel. Solid in light
-   mode; the dark theme keeps its gradient treatment (see .dark override
-   below) -- that's the mode where the flat color would otherwise fade
-   into the near-black chrome. */
+   primary buttons) for the "Uber-black" premium feel. Light mode gets
+   its own gradient + hairline highlight + lift, built from the same
+   graphite ramp as .dark's version just below (darker stops -- 600->900
+   instead of 400->700 -- so it still reads as a deliberate near-black
+   surface against a light page rather than washing out). */
 .gradient-luxe {
-  background-image: none;
-  background-color: theme('colors.primary.700');
+  background-image: linear-gradient(135deg, theme('colors.primary.600'), theme('colors.primary.900'));
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
+    0 4px 14px -2px rgb(23 23 26 / 0.35);
 }
 
-/* The light-mode gradient (graphite fading to near-black) reads as a
-   deliberate premium surface against the light page, but against the
-   dark theme's own near-black chrome it fades to almost nothing --
-   primary buttons and the sidebar logo mark lose their presence
-   exactly where they need to stand out most. Lighten both stops so the
-   same "Uber-black" gradient identity survives on a dark page, and pair
-   it with a hairline highlight + soft shadow so the shape still reads
-   as an elevated chip rather than a flat patch. */
+/* Light mode's own graphite gradient (600->900, just above) reads as a
+   deliberate premium surface against the light page, but those same
+   dark stops would fade to almost nothing against the dark theme's own
+   near-black chrome -- primary buttons and the sidebar logo mark would
+   lose their presence exactly where they need to stand out most.
+   Lighten both stops so the same "Uber-black" gradient identity
+   survives on a dark page, with its own hairline highlight + shadow. */
 .dark .gradient-luxe {
   background-image: linear-gradient(135deg, theme('colors.primary.400'), theme('colors.primary.700'));
   box-shadow:
@@ -489,18 +519,23 @@
     0 4px 14px -2px rgb(0 0 0 / 0.55);
 }
 
-/* Solid in light mode; the dark theme keeps its gradient (see .dark
-   override below). */
+/* Same "gradient + lift" treatment as .gradient-luxe above, in the
+   brand accent instead of graphite -- .dark's own version (below) uses
+   deeper stops (500->900) since it sits on a near-black page; light
+   keeps a lighter 400->600 range so the chip stays legible against a
+   light page while still reading as a raised, deliberate surface
+   instead of a single flat fill. */
 .gradient-luxe-accent {
-  background-image: none;
-  background-color: theme('colors.accent.500');
+  background-image: linear-gradient(135deg, theme('colors.accent.400'), theme('colors.accent.600'));
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.35),
+    0 4px 14px -2px rgb(var(--color-accent-500) / 0.35);
 }
 
-/* Deepened for the dark theme -- darker stops (500->900 instead of
-   400->600) read as a denser, more saturated jade instead of a flat
-   mid-tone chip, and the added drop shadow (to match .dark
-   .gradient-luxe's treatment) gives the mark actual lift off the glass
-   panel behind it rather than just a hairline highlight. */
+/* Deepened for the dark theme relative to light's 400->600 gradient
+   just above -- darker stops (500->900) read as a denser, more
+   saturated jade against the near-black page instead of washing out,
+   matching .dark .gradient-luxe's own treatment alongside it. */
 .dark .gradient-luxe-accent {
   background-image: linear-gradient(135deg, theme('colors.accent.500'), theme('colors.accent.900'));
   box-shadow:
