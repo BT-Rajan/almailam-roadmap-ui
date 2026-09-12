@@ -467,4 +467,15 @@ export default {
     result: 'النتيجة',
     saveVerification: 'حفظ التحقق',
   },
+
+  projectDocuments: {
+    title: 'مستندات المشاريع',
+    noProjectsTitle: 'لا توجد مشاريع بعد',
+    noProjectsDescription: 'ستظهر هنا مستندات مشاريع هذا العميل بمجرد توفرها.',
+    noneAvailableYet: 'لا توجد مستندات متاحة بعد.',
+    signedQuotation: 'عرض السعر الموقّع',
+    approvedPaymentPlan: 'خطة الدفع المعتمدة',
+    signedContract: 'العقد الموقّع',
+    handoverDocument: 'مستند التسليم',
+  },
 }

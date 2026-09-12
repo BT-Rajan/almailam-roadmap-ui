@@ -246,6 +246,7 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
             "Project",
             link_route_name="project-workspace",
             link_params={"projectId": project.project_no},
+            link_query={"tab": "quotation"},
         )
 
     db.commit()
@@ -516,6 +517,7 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
         "System",
         link_route_name="project-workspace",
         link_params={"projectId": project.project_no},
+        link_query={"tab": "quotation"},
     )
     db.commit()
 
@@ -595,6 +597,7 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
             "System",
             link_route_name="project-workspace",
             link_params={"projectId": project.project_no},
+            link_query={"tab": "quotation"},
         )
         db.commit()
     return quotation
@@ -664,6 +667,7 @@ def check_and_expire_quotations(db: Session) -> int:
             "Project",
             link_route_name="project-workspace",
             link_params={"projectId": project.project_no},
+            link_query={"tab": "quotation"},
         )
         db.commit()
         expired_count += 1

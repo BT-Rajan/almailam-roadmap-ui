@@ -19,7 +19,7 @@ export default {
 
   loginPage: {
     title: 'Sign in',
-    subtitle: 'Access the ServiceOS engineering consultancy workspace.',
+    subtitle: 'Access the {companyName} engineering consultancy workspace.',
     idLabel: 'User ID',
     idPlaceholder: 'Enter your user ID',
   },

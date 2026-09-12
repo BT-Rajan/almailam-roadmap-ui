@@ -3,7 +3,7 @@
 -- migrations. backend/migrations/*.sql exist purely to patch an
 -- already-running live database with real data up to the same state
 -- (see migration 0001's own header comment); every one of their
--- cumulative effects through migration 0094 (remove_otp_columns) is
+-- cumulative effects through migration 0095 (add_notification_link_query) is
 -- already factored in here, so a fresh install never needs to run
 -- them.
 --
@@ -1075,6 +1075,11 @@ CREATE TABLE IF NOT EXISTS notifications (
     `read`              TINYINT(1) NOT NULL DEFAULT 0,
     link_route_name     VARCHAR(100) NULL,
     link_params         JSON NULL,
+    -- Router *query* on top of link_params' path params -- e.g.
+    -- {"tab": "quotation"} so opening this notification lands on the
+    -- right ProjectWorkspacePage view instead of always its Requirement/
+    -- Overview default (migration 0095).
+    link_query          JSON NULL,
     CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_notifications_user (user_id),
     INDEX idx_notifications_user_read (user_id, `read`)

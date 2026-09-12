@@ -104,8 +104,7 @@ export default {
     clientMustBeActive: 'The client must be Active before a project can be created.',
     viewIdentificationDocuments: 'View identification documents',
     noProjectsTitle: 'No projects yet',
-    noProjectsDescription: 'Projects created for this client will appear here.',
-    fields: {
+    noProjectsDescription: 'Projects created for this client will appear here.',    fields: {
       fullLegalName: 'Full Legal Name',
       preferredName: 'Preferred Name',
       nationality: 'Nationality',
@@ -466,5 +465,16 @@ export default {
     whatWasCheckedPlaceholder: 'e.g. Trade Licence, Registration Number',
     result: 'Result',
     saveVerification: 'Save Verification',
+  },
+
+  projectDocuments: {
+    title: 'Project Documents',
+    noProjectsTitle: 'No projects yet',
+    noProjectsDescription: 'Documents for this client\'s projects will appear here once available.',
+    noneAvailableYet: 'No documents available yet.',
+    signedQuotation: 'Signed Quotation',
+    approvedPaymentPlan: 'Approved Payment Plan',
+    signedContract: 'Signed Contract',
+    handoverDocument: 'Hand-over Document',
   },
 }

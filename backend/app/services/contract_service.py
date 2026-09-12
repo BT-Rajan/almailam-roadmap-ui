@@ -504,6 +504,7 @@ def confirm_contract_signing(db: Session, contract_no: str, file: UploadFile, us
             "System",
             link_route_name="project-workspace",
             link_params={"projectId": project.project_no},
+            link_query={"tab": "contract"},
         )
         db.commit()
         return contract, False

@@ -3,6 +3,7 @@ export type NotificationCategory = 'Project' | 'Task' | 'Government' | 'Payment'
 export interface NotificationLink {
   routeName: string
   params?: Record<string, string>
+  query?: Record<string, string>
 }
 
 export interface AppNotification {

@@ -291,6 +291,7 @@ def _send_permit_fyi_email(
             f"but the notification email to the client could not be sent: {error}",
             "System",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": "government"},
         )
         db.commit()
 

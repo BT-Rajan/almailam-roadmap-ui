@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class NotificationLinkOut(BaseModel):
     routeName: str
     params: dict[str, str] | None = None
+    query: dict[str, str] | None = None
 
 
 class NotificationOut(BaseModel):
@@ -20,7 +21,11 @@ class NotificationOut(BaseModel):
     @staticmethod
     def from_model(notification) -> "NotificationOut":
         link = (
-            NotificationLinkOut(routeName=notification.link_route_name, params=notification.link_params)
+            NotificationLinkOut(
+                routeName=notification.link_route_name,
+                params=notification.link_params,
+                query=notification.link_query,
+            )
             if notification.link_route_name
             else None
         )

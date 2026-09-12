@@ -609,6 +609,7 @@ def _notify_installments_settled(
         notification_service.create_notification(
             db, recipient_id, "Installment payment recorded", message, "Payment",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": "payment-status"},
         )
 
 
@@ -721,6 +722,7 @@ def _send_payment_received_email(db: Session, agreement: FinancialAgreement, pay
             f"could not be sent: {error}",
             "System",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": "payment-status"},
         )
         db.commit()
 
@@ -916,6 +918,7 @@ def _send_payment_reminder_email(
             f"A payment reminder for {project.project_no} could not be emailed to the client: {error}",
             "System",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": "payment-status"},
         )
     return True
 
@@ -986,7 +989,9 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
                     f"Payment of {obligation.amount_due} {agreement.currency} for {project.project_name} "
                     f"({project.project_no}) {tense} {obligation.due_date.isoformat()}.",
                     "Payment",
-                    link_route_name="payments",
+                    link_route_name="project-workspace",
+                    link_params={"projectId": project.project_no},
+                    link_query={"tab": "payment-status"},
                 )
                 setattr(obligation, guard_column, datetime.now(timezone.utc))
                 notified_count += 1

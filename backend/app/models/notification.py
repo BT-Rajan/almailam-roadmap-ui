@@ -26,3 +26,14 @@ class Notification(Base):
     read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     link_route_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     link_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Router *query* to attach on top of link_params' path params -- e.g.
+    # {"tab": "quotation"} so a "Quotation approved" notification opens
+    # ProjectWorkspacePage directly on its Quotation view instead of
+    # always landing on the generic Requirement/Overview default every
+    # project-workspace link otherwise lands on (see ProjectWorkspacePage.
+    # vue's own comment on activeTab/stageContext). Kept as a distinct
+    # column rather than folded into link_params: that dict fills named
+    # path segments (:projectId), and a stray key with no matching
+    # segment is silently dropped by vue-router, not carried as a query
+    # string -- the two need to stay separate to both actually work.
+    link_query: Mapped[dict | None] = mapped_column(JSON, nullable=True)
