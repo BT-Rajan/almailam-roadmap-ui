@@ -321,6 +321,29 @@ watch(
   { immediate: true },
 )
 
+// A stage change -- signing a contract, or approving the last required
+// payment agreement -- can auto-create service tasks on the backend
+// (project_service._create_service_tasks), one per selected Design
+// activity/Permit/Supervision activity. taskStore's own "only load
+// once" guard right above means a Tasks tab visited earlier in this
+// session (this project's or any other's) leaves taskStore.tasks
+// non-empty, so that guard alone never refetches again -- the Tasks
+// tab kept showing whatever was loaded before, missing exactly the
+// tasks this stage change just generated. Refetch specifically when
+// the stage actually changes instead of dropping that guard entirely
+// (which would re-fetch the whole task list on every ordinary tab
+// click). previousStage !== undefined skips the initial transition
+// from "not loaded yet" to the project's real stage on first mount --
+// only a genuine change after that counts.
+watch(
+  () => project.value?.currentStage,
+  (stage, previousStage) => {
+    if (previousStage !== undefined && stage !== previousStage) {
+      taskStore.loadTasks()
+    }
+  },
+)
+
 const isEditDialogOpen = ref(false)
 const isEditSaving = ref(false)
 const isStageDialogOpen = ref(false)
