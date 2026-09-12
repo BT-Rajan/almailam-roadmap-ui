@@ -208,6 +208,7 @@ def fill_form(db: Session, form_id: int, payload, actor_id: int):
 
     project = project_service.get_project(db, payload.projectId)
     project_service.assert_project_open_for_new_work(project)
+    pdf_render.assert_field_values_complete(form.fields, form.template, payload.context)
 
     rendered_body = pdf_render.render_template(form.template, payload.context)
     title = (payload.title or form.title).strip() or form.title

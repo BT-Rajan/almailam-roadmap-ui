@@ -278,6 +278,7 @@ export default {
     fillTitle: 'Fill · {name}',
     defaultTitle: 'Fill Form',
     fillInTheDetails: 'Fill in the details',
+    fieldRequired: 'This field is required.',
     preview: 'Preview',
     saveAndGeneratePdf: 'Save & Generate PDF',
   },

@@ -51,6 +51,13 @@ function fieldOptions(field: GovernmentFormField): SelectOption[] {
 }
 
 const contextValues = reactive<Record<string, string>>({})
+// One entry per template token -- checked on save since nothing here
+// (or on the backend, before this pass) actually required a token to
+// have a real value: a form could be "filled" and saved with every
+// field left blank, silently rendering renderGovernmentFormTemplate's
+// own dotted-line "missing value" placeholder into what may become a
+// real, signed government submission.
+const fieldErrors = reactive<Record<string, string>>({})
 const isSaving = ref(false)
 const formError = ref('')
 
@@ -77,6 +84,7 @@ watch(
     if (!isOpen) return
     if (companyStore.settings === undefined) companyStore.loadSettings()
     for (const key of Object.keys(contextValues)) delete contextValues[key]
+    for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
     if (!form?.template) return
     for (const token of extractTemplateTokens(form.template)) {
       contextValues[token] = entry?.fieldValues[token] ?? knownDefault(token)
@@ -97,6 +105,15 @@ function closeDialog(): void {
 async function handleSave(): Promise<void> {
   if (!props.form) return
   formError.value = ''
+
+  for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
+  for (const token of templateTokens.value) {
+    if (!(contextValues[token] ?? '').trim()) {
+      fieldErrors[token] = t('government.projectFormEntryDialog.fieldRequired')
+    }
+  }
+  if (Object.keys(fieldErrors).length > 0) return
+
   isSaving.value = true
   try {
     const saved = props.entry
@@ -136,11 +153,13 @@ async function handleSave(): Promise<void> {
               v-model="contextValues[token]"
               :label="fieldFor(token)!.label"
               :options="fieldOptions(fieldFor(token)!)"
+              :error="fieldErrors[token]"
             />
             <div v-else-if="fieldFor(token)?.type === 'radio'" class="tablet:col-span-2">
               <RadioGroup v-model="contextValues[token]" :label="fieldFor(token)!.label" :options="fieldOptions(fieldFor(token)!)" />
+              <p v-if="fieldErrors[token]" class="mt-1 text-xs text-danger-600">{{ fieldErrors[token] }}</p>
             </div>
-            <TextInput v-else v-model="contextValues[token]" :label="fieldFor(token)?.label ?? token" />
+            <TextInput v-else v-model="contextValues[token]" :label="fieldFor(token)?.label ?? token" :error="fieldErrors[token]" />
           </template>
         </div>
       </div>
