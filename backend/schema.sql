@@ -3,18 +3,22 @@
 -- migrations. backend/migrations/*.sql exist purely to patch an
 -- already-running live database with real data up to the same state
 -- (see migration 0001's own header comment); every one of their
--- cumulative effects through migration 0090 (widen_project_service_
--- column) is already factored in here, so a fresh install never needs
--- to run them.
+-- cumulative effects through migration 0094 (remove_otp_columns) is
+-- already factored in here, so a fresh install never needs to run
+-- them.
 --
--- Two deliberately-dropped pieces of dead history, kept out rather than
--- carried forward for their own sake: `pending_client_onboardings`
+-- Three deliberately-dropped pieces of dead history, kept out rather
+-- than carried forward for their own sake: `pending_client_onboardings`
 -- (migration 0072, for an email-OTP client-onboarding flow no code
--- anywhere still references) and `projects.type_activity_total`
+-- anywhere still references), `projects.type_activity_total`
 -- (migration 0041, superseded by supervision_monthly_total -- the
 -- rename in migration 0059 only fires when a database reaches it with
 -- the old column still present and the new one not yet there, which
--- never happens starting fresh from this file).
+-- never happens starting fresh from this file), and the
+-- `otp_code_hash`/`otp_expires_at`/`otp_attempts`/`otp_sent_at`
+-- columns EmailOtpMixin used to add to clients/projects/quotations/
+-- contracts (migration 0094 -- the model mixin and every write site
+-- were also removed, once nothing was left reading them).
 --
 -- Regenerate by applying schema.sql + every migrations/*.sql file in
 -- order against a scratch database, then diff its structure
@@ -131,14 +135,6 @@ CREATE TABLE IF NOT EXISTS clients (
     onboarding_state                ENUM('Information Required','Documents Required','Pending Verification','Ready','Rejected','Suspended')
                                         NOT NULL DEFAULT 'Ready',
     onboarding_notified_at          DATETIME NULL,
-    -- EmailOtpMixin -- inert (nothing writes these anymore, see the
-    -- mixin's own docstring): the client email-OTP read-back step was
-    -- replaced by staff uploading a scan of the client's physically
-    -- signed copy instead. Kept rather than a destructive drop.
-    otp_code_hash                   VARCHAR(255) NULL,
-    otp_expires_at                  DATETIME NULL,
-    otp_attempts                    SMALLINT NOT NULL DEFAULT 0,
-    otp_sent_at                     DATETIME NULL,
     ind_full_legal_name             VARCHAR(150) NULL,
     ind_preferred_name              VARCHAR(100) NULL,
     ind_nationality                 VARCHAR(80)  NULL,
@@ -267,14 +263,6 @@ CREATE TABLE IF NOT EXISTS projects (
     -- confirmation that the scope-of-work text above is final. NULL
     -- until confirmed; see project_service.confirm_requirement_scope.
     scope_client_confirmed_at DATETIME NULL,
-    -- EmailOtpMixin -- inert (nothing writes these anymore, see the
-    -- mixin's own docstring): the client email-OTP read-back step was
-    -- replaced by staff uploading a scan of the client's physically
-    -- signed copy instead.
-    otp_code_hash    VARCHAR(255) NULL,
-    otp_expires_at   DATETIME NULL,
-    otp_attempts     SMALLINT NOT NULL DEFAULT 0,
-    otp_sent_at      DATETIME NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
     service         VARCHAR(2000) NOT NULL,
     engineer_id     BIGINT UNSIGNED NOT NULL,
@@ -584,11 +572,6 @@ CREATE TABLE IF NOT EXISTS quotations (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every quotation, not just those).
     finalized_at        DATETIME NULL,
-    -- EmailOtpMixin -- inert, see clients.otp_code_hash above.
-    otp_code_hash       VARCHAR(255) NULL,
-    otp_expires_at      DATETIME NULL,
-    otp_attempts        SMALLINT NOT NULL DEFAULT 0,
-    otp_sent_at         DATETIME NULL,
     -- migration 0087 -- the exact document_templates row this
     -- quotation was rendered against, pinned the first time it's
     -- rendered after finalized_at is set (see
@@ -653,11 +636,6 @@ CREATE TABLE IF NOT EXISTS contracts (
     -- lettered-template fields this used to also gate -- the lock
     -- itself applies to every contract, not just those).
     finalized_at            DATETIME NULL,
-    -- EmailOtpMixin -- inert, see clients.otp_code_hash above.
-    otp_code_hash           VARCHAR(255) NULL,
-    otp_expires_at          DATETIME NULL,
-    otp_attempts            SMALLINT NOT NULL DEFAULT 0,
-    otp_sent_at             DATETIME NULL,
     -- migration 0087 -- see quotations.document_template_id above;
     -- same "pinned on first render after finalize" rule.
     document_template_id   BIGINT UNSIGNED NULL,

@@ -421,9 +421,9 @@ def do_requirement(actor: user_models.User, project, client, *, add_id: bool, co
 
 
 def do_quotation(actor: user_models.User, project, *, approve: bool):
-    """Creates and finalizes a quotation; optionally approves it via the
-    real client-confirmation OTP, which auto-advances the project
-    straight to Payment Plan."""
+    """Creates and finalizes a quotation; optionally approves it via a
+    signed-document upload (see quotation_service.confirm_quotation_
+    approval), which auto-advances the project straight to Payment Plan."""
     quotation = quotation_service.create_quotation(
         db,
         qs.QuotationCreate(

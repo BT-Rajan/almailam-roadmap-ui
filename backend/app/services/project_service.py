@@ -1740,10 +1740,7 @@ def save_scope_of_work(
     existing client confirmation -- a confirmation is a sign-off on
     specific text, not a status that should silently keep covering
     whatever the text becomes after further edits. See
-    confirm_requirement_scope. The otp_* field resets below are now
-    inert leftovers from the old OTP/signed-upload confirmation flows
-    (nothing sets them anymore) -- harmless to keep clearing for any
-    project whose row still carries a value from before this change."""
+    confirm_requirement_scope."""
     project = get_project(db, project_no)
     _assert_requirement_editable(db, project)
     scope_text = scope_text.strip()
@@ -1775,10 +1772,6 @@ def save_scope_of_work(
     )
 
     project.scope_client_confirmed_at = None
-    project.otp_code_hash = None
-    project.otp_expires_at = None
-    project.otp_attempts = 0
-    project.otp_sent_at = None
 
     audit_service.log_field_changes(
         db, ENTITY_TYPE, project.id, {"description": (previous_description, scope_text)}, user_id

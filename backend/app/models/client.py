@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 CLIENT_TYPES = ("Individual", "Company", "Organisation", "Government Entity", "Other")
@@ -30,7 +30,7 @@ IDENTIFICATION_TYPES = ("Civil ID", "Passport", "Trade Licence", "Other")
 PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")
 
 
-class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
+class Client(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "clients"
     # See migration 0091 -- backs ClientsPage's status filter on top of
     # the deleted_at IS NULL baseline every client query applies
@@ -57,12 +57,10 @@ class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # hasn't moved in a while -- mirrors Project.stale_notified_at.
     onboarding_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # otp_code_hash/otp_expires_at/otp_attempts/otp_sent_at come from
-    # EmailOtpMixin -- inert leftovers of an old email-OTP verification
-    # step. onboarding_state itself is also now just a data field: a
-    # client only needs status == "Active" to be usable on a project
-    # (client creation -- see client_service.create_client_full -- no
-    # longer has any verification/approval step to gate).
+    # onboarding_state is just a data field: a client only needs
+    # status == "Active" to be usable on a project (client creation --
+    # see client_service.create_client_full -- no longer has any
+    # verification/approval step to gate).
 
     # -- individualProfile (only populated when client_type == 'Individual') --
     ind_full_legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
