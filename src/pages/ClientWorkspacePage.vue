@@ -27,6 +27,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 // for the same pattern applied to the project workspace).
 const ClientContactList = defineAsyncComponent(() => import('@/components/client/ClientContactList.vue'))
 const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
+const ClientProjectDocumentsPanel = defineAsyncComponent(() => import('@/components/client/ClientProjectDocumentsPanel.vue'))
 const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -555,6 +556,20 @@ function createProjectForClient(): void {
               :title="t('client.workspacePage.noAddressTitle')"
               :description="t('client.workspacePage.noAddressDescription')"
             />
+          </div>
+          <ClientIdentificationList
+            :identifications="clientStore.identifications"
+            :documents="clientStore.documents"
+            @edit="openIdentificationDialog"
+            @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
+            @view="handleViewIdentificationDocument"
+          />
+          <!-- Full width, below the two-column grid above -- one or more
+               project's documents (signed quotation/payment plan/
+               contract/hand-over) each get their own section, arranged
+               by project once the client has more than one. -->
+          <div class="laptop:col-span-2">
+            <ClientProjectDocumentsPanel :projects="clientProjects" />
           </div>
         </div>
       </template>

@@ -335,6 +335,12 @@ export default {
     activeHint: 'لا يمكن للمستخدمين غير النشطين تسجيل الدخول.',
     saveChanges: 'حفظ التغييرات',
     addUser: 'إضافة مستخدم',
+    nameRequired: 'الاسم مطلوب.',
+    emailRequired: 'البريد الإلكتروني مطلوب.',
+    emailInvalid: 'الرجاء إدخال بريد إلكتروني صحيح.',
+    roleRequired: 'الرجاء اختيار دور.',
+    cannotChangeOwnRole: 'لا يمكنك تغيير دورك الخاص.',
+    cannotDeactivateOwnAccount: 'لا يمكنك إلغاء تفعيل حسابك الخاص.',
   },
 
   authorityFormDialog: {
@@ -544,6 +550,7 @@ export default {
   permitCatalog: {
     permitName: 'اسم التصريح',
     fixedCost: 'التكلفة الثابتة',
+    invalidCost: 'يجب أن تكون التكلفة صفراً أو رقماً موجباً.',
     removePermit: 'إزالة التصريح',
     noPermitsYet: 'لا توجد تصاريح بعد — أضف واحدًا أدناه.',
     addPermit: 'إضافة تصريح',
@@ -568,6 +575,7 @@ export default {
     monthlyNote: '(شهري)',
     activityName: 'اسم النشاط',
     fixedCost: 'التكلفة الثابتة',
+    invalidCost: 'يجب أن تكون التكلفة صفراً أو رقماً موجباً.',
     removeActivity: 'إزالة النشاط',
     noActivitiesYet: 'لا توجد أنشطة بعد — أضف واحدًا أدناه.',
     prerequisites: 'المتطلبات المسبقة',

@@ -18,7 +18,7 @@ export default {
 
   loginPage: {
     title: 'تسجيل الدخول',
-    subtitle: 'الوصول إلى مساحة عمل سيرفس أو إس للاستشارات الهندسية.',
+    subtitle: 'الوصول إلى مساحة عمل {companyName} للاستشارات الهندسية.',
     idLabel: 'رقم المستخدم',
     idPlaceholder: 'أدخل رقم المستخدم',
   },

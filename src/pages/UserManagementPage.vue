@@ -304,7 +304,7 @@ async function handleDeleteUser(): Promise<void> {
           >
             {{ t('administration.userManagementPage.resetPassword') }}
           </BaseButton>
-          <BaseButton variant="secondary" @click="handleToggleStatus(selectedUser)">
+          <BaseButton v-if="selectedUser.id !== authStore.user?.id" variant="secondary" @click="handleToggleStatus(selectedUser)">
             {{ selectedUser.status === 'Active' ? t('administration.userManagementPage.deactivate') : t('administration.userManagementPage.activate') }}
           </BaseButton>
           <BaseButton
