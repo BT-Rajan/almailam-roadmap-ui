@@ -47,6 +47,10 @@ const titleOverride = ref('')
 const contextValues = reactive<Record<string, string>>({})
 const isSaving = ref(false)
 const formError = ref('')
+// One entry per template token -- see ProjectFormEntryDialog.vue's
+// identical fieldErrors for why (a form could previously be "filled"
+// and saved with every field left blank).
+const fieldErrors = reactive<Record<string, string>>({})
 
 // Pre-fills whatever real project/client/company data a token's name
 // already matches (the same convention documented in
@@ -83,11 +87,13 @@ watch(
     selectedFormId.value = props.forms.length === 1 ? props.forms[0].id : ''
     titleOverride.value = ''
     formError.value = ''
+    for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
   },
 )
 
 watch(selectedForm, (form) => {
   for (const key of Object.keys(contextValues)) delete contextValues[key]
+  for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
   if (!form?.template) return
   for (const token of extractTemplateTokens(form.template)) {
     contextValues[token] = knownDefault(token)
@@ -108,6 +114,15 @@ async function handleGenerate(): Promise<void> {
     return
   }
   formError.value = ''
+
+  for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
+  for (const token of tokens.value) {
+    if (!(contextValues[token] ?? '').trim()) {
+      fieldErrors[token] = t('government.projectFormEntryDialog.fieldRequired')
+    }
+  }
+  if (Object.keys(fieldErrors).length > 0) return
+
   isSaving.value = true
   try {
     const document = await governmentFormService.fillForm(selectedForm.value.id, {
@@ -160,6 +175,7 @@ async function handleGenerate(): Promise<void> {
                 :key="token"
                 v-model="contextValues[token]"
                 :label="humanizeToken(token)"
+                :error="fieldErrors[token]"
               />
             </div>
           </div>

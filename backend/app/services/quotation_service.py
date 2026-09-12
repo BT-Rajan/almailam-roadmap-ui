@@ -522,10 +522,6 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     scope_was_reconfirmed = project.scope_client_confirmed_at is None
     if scope_was_reconfirmed:
         project.scope_client_confirmed_at = datetime.now(timezone.utc)
-        project.otp_code_hash = None
-        project.otp_expires_at = None
-        project.otp_attempts = 0
-        project.otp_sent_at = None
         audit_service.log_event(
             db, "PROJECT", project.id, "Scope of work confirmed via quotation approval", user_id
         )

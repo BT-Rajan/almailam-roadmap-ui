@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, Mail, MessageSquare } from '@lucide/vue'
+import { AlertTriangle, MessageSquare } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -7,9 +7,7 @@ import { useRouter } from 'vue-router'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
-import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
-import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
@@ -17,6 +15,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
+import HandoverCard from '@/components/project/HandoverCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
@@ -35,9 +34,9 @@ import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/t
 import type { AgreementStream, CreateAgreementInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
-import type { HandoverStatus, Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { formatDate, formatDateTime } from '@/utils/dateFormatter'
+import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
@@ -159,7 +158,7 @@ async function closeDesignActivity(activityId: string, status: 'Complete' | 'Can
   try {
     await projectService.closeDesignActivity(props.project.id, activityId, status, overrides[overrideKey('design', activityId)])
     await projectStore.refreshProject(props.project.id)
-    await loadHandoverStatus()
+    await handoverCardRef.value?.reload()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
@@ -192,7 +191,7 @@ async function setPermitStatus(permitId: string, status: 'In Progress' | 'Comple
   try {
     await projectService.setPermitStatus(props.project.id, permitId, status, overrides[overrideKey('permit', permitId)])
     await projectStore.refreshProject(props.project.id)
-    await loadHandoverStatus()
+    await handoverCardRef.value?.reload()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
@@ -210,7 +209,7 @@ async function setSupervisionStatus(activityId: string, status: 'In Progress' | 
   try {
     await projectService.setSupervisionStatus(props.project.id, activityId, status, overrides[overrideKey('supervision', activityId)])
     await projectStore.refreshProject(props.project.id)
-    await loadHandoverStatus()
+    await handoverCardRef.value?.reload()
     toastStore.show('success', t('project.overviewTab.activityClosed'))
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
@@ -219,91 +218,11 @@ async function setSupervisionStatus(activityId: string, status: 'In Progress' | 
   }
 }
 
-// Hand-over: populated (checklist non-empty) once every included
-// Design/Permit/Supervision track is closed -- the project enters the
-// real "Handover" workflow stage at that point (see WorkflowStage).
-// Loaded unconditionally rather than gated by loadStageDataIfNeeded
-// since staff can land here for a project already past Handover too
-// (reviewing after the fact via the stepper).
-const handoverStatus = ref<HandoverStatus>()
-
-async function loadHandoverStatus(): Promise<void> {
-  try {
-    handoverStatus.value = await projectService.getHandoverStatus(props.project.id)
-  } catch {
-    handoverStatus.value = undefined
-  }
-}
-
-// Same shared usePagination/TablePagination.vue pair as every other
-// list in the app -- sliced client-side against the checklist already
-// fetched above.
-const {
-  currentPage: handoverChecklistPage,
-  pageSize: handoverChecklistPageSize,
-  totalItems: handoverChecklistTotalItems,
-  totalPages: handoverChecklistTotalPages,
-  startIndex: handoverChecklistStartIndex,
-  endIndex: handoverChecklistEndIndex,
-  goToPage: goToHandoverChecklistPage,
-  setPageSize: setHandoverChecklistPageSize,
-  resetPage: resetHandoverChecklistPage,
-} = usePagination(() => handoverStatus.value?.checklist.length ?? 0)
-const pagedHandoverChecklist = computed(() => (handoverStatus.value?.checklist ?? []).slice(handoverChecklistStartIndex.value, handoverChecklistEndIndex.value))
-watch(() => handoverStatus.value?.checklist, () => resetHandoverChecklistPage())
-
-// Gated to the Handover stage's own Overview tab now that Handover is a
-// real WorkflowStage (it used to show on every stage's Overview once
-// ready, back when hand-over readiness lived outside the stage
-// machine) -- status === 'Completed' stays included so a project
-// viewed after the fact (stepper jumped elsewhere) still shows its
-// hand-over record.
-const showHandoverCard = computed(
-  () => props.stageContext === 'Handover' || props.project.status === 'Completed',
-)
-
-const isHandoverDialogOpen = ref(false)
-const isHandoverSaving = ref(false)
-
-// Asked once, right after the project actually completes -- not a
-// stage/status option of its own, just a convenience offer to get a
-// finished project out of the active list immediately instead of
-// leaving that for whenever someone happens to notice it's done and
-// archives it by hand later. "No" is a real, equally-valid answer:
-// the project stays exactly as it is (Completed, still active) with
-// nothing else to undo.
-const isArchivePromptOpen = ref(false)
-const isArchiving = ref(false)
-
-async function handleConfirmHandover(payload: { file: File }): Promise<void> {
-  isHandoverSaving.value = true
-  try {
-    await projectService.confirmProjectHandover(props.project.id, payload.file)
-    await projectStore.refreshProject(props.project.id)
-    await loadHandoverStatus()
-    isHandoverDialogOpen.value = false
-    toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
-    isArchivePromptOpen.value = true
-  } catch (error) {
-    toastStore.show('error', t('project.overviewTab.handover.failedToConfirm'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  } finally {
-    isHandoverSaving.value = false
-  }
-}
-
-async function handleArchiveConfirm(): Promise<void> {
-  isArchiving.value = true
-  try {
-    await projectStore.deleteProject(props.project.id)
-    isArchivePromptOpen.value = false
-    toastStore.show('success', t('project.overviewTab.handover.archivedTitle'), t('project.overviewTab.handover.archivedDescription'))
-    router.push({ name: ROUTE_NAMES.PROJECTS })
-  } catch (error) {
-    toastStore.show('error', t('project.overviewTab.handover.failedToArchive'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  } finally {
-    isArchiving.value = false
-  }
-}
+// Handover's own status/checklist/confirm/archive state and logic now
+// lives in HandoverCard.vue -- this ref is only so the Design/Permit/
+// Supervision handlers above can tell it to refresh itself after an
+// activity closes, since that can change Handover's own readiness.
+const handoverCardRef = ref<InstanceType<typeof HandoverCard>>()
 
 // Read-only reference checklist ("what documents are typically needed
 // for this") on each Design/Permit/Supervision row -- admin-defined,
@@ -408,9 +327,6 @@ function loadStageDataIfNeeded(): void {
 }
 onMounted(loadStageDataIfNeeded)
 watch(() => [props.stageContext, props.client?.id], loadStageDataIfNeeded)
-
-onMounted(loadHandoverStatus)
-watch(() => props.project.id, loadHandoverStatus)
 
 // Civil ID is filed under the 'Identity Document' category regardless of
 // the client's actual document-type label -- see
@@ -663,103 +579,7 @@ function verificationResultLabel(result: string): string {
 
 <template>
   <div class="flex flex-col gap-3">
-    <Card v-if="showHandoverCard">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.handover.title') }}</h3>
-          <StatusBadge
-            v-if="project.status === 'Completed'"
-            :label="t('project.overviewTab.handover.acknowledged')"
-            variant="success"
-          />
-          <StatusBadge
-            v-else-if="handoverStatus && !handoverStatus.stageReached"
-            :label="t('project.overviewTab.handover.notReadyYet')"
-            variant="neutral"
-          />
-          <StatusBadge
-            v-else
-            :label="t('project.overviewTab.handover.awaitingAcknowledgment')"
-            variant="warning"
-          />
-        </div>
-      </template>
-
-      <p
-        v-if="project.status !== 'Completed' && handoverStatus && !handoverStatus.stageReached && handoverStatus.notReadyReason"
-        class="text-sm text-text-secondary"
-      >
-        {{ handoverStatus.notReadyReason }}
-      </p>
-
-      <ul v-if="handoverStatus?.checklist.length" class="flex flex-col gap-1.5">
-        <li
-          v-for="item in pagedHandoverChecklist"
-          :key="item.id"
-          class="flex items-center gap-2 text-sm text-text-secondary"
-        >
-          <CheckCircle2 class="h-4 w-4 shrink-0 text-status-success" />
-          <span>{{ item.title }}</span>
-          <span class="text-xs text-text-muted">({{ item.sourceType }})</span>
-        </li>
-      </ul>
-      <TablePagination
-        v-if="handoverChecklistTotalItems > 0"
-        class="mt-2 rounded-xl border border-border-light"
-        :current-page="handoverChecklistPage"
-        :total-pages="handoverChecklistTotalPages"
-        :total-items="handoverChecklistTotalItems"
-        :start-index="handoverChecklistStartIndex"
-        :end-index="handoverChecklistEndIndex"
-        :page-size="handoverChecklistPageSize"
-        @page-change="goToHandoverChecklistPage"
-        @page-size-change="setHandoverChecklistPageSize"
-      />
-
-      <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border-light pt-3">
-        <p v-if="project.status === 'Completed' && handoverStatus?.handoverAcknowledgedAt" class="text-sm text-text-secondary">
-          {{ t('project.overviewTab.handover.acknowledgedOnFragment', { date: formatDateTime(handoverStatus.handoverAcknowledgedAt) }) }}
-        </p>
-        <p v-else-if="handoverStatus?.handoverSentAt && !project.handoverPaymentConfirmedAt" class="text-sm text-warning-700">
-          {{ t('project.overviewTab.handover.confirmPaymentFirst') }}
-        </p>
-        <p v-else-if="handoverStatus?.handoverSentAt" class="text-sm text-text-secondary">
-          {{ t('project.overviewTab.handover.readySinceFragment', { date: formatDateTime(handoverStatus.handoverSentAt) }) }}
-        </p>
-        <p v-else-if="handoverStatus?.stageReached" class="text-sm text-text-secondary">{{ t('project.overviewTab.handover.readyToSend') }}</p>
-
-        <BaseButton
-          v-if="project.status !== 'Completed' && client"
-          size="sm"
-          :icon="Mail"
-          :loading="isHandoverSaving"
-          :disabled="!project.handoverPaymentConfirmedAt || !handoverStatus?.stageReached"
-          class="no-print"
-          @click="isHandoverDialogOpen = true"
-        >
-          {{ t('project.overviewTab.handover.confirmHandover') }}
-        </BaseButton>
-      </div>
-
-      <SignedDocumentUploadDialog
-        v-if="client"
-        v-model="isHandoverDialogOpen"
-        :loading="isHandoverSaving"
-        :title="t('project.overviewTab.handover.confirmDialogTitle')"
-        :description="t('project.overviewTab.handover.confirmDialogDescription')"
-        @confirm="handleConfirmHandover"
-      />
-
-      <ConfirmationDialog
-        v-model="isArchivePromptOpen"
-        :title="t('project.overviewTab.handover.archivePromptTitle')"
-        :message="t('project.overviewTab.handover.archivePromptMessage')"
-        :confirm-label="t('project.overviewTab.handover.archiveYes')"
-        :cancel-label="t('project.overviewTab.handover.archiveNo')"
-        :loading="isArchiving"
-        @confirm="handleArchiveConfirm"
-      />
-    </Card>
+    <HandoverCard ref="handoverCardRef" :project="project" :client="client" :stage-context="stageContext" />
 
     <Card v-if="hasScope && showScope">
       <template #header>

@@ -72,6 +72,7 @@ def create_project_form_entry(
     if existing is not None:
         raise ValidationAppError(f"'{form.title}' has already been added to this project.")
     project_service.assert_project_open_for_new_work(project)
+    pdf_render.assert_field_values_complete(form.fields, form.template, field_values)
 
     document = _render_and_save_pdf(db, project, form, field_values, actor_id)
     entry = ProjectFormEntry(
@@ -90,6 +91,7 @@ def update_project_form_entry(
 ) -> ProjectFormEntry:
     entry = get_project_form_entry(db, project.id, entry_id)
     form = government_service.get_form(db, entry.form_id)
+    pdf_render.assert_field_values_complete(form.fields, form.template, field_values)
     document = _render_and_save_pdf(db, project, form, field_values, actor_id)
     entry.field_values = field_values
     entry.document_id = document.id

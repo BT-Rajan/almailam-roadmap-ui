@@ -277,6 +277,7 @@ export default {
     fillTitle: 'تعبئة · {name}',
     defaultTitle: 'تعبئة النموذج',
     fillInTheDetails: 'تعبئة التفاصيل',
+    fieldRequired: 'هذا الحقل مطلوب.',
     preview: 'معاينة',
     saveAndGeneratePdf: 'حفظ وإنشاء PDF',
   },

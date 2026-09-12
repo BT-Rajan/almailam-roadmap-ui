@@ -26,10 +26,55 @@ from pathlib import Path
 
 from weasyprint import HTML
 
+from app.core.exceptions import ValidationAppError
+
 _TOKEN_RE = re.compile(r"{{\s*(\w+)\s*}}", re.UNICODE)
 _MISSING_PLACEHOLDER = "………………"
 
 FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoNaskhArabic-Regular.ttf"
+
+
+def extract_tokens(template: str) -> list[str]:
+    """Every distinct {{token}} in a template, in first-seen order --
+    mirrors src/utils/governmentFormHelpers.ts's extractTemplateTokens
+    exactly (same regex, same dedup-by-first-seen-order). Used by
+    project_form_service.py to check a submission's field_values
+    actually covers every token before generating the document, instead
+    of silently rendering render_template's own dotted-line "missing
+    value" placeholder into what may become a real, signed government
+    submission."""
+    seen: set[str] = set()
+    tokens: list[str] = []
+    for match in _TOKEN_RE.finditer(template):
+        token = match.group(1)
+        if token not in seen:
+            seen.add(token)
+            tokens.append(token)
+    return tokens
+
+
+def assert_field_values_complete(fields: list | None, template: str | None, field_values: dict[str, str]) -> None:
+    """Every {{token}} in a form's template must have a real, non-blank
+    value before this becomes a saved document or Project Document --
+    shared by government_service.fill_form and
+    project_form_service.create_project_form_entry/
+    update_project_form_entry, the app's two places that turn a
+    GovernmentForm template into a saved file. Previously neither
+    checked this at all (frontend or backend), so a form could be
+    "filled" and saved with every field left blank, silently rendering
+    render_template's own dotted-line "missing value" placeholder into
+    what may become a real, signed government submission.
+
+    Raises ValidationAppError. `fields` is a GovernmentForm.fields JSON
+    value (list of {"token", "label", ...} dicts, or None)."""
+    field_labels = {f["token"]: f["label"] for f in (fields or [])}
+    missing = [
+        field_labels.get(token, token)
+        for token in extract_tokens(template or "")
+        if not (field_values.get(token) or "").strip()
+    ]
+    if missing:
+        raise ValidationAppError(f"Please fill in: {', '.join(missing)}.")
 
 
 def render_template(template: str, context: dict[str, str | None]) -> str:
