@@ -68,7 +68,6 @@ def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
 def list_projects(
     clientId: str | None = None,
     status: str | None = None,
-    priority: str | None = None,
     stage: str | None = None,
     engineerId: str | None = None,
     search: str | None = None,
@@ -79,7 +78,7 @@ def list_projects(
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    result = project_service.list_projects(db, clientId, status, priority, stage, engineerId, search, sort, page, pageSize, deleted)
+    result = project_service.list_projects(db, clientId, status, stage, engineerId, search, sort, page, pageSize, deleted)
     engineer_ids = {p.engineer_id for p in result["items"]}
     names = project_service.engineer_names(db, engineer_ids)
     activities_by_project = project_service.get_selected_activities_batch(db, {p.id for p in result["items"]})

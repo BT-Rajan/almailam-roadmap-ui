@@ -47,7 +47,6 @@ PROJECT_SORTABLE_FIELDS = {
     "projectNo": Project.project_no,
     "projectName": Project.project_name,
     "status": Project.status,
-    "priority": Project.priority,
     "currentStage": Project.current_stage,
     "progress": Project.progress,
     "targetDate": Project.target_date,
@@ -71,7 +70,6 @@ def list_projects(
     db: Session,
     client_id: str | None = None,
     status: str | None = None,
-    priority: str | None = None,
     stage: str | None = None,
     engineer_id: str | None = None,
     search: str | None = None,
@@ -85,8 +83,6 @@ def list_projects(
         query = query.filter(Project.client_id == client_service.parse_client_id(client_id))
     if status:
         query = query.filter(Project.status == status)
-    if priority:
-        query = query.filter(Project.priority == priority)
     if stage:
         query = query.filter(Project.current_stage == stage)
     if engineer_id:
@@ -869,7 +865,6 @@ def create_project(db: Session, payload, user_id: int | None, background_tasks: 
         client_id=client.id,
         service=payload.service,
         engineer_id=engineer.id,
-        priority=payload.priority,
         start_date=payload.startDate,
         target_date=payload.targetDate,
         service_total=service_total,
@@ -994,9 +989,6 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     if payload.service is not None and payload.service != project.service:
         changes["service"] = (project.service, payload.service)
         project.service = payload.service
-    if payload.priority is not None and payload.priority != project.priority:
-        changes["priority"] = (project.priority, payload.priority)
-        project.priority = payload.priority
     if payload.targetDate is not None and payload.targetDate != project.target_date:
         if payload.targetDate <= project.start_date:
             raise ValidationAppError("targetDate must be after the project's startDate.")

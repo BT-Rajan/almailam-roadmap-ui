@@ -9,7 +9,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import { formatDate } from '@/utils/dateFormatter'
-import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
   project: Project
@@ -47,13 +47,6 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   Completed: 'project.status.completed',
 }
 const statusLabel = computed(() => t(STATUS_LABEL_KEYS[props.project.status] ?? props.project.status))
-
-const PRIORITY_BADGE_LABEL_KEYS: Record<string, string> = {
-  High: 'project.priorityBadge.high',
-  Medium: 'project.priorityBadge.medium',
-  Low: 'project.priorityBadge.low',
-}
-const priorityBadgeLabel = computed(() => t(PRIORITY_BADGE_LABEL_KEYS[props.project.priority] ?? props.project.priority))
 
 function handleKeydown(event: KeyboardEvent): void {
   // See ClientCard.vue's identical fix: the whole card acts as one big
@@ -93,7 +86,6 @@ function handleKeydown(event: KeyboardEvent): void {
 
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge :label="stageLabel" variant="info" />
-        <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" />
       </div>
 
       <ProgressBar :value="project.progress" show-label />

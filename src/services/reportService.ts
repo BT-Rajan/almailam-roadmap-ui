@@ -26,10 +26,6 @@ async function getProjectsByStatus(): Promise<ChartDataPoint[]> {
   return apiClient.get<ChartDataPoint[]>('/api/reports/projects-by-status')
 }
 
-async function getProjectsByPriority(): Promise<ChartDataPoint[]> {
-  return apiClient.get<ChartDataPoint[]>('/api/reports/projects-by-priority')
-}
-
 async function getTasksByStatus(): Promise<ChartDataPoint[]> {
   return apiClient.get<ChartDataPoint[]>('/api/reports/tasks-by-status')
 }
@@ -95,7 +91,6 @@ async function getFinancialSummary(startDate: string, endDate: string): Promise<
 export const reportService = {
   getSummary,
   getProjectsByStatus,
-  getProjectsByPriority,
   getTasksByStatus,
   getTasksByPriority,
   getSubmissionsByStatus,

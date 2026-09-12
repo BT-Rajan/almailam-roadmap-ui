@@ -388,7 +388,6 @@ def create_demo_project(
         clientId=f"CLT-{client.id:03d}",
         service="Civil Engineering",
         engineerId=f"USR-{engineer.id:03d}",
-        priority="Medium",
         startDate=date(2026, 1, 1),
         targetDate=date(2026, 12, 31),
         selectedActivities=[design_activity_payload(design_service, activity) for activity in design_activities],
