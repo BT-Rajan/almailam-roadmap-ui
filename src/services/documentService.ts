@@ -1,4 +1,3 @@
-import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
 import type { DocumentStatus, DocumentType, DocumentVersion, ProjectDocument } from '@/types/Document'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
@@ -172,30 +171,12 @@ async function setDocumentStatus(documentId: string, status: DocumentStatus, rea
  * VersionHistory.vue), this only adds a new one.
  */
 async function addVersion(documentId: string, file: File, notes?: string): Promise<DocumentVersion> {
-  const authStore = useAuthStore()
   const formData = new FormData()
   formData.append('file', file)
   if (notes) formData.append('notes', notes)
 
-  const doRequest = () =>
-    fetch(`/api/documents/${documentId}/versions`, {
-      method: 'POST',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-      body: formData,
-    })
-
   try {
-    let response = await doRequest()
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) response = await doRequest()
-    }
-    if (!response.ok) {
-      const data = await response.json().catch(() => undefined)
-      throw new Error(data?.error ?? data?.detail ?? data?.message ?? `Upload failed with status ${response.status}`)
-    }
-    return (await response.json()) as DocumentVersion
+    return await apiClient.postForm<DocumentVersion>(`/api/documents/${documentId}/versions`, formData)
   } catch (error) {
     console.error(`Failed to add a new version for document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to add new version')
@@ -206,28 +187,8 @@ async function addVersion(documentId: string, file: File, notes?: string): Promi
  * Download a document from backend API
  */
 async function downloadDocument(documentId: string): Promise<Blob> {
-  const authStore = useAuthStore()
-
-  const doRequest = () =>
-    fetch(`/api/documents/${documentId}/download`, {
-      method: 'GET',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-    })
-
   try {
-    let response = await doRequest()
-
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) response = await doRequest()
-    }
-
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`)
-    }
-
-    return await response.blob()
+    return await apiClient.getBlob(`/api/documents/${documentId}/download`)
   } catch (error) {
     console.error(`Failed to download document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to download document')
@@ -240,28 +201,8 @@ async function downloadDocument(documentId: string): Promise<Blob> {
  * the frontend ever called it.
  */
 async function downloadVersion(documentId: string, versionId: string): Promise<Blob> {
-  const authStore = useAuthStore()
-
-  const doRequest = () =>
-    fetch(`/api/documents/${documentId}/versions/${versionId}/download`, {
-      method: 'GET',
-      headers: authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : undefined,
-      credentials: 'include',
-    })
-
   try {
-    let response = await doRequest()
-
-    if (response.status === 401) {
-      const refreshed = await authStore.tryRefresh()
-      if (refreshed) response = await doRequest()
-    }
-
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`)
-    }
-
-    return await response.blob()
+    return await apiClient.getBlob(`/api/documents/${documentId}/versions/${versionId}/download`)
   } catch (error) {
     console.error(`Failed to download version ${versionId} of document ${documentId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to download document version')

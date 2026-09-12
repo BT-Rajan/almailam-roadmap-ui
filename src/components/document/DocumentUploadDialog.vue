@@ -23,6 +23,16 @@ const DOCUMENT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Government Agreement', value: 'Government Agreement', labelKey: 'document.uploadDialog.typeGovernmentAgreement' },
 ]
 
+// Kept in sync with backend/app/core/file_storage.py's own
+// ALLOWED_EXTENSIONS/MAX_UPLOAD_SIZE_MB -- catches an oversized or
+// wrong-type file the instant it's picked, instead of only after the
+// whole file has already uploaded over the network and the backend
+// rejects it. FileUploader.vue already supported this (the New Client
+// wizard's identification upload uses its own, narrower version), it
+// just was never wired up here for ordinary document uploads.
+const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.dwg', '.dxf', '.jpg', '.jpeg', '.png', '.tiff', '.tif', '.txt', '.csv']
+
 const props = defineProps<{
   modelValue: boolean
   projects: Project[]
@@ -46,19 +56,13 @@ const documentType = ref<DocumentType | ''>('')
 const projectId = ref('')
 const selectedFile = ref<File>()
 const titleError = ref<string>()
+const projectError = ref<string>()
+const documentTypeError = ref<string>()
 const fileError = ref<string>()
 const isUploading = ref(false)
 
 const projectOptions = computed<SelectOption[]>(() =>
   props.projects.map((project) => ({ label: project.projectName, value: project.id })),
-)
-
-const canSubmit = computed(
-  () =>
-    title.value.trim().length > 0 &&
-    documentType.value.length > 0 &&
-    projectId.value.length > 0 &&
-    Boolean(selectedFile.value),
 )
 
 function resetForm(): void {
@@ -67,6 +71,8 @@ function resetForm(): void {
   projectId.value = ''
   selectedFile.value = undefined
   titleError.value = undefined
+  projectError.value = undefined
+  documentTypeError.value = undefined
   fileError.value = undefined
 }
 
@@ -87,9 +93,11 @@ function closeDialog(): void {
 }
 
 async function submitUpload(): Promise<void> {
-  titleError.value = title.value.trim().length === 0 ? 'Document title is required' : undefined
-  fileError.value = selectedFile.value ? undefined : 'Please select a file to upload'
-  if (!canSubmit.value) return
+  titleError.value = title.value.trim().length === 0 ? t('document.uploadDialog.titleRequired') : undefined
+  projectError.value = projectId.value.length === 0 ? t('document.uploadDialog.projectRequired') : undefined
+  documentTypeError.value = documentType.value.length === 0 ? t('document.uploadDialog.documentTypeRequired') : undefined
+  fileError.value = selectedFile.value ? undefined : t('document.uploadDialog.fileRequired')
+  if (titleError.value || projectError.value || documentTypeError.value || fileError.value) return
 
   isUploading.value = true
   try {
@@ -124,7 +132,7 @@ async function submitUpload(): Promise<void> {
         :error="titleError"
       />
 
-      <SelectBox v-model="projectId" :label="t('document.uploadDialog.project')" :placeholder="t('document.uploadDialog.projectPlaceholder')" :options="projectOptions" required />
+      <SelectBox v-model="projectId" :label="t('document.uploadDialog.project')" :placeholder="t('document.uploadDialog.projectPlaceholder')" :options="projectOptions" required :error="projectError" />
 
       <SelectBox
         :model-value="documentType"
@@ -132,18 +140,24 @@ async function submitUpload(): Promise<void> {
         :placeholder="t('document.uploadDialog.documentTypePlaceholder')"
         :options="DOCUMENT_TYPE_OPTIONS"
         required
+        :error="documentTypeError"
         @update:model-value="documentType = $event as DocumentType"
       />
 
       <div class="flex flex-col gap-1.5">
-        <FileUploader @select="selectedFile = $event" />
+        <FileUploader
+          :max-size-bytes="MAX_UPLOAD_SIZE_BYTES"
+          :allowed-extensions="ALLOWED_EXTENSIONS"
+          @select="selectedFile = $event"
+          @error="fileError = $event"
+        />
         <p v-if="fileError" class="text-xs text-danger-500">{{ fileError }}</p>
       </div>
     </div>
 
     <template #footer>
       <BaseButton variant="secondary" :disabled="isUploading" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
-      <BaseButton :disabled="!canSubmit" :loading="isUploading" @click="submitUpload">{{ t('document.uploadDialog.uploadDocument') }}</BaseButton>
+      <BaseButton :loading="isUploading" @click="submitUpload">{{ t('document.uploadDialog.uploadDocument') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

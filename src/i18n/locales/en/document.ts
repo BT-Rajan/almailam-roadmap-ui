@@ -160,6 +160,10 @@ export default {
     typeCalculationSheet: 'Calculation Sheet',
     typeGovernmentAgreement: 'Government Agreement',
     uploadDocument: 'Upload Document',
+    titleRequired: 'Document title is required.',
+    projectRequired: 'Please select a project.',
+    documentTypeRequired: 'Please select a document type.',
+    fileRequired: 'Please select a file to upload.',
   },
 }
 

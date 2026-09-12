@@ -160,5 +160,9 @@ export default {
     typeCalculationSheet: 'ورقة حسابات',
     typeGovernmentAgreement: 'اتفاقية حكومية',
     uploadDocument: 'رفع المستند',
+    titleRequired: 'عنوان المستند مطلوب.',
+    projectRequired: 'الرجاء اختيار مشروع.',
+    documentTypeRequired: 'الرجاء اختيار نوع المستند.',
+    fileRequired: 'الرجاء اختيار ملف للرفع.',
   },
 }

@@ -160,6 +160,44 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await response.json()) as T
 }
 
+// Blob counterpart to request<T>() -- for file downloads, which can't go
+// through request<T>() (always calls response.json()) or requestForm<T>()
+// (also json-only, and POST-only). Same auth/401-retry/timeout behavior
+// as everywhere else. Previously each of documentService.ts's three
+// binary-response calls (addVersion, downloadDocument, downloadVersion)
+// hand-rolled this same auth-header/401-retry logic itself -- one of the
+// three even remembered to extract the backend's specific error message
+// on failure, the other two didn't (just "Download failed with status
+// {code}"), so a permission or storage error had a real, useful message
+// or a useless generic one depending on which of three nearly-identical
+// blocks of code happened to handle it.
+async function requestBlob(path: string, options: { method?: 'GET' | 'POST'; _retried?: boolean } = {}): Promise<Blob> {
+  const authStore = useAuthStore()
+  const headers: Record<string, string> = {}
+  if (authStore.accessToken) headers.Authorization = `Bearer ${authStore.accessToken}`
+
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}${path}`,
+    { method: options.method ?? 'GET', headers, credentials: 'include' },
+    DEFAULT_TIMEOUT_MS,
+  )
+
+  if (response.status === 401 && !options._retried) {
+    const refreshed = await authStore.tryRefresh()
+    if (refreshed) {
+      return requestBlob(path, { ...options, _retried: true })
+    }
+    authStore.logout()
+    throw new ApiError(401, 'Session expired. Please log in again.')
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await extractErrorMessage(response))
+  }
+
+  return await response.blob()
+}
+
 export const apiClient = {
   get: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'GET' }),
@@ -172,4 +210,5 @@ export const apiClient = {
   delete: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'DELETE' }),
   postForm: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
+  getBlob: (path: string) => requestBlob(path, { method: 'GET' }),
 }
