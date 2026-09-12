@@ -281,22 +281,12 @@ function stageLabel(stage: string): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
 }
 
-const PRIORITY_LABEL_KEYS: Record<string, string> = {
-  High: 'project.priority.high',
-  Medium: 'project.priority.medium',
-  Low: 'project.priority.low',
-}
-function priorityLabel(priority: string): string {
-  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
-}
-
 const projectDetailItems = computed(() => [
   { label: t('project.overviewTab.fields.service'), value: props.project.service },
   { label: t('project.overviewTab.fields.fieldEngineer'), value: props.project.engineer },
   { label: t('project.overviewTab.fields.startDate'), value: formatDate(props.project.startDate) },
   { label: t('project.overviewTab.fields.targetCompletionDate'), value: formatDate(props.project.targetDate) },
   { label: t('project.overviewTab.fields.currentStage'), value: stageLabel(props.project.currentStage) },
-  { label: t('project.overviewTab.fields.priority'), value: priorityLabel(props.project.priority) },
 ])
 
 const clientDetailItems = computed(() => {

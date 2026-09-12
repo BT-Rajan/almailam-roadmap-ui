@@ -388,7 +388,6 @@ def create_demo_project(
         clientId=f"CLT-{client.id:03d}",
         service="Civil Engineering",
         engineerId=f"USR-{engineer.id:03d}",
-        priority="Medium",
         startDate=date(2026, 1, 1),
         targetDate=date(2026, 12, 31),
         selectedActivities=[design_activity_payload(design_service, activity) for activity in design_activities],
@@ -422,9 +421,9 @@ def do_requirement(actor: user_models.User, project, client, *, add_id: bool, co
 
 
 def do_quotation(actor: user_models.User, project, *, approve: bool):
-    """Creates and finalizes a quotation; optionally approves it via the
-    real client-confirmation OTP, which auto-advances the project
-    straight to Payment Plan."""
+    """Creates and finalizes a quotation; optionally approves it via a
+    signed-document upload (see quotation_service.confirm_quotation_
+    approval), which auto-advances the project straight to Payment Plan."""
     quotation = quotation_service.create_quotation(
         db,
         qs.QuotationCreate(

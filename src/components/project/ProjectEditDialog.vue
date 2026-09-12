@@ -11,7 +11,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useUserStore } from '@/stores/userStore'
-import type { Project, ProjectPriority } from '@/types/Project'
+import type { Project } from '@/types/Project'
 import type { ProjectUpdateInput } from '@/services/projectService'
 import type { SelectOption } from '@/types/Ui'
 import { validators } from '@/utils/validators'
@@ -29,11 +29,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const PRIORITY_OPTIONS: SelectOption[] = [
-  { label: 'High', value: 'High', labelKey: 'project.priority.high' },
-  { label: 'Medium', value: 'Medium', labelKey: 'project.priority.medium' },
-  { label: 'Low', value: 'Low', labelKey: 'project.priority.low' },
-]
 const userStore = useUserStore()
 const serviceCatalogStore = useServiceCatalogStore()
 onMounted(() => {
@@ -63,7 +58,6 @@ interface EditForm {
   description: string
   siteAddress: string
   service: string
-  priority: string
   targetDate: string
   engineerId: string
 }
@@ -74,7 +68,6 @@ function emptyForm(): EditForm {
     description: '',
     siteAddress: '',
     service: '',
-    priority: 'Medium',
     targetDate: '',
     engineerId: '',
   }
@@ -98,7 +91,6 @@ watch(
     form.description = props.project.description ?? ''
     form.siteAddress = props.project.siteAddress ?? ''
     form.service = props.project.service
-    form.priority = props.project.priority
     form.targetDate = props.project.targetDate
     // Project only stores the engineer's resolved display name, not
     // their id, so this is a best-effort match rather than a guaranteed
@@ -128,7 +120,6 @@ function handleConfirm(): void {
     description: form.description,
     siteAddress: form.siteAddress,
     service: form.service,
-    priority: form.priority as ProjectPriority,
     targetDate: form.targetDate,
     engineerId: form.engineerId,
   })
@@ -144,7 +135,6 @@ function handleConfirm(): void {
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox v-model="form.service" :label="t('project.editDialog.service')" :options="serviceOptions" required :error="errors.service" />
-        <SelectBox v-model="form.priority" :label="t('project.editDialog.priority')" :options="PRIORITY_OPTIONS" />
         <SelectBox
           v-model="form.engineerId"
           :label="t('project.editDialog.reassignEngineer')"

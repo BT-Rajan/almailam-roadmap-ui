@@ -22,10 +22,10 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
-import type { ProjectPriority, ProjectStatus, WorkflowStage } from '@/types/Project'
+import type { ProjectStatus, WorkflowStage } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getProjectPriorityVariant, getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 interface ProjectTableRow {
   [key: string]: unknown
@@ -35,7 +35,6 @@ interface ProjectTableRow {
   clientName: string
   currentStage: WorkflowStage
   status: ProjectStatus
-  priority: ProjectPriority
   progress: number
   engineer: string
   targetDate: string
@@ -67,20 +66,12 @@ const STAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('project.stage.handover'), value: 'Handover' },
 ])
 
-const PRIORITY_OPTIONS = computed<SelectOption[]>(() => [
-  { label: t('project.projectsPage.allPriorities'), value: 'All' },
-  { label: t('project.priority.high'), value: 'High' },
-  { label: t('project.priority.medium'), value: 'Medium' },
-  { label: t('project.priority.low'), value: 'Low' },
-])
-
 const TABLE_COLUMNS = computed<SmartTableColumn<ProjectTableRow>[]>(() => [
   { key: 'projectNo', label: t('project.projectsPage.columns.projectNo'), sortable: true, width: '140px' },
   { key: 'projectName', label: t('project.projectsPage.columns.projectName'), sortable: true },
   { key: 'clientName', label: t('project.projectsPage.columns.client'), sortable: true },
   { key: 'currentStage', label: t('project.projectsPage.columns.stage'), sortable: true },
   { key: 'status', label: t('project.projectsPage.columns.status'), sortable: true },
-  { key: 'priority', label: t('project.projectsPage.columns.priority'), sortable: true },
   { key: 'progress', label: t('project.projectsPage.columns.progress'), sortable: true, width: '160px' },
   { key: 'engineer', label: t('project.projectsPage.columns.engineer'), sortable: true },
   { key: 'targetDate', label: t('project.projectsPage.columns.targetDate'), sortable: true, align: 'right' },
@@ -94,7 +85,6 @@ const tableRows = computed<ProjectTableRow[]>(() =>
     clientName: projectStore.getClientById(project.clientId)?.companyName ?? t('project.unknownClient'),
     currentStage: project.currentStage,
     status: project.status,
-    priority: project.priority,
     progress: project.progress,
     engineer: project.engineer,
     targetDate: project.targetDate,
@@ -123,15 +113,6 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
 }
 function statusLabel(status: string): string {
   return t(STATUS_LABEL_KEYS[status] ?? status)
-}
-
-const PRIORITY_LABEL_KEYS: Record<string, string> = {
-  High: 'project.priority.high',
-  Medium: 'project.priority.medium',
-  Low: 'project.priority.low',
-}
-function priorityLabel(priority: string): string {
-  return t(PRIORITY_LABEL_KEYS[priority] ?? priority)
 }
 
 function loadData(): void {
@@ -198,14 +179,6 @@ async function restoreProject(projectId: string, name: string): Promise<void> {
             :model-value="projectStore.stageFilter"
             :options="STAGE_OPTIONS"
             @update:model-value="projectStore.setStageFilter($event as WorkflowStage | 'All')"
-          />
-        </div>
-        <div class="w-44">
-          <SelectBox
-            :label="t('project.projectsPage.priority')"
-            :model-value="projectStore.priorityFilter"
-            :options="PRIORITY_OPTIONS"
-            @update:model-value="projectStore.setPriorityFilter($event as ProjectPriority | 'All')"
           />
         </div>
         <BaseButton
@@ -343,9 +316,6 @@ async function restoreProject(projectId: string, name: string): Promise<void> {
       >
         <template #cell-status="{ value }">
           <StatusBadge :label="statusLabel(value as string)" :variant="getProjectStatusVariant(value as ProjectStatus)" show-dot />
-        </template>
-        <template #cell-priority="{ value }">
-          <StatusBadge :label="priorityLabel(value as string)" :variant="getProjectPriorityVariant(value as ProjectPriority)" />
         </template>
         <template #cell-currentStage="{ value }">
           <StatusBadge :label="stageLabel(value as string)" variant="info" />

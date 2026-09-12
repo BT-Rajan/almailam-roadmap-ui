@@ -108,7 +108,31 @@ def get_revisions_with_names(db: Session, quotation_id: int) -> list[tuple]:
         .order_by(QuotationRevision.id.desc())
         .all()
     )
-    return [(r, _user_name(db, r.changed_by)) for r in revisions]
+    # Batched, same reasoning as contract_service.get_revisions_with_names.
+    changed_by_ids = {r.changed_by for r in revisions}
+    names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(changed_by_ids)).all()}
+    return [(r, names.get(r.changed_by, "Unknown")) for r in revisions]
+
+
+def get_revisions_with_names_by_quotation(db: Session, quotation_ids: list[int]) -> dict[int, list[tuple]]:
+    """Batched sibling of get_revisions_with_names -- one query for every
+    quotation's revisions and one for all their authors, instead of a
+    per-quotation (and, before the fix above, per-revision) query. Used
+    by list_quotations' _to_out_batch (see api/quotations.py)."""
+    if not quotation_ids:
+        return {}
+    revisions = (
+        db.query(QuotationRevision)
+        .filter(QuotationRevision.quotation_id.in_(quotation_ids))
+        .order_by(QuotationRevision.id.desc())
+        .all()
+    )
+    changed_by_ids = {r.changed_by for r in revisions}
+    names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(changed_by_ids)).all()}
+    by_quotation: dict[int, list[tuple]] = {qid: [] for qid in quotation_ids}
+    for revision in revisions:
+        by_quotation[revision.quotation_id].append((revision, names.get(revision.changed_by, "Unknown")))
+    return by_quotation
 
 
 def get_line_items(db: Session, quotation_id: int) -> list[QuotationLineItem]:
@@ -118,6 +142,23 @@ def get_line_items(db: Session, quotation_id: int) -> list[QuotationLineItem]:
         .order_by(QuotationLineItem.id.asc())
         .all()
     )
+
+
+def get_line_items_by_quotation(db: Session, quotation_ids: list[int]) -> dict[int, list[QuotationLineItem]]:
+    """Batched sibling of get_line_items -- one query for every
+    quotation's line items instead of one query per quotation."""
+    if not quotation_ids:
+        return {}
+    items = (
+        db.query(QuotationLineItem)
+        .filter(QuotationLineItem.quotation_id.in_(quotation_ids))
+        .order_by(QuotationLineItem.id.asc())
+        .all()
+    )
+    by_quotation: dict[int, list[QuotationLineItem]] = {qid: [] for qid in quotation_ids}
+    for item in items:
+        by_quotation[item.quotation_id].append(item)
+    return by_quotation
 
 
 def create_quotation(db: Session, payload, user_id: int) -> Quotation:
@@ -481,10 +522,6 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     scope_was_reconfirmed = project.scope_client_confirmed_at is None
     if scope_was_reconfirmed:
         project.scope_client_confirmed_at = datetime.now(timezone.utc)
-        project.otp_code_hash = None
-        project.otp_expires_at = None
-        project.otp_attempts = 0
-        project.otp_sent_at = None
         audit_service.log_event(
             db, "PROJECT", project.id, "Scope of work confirmed via quotation approval", user_id
         )

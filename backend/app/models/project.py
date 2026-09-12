@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 from app.core.database import Base
-from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
@@ -83,7 +83,6 @@ WORKFLOW_STAGES = (
     "Supervision",
     "Handover",
 )
-PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # Status of one selected Design/Supervision activity instance on a
 # project (migration 0073) -- "Not Started"/"In Progress" are
 # informational only (nothing currently distinguishes them beyond
@@ -102,7 +101,7 @@ SELECTED_ACTIVITY_STATUSES = ("Not Started", "In Progress", "Complete", "Cancell
 SELECTED_SUPERVISION_STATUSES = ("Planned", "Eligible", "In Progress", "Complete", "Cancelled")
 
 
-class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
+class Project(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "projects"
     # See migration 0091 -- deleted_at IS NULL is the baseline filter on
     # every project query (project_service.list_projects), on top of
@@ -152,9 +151,6 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
         Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Requirement"
     )
     progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    priority: Mapped[str] = mapped_column(
-        Enum(*PROJECT_PRIORITIES, name="project_priority"), nullable=False, default="Medium"
-    )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     target_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -206,8 +202,7 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # _assert_stage_exit_criteria's Handover branch). handover_sent_at/
     # handover_acknowledged_at track the ready-for-handover notice and
     # the client's confirmation of it via a signed-document upload (see
-    # notify_handover_ready/confirm_project_handover) -- EmailOtpMixin's
-    # columns below are inert leftovers now (see its docstring). status
+    # notify_handover_ready/confirm_project_handover). status
     # only becomes "Completed" once handover_acknowledged_at is set, and
     # confirm_project_handover requires handover_payment_confirmed_at
     # first -- an email that fails to send never blocks this internally,

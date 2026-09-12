@@ -39,6 +39,37 @@ def _to_out(db: Session, quotation) -> QuotationOut:
     )
 
 
+def _to_out_batch(db: Session, quotations: list) -> list[QuotationOut]:
+    """Batched sibling of _to_out -- for a list of quotations, resolves
+    every project, preparer name, line-item set, and revision set (and
+    their authors) with a constant number of queries total instead of
+    _to_out's several queries per quotation. Same reasoning as
+    contracts._to_out_batch."""
+    if not quotations:
+        return []
+
+    project_ids = {q.project_id for q in quotations}
+    project_nos = {p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()}
+
+    prepared_by_ids = {q.prepared_by for q in quotations}
+    user_names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(prepared_by_ids)).all()}
+
+    quotation_ids = [q.id for q in quotations]
+    line_items_by_quotation = quotation_service.get_line_items_by_quotation(db, quotation_ids)
+    revisions_by_quotation = quotation_service.get_revisions_with_names_by_quotation(db, quotation_ids)
+
+    return [
+        QuotationOut.from_model(
+            q,
+            project_nos.get(q.project_id, ""),
+            user_names.get(q.prepared_by, "Unknown"),
+            line_items_by_quotation.get(q.id, []),
+            revisions_by_quotation.get(q.id, []),
+        )
+        for q in quotations
+    ]
+
+
 @router.get("", response_model=list[QuotationOut])
 def list_quotations(
     projectId: str | None = None,
@@ -46,7 +77,7 @@ def list_quotations(
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    return [_to_out(db, q) for q in quotation_service.list_quotations(db, projectId, status)]
+    return _to_out_batch(db, quotation_service.list_quotations(db, projectId, status))
 
 
 @router.get("/{quotation_no}", response_model=QuotationOut)

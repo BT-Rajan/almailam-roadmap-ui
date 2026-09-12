@@ -31,7 +31,6 @@ PROJECT_SORTABLE_FIELDS = {
     "projectNo": Project.project_no,
     "projectName": Project.project_name,
     "status": Project.status,
-    "priority": Project.priority,
     "currentStage": Project.current_stage,
     "progress": Project.progress,
     "targetDate": Project.target_date,
@@ -55,7 +54,6 @@ def list_projects(
     db: Session,
     client_id: str | None = None,
     status: str | None = None,
-    priority: str | None = None,
     stage: str | None = None,
     engineer_id: str | None = None,
     search: str | None = None,
@@ -69,8 +67,6 @@ def list_projects(
         query = query.filter(Project.client_id == client_service.parse_client_id(client_id))
     if status:
         query = query.filter(Project.status == status)
-    if priority:
-        query = query.filter(Project.priority == priority)
     if stage:
         query = query.filter(Project.current_stage == stage)
     if engineer_id:

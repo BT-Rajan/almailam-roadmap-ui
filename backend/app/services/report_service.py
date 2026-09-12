@@ -38,10 +38,6 @@ def projects_by_status(db: Session) -> list[dict]:
     return _count_by(db, Project, Project.status)
 
 
-def projects_by_priority(db: Session) -> list[dict]:
-    return _count_by(db, Project, Project.priority)
-
-
 def tasks_by_status(db: Session) -> list[dict]:
     return _count_by(db, Task, Task.status)
 
@@ -399,7 +395,6 @@ def project_report(db: Session, project: Project) -> list[dict]:
                 {"label": "Status", "value": project.status},
                 {"label": "Current Stage", "value": project.current_stage},
                 {"label": "Progress", "value": project.progress, "unit": "%"},
-                {"label": "Priority", "value": project.priority},
             ],
         },
         {

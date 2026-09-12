@@ -143,6 +143,24 @@ def get_clauses(db: Session, contract_id: int) -> list[ContractClause]:
     )
 
 
+def get_clauses_by_contract(db: Session, contract_ids: list[int]) -> dict[int, list[ContractClause]]:
+    """Batched sibling of get_clauses -- one query for every contract's
+    clauses instead of one query per contract. Used by list_contracts'
+    _to_out_batch (see api/contracts.py) to avoid an N+1 there."""
+    if not contract_ids:
+        return {}
+    clauses = (
+        db.query(ContractClause)
+        .filter(ContractClause.contract_id.in_(contract_ids))
+        .order_by(ContractClause.sort_order.asc(), ContractClause.id.asc())
+        .all()
+    )
+    by_contract: dict[int, list[ContractClause]] = {cid: [] for cid in contract_ids}
+    for clause in clauses:
+        by_contract[clause.contract_id].append(clause)
+    return by_contract
+
+
 def get_revisions_with_names(db: Session, contract_id: int) -> list[tuple]:
     revisions = (
         db.query(ContractRevision)
@@ -150,7 +168,33 @@ def get_revisions_with_names(db: Session, contract_id: int) -> list[tuple]:
         .order_by(ContractRevision.id.desc())
         .all()
     )
-    return [(r, _user_name(db, r.changed_by)) for r in revisions]
+    # One query for every revision's author instead of one query per
+    # revision -- most contracts only have a couple of revisions, but
+    # this is also called once per contract from list_contracts, where
+    # that per-revision cost was multiplying against the contract count.
+    changed_by_ids = {r.changed_by for r in revisions}
+    names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(changed_by_ids)).all()}
+    return [(r, names.get(r.changed_by, "Unknown")) for r in revisions]
+
+
+def get_revisions_with_names_by_contract(db: Session, contract_ids: list[int]) -> dict[int, list[tuple]]:
+    """Batched sibling of get_revisions_with_names -- one query for every
+    contract's revisions and one for all their authors, instead of a
+    per-contract (and, before the fix above, per-revision) query."""
+    if not contract_ids:
+        return {}
+    revisions = (
+        db.query(ContractRevision)
+        .filter(ContractRevision.contract_id.in_(contract_ids))
+        .order_by(ContractRevision.id.desc())
+        .all()
+    )
+    changed_by_ids = {r.changed_by for r in revisions}
+    names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(changed_by_ids)).all()}
+    by_contract: dict[int, list[tuple]] = {cid: [] for cid in contract_ids}
+    for revision in revisions:
+        by_contract[revision.contract_id].append((revision, names.get(revision.changed_by, "Unknown")))
+    return by_contract
 
 
 def create_contract(db: Session, payload, user_id: int) -> Contract:

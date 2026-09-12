@@ -43,10 +43,10 @@ def _resolve_smtp_config(db: Session) -> dict | None:
 
 
 def send_email(to_email: str, subject: str, body_text: str, db: Optional[Session] = None) -> None:
-    """Plain-text send, no attachment -- OTP codes and the onboarding
-    welcome email (see client_service.py) use this directly;
-    send_document_email below is a thin wrapper adding an attachment on
-    top of the exact same SMTP/error-handling scaffolding."""
+    """Plain-text send, no attachment -- the onboarding welcome email
+    (see client_service.py) uses this directly; send_document_email
+    below is a thin wrapper adding an attachment on top of the exact
+    same SMTP/error-handling scaffolding."""
     owns_session = db is None
     session = db or SessionLocal()
     try:
