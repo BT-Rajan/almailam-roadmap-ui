@@ -184,6 +184,9 @@ export default {
     descriptionRequired: 'Description is required',
     percentageRequired: 'Percentage must be greater than 0',
     dueDateRequired: 'Due date is required',
+    totalMustEqual100: 'Installment percentages must add up to 100% (currently {percent}%).',
+    totalAmountRequired: 'Total amount must be greater than 0',
+    contractStartDateRequired: 'Contract start date is required',
     saveChanges: 'Save Changes',
   },
 }

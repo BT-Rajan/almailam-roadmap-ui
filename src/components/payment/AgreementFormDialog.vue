@@ -11,6 +11,7 @@ import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { useFormValidation } from '@/composables/useFormValidation'
 import type { Client } from '@/types/Client'
 import type { AgreementStream, CreateAgreementInput, FinancialAgreement, PaymentMilestoneInput, PaymentMode, PaymentObligation } from '@/types/Payment'
 import type { Project } from '@/types/Project'
@@ -18,6 +19,7 @@ import type { SelectOption } from '@/types/Ui'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { todayIso } from '@/utils/dateFormatter'
+import { validators } from '@/utils/validators'
 
 interface ApprovedQuotation {
   quotationNo: string
@@ -113,7 +115,37 @@ const agreementDate = ref(new Date().toISOString().slice(0, 10))
 const quotationReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
 const milestones = ref<PaymentMilestoneInput[]>([])
-const milestoneErrors = ref<string[]>([])
+// One entry per installment, keyed by which field failed -- previously
+// a single string per row was always rendered under the Description
+// field (same bug as NewQuotationDialog.vue's line items and
+// NewContractDialog.vue's clauses), though it could never actually
+// surface here: canSubmit already required every one of these same
+// per-row conditions before the button would even become clickable.
+interface MilestoneError {
+  description?: string
+  percentage?: string
+  dueDate?: string
+}
+const milestoneErrors = ref<MilestoneError[]>([])
+// Shown right under the total when it isn't 100% -- the colored
+// "Total: 97%" text alone doesn't actually say 100% is the target, and
+// wasn't reachable anyway while canSubmit kept the button disabled with
+// no explanation (see handleSubmit below).
+const totalError = ref('')
+
+const { errors, setRules, validateAll } = useFormValidation()
+setRules({
+  agreementDate: [validators.required('Agreement date is required')],
+  // Design & Permit only -- Supervision's own contractAmount/
+  // contractStartDate are derived server-side, so these two are never
+  // actually required from Supervision's own, much shorter form.
+  contractAmount: [
+    () => isSupervision.value || contractAmount.value > 0 || t('payment.agreementFormDialog.totalAmountRequired'),
+  ],
+  contractStartDate: [
+    () => isSupervision.value || contractStartDate.value.length > 0 || t('payment.agreementFormDialog.contractStartDateRequired'),
+  ],
+})
 
 const isSupervision = computed(() => props.stream === 'Supervision')
 // Design & Permit is always billed as installments now -- 1 installment
@@ -123,6 +155,7 @@ const isMilestonePlan = computed(() => !isSupervision.value)
 
 function resetForm(): void {
   milestoneErrors.value = []
+  totalError.value = ''
   const existing = props.existingAgreement
   if (isEditMode.value && existing) {
     contractAmount.value = existing.contractAmount
@@ -172,34 +205,43 @@ function milestoneAmount(milestone: PaymentMilestoneInput): number {
 
 const milestoneTotal = computed(() => Math.round(milestones.value.reduce((sum, m) => sum + (m.percentage || 0), 0) * 100) / 100)
 const milestoneTotalValid = computed(() => Math.abs(milestoneTotal.value - 100) <= 0.5)
-const milestonesValid = computed(
-  () =>
-    milestones.value.length > 0 &&
-    milestones.value.length <= MAX_MILESTONES &&
-    milestoneTotalValid.value &&
-    milestones.value.every((m) => m.description.trim().length > 0 && m.dueDate.length > 0 && m.percentage > 0),
-)
 
 // Supervision's contractAmount/contractStartDate/contractEndDate are all
 // derived server-side from the project's selected Supervision activities
 // (see payment_service.create_agreement) -- only agreementDate and
-// paymentMode are ever required from this form for that stream.
-const canSubmit = computed(() => {
-  if (isSupervision.value) return agreementDate.value.length > 0
-  const baseValid = contractAmount.value > 0 && contractStartDate.value.length > 0
-  return baseValid && milestonesValid.value
-})
+// paymentMode are ever required from this form for that stream, which
+// is exactly what the two rules above already account for.
+//
+// Every field's required-ness (amount, start date, agreement date, and
+// every installment's own fields/100% total) is enforced by
+// handleSubmit below instead of gating the button itself -- same
+// click-then-see-inline-errors pattern as
+// NewQuotationDialog.vue/NewContractDialog.vue, rather than a silently
+// disabled button with no indication of which field (or whether the
+// 100% total) is the actual problem.
 
 function handleSubmit(): void {
-  const itemErrors = milestones.value.map((m) => {
-    if (!m.description.trim()) return t('payment.agreementFormDialog.descriptionRequired')
-    if (m.percentage <= 0) return t('payment.agreementFormDialog.percentageRequired')
-    if (!m.dueDate) return t('payment.agreementFormDialog.dueDateRequired')
-    return ''
+  const formValid = validateAll({
+    agreementDate: agreementDate.value,
+    contractAmount: contractAmount.value,
+    contractStartDate: contractStartDate.value,
   })
-  milestoneErrors.value = itemErrors
 
-  if (!canSubmit.value) return
+  let rowsValid = true
+  if (isMilestonePlan.value) {
+    const itemErrors: MilestoneError[] = milestones.value.map((m) => {
+      const rowError: MilestoneError = {}
+      if (!m.description.trim()) rowError.description = t('payment.agreementFormDialog.descriptionRequired')
+      if (m.percentage <= 0) rowError.percentage = t('payment.agreementFormDialog.percentageRequired')
+      if (!m.dueDate) rowError.dueDate = t('payment.agreementFormDialog.dueDateRequired')
+      return rowError
+    })
+    milestoneErrors.value = itemErrors
+    totalError.value = milestoneTotalValid.value ? '' : t('payment.agreementFormDialog.totalMustEqual100', { percent: milestoneTotal.value })
+    rowsValid = itemErrors.every((rowError) => Object.keys(rowError).length === 0) && milestoneTotalValid.value
+  }
+
+  if (!formValid || !rowsValid) return
 
   const input: CreateAgreementInput = isSupervision.value
     ? {
@@ -243,7 +285,7 @@ function closeDialog(): void {
         <TextInput :model-value="project ? `${project.projectName} (${project.projectNo})` : ''" :label="t('payment.agreementFormDialog.project')" disabled />
       </div>
 
-      <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" />
+      <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
 
       <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
@@ -263,10 +305,18 @@ function closeDialog(): void {
               <div class="w-24 shrink-0">
                 <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
               </div>
-              <NumberInput class="flex-1" :model-value="contractAmount" :min="0" step="0.01" required @update:model-value="contractAmount = Number($event)" />
+              <NumberInput
+                class="flex-1"
+                :model-value="contractAmount"
+                :min="0"
+                step="0.01"
+                required
+                :error="errors.contractAmount"
+                @update:model-value="contractAmount = Number($event)"
+              />
             </div>
           </div>
-          <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" />
+          <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" :error="errors.contractStartDate" />
         </div>
 
         <TextInput
@@ -309,13 +359,20 @@ function closeDialog(): void {
             <tbody>
               <tr v-for="(milestone, index) in milestones" :key="index" class="border-b border-border-light last:border-0">
                 <td class="px-3 py-2 align-top">
-                  <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="milestoneErrors[index]" />
+                  <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="milestoneErrors[index]?.description" />
                 </td>
                 <td class="px-3 py-2 align-top">
-                  <NumberInput :model-value="milestone.percentage" :min="0" :max="100" step="0.01" @update:model-value="milestone.percentage = Number($event)" />
+                  <NumberInput
+                    :model-value="milestone.percentage"
+                    :min="0"
+                    :max="100"
+                    step="0.01"
+                    :error="milestoneErrors[index]?.percentage"
+                    @update:model-value="milestone.percentage = Number($event)"
+                  />
                 </td>
                 <td class="px-3 py-2 align-top">
-                  <DatePicker v-model="milestone.dueDate" />
+                  <DatePicker v-model="milestone.dueDate" :error="milestoneErrors[index]?.dueDate" />
                 </td>
                 <td class="px-3 py-2 text-end align-top">
                   <span class="inline-block pt-2 text-sm font-medium text-text-primary">{{ formatCurrency(milestoneAmount(milestone), currency) }}</span>
@@ -342,6 +399,7 @@ function closeDialog(): void {
           <span>{{ t('payment.agreementFormDialog.milestoneTotal') }}</span>
           <span :class="milestoneTotalValid ? 'font-medium text-text-primary' : 'font-medium text-danger-600'">{{ t('payment.agreementFormDialog.total', { percent: milestoneTotal }) }}</span>
         </div>
+        <p v-if="totalError" class="text-xs text-danger-700">{{ totalError }}</p>
         <Divider />
         <div class="flex items-center justify-between">
           <span class="text-sm font-semibold text-text-primary">{{ t('payment.agreementFormDialog.totalAmount') }}</span>
@@ -352,7 +410,7 @@ function closeDialog(): void {
 
     <template #footer>
       <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
-      <BaseButton :loading="isSubmitting" :disabled="!canSubmit" @click="handleSubmit">
+      <BaseButton :loading="isSubmitting" @click="handleSubmit">
         {{ isEditMode ? t('payment.agreementFormDialog.saveChanges') : t('payment.agreementFormDialog.createTitle') }}
       </BaseButton>
     </template>
