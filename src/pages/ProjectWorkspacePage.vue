@@ -111,8 +111,35 @@ watch(
   project,
   (value, oldValue) => {
     if (value && (!oldValue || oldValue.id !== value.id)) {
-      activeTab.value = 'overview'
-      stageContext.value = 'Requirement'
+      // A notification that linked here carries its own ?tab= query
+      // (see notification_service.py's link_query) so it opens straight
+      // on the view it's actually about -- e.g. "Quotation approved"
+      // opens the Quotation view, not the Requirement/Overview default
+      // every other way of reaching a project still uses. Deliberately
+      // narrower than the old, removed behaviour the comment above
+      // warns about (the same project opening differently depending on
+      // which page you came from, e.g. ?tab=payment-status from the
+      // Payments list): nothing else in the app sets this query param
+      // any more, only a notification's own one-time link does, so
+      // this can't reintroduce that ambient inconsistency. Validated
+      // against STAGE_TAB_KEYS itself (not just any ProjectWorkspaceTabKey)
+      // since that's also exactly the lookup needed to set stageContext
+      // to match -- a tab with no real workflow stage behind it
+      // (overview/documents/tasks/contract-documents) was never a valid
+      // *notification* destination in the first place.
+      const requestedTab = route.query.tab
+      const requestedStage =
+        typeof requestedTab === 'string' ? STAGE_TAB_KEYS[requestedTab as ProjectWorkspaceTabKey] : undefined
+      if (requestedStage) {
+        activeTab.value = requestedTab as ProjectWorkspaceTabKey
+        stageContext.value = requestedStage
+        const restQuery = { ...route.query }
+        delete restQuery.tab
+        void router.replace({ query: restQuery })
+      } else {
+        activeTab.value = 'overview'
+        stageContext.value = 'Requirement'
+      }
     }
   },
   { immediate: true },

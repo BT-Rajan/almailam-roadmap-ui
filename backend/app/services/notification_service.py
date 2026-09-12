@@ -15,6 +15,7 @@ def create_notification(
     category: str,
     link_route_name: str | None = None,
     link_params: dict[str, str] | None = None,
+    link_query: dict[str, str] | None = None,
 ) -> Notification:
     """Called by other services as a side effect of a real business event
     (task assigned, AI review completed, ...) -- there is no separate
@@ -31,6 +32,7 @@ def create_notification(
         read=False,
         link_route_name=link_route_name,
         link_params=link_params,
+        link_query=link_query,
     )
     db.add(notification)
     return notification
@@ -44,6 +46,7 @@ def notify_role(
     category: str,
     link_route_name: str | None = None,
     link_params: dict[str, str] | None = None,
+    link_query: dict[str, str] | None = None,
 ) -> int:
     """Broadcasts one notification to every active user with the given
     role -- e.g. every Administrator, when client_service.
@@ -55,7 +58,7 @@ def notify_role(
     the caller's transaction covers these rows too."""
     recipients = db.query(User).filter(User.role == role, User.is_active.is_(True)).all()
     for recipient in recipients:
-        create_notification(db, recipient.id, title, message, category, link_route_name, link_params)
+        create_notification(db, recipient.id, title, message, category, link_route_name, link_params, link_query)
     return len(recipients)
 
 

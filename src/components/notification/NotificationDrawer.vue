@@ -19,7 +19,7 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
   await notificationStore.markAsRead(notification.id)
   notificationStore.closeDrawer()
   if (notification.link) {
-    router.push({ name: notification.link.routeName, params: notification.link.params })
+    router.push({ name: notification.link.routeName, params: notification.link.params, query: notification.link.query })
   }
 }
 </script>

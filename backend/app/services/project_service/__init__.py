@@ -57,6 +57,24 @@ from app.services.project_service.queries import (  # noqa: F401
     list_projects,
 )
 
+# Mirrors the frontend's WORKFLOW_STAGE_TAB_KEYS (src/utils/
+# projectHelpers.ts) -- used only to pick a notification's link_query
+# {"tab": ...} so a project-workspace notification about a project
+# currently sitting at some stage (e.g. "hasn't moved in a while", past
+# its target date) opens ProjectWorkspacePage.vue on that stage's own
+# view, not always the Requirement/Overview default every
+# project-workspace link otherwise lands on.
+STAGE_TAB_KEYS: dict[str, str] = {
+    "Requirement": "requirement",
+    "Quotation": "quotation",
+    "Payment Plan": "payment-plan",
+    "Contract": "contract",
+    "Design": "design",
+    "Supervision": "supervision",
+    "Government Submission": "government",
+    "Handover": "handover",
+}
+
 
 def _auto_complete_linked_tasks(db: Session, task_filter, user_id: int | None) -> None:
     """Closes out any task still open under a Design activity/Permit/
@@ -152,6 +170,7 @@ def _recompute_permit_eligibility(db: Session, project: Project) -> None:
                 "-- its required Design work is complete.",
                 "System",
                 link_route_name="project-workspace", link_params={"projectId": project.project_no},
+                link_query={"tab": "government"},
             )
             permit.eligibility_notified_at = datetime.now(timezone.utc)
 
@@ -202,6 +221,7 @@ def _recompute_supervision_eligibility(db: Session, project: Project) -> None:
                 "-- its required Design work is complete.",
                 "System",
                 link_route_name="project-workspace", link_params={"projectId": project.project_no},
+                link_query={"tab": "supervision"},
             )
             activity.eligibility_notified_at = datetime.now(timezone.utc)
 
@@ -1656,6 +1676,7 @@ def confirm_requirement_scope(db: Session, project_no: str, user_id: int) -> Pro
                 f"Project {project.project_no}'s scope-confirmed email to the client failed: {error}",
                 "System",
                 link_route_name="project-workspace", link_params={"projectId": project.project_no},
+                link_query={"tab": "quotation"},
             )
             db.commit()
 
@@ -1782,6 +1803,7 @@ def check_and_notify_stale_projects(db: Session) -> int:
                 "Project",
                 link_route_name="project-workspace",
                 link_params={"projectId": project.project_no},
+                link_query={"tab": STAGE_TAB_KEYS.get(project.current_stage, "requirement")},
             )
             project.stale_notified_at = datetime.now(timezone.utc)
             notified_count += 1
@@ -1918,6 +1940,7 @@ def notify_handover_ready(db: Session, project_no: str, user_id: int | None) -> 
         f"client's signed hand-over acknowledgment and confirm it on the project.\n\n{checklist_text}",
         "Project",
         link_route_name="project-workspace", link_params={"projectId": project.project_no},
+        link_query={"tab": "handover"},
     )
     db.commit()
     return project
@@ -2041,6 +2064,7 @@ def check_and_notify_unpaid_completed_projects(db: Session) -> int:
                     "Supervision item closed, but is not yet fully paid.",
                     "Project",
                     link_route_name="project-workspace", link_params={"projectId": project.project_no},
+                    link_query={"tab": "handover-payment"},
                 )
                 project.unpaid_completion_notified_at = datetime.now(timezone.utc)
                 notified_count += 1
@@ -2076,6 +2100,7 @@ def check_and_notify_overdue_projects(db: Session) -> int:
             "and is still Active.",
             "Project",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": STAGE_TAB_KEYS.get(project.current_stage, "requirement")},
         )
         project.overdue_notified_at = datetime.now(timezone.utc)
         notified_count += 1
