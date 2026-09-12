@@ -1,4 +1,4 @@
--- Migration 0091: drop the client consent-tracking and verification-log
+-- Migration 0092: drop the client consent-tracking and verification-log
 -- feature entirely.
 --
 -- client_consents (a formal, audited record of a client granting/
@@ -24,7 +24,7 @@
 -- as every other migration here.
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0091_drop_client_consents_and_verifications.sql
+--   mysql -u <user> -p <database> < backend/migrations/0092_drop_client_consents_and_verifications.sql
 
 SET @db := DATABASE();
 
@@ -42,4 +42,4 @@ SET @tbl_exists := (
 SET @sql := IF(@tbl_exists > 0, 'DROP TABLE client_consents', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SELECT 'Migration 0091 complete.' AS status;
+SELECT 'Migration 0092 complete.' AS status;
