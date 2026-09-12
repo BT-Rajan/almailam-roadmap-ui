@@ -59,7 +59,10 @@ const dueTime = ref('17:00')
 // previously-selected project can't carry over.
 const selectedActivityId = ref('')
 const titleError = ref<string>()
+const projectError = ref<string>()
+const assignedToError = ref<string>()
 const dueDateError = ref<string>()
+const startDateError = ref<string>()
 
 const projectOptions = computed<SelectOption[]>(() =>
   props.projects.map((project) => ({ label: project.projectName, value: project.id })),
@@ -96,10 +99,6 @@ const assigneeOptions = computed<SelectOption[]>(() =>
     })),
 )
 
-const canSubmit = computed(
-  () => title.value.trim().length > 0 && projectId.value.length > 0 && assignedTo.value.length > 0 && dueDate.value.length > 0,
-)
-
 watch(
   () => props.modelValue,
   (isOpen) => {
@@ -127,7 +126,10 @@ function resetForm(): void {
   dueTime.value = '17:00'
   selectedActivityId.value = ''
   titleError.value = undefined
+  projectError.value = undefined
+  assignedToError.value = undefined
   dueDateError.value = undefined
+  startDateError.value = undefined
 }
 
 function closeDialog(): void {
@@ -136,9 +138,16 @@ function closeDialog(): void {
 }
 
 function submitTask(): void {
-  titleError.value = title.value.trim().length === 0 ? 'Task title is required' : undefined
-  dueDateError.value = dueDate.value.length === 0 ? 'Completion date is required' : undefined
-  if (!canSubmit.value) return
+  titleError.value = title.value.trim().length === 0 ? t('task.formDialog.titleRequired') : undefined
+  projectError.value = projectId.value.length === 0 ? t('task.formDialog.projectRequired') : undefined
+  assignedToError.value = assignedTo.value.length === 0 ? t('task.formDialog.assigneeRequired') : undefined
+  dueDateError.value = dueDate.value.length === 0 ? t('task.formDialog.dueDateRequired') : undefined
+  // Nothing checked this before -- a task could be created with a start
+  // date after its own due date, which makes no sense. Mirrors the new
+  // backend check in task_service.create_task/update_task.
+  startDateError.value =
+    startDate.value && dueDate.value && startDate.value > dueDate.value ? t('task.formDialog.startDateAfterDueDate') : undefined
+  if (titleError.value || projectError.value || assignedToError.value || dueDateError.value || startDateError.value) return
 
   emit('create', {
     projectId: projectId.value,
@@ -167,7 +176,7 @@ function submitTask(): void {
         :error="titleError"
       />
 
-      <SelectBox v-model="projectId" :label="t('task.formDialog.project')" :placeholder="t('task.formDialog.projectPlaceholder')" :options="projectOptions" required />
+      <SelectBox v-model="projectId" :label="t('task.formDialog.project')" :placeholder="t('task.formDialog.projectPlaceholder')" :options="projectOptions" required :error="projectError" />
       <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">{{ t('task.formDialog.client', { name: selectedClientName }) }}</p>
 
       <SelectBox
@@ -183,20 +192,21 @@ function submitTask(): void {
         :label="t('task.formDialog.assignTo')"
         :options="assigneeOptions"
         required
+        :error="assignedToError"
         @update:model-value="assignedTo = $event"
       />
 
-      <DatePicker v-model="startDate" :label="t('task.formDialog.startDate')" />
+      <DatePicker v-model="startDate" :label="t('task.formDialog.startDate')" :max="dueDate || undefined" :error="startDateError" />
 
       <div class="grid grid-cols-2 gap-4">
-        <DatePicker v-model="dueDate" :label="t('task.formDialog.completionDate')" required :error="dueDateError" />
+        <DatePicker v-model="dueDate" :label="t('task.formDialog.completionDate')" required :min="startDate || undefined" :error="dueDateError" />
         <TimePicker v-model="dueTime" :label="t('task.formDialog.completionTime')" required />
       </div>
     </div>
 
     <template #footer>
       <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
-      <BaseButton :disabled="!canSubmit" @click="submitTask">{{ t('task.formDialog.createTask') }}</BaseButton>
+      <BaseButton @click="submitTask">{{ t('task.formDialog.createTask') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

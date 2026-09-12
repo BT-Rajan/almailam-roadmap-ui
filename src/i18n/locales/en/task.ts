@@ -107,6 +107,11 @@ export default {
     completionDate: 'Completion Date',
     completionTime: 'Completion Time',
     createTask: 'Create Task',
+    titleRequired: 'Task title is required.',
+    projectRequired: 'Please select a project.',
+    assigneeRequired: 'Please assign this task to someone.',
+    dueDateRequired: 'Completion date is required.',
+    startDateAfterDueDate: 'Start date cannot be after the completion date.',
   },
 
   fieldReportHistory: {

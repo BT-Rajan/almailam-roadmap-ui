@@ -107,6 +107,11 @@ export default {
     completionDate: 'تاريخ الإنجاز',
     completionTime: 'وقت الإنجاز',
     createTask: 'إنشاء مهمة',
+    titleRequired: 'عنوان المهمة مطلوب.',
+    projectRequired: 'الرجاء اختيار مشروع.',
+    assigneeRequired: 'الرجاء إسناد هذه المهمة إلى شخص ما.',
+    dueDateRequired: 'تاريخ الإنجاز مطلوب.',
+    startDateAfterDueDate: 'لا يمكن أن يكون تاريخ البدء بعد تاريخ الإنجاز.',
   },
 
   fieldReportHistory: {

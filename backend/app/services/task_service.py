@@ -105,6 +105,14 @@ def create_task(db: Session, payload, user_id: int) -> Task:
         if payload.selectedActivityId is not None
         else None
     )
+    if payload.startDate is not None and payload.startDate > payload.dueDate:
+        # Nothing checked this at all (frontend or backend) -- a task
+        # could be created with a start date after its own due date,
+        # which makes no sense (the task would be "due" before it even
+        # starts). Applies the same reasoning as
+        # ProjectCreate.target_after_start/NewContractDialog's own
+        # start/end ordering, just for a task's own two dates.
+        raise ValidationAppError("Start date cannot be after the due date.")
 
     task = Task(
         task_no=next_task_number(db, project.id, project.project_no),
@@ -170,6 +178,16 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
         if new_activity_id != task.selected_activity_id:
             changes["selected_activity_id"] = (task.selected_activity_id, new_activity_id)
             task.selected_activity_id = new_activity_id
+
+    if task.start_date is not None and task.start_date > task.due_date:
+        # Same check as create_task -- needs to run here too (not just
+        # at creation) since startDate and dueDate can each be edited
+        # independently of the other (see the loop above), so a since-
+        # valid pair can be pushed out of order by changing just one of
+        # them. Checked against task's own final, already-merged state
+        # (whichever of the two this payload didn't touch keeps its
+        # existing value), not the payload alone.
+        raise ValidationAppError("Start date cannot be after the due date.")
 
     # A 'Preset' service task (see project_service._create_service_tasks)
     # graduates to 'Pending' the moment anything about it actually
