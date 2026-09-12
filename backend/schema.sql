@@ -299,7 +299,6 @@ CREATE TABLE IF NOT EXISTS projects (
     current_stage   ENUM('Requirement','Quotation','Payment Plan','Contract','Design','Government Submission','Supervision','Handover')
                         NOT NULL DEFAULT 'Requirement',
     progress        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-    priority        ENUM('High','Medium','Low') NOT NULL DEFAULT 'Medium',
     start_date      DATE NOT NULL,
     target_date     DATE NOT NULL,
     -- "Completed" (migration 0089) is only ever reached via

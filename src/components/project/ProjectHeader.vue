@@ -28,7 +28,7 @@ const { t } = useI18n()
 <template>
   <!-- Single row: id + name + the four meta facts + actions all share one
        line now instead of stacking id/name, then meta, then a separate
-       badges/actions row underneath. Status and priority badges, and the
+       badges/actions row underneath. Status badges and the
        Add Service button, are hidden for now (not removed -- see the
        commented-out block below) at the request of the person maintaining
        this screen; @change-stage/@change-status/@add-service stay declared
@@ -58,9 +58,8 @@ const { t } = useI18n()
     </span>
 
     <div class="ml-auto flex shrink-0 items-center gap-2">
-      <!-- Status badge (Active/On Hold/...), priority badge (Medium
-           Priority/...), and the Add Service button are hidden for now.
-           Change Stage / Change Status buttons were already hidden
+      <!-- Status badge (Active/On Hold/...) and the Add Service button
+           are hidden for now. Change Stage / Change Status buttons were already hidden
            earlier for the same reason they're commented rather than
            deleted: this is currently the only UI path that calls
            projectStore.setStage/setStatus (see ProjectWorkspacePage.vue's
@@ -71,7 +70,6 @@ const { t } = useI18n()
            Cancelled, or have a service added from this screen. Uncomment
            to restore any of them. -->
       <!-- <StatusBadge :label="statusLabel" :variant="getProjectStatusVariant(project.status)" showDot /> -->
-      <!-- <StatusBadge :label="priorityBadgeLabel" :variant="getProjectPriorityVariant(project.priority)" /> -->
       <!-- <BaseButton variant="secondary" size="sm" :icon="Workflow" class="no-print" @click="$emit('change-stage')">{{ t('project.header.stage') }}</BaseButton> -->
       <!-- <BaseButton v-if="project.status !== 'Completed'" variant="secondary" size="sm" :icon="RefreshCw" class="no-print" @click="$emit('change-status')">{{ t('project.header.status') }}</BaseButton> -->
       <!-- <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="$emit('add-service')">{{ t('project.header.addService') }}</BaseButton> -->

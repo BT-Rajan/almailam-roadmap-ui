@@ -46,6 +46,53 @@ def _to_out(db: Session, submission) -> SubmissionOut:
     )
 
 
+def _to_out_batch(db: Session, submissions: list) -> list[SubmissionOut]:
+    """Batched sibling of _to_out -- for a list of submissions, resolves
+    every project and every document-uploader/proof-uploader name with a
+    constant number of queries total (one for projects, one for all
+    documents, one for all users) instead of _to_out's several queries
+    per submission. Same output shape as calling _to_out on each."""
+    if not submissions:
+        return []
+
+    project_ids = {s.project_id for s in submissions}
+    project_nos = {
+        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
+    }
+
+    documents_by_submission = submission_service.get_documents_by_submission(db, [s.id for s in submissions])
+
+    user_ids: set[int] = set()
+    for submission in submissions:
+        user_ids.add(submission.proof_of_submission_uploaded_by)
+        user_ids.add(submission.proof_of_response_uploaded_by)
+    for documents in documents_by_submission.values():
+        user_ids.update(d.uploaded_by for d in documents)
+    names = submission_service.user_names(db, user_ids)
+
+    def _name(user_id: int | None) -> str | None:
+        if user_id is None:
+            return None
+        return names.get(user_id, "Unknown")
+
+    out = []
+    for submission in submissions:
+        documents = documents_by_submission.get(submission.id, [])
+        out.append(
+            SubmissionOut.from_model(
+                submission,
+                project_nos.get(submission.project_id, ""),
+                documents,
+                document_uploader_names={
+                    d.id: names.get(d.uploaded_by, "Unknown") for d in documents if d.uploaded_by
+                },
+                proof_of_submission_uploader_name=_name(submission.proof_of_submission_uploaded_by),
+                proof_of_response_uploader_name=_name(submission.proof_of_response_uploaded_by),
+            )
+        )
+    return out
+
+
 @router.get("", response_model=list[SubmissionOut])
 def list_submissions(
     projectId: str | None = None,
@@ -54,7 +101,7 @@ def list_submissions(
     _=Depends(can_view),
 ):
     submissions = submission_service.list_submissions(db, projectId, status)
-    return [_to_out(db, s) for s in submissions]
+    return _to_out_batch(db, submissions)
 
 
 @router.get("/{submission_no}", response_model=SubmissionOut)

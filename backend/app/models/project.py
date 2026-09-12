@@ -83,7 +83,6 @@ WORKFLOW_STAGES = (
     "Supervision",
     "Handover",
 )
-PROJECT_PRIORITIES = ("High", "Medium", "Low")
 # Status of one selected Design/Supervision activity instance on a
 # project (migration 0073) -- "Not Started"/"In Progress" are
 # informational only (nothing currently distinguishes them beyond
@@ -152,9 +151,6 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
         Enum(*WORKFLOW_STAGES, name="project_workflow_stage"), nullable=False, default="Requirement"
     )
     progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    priority: Mapped[str] = mapped_column(
-        Enum(*PROJECT_PRIORITIES, name="project_priority"), nullable=False, default="Medium"
-    )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     target_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(

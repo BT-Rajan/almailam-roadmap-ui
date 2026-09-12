@@ -47,6 +47,48 @@ def _to_out(db: Session, contract, confirmation_email_sent: bool | None = None) 
     )
 
 
+def _to_out_batch(db: Session, contracts: list) -> list[ContractOut]:
+    """Batched sibling of _to_out -- for a list of contracts, resolves
+    every project, preparer name, clause set, revision set (and their
+    authors), and linked quotation with a constant number of queries
+    total instead of _to_out's several queries per contract. In
+    practice list_contracts is always called scoped to one project (the
+    frontend has no unscoped "all contracts" view), so this rarely has
+    much to batch -- but it's the same fix as list_submissions and
+    list_agreements, for the same reason, in case that ever changes."""
+    from app.models.quotation import Quotation
+
+    if not contracts:
+        return []
+
+    project_ids = {c.project_id for c in contracts}
+    project_nos = {p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()}
+
+    prepared_by_ids = {c.prepared_by for c in contracts}
+    user_names = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(prepared_by_ids)).all()}
+
+    contract_ids = [c.id for c in contracts]
+    clauses_by_contract = contract_service.get_clauses_by_contract(db, contract_ids)
+    revisions_by_contract = contract_service.get_revisions_with_names_by_contract(db, contract_ids)
+
+    quotation_ids = {c.quotation_id for c in contracts if c.quotation_id is not None}
+    quotation_nos = {
+        q.id: q.quotation_no for q in db.query(Quotation).filter(Quotation.id.in_(quotation_ids)).all()
+    }
+
+    return [
+        ContractOut.from_model(
+            c,
+            project_nos.get(c.project_id, ""),
+            user_names.get(c.prepared_by, "Unknown"),
+            clauses_by_contract.get(c.id, []),
+            revisions_by_contract.get(c.id, []),
+            quotation_nos.get(c.quotation_id) if c.quotation_id is not None else None,
+        )
+        for c in contracts
+    ]
+
+
 @router.get("", response_model=list[ContractOut])
 def list_contracts(
     projectId: str | None = None,
@@ -54,7 +96,7 @@ def list_contracts(
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    return [_to_out(db, c) for c in contract_service.list_contracts(db, projectId, status)]
+    return _to_out_batch(db, contract_service.list_contracts(db, projectId, status))
 
 
 @router.get("/{contract_no}", response_model=ContractOut)

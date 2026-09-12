@@ -80,6 +80,34 @@ def get_documents(db: Session, submission_id: int) -> list[SubmissionDocument]:
     )
 
 
+def get_documents_by_submission(db: Session, submission_ids: list[int]) -> dict[int, list[SubmissionDocument]]:
+    """Batched sibling of get_documents -- one query for every submission's
+    documents instead of one query per submission. Used by list_submissions'
+    _to_out_batch (see api/submissions.py) to avoid an N+1 there."""
+    if not submission_ids:
+        return {}
+    documents = (
+        db.query(SubmissionDocument)
+        .filter(SubmissionDocument.submission_id.in_(submission_ids))
+        .order_by(SubmissionDocument.id.asc())
+        .all()
+    )
+    by_submission: dict[int, list[SubmissionDocument]] = {sid: [] for sid in submission_ids}
+    for document in documents:
+        by_submission[document.submission_id].append(document)
+    return by_submission
+
+
+def user_names(db: Session, user_ids: set[int]) -> dict[int, str]:
+    """Batched sibling of user_name -- one query for a whole set of user
+    ids instead of one query per id. Callers still need their own
+    None -> "System" handling, same as user_name(None)."""
+    user_ids.discard(None)
+    if not user_ids:
+        return {}
+    return {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+
+
 def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSubmission:
     project = _parse_project_id_from_no(payload.projectId, db)
     authority_id = government_service.parse_authority_id(payload.authorityId)

@@ -68,8 +68,6 @@ export interface AddServicesInput {
   supervisionEndDate?: string | null
 }
 
-export type ProjectPriority = 'High' | 'Medium' | 'Low'
-
 // One Supervision activity picked in the unified ServicePickerDialog at
 // project setup -- see Project.selectedSupervisionActivities below.
 // startDate/endDate are this activity's own window, independent of the
@@ -144,7 +142,6 @@ export interface Project {
   engineer: string
   currentStage: WorkflowStage
   progress: number
-  priority: ProjectPriority
   startDate: string
   targetDate: string
   status: ProjectStatus
