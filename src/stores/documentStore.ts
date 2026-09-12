@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { documentService } from '@/services/documentService'
-import { projectService } from '@/services/projectService'
+import { useProjectStore } from '@/stores/projectStore'
 import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
@@ -15,7 +15,6 @@ interface DocumentPaginationState {
 
 interface DocumentStoreState {
   documents: ProjectDocument[]
-  projects: Project[]
   currentDocument: ProjectDocument | undefined
   currentVersions: DocumentVersion[]
   isLoading: boolean
@@ -36,7 +35,6 @@ interface DocumentStoreState {
 export const useDocumentStore = defineStore('document', {
   state: (): DocumentStoreState => ({
     documents: [],
-    projects: [],
     currentDocument: undefined,
     currentVersions: [],
     isLoading: false,
@@ -56,8 +54,15 @@ export const useDocumentStore = defineStore('document', {
       return state.searchTerm.trim().length > 0 || state.typeFilter !== 'All' || state.statusFilter !== 'All'
     },
 
-    getProjectById(state) {
-      return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    // projectStore is the single, canonical place the full project list
+    // lives -- see its own comment on `clients` for why this delegates
+    // rather than keeping (and independently fetching) a second copy.
+    projects(): Project[] {
+      return useProjectStore().projects
+    },
+
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
 
     documentsByProject(state) {
@@ -71,9 +76,13 @@ export const useDocumentStore = defineStore('document', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [documents, projects] = await Promise.all([documentService.getDocuments(), projectService.getProjects()])
-        this.documents = documents
-        this.projects = projects
+        const projectStore = useProjectStore()
+        await Promise.all([
+          documentService.getDocuments().then((documents) => {
+            this.documents = documents
+          }),
+          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+        ])
       } catch {
         this.error = 'Unable to load documents. Please try again.'
       } finally {
@@ -89,8 +98,9 @@ export const useDocumentStore = defineStore('document', {
       this.isPageLoading = true
       this.error = undefined
       try {
-        if (this.projects.length === 0) {
-          this.projects = await projectService.getProjects()
+        const projectStore = useProjectStore()
+        if (projectStore.projects.length === 0) {
+          await projectStore.loadProjects()
         }
         const result = await documentService.getDocumentsPage({
           page: this.pagination.page,
@@ -134,8 +144,9 @@ export const useDocumentStore = defineStore('document', {
         ])
         this.currentDocument = document
         this.currentVersions = versions
-        if (this.projects.length === 0) {
-          this.projects = await projectService.getProjects()
+        const projectStore = useProjectStore()
+        if (projectStore.projects.length === 0) {
+          await projectStore.loadProjects()
         }
       } catch {
         this.error = 'Unable to load document. Please try again.'

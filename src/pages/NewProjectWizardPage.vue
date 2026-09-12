@@ -181,7 +181,7 @@ const clientOptions = ref<SelectOption[]>([])
 const hasIneligibleClients = ref(false)
 const engineerOptions = ref<SelectOption[]>([])
 
-onMounted(async () => {
+async function loadClientOptions(): Promise<void> {
   // Always fetch fresh -- not guarded by `if (projectStore.clients.length
   // === 0)` the way this used to be. That guard meant the eligible-clients
   // list was only ever fetched once per session: if projectStore.clients
@@ -194,12 +194,6 @@ onMounted(async () => {
   // a cache that might be from before the thing being checked changed.
   await projectStore.loadProjects()
 
-  // Services (and their activities/prices) come from the admin-configurable
-  // catalog (Administration > Catalogs > Service Catalog) and feed the service picker
-  // dialog directly, so anything added there shows up here without a code
-  // change. Fetched fresh for the same reason as the client list above.
-  await serviceCatalogStore.loadServices()
-  if (permitCatalogStore.permits.length === 0) await permitCatalogStore.loadPermits()
   // Only Active clients can have a project created for them -- a project
   // needs a real, currently active client relationship behind it, not
   // one the business has since deactivated.
@@ -217,21 +211,39 @@ onMounted(async () => {
   if (typeof preselectedClientId === 'string' && clientOptions.value.some((option) => option.value === preselectedClientId)) {
     form.clientId = preselectedClientId
   }
+}
 
-  if (userStore.users.length === 0) {
-    await userStore.loadUsers()
-  }
+async function loadEngineerOptions(): Promise<void> {
+  await userStore.loadUsers()
   engineerOptions.value = userStore.users
     .filter((user) => user.role === 'Engineer' && user.status === 'Active')
     .map((user) => ({ label: user.name, value: user.id }))
+}
 
-  // This store swallows a failed load into its own `.error` field rather
-  // than throwing (see serviceCatalogStore), which otherwise looks
-  // identical to "the catalog is genuinely empty" -- the service picker
-  // has no error state of its own and would just print "No Design
-  // services in the catalog yet." either way. Surface it here instead so
-  // a real load failure (permissions, network) is never silently
-  // indistinguishable from an empty catalog.
+onMounted(async () => {
+  // These four loads are fully independent of each other (client list,
+  // service catalog, permit catalog, engineer list) -- previously
+  // awaited one after another, so the page's total load time was the
+  // *sum* of four round trips instead of just the slowest one. Same
+  // "don't serialize independent work" reasoning as the client
+  // module's own duplicate-check query optimization.
+  await Promise.all([
+    loadClientOptions(),
+    serviceCatalogStore.loadServices(),
+    permitCatalogStore.permits.length === 0 ? permitCatalogStore.loadPermits() : Promise.resolve(),
+    loadEngineerOptions(),
+  ])
+
+  // projectStore/userStore both swallow a failed load into their own
+  // `.error` field rather than throwing (see serviceCatalogStore) --
+  // which otherwise looks identical to "there's genuinely nothing
+  // eligible yet". Previously only the service catalog's own failure was
+  // ever surfaced here (as a toast further below); a failed client or
+  // engineer list just left those two *required* fields silently stuck
+  // at zero options with no indication why and no way to recover short
+  // of reloading the whole page -- surfaced inline next to each field
+  // instead, with its own retry action, same treatment as the New Client
+  // wizard's Account Manager field (see ClientBasicInfoStep.vue).
   if (serviceCatalogStore.error) {
     toastStore.show('error', t('project.newWizard.couldNotLoadServiceCatalog'), serviceCatalogStore.error)
   }
@@ -388,7 +400,13 @@ function goToCreatedProject(): void {
                 :options="clientOptions"
                 :error="errors.clientId"
               />
-              <p v-if="clientOptions.length === 0" class="text-xs text-warning-600">
+              <p v-if="projectStore.error" class="flex items-center gap-1.5 text-xs text-danger-700">
+                {{ t('project.newWizard.couldNotLoadClients') }}
+                <button type="button" class="font-medium underline underline-offset-2" @click="loadClientOptions">
+                  {{ t('client.basicInfoStep.retry') }}
+                </button>
+              </p>
+              <p v-else-if="clientOptions.length === 0" class="text-xs text-warning-600">
                 {{ t('project.newWizard.noEligibleClients') }}
               </p>
               <p v-else-if="hasIneligibleClients" class="text-xs text-text-muted">
@@ -443,14 +461,22 @@ function goToCreatedProject(): void {
                 {{ t('project.overviewTab.permitsTitle') }}: {{ form.selectedPermits.map((p) => p.name).join(', ') }}
               </p>
             </div>
-            <SelectBox
-              v-model="form.engineer"
-              :label="t('project.newWizard.fieldEngineer')"
-              :placeholder="t('project.newWizard.assignEngineer')"
-              required
-              :options="engineerOptions"
-              :error="errors.engineer"
-            />
+            <div>
+              <SelectBox
+                v-model="form.engineer"
+                :label="t('project.newWizard.fieldEngineer')"
+                :placeholder="t('project.newWizard.assignEngineer')"
+                required
+                :options="engineerOptions"
+                :error="errors.engineer"
+              />
+              <p v-if="userStore.error && engineerOptions.length === 0" class="mt-1.5 flex items-center gap-1.5 text-xs text-danger-700">
+                {{ t('project.newWizard.couldNotLoadEngineers') }}
+                <button type="button" class="font-medium underline underline-offset-2" @click="loadEngineerOptions">
+                  {{ t('client.basicInfoStep.retry') }}
+                </button>
+              </p>
+            </div>
           </div>
         </FormSection>
 

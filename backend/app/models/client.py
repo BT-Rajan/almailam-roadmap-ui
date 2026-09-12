@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -32,6 +32,10 @@ PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")
 
 class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "clients"
+    # See migration 0091 -- backs ClientsPage's status filter on top of
+    # the deleted_at IS NULL baseline every client query applies
+    # (client_service.list_clients).
+    __table_args__ = (Index("idx_clients_deleted_status", "deleted_at", "status"),)
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     client_type: Mapped[str] = mapped_column(Enum(*CLIENT_TYPES, name="client_type"), nullable=False)

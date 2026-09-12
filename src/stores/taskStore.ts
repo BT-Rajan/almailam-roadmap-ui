@@ -1,16 +1,15 @@
 import { defineStore } from 'pinia'
 
-import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
 import type { TaskInput } from '@/services/taskService'
 import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import type { Project } from '@/types/Project'
 import type { Task, TaskStatus } from '@/types/Task'
 
 interface TaskStoreState {
   tasks: Task[]
-  projects: Project[]
   isLoading: boolean
   error: string | undefined
   searchTerm: string
@@ -22,7 +21,6 @@ interface TaskStoreState {
 export const useTaskStore = defineStore('task', {
   state: (): TaskStoreState => ({
     tasks: [],
-    projects: [],
     isLoading: false,
     error: undefined,
     searchTerm: '',
@@ -32,8 +30,19 @@ export const useTaskStore = defineStore('task', {
   }),
 
   getters: {
-    getProjectById(state) {
-      return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    // projectStore is the single, canonical place the full project list
+    // lives -- this store used to keep an entirely separate copy fetched
+    // independently in loadTasks() below. Delegating means every
+    // existing `taskStore.projects` / `taskStore.getProjectById` call
+    // site keeps working unchanged, but the actual fetch (and the O(1)
+    // id lookup) now happens once, shared with every other store that
+    // needs the same data.
+    projects(): Project[] {
+      return useProjectStore().projects
+    },
+
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
 
     // Every task belongs to exactly one project, and every project to
@@ -41,12 +50,11 @@ export const useTaskStore = defineStore('task', {
     // client is always resolvable transitively through its project.
     // Centralized here rather than in each view so "Unknown Client"
     // fallback wording only lives in one place.
-    getClientNameByProjectId(state) {
-      return (projectId: string): string => {
-        const project = state.projects.find((item) => item.id === projectId)
+    getClientNameByProjectId(): (projectId: string) => string {
+      return (projectId: string) => {
+        const project = useProjectStore().getProjectById(projectId)
         if (!project) return 'Unknown Client'
-        const clientStore = useClientStore()
-        return clientStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client'
+        return useClientStore().getClientById(project.clientId)?.companyName ?? 'Unknown Client'
       }
     },
 
@@ -101,14 +109,15 @@ export const useTaskStore = defineStore('task', {
       this.isLoading = true
       this.error = undefined
       try {
+        const projectStore = useProjectStore()
         const clientStore = useClientStore()
-        const [tasks, projects] = await Promise.all([
-          taskService.getTasks(),
-          projectService.getProjects(),
+        await Promise.all([
+          taskService.getTasks().then((tasks) => {
+            this.tasks = tasks
+          }),
+          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
           clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
         ])
-        this.tasks = tasks
-        this.projects = projects
       } catch {
         this.error = 'Unable to load tasks. Please try again.'
       } finally {

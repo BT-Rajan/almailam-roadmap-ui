@@ -57,6 +57,7 @@ const infoMessage = ref<string>()
 const isForgotPasswordOpen = ref(false)
 const isSubmitting = ref(false)
 const idInputRef = ref<InstanceType<typeof TextInput>>()
+const passwordInputRef = ref<InstanceType<typeof TextInput>>()
 
 onMounted(() => {
   if (props.initialMessage) infoMessage.value = props.initialMessage
@@ -77,6 +78,16 @@ async function signIn(): Promise<void> {
 
   authError.value = undefined
   infoMessage.value = undefined
+
+  // Browser-saved credentials can land in the DOM without v-model
+  // having caught up yet (see TextInput.getValue) -- reconcile from the
+  // actual inputs before validating, so a login autofilled a moment ago
+  // doesn't fail on the very first click just because Vue's state was
+  // still stale at that instant. Harmless no-op when nothing was
+  // autofilled: falls back to the current v-model value either way.
+  id.value = idInputRef.value?.getValue() ?? id.value
+  password.value = passwordInputRef.value?.getValue() ?? password.value
+
   if (!validateAll({ id: id.value, password: password.value })) return
 
   isSubmitting.value = true
@@ -110,6 +121,7 @@ function clearLogin(): void {
     />
 
     <TextInput
+      ref="passwordInputRef"
       v-model="password"
       type="password"
       :label="t('auth.passwordLabel')"

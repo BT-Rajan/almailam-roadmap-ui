@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 
-import { clientService } from '@/services/clientService'
 import { paymentService } from '@/services/paymentService'
-import { projectService } from '@/services/projectService'
+import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import type { Client } from '@/types/Client'
 import type {
@@ -32,8 +32,6 @@ interface PaymentAgreementRow {
 interface PaymentStoreState {
   agreements: FinancialAgreement[]
   obligations: PaymentObligation[]
-  projects: Project[]
-  clients: Client[]
   // Per-agreement detail, loaded lazily when a workspace/detail view opens
   // rather than eagerly for every agreement up front.
   paymentsByAgreement: Record<string, Payment[]>
@@ -51,8 +49,6 @@ export const usePaymentStore = defineStore('payment', {
   state: (): PaymentStoreState => ({
     agreements: [],
     obligations: [],
-    projects: [],
-    clients: [],
     paymentsByAgreement: {},
     auditEventsByAgreement: {},
     refundsByAgreement: {},
@@ -65,12 +61,18 @@ export const usePaymentStore = defineStore('payment', {
   }),
 
   getters: {
-    getProjectById(state) {
-      return (projectId: string): Project | undefined => state.projects.find((project) => project.id === projectId)
+    // projectStore/clientStore are the single, canonical places these
+    // full lists live -- this store used to keep two more independently-
+    // fetched copies of the exact same data (loadAll below). Delegating
+    // keeps every existing `paymentStore.getProjectById`/`getClientById`
+    // call site working unchanged while removing those duplicate fetches
+    // and getting the O(1) Map lookup those stores already do.
+    getProjectById(): (projectId: string) => Project | undefined {
+      return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
 
-    getClientById(state) {
-      return (clientId: string): Client | undefined => state.clients.find((client) => client.id === clientId)
+    getClientById(): (clientId: string) => Client | undefined {
+      return (clientId: string) => useClientStore().getClientById(clientId)
     },
 
     // stream is optional only for legacy callers that pre-date Supervision
@@ -153,16 +155,16 @@ export const usePaymentStore = defineStore('payment', {
       this.isLoading = true
       this.error = undefined
       try {
-        const [agreements, obligations, projects, clients] = await Promise.all([
+        const projectStore = useProjectStore()
+        const clientStore = useClientStore()
+        const [agreements, obligations] = await Promise.all([
           paymentService.getFinancialAgreements(),
           paymentService.getAllObligations(),
-          projectService.getProjects(),
-          clientService.getClients(),
+          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
         ])
         this.agreements = agreements
         this.obligations = obligations
-        this.projects = projects
-        this.clients = clients
       } catch {
         this.error = 'Unable to load payment information. Please try again.'
       } finally {

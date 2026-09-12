@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Check } from '@lucide/vue'
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { stepBarClasses, stepLabelClasses } from '@/utils/stepperStyle'
 
 interface WizardStep {
   label: string
-  description?: string
 }
 
 interface Props {
@@ -67,64 +66,31 @@ function isNavigable(index: number): boolean {
 function handleStepClick(index: number): void {
   if (isNavigable(index)) emit('select', index)
 }
-
-// Completed = green, work-in-progress (current) = blue (info -- the
-// closest theme-aware token to "blue"; there's no separate blue scale),
-// yet to begin (upcoming) = grey. All three shades used below (500/600)
-// have dark-mode overrides in styles/main.css already, same as every
-// other status color in the app.
-const circleClasses = computed(() => (index: number) => {
-  const status = stepStatus(index)
-  return [
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors duration-fast',
-    status === 'complete' ? 'border-success-500 bg-success-500 text-white' : '',
-    status === 'current' ? 'border-info-500 bg-bg-card text-info-600' : '',
-    status === 'upcoming' ? 'border-border-default bg-bg-card text-text-muted' : '',
-    isNavigable(index) ? 'group-hover:brightness-110' : '',
-  ]
-})
-
-function connectorClasses(index: number): string[] {
-  return [
-    'h-0.5 flex-1 transition-colors duration-fast',
-    rankOf(index) < props.currentStep ? 'bg-success-500' : 'bg-border-default',
-  ]
-}
 </script>
 
 <template>
-  <ol class="flex items-start">
-    <li v-for="(step, index) in steps" :key="step.label" class="flex flex-1 items-center last:flex-none">
-      <!-- The whole circle+label column is the click target when
-           navigable, not just the small circle -- a step's name is a
-           much more natural (and larger) thing to click than its
-           32px status dot. -->
-      <component
-        :is="isNavigable(index) ? 'button' : 'div'"
-        :type="isNavigable(index) ? 'button' : undefined"
-        class="group flex flex-col items-center gap-2 text-center"
-        :class="isNavigable(index) ? 'cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500' : ''"
-        :aria-label="isNavigable(index) ? t('common.goToStep', { step: index + 1, label: step.label }) : undefined"
-        @click="handleStepClick(index)"
-      >
-        <div :class="circleClasses(index)">
-          <Check v-if="stepStatus(index) === 'complete'" class="h-4 w-4" />
-          <span v-else>{{ index + 1 }}</span>
-        </div>
-        <div class="max-w-[7rem]">
-          <p
-            class="text-xs font-medium"
-            :class="[
-              stepStatus(index) === 'upcoming' ? 'text-text-muted' : 'text-text-secondary',
-              isNavigable(index) ? 'group-hover:text-accent-600' : '',
-            ]"
-          >
-            {{ step.label }}
-          </p>
-          <p v-if="step.description" class="text-[11px] text-text-muted">{{ step.description }}</p>
-        </div>
-      </component>
-      <div v-if="index < steps.length - 1" :class="connectorClasses(index)" class="mx-3 mt-4" />
-    </li>
-  </ol>
+  <!-- One rendering only: a colored bar above each label, no connector
+       or numbered circle -- same treatment everywhere this component is
+       used (client/project creation wizards, the project workspace's
+       Workflow Progress bar, the customer portal's stage progress), so
+       a project or client's stage progress reads identically no matter
+       which screen shows it. Color rules live in
+       src/utils/stepperStyle.ts, shared with WorkflowProgress.vue's own
+       parallel-band ticks. -->
+  <div class="flex items-stretch gap-2">
+    <component
+      :is="isNavigable(index) ? 'button' : 'div'"
+      v-for="(step, index) in steps"
+      :key="step.label"
+      :type="isNavigable(index) ? 'button' : undefined"
+      class="flex flex-1 flex-col items-stretch gap-1"
+      :class="isNavigable(index) ? 'cursor-pointer' : ''"
+      :aria-label="isNavigable(index) ? t('common.goToStep', { step: index + 1, label: step.label }) : undefined"
+      :aria-current="stepStatus(index) === 'current' ? 'step' : undefined"
+      @click="handleStepClick(index)"
+    >
+      <span :class="[...stepBarClasses(stepStatus(index)), 'w-full']" />
+      <span :class="[...stepLabelClasses(stepStatus(index)), 'text-center']">{{ step.label }}</span>
+    </component>
+  </div>
 </template>

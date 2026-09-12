@@ -141,11 +141,28 @@ function buildScopeText(project: Project | undefined): string {
 }
 
 const form = reactive(formFromProject(props.project))
-const lineItemErrors = reactive<string[]>([])
+// One entry per line item, keyed by which specific field failed --
+// previously a single string per row was always rendered under the
+// Description input, so a bad quantity or unit price (0, or negative)
+// showed its error message next to a field that was actually fine.
+interface LineItemError {
+  description?: string
+  quantity?: string
+  unitPrice?: string
+}
+const lineItemErrors = reactive<LineItemError[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
   validity: [validators.required('Validity date is required'), validators.notPastDate('Validity date cannot be in the past')],
+  // Same subtotal-vs-discount rule as the backend (quotation_service.py's
+  // create_quotation/update_quotation) -- checked here too so it's an
+  // inline error the moment it happens, not a failed submit after a
+  // round trip. subtotal is read live since it depends on the line
+  // items, which can change after this rule is set.
+  discountAmount: [
+    () => form.discountAmount <= subtotal.value || t('project.newQuotationDialog.discountExceedsSubtotal'),
+  ],
 })
 
 watch(
@@ -179,14 +196,15 @@ function closeDialog(): void {
 function handleConfirm(): void {
   const formValid = validateAll(form)
 
-  const itemErrors = form.lineItems.map((item) => {
-    if (!item.description.trim()) return 'Description is required'
-    if (item.quantity <= 0) return 'Quantity must be greater than 0'
-    if (item.unitPrice < 0) return 'Unit price cannot be negative'
-    return ''
+  const itemErrors: LineItemError[] = form.lineItems.map((item) => {
+    const rowError: LineItemError = {}
+    if (!item.description.trim()) rowError.description = t('project.newQuotationDialog.descriptionRequired')
+    if (item.quantity <= 0) rowError.quantity = t('project.newQuotationDialog.quantityMustBePositive')
+    if (item.unitPrice < 0) rowError.unitPrice = t('project.newQuotationDialog.unitPriceCannotBeNegative')
+    return rowError
   })
   lineItemErrors.splice(0, lineItemErrors.length, ...itemErrors)
-  const lineItemsValid = itemErrors.every((error) => !error)
+  const lineItemsValid = itemErrors.every((rowError) => Object.keys(rowError).length === 0)
 
   if (!formValid || !lineItemsValid) return
 
@@ -257,13 +275,14 @@ function handleConfirm(): void {
             <tbody>
               <tr v-for="(item, index) in form.lineItems" :key="index" class="border-b border-border-light last:border-0">
                 <td class="px-3 py-2 align-top">
-                  <TextInput v-model="item.description" :placeholder="t('project.newQuotationDialog.descriptionPlaceholder')" :error="lineItemErrors[index]" />
+                  <TextInput v-model="item.description" :placeholder="t('project.newQuotationDialog.descriptionPlaceholder')" :error="lineItemErrors[index]?.description" />
                 </td>
                 <td class="px-3 py-2 align-top">
                   <NumberInput
                     :model-value="item.quantity"
                     :min="0.01"
                     step="0.01"
+                    :error="lineItemErrors[index]?.quantity"
                     @update:model-value="item.quantity = Number($event)"
                   />
                 </td>
@@ -272,6 +291,7 @@ function handleConfirm(): void {
                     :model-value="item.unitPrice"
                     :min="0"
                     step="0.01"
+                    :error="lineItemErrors[index]?.unitPrice"
                     @update:model-value="item.unitPrice = Number($event)"
                   />
                 </td>
@@ -300,6 +320,7 @@ function handleConfirm(): void {
         :label="t('project.newQuotationDialog.discountAmount')"
         :min="0"
         step="0.01"
+        :error="errors.discountAmount"
         @update:model-value="form.discountAmount = Number($event)"
       />
 

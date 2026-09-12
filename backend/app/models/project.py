@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Index, Numeric, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -104,6 +104,14 @@ SELECTED_SUPERVISION_STATUSES = ("Planned", "Eligible", "In Progress", "Complete
 
 class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     __tablename__ = "projects"
+    # See migration 0091 -- deleted_at IS NULL is the baseline filter on
+    # every project query (project_service.list_projects), on top of
+    # whichever of these two is the actual filter in play (the
+    # dashboard/stage-scoped views, or ProjectsPage's own status filter).
+    __table_args__ = (
+        Index("idx_projects_deleted_stage", "deleted_at", "current_stage"),
+        Index("idx_projects_deleted_status", "deleted_at", "status"),
+    )
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
     project_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)

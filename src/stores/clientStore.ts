@@ -84,8 +84,19 @@ export const useClientStore = defineStore('client', {
       return state.typeFilter !== 'All' || state.statusFilter !== 'All' || state.myClientsOnly
     },
 
-    getClientById(state) {
-      return (clientId: string): Client | undefined => state.clients.find((client) => client.id === clientId)
+    // Indexed once per change to `clients` (Pinia getters are cached the
+    // same way a Vue computed is) rather than rebuilt on every lookup --
+    // getClientById below is called once per row for every list in the
+    // app that shows a client name (Tasks, Documents, Payments,
+    // Government Submissions, Message Centre, ...), so an O(n) `.find()`
+    // there turns rendering an N-row list into O(n*m) work against the
+    // client table instead of O(n).
+    clientById(state): Map<string, Client> {
+      return new Map(state.clients.map((client) => [client.id, client]))
+    },
+
+    getClientById(): (clientId: string) => Client | undefined {
+      return (clientId: string) => this.clientById.get(clientId)
     },
   },
 
