@@ -102,6 +102,7 @@ export default {
     noDocumentsDescription: 'ارفع وثائق الهوية أو التسجيل أو التفويض الخاصة بهذا العميل.',
     newProject: 'مشروع جديد',
     clientMustBeActive: 'يجب أن يكون العميل نشطاً قبل إنشاء مشروع.',
+    viewIdentificationDocuments: 'عرض مستندات الهوية',
     noProjectsTitle: 'لا توجد مشاريع بعد',
     noProjectsDescription: 'ستظهر هنا المشاريع التي يتم إنشاؤها لهذا العميل.',
     fields: {

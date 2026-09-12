@@ -604,18 +604,23 @@ function createProjectForClient(): void {
         aria-labelledby="client-tab-projects"
         tabindex="0"
       >
-        <div class="mb-4 flex flex-col items-end gap-1 no-print">
-          <BaseButton
-            size="sm"
-            :icon="Plus"
-            :disabled="!clientEligibleForNewProject"
-            @click="createProjectForClient"
-          >
-            {{ t('client.workspacePage.newProject') }}
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-2 no-print">
+          <BaseButton size="sm" variant="ghost" :icon="IdCardLanyard" @click="activeTab = 'identification'">
+            {{ t('client.workspacePage.viewIdentificationDocuments') }}
           </BaseButton>
-          <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
-            {{ t('client.workspacePage.clientMustBeActive') }}
-          </p>
+          <div class="flex flex-col items-end gap-1">
+            <BaseButton
+              size="sm"
+              :icon="Plus"
+              :disabled="!clientEligibleForNewProject"
+              @click="createProjectForClient"
+            >
+              {{ t('client.workspacePage.newProject') }}
+            </BaseButton>
+            <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
+              {{ t('client.workspacePage.clientMustBeActive') }}
+            </p>
+          </div>
         </div>
         <EmptyState
           v-if="clientProjects.length === 0"
@@ -630,6 +635,7 @@ function createProjectForClient(): void {
             :key="project.id"
             :project="project"
             :client="client"
+            show-document-links
             @open="openProject"
           />
         </div>
