@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, condecimal, field_validator
 
-from app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES, WORKFLOW_STAGES
+from app.models.project import PROJECT_STATUSES, WORKFLOW_STAGES
 from app.schemas.common import max_days_from_today_validator, not_past_validator
 
 
@@ -167,7 +167,6 @@ class ProjectOut(BaseModel):
     engineer: str
     currentStage: str
     progress: int
-    priority: str
     startDate: date
     targetDate: date
     status: str
@@ -234,7 +233,6 @@ class ProjectOut(BaseModel):
             engineer=engineer_name,
             currentStage=project.current_stage,
             progress=project.progress,
-            priority=project.priority,
             startDate=project.start_date,
             targetDate=project.target_date,
             status=project.status,
@@ -350,7 +348,6 @@ class ProjectCreate(BaseModel):
     # column's width (migration 0090).
     service: str = Field(min_length=1, max_length=2000)
     engineerId: str
-    priority: str = "Medium"
     startDate: date
     targetDate: date
     selectedActivities: list[SelectedActivityIn] | None = None
@@ -371,7 +368,6 @@ class ProjectCreate(BaseModel):
     selectedPermits: list[SelectedPermitIn] | None = None
     siteAddress: str | None = Field(default=None, max_length=300)
 
-    _check_priority = field_validator("priority")(_enum_validator(PROJECT_PRIORITIES, "priority"))
     # Same near-term-only reasoning as every other startDate/scheduling
     # field in this app (see not_past_validator/max_days_from_today_validator
     # in app/schemas/common.py) -- can't be in the past, and can't be
@@ -402,7 +398,6 @@ class ProjectUpdate(BaseModel):
     siteAddress: str | None = Field(default=None, max_length=300)
     service: str | None = Field(default=None, min_length=1, max_length=2000)
     engineerId: str | None = None
-    priority: str | None = None
     # progress is deliberately not here -- it's computed from
     # current_stage (project_service.recompute_progress), not settable
     # directly. See ProjectOut.progress for the (read-only) computed value.
@@ -410,13 +405,6 @@ class ProjectUpdate(BaseModel):
     status: str | None = None
     currentStage: str | None = None
     reason: str | None = None
-
-    @field_validator("priority")
-    @classmethod
-    def check_priority(cls, value: str | None) -> str | None:
-        if value is not None and value not in PROJECT_PRIORITIES:
-            raise ValueError(f"priority must be one of {PROJECT_PRIORITIES}")
-        return value
 
     @field_validator("status")
     @classmethod

@@ -22,7 +22,7 @@ import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
-import type { Project, ProjectPriority, SelectedSupervisionActivity } from '@/types/Project'
+import type { Project, SelectedSupervisionActivity } from '@/types/Project'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
@@ -61,7 +61,6 @@ const form = reactive({
   service: '',
   selectedActivities: [] as SelectedServiceActivity[],
   engineer: '',
-  priority: 'Medium' as ProjectPriority,
   projectName: '',
   siteAddress: '',
   startDate: '',
@@ -338,7 +337,6 @@ async function submitWizard(): Promise<void> {
       selectedActivities: form.selectedActivities,
       serviceTotal: serviceTotal.value,
       engineerId: form.engineer,
-      priority: form.priority,
       startDate: form.startDate,
       targetDate: form.targetDate,
       // Optional -- only sent when something was actually checked, so an

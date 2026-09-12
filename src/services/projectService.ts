@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { AddServicesInput, HandoverStatus, Project, ProjectPriority, ScopeOfWork, SelectedPermit, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
+import type { AddServicesInput, HandoverStatus, Project, ScopeOfWork, SelectedPermit, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
@@ -23,7 +23,6 @@ async function getProjectsPage(
   params: PageParams & {
     clientId?: string
     status?: string
-    priority?: string
     stage?: string
     engineerId?: string
     /** true to browse soft-deleted projects instead of active ones -- see restoreProject. */
@@ -34,7 +33,6 @@ async function getProjectsPage(
     const query = buildQuery({
       clientId: params.clientId,
       status: params.status,
-      priority: params.priority,
       stage: params.stage,
       engineerId: params.engineerId,
       search: params.search,
@@ -84,7 +82,6 @@ export interface ProjectCreateInput {
   clientId: string
   service: string
   engineerId: string
-  priority: ProjectPriority
   startDate: string
   targetDate: string
   // Optional granular breakdown from the service picker. Sent alongside
@@ -126,7 +123,6 @@ export interface ProjectUpdateInput {
   siteAddress?: string
   service?: string
   engineerId?: string
-  priority?: ProjectPriority
   // progress deliberately not here -- it's derived from current_stage
   // server-side (see project_service.recompute_progress), not settable
   // directly.

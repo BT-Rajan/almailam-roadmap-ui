@@ -33,11 +33,6 @@ def projects_by_status(db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.projects_by_status(db)
 
 
-@router.get("/projects-by-priority", response_model=list[ChartDataPoint])
-def projects_by_priority(db: Session = Depends(get_db), _=Depends(can_view)):
-    return report_service.projects_by_priority(db)
-
-
 @router.get("/tasks-by-status", response_model=list[ChartDataPoint])
 def tasks_by_status(db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.tasks_by_status(db)

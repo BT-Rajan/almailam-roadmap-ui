@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { ProjectPriority, ProjectStatus, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { ProjectStatus, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import type { SelectedActivityStatus } from '@/types/ServiceCatalog'
 import type { SelectedPermitStatus } from '@/types/Project'
 
@@ -130,18 +130,8 @@ const STATUS_VARIANTS: Record<ProjectStatus, BadgeVariant> = {
   Completed: 'success',
 }
 
-const PRIORITY_VARIANTS: Record<ProjectPriority, BadgeVariant> = {
-  High: 'danger',
-  Medium: 'warning',
-  Low: 'neutral',
-}
-
 export function getProjectStatusVariant(status: ProjectStatus): BadgeVariant {
   return STATUS_VARIANTS[status]
-}
-
-export function getProjectPriorityVariant(priority: ProjectPriority): BadgeVariant {
-  return PRIORITY_VARIANTS[priority]
 }
 
 const SELECTED_ACTIVITY_STATUS_VARIANTS: Record<SelectedActivityStatus, BadgeVariant> = {
