@@ -14,8 +14,6 @@ from app.schemas.client import (
     ClientAddressCreate,
     ClientAddressOut,
     ClientAddressUpdate,
-    ClientConsentCreate,
-    ClientConsentOut,
     ClientContactCreate,
     ClientContactOut,
     ClientContactUpdate,
@@ -33,8 +31,6 @@ from app.schemas.client import (
     ClientOut,
     ClientStatusUpdate,
     ClientUpdate,
-    ClientVerificationCreate,
-    ClientVerificationOut,
 )
 from app.services import client_service
 
@@ -311,28 +307,6 @@ def delete_identification(
     )
 
 
-@router.get("/{client_id}/consents", response_model=list[ClientConsentOut])
-def list_consents(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
-    consents = client_service.list_consents(db, client_service.parse_client_id(client_id))
-    names = {u.id: u.full_name for u in db.query(User).filter(
-        User.id.in_({c.recorded_by for c in consents})
-    ).all()} if consents else {}
-    return [ClientConsentOut.from_model(c, names.get(c.recorded_by, "Unknown")) for c in consents]
-
-
-@router.post("/{client_id}/consents", response_model=ClientConsentOut, status_code=201)
-def create_consent(
-    client_id: str,
-    payload: ClientConsentCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    consent = client_service.create_consent(
-        db, client_service.parse_client_id(client_id), payload, current_user.id
-    )
-    return ClientConsentOut.from_model(consent, current_user.full_name)
-
-
 @router.get("/{client_id}/audit-events")
 def list_audit_events(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return client_service.get_audit_events(db, client_service.parse_client_id(client_id))
@@ -450,36 +424,6 @@ def download_document_version(
         db, client_service.parse_client_id(client_id), client_service.parse_document_id(document_id), version_id
     )
     return FileResponse(path, filename=original_filename)
-
-
-@router.get("/{client_id}/verifications", response_model=list[ClientVerificationOut])
-def list_verifications(client_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
-    verifications = client_service.list_verifications(db, client_service.parse_client_id(client_id))
-    names = {u.id: u.full_name for u in db.query(User).filter(
-        User.id.in_({v.verified_by for v in verifications})
-    ).all()} if verifications else {}
-    return [
-        ClientVerificationOut.from_model(v, names.get(v.verified_by, "Unknown")) for v in verifications
-    ]
-
-
-@router.post("/{client_id}/verifications", response_model=ClientVerificationOut, status_code=201)
-def create_verification(
-    client_id: str,
-    payload: ClientVerificationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    verification = client_service.create_verification(
-        db,
-        client_service.parse_client_id(client_id),
-        payload.item,
-        payload.result,
-        payload.notes,
-        payload.documentId,
-        current_user.id,
-    )
-    return ClientVerificationOut.from_model(verification, current_user.full_name)
 
 
 @router.delete("/{client_id}", status_code=204)

@@ -211,20 +211,6 @@ CREATE TABLE IF NOT EXISTS client_identifications (
     INDEX idx_client_identifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS client_consents (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    client_id       BIGINT UNSIGNED NOT NULL,
-    consent_type    ENUM('Process Personal Information','Electronic Communication','Process Documents') NOT NULL,
-    version         VARCHAR(20)  NOT NULL,
-    granted         TINYINT(1)   NOT NULL,
-    recorded_at     DATETIME     NOT NULL,
-    method          VARCHAR(150) NOT NULL,
-    recorded_by     BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_client_consents_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-    CONSTRAINT fk_client_consents_user FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_client_consents_client (client_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS client_documents (
     id                   BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id            BIGINT UNSIGNED NOT NULL,
@@ -259,21 +245,6 @@ CREATE TABLE IF NOT EXISTS client_document_versions (
     CONSTRAINT fk_client_document_versions_document FOREIGN KEY (document_id) REFERENCES client_documents(id) ON DELETE CASCADE,
     CONSTRAINT fk_client_document_versions_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_client_document_versions_document (document_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS client_verifications (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    client_id       BIGINT UNSIGNED NOT NULL,
-    document_id     BIGINT UNSIGNED NULL,
-    item            VARCHAR(150) NOT NULL,
-    result          ENUM('Pending','Verified','Rejected') NOT NULL,
-    verified_by     BIGINT UNSIGNED NOT NULL,
-    verified_date   DATETIME NOT NULL,
-    notes           VARCHAR(1000) NULL,
-    CONSTRAINT fk_client_verifications_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-    CONSTRAINT fk_client_verifications_document FOREIGN KEY (document_id) REFERENCES client_documents(id) ON DELETE SET NULL,
-    CONSTRAINT fk_client_verifications_user FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_client_verifications_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS projects (
