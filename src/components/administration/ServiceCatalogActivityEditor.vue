@@ -92,7 +92,15 @@ async function removePrerequisite(activity: ServiceCatalogActivity, prerequisite
 function submitNewActivity(): void {
   if (newActivityName.value.trim().length === 0) return
   const cost = Number(newActivityCost.value)
-  emit('add', newActivityName.value.trim(), Number.isFinite(cost) ? cost : 0)
+  // Mirrors the backend's own ServiceCatalogActivityCreate.fixedCost
+  // (condecimal(ge=0)) -- nothing here checked this before, so a
+  // negative cost typed in by mistake would only ever get caught after
+  // a round trip to the backend.
+  if (newActivityCost.value.trim() !== '' && (!Number.isFinite(cost) || cost < 0)) {
+    toastStore.show('error', t('administration.serviceCatalog.invalidCost'))
+    return
+  }
+  emit('add', newActivityName.value.trim(), Number.isFinite(cost) && cost >= 0 ? cost : 0)
   newActivityName.value = ''
   newActivityCost.value = ''
 }
@@ -112,7 +120,11 @@ function commitName(activity: ServiceCatalogActivity, value: string): void {
 function commitCost(activity: ServiceCatalogActivity, value: string): void {
   delete costDrafts.value[activity.id]
   const cost = Number(value)
-  if (Number.isFinite(cost) && cost !== activity.fixedCost) emit('update', activity.id, { fixedCost: cost })
+  if (!Number.isFinite(cost) || cost < 0) {
+    toastStore.show('error', t('administration.serviceCatalog.invalidCost'))
+    return
+  }
+  if (cost !== activity.fixedCost) emit('update', activity.id, { fixedCost: cost })
 }
 </script>
 
