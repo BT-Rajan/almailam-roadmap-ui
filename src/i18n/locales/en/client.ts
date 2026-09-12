@@ -102,6 +102,7 @@ export default {
     noDocumentsDescription: 'Upload identity, registration or authorisation documents for this client.',
     newProject: 'New Project',
     clientMustBeActive: 'The client must be Active before a project can be created.',
+    viewIdentificationDocuments: 'View identification documents',
     noProjectsTitle: 'No projects yet',
     noProjectsDescription: 'Projects created for this client will appear here.',
     fields: {

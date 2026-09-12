@@ -4,13 +4,13 @@ from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 CONTRACT_STATUSES = ("Draft", "Signed", "Active", "Expired", "Terminated")
 
 
-class Contract(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
+class Contract(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "contracts"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -50,9 +50,7 @@ class Contract(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     document_template_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("document_templates.id", ondelete="RESTRICT"), nullable=True
     )
-    # Signed-document approval -- otp_code_hash/otp_expires_at/
-    # otp_attempts/otp_sent_at come from EmailOtpMixin and are inert
-    # leftovers now (see its docstring); see contract_service.
+    # Signed-document approval -- see contract_service.
     # confirm_contract_signing. Confirming the signed-document upload is
     # the only path to status == "Signed".
 

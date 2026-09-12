@@ -3,6 +3,7 @@ import { Building2, Calendar, Layers, Pencil, Trash2, User } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
 import IconButton from '@/components/common/IconButton.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -40,9 +41,17 @@ const { t } = useI18n()
       <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
     </div>
 
-    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+    <router-link
+      v-if="client"
+      :to="{ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } }"
+      class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-primary-700 hover:underline"
+    >
       <Building2 class="h-4 w-4 text-text-muted" />
-      {{ client?.companyName ?? t('project.unassigned') }}
+      {{ client.companyName }}
+    </router-link>
+    <span v-else class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+      <Building2 class="h-4 w-4 text-text-muted" />
+      {{ t('project.unassigned') }}
     </span>
     <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
       <User class="h-4 w-4 text-text-muted" />

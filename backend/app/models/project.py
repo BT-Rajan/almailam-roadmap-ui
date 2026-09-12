@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 from app.core.database import Base
-from app.models.mixins import EmailOtpMixin, SoftDeleteMixin, TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 from app.models.user import BigPK
 
 PROJECT_STATUSES = ("Active", "On Hold", "Cancelled", "Completed")
@@ -101,7 +101,7 @@ SELECTED_ACTIVITY_STATUSES = ("Not Started", "In Progress", "Complete", "Cancell
 SELECTED_SUPERVISION_STATUSES = ("Planned", "Eligible", "In Progress", "Complete", "Cancelled")
 
 
-class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
+class Project(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "projects"
     # See migration 0091 -- deleted_at IS NULL is the baseline filter on
     # every project query (project_service.list_projects), on top of
@@ -202,8 +202,7 @@ class Project(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
     # _assert_stage_exit_criteria's Handover branch). handover_sent_at/
     # handover_acknowledged_at track the ready-for-handover notice and
     # the client's confirmation of it via a signed-document upload (see
-    # notify_handover_ready/confirm_project_handover) -- EmailOtpMixin's
-    # columns below are inert leftovers now (see its docstring). status
+    # notify_handover_ready/confirm_project_handover). status
     # only becomes "Completed" once handover_acknowledged_at is set, and
     # confirm_project_handover requires handover_payment_confirmed_at
     # first -- an email that fails to send never blocks this internally,
