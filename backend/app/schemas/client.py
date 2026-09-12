@@ -9,8 +9,6 @@ from app.models.client import (
     CLIENT_DOCUMENT_CATEGORIES,
     CLIENT_STATUSES,
     CLIENT_TYPES,
-    CLIENT_VERIFICATION_RESULTS,
-    CONSENT_TYPES,
     CONTACT_TYPES,
     IDENTIFICATION_TYPES,
     PREFERRED_CHANNELS,
@@ -476,38 +474,6 @@ class ClientIdentificationUpdate(BaseModel):
         return value
 
 
-class ClientConsentOut(BaseModel):
-    id: str
-    clientId: str
-    consentType: str
-    version: str
-    granted: bool
-    dateTime: datetime
-    method: str
-    recordedBy: str
-
-    @staticmethod
-    def from_model(consent, recorded_by_name: str) -> "ClientConsentOut":
-        return ClientConsentOut(
-            id=f"CNS-{consent.id:03d}",
-            clientId=f"CLT-{consent.client_id:03d}",
-            consentType=consent.consent_type,
-            version=consent.version,
-            granted=consent.granted,
-            dateTime=consent.recorded_at,
-            method=consent.method,
-            recordedBy=recorded_by_name,
-        )
-
-
-class ClientConsentCreate(BaseModel):
-    consentType: str
-    version: str = Field(min_length=1, max_length=20)
-    granted: bool
-    method: str = Field(min_length=1, max_length=150)
-    _check = field_validator("consentType")(_enum_validator(CONSENT_TYPES, "consentType"))
-
-
 class ClientDocumentOut(BaseModel):
     id: str
     clientId: str
@@ -584,38 +550,6 @@ class ClientDocumentUpdate(BaseModel):
         if value is not None and value not in CLIENT_DOCUMENT_CATEGORIES:
             raise ValueError(f"category must be one of {CLIENT_DOCUMENT_CATEGORIES}")
         return value
-
-
-class ClientVerificationOut(BaseModel):
-    id: str
-    clientId: str
-    item: str
-    result: str
-    verifiedBy: str
-    verifiedDate: datetime
-    notes: str | None = None
-    documentId: str | None = None
-
-    @staticmethod
-    def from_model(verification, verified_by_name: str) -> "ClientVerificationOut":
-        return ClientVerificationOut(
-            id=f"VER-{verification.id:03d}",
-            clientId=f"CLT-{verification.client_id:03d}",
-            item=verification.item,
-            result=verification.result,
-            verifiedBy=verified_by_name,
-            verifiedDate=verification.verified_date,
-            notes=verification.notes,
-            documentId=f"CDOC-{verification.document_id:03d}" if verification.document_id else None,
-        )
-
-
-class ClientVerificationCreate(BaseModel):
-    item: str = Field(min_length=1, max_length=150)
-    result: str
-    notes: str | None = Field(default=None, max_length=1000)
-    documentId: str | None = None
-    _check = field_validator("result")(_enum_validator(CLIENT_VERIFICATION_RESULTS, "result"))
 
 
 class ClientFullCreate(BaseModel):

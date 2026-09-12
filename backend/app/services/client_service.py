@@ -14,15 +14,12 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.client import (
     CLIENT_DOCUMENT_CATEGORIES,
-    CLIENT_VERIFICATION_RESULTS,
     Client,
     ClientAddress,
-    ClientConsent,
     ClientContact,
     ClientDocument,
     ClientDocumentVersion,
     ClientIdentification,
-    ClientVerification,
 )
 from app.schemas.client import ClientFullCreate
 from app.services import audit_service, company_service, email_service, email_template_service, notification_service, user_service
@@ -611,12 +608,6 @@ def merge_clients(db: Session, source_client_id: int, target_client_id: int, use
     for document in list_documents(db, source_client_id):
         document.client_id = target_client_id
 
-    for verification in list_verifications(db, source_client_id):
-        verification.client_id = target_client_id
-
-    for consent in list_consents(db, source_client_id):
-        consent.client_id = target_client_id
-
     from app.models.project import Project
 
     moved_projects = (
@@ -1037,52 +1028,6 @@ def delete_identification(db: Session, client_id: int, identification_id: int, u
     db.commit()
 
 
-def list_consents(db: Session, client_id: int) -> list[ClientConsent]:
-    return (
-        db.query(ClientConsent)
-        .filter(ClientConsent.client_id == client_id)
-        .order_by(ClientConsent.id.asc())
-        .all()
-    )
-
-
-def create_consent(db: Session, client_id: int, payload, recorded_by: int) -> ClientConsent:
-    client = get_client(db, client_id)
-    consent = ClientConsent(
-        client_id=client_id,
-        consent_type=payload.consentType,
-        version=payload.version,
-        granted=payload.granted,
-        recorded_at=datetime.now(timezone.utc),
-        method=payload.method,
-        recorded_by=recorded_by,
-    )
-    db.add(consent)
-    db.flush()
-
-    # "Electronic Communication" consent is the single formal, audited
-    # decision that covers all three channels (its own description says
-    # so: "Allow communication by email, WhatsApp and SMS"). The client
-    # row's email_consent/whatsapp_consent/sms_consent flags exist so
-    # other features can cheaply check "can we message this client" --
-    # this is the one place that keeps them equal to the real decision,
-    # rather than leaving them permanently stuck at their creation-time
-    # default with no connection to consent actually being granted or
-    # withdrawn.
-    if payload.consentType == "Electronic Communication":
-        client.email_consent = payload.granted
-        client.whatsapp_consent = payload.granted
-        client.sms_consent = payload.granted
-
-    audit_service.log_event(
-        db, ENTITY_TYPE, client_id, "Consent recorded", recorded_by,
-        new_value=f"{payload.consentType}: {'Granted' if payload.granted else 'Declined'}",
-    )
-    db.commit()
-    db.refresh(consent)
-    return consent
-
-
 def list_documents(db: Session, client_id: int) -> list[ClientDocument]:
     return (
         db.query(ClientDocument)
@@ -1307,74 +1252,6 @@ def get_document_download_target(db: Session, client_id: int, document_id: int) 
         # rather than trying to resolve an empty path.
         raise ValidationAppError("This document has no file on record (it predates file uploads being enabled).")
     return resolve_path(document.storage_key), document.original_filename
-
-
-def list_verifications(db: Session, client_id: int) -> list[ClientVerification]:
-    # A verification tied to a specific document (document_id is set)
-    # stops counting once that document is deleted -- otherwise a
-    # "Rejected"/"Pending" verification for a document that's since been
-    # removed (e.g. the wrong file, replaced by a corrected upload) would
-    # keep silently blocking calculateOnboardingState()'s suggested next
-    # state on the frontend even though there's nothing left to act on.
-    # Checklist-style verifications (document_id is null) are unaffected.
-    return (
-        db.query(ClientVerification)
-        .outerjoin(ClientDocument, ClientVerification.document_id == ClientDocument.id)
-        .filter(
-            ClientVerification.client_id == client_id,
-            or_(ClientVerification.document_id.is_(None), ClientDocument.deleted_at.is_(None)),
-        )
-        .order_by(ClientVerification.id.desc())
-        .all()
-    )
-
-
-def create_verification(
-    db: Session,
-    client_id: int,
-    item: str,
-    result: str,
-    notes: str | None,
-    document_id_raw: str | None,
-    verified_by: int,
-) -> ClientVerification:
-    get_client(db, client_id)
-
-    if result not in CLIENT_VERIFICATION_RESULTS:
-        raise ValidationAppError(f"result must be one of {CLIENT_VERIFICATION_RESULTS}")
-    item = item.strip()
-    if not item:
-        raise ValidationAppError("item is required.")
-
-    document: ClientDocument | None = None
-    if document_id_raw:
-        document = get_document(db, client_id, parse_document_id(document_id_raw))
-
-    verification = ClientVerification(
-        client_id=client_id,
-        document_id=document.id if document else None,
-        item=item,
-        result=result,
-        verified_by=verified_by,
-        verified_date=datetime.now(timezone.utc),
-        notes=notes.strip() if notes else None,
-    )
-    db.add(verification)
-    db.flush()
-
-    # A verification tied to a specific document is the authoritative
-    # source for that document's own status -- keep them in sync instead
-    # of leaving the document stuck on "Pending" forever.
-    if document is not None:
-        document.verification_status = result
-
-    audit_service.log_event(
-        db, ENTITY_TYPE, client_id, "Verification recorded", verified_by,
-        new_value=f"{item}: {result}",
-    )
-    db.commit()
-    db.refresh(verification)
-    return verification
 
 
 def delete_client(db: Session, client_id: int, actor_id: int) -> None:

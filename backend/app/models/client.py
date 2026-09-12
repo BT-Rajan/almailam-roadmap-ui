@@ -27,11 +27,6 @@ CONTACT_TYPES = (
 )
 ADDRESS_TYPES = ("Registered", "Operating", "Residential", "Mailing")
 IDENTIFICATION_TYPES = ("Civil ID", "Passport", "Trade Licence", "Other")
-CONSENT_TYPES = (
-    "Process Personal Information",
-    "Electronic Communication",
-    "Process Documents",
-)
 PREFERRED_CHANNELS = ("Email", "WhatsApp", "SMS", "Phone")
 
 
@@ -101,8 +96,7 @@ class Client(Base, TimestampMixin, SoftDeleteMixin, EmailOtpMixin):
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     # Free-text internal notes (preferences, risk flags, handling
-    # instructions) -- distinct from ClientVerification.notes, which is
-    # scoped to one specific verification check.
+    # instructions).
     notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
 
@@ -150,23 +144,6 @@ class ClientIdentification(Base, SoftDeleteMixin):
     issue_date: Mapped[date] = mapped_column(Date, nullable=False)
     expiry_date: Mapped[date] = mapped_column(Date, nullable=False)
     issuing_country: Mapped[str] = mapped_column(String(80), nullable=False)
-
-
-class ClientConsent(Base):
-    __tablename__ = "client_consents"
-
-    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
-    client_id: Mapped[int] = mapped_column(
-        BigPK, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    consent_type: Mapped[str] = mapped_column(Enum(*CONSENT_TYPES, name="client_consent_type"), nullable=False)
-    version: Mapped[str] = mapped_column(String(20), nullable=False)
-    granted: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    method: Mapped[str] = mapped_column(String(150), nullable=False)
-    recorded_by: Mapped[int] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
 
 
 CLIENT_DOCUMENT_CATEGORIES = (
@@ -233,27 +210,3 @@ class ClientDocumentVersion(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
 
-
-class ClientVerification(Base):
-    __tablename__ = "client_verifications"
-
-    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
-    client_id: Mapped[int] = mapped_column(
-        BigPK, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    # Optional link to the specific document this verification check was
-    # performed against (e.g. verifying a Trade Licence upload). Null for
-    # checklist-style verifications that aren't tied to one document (e.g.
-    # confirming a registration number by phone).
-    document_id: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("client_documents.id", ondelete="SET NULL"), nullable=True
-    )
-    item: Mapped[str] = mapped_column(String(150), nullable=False)
-    result: Mapped[str] = mapped_column(
-        Enum(*CLIENT_VERIFICATION_RESULTS, name="client_verification_result_2"), nullable=False
-    )
-    verified_by: Mapped[int] = mapped_column(
-        BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    verified_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)

@@ -913,10 +913,9 @@ def _send_project_created_email(db: Session, client: Client, project: Project, e
     about project creation depends on the client ever seeing this, so a
     failed/unconfigured send must never fail project creation itself
     (same "degrade gracefully" idea as ai_service's identification
-    check). Only sent when the client has actually consented to email
-    (see client_service.create_consent's comment on email_consent being
-    the one flag every messaging feature should check before writing to
-    a client)."""
+    check). Only sent when the client has actually consented to email --
+    email_consent is the one flag every messaging feature should check
+    before writing to a client."""
     if not client.email_consent:
         return
     try:
