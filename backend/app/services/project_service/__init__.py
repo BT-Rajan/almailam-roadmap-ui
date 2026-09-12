@@ -660,11 +660,16 @@ def compute_stage_flags(
 
 def create_project(db: Session, payload, user_id: int | None, background_tasks: BackgroundTasks | None = None) -> Project:
     client = client_service.get_client(db, client_service.parse_client_id(payload.clientId))
-    if client.onboarding_state != "Ready":
-        raise ValidationAppError(
-            "A project can only be created for a client whose onboarding is complete "
-            f"(current status: '{client.onboarding_state}'). Finish onboarding this client first."
-        )
+    # onboarding_state doesn't gate project creation -- see
+    # client_service.create_client's own comment on that field. A client
+    # only needs to be Active. This used to also require
+    # onboarding_state == "Ready", left over from before the client
+    # consent/verification feature was removed entirely -- new clients
+    # default to onboarding_state="Pending Verification" (still just a
+    # data field, per that same comment), so that stale check blocked
+    # project creation for every brand-new client with a "Finish
+    # onboarding this client first" error that had nothing left to
+    # finish.
     if client.status != "Active":
         raise ValidationAppError(
             f"This client is marked '{client.status}' and cannot have new projects created for them. "
