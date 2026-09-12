@@ -53,6 +53,18 @@ def _agreement_out(db: Session, agreement) -> FinancialAgreementOut:
     return FinancialAgreementOut.from_model(agreement, _project_no(db, agreement.project_id))
 
 
+def _agreements_out_batch(db: Session, agreements: list) -> list[FinancialAgreementOut]:
+    """Batched sibling of _agreement_out -- one query for every agreement's
+    project instead of one query per agreement."""
+    if not agreements:
+        return []
+    project_ids = {a.project_id for a in agreements}
+    project_nos = {p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()}
+    return [
+        FinancialAgreementOut.from_model(a, project_nos.get(a.project_id, "")) for a in agreements
+    ]
+
+
 def _obligation_out(obligation) -> ObligationOut:
     return ObligationOut.from_model(obligation, obligation.agreement_id)
 
@@ -65,7 +77,7 @@ def _payment_out(db: Session, payment) -> PaymentOut:
 
 @router.get("/financial-agreements", response_model=list[FinancialAgreementOut])
 def list_agreements(db: Session = Depends(get_db), _=Depends(can_view)):
-    return [_agreement_out(db, a) for a in payment_service.list_agreements(db)]
+    return _agreements_out_batch(db, payment_service.list_agreements(db))
 
 
 @router.get("/financial-agreements/by-project/{project_no}", response_model=FinancialAgreementOut | None)
