@@ -10,8 +10,10 @@ import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
 import ProjectSummaryDialog from '@/components/project/ProjectSummaryDialog.vue'
 import { taskService } from '@/services/taskService'
 import { useProjectStore } from '@/stores/projectStore'
+import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/dateFormatter'
 import { getWorkflowStageLabelKey } from '@/utils/projectHelpers'
+import { withSalutationByName } from '@/utils/userHelpers'
 import type { Task } from '@/types/Task'
 
 const props = defineProps<{
@@ -25,16 +27,26 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const projectStore = useProjectStore()
+const userStore = useUserStore()
 
 const isLoading = ref(false)
 const memberTasks = ref<Task[]>([])
 const selectedProjectId = ref<string>()
 const isProjectDialogOpen = ref(false)
 
+// title shown on the dialog -- the bare memberName plus whatever
+// salutation (Mr./Ms.) is on file for them, same lookup used everywhere
+// else a plain name string gets this treatment (see withSalutationByName).
+const dialogTitle = computed(() => (props.memberName ? withSalutationByName(props.memberName, userStore.users) : undefined))
+
 async function loadData(): Promise<void> {
   isLoading.value = true
   try {
-    const [allTasks] = await Promise.all([taskService.getTasks(), projectStore.loadProjects()])
+    const [allTasks] = await Promise.all([
+      taskService.getTasks(),
+      projectStore.loadProjects(),
+      userStore.users.length === 0 ? userStore.loadUsers() : Promise.resolve(),
+    ])
     memberTasks.value = allTasks.filter((task) => task.assignedTo === props.memberName)
   } finally {
     isLoading.value = false
@@ -83,7 +95,7 @@ function openProject(projectId: string): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="memberName"
+    :title="dialogTitle"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >

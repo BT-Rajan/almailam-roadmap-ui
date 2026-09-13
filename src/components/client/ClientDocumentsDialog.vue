@@ -12,6 +12,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Client, ClientDocumentCategory } from '@/types/Client'
 import { formatDate } from '@/utils/dateFormatter'
+import { getClientFormalName } from '@/utils/clientHelpers'
 
 const props = defineProps<{
   modelValue: boolean
@@ -78,7 +79,7 @@ function viewDocument(documentId: string): void {
 <template>
   <BaseDialog
     :model-value="modelValue"
-    :title="client?.companyName"
+    :title="client ? getClientFormalName(client) : undefined"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >

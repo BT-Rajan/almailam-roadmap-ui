@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Building2, Calendar, Layers, Pencil, Trash2, User } from '@lucide/vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ClientDocumentsDialog from '@/components/client/ClientDocumentsDialog.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import TeamMemberWorkloadDialog from '@/components/task/TeamMemberWorkloadDialog.vue'
+import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/dateFormatter'
+import { withSalutationByName } from '@/utils/userHelpers'
+import { getClientFormalName } from '@/utils/clientHelpers'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 
@@ -26,6 +29,11 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const userStore = useUserStore()
+
+onMounted(() => {
+  if (userStore.users.length === 0) void userStore.loadUsers()
+})
 
 // Clicking the client's name pops the documents dialog open right here
 // instead of navigating to the full client workspace -- that page is
@@ -62,7 +70,7 @@ const isEngineerDialogOpen = ref(false)
       @click="isDocumentsDialogOpen = true"
     >
       <Building2 class="h-4 w-4 text-text-muted" />
-      {{ client.companyName }}
+      {{ getClientFormalName(client) }}
     </button>
     <span v-else class="inline-flex items-center gap-1.5 text-sm text-text-muted">
       <Building2 class="h-4 w-4 text-text-muted" />
@@ -74,7 +82,7 @@ const isEngineerDialogOpen = ref(false)
       @click="isEngineerDialogOpen = true"
     >
       <User class="h-4 w-4 text-text-muted" />
-      {{ project.engineer }}
+      {{ withSalutationByName(project.engineer, userStore.users) }}
     </button>
     <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
       <Layers class="h-4 w-4 text-text-muted" />

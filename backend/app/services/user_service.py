@@ -67,6 +67,7 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
         email=payload.email,
         password_hash=hash_password(temporary_password),
         full_name=payload.name,
+        salutation=payload.salutation,
         designation=payload.designation,
         mobile=payload.mobile,
         role=payload.role,
@@ -118,6 +119,11 @@ def update_user(db: Session, user_id: int, payload: UserUpdate, actor_id: int) -
         )
     if payload.name is not None:
         user.full_name = payload.name
+    if payload.salutation is not None:
+        # "" clears it back to unset -- see UserUpdate.salutation's own
+        # docstring for why this differs from the None-means-unchanged
+        # convention every other field on this schema follows.
+        user.salutation = payload.salutation or None
     if payload.designation is not None:
         user.designation = payload.designation
     if payload.mobile is not None:

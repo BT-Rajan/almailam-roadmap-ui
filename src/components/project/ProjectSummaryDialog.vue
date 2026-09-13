@@ -12,6 +12,8 @@ import { taskService } from '@/services/taskService'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUserStore } from '@/stores/userStore'
 import { getProjectStatusVariant, getWorkflowStageLabelKey } from '@/utils/projectHelpers'
+import { withSalutationByName } from '@/utils/userHelpers'
+import { getClientFormalName } from '@/utils/clientHelpers'
 import type { Task } from '@/types/Task'
 
 const props = defineProps<{
@@ -68,6 +70,7 @@ function roleLabelFor(name: string): string {
 
 interface TeamMemberRow {
   name: string
+  displayName: string
   role: string
   completed: number
   inProgress: number
@@ -83,7 +86,7 @@ const teamMembers = computed<TeamMemberRow[]>(() => {
   function ensure(name: string): TeamMemberRow {
     let row = rows.get(name)
     if (!row) {
-      row = { name, role: roleLabelFor(name), completed: 0, inProgress: 0, pending: 0 }
+      row = { name, displayName: withSalutationByName(name, userStore.users), role: roleLabelFor(name), completed: 0, inProgress: 0, pending: 0 }
       rows.set(name, row)
     }
     return row
@@ -127,7 +130,7 @@ function openMember(name: string): void {
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge :label="t(getWorkflowStageLabelKey(project.currentStage))" variant="primary" />
         <StatusBadge :label="projectStatusLabel(project.status)" :variant="getProjectStatusVariant(project.status)" />
-        <span v-if="client" class="text-sm text-text-muted">{{ client.companyName }}</span>
+        <span v-if="client" class="text-sm text-text-muted">{{ getClientFormalName(client) }}</span>
       </div>
 
       <section class="flex flex-col gap-3">
@@ -139,7 +142,7 @@ function openMember(name: string): void {
               class="text-start text-sm font-medium text-text-primary hover:text-primary-700 hover:underline"
               @click="openMember(member.name)"
             >
-              {{ member.name }}
+              {{ member.displayName }}
               <span class="ml-1 font-normal text-text-muted">&middot; {{ member.role }}</span>
             </button>
             <span class="shrink-0 text-xs text-text-muted">
@@ -161,7 +164,7 @@ function openMember(name: string): void {
           <li v-for="task in projectTasks" :key="task.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
             <span class="flex flex-col gap-0.5">
               <span class="text-sm text-text-primary">{{ task.title }}</span>
-              <span class="text-xs text-text-muted">{{ task.assignedTo }}</span>
+              <span class="text-xs text-text-muted">{{ withSalutationByName(task.assignedTo, userStore.users) }}</span>
             </span>
             <span class="shrink-0"><TaskStatusBadge :status="task.status" /></span>
           </li>

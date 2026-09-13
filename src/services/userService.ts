@@ -48,6 +48,7 @@ async function createUser(user: Partial<AppUser>): Promise<CreatedUser> {
       '/api/users',
       {
         name: user.name,
+        salutation: user.salutation,
         email: user.email,
         designation: user.designation,
         mobile: user.mobile,
@@ -75,6 +76,11 @@ async function updateUser(user: AppUser): Promise<AppUser> {
   try {
     const response = await apiClient.patch<AppUser>(`/api/users/${user.id}`, {
       name: user.name,
+      // '' (not undefined) tells the backend to clear a previously-set
+      // salutation -- UserUpdate.salutation treats undefined/omitted as
+      // "leave unchanged", same as every other field here, so an actual
+      // clear has to be sent as an explicit empty string.
+      salutation: user.salutation ?? '',
       designation: user.designation,
       mobile: user.mobile,
       role: user.role,

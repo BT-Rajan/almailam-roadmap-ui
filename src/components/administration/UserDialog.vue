@@ -10,7 +10,7 @@ import { uuid } from '@/utils/uuid'
 import { validators } from '@/utils/validators'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import { useAuthStore } from '@/stores/authStore'
-import type { AppUser, UserRole } from '@/types/User'
+import type { AppUser, UserRole, UserSalutation } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
 
 const ROLE_OPTIONS: SelectOption[] = [
@@ -19,6 +19,18 @@ const ROLE_OPTIONS: SelectOption[] = [
   { label: 'Engineer', value: 'Engineer', labelKey: 'administration.userRole.engineer' },
   { label: 'Document Controller', value: 'Document Controller', labelKey: 'administration.userRole.documentController' },
   { label: 'Viewer', value: 'Viewer', labelKey: 'administration.userRole.viewer' },
+]
+
+// Not required -- a user with no salutation set just keeps printing as
+// their bare name on generated documents (see backend migration 0096),
+// same as every user did before this field existed. The leading blank
+// option is real and selectable (not the SelectBox placeholder, which
+// is disabled once something else has been picked) so an admin can
+// explicitly clear a salutation back to "none" after setting one.
+const SALUTATION_OPTIONS: SelectOption[] = [
+  { label: 'Not specified', value: '', labelKey: 'administration.userDialog.salutationNone' },
+  { label: 'Mr.', value: 'Mr.', labelKey: 'administration.userDialog.salutationMr' },
+  { label: 'Ms.', value: 'Ms.', labelKey: 'administration.userDialog.salutationMs' },
 ]
 
 const props = defineProps<{
@@ -45,6 +57,7 @@ const authStore = useAuthStore()
 const isSelf = computed(() => Boolean(props.user) && props.user?.id === authStore.user?.id)
 
 const name = ref('')
+const salutation = ref<UserSalutation | ''>('')
 const designation = ref('')
 const email = ref('')
 const mobile = ref('')
@@ -62,6 +75,7 @@ const dialogTitle = computed(() =>
 function resetForm(): void {
   const source = props.user
   name.value = source?.name ?? ''
+  salutation.value = source?.salutation ?? ''
   designation.value = source?.designation ?? ''
   email.value = source?.email ?? ''
   mobile.value = source?.mobile ?? ''
@@ -110,6 +124,7 @@ function submitForm(): void {
   const user: AppUser = {
     id: props.user?.id ?? `USR-${uuid().slice(0, 6).toUpperCase()}`,
     name: name.value.trim(),
+    salutation: salutation.value || undefined,
     designation: designation.value.trim(),
     email: email.value.trim(),
     mobile: mobile.value.trim(),
@@ -137,6 +152,13 @@ function submitForm(): void {
         :placeholder="t('administration.userDialog.fullNamePlaceholder')"
         required
         :error="nameError"
+      />
+      <SelectBox
+        :model-value="salutation"
+        :label="t('administration.userDialog.salutation')"
+        :placeholder="t('administration.userDialog.salutationPlaceholder')"
+        :options="SALUTATION_OPTIONS"
+        @update:model-value="salutation = ($event || '') as UserSalutation | ''"
       />
       <TextInput
         v-model="designation"
