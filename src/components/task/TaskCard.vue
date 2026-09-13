@@ -101,6 +101,6 @@ const isMemberDialogOpen = ref(false)
     />
   </div>
 
-  <ProjectSummaryDialog v-model="isProjectDialogOpen" :project-id="task.projectId" />
-  <TeamMemberWorkloadDialog v-model="isMemberDialogOpen" :member-name="task.assignedTo" />
+  <ProjectSummaryDialog v-if="isProjectDialogOpen" v-model="isProjectDialogOpen" :project-id="task.projectId" />
+  <TeamMemberWorkloadDialog v-if="isMemberDialogOpen" v-model="isMemberDialogOpen" :member-name="task.assignedTo" />
 </template>

@@ -168,5 +168,13 @@ function openProject(projectId: string): void {
     </div>
   </BaseDialog>
 
-  <ProjectSummaryDialog v-model="isProjectDialogOpen" :project-id="selectedProjectId" />
+  <!-- v-if here (not just v-model) is load-bearing: ProjectSummaryDialog's
+       own template unconditionally renders a TeamMemberWorkloadDialog, and
+       without this v-if, mounting either one -- even closed -- would mount
+       the other, which mounts this one again, forever (a synchronous
+       stack overflow on render, before either dialog is ever opened).
+       Starting isProjectDialogOpen at false means this component simply
+       isn't instantiated until a project is actually clicked, breaking
+       the cycle. -->
+  <ProjectSummaryDialog v-if="isProjectDialogOpen" v-model="isProjectDialogOpen" :project-id="selectedProjectId" />
 </template>

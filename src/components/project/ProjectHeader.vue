@@ -114,6 +114,6 @@ const isEngineerDialogOpen = ref(false)
     </div>
   </div>
 
-  <ClientDocumentsDialog v-model="isDocumentsDialogOpen" :client="client" />
-  <TeamMemberWorkloadDialog v-model="isEngineerDialogOpen" :member-name="project.engineer" />
+  <ClientDocumentsDialog v-if="isDocumentsDialogOpen" v-model="isDocumentsDialogOpen" :client="client" />
+  <TeamMemberWorkloadDialog v-if="isEngineerDialogOpen" v-model="isEngineerDialogOpen" :member-name="project.engineer" />
 </template>

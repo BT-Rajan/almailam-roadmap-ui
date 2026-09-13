@@ -179,5 +179,10 @@ function openMember(name: string): void {
     </div>
   </BaseDialog>
 
-  <TeamMemberWorkloadDialog v-model="isMemberDialogOpen" :member-name="selectedMemberName" />
+  <!-- v-if here (not just v-model) is load-bearing -- see the matching
+       comment in TeamMemberWorkloadDialog.vue's own nested
+       ProjectSummaryDialog: these two components render each other, so
+       without this guard mounting either one recurses infinitely before
+       either dialog is ever opened. -->
+  <TeamMemberWorkloadDialog v-if="isMemberDialogOpen" v-model="isMemberDialogOpen" :member-name="selectedMemberName" />
 </template>
