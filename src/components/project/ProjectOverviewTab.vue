@@ -586,8 +586,9 @@ function verificationResultLabel(result: string): string {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.scopeTitle') }}</h3>
           <BaseButton
-            v-if="stageContext === 'Requirement' && !isScopeLocked && !isEditingScope"
+            v-if="stageContext === 'Requirement' && !isEditingScope"
             variant="ghost" size="sm" class="no-print"
+            :disabled="isScopeLocked"
             @click="startEditingScope"
           >
             {{ t('project.overviewTab.editScope') }}
@@ -602,19 +603,24 @@ function verificationResultLabel(result: string): string {
       />
       <p v-else-if="project.description" class="whitespace-pre-wrap text-sm text-text-secondary">{{ project.description }}</p>
 
-      <template v-if="stageContext === 'Requirement' && !isScopeLocked">
-        <div v-if="!hasScopeText" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
-          <AlertTriangle class="h-4 w-4 shrink-0" />
-          <span>{{ t('project.overviewTab.noScopeWarning') }}</span>
+      <template v-if="stageContext === 'Requirement'">
+        <div v-if="isScopeLocked" class="mt-3 flex items-center gap-2 rounded-lg border border-border-light bg-bg-secondary px-3 py-2.5 text-sm text-text-muted">
+          <span>{{ t('project.overviewTab.scopeLockedNotice') }}</span>
         </div>
-        <div v-if="!hasClientIdentification" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
-          <AlertTriangle class="h-4 w-4 shrink-0" />
-          <span>{{ t('project.overviewTab.noClientIdWarning') }}</span>
-        </div>
+        <template v-else>
+          <div v-if="!hasScopeText" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+            <AlertTriangle class="h-4 w-4 shrink-0" />
+            <span>{{ t('project.overviewTab.noScopeWarning') }}</span>
+          </div>
+          <div v-if="!hasClientIdentification" class="mt-3 flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+            <AlertTriangle class="h-4 w-4 shrink-0" />
+            <span>{{ t('project.overviewTab.noClientIdWarning') }}</span>
+          </div>
+        </template>
 
         <BaseButton
           class="mt-3 no-print"
-          :disabled="!canAdvanceToQuotation"
+          :disabled="isScopeLocked || !canAdvanceToQuotation"
           :loading="isAdvancingToQuotation"
           @click="handleSaveAndProceed"
         >
@@ -874,7 +880,7 @@ function verificationResultLabel(result: string): string {
                   </template>
                   <template v-else>
                     <BaseButton
-                      v-if="permit.status !== 'In Progress'"
+                      :disabled="permit.status === 'In Progress'"
                       variant="secondary" size="sm" class="no-print"
                       :loading="permitActionPendingId === permit.id"
                       @click="setPermitStatus(permit.id, 'In Progress')"
@@ -980,7 +986,7 @@ function verificationResultLabel(result: string): string {
                   </template>
                   <template v-else>
                     <BaseButton
-                      v-if="activity.status !== 'In Progress'"
+                      :disabled="activity.status === 'In Progress'"
                       variant="secondary" size="sm" class="no-print"
                       :loading="supervisionActionPendingId === activity.id"
                       @click="setSupervisionStatus(activity.id, 'In Progress')"
@@ -1098,7 +1104,7 @@ function verificationResultLabel(result: string): string {
                   </template>
                   <template v-else>
                     <BaseButton
-                      v-if="permit.status !== 'In Progress'"
+                      :disabled="permit.status === 'In Progress'"
                       variant="secondary" size="sm" class="no-print"
                       :loading="permitActionPendingId === permit.id"
                       @click="setPermitStatus(permit.id, 'In Progress')"
