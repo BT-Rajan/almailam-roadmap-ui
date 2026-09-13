@@ -1,7 +1,10 @@
-"""Sends a generated document (Quotation/Contract PDF) as an email
-attachment -- the third leg of "download, print, and email should all
-use this template" alongside document_template_service's document/PDF
-renders.
+"""Sends real outbound email over SMTP -- a generated document
+(Quotation/Contract PDF) as an attachment (send_document_email, the
+third leg of "download, print, and email should all use this
+template" alongside document_template_service's document/PDF
+renders), a plain-text notification (send_email), or an arbitrary
+staff-composed message with zero or more attachments from the Message
+Centre (send_email_with_attachments, see message_service.send_email).
 
 Credentials come from .env (SMTP_* in core/config.py) when SMTP_HOST is
 set -- infrastructure-level configuration, for a dedicated sending
@@ -45,12 +48,13 @@ def _resolve_smtp_config(db: Session) -> dict | None:
 def send_email(to_email: str, subject: str, body_text: str, db: Optional[Session] = None) -> None:
     """Plain-text send, no attachment -- the onboarding welcome email
     (see client_service.py) uses this directly; send_document_email
-    below is a thin wrapper adding an attachment on top of the exact
-    same SMTP/error-handling scaffolding."""
+    and send_email_with_attachments below are thin wrappers adding
+    attachments on top of the exact same SMTP/error-handling
+    scaffolding."""
     owns_session = db is None
     session = db or SessionLocal()
     try:
-        _send(session, to_email, subject, body_text, attachment=None)
+        _send(session, to_email, subject, body_text, attachments=[])
     finally:
         if owns_session:
             session.close()
@@ -66,8 +70,27 @@ def send_document_email(
     try:
         _send(
             session, to_email, subject, body_text,
-            attachment=(attachment_bytes, attachment_filename, attachment_mimetype),
+            attachments=[(attachment_bytes, attachment_filename, attachment_mimetype)],
         )
+    finally:
+        if owns_session:
+            session.close()
+
+
+def send_email_with_attachments(
+    to_email: str, subject: str, body_text: str,
+    attachments: list[tuple[bytes, str, str]],
+    db: Optional[Session] = None,
+) -> None:
+    """Message Centre's compose-email modal (see
+    message_service.send_email) -- like send_document_email but for
+    zero or more staff-picked files instead of exactly one generated
+    document. Each attachment is (bytes, filename, mimetype), same
+    shape send_document_email already used for its single one."""
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        _send(session, to_email, subject, body_text, attachments=attachments)
     finally:
         if owns_session:
             session.close()
@@ -75,7 +98,7 @@ def send_document_email(
 
 def _send(
     session: Session, to_email: str, subject: str, body_text: str,
-    attachment: Optional[tuple[bytes, str, str]],
+    attachments: list[tuple[bytes, str, str]],
 ) -> None:
     config = _resolve_smtp_config(session)
     if config is None:
@@ -98,8 +121,7 @@ def _send(
     message["Message-ID"] = f"<{uuid4().hex}@{(config['from_email'] or '').rsplit('@', 1)[-1] or 'localhost'}>"
     message.set_content(body_text)
 
-    if attachment is not None:
-        attachment_bytes, attachment_filename, attachment_mimetype = attachment
+    for attachment_bytes, attachment_filename, attachment_mimetype in attachments:
         maintype, _, subtype = attachment_mimetype.partition("/")
         message.add_attachment(
             attachment_bytes, maintype=maintype, subtype=subtype or "octet-stream", filename=attachment_filename,

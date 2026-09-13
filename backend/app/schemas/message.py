@@ -34,26 +34,46 @@ class MessageTemplateCreate(BaseModel):
     _check = field_validator("channel")(_enum_validator(MESSAGE_CHANNELS, "channel"))
 
 
+class MessageAttachmentOut(BaseModel):
+    id: str
+    filename: str
+    sizeBytes: int | None
+
+    @staticmethod
+    def from_model(attachment) -> "MessageAttachmentOut":
+        return MessageAttachmentOut(
+            id=f"MATT-{attachment.id:03d}", filename=attachment.original_filename, sizeBytes=attachment.file_size_bytes
+        )
+
+
 class MessageLogEntryOut(BaseModel):
     id: str
     clientId: str
     channel: str
     templateId: str | None
+    subject: str | None
     body: str
     projectId: str | None
     status: str
+    errorMessage: str | None
+    attachments: list[MessageAttachmentOut]
     sentAt: datetime
 
     @staticmethod
-    def from_model(entry, client_display_id: str, project_no: str | None) -> "MessageLogEntryOut":
+    def from_model(
+        entry, client_display_id: str, project_no: str | None, attachments: list[MessageAttachmentOut] | None = None
+    ) -> "MessageLogEntryOut":
         return MessageLogEntryOut(
             id=f"MSG-{entry.id:03d}",
             clientId=client_display_id,
             channel=entry.channel,
             templateId=f"MTPL-{entry.template_id:03d}" if entry.template_id else None,
+            subject=entry.subject,
             body=entry.body,
             projectId=project_no,
             status=entry.status,
+            errorMessage=entry.error_message,
+            attachments=attachments or [],
             sentAt=entry.sent_at,
         )
 
