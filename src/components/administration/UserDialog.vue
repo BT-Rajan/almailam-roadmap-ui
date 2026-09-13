@@ -7,7 +7,9 @@ import FormActionBar from '@/components/common/FormActionBar.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { uuid } from '@/utils/uuid'
+import { validators } from '@/utils/validators'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
+import { useAuthStore } from '@/stores/authStore'
 import type { AppUser, UserRole } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
 
@@ -31,6 +33,16 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+// The backend rejects changing your own role outright
+// (user_service.update_user: "You cannot change your own role.") --
+// disabling it here instead of letting someone pick a new role, submit,
+// and only then find out it did nothing, matching the same
+// self-protection treatment UserManagementPage.vue's own Delete/
+// Deactivate buttons already give (both hide themselves when the
+// profile being viewed is your own).
+const isSelf = computed(() => Boolean(props.user) && props.user?.id === authStore.user?.id)
 
 const name = ref('')
 const designation = ref('')
@@ -40,6 +52,7 @@ const role = ref<UserRole | ''>('')
 const isActive = ref(true)
 const nameError = ref<string>()
 const emailError = ref<string>()
+const roleError = ref<string>()
 
 const isEditMode = computed(() => Boolean(props.user))
 const dialogTitle = computed(() =>
@@ -56,6 +69,7 @@ function resetForm(): void {
   isActive.value = source ? source.status === 'Active' : true
   nameError.value = undefined
   emailError.value = undefined
+  roleError.value = undefined
 }
 
 watch(
@@ -76,10 +90,22 @@ function initialsFor(fullName: string): string {
 }
 
 function submitForm(): void {
-  nameError.value = name.value.trim().length === 0 ? 'Name is required' : undefined
-  emailError.value = /^\S+@\S+\.\S+$/.test(email.value.trim()) ? undefined : 'Enter a valid email address'
+  nameError.value = name.value.trim().length === 0 ? t('administration.userDialog.nameRequired') : undefined
 
-  if (nameError.value || emailError.value || role.value === '') return
+  const trimmedEmail = email.value.trim()
+  if (trimmedEmail.length === 0) {
+    emailError.value = t('administration.userDialog.emailRequired')
+  } else {
+    // Reuses the same shared email-format check as everywhere else in
+    // the app (validators.ts) instead of this dialog's own separate,
+    // slightly different regex.
+    const check = validators.email(t('administration.userDialog.emailInvalid'))(trimmedEmail)
+    emailError.value = check === true ? undefined : check
+  }
+
+  roleError.value = role.value === '' ? t('administration.userDialog.roleRequired') : undefined
+
+  if (nameError.value || emailError.value || roleError.value) return
 
   const user: AppUser = {
     id: props.user?.id ?? `USR-${uuid().slice(0, 6).toUpperCase()}`,
@@ -87,7 +113,7 @@ function submitForm(): void {
     designation: designation.value.trim(),
     email: email.value.trim(),
     mobile: mobile.value.trim(),
-    role: role.value,
+    role: role.value as UserRole,
     avatar: initialsFor(name.value.trim()),
     status: isActive.value ? 'Active' : 'Inactive',
   }
@@ -131,18 +157,24 @@ function submitForm(): void {
         :label="t('administration.userDialog.mobile')"
         :placeholder="t('administration.userDialog.mobilePlaceholder')"
       />
-      <SelectBox
-        :model-value="role"
-        :label="t('administration.userDialog.role')"
-        :placeholder="t('administration.userDialog.rolePlaceholder')"
-        :options="ROLE_OPTIONS"
-        required
-        @update:model-value="role = $event as UserRole"
-      />
+      <div>
+        <SelectBox
+          :model-value="role"
+          :label="t('administration.userDialog.role')"
+          :placeholder="t('administration.userDialog.rolePlaceholder')"
+          :options="ROLE_OPTIONS"
+          required
+          :disabled="isSelf"
+          :error="roleError"
+          @update:model-value="role = $event as UserRole"
+        />
+        <p v-if="isSelf" class="mt-1.5 text-xs text-text-muted">{{ t('administration.userDialog.cannotChangeOwnRole') }}</p>
+      </div>
       <ToggleSwitch
         v-model="isActive"
         :label="t('administration.userDialog.active')"
-        :hint="t('administration.userDialog.activeHint')"
+        :disabled="isSelf"
+        :hint="isSelf ? t('administration.userDialog.cannotDeactivateOwnAccount') : t('administration.userDialog.activeHint')"
       />
     </div>
 

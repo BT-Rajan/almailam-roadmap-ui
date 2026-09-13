@@ -60,8 +60,6 @@ export default {
   uploadFailed: 'Upload failed',
   downloadFailed: 'Download failed',
   changeNotSaved: 'Change not saved',
-  exportNotAvailableYetTitle: 'Export not available yet',
-  exportNotAvailableYetDescription: 'PDF export for this report is coming soon.',
   sentTo: 'Sent to {email}.',
   createdSuccessfully: '{no} was created successfully.',
   noResultsFound: 'No results found',

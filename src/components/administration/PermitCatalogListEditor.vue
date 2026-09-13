@@ -93,7 +93,14 @@ const newPermitCost = ref('')
 function submitNewPermit(): void {
   if (newPermitName.value.trim().length === 0) return
   const cost = Number(newPermitCost.value)
-  emit('add', newPermitName.value.trim(), Number.isFinite(cost) ? cost : 0)
+  // Mirrors the backend's own PermitCatalogItemCreate.fixedCost
+  // (condecimal(ge=0)) -- same gap as ServiceCatalogActivityEditor's
+  // identical submitNewActivity/commitCost had.
+  if (newPermitCost.value.trim() !== '' && (!Number.isFinite(cost) || cost < 0)) {
+    toastStore.show('error', t('administration.permitCatalog.invalidCost'))
+    return
+  }
+  emit('add', newPermitName.value.trim(), Number.isFinite(cost) && cost >= 0 ? cost : 0)
   newPermitName.value = ''
   newPermitCost.value = ''
 }
@@ -114,7 +121,11 @@ function commitName(permit: PermitCatalogItem, value: string): void {
 function commitCost(permit: PermitCatalogItem, value: string): void {
   delete costDrafts.value[permit.id]
   const cost = Number(value)
-  if (Number.isFinite(cost) && cost !== permit.fixedCost) emit('update', permit.id, permit.name, cost)
+  if (!Number.isFinite(cost) || cost < 0) {
+    toastStore.show('error', t('administration.permitCatalog.invalidCost'))
+    return
+  }
+  if (cost !== permit.fixedCost) emit('update', permit.id, permit.name, cost)
 }
 </script>
 

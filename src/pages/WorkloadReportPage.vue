@@ -10,12 +10,10 @@ import ProgressChart from '@/components/reports/ProgressChart.vue'
 import Card from '@/components/common/Card.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import { CHART_COLORS, DEFAULT_CHART_COLOR, STATUS_CHART_COLORS } from '@/constants/chartColors'
-import { useToastStore } from '@/stores/toastStore'
 import type { ChartDataPoint } from '@/types/Report'
 
 const router = useRouter()
 const { t } = useI18n()
-const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -99,8 +97,10 @@ const deptUtilization = computed<ChartDataPoint[]>(() => [
   { label: t('report.workloadPage.disciplineFireSafety'), value: 68, color: CHART_COLORS.amber },
 ])
 
+// See ProjectReportPage.vue's identical handler for why this uses
+// window.print() rather than a separate backend-rendered PDF.
 const handleExport = () => {
-  toastStore.show('info', t('common.exportNotAvailableYetTitle'), t('common.exportNotAvailableYetDescription'))
+  window.print()
 }
 
 const goBack = () => {

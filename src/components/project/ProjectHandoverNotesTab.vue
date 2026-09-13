@@ -55,7 +55,13 @@ async function handleSave(): Promise<void> {
 }
 
 function viewReport(): void {
-  router.push({ name: ROUTE_NAMES.REPORT_PROJECT })
+  // Without projectId, ProjectReportPage.vue falls back to "the first
+  // Active project" -- fine for the general Reports menu entry
+  // (ReportsListPage.vue), which has no project of its own in context,
+  // but wrong here: this button lives on a specific project's own
+  // Handover tab, and was landing on whatever project happened to
+  // resolve first instead of this one.
+  router.push({ name: ROUTE_NAMES.REPORT_PROJECT, params: { projectId: props.project.id } })
 }
 </script>
 

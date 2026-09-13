@@ -342,6 +342,12 @@ export default {
     activeHint: 'Inactive users cannot sign in.',
     saveChanges: 'Save Changes',
     addUser: 'Add User',
+    nameRequired: 'Name is required.',
+    emailRequired: 'Email is required.',
+    emailInvalid: 'Enter a valid email address.',
+    roleRequired: 'Please select a role.',
+    cannotChangeOwnRole: 'You cannot change your own role.',
+    cannotDeactivateOwnAccount: 'You cannot deactivate your own account.',
   },
 
   authorityFormDialog: {
@@ -562,6 +568,7 @@ export default {
   permitCatalog: {
     permitName: 'Permit name',
     fixedCost: 'Fixed cost',
+    invalidCost: 'Cost must be zero or a positive number.',
     removePermit: 'Remove permit',
     noPermitsYet: 'No permits yet — add one below.',
     addPermit: 'Add Permit',
@@ -586,6 +593,7 @@ export default {
     monthlyNote: '(monthly)',
     activityName: 'Activity name',
     fixedCost: 'Fixed cost',
+    invalidCost: 'Cost must be zero or a positive number.',
     removeActivity: 'Remove activity',
     noActivitiesYet: 'No activities yet — add one below.',
     prerequisites: 'Prerequisites',

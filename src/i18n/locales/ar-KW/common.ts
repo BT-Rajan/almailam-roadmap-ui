@@ -62,8 +62,6 @@ export default {
   uploadFailed: 'فشل الرفع',
   downloadFailed: 'فشل التنزيل',
   changeNotSaved: 'لم يُحفظ التغيير',
-  exportNotAvailableYetTitle: 'التصدير غير متاح بعد',
-  exportNotAvailableYetDescription: 'تصدير PDF لهذا التقرير قادم قريبًا.',
   sentTo: 'أُرسل إلى {email}.',
   createdSuccessfully: 'تم إنشاء {no} بنجاح.',
   noResultsFound: 'لا توجد نتائج',

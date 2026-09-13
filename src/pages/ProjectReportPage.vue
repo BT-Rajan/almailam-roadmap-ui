@@ -14,7 +14,6 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { DEFAULT_CHART_COLOR } from '@/constants/chartColors'
 import { reportService } from '@/services/reportService'
 import { useProjectStore } from '@/stores/projectStore'
-import { useToastStore } from '@/stores/toastStore'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import type { ReportSection as ReportSectionData } from '@/types/Report'
@@ -25,7 +24,6 @@ import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
-const toastStore = useToastStore()
 const { t } = useI18n()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
@@ -106,8 +104,15 @@ function stageLabel(stage: string): string {
   return t(STAGE_LABEL_KEYS[stage] ?? getWorkflowStageLabel(stage))
 }
 
+// The "Export" button and ReportHeader's own "Print" button both need
+// to produce the same thing -- a faithful copy of this exact rendered
+// report, charts included -- which is exactly what window.print() (via
+// the browser's own Save-as-PDF destination) already does, using the
+// same print:hidden/.no-print stylesheet convention used throughout the
+// app. A separate backend-rendered PDF would risk drifting from what's
+// actually on screen; this can't.
 const handleExport = () => {
-  toastStore.show('info', t('common.exportNotAvailableYetTitle'), t('common.exportNotAvailableYetDescription'))
+  window.print()
 }
 
 const goBack = () => {
