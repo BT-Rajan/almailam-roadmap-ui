@@ -33,6 +33,7 @@ from app.api.projects import router as projects_router
 from app.api.quotations import router as quotations_router
 from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
+from app.api.scheduled_reports import router as scheduled_reports_router
 from app.api.search import router as search_router
 from app.api.document_requirements import router as document_requirements_router
 from app.api.permit_catalog import router as permit_catalog_router
@@ -54,6 +55,7 @@ from app.services.project_service import (
     check_and_notify_unpaid_completed_projects,
 )
 from app.services.quotation_service import check_and_expire_quotations
+from app.services.scheduled_report_service import run_due_schedules
 
 settings = get_settings()
 logger = logging.getLogger("app.scheduler")
@@ -119,6 +121,29 @@ def _run_staleness_checks() -> None:
         db.close()
 
 
+def _run_scheduled_reports() -> None:
+    # Administration > Scheduled Reports (the "auto email report
+    # sender") -- every 5 minutes is deliberately coarse: schedules are
+    # admin-configured to the minute (send_time is HH:MM, not
+    # HH:MM:SS), so anything finer than a minute buys nothing, and a
+    # single indexed "is_active AND next_run_at <= now" query every 5
+    # minutes is negligible load even with many schedules configured
+    # (see scheduled_report_service.run_due_schedules's own comment).
+    # Also run once at startup, same reasoning as the staleness checks
+    # below: a schedule due while the process was down/restarting still
+    # fires promptly instead of waiting up to 5 more minutes.
+    db = SessionLocal()
+    try:
+        sent = run_due_schedules(db)
+        if sent:
+            logger.info("Scheduled reports: sent %d report(s).", sent)
+    except Exception:
+        logger.exception("Scheduled report run failed.")
+        db.rollback()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
@@ -129,6 +154,8 @@ async def lifespan(app: FastAPI):
     # run would have fired.
     scheduler.add_job(_run_staleness_checks, "interval", days=1, id="staleness_checks")
     _run_staleness_checks()
+    scheduler.add_job(_run_scheduled_reports, "interval", minutes=5, id="scheduled_reports")
+    _run_scheduled_reports()
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
@@ -184,6 +211,7 @@ app.include_router(project_forms_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)
 app.include_router(reports_router)
+app.include_router(scheduled_reports_router)
 app.include_router(messages_router)
 app.include_router(search_router)
 app.include_router(site_portal_router)

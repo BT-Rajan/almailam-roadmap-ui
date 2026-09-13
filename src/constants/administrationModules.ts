@@ -97,6 +97,14 @@ export const ADMINISTRATION_MODULE_GROUPS: AdministrationModuleGroup[] = [
         icon: 'Mail',
         routeName: ROUTE_NAMES.ADMIN_EMAIL,
       },
+      {
+        label: 'Scheduled Reports',
+        labelKey: 'administrationModules.modules.scheduledReports.label',
+        description: 'Automatically email a PDF report to one or more people, once or on a repeating schedule.',
+        descriptionKey: 'administrationModules.modules.scheduledReports.description',
+        icon: 'CalendarClock',
+        routeName: ROUTE_NAMES.ADMIN_SCHEDULED_REPORTS,
+      },
     ],
   },
   {

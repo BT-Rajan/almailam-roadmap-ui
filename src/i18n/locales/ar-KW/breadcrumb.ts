@@ -33,6 +33,7 @@ export default {
   ai: 'الذكاء الاصطناعي',
   company: 'الشركة',
   email: 'البريد الإلكتروني',
+  scheduledReports: 'التقارير المجدولة',
   auditLog: 'سجل التدقيق',
   activityCalendar: 'تقويم الأنشطة',
   myProfile: 'ملفي الشخصي',
