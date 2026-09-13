@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core import payment_calculations as calc
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.status_transitions import (
     FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS,
@@ -409,7 +409,18 @@ def reopen_agreement(db: Session, agreement_id: int, reason: str, user_id: int) 
     reopened, update_agreement works normally (it already requires
     Draft), and re-approving afterwards re-triggers the same auto-
     advance this reversed.
+
+    Restricted to Administrators -- an Approved payment plan is the
+    client-facing figure the rest of the project (and, once signed, the
+    Contract) is built from, so reopening it for editing is deliberately
+    not part of the general "Finance: edit" permission any Account
+    Manager/Finance staff might hold. Checked here (not just on the API
+    route) so it holds for every caller of this function.
     """
+    actor = db.query(User).filter(User.id == user_id).first()
+    if actor is None or actor.role != "Administrator":
+        raise PermissionDeniedError("Only an Administrator can reopen an approved payment plan for editing.")
+
     agreement = get_agreement(db, agreement_id)
     assert_transition_allowed(FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS, agreement.status, "Draft", "financial agreement")
     if "Draft" in FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON:
