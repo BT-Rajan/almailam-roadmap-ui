@@ -12,12 +12,10 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { reportService } from '@/services/reportService'
-import { useToastStore } from '@/stores/toastStore'
 import type { ChartDataPoint, LineChartData, ReportMetric } from '@/types/Report'
 
 const router = useRouter()
 const { t } = useI18n()
-const toastStore = useToastStore()
 
 const reportDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric',
@@ -54,8 +52,10 @@ async function loadReport(): Promise<void> {
 
 onMounted(loadReport)
 
+// See ProjectReportPage.vue's identical handler for why this uses
+// window.print() rather than a separate backend-rendered PDF.
 const handleExport = () => {
-  toastStore.show('info', t('common.exportNotAvailableYetTitle'), t('common.exportNotAvailableYetDescription'))
+  window.print()
 }
 
 const goBack = () => {
