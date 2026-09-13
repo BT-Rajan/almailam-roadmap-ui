@@ -22,7 +22,7 @@ const ROLE_OPTIONS: SelectOption[] = [
 ]
 
 // Not required -- a user with no salutation set just keeps printing as
-// their bare name on generated documents (see backend migration 0096),
+// their bare name on generated documents (see backend migration 0097),
 // same as every user did before this field existed. The leading blank
 // option is real and selectable (not the SelectBox placeholder, which
 // is disabled once something else has been picked) so an admin can

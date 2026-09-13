@@ -1,4 +1,4 @@
--- Migration 0096: add users.salutation.
+-- Migration 0097: add users.salutation.
 --
 -- Generated documents (Quotation/Contract "Prepared By") previously
 -- printed a staff member's bare full_name with no title -- this column
@@ -15,7 +15,7 @@
 -- as every other migration here (e.g. migration 0095).
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0096_user_salutation.sql
+--   mysql -u <user> -p <database> < backend/migrations/0097_user_salutation.sql
 
 SET @db := DATABASE();
 
@@ -28,4 +28,4 @@ SET @sql := IF(@col_exists = 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SELECT 'Migration 0096 complete.' AS status;
+SELECT 'Migration 0097 complete.' AS status;

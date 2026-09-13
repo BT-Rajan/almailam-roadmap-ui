@@ -23,7 +23,7 @@ export function getUserRoleVariant(role: UserRole): BadgeVariant {
   return ROLE_VARIANTS[role]
 }
 
-/** Prefixes a user's stored Mr./Ms. (see backend migration 0096) ahead
+/** Prefixes a user's stored Mr./Ms. (see backend migration 0097) ahead
  * of their name -- unset for most existing users until an admin fills
  * it in on each profile, so this falls back to the bare name exactly
  * like it printed before the field existed. */
