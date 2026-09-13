@@ -720,4 +720,12 @@ export default {
     reportDescription: 'View this project in the full project performance report.',
     viewReport: 'View Report',
   },
+
+  summaryDialog: {
+    teamTitle: 'Team',
+    teamMemberRole: 'Team Member',
+    memberTaskCounts: '{completed} completed · {inProgress} in progress · {pending} pending',
+    tasksTitle: 'Tasks',
+    noTasks: 'No tasks on this project yet.',
+  },
 }

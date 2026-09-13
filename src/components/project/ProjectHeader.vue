@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import ClientDocumentsDialog from '@/components/client/ClientDocumentsDialog.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import TeamMemberWorkloadDialog from '@/components/task/TeamMemberWorkloadDialog.vue'
 import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -32,6 +33,11 @@ const { t } = useI18n()
 // ProjectOverviewTab.vue) for anyone who actually needs to edit the
 // client rather than just check what's on file.
 const isDocumentsDialogOpen = ref(false)
+
+// Same treatment for the engineer's name -- pops their workload (every
+// project and task they're on, split by status) instead of leaving it
+// as inert text with no way to see what else this person is carrying.
+const isEngineerDialogOpen = ref(false)
 </script>
 
 <template>
@@ -62,10 +68,14 @@ const isDocumentsDialogOpen = ref(false)
       <Building2 class="h-4 w-4 text-text-muted" />
       {{ t('project.unassigned') }}
     </span>
-    <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-primary-700 hover:underline"
+      @click="isEngineerDialogOpen = true"
+    >
       <User class="h-4 w-4 text-text-muted" />
       {{ project.engineer }}
-    </span>
+    </button>
     <span class="inline-flex items-center gap-1.5 text-sm text-text-muted">
       <Layers class="h-4 w-4 text-text-muted" />
       {{ project.service }}
@@ -97,4 +107,5 @@ const isDocumentsDialogOpen = ref(false)
   </div>
 
   <ClientDocumentsDialog v-model="isDocumentsDialogOpen" :client="client" />
+  <TeamMemberWorkloadDialog v-model="isEngineerDialogOpen" :member-name="project.engineer" />
 </template>

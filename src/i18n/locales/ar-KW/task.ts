@@ -121,4 +121,17 @@ export default {
     by: 'بواسطة {name}',
     untitled: 'تقرير ميداني',
   },
+
+  workloadDialog: {
+    projectsTitle: 'المشاريع',
+    noProjectsTitle: 'لا توجد مشاريع بعد',
+    noProjectsDescription: 'ستظهر هنا المشاريع التي يكون هذا الشخص مهندسها أو لديه مهمة فيها.',
+    projectTaskCounts: '{completed} مكتملة · {inProgress} قيد التنفيذ · {pending} معلقة',
+    activitiesTitle: 'الأنشطة',
+    noActivitiesTitle: 'لا توجد أنشطة بعد',
+    noActivitiesDescription: 'ستظهر هنا المهام المسندة إلى هذا الشخص.',
+    inProgressGroup: 'قيد التنفيذ',
+    pendingGroup: 'معلقة',
+    completedGroup: 'مكتملة',
+  },
 }

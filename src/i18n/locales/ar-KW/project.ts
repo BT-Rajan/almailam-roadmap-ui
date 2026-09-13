@@ -722,4 +722,12 @@ export default {
     reportDescription: 'اعرض هذا المشروع ضمن تقرير أداء المشاريع الكامل.',
     viewReport: 'عرض التقرير',
   },
+
+  summaryDialog: {
+    teamTitle: 'الفريق',
+    teamMemberRole: 'عضو الفريق',
+    memberTaskCounts: '{completed} مكتملة · {inProgress} قيد التنفيذ · {pending} معلقة',
+    tasksTitle: 'المهام',
+    noTasks: 'لا توجد مهام في هذا المشروع بعد.',
+  },
 }

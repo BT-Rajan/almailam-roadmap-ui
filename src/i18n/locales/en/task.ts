@@ -121,4 +121,17 @@ export default {
     by: 'By {name}',
     untitled: 'Field report',
   },
+
+  workloadDialog: {
+    projectsTitle: 'Projects',
+    noProjectsTitle: 'No projects yet',
+    noProjectsDescription: "Projects this person is the engineer on, or has a task in, will appear here.",
+    projectTaskCounts: '{completed} completed · {inProgress} in progress · {pending} pending',
+    activitiesTitle: 'Activities',
+    noActivitiesTitle: 'No activities yet',
+    noActivitiesDescription: 'Tasks assigned to this person will appear here.',
+    inProgressGroup: 'In Progress',
+    pendingGroup: 'Pending',
+    completedGroup: 'Completed',
+  },
 }
