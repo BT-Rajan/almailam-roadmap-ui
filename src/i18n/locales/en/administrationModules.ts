@@ -46,6 +46,10 @@ export default {
       label: 'Email Settings',
       description: 'Configure the SMTP mailbox, and edit the subject/body of every automated email.',
     },
+    scheduledReports: {
+      label: 'Scheduled Reports',
+      description: 'Automatically email a PDF report to one or more people, once or on a repeating schedule.',
+    },
     auditLog: {
       label: 'Audit Log',
       description: 'Review every tracked change across the system, who made it, and when.',

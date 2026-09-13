@@ -22,21 +22,22 @@ const { t } = useI18n()
 const statusReportStore = useStatusReportStore()
 const userStore = useUserStore()
 
-// This panel only makes sense for the auto-created Design/Permit/
-// Supervision service tasks (see Task.selectedActivityId/
-// selectedPermitId/selectedSupervisionActivityId), and only once the
-// task is actually assigned to a site engineer -- otherwise there's
-// no field report to have a history of yet. Task.assignedTo is
-// already resolved to a display name by the time it reaches the
-// frontend (see TaskOut.from_model), so role is looked up by name the
-// same way TaskAssignmentCard.vue already does.
-const belongsToServiceTrack = computed(
-  () => Boolean(props.task.selectedActivityId || props.task.selectedPermitId || props.task.selectedSupervisionActivityId),
-)
+// This panel is for Supervision service tasks only (see
+// Task.selectedSupervisionActivityId) -- the field reports it lists
+// (see status_report_service's own docstring) digitize the paper
+// "تقرير إشراف" / Supervision Report form, so they're inherently
+// Supervision documentation and don't belong on a Design or Permit
+// task's history. Also requires the task to actually be assigned to a
+// site engineer -- otherwise there's no field report to have a
+// history of yet. Task.assignedTo is already resolved to a display
+// name by the time it reaches the frontend (see TaskOut.from_model),
+// so role is looked up by name the same way TaskAssignmentCard.vue
+// already does.
+const isSupervisionTask = computed(() => Boolean(props.task.selectedSupervisionActivityId))
 const assigneeIsEngineer = computed(
   () => userStore.users.find((user) => user.name === props.task.assignedTo)?.role === 'Engineer',
 )
-const isApplicable = computed(() => belongsToServiceTrack.value && assigneeIsEngineer.value)
+const isApplicable = computed(() => isSupervisionTask.value && assigneeIsEngineer.value)
 
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
@@ -98,7 +99,14 @@ function openReport(report: StatusReport): void {
             <p class="truncate text-sm font-medium text-text-primary" dir="auto">{{ reportSummary(report) }}</p>
             <span class="shrink-0 text-xs text-text-muted">{{ formatDate(report.reportDate) }}</span>
           </div>
-          <p class="text-xs text-text-muted">{{ t('task.fieldReportHistory.by', { name: report.engineerName }) }}</p>
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-xs text-text-muted">{{ t('task.fieldReportHistory.by', { name: report.engineerName }) }}</p>
+            <StatusBadge
+              :label="report.status === 'Attached' ? t('task.fieldReportHistory.statusAttached') : t('task.fieldReportHistory.statusPending')"
+              :variant="report.status === 'Attached' ? 'success' : 'warning'"
+              size="sm"
+            />
+          </div>
         </li>
       </ul>
       <TablePagination

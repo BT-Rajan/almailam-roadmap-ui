@@ -117,9 +117,11 @@ export default {
   fieldReportHistory: {
     title: 'Task History',
     emptyTitle: 'No field reports yet',
-    emptyDescription: "This site engineer's reviewed reports for this task will appear here.",
+    emptyDescription: "This site engineer's field reports for this project will appear here.",
     by: 'By {name}',
     untitled: 'Field report',
+    statusPending: 'Pending review',
+    statusAttached: 'Attached',
   },
 
   workloadDialog: {

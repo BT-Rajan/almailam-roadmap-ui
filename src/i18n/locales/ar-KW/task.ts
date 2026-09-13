@@ -117,9 +117,11 @@ export default {
   fieldReportHistory: {
     title: 'سجل المهمة',
     emptyTitle: 'لا توجد تقارير ميدانية بعد',
-    emptyDescription: 'ستظهر هنا التقارير التي راجعها مهندس الموقع لهذه المهمة.',
+    emptyDescription: 'ستظهر هنا التقارير الميدانية التي يقدمها مهندس الموقع لهذا المشروع.',
     by: 'بواسطة {name}',
     untitled: 'تقرير ميداني',
+    statusPending: 'قيد المراجعة',
+    statusAttached: 'مرفق',
   },
 
   workloadDialog: {

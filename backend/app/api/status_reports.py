@@ -74,12 +74,15 @@ def list_reports_for_task(
     db: Session = Depends(get_db),
     _=Depends(can_view_projects),
 ):
-    """Backs the "task history" shown on a Design/Permit/Supervision
-    task once it's assigned to a site engineer -- the Projects view
-    permission (not Documents) since this is reached from the Tasks
-    tab/Task details, not the Documents area."""
+    """Backs the "task history" shown on a task once it's assigned to a
+    site engineer -- for a Supervision task this is every report the
+    assignee has filed for the project (attached or not, see
+    status_report_service.list_reports_for_task); for Design/Permit it
+    stays limited to reports explicitly attached to this exact task.
+    The Projects view permission (not Documents) since this is reached
+    from the Tasks tab/Task details, not the Documents area."""
     task = task_service.get_task(db, task_no)
-    reports = status_report_service.list_reports_for_task(db, task.id)
+    reports = status_report_service.list_reports_for_task(db, task)
     return [_report_out(db, r) for r in reports]
 
 

@@ -17,6 +17,7 @@ import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { useAuth } from '@/composables/useAuthComposable'
 import { useLocale } from '@/composables/useLocale'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { documentTemplateService } from '@/services/documentTemplateService'
@@ -66,6 +67,7 @@ const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
 const { isRtl } = useLocale()
+const { isAdmin } = useAuth()
 
 // Points the way this action advances the project, which flips with
 // reading direction.
@@ -723,7 +725,7 @@ async function handleSendEmail(): Promise<void> {
                   {{ t('payment.planPanel.delete') }}
                 </BaseButton>
                 <BaseButton
-                  v-if="agreementForStream(section.stream)!.status === 'Approved'"
+                  v-if="agreementForStream(section.stream)!.status === 'Approved' && isAdmin"
                   variant="ghost"
                   size="sm"
                   :icon="RotateCcw"

@@ -254,15 +254,37 @@ def list_reports_for_project(db: Session, project_id: int) -> list[StatusReport]
     )
 
 
-def list_reports_for_task(db: Session, task_id: int) -> list[StatusReport]:
-    """Every report attached to this specific task (attach_report links
-    a report to at most one task) -- backs the "task history" shown on
-    a Design/Permit/Supervision-track task once it's assigned to a site
-    engineer: each entry here is one of that engineer's own field
-    reports, reviewed and attached against this exact task."""
+def list_reports_for_task(db: Session, task: Task) -> list[StatusReport]:
+    """Every field report relevant to this specific task -- the "task
+    history" shown on a task once it's assigned to a site engineer.
+
+    Supervision-track tasks (selected_supervision_activity_id set) show
+    every report the assigned engineer has filed for the task's
+    project, full stop -- not only the ones a recipient happened to
+    manually pick this exact task for in attach_report's optional task
+    picker. These reports (see this module's own docstring -- they
+    digitize the paper "تقرير إشراف" / Supervision Report form) are
+    inherently supervision documentation for the project regardless of
+    whether anyone has reviewed and attached them yet, so gating
+    visibility on that separate, easy-to-skip review step was losing
+    reports from the one place -- the Supervision task -- where staff
+    would actually go looking for them. Pending (not yet reviewed)
+    reports appear here too, alongside Attached ones.
+
+    Design/Permit tasks have no such project-wide report stream to draw
+    on, so they keep the narrower original behavior: only reports this
+    exact task was explicitly chosen for during attach.
+    """
+    if task.selected_supervision_activity_id is not None:
+        return (
+            db.query(StatusReport)
+            .filter(StatusReport.project_id == task.project_id, StatusReport.engineer_id == task.assigned_to)
+            .order_by(StatusReport.report_date.desc())
+            .all()
+        )
     return (
         db.query(StatusReport)
-        .filter(StatusReport.attached_task_id == task_id)
+        .filter(StatusReport.attached_task_id == task.id)
         .order_by(StatusReport.report_date.desc())
         .all()
     )

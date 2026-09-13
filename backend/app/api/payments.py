@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationAppError
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
@@ -133,6 +133,13 @@ def reopen_agreement(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
+    # An Approved payment plan can only be reopened for editing by an
+    # Administrator -- ordinary "Finance: edit" access (Account
+    # Manager/Finance staff) stops at Draft plans. Also enforced in
+    # payment_service.reopen_agreement itself; checked here too so the
+    # rejection is a plain 403 before any DB work happens.
+    if current_user.role != "Administrator":
+        raise PermissionDeniedError("Only an Administrator can reopen an approved payment plan for editing.")
     agreement = payment_service.reopen_agreement(
         db, payment_service.parse_agreement_id(agreement_id), payload.reason, current_user.id
     )
