@@ -30,7 +30,7 @@ class MessageLogEntry(Base):
     template_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("message_templates.id", ondelete="SET NULL"), nullable=True
     )
-    # Email-only (migration 0097) -- SMS/WhatsApp have no subject line,
+    # Email-only (migration 0098) -- SMS/WhatsApp have no subject line,
     # so this stays NULL for those channels. Defaults to
     # "{project name} - {current stage}" from the Message Centre
     # compose modal (see MessageCentrePage.vue), but stored as whatever
@@ -41,7 +41,7 @@ class MessageLogEntry(Base):
         BigPK, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
     status: Mapped[str] = mapped_column(Enum(*MESSAGE_STATUSES, name="message_status"), nullable=False)
-    # Populated only when status == 'Failed' (migration 0097) -- an
+    # Populated only when status == 'Failed' (migration 0098) -- an
     # Email send goes through real SMTP (see email_service.py) and can
     # genuinely fail (bad credentials, unreachable host, ...), unlike
     # the SMS/WhatsApp channels which only ever simulate sending and
@@ -52,7 +52,7 @@ class MessageLogEntry(Base):
 
 class MessageAttachment(Base):
     """A file attached to an Email-channel MessageLogEntry (migration
-    0097) -- SMS/WhatsApp entries never have any. Stored the same way
+    0098) -- SMS/WhatsApp entries never have any. Stored the same way
     as ProjectDocument (file_storage.save_upload's storage_key +
     original_filename + size), but deliberately its own table rather
     than reusing ProjectDocument: an emailed attachment isn't a project

@@ -1100,14 +1100,14 @@ CREATE TABLE IF NOT EXISTS message_log (
     template_id     BIGINT UNSIGNED NULL,
     -- Email-only -- NULL for SMS/WhatsApp. Defaults to "{project name}
     -- - {current stage}" from the Message Centre compose modal, stored
-    -- as whatever was actually sent (migration 0097).
+    -- as whatever was actually sent (migration 0098).
     subject         VARCHAR(300) NULL,
     body            TEXT NOT NULL,
     project_id      BIGINT UNSIGNED NULL,
     status          ENUM('Sent','Failed') NOT NULL,
     -- Populated only when status = 'Failed' -- Email goes through real
     -- SMTP and can genuinely fail; SMS/WhatsApp only ever simulate
-    -- sending so never populate this (migration 0097).
+    -- sending so never populate this (migration 0098).
     error_message   VARCHAR(500) NULL,
     sent_at         DATETIME NOT NULL,
     CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
@@ -1116,7 +1116,7 @@ CREATE TABLE IF NOT EXISTS message_log (
     INDEX idx_message_log_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Files attached to an Email-channel message_log row (migration 0097)
+-- Files attached to an Email-channel message_log row (migration 0098)
 -- -- SMS/WhatsApp rows never have any. Stored the same way as
 -- project_documents (storage_key/original_filename/file_size_bytes),
 -- but kept as its own table since an emailed attachment isn't a

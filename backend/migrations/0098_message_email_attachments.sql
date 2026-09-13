@@ -1,4 +1,4 @@
--- Migration 0097: real Email sending from the Message Centre --
+-- Migration 0098: real Email sending from the Message Centre --
 -- subject + failure reason on message_log, plus a message_attachments
 -- table.
 --
@@ -17,7 +17,7 @@
 -- as every other migration here (e.g. migration 0096).
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0097_message_email_attachments.sql
+--   mysql -u <user> -p <database> < backend/migrations/0098_message_email_attachments.sql
 
 SET @db := DATABASE();
 
@@ -56,4 +56,4 @@ SET @sql := IF(@table_exists = 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SELECT 'Migration 0097 complete.' AS status;
+SELECT 'Migration 0098 complete.' AS status;
