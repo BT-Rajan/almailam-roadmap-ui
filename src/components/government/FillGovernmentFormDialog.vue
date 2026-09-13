@@ -86,10 +86,24 @@ watch(
     if (companyStore.settings === undefined) companyStore.loadSettings()
     selectedFormId.value = props.forms.length === 1 ? props.forms[0].id : ''
     titleOverride.value = ''
-    formError.value = ''
+    validateForm()
     for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
   },
 )
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- Form was
+// previously only checked inside handleGenerate, so it looked like an
+// ordinary optional field until the first failed "Generate & Save PDF"
+// click. Re-runs on every selection change and once as soon as the
+// dialog opens (see the modelValue watch above), so it's flagged red
+// from the moment it's shown instead. The per-token fields below aren't
+// marked required today, so they're left on their existing
+// submit-time-only check.
+function validateForm(): void {
+  formError.value = selectedForm.value ? '' : 'Please select a form'
+}
+watch(selectedFormId, validateForm)
 
 watch(selectedForm, (form) => {
   for (const key of Object.keys(contextValues)) delete contextValues[key]
@@ -109,11 +123,8 @@ function closeDialog(): void {
 }
 
 async function handleGenerate(): Promise<void> {
-  if (!selectedForm.value) {
-    formError.value = 'Please select a form'
-    return
-  }
-  formError.value = ''
+  validateForm()
+  if (!selectedForm.value) return
 
   for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
   for (const token of tokens.value) {

@@ -47,23 +47,7 @@ function emptyForm() {
 const form = reactive(emptyForm())
 const errors = reactive({ documentNumber: '', issueDate: '', expiryDate: '', issuingCountry: '' })
 
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (!open) return
-    Object.assign(form, props.identification ? { ...props.identification } : emptyForm())
-    errors.documentNumber = ''
-    errors.issueDate = ''
-    errors.expiryDate = ''
-    errors.issuingCountry = ''
-  },
-)
-
-function closeDialog(): void {
-  emit('update:modelValue', false)
-}
-
-function handleConfirm(): void {
+function validate(): boolean {
   errors.documentNumber = !form.documentNumber.trim()
     ? 'Document number is required'
     : form.documentType === 'Civil ID' && !isValidCivilId(form.documentNumber)
@@ -82,7 +66,33 @@ function handleConfirm(): void {
         ? 'Expiry date must be after the issue date'
         : ''
   errors.issuingCountry = form.issuingCountry.trim() ? '' : 'Issuing country is required'
-  if (errors.documentNumber || errors.issueDate || errors.expiryDate || errors.issuingCountry) return
+  return !errors.documentNumber && !errors.issueDate && !errors.expiryDate && !errors.issuingCountry
+}
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!open) return
+    Object.assign(form, props.identification ? { ...props.identification } : emptyForm())
+    validate()
+  },
+)
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleConfirm, so Document Number/Issue
+// Date/Expiry Date/Issuing Country looked like ordinary optional
+// fields until the first failed Save click. The modelValue watch above
+// now also calls it as soon as the dialog opens; this keeps it live on
+// every edit too.
+watch(form, validate, { deep: true })
+
+function closeDialog(): void {
+  emit('update:modelValue', false)
+}
+
+function handleConfirm(): void {
+  if (!validate()) return
 
   emit('confirm', { ...form })
 }

@@ -105,9 +105,22 @@ watch(
     // loading, in case the dialog was opened before that resolved.
     const currentEngineer = userStore.users.find((user) => user.name === props.project.engineer)
     form.engineerId = currentEngineer?.id ?? ''
+    revalidate()
   },
   { immediate: true },
 )
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- Project Name/
+// Service/Field Engineer/Target Date were previously only checked
+// inside handleConfirm, so they looked like ordinary optional fields
+// until the first failed "Save Changes" click. Re-runs on every edit
+// and once as soon as the dialog opens (see the watch above), so
+// they're flagged red from the moment they're shown instead.
+function revalidate(): void {
+  validateAll(form)
+}
+watch(form, revalidate, { deep: true })
 
 function closeDialog(): void {
   emit('update:modelValue', false)

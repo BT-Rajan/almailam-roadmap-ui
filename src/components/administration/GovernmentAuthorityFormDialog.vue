@@ -43,7 +43,7 @@ watch(
     form.value = authority
       ? { name: authority.name, category: authority.category, website: authority.website, description: authority.description }
       : emptyForm()
-    errors.value = {}
+    validate()
   },
   { immediate: true },
 )
@@ -55,6 +55,14 @@ function validate(): boolean {
   if (!form.value.description.trim()) errors.value.description = 'Description is required'
   return Object.keys(errors.value).length === 0
 }
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleSave, so Authority Name/Website/
+// Description looked like ordinary optional fields until the first
+// failed Save click. The modelValue watch above now also calls it as
+// soon as the dialog opens; this keeps it live on every edit too.
+watch(form, validate, { deep: true })
 
 function handleSave(): void {
   if (!validate()) return
