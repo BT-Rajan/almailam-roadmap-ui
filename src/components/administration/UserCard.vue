@@ -6,7 +6,7 @@ import Avatar from '@/components/common/Avatar.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import type { AppUser } from '@/types/User'
-import { getUserRoleVariant, getUserStatusVariant } from '@/utils/userHelpers'
+import { getUserRoleVariant, getUserStatusVariant, withSalutation } from '@/utils/userHelpers'
 
 interface Props {
   user: AppUser
@@ -46,7 +46,7 @@ function statusLabel(status: string): string {
       <div class="flex items-start gap-4">
         <Avatar :name="user.name" size="lg" />
         <div class="min-w-0 flex-1">
-          <p class="text-base font-semibold text-text-primary">{{ user.name }}</p>
+          <p class="text-base font-semibold text-text-primary">{{ withSalutation(user) }}</p>
           <p class="text-sm text-text-muted">{{ user.designation }}</p>
           <div class="mt-2 flex flex-wrap items-center gap-2">
             <StatusBadge :label="roleLabel(user.role)" :variant="getUserRoleVariant(user.role)" />

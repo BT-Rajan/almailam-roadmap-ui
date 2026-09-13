@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AlertTriangle, ArrowLeft, ArrowRight } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Avatar from '@/components/common/Avatar.vue'
@@ -8,7 +8,9 @@ import IconButton from '@/components/common/IconButton.vue'
 import ProjectSummaryDialog from '@/components/project/ProjectSummaryDialog.vue'
 import TeamMemberWorkloadDialog from '@/components/task/TeamMemberWorkloadDialog.vue'
 import { useLocale } from '@/composables/useLocale'
+import { useUserStore } from '@/stores/userStore'
 import { formatTaskDueDateTime, getNextTaskStatus, isTaskOverdue } from '@/utils/taskHelpers'
+import { withSalutationByName } from '@/utils/userHelpers'
 import type { Task, TaskStatus } from '@/types/Task'
 
 const props = defineProps<{
@@ -24,6 +26,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { isRtl } = useLocale()
+const userStore = useUserStore()
+
+onMounted(() => {
+  if (userStore.users.length === 0) void userStore.loadUsers()
+})
 
 // Points the way this action moves the task forward, which flips with
 // reading direction.
@@ -75,7 +82,7 @@ const isMemberDialogOpen = ref(false)
     <div class="flex items-center justify-between">
       <button type="button" class="flex items-center gap-2" @click.stop="isMemberDialogOpen = true">
         <Avatar :name="task.assignedTo" size="sm" />
-        <span class="text-xs text-text-secondary hover:text-primary-700 hover:underline">{{ task.assignedTo }}</span>
+        <span class="text-xs text-text-secondary hover:text-primary-700 hover:underline">{{ withSalutationByName(task.assignedTo, userStore.users) }}</span>
       </button>
 
       <span class="text-xs font-medium" :class="overdue ? 'text-danger-700' : 'text-text-muted'">
@@ -94,6 +101,6 @@ const isMemberDialogOpen = ref(false)
     />
   </div>
 
-  <ProjectSummaryDialog v-model="isProjectDialogOpen" :project-id="task.projectId" />
-  <TeamMemberWorkloadDialog v-model="isMemberDialogOpen" :member-name="task.assignedTo" />
+  <ProjectSummaryDialog v-if="isProjectDialogOpen" v-model="isProjectDialogOpen" :project-id="task.projectId" />
+  <TeamMemberWorkloadDialog v-if="isMemberDialogOpen" v-model="isMemberDialogOpen" :member-name="task.assignedTo" />
 </template>

@@ -16,6 +16,7 @@ def _avatar_initials(full_name: str) -> str:
 class UserOut(BaseModel):
     id: str
     name: str
+    salutation: str | None
     designation: str | None
     email: EmailStr
     mobile: str | None
@@ -28,6 +29,7 @@ class UserOut(BaseModel):
         return UserOut(
             id=f"USR-{user.id:03d}",
             name=user.full_name,
+            salutation=user.salutation,
             designation=user.designation,
             email=user.email,
             mobile=user.mobile,
@@ -47,6 +49,7 @@ class UserPasswordResetOut(UserOut):
 
 class UserCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    salutation: str | None = None
     email: EmailStr
     designation: str | None = Field(default=None, max_length=120)
     mobile: str | None = Field(default=None, max_length=30)
@@ -59,9 +62,21 @@ class UserCreate(BaseModel):
             raise ValueError(f"role must be one of {ROLES}")
         return value
 
+    @field_validator("salutation")
+    @classmethod
+    def salutation_must_be_known(cls, value: str | None) -> str | None:
+        if value is not None and value not in ("Mr.", "Ms."):
+            raise ValueError("salutation must be 'Mr.' or 'Ms.'")
+        return value
+
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    # Three states, not two: None means "leave as-is", "" means "clear
+    # it" (a previously-set salutation being removed) -- only 'Mr.'/
+    # 'Ms.' actually sets one. Mirrors how role/designation/mobile below
+    # already treat None as "unchanged" on this same PATCH-style schema.
+    salutation: str | None = Field(default=None)
     designation: str | None = Field(default=None, max_length=120)
     mobile: str | None = Field(default=None, max_length=30)
     role: str | None = None
@@ -71,6 +86,13 @@ class UserUpdate(BaseModel):
     def role_must_be_known(cls, value: str | None) -> str | None:
         if value is not None and value not in ROLES:
             raise ValueError(f"role must be one of {ROLES}")
+        return value
+
+    @field_validator("salutation")
+    @classmethod
+    def salutation_must_be_known(cls, value: str | None) -> str | None:
+        if value not in (None, "", "Mr.", "Ms."):
+            raise ValueError("salutation must be 'Mr.', 'Ms.', or empty to clear it")
         return value
 
 

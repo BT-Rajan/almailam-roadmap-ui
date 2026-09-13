@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS users (
     email                   VARCHAR(120) NOT NULL UNIQUE,
     password_hash           VARCHAR(255) NOT NULL,
     full_name               VARCHAR(120) NOT NULL,
+    salutation              ENUM('Mr.','Ms.') NULL,
     designation             VARCHAR(120) NULL,
     mobile                  VARCHAR(30)  NULL,
     role                    ENUM('Administrator','Project Manager','Engineer','Document Controller','Viewer','Customer')

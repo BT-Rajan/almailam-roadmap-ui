@@ -86,7 +86,22 @@ def _plain_text(value: str | None) -> str:
 
 def _user_name(db: Session, user_id: int) -> str:
     user = db.query(User).filter(User.id == user_id).first()
-    return user.full_name if user else "Unknown"
+    if not user:
+        return "Unknown"
+    return f"{user.salutation} {user.full_name}" if user.salutation else user.full_name
+
+
+def _client_display_name(client: Client | None) -> str:
+    """Every client name printed on a generated document gets the
+    gender/entity-neutral business salutation "M/s." (short for
+    "Messrs.") ahead of it -- works the same whether the client is a
+    company, organisation, government entity, or an individual, so
+    nothing here has to guess at (or ask for) an individual client's
+    gender the way _user_name above does for staff via their optional
+    salutation field."""
+    if not client or not client.company_name:
+        return ""
+    return f"M/s. {client.company_name}"
 
 
 def _check_document_type(document_type: str) -> None:
@@ -652,7 +667,7 @@ def render_quotation_document(db: Session, quotation: Quotation, language: str |
         "status": quotation.status,
         "currency": quotation.currency,
         "prepared_by": _user_name(db, quotation.prepared_by),
-        "client_name": client.company_name if client else "",
+        "client_name": _client_display_name(client),
         "project_name": project.project_name if project else "",
         "project_no": project.project_no if project else "",
         "project_address": (project.site_address or "") if project else "",
@@ -732,7 +747,7 @@ def render_contract_document(db: Session, contract: Contract, language: str | No
         "status": contract.status,
         "prepared_by": _user_name(db, contract.prepared_by),
         "client_representative": contract.client_representative,
-        "client_name": client.company_name if client else "",
+        "client_name": _client_display_name(client),
         "project_name": project.project_name if project else "",
         "project_no": project.project_no if project else "",
         "project_address": (project.site_address or "") if project else "",
@@ -822,7 +837,7 @@ def render_payment_plan_document(db: Session, project: Project, language: str | 
         "project_name": project.project_name,
         "project_no": project.project_no,
         "project_address": project.site_address or "",
-        "client_name": client.company_name if client else "",
+        "client_name": _client_display_name(client),
         "issue_date": datetime.now(timezone.utc).strftime("%d %B %Y"),
         "streams": streams,
         "schedule": schedule,

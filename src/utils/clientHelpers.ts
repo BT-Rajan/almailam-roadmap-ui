@@ -44,3 +44,12 @@ export function getClientDisplayName(client: Client): string {
   }
   return client.organisationProfile?.legalName ?? client.companyName
 }
+
+/** Same "M/s." prefix generated documents already put ahead of a client's
+ * name (see backend document_template_service.py's _client_display_name)
+ * -- applied here too so a client reads the same gender/entity-neutral
+ * way in-app as it does on the paperwork, regardless of whether they're
+ * a company or an individual. */
+export function getClientFormalName(client: Client): string {
+  return `M/s. ${getClientDisplayName(client)}`
+}

@@ -40,6 +40,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Mr./Ms. for this user -- printed ahead of full_name wherever a
+    # generated document names them (see document_template_service.
+    # _user_name), e.g. a quotation/contract's "Prepared By". Optional:
+    # left blank, the document simply prints the bare name, same as
+    # before this column existed (see migration 0097).
+    salutation: Mapped[str | None] = mapped_column(Enum("Mr.", "Ms.", name="user_salutation"), nullable=True)
     designation: Mapped[str | None] = mapped_column(String(120), nullable=True)
     mobile: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
