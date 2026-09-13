@@ -275,6 +275,100 @@ def employee_performance(db: Session, year: int, month: int) -> list[dict]:
     return sorted(results, key=lambda entry: entry["employeeName"])
 
 
+# No table anywhere tracks a person's actual capacity (hours/week,
+# FTE, or anything similar) -- User has no such column, and Task has no
+# estimate/effort field either (see models/user.py, models/task.py). So
+# "how full is this person" can't be measured, only approximated from
+# what we do track: how many tasks are currently open on them. This
+# constant is that approximation's one free parameter -- the open-task
+# count treated as "fully loaded" for allocation-percent purposes. It's
+# a business assumption, not a measured figure, and should be revisited
+# (or the whole allocationPercent field dropped) if it doesn't match
+# how the team actually thinks about workload.
+TASKS_AT_FULL_CAPACITY = 8
+
+
+def team_workload(db: Session) -> dict:
+    """Real per-engineer workload: currently-open task count, overdue
+    task count, and active (status='Active') project count, each read
+    straight from tasks/projects -- no discipline/department breakdown,
+    since no such field exists on User; role is the only real
+    grouping available. allocationPercent is open tasks against
+    TASKS_AT_FULL_CAPACITY above, not a measured utilization figure.
+    Only active, non-deleted Engineers are included -- they're the
+    role tasks/projects actually get assigned to (see
+    core.permissions.ROLES and Project.engineer_id)."""
+    engineers = (
+        db.query(User)
+        .filter(User.role == "Engineer", User.is_active.is_(True), User.deleted_at.is_(None))
+        .all()
+    )
+    if not engineers:
+        return {
+            "members": [],
+            "totalMembers": 0,
+            "averageUtilization": 0,
+            "overallocatedCount": 0,
+            "capacityAvailable": 0,
+        }
+
+    engineer_ids = [engineer.id for engineer in engineers]
+    today = date.today()
+
+    open_tasks_by_user = dict(
+        db.query(Task.assigned_to, func.count(Task.id))
+        .filter(Task.deleted_at.is_(None), Task.status != "Completed", Task.assigned_to.in_(engineer_ids))
+        .group_by(Task.assigned_to)
+        .all()
+    )
+    overdue_by_user = dict(
+        db.query(Task.assigned_to, func.count(Task.id))
+        .filter(
+            Task.deleted_at.is_(None),
+            Task.status != "Completed",
+            Task.due_date < today,
+            Task.assigned_to.in_(engineer_ids),
+        )
+        .group_by(Task.assigned_to)
+        .all()
+    )
+    active_projects_by_user = dict(
+        db.query(Project.engineer_id, func.count(Project.id))
+        .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.engineer_id.in_(engineer_ids))
+        .group_by(Project.engineer_id)
+        .all()
+    )
+
+    members = []
+    for engineer in engineers:
+        open_tasks = open_tasks_by_user.get(engineer.id, 0)
+        allocation_percent = round(open_tasks * 100 / TASKS_AT_FULL_CAPACITY)
+        members.append(
+            {
+                "userId": str(engineer.id),
+                "name": engineer.full_name,
+                "role": engineer.role,
+                "activeProjects": active_projects_by_user.get(engineer.id, 0),
+                "activeTasks": open_tasks,
+                "overdueTasks": overdue_by_user.get(engineer.id, 0),
+                "allocationPercent": allocation_percent,
+                "overallocated": allocation_percent > 100,
+            }
+        )
+    members.sort(key=lambda member: member["name"])
+
+    average_utilization = round(sum(member["allocationPercent"] for member in members) / len(members))
+    overallocated_count = sum(1 for member in members if member["overallocated"])
+
+    return {
+        "members": members,
+        "totalMembers": len(members),
+        "averageUtilization": average_utilization,
+        "overallocatedCount": overallocated_count,
+        "capacityAvailable": max(0, 100 - average_utilization),
+    }
+
+
 def financial_period_summary(db: Session, start_date: date, end_date: date) -> dict:
     """One period's financial snapshot -- total received (payments
     recorded in the period), total due (obligations that fell due in the

@@ -9,6 +9,7 @@ import type {
   PaymentProjections,
   ReportMetric,
   ReportSection,
+  TeamWorkload,
 } from '@/types/Report'
 
 interface PaymentLedgerFilter {
@@ -88,6 +89,10 @@ async function getFinancialSummary(startDate: string, endDate: string): Promise<
   return apiClient.get<FinancialPeriodSummary>(`/api/reports/financial-summary?startDate=${startDate}&endDate=${endDate}`)
 }
 
+async function getTeamWorkload(): Promise<TeamWorkload> {
+  return apiClient.get<TeamWorkload>('/api/reports/team-workload')
+}
+
 export const reportService = {
   getSummary,
   getProjectsByStatus,
@@ -104,4 +109,5 @@ export const reportService = {
   getPaymentProjections,
   getEmployeePerformance,
   getFinancialSummary,
+  getTeamWorkload,
 }

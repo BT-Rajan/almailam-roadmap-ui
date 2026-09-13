@@ -91,6 +91,25 @@ class EmployeePerformance(BaseModel):
     completionRate: int
 
 
+class TeamWorkloadMember(BaseModel):
+    userId: str
+    name: str
+    role: str
+    activeProjects: int
+    activeTasks: int
+    overdueTasks: int
+    allocationPercent: int
+    overallocated: bool
+
+
+class TeamWorkload(BaseModel):
+    members: list[TeamWorkloadMember]
+    totalMembers: int
+    averageUtilization: int
+    overallocatedCount: int
+    capacityAvailable: int
+
+
 class FinancialPeriodSummary(BaseModel):
     startDate: str
     endDate: str

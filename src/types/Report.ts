@@ -86,6 +86,25 @@ export interface EmployeePerformance {
   completionRate: number
 }
 
+export interface TeamWorkloadMember {
+  userId: string
+  name: string
+  role: string
+  activeProjects: number
+  activeTasks: number
+  overdueTasks: number
+  allocationPercent: number
+  overallocated: boolean
+}
+
+export interface TeamWorkload {
+  members: TeamWorkloadMember[]
+  totalMembers: number
+  averageUtilization: number
+  overallocatedCount: number
+  capacityAvailable: number
+}
+
 export interface FinancialPeriodSummary {
   startDate: string
   endDate: string
