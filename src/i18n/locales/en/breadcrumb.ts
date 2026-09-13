@@ -33,6 +33,7 @@ export default {
   ai: 'AI',
   company: 'Company',
   email: 'Email',
+  scheduledReports: 'Scheduled Reports',
   auditLog: 'Audit Log',
   activityCalendar: 'Activity Calendar',
   myProfile: 'My Profile',

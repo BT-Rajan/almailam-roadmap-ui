@@ -1432,4 +1432,38 @@ CREATE TABLE IF NOT EXISTS email_templates (
     UNIQUE KEY uq_email_templates_key (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- migration 0096 -- Administration > Scheduled Reports ("auto email
+-- report sender"): renders a report as a PDF and emails it to one or
+-- more recipients once, or repeatedly on a daily/weekly/monthly
+-- schedule between an optional start and (nullable/"infinite") end
+-- date. See app/models/scheduled_report.py for full field docs.
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name                VARCHAR(150) NOT NULL,
+    report_type         ENUM('business_summary','financial_summary','project_status') NOT NULL,
+    project_id          BIGINT UNSIGNED NULL,
+    period              ENUM('last_7_days','last_30_days','this_month','last_month','this_quarter','this_year') NULL,
+    recipients          JSON NOT NULL,
+    subject             VARCHAR(300) NULL,
+    message_body        TEXT NULL,
+    frequency           ENUM('once','daily','weekly','monthly') NOT NULL,
+    send_time           TIME NULL,
+    send_datetime       DATETIME NULL,
+    day_of_week         TINYINT NULL,
+    day_of_month        TINYINT NULL,
+    start_date          DATE NULL,
+    end_date            DATE NULL,
+    is_active           TINYINT(1) NOT NULL DEFAULT 1,
+    next_run_at         DATETIME NULL,
+    last_run_at         DATETIME NULL,
+    last_run_status     ENUM('sent','failed') NULL,
+    last_run_error      VARCHAR(500) NULL,
+    created_by          BIGINT UNSIGNED NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_scheduled_reports_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scheduled_reports_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_scheduled_reports_next_run (is_active, next_run_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
