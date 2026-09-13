@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Building2, Calendar, Layers, Pencil, Trash2, User } from '@lucide/vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ClientDocumentsDialog from '@/components/client/ClientDocumentsDialog.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import { ROUTE_NAMES } from '@/constants/routeNames'
 import { formatDate } from '@/utils/dateFormatter'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
@@ -24,6 +25,13 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// Clicking the client's name pops the documents dialog open right here
+// instead of navigating to the full client workspace -- that page is
+// still one click away (client.workspacePage.viewFullProfile, in
+// ProjectOverviewTab.vue) for anyone who actually needs to edit the
+// client rather than just check what's on file.
+const isDocumentsDialogOpen = ref(false)
 </script>
 
 <template>
@@ -41,14 +49,15 @@ const { t } = useI18n()
       <h1 class="text-xl font-semibold text-text-primary">{{ project.projectName }}</h1>
     </div>
 
-    <router-link
+    <button
       v-if="client"
-      :to="{ name: ROUTE_NAMES.CLIENT_WORKSPACE, params: { clientId: client.id } }"
+      type="button"
       class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-primary-700 hover:underline"
+      @click="isDocumentsDialogOpen = true"
     >
       <Building2 class="h-4 w-4 text-text-muted" />
       {{ client.companyName }}
-    </router-link>
+    </button>
     <span v-else class="inline-flex items-center gap-1.5 text-sm text-text-muted">
       <Building2 class="h-4 w-4 text-text-muted" />
       {{ t('project.unassigned') }}
@@ -86,4 +95,6 @@ const { t } = useI18n()
       <IconButton :icon="Trash2" :label="t('project.header.deleteProject')" size="sm" class="no-print" @click="$emit('delete')" />
     </div>
   </div>
+
+  <ClientDocumentsDialog v-model="isDocumentsDialogOpen" :client="client" />
 </template>

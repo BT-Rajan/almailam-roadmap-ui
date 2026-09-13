@@ -13,13 +13,21 @@ import { documentTemplateService } from '@/services/documentTemplateService'
 import { paymentService } from '@/services/paymentService'
 import { quotationService } from '@/services/quotationService'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import type { ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
+import { formatDate } from '@/utils/dateFormatter'
 import { openBlobInWindow } from '@/utils/fileDownload'
 
-const props = defineProps<{
-  projects: Project[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    projects: Project[]
+    // Set from ClientDocumentsDialog.vue, which already gives this its
+    // own dialog chrome -- avoids a card-inside-a-card look. The
+    // standalone Card wrapper stays the default for any other caller
+    // (e.g. ClientWorkspacePage's Overview tab).
+    bare?: boolean
+  }>(),
+  { bare: false },
+)
 
 const { t } = useI18n()
 const resultDialogStore = useResultDialogStore()
@@ -27,12 +35,14 @@ const resultDialogStore = useResultDialogStore()
 // One entry per project, populated as each project's own set of fetches
 // resolves -- undefined while loading, so a client with several projects
 // shows each project's section settle independently rather than the
-// whole panel blocking on the slowest one.
+// whole panel blocking on the slowest one. Each item carries the date
+// that document itself is dated by (issue/agreement/upload date), not
+// just whether it exists.
 interface ProjectDocsAvailability {
-  quotationId: string | null
-  agreementFound: boolean
-  contractId: string | null
-  handoverDocuments: ProjectDocument[]
+  quotation: { id: string; date: string } | null
+  agreement: { date: string } | null
+  contract: { id: string; date: string } | null
+  handoverDocuments: { id: string; date: string }[]
 }
 const availability = reactive<Record<string, ProjectDocsAvailability | undefined>>({})
 const loadingIds = reactive<Set<string>>(new Set())
@@ -68,17 +78,17 @@ async function loadForProject(project: Project): Promise<void> {
       .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))
 
     availability[project.id] = {
-      quotationId: signedQuotation?.id ?? null,
-      agreementFound: agreement?.status === 'Approved',
-      contractId: signedContract?.id ?? null,
-      handoverDocuments,
+      quotation: signedQuotation ? { id: signedQuotation.id, date: signedQuotation.issueDate } : null,
+      agreement: agreement?.status === 'Approved' ? { date: agreement.agreementDate } : null,
+      contract: signedContract ? { id: signedContract.id, date: signedContract.signedDate ?? signedContract.issueDate } : null,
+      handoverDocuments: handoverDocuments.map((d) => ({ id: d.id, date: d.uploadDate })),
     }
   } catch {
     // Leave this project's row out rather than surfacing a fetch error
     // for what is, for the person looking at it, a purely informational
     // "here's what's ready" list -- ProjectCard's own view actions (still
     // reachable from the Projects tab) already report load failures.
-    availability[project.id] = { quotationId: null, agreementFound: false, contractId: null, handoverDocuments: [] }
+    availability[project.id] = { quotation: null, agreement: null, contract: null, handoverDocuments: [] }
   } finally {
     loadingIds.delete(project.id)
   }
@@ -93,7 +103,7 @@ watch(() => props.projects.map((p) => p.id).join(','), loadAll)
 
 function hasAnyDocument(entry: ProjectDocsAvailability | undefined): boolean {
   if (!entry) return false
-  return Boolean(entry.quotationId || entry.agreementFound || entry.contractId || entry.handoverDocuments.length > 0)
+  return Boolean(entry.quotation || entry.agreement || entry.contract || entry.handoverDocuments.length > 0)
 }
 
 async function viewQuotation(quotationId: string): Promise<void> {
@@ -129,10 +139,10 @@ async function viewContract(contractId: string): Promise<void> {
   }
 }
 
-async function viewHandoverDocument(document: ProjectDocument): Promise<void> {
+async function viewHandoverDocument(documentId: string): Promise<void> {
   const printWindow = window.open('', '_blank')
   try {
-    const blob = await documentService.downloadDocument(document.id)
+    const blob = await documentService.downloadDocument(documentId)
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
@@ -142,8 +152,8 @@ async function viewHandoverDocument(document: ProjectDocument): Promise<void> {
 </script>
 
 <template>
-  <Card>
-    <template #header>
+  <component :is="bare ? 'div' : Card">
+    <template v-if="!bare" #header>
       <h3 class="text-sm font-semibold text-text-primary">{{ t('client.projectDocuments.title') }}</h3>
     </template>
 
@@ -172,24 +182,30 @@ async function viewHandoverDocument(document: ProjectDocument): Promise<void> {
 
         <ul v-else class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
           <li
-            v-if="availability[project.id]?.quotationId"
+            v-if="availability[project.id]?.quotation"
             class="flex items-center justify-between gap-3 px-3 py-2.5"
           >
-            <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-              <FileText class="h-4 w-4 shrink-0 text-text-muted" />
-              {{ t('client.projectDocuments.signedQuotation') }}
+            <span class="flex flex-col gap-0.5">
+              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                <FileText class="h-4 w-4 shrink-0 text-text-muted" />
+                {{ t('client.projectDocuments.signedQuotation') }}
+              </span>
+              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.quotation!.date) }}</span>
             </span>
             <IconButton
               :icon="FileText"
               :label="t('document.card.viewDocument')"
               size="sm"
-              @click="viewQuotation(availability[project.id]!.quotationId!)"
+              @click="viewQuotation(availability[project.id]!.quotation!.id)"
             />
           </li>
-          <li v-if="availability[project.id]?.agreementFound" class="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-              <Wallet class="h-4 w-4 shrink-0 text-text-muted" />
-              {{ t('client.projectDocuments.approvedPaymentPlan') }}
+          <li v-if="availability[project.id]?.agreement" class="flex items-center justify-between gap-3 px-3 py-2.5">
+            <span class="flex flex-col gap-0.5">
+              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                <Wallet class="h-4 w-4 shrink-0 text-text-muted" />
+                {{ t('client.projectDocuments.approvedPaymentPlan') }}
+              </span>
+              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.agreement!.date) }}</span>
             </span>
             <IconButton
               :icon="Wallet"
@@ -198,16 +214,19 @@ async function viewHandoverDocument(document: ProjectDocument): Promise<void> {
               @click="viewPaymentPlan(project.projectNo)"
             />
           </li>
-          <li v-if="availability[project.id]?.contractId" class="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-              <FileSignature class="h-4 w-4 shrink-0 text-text-muted" />
-              {{ t('client.projectDocuments.signedContract') }}
+          <li v-if="availability[project.id]?.contract" class="flex items-center justify-between gap-3 px-3 py-2.5">
+            <span class="flex flex-col gap-0.5">
+              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                <FileSignature class="h-4 w-4 shrink-0 text-text-muted" />
+                {{ t('client.projectDocuments.signedContract') }}
+              </span>
+              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.contract!.date) }}</span>
             </span>
             <IconButton
               :icon="FileSignature"
               :label="t('document.card.viewDocument')"
               size="sm"
-              @click="viewContract(availability[project.id]!.contractId!)"
+              @click="viewContract(availability[project.id]!.contract!.id)"
             />
           </li>
           <li
@@ -215,19 +234,22 @@ async function viewHandoverDocument(document: ProjectDocument): Promise<void> {
             :key="handoverDocument.id"
             class="flex items-center justify-between gap-3 px-3 py-2.5"
           >
-            <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-              <FolderCheck class="h-4 w-4 shrink-0 text-text-muted" />
-              {{ t('client.projectDocuments.handoverDocument') }}
+            <span class="flex flex-col gap-0.5">
+              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                <FolderCheck class="h-4 w-4 shrink-0 text-text-muted" />
+                {{ t('client.projectDocuments.handoverDocument') }}
+              </span>
+              <span class="pl-6 text-xs text-text-muted">{{ formatDate(handoverDocument.date) }}</span>
             </span>
             <IconButton
               :icon="FolderCheck"
               :label="t('document.card.viewDocument')"
               size="sm"
-              @click="viewHandoverDocument(handoverDocument)"
+              @click="viewHandoverDocument(handoverDocument.id)"
             />
           </li>
         </ul>
       </div>
     </div>
-  </Card>
+  </component>
 </template>
