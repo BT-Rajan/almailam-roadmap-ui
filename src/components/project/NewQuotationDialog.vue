@@ -171,6 +171,7 @@ watch(
     if (!open) return
     Object.assign(form, formFromProject(props.project))
     lineItemErrors.splice(0, lineItemErrors.length)
+    revalidate()
   },
 )
 
@@ -188,6 +189,19 @@ function removeLineItem(index: number): void {
 // preview/print view shows once it's created.
 const subtotal = computed(() => form.lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))
 const total = computed(() => subtotal.value - form.discountAmount)
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- Validity date
+// was previously only checked inside handleConfirm, via the
+// click-then-see-inline-errors pattern noted above, so it looked like
+// an ordinary optional field until the first failed "Create Quotation"
+// click. Re-runs on every edit (deep watch below) and once as soon as
+// the dialog opens (see the modelValue watch above), so it's flagged
+// red from the moment it's shown instead.
+function revalidate(): void {
+  validateAll(form)
+}
+watch(form, revalidate, { deep: true })
 
 function closeDialog(): void {
   emit('update:modelValue', false)
