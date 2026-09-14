@@ -62,6 +62,9 @@ const PERMISSIONS: Record<string, Permission> = {
   'reports.view': { name: 'View Reports', roles: ['Administrator', 'Project Manager'] },
   'reports.executive': { name: 'View Executive Reports', roles: ['Administrator'] },
 
+  // Dashboard
+  'dashboard.financials': { name: 'View Dashboard Financials Tab', roles: ['Administrator'] },
+
   // Activity Calendar
   // Every role gets their own activity; only Administrators can browse
   // other users' activity (cross-user filter, "All Users" option, CSV
