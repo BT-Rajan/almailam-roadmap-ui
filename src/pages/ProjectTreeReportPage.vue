@@ -32,8 +32,15 @@ const isLoadingProjects = ref(false)
 onMounted(async () => {
   isLoadingProjects.value = true
   try {
-    const page = await projectService.getProjectsPage({ pageSize: 200, sort: 'projectName' })
-    projectOptions.value = page.items.map((p) => ({ label: `${p.projectNo} — ${p.projectName}`, value: p.id }))
+    // getProjects() walks every page rather than a single capped request
+    // -- projectService.getProjectsPage's own pageSize is bounded by the
+    // server's MAX_PAGE_SIZE (200), so a company with more than 200
+    // projects on record (plausible after a few years) would otherwise
+    // silently drop the rest from this picker with no way to select
+    // them for a report at all.
+    const projects = await projectService.getProjects()
+    projects.sort((a, b) => a.projectName.localeCompare(b.projectName))
+    projectOptions.value = projects.map((p) => ({ label: `${p.projectNo} — ${p.projectName}`, value: p.id }))
     if (projectOptions.value.length > 0) selectedProjectId.value = projectOptions.value[0].value as string
   } finally {
     isLoadingProjects.value = false
@@ -53,12 +60,12 @@ async function loadTree(): Promise<void> {
   isLoading.value = true
   loadError.value = ''
   try {
-    const [loadedProject, taskPage] = await Promise.all([
+    const [loadedProject, projectTasks] = await Promise.all([
       projectService.getProjectById(selectedProjectId.value),
-      taskService.getTasksPage({ projectId: selectedProjectId.value, pageSize: 200 }),
+      taskService.getTasksForProject(selectedProjectId.value),
     ])
     project.value = loadedProject
-    tasks.value = taskPage.items
+    tasks.value = projectTasks
     clientName.value = ''
     if (loadedProject) {
       const client = await clientService.getClientById(loadedProject.clientId)

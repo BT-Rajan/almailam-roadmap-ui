@@ -13,6 +13,18 @@ export function addDaysIso(fromIso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+/** First and last calendar day of the current month, both as YYYY-MM-DD
+ * -- for period-scoped report queries (e.g. reportService.
+ * getFinancialSummary's startDate/endDate), so a caller doesn't have to
+ * work out month-length/leap-year edge cases itself. */
+export function currentMonthRange(): { start: string; end: string } {
+  const today = todayIso()
+  const yearMonth = today.slice(0, 7)
+  const [year, month] = today.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return { start: `${yearMonth}-01`, end: `${yearMonth}-${String(lastDay).padStart(2, '0')}` }
+}
+
 const DISPLAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: '2-digit',
   month: 'short',

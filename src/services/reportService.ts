@@ -4,9 +4,9 @@ import type {
   ClientWithProjects,
   EmployeePerformance,
   FinancialPeriodSummary,
-  LineChartData,
   PaymentLedgerEntry,
   PaymentProjections,
+  PaymentsReceivedByMonth,
   ReportMetric,
   ReportSection,
   TeamWorkload,
@@ -51,8 +51,8 @@ async function getDocumentsByStatus(): Promise<ChartDataPoint[]> {
   return apiClient.get<ChartDataPoint[]>('/api/reports/documents-by-status')
 }
 
-async function getPaymentsReceivedByMonth(months = 6): Promise<LineChartData[]> {
-  return apiClient.get<LineChartData[]>(`/api/reports/payments-received-by-month?months=${months}`)
+async function getPaymentsReceivedByMonth(months = 6): Promise<PaymentsReceivedByMonth> {
+  return apiClient.get<PaymentsReceivedByMonth>(`/api/reports/payments-received-by-month?months=${months}`)
 }
 
 async function getProjectReport(projectNo: string): Promise<ReportSection[]> {

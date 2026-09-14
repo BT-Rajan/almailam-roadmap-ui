@@ -13,6 +13,7 @@ from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
+from app.services import company_service
 from app.services.payment_service import get_financial_summary
 
 
@@ -63,6 +64,14 @@ def documents_by_status(db: Session) -> list[dict]:
 
 
 def payments_received_by_month(db: Session, months: int = 6) -> list[dict]:
+    """Payments received per month, scoped to the company's configured
+    default currency (see CompanySettings.currency / AdminCompanyPage) --
+    FinancialAgreement.currency is picked per contract/quotation (AED/
+    USD/SAR/KWD, see AgreementFormDialog/NewContractDialog), so summing
+    every Payment regardless of its agreement's currency would silently
+    add different currencies together. A single trend line can only
+    honestly represent one currency at a time; if other currencies are
+    in use, this is the org's default one, not necessarily "all of it"."""
     today = date.today()
     year, month = today.year, today.month
     buckets: list[tuple[int, int]] = []
@@ -73,18 +82,24 @@ def payments_received_by_month(db: Session, months: int = 6) -> list[dict]:
             month, year = 12, year - 1
     buckets.reverse()
 
+    report_currency = company_service.get_settings(db).currency
     rows = (
         db.query(
             func.year(Payment.payment_date),
             func.month(Payment.payment_date),
             func.sum(Payment.amount_received),
         )
+        .join(FinancialAgreement, Payment.agreement_id == FinancialAgreement.id)
+        .filter(FinancialAgreement.currency == report_currency)
         .group_by(func.year(Payment.payment_date), func.month(Payment.payment_date))
         .all()
     )
     totals = {(int(y), int(m)): float(total) for y, m, total in rows}
 
-    return [{"x": f"{month_abbr[m]} {y}", "value": totals.get((y, m), 0.0)} for y, m in buckets]
+    return {
+        "currency": report_currency,
+        "series": [{"x": f"{month_abbr[m]} {y}", "value": totals.get((y, m), 0.0)} for y, m in buckets],
+    }
 
 
 def summary_metrics(db: Session) -> list[dict]:
@@ -111,24 +126,49 @@ def summary_metrics(db: Session) -> list[dict]:
         .scalar()
         or 0
     )
-    total_received = db.query(func.sum(PaymentObligation.amount_received)).scalar() or 0
-    total_pending = (
-        db.query(func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
-        .filter(PaymentObligation.manual_status.is_(None))
-        .scalar()
-        or 0
+    # Total Received / Total Pending, broken out by currency. Obligations
+    # aren't guaranteed to share one currency -- FinancialAgreement.currency
+    # is picked per contract/quotation (AED/USD/SAR/KWD, see
+    # AgreementFormDialog/NewContractDialog/company_service's own default
+    # of "AED") -- so a single unlabeled sum would silently add different
+    # currencies together. Emit one metric per currency actually present;
+    # only fall back to the company's configured default when there's no
+    # payment data at all yet, so the cards aren't just missing.
+    received_by_currency = dict(
+        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_received))
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
+        .group_by(FinancialAgreement.currency)
+        .all()
     )
+    pending_by_currency = dict(
+        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
+        .filter(PaymentObligation.manual_status.is_(None))
+        .group_by(FinancialAgreement.currency)
+        .all()
+    )
+    currencies = sorted(set(received_by_currency) | set(pending_by_currency)) or [company_service.get_settings(db).currency]
+    multi_currency = len(currencies) > 1
 
-    return [
+    metrics = [
         {"label": "Total Projects", "value": total_projects, "color": "primary"},
         {"label": "Active Projects", "value": active_projects, "color": "success"},
         {"label": "On Hold Projects", "value": on_hold_projects, "color": "info"},
         {"label": "Total Clients", "value": total_clients, "color": "primary"},
         {"label": "Open Tasks", "value": open_tasks, "color": "warning"},
         {"label": "Overdue Tasks", "value": overdue_tasks, "color": "danger"},
-        {"label": "Total Received", "value": float(total_received), "unit": "KWD", "color": "success"},
-        {"label": "Total Pending", "value": float(total_pending), "unit": "KWD", "color": "warning"},
     ]
+    for currency in currencies:
+        label = f"Total Received ({currency})" if multi_currency else "Total Received"
+        metrics.append(
+            {"label": label, "value": float(received_by_currency.get(currency, 0) or 0), "unit": currency, "color": "success"}
+        )
+    for currency in currencies:
+        label = f"Total Pending ({currency})" if multi_currency else "Total Pending"
+        metrics.append(
+            {"label": label, "value": float(pending_by_currency.get(currency, 0) or 0), "unit": currency, "color": "warning"}
+        )
+    return metrics
 
 
 def _ledger_project_client_filter(query, project_no: str | None, client_id: int | None):
@@ -508,17 +548,30 @@ def project_report(db: Session, project: Project) -> list[dict]:
         },
     ]
 
-    agreement = (
+    # A project can have up to one agreement PER billing stream (Design,
+    # Supervision -- see the (project_id, stream) unique constraint on
+    # FinancialAgreement, and ProjectOverviewTab.vue's own "one row per
+    # stream this project actually includes" handling). Picking only the
+    # single latest-by-id agreement here used to silently drop whichever
+    # stream wasn't picked when a project has both -- e.g. a project with
+    # a Supervision agreement added after its Design one would show only
+    # Supervision's numbers and lose Design's Contract Amount/Received/
+    # Pending/Overdue entirely. Now emits one Finance section per
+    # agreement that actually exists, ordered by stream name so Design
+    # (if present) shows before Supervision.
+    agreements = (
         db.query(FinancialAgreement)
         .filter(FinancialAgreement.project_id == project.id)
-        .order_by(FinancialAgreement.id.desc())
-        .first()
+        .order_by(FinancialAgreement.stream)
+        .all()
     )
-    if agreement is not None:
+    multi_stream = len(agreements) > 1
+    for agreement in agreements:
         financial_summary = get_financial_summary(db, agreement.id)
+        title = f"Finance ({agreement.stream})" if multi_stream else "Finance"
         sections.append(
             {
-                "title": "Finance",
+                "title": title,
                 "metrics": [
                     {"label": "Contract Amount", "value": float(agreement.contract_amount), "unit": agreement.currency},
                     {"label": "Total Received", "value": float(financial_summary["totalReceived"]), "unit": agreement.currency},

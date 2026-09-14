@@ -8,7 +8,6 @@ from app.models.client import (
     ADDRESS_TYPES,
     CLIENT_DOCUMENT_CATEGORIES,
     CLIENT_STATUSES,
-    CLIENT_TYPES,
     CONTACT_TYPES,
     IDENTIFICATION_TYPES,
     PREFERRED_CHANNELS,
@@ -197,6 +196,14 @@ class ClientOut(BaseModel):
         )
 
 
+# Organisation and Government Entity were retired as choices for new
+# clients -- CLIENT_TYPES (app.models.client) still lists them since the
+# DB column and existing rows created before this change need to keep
+# reading/writing fine; this narrower tuple is just what a *new* client
+# is allowed to be created as.
+CREATABLE_CLIENT_TYPES = ("Individual", "Company", "Other")
+
+
 class ClientCreate(BaseModel):
     clientType: str
     companyName: str = Field(min_length=1, max_length=200)
@@ -210,7 +217,7 @@ class ClientCreate(BaseModel):
     accountManagerId: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
 
-    _check_type = field_validator("clientType")(_enum_validator(CLIENT_TYPES, "clientType"))
+    _check_type = field_validator("clientType")(_enum_validator(CREATABLE_CLIENT_TYPES, "clientType"))
     _check_mobile = field_validator("mobile")(_phone_validator("mobile"))
 
     @field_validator("organisationProfile")

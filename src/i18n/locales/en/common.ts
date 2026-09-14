@@ -117,4 +117,9 @@ export default {
       'ServiceOS is a complex business application built for detailed, side-by-side work -- project workspaces, documents and workflow tracking are not designed for small mobile screens.',
     recommendation: 'Please continue on a tablet, laptop or desktop.',
   },
+
+  emailListInput: {
+    limitReached: 'Maximum of {max} email addresses reached.',
+    duplicate: 'That email address is already in the list.',
+  },
 }

@@ -24,8 +24,12 @@ class ScheduledReportIn(BaseModel):
     # EmailStr both catches typos ("bob@@x.com") before this becomes an
     # SMTP failure the scheduler silently logs hours later, and matches
     # send_email/send_document_email's own convention of trusting
-    # email_validator for this rather than a hand-rolled regex.
-    recipients: list[EmailStr] = Field(min_length=1, max_length=20)
+    # email_validator for this rather than a hand-rolled regex. Capped
+    # at 5 to match the recipient limit the frontend's EmailListInput
+    # enforces (ScheduledReportDialog.vue) -- kept in sync here too so a
+    # request bypassing that UI can't send to more than the app-wide
+    # cap intends.
+    recipients: list[EmailStr] = Field(min_length=1, max_length=5)
     subject: str | None = Field(default=None, max_length=300)
     messageBody: str | None = None
 
