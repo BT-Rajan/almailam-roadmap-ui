@@ -211,6 +211,22 @@ def _user_display_name(db: Session, user_id: int) -> str:
     return user.full_name if user else "Unknown"
 
 
+def client_display_name(client: Client | None) -> str:
+    """Every client name in outbound client communication -- emails as
+    well as generated documents -- gets the entity-neutral business
+    salutation "M/s." (short for "Messrs.") ahead of it. Works the same
+    for a company, organisation, government entity, or an individual
+    client, so nothing here has to guess at an individual's gender the
+    way a personal salutation would. Mirrors document_template_service.
+    _client_display_name, which does the identical thing for generated
+    Quotation/Contract/Payment Plan documents -- kept as two small
+    copies rather than one cross-imported function since neither module
+    otherwise needs the other; change one, change both."""
+    if not client or not client.company_name:
+        return ""
+    return f"M/s. {client.company_name}"
+
+
 def create_client(db: Session, payload, user_id: int | None) -> Client:
     client = Client(
         client_type=payload.clientType,
@@ -385,7 +401,7 @@ def _send_welcome_email(db: Session, client: Client, portal_user: User, temporar
         {
             "contact_person": client.contact_person,
             "client_type": client.client_type,
-            "company_name": client.company_name,
+            "company_name": client_display_name(client),
             "mobile": client.mobile,
             "email": client.email,
             "city": client.city,
