@@ -188,6 +188,7 @@ export default {
     columnActive: 'نشط',
     columnOnHold: 'معلّق',
     columnCompleted: 'مكتمل',
+    columnCancelled: 'ملغى',
     columnProjectNo: 'رقم المشروع',
     columnProjectName: 'اسم المشروع',
     columnProjectStatus: 'الحالة',

@@ -194,6 +194,7 @@ export default {
     columnActive: 'Active',
     columnOnHold: 'On Hold',
     columnCompleted: 'Completed',
+    columnCancelled: 'Cancelled',
     columnProjectNo: 'Project No.',
     columnProjectName: 'Project Name',
     columnProjectStatus: 'Status',
