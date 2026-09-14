@@ -20,7 +20,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { AgreementStream, CreateAgreementInput, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
@@ -42,7 +42,7 @@ const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const paymentStore = usePaymentStore()
 const quotationStore = useQuotationStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 
@@ -287,14 +287,14 @@ async function handleSubmit(): Promise<void> {
   try {
     if (isEditMode.value && existingAgreement.value) {
       await paymentStore.updateAgreement(existingAgreement.value.id, input)
-      toastStore.show('success', t('payment.planPanel.planUpdatedTitle'), t('payment.planPanel.planUpdatedDescription'))
+      resultDialogStore.showSuccess(t('payment.planPanel.planUpdatedTitle'), t('payment.planPanel.planUpdatedDescription'))
     } else {
       await paymentStore.createAgreement(input, 'Rajan Kumar')
-      toastStore.show('success', t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
+      resultDialogStore.showSuccess(t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
     }
     goBack()
   } catch (error) {
-    toastStore.show('error', t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    resultDialogStore.showError(t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSubmitting.value = false
   }

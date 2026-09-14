@@ -19,7 +19,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { ContractClauseInput } from '@/services/contractService'
 import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
@@ -40,7 +40,7 @@ const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const projectId = computed(() => route.params.projectId as string)
@@ -215,10 +215,10 @@ async function handleSubmit(): Promise<void> {
     // A contract's mere existence is one of the things "Quotation" ->
     // "Contract" waits on (project_service._assert_stage_exit_criteria).
     await projectStore.refreshProject(projectId.value)
-    toastStore.show('success', t('project.contractTab.contractCreatedTitle'), t('common.createdSuccessfully', { no: contract.contractNo }))
+    resultDialogStore.showSuccess(t('project.contractTab.contractCreatedTitle'), t('common.createdSuccessfully', { no: contract.contractNo }))
     goBack()
   } catch (error) {
-    toastStore.show('error', t('project.contractTab.failedToCreateContract'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    resultDialogStore.showError(t('project.contractTab.failedToCreateContract'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSubmitting.value = false
   }

@@ -18,7 +18,7 @@ import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
-import { useToastStore } from '@/stores/toastStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { QuotationLineItemInput } from '@/services/quotationService'
 import type { Project } from '@/types/Project'
 import { getClientDisplayName } from '@/utils/clientHelpers'
@@ -43,7 +43,7 @@ const { t } = useI18n()
 const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
-const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const projectId = computed(() => route.params.projectId as string)
@@ -255,10 +255,10 @@ async function handleSubmit(): Promise<void> {
     // quotation_service.create_quotation -> try_auto_advance_stage) --
     // refresh the shared project store's cached copy.
     await projectStore.refreshProject(projectId.value)
-    toastStore.show('success', t('project.quotationTab.quotationCreatedTitle'), t('common.createdSuccessfully', { no: quotation.quotationNo }))
+    resultDialogStore.showSuccess(t('project.quotationTab.quotationCreatedTitle'), t('common.createdSuccessfully', { no: quotation.quotationNo }))
     goBack()
   } catch (error) {
-    toastStore.show('error', t('project.quotationTab.failedToCreateQuotation'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    resultDialogStore.showError(t('project.quotationTab.failedToCreateQuotation'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isSubmitting.value = false
   }
