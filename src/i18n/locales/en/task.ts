@@ -25,6 +25,11 @@ export default {
   moveTo: 'Move to {status}',
   presetFlag: 'Not reviewed yet',
 
+  progress: {
+    label: 'Task progress',
+    stepLabel: 'Step {current} of {total} · {label}',
+  },
+
   assignmentCard: {
     assignedTo: 'Assigned To',
     reassignTo: 'Reassign to',
