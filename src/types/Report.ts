@@ -63,17 +63,20 @@ export interface PaymentLedgerEntry {
 
 export interface ProjectionByMonth {
   month: string
+  currency: string
   amount: number
 }
 
 export interface ProjectionByProject {
   projectNo: string
   projectName: string
+  currency: string
   amount: number
 }
 
 export interface ProjectionByService {
   service: string
+  currency: string
   amount: number
 }
 
@@ -110,12 +113,17 @@ export interface TeamWorkload {
   capacityAvailable: number
 }
 
-export interface FinancialPeriodSummary {
-  startDate: string
-  endDate: string
+export interface FinancialCurrencyBreakdown {
+  currency: string
   totalReceived: number
   totalDue: number
   totalOutstanding: number
   totalOverdue: number
+}
+
+export interface FinancialPeriodSummary {
+  startDate: string
+  endDate: string
   paymentCount: number
+  byCurrency: FinancialCurrencyBreakdown[]
 }

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
+import EmailListInput from '@/components/common/EmailListInput.vue'
 import FormActionBar from '@/components/common/FormActionBar.vue'
 import FormSection from '@/components/common/FormSection.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
@@ -16,6 +17,12 @@ import { useProjectStore } from '@/stores/projectStore'
 import { todayIso } from '@/utils/dateFormatter'
 import type { ScheduledReport, ScheduledReportFrequency, ScheduledReportInput, ScheduledReportPeriod, ScheduledReportType } from '@/types/ScheduledReport'
 import type { SelectOption } from '@/types/Ui'
+
+// Every recipient beyond this is rejected by EmailListInput before it's
+// even added, and the backend's own ScheduledReportIn.recipients caps
+// at the same number (schemas/scheduled_report.py) -- kept in sync so a
+// request that somehow bypassed this dialog still can't exceed it.
+const MAX_RECIPIENTS = 5
 
 interface Props {
   modelValue: boolean
@@ -56,10 +63,6 @@ function blankForm(): ScheduledReportInput {
 }
 
 const form = ref<ScheduledReportInput>(blankForm())
-// The recipients textarea is edited as free text (one address per line
-// or comma-separated) and only split into the actual string[] the API
-// expects right before saving -- see recipientsFromText().
-const recipientsText = ref('')
 const errorMessage = ref('')
 
 watch(
@@ -85,10 +88,8 @@ watch(
         endDate: schedule.endDate,
         isActive: schedule.isActive,
       }
-      recipientsText.value = schedule.recipients.join('\n')
     } else {
       form.value = blankForm()
-      recipientsText.value = ''
     }
     if (projectStore.projects.length === 0) projectStore.loadProjects()
   },
@@ -133,31 +134,18 @@ const projectOptions = computed<SelectOption[]>(() =>
 
 const isRecurring = computed(() => form.value.frequency !== 'once')
 
-function recipientsFromText(text: string): string[] {
-  return Array.from(
-    new Set(
-      text
-        .split(/[\n,]/)
-        .map((address) => address.trim())
-        .filter((address) => address.length > 0),
-    ),
-  )
-}
-
 function handleClose(): void {
   emit('update:modelValue', false)
 }
 
 function handleSubmit(): void {
   errorMessage.value = ''
-  const recipients = recipientsFromText(recipientsText.value)
-  if (recipients.length === 0) {
+  if (form.value.recipients.length === 0) {
     errorMessage.value = t('administration.scheduledReportsPage.recipientsHint')
     return
   }
   emit('save', {
     ...form.value,
-    recipients,
     projectNo: form.value.reportType === 'project_status' ? form.value.projectNo : null,
     period: form.value.reportType === 'financial_summary' ? form.value.period : null,
     sendDatetime: form.value.frequency === 'once' && form.value.sendDatetime ? `${form.value.sendDatetime}:00` : null,
@@ -182,110 +170,127 @@ function handleSubmit(): void {
       <p v-if="errorMessage" class="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{{ errorMessage }}</p>
 
       <FormSection :title="t('administration.scheduledReportsPage.sectionBasics')">
-        <TextInput v-model="form.name" :label="t('administration.scheduledReportsPage.name')" :placeholder="t('administration.scheduledReportsPage.namePlaceholder')" required />
-        <SelectBox
-          :model-value="form.reportType"
-          :label="t('administration.scheduledReportsPage.reportType')"
-          :options="REPORT_TYPE_OPTIONS"
-          @update:model-value="(value) => (form.reportType = value as ScheduledReportType)"
-        />
-        <SelectBox
-          v-if="form.reportType === 'project_status'"
-          :model-value="form.projectNo ?? ''"
-          :label="t('administration.scheduledReportsPage.project')"
-          :placeholder="t('administration.scheduledReportsPage.projectPlaceholder')"
-          :options="projectOptions"
-          @update:model-value="(value) => (form.projectNo = value || null)"
-        />
-        <SelectBox
-          v-if="form.reportType === 'financial_summary'"
-          :model-value="form.period ?? 'last_30_days'"
-          :label="t('administration.scheduledReportsPage.period')"
-          :options="PERIOD_OPTIONS"
-          @update:model-value="(value) => (form.period = value as ScheduledReportPeriod)"
-        />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <div class="tablet:col-span-2">
+            <TextInput v-model="form.name" :label="t('administration.scheduledReportsPage.name')" :placeholder="t('administration.scheduledReportsPage.namePlaceholder')" required />
+          </div>
+          <SelectBox
+            :model-value="form.reportType"
+            :label="t('administration.scheduledReportsPage.reportType')"
+            :options="REPORT_TYPE_OPTIONS"
+            @update:model-value="(value) => (form.reportType = value as ScheduledReportType)"
+          />
+          <SelectBox
+            v-if="form.reportType === 'project_status'"
+            :model-value="form.projectNo ?? ''"
+            :label="t('administration.scheduledReportsPage.project')"
+            :placeholder="t('administration.scheduledReportsPage.projectPlaceholder')"
+            :options="projectOptions"
+            @update:model-value="(value) => (form.projectNo = value || null)"
+          />
+          <SelectBox
+            v-if="form.reportType === 'financial_summary'"
+            :model-value="form.period ?? 'last_30_days'"
+            :label="t('administration.scheduledReportsPage.period')"
+            :options="PERIOD_OPTIONS"
+            @update:model-value="(value) => (form.period = value as ScheduledReportPeriod)"
+          />
+        </div>
       </FormSection>
 
       <FormSection :title="t('administration.scheduledReportsPage.sectionRecipients')">
-        <TextArea
-          v-model="recipientsText"
-          :label="t('administration.scheduledReportsPage.sectionRecipients')"
-          :hint="t('administration.scheduledReportsPage.recipientsHint')"
-          :placeholder="t('administration.scheduledReportsPage.recipientsPlaceholder')"
-          :rows="3"
-          required
-        />
-        <TextInput
-          :model-value="form.subject ?? ''"
-          :label="t('administration.scheduledReportsPage.subject')"
-          :placeholder="t('administration.scheduledReportsPage.subjectPlaceholder')"
-          @update:model-value="(value) => (form.subject = value || null)"
-        />
-        <TextArea
-          :model-value="form.messageBody ?? ''"
-          :label="t('administration.scheduledReportsPage.messageBody')"
-          :placeholder="t('administration.scheduledReportsPage.messageBodyPlaceholder')"
-          :rows="3"
-          @update:model-value="(value) => (form.messageBody = value || null)"
-        />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <div class="tablet:col-span-2">
+            <EmailListInput
+              :model-value="form.recipients"
+              :label="t('administration.scheduledReportsPage.sectionRecipients')"
+              :hint="t('administration.scheduledReportsPage.recipientsHint')"
+              :placeholder="t('administration.scheduledReportsPage.recipientsPlaceholder')"
+              :max="MAX_RECIPIENTS"
+              required
+              @update:model-value="(value) => (form.recipients = value)"
+            />
+          </div>
+          <TextInput
+            :model-value="form.subject ?? ''"
+            :label="t('administration.scheduledReportsPage.subject')"
+            :placeholder="t('administration.scheduledReportsPage.subjectPlaceholder')"
+            @update:model-value="(value) => (form.subject = value || null)"
+          />
+          <div class="tablet:col-span-2">
+            <TextArea
+              :model-value="form.messageBody ?? ''"
+              :label="t('administration.scheduledReportsPage.messageBody')"
+              :placeholder="t('administration.scheduledReportsPage.messageBodyPlaceholder')"
+              :rows="3"
+              @update:model-value="(value) => (form.messageBody = value || null)"
+            />
+          </div>
+        </div>
       </FormSection>
 
       <FormSection :title="t('administration.scheduledReportsPage.sectionSchedule')">
-        <SelectBox
-          :model-value="form.frequency"
-          :label="t('administration.scheduledReportsPage.frequency')"
-          :options="FREQUENCY_OPTIONS"
-          @update:model-value="(value) => (form.frequency = value as ScheduledReportFrequency)"
-        />
-
-        <template v-if="form.frequency === 'once'">
-          <label class="block text-sm font-medium text-text-primary">{{ t('administration.scheduledReportsPage.sendDate') }}</label>
-          <input
-            :value="form.sendDatetime ?? ''"
-            type="datetime-local"
-            class="h-10 w-full rounded-lg border border-border-default bg-bg-card px-3 text-sm text-text-primary focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
-            @input="(event) => (form.sendDatetime = (event.target as HTMLInputElement).value || null)"
-          />
-        </template>
-
-        <template v-else>
-          <TimePicker
-            :model-value="form.sendTime ?? ''"
-            :label="t('administration.scheduledReportsPage.sendTimeLabel')"
-            required
-            @update:model-value="(value) => (form.sendTime = value)"
-          />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
           <SelectBox
-            v-if="form.frequency === 'weekly'"
-            :model-value="String(form.dayOfWeek)"
-            :label="t('administration.scheduledReportsPage.dayOfWeek')"
-            :options="WEEKDAY_OPTIONS"
-            @update:model-value="(value) => (form.dayOfWeek = Number(value))"
+            :model-value="form.frequency"
+            :label="t('administration.scheduledReportsPage.frequency')"
+            :options="FREQUENCY_OPTIONS"
+            @update:model-value="(value) => (form.frequency = value as ScheduledReportFrequency)"
           />
-          <NumberInput
-            v-if="form.frequency === 'monthly'"
-            :model-value="form.dayOfMonth ?? 1"
-            :label="t('administration.scheduledReportsPage.dayOfMonth')"
-            :min="1"
-            :max="31"
-            @update:model-value="(value) => (form.dayOfMonth = Number(value))"
-          />
-          <DatePicker
-            :model-value="form.startDate ?? ''"
-            :label="t('administration.scheduledReportsPage.startDate')"
-            required
-            @update:model-value="(value) => (form.startDate = value)"
-          />
-          <DatePicker
-            :model-value="form.endDate ?? ''"
-            :label="t('administration.scheduledReportsPage.endDate')"
-            :hint="t('administration.scheduledReportsPage.endDateHint')"
-            :min="form.startDate ?? undefined"
-            @update:model-value="(value) => (form.endDate = value || null)"
-          />
-        </template>
 
-        <ToggleSwitch v-model="form.isActive" :label="t('administration.scheduledReportsPage.isActive')" :hint="t('administration.scheduledReportsPage.isActiveHint')" />
+          <template v-if="form.frequency === 'once'">
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-text-primary">{{ t('administration.scheduledReportsPage.sendDate') }}</label>
+              <input
+                :value="form.sendDatetime ?? ''"
+                type="datetime-local"
+                class="h-10 w-full rounded-lg border border-border-default bg-bg-card px-3 text-sm text-text-primary focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
+                @input="(event) => (form.sendDatetime = (event.target as HTMLInputElement).value || null)"
+              />
+            </div>
+          </template>
+
+          <template v-else>
+            <TimePicker
+              :model-value="form.sendTime ?? ''"
+              :label="t('administration.scheduledReportsPage.sendTimeLabel')"
+              required
+              @update:model-value="(value) => (form.sendTime = value)"
+            />
+            <SelectBox
+              v-if="form.frequency === 'weekly'"
+              :model-value="String(form.dayOfWeek)"
+              :label="t('administration.scheduledReportsPage.dayOfWeek')"
+              :options="WEEKDAY_OPTIONS"
+              @update:model-value="(value) => (form.dayOfWeek = Number(value))"
+            />
+            <NumberInput
+              v-if="form.frequency === 'monthly'"
+              :model-value="form.dayOfMonth ?? 1"
+              :label="t('administration.scheduledReportsPage.dayOfMonth')"
+              :min="1"
+              :max="31"
+              @update:model-value="(value) => (form.dayOfMonth = Number(value))"
+            />
+            <DatePicker
+              :model-value="form.startDate ?? ''"
+              :label="t('administration.scheduledReportsPage.startDate')"
+              required
+              @update:model-value="(value) => (form.startDate = value)"
+            />
+            <DatePicker
+              :model-value="form.endDate ?? ''"
+              :label="t('administration.scheduledReportsPage.endDate')"
+              :hint="t('administration.scheduledReportsPage.endDateHint')"
+              :min="form.startDate ?? undefined"
+              @update:model-value="(value) => (form.endDate = value || null)"
+            />
+          </template>
+
+          <div class="tablet:col-span-2">
+            <ToggleSwitch v-model="form.isActive" :label="t('administration.scheduledReportsPage.isActive')" :hint="t('administration.scheduledReportsPage.isActiveHint')" />
+          </div>
+        </div>
       </FormSection>
     </div>
 
