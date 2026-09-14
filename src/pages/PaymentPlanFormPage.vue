@@ -149,6 +149,19 @@ setRules({
   agreementDate: [validators.required('Agreement date is required')],
   contractAmount: [
     () => isSupervision.value || contractAmount.value > 0 || t('payment.agreementFormDialog.totalAmountRequired'),
+    // Mirrors payment_service._assert_design_amount_matches_quotation
+    // (the API is the real boundary) -- surfaced here too so staff see
+    // the mismatch immediately instead of only on submit. Supervision
+    // isn't checked, same as the backend: its billing comes from
+    // selected Supervision activities, not the quotation total.
+    () =>
+      isSupervision.value ||
+      !approvedQuotation.value ||
+      contractAmount.value === approvedQuotation.value.amount ||
+      t('payment.agreementFormDialog.totalAmountMustMatchQuotation', {
+        number: approvedQuotation.value.quotationNo,
+        amount: approvedQuotation.value.amount,
+      }),
   ],
   contractStartDate: [
     () => isSupervision.value || contractStartDate.value.length > 0 || t('payment.agreementFormDialog.contractStartDateRequired'),
@@ -182,6 +195,10 @@ function seedForm(): void {
     return
   }
 
+  // Locked to the approved quotation's amount/currency while creating
+  // (see payment_service._assert_design_amount_matches_quotation) --
+  // editable again once existingAgreement exists (isEditMode), only so
+  // a legacy mismatch can be corrected back into agreement with it.
   contractAmount.value = approvedQuotation.value?.amount ?? 0
   currency.value = approvedQuotation.value?.currency ?? 'KWD'
   contractStartDate.value = new Date().toISOString().slice(0, 10)
@@ -346,7 +363,7 @@ async function handleSubmit(): Promise<void> {
               <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
               <div class="flex gap-2">
                 <div class="w-24 shrink-0">
-                  <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" @update:model-value="currency = $event" />
+                  <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" :disabled="!isEditMode" @update:model-value="currency = $event" />
                 </div>
                 <NumberInput
                   class="flex-1"
@@ -354,6 +371,7 @@ async function handleSubmit(): Promise<void> {
                   :min="0"
                   step="0.01"
                   required
+                  :disabled="!isEditMode"
                   :error="errors.contractAmount"
                   @update:model-value="contractAmount = Number($event)"
                 />

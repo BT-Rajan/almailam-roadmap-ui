@@ -143,6 +143,16 @@ setRules({
   contractValue: [
     validators.required('Contract value is required'),
     () => form.contractValue > 0 || t('project.newContractDialog.contractValueMustBePositive'),
+    // Mirrors contract_service._assert_contract_value_matches_quotation
+    // (the API is the real boundary) -- surfaced here too so staff see
+    // the mismatch immediately instead of only on submit.
+    () =>
+      !eligibleQuotation.value ||
+      form.contractValue === eligibleQuotation.value.amount ||
+      t('project.newContractDialog.contractValueMustMatchQuotation', {
+        number: eligibleQuotation.value.quotationNo,
+        amount: eligibleQuotation.value.amount,
+      }),
   ],
   expiryDate: [validators.required('Expiry date is required'), validators.notPastDate('Expiry date cannot be in the past')],
   clientRepresentative: [validators.required("Client representative's name is required")],
@@ -157,8 +167,11 @@ watch(
   () => [isLoading.value, eligibleQuotation.value, project.value, client.value] as const,
   ([loading, quotation, proj, clientValue]) => {
     if (loading || isFormSeeded.value) return
-    // A sensible starting point, not a locked value -- staff can still
-    // change any of this if it needs to differ from the quotation.
+    // A sensible starting point -- clientRepresentative/scopeSummary
+    // can still be changed freely. contractValue can't: it has to match
+    // the source quotation's approved amount (see the validator above
+    // and contract_service._assert_contract_value_matches_quotation);
+    // it's pre-filled here purely so staff aren't asked to retype it.
     form.clientRepresentative = clientValue?.contactPerson || ''
     form.contractValue = quotation?.amount ?? proj?.serviceTotal ?? 0
     form.scopeSummary = quotation ? scopeSummaryFromQuotation(quotation) : scopeSummaryFromProject(proj)
@@ -258,13 +271,14 @@ async function handleSubmit(): Promise<void> {
         </p>
 
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
-          <SelectBox v-model="form.currency" :label="t('project.newContractDialog.currency')" :options="CURRENCY_OPTIONS" />
+          <SelectBox v-model="form.currency" :label="t('project.newContractDialog.currency')" :options="CURRENCY_OPTIONS" disabled />
           <NumberInput
             :model-value="form.contractValue"
             :label="t('project.newContractDialog.contractValue')"
             :min="0.01"
             step="0.01"
             required
+            disabled
             :error="errors.contractValue"
             @update:model-value="form.contractValue = Number($event)"
           />

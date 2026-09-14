@@ -189,6 +189,7 @@ export default {
     dueDateRequired: 'تاريخ الاستحقاق مطلوب',
     totalMustEqual100: 'يجب أن يكون مجموع نسب الدفعات 100% (الحالي {percent}%).',
     totalAmountRequired: 'يجب أن يكون المبلغ الإجمالي أكبر من 0',
+    totalAmountMustMatchQuotation: 'يجب أن يطابق المبلغ الإجمالي المبلغ المعتمد في عرض السعر {number} ({amount}).',
     contractStartDateRequired: 'تاريخ بدء العقد مطلوب',
     saveChanges: 'حفظ التغييرات',
   },
