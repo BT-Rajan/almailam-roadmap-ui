@@ -173,6 +173,7 @@ export default {
     failedToSaveScope: 'فشل حفظ نطاق العمل',
     noScopeWarning: 'لم يتم كتابة نطاق العمل بعد — مطلوب قبل الانتقال إلى عرض السعر.',
     noClientIdWarning: 'لا توجد وثيقة هوية للعميل مسجلة بعد — مطلوبة قبل الانتقال إلى عرض السعر.',
+    scopeLockedNotice: 'تم قفل نطاق العمل لأنه تمت الموافقة على عرض سعر مبني عليه بالفعل.',
     quotationTitle: 'عرض السعر',
     goToQuotation: 'الانتقال إلى عرض السعر',
     quotationStatusLabel: 'حالة عرض السعر',

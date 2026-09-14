@@ -39,6 +39,13 @@ function emptyForm() {
 const form = reactive(emptyForm())
 const errors = reactive({ country: '', state: '', city: '' })
 
+function validate(): boolean {
+  errors.country = form.country.trim() ? '' : 'Country is required'
+  errors.state = form.state.trim() ? '' : 'Governorate / State is required'
+  errors.city = form.city.trim() ? '' : 'City is required'
+  return !errors.country && !errors.state && !errors.city
+}
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -49,21 +56,24 @@ watch(
         ? { ...props.address, area: props.address.area ?? '', street: props.address.street ?? '', building: props.address.building ?? '' }
         : emptyForm(),
     )
-    errors.country = ''
-    errors.state = ''
-    errors.city = ''
+    validate()
   },
 )
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleConfirm, so Country/State/City looked
+// like ordinary optional fields until the first failed Save click. The
+// modelValue watch above now also calls it as soon as the dialog
+// opens; this keeps it live on every edit too.
+watch(form, validate, { deep: true })
 
 function closeDialog(): void {
   emit('update:modelValue', false)
 }
 
 function handleConfirm(): void {
-  errors.country = form.country.trim() ? '' : 'Country is required'
-  errors.state = form.state.trim() ? '' : 'Governorate / State is required'
-  errors.city = form.city.trim() ? '' : 'City is required'
-  if (errors.country || errors.state || errors.city) return
+  if (!validate()) return
 
   emit('confirm', { ...form })
 }

@@ -31,16 +31,37 @@ function emptyForm() {
 const form = reactive(emptyForm())
 const errors = reactive({ name: '', mobile: '', email: '' })
 
+function isValidPhone(value: string): boolean {
+  return /^[\d\s\-+()]+$/.test(value) && value.replace(/\D/g, '').length >= 7
+}
+
+function validate(): boolean {
+  errors.name = form.name.trim() ? '' : 'Name is required'
+  errors.mobile = !form.mobile.trim() ? 'Mobile number is required' : !isValidPhone(form.mobile) ? 'Enter a valid phone number' : ''
+  errors.email = !form.email.trim()
+    ? 'Email address is required'
+    : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+      ? ''
+      : 'Enter a valid email address'
+  return !errors.name && !errors.mobile && !errors.email
+}
+
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
     Object.assign(form, props.contact ? { ...props.contact } : emptyForm())
-    errors.name = ''
-    errors.mobile = ''
-    errors.email = ''
+    validate()
   },
 )
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleConfirm, so Name/Mobile/Email looked
+// like ordinary optional fields until the first failed Save click. The
+// modelValue watch above now also calls it as soon as the dialog
+// opens; this keeps it live on every edit too.
+watch(form, validate, { deep: true })
 
 // Selecting the "Authorised Representative" contact type and the
 // "authorised to act on the client's behalf" toggle used to be two
@@ -62,19 +83,8 @@ function closeDialog(): void {
   emit('update:modelValue', false)
 }
 
-function isValidPhone(value: string): boolean {
-  return /^[\d\s\-+()]+$/.test(value) && value.replace(/\D/g, '').length >= 7
-}
-
 function handleConfirm(): void {
-  errors.name = form.name.trim() ? '' : 'Name is required'
-  errors.mobile = !form.mobile.trim() ? 'Mobile number is required' : !isValidPhone(form.mobile) ? 'Enter a valid phone number' : ''
-  errors.email = !form.email.trim()
-    ? 'Email address is required'
-    : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-      ? ''
-      : 'Enter a valid email address'
-  if (errors.name || errors.mobile || errors.email) return
+  if (!validate()) return
 
   emit('confirm', { ...form })
 }

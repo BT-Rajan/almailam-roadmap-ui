@@ -11,6 +11,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
 import TaskFieldReportHistory from '@/components/task/TaskFieldReportHistory.vue'
+import TaskProgressStepper from '@/components/task/TaskProgressStepper.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
 import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
 import type { Task, TaskStatus } from '@/types/Task'
@@ -73,6 +74,10 @@ const details = computed(() => [
     <div class="flex flex-wrap items-center gap-2">
       <TaskStatusBadge :status="task.status" />
       <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">{{ t('task.overdue') }}</span>
+    </div>
+
+    <div class="rounded-xl border border-border-light bg-bg-card p-4">
+      <TaskProgressStepper :status="task.status" />
     </div>
 
     <TextInput

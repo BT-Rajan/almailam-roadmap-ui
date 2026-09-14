@@ -114,14 +114,19 @@ const reasonRequired = computed(() => {
     : isStatusReasonRequired(props.currentValue, form.value)
 })
 
+function validate(): boolean {
+  errors.value = form.value ? '' : 'Please select an option'
+  errors.reason = reasonRequired.value && !form.reason.trim() ? 'A reason is required for this change' : ''
+  return !errors.value && !errors.reason
+}
+
 watch(
   () => props.modelValue,
   async (open) => {
     if (!open) return
     form.value = baseOptions.value.length === 1 ? baseOptions.value[0].value : ''
     form.reason = ''
-    errors.value = ''
-    errors.reason = ''
+    validate()
     eligibility.value = []
 
     if (props.kind === 'stage' && props.projectId) {
@@ -139,14 +144,21 @@ watch(
   },
 )
 
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleConfirm, so the stage/status picker
+// (and Reason, once required) looked like ordinary optional fields
+// until the first failed Confirm click. The modelValue watch above now
+// also calls it as soon as the dialog opens; this keeps it live on
+// every edit too.
+watch(form, validate, { deep: true })
+
 function closeDialog(): void {
   emit('update:modelValue', false)
 }
 
 function handleConfirm(): void {
-  errors.value = form.value ? '' : 'Please select an option'
-  errors.reason = reasonRequired.value && !form.reason.trim() ? 'A reason is required for this change' : ''
-  if (errors.value || errors.reason) return
+  if (!validate()) return
   if (selectedEligibility.value && !selectedEligibility.value.eligible) return
 
   emit('confirm', { value: form.value, reason: form.reason.trim() || undefined })
