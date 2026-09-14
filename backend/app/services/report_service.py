@@ -548,17 +548,30 @@ def project_report(db: Session, project: Project) -> list[dict]:
         },
     ]
 
-    agreement = (
+    # A project can have up to one agreement PER billing stream (Design,
+    # Supervision -- see the (project_id, stream) unique constraint on
+    # FinancialAgreement, and ProjectOverviewTab.vue's own "one row per
+    # stream this project actually includes" handling). Picking only the
+    # single latest-by-id agreement here used to silently drop whichever
+    # stream wasn't picked when a project has both -- e.g. a project with
+    # a Supervision agreement added after its Design one would show only
+    # Supervision's numbers and lose Design's Contract Amount/Received/
+    # Pending/Overdue entirely. Now emits one Finance section per
+    # agreement that actually exists, ordered by stream name so Design
+    # (if present) shows before Supervision.
+    agreements = (
         db.query(FinancialAgreement)
         .filter(FinancialAgreement.project_id == project.id)
-        .order_by(FinancialAgreement.id.desc())
-        .first()
+        .order_by(FinancialAgreement.stream)
+        .all()
     )
-    if agreement is not None:
+    multi_stream = len(agreements) > 1
+    for agreement in agreements:
         financial_summary = get_financial_summary(db, agreement.id)
+        title = f"Finance ({agreement.stream})" if multi_stream else "Finance"
         sections.append(
             {
-                "title": "Finance",
+                "title": title,
                 "metrics": [
                     {"label": "Contract Amount", "value": float(agreement.contract_amount), "unit": agreement.currency},
                     {"label": "Total Received", "value": float(financial_summary["totalReceived"]), "unit": agreement.currency},
