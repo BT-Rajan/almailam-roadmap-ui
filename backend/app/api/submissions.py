@@ -252,10 +252,10 @@ def add_followup(
 
 @router.get("/{submission_no}/followups/{followup_id}/download")
 def download_followup_document(
-    submission_no: str, followup_id: int, db: Session = Depends(get_db), _=Depends(can_view)
+    submission_no: str, followup_id: str, db: Session = Depends(get_db), _=Depends(can_view)
 ):
     path, original_filename = submission_service.get_followup_document_download_target(
-        db, submission_no, followup_id
+        db, submission_no, submission_service.parse_followup_id(followup_id)
     )
     return FileResponse(path, filename=original_filename)
 

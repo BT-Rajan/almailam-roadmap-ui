@@ -9,7 +9,7 @@ export default {
   governmentCenter: 'المركز الحكومي',
   forms: 'النماذج',
   authorities: 'الجهات الحكومية',
-  submissions: 'المعاملات المُقدَّمة',
+  submissions: 'طلبات التصاريح',
   submission: 'المعاملة',
   documents: 'المستندات',
   viewer: 'العارض',

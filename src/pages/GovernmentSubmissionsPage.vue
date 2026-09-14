@@ -17,10 +17,10 @@ import type { SubmissionCreateInput } from '@/services/governmentSubmissionServi
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { SmartTableColumn } from '@/types/Table'
-import type { SubmissionStatus } from '@/types/Submission'
+import type { ResponseOutcome, SubmissionStage } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
 import { formatDate } from '@/utils/dateFormatter'
-import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
+import { getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
 
 interface SubmissionTableRow {
   [key: string]: unknown
@@ -29,7 +29,8 @@ interface SubmissionTableRow {
   projectName: string
   authorityName: string
   formTitle: string
-  status: SubmissionStatus
+  stage: SubmissionStage
+  responseOutcome: ResponseOutcome | null | undefined
   submittedDate: string
   expectedDecisionDate: string
   decisionDate: string
@@ -59,15 +60,13 @@ async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<v
   }
 }
 
-const STATUS_OPTIONS = computed<SelectOption[]>(() => [
-  { label: 'All Statuses', value: 'All', labelKey: 'governmentFormOptions.statusFilter.all' },
-  { label: 'Draft', value: 'Draft', labelKey: 'government.submissionStatus.draft' },
-  { label: 'Submitted', value: 'Submitted', labelKey: 'government.submissionStatus.submitted' },
-  { label: 'Under Review', value: 'Under Review', labelKey: 'government.submissionStatus.underReview' },
-  { label: 'Comments Received', value: 'Comments Received', labelKey: 'government.submissionStatus.commentsReceived' },
-  { label: 'Approved', value: 'Approved', labelKey: 'government.submissionStatus.approved' },
-  { label: 'Rejected', value: 'Rejected', labelKey: 'government.submissionStatus.rejected' },
-  { label: 'Withdrawn', value: 'Withdrawn', labelKey: 'government.submissionStatus.withdrawn' },
+const STAGE_OPTIONS = computed<SelectOption[]>(() => [
+  { label: 'All Stages', value: 'All', labelKey: 'governmentFormOptions.statusFilter.all' },
+  { label: 'Prepare', value: 'Prepare', labelKey: 'government.submissionStage.prepare' },
+  { label: 'Apply', value: 'Apply', labelKey: 'government.submissionStage.apply' },
+  { label: 'Track', value: 'Track', labelKey: 'government.submissionStage.track' },
+  { label: 'Update', value: 'Update', labelKey: 'government.submissionStage.update' },
+  { label: 'Close', value: 'Close', labelKey: 'government.submissionStage.close' },
 ])
 
 const authorityOptions = computed<SelectOption[]>(() => [
@@ -75,19 +74,29 @@ const authorityOptions = computed<SelectOption[]>(() => [
   ...submissionStore.authorities.map((authority) => ({ label: authority.name, value: authority.id })),
 ])
 
-const STATUS_LABEL_KEYS: Record<string, string> = {
-  Draft: 'government.submissionStatus.draft',
-  Submitted: 'government.submissionStatus.submitted',
-  'Under Review': 'government.submissionStatus.underReview',
-  'Comments Received': 'government.submissionStatus.commentsReceived',
-  Approved: 'government.submissionStatus.approved',
-  Rejected: 'government.submissionStatus.rejected',
-  Withdrawn: 'government.submissionStatus.withdrawn',
+const STAGE_LABEL_KEYS: Record<string, string> = {
+  Prepare: 'government.submissionStage.prepare',
+  Apply: 'government.submissionStage.apply',
+  Track: 'government.submissionStage.track',
+  Update: 'government.submissionStage.update',
+  Close: 'government.submissionStage.close',
 }
 
-function submissionStatusLabel(status: string): string {
-  const key = STATUS_LABEL_KEYS[status]
-  return key ? t(key) : status
+function stageLabel(stage: string): string {
+  const key = STAGE_LABEL_KEYS[stage]
+  return key ? t(key) : stage
+}
+
+const OUTCOME_LABEL_KEYS: Record<string, string> = {
+  Approved: 'government.responseOutcome.approved',
+  Rejected: 'government.responseOutcome.rejected',
+  'No Response': 'government.responseOutcome.noResponse',
+  Withdrawn: 'government.responseOutcome.withdrawn',
+}
+
+function outcomeLabel(outcome: string): string {
+  const key = OUTCOME_LABEL_KEYS[outcome]
+  return key ? t(key) : outcome
 }
 
 const TABLE_COLUMNS = computed<SmartTableColumn<SubmissionTableRow>[]>(() => [
@@ -95,7 +104,7 @@ const TABLE_COLUMNS = computed<SmartTableColumn<SubmissionTableRow>[]>(() => [
   { key: 'projectName', label: t('government.submissionsPage.columnProject'), sortable: true },
   { key: 'authorityName', label: t('government.submissionsPage.columnAuthority'), sortable: true },
   { key: 'formTitle', label: t('government.submissionsPage.columnForm') },
-  { key: 'status', label: t('government.submissionsPage.columnStatus'), sortable: true },
+  { key: 'stage', label: t('government.submissionsPage.columnStatus'), sortable: true },
   { key: 'submittedDate', label: t('government.submissionsPage.columnSubmitted'), sortable: true },
   { key: 'expectedDecisionDate', label: t('government.submissionsPage.columnEstimatedResponse') },
   { key: 'decisionDate', label: t('government.submissionsPage.columnActualResponse'), align: 'right' },
@@ -108,7 +117,8 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
     projectName: submissionStore.getProjectById(submission.projectId)?.projectName ?? t('government.unknownProject'),
     authorityName: submissionStore.getAuthorityById(submission.authorityId)?.name ?? t('government.unknownAuthority'),
     formTitle: submissionStore.getFormById(submission.formId)?.title ?? t('government.unknownForm'),
-    status: submission.status,
+    stage: submission.stage,
+    responseOutcome: submission.responseOutcome,
     submittedDate: submission.submittedDate ?? '',
     expectedDecisionDate: submission.expectedDecisionDate ?? '',
     decisionDate: submission.decisionDate ?? '',
@@ -156,9 +166,9 @@ function openSubmission(row: SubmissionTableRow): void {
       <template #filters>
         <div class="w-48">
           <SelectBox
-            :model-value="submissionStore.statusFilter"
-            :options="STATUS_OPTIONS"
-            @update:model-value="submissionStore.setStatusFilter($event as SubmissionStatus | 'All')"
+            :model-value="submissionStore.stageFilter"
+            :options="STAGE_OPTIONS"
+            @update:model-value="submissionStore.setStageFilter($event as SubmissionStage | 'All')"
           />
         </div>
         <div class="w-56">
@@ -184,8 +194,13 @@ function openSubmission(row: SubmissionTableRow): void {
       :empty-description="t('government.submissionsPage.noSubmissionsFoundDescription')"
       @row-click="openSubmission"
     >
-      <template #cell-status="{ value }">
-        <StatusBadge :label="submissionStatusLabel(value as string)" :variant="getSubmissionStatusVariant(value as SubmissionStatus)" />
+      <template #cell-stage="{ row }">
+        <StatusBadge
+          v-if="row.stage === 'Close' && row.responseOutcome"
+          :label="outcomeLabel(row.responseOutcome)"
+          :variant="getSubmissionOutcomeVariant(row.responseOutcome)"
+        />
+        <StatusBadge v-else :label="stageLabel(row.stage as string)" :variant="getSubmissionStageVariant(row.stage as SubmissionStage)" />
       </template>
       <template #cell-submittedDate="{ value }">
         {{ value ? formatDate(value as string) : t('government.submissionsPage.notSubmitted') }}

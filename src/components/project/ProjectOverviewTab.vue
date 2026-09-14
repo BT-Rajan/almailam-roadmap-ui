@@ -14,6 +14,7 @@ import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
+import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
 import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import HandoverCard from '@/components/project/HandoverCard.vue'
 import { usePagination } from '@/composables/usePagination'
@@ -34,6 +35,7 @@ import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/t
 import type { AgreementStream, CreateAgreementInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
+import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
@@ -41,7 +43,7 @@ import { getClientVerificationVariant } from '@/utils/clientHelpers'
 import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
-import { getSubmissionStatusVariant } from '@/utils/submissionHelpers'
+import { getSubmissionStageVariant } from '@/utils/submissionHelpers'
 import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
@@ -526,6 +528,26 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
   return dates.reduce((latest, current) => (new Date(current) > new Date(latest) ? current : latest))
 }
 
+function openSubmissionWorkspace(submissionNo: string): void {
+  router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo }, query: { projectId: props.project.id } })
+}
+
+const isNewSubmissionDialogOpen = ref(false)
+const isCreatingSubmission = ref(false)
+
+async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {
+  isCreatingSubmission.value = true
+  try {
+    const submission = await governmentSubmissionStore.createSubmission(payload)
+    isNewSubmissionDialogOpen.value = false
+    toastStore.show('success', t('government.submissionsPage.submissionCreatedTitle'), t('common.createdSuccessfully', { no: submission.submissionNo }))
+  } catch (error) {
+    toastStore.show('error', t('government.submissionsPage.failedToCreateSubmission'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isCreatingSubmission.value = false
+  }
+}
+
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
   Draft: 'project.quotationStatus.draft',
   Approved: 'project.quotationStatus.approved',
@@ -554,17 +576,15 @@ function documentStatusLabel(status: string): string {
   return t(DOCUMENT_STATUS_LABEL_KEYS[status] ?? status)
 }
 
-const SUBMISSION_STATUS_LABEL_KEYS: Record<string, string> = {
-  Draft: 'project.submissionStatus.draft',
-  Submitted: 'project.submissionStatus.submitted',
-  'Under Review': 'project.submissionStatus.underReview',
-  'Comments Received': 'project.submissionStatus.commentsReceived',
-  Approved: 'project.submissionStatus.approved',
-  Rejected: 'project.submissionStatus.rejected',
-  Withdrawn: 'project.submissionStatus.withdrawn',
+const SUBMISSION_STAGE_LABEL_KEYS: Record<string, string> = {
+  Prepare: 'government.submissionStage.prepare',
+  Apply: 'government.submissionStage.apply',
+  Track: 'government.submissionStage.track',
+  Update: 'government.submissionStage.update',
+  Close: 'government.submissionStage.close',
 }
-function submissionStatusLabel(status: string): string {
-  return t(SUBMISSION_STATUS_LABEL_KEYS[status] ?? status)
+function submissionStageLabel(stage: string): string {
+  return t(SUBMISSION_STAGE_LABEL_KEYS[stage] ?? stage)
 }
 
 const VERIFICATION_RESULT_LABEL_KEYS: Record<string, string> = {
@@ -1079,7 +1099,10 @@ function verificationResultLabel(result: string): string {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.approvalsPermitsTitle') }}</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'government')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
+          <div class="flex items-center gap-2 no-print">
+            <BaseButton size="sm" @click="isNewSubmissionDialogOpen = true">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
+            <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
+          </div>
         </div>
       </template>
       <div class="flex flex-col gap-4">
@@ -1158,10 +1181,12 @@ function verificationResultLabel(result: string): string {
         </div>
 
         <div v-if="governmentSubmissions.length > 0" class="flex flex-col gap-2">
-          <div
+          <button
             v-for="submission in governmentSubmissions"
             :key="submission.id"
-            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+            type="button"
+            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3 text-start hover:bg-bg-secondary"
+            @click="openSubmissionWorkspace(submission.submissionNo)"
           >
             <div class="flex flex-col gap-0.5 truncate">
               <span class="truncate text-sm text-text-secondary">
@@ -1172,8 +1197,8 @@ function verificationResultLabel(result: string): string {
                 &middot; {{ t('project.overviewTab.lastWorkedOn', { date: lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }) }}
               </span>
             </div>
-            <StatusBadge :label="submissionStatusLabel(submission.status)" :variant="getSubmissionStatusVariant(submission.status)" />
-          </div>
+            <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
+          </button>
         </div>
         <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noApprovalsFiledYet') }}</p>
       </div>
@@ -1209,6 +1234,15 @@ function verificationResultLabel(result: string): string {
       v-model="isFillDialogOpen"
       :project-id="project.id"
       :forms="fillDialogForm ? [fillDialogForm] : []"
+    />
+    <NewSubmissionDialog
+      v-model="isNewSubmissionDialogOpen"
+      :projects="[project]"
+      :authorities="governmentSubmissionStore.authorities"
+      :forms="governmentSubmissionStore.forms"
+      :default-project-id="project.id"
+      :loading="isCreatingSubmission"
+      @confirm="handleCreateSubmission"
     />
     <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
     <AgreementFormDialog

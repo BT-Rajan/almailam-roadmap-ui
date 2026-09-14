@@ -105,7 +105,7 @@ export default {
     entityFinancialAgreements: 'Financial Agreements',
     entityGovernmentAuthorities: 'Government Authorities',
     entityGovernmentForms: 'Government Forms',
-    entityGovernmentSubmissions: 'Government Submissions',
+    entityGovernmentSubmissions: 'Permit Applications',
     entityUsers: 'Users',
     entityWorkflowTemplates: 'Workflow Templates',
     entityCompanySettings: 'Company Settings',

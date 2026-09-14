@@ -9,7 +9,7 @@ export default {
   governmentCenter: 'Government Center',
   forms: 'Forms',
   authorities: 'Authorities',
-  submissions: 'Submissions',
+  submissions: 'Permit Applications',
   submission: 'Submission',
   documents: 'Documents',
   viewer: 'Viewer',

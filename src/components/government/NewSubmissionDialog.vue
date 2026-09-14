@@ -34,6 +34,7 @@ function emptyForm() {
     projectId: '',
     authorityId: '',
     formId: '',
+    selectedPermitId: '',
     expectedDecisionDate: '',
     notes: '',
   }
@@ -92,6 +93,17 @@ const scopeMismatchHint = computed(() =>
 
 const selectedForm = computed(() => props.forms.find((formItem) => formItem.id === form.formId))
 
+// The type of approval this application is fulfilling, if the project
+// already planned it at setup (New Project Wizard's Permits step) --
+// optional, an application can still be filed ad hoc with no such link.
+const permitOptions = computed<SelectOption[]>(
+  () =>
+    selectedProject.value?.selectedPermits?.map((permit) => ({
+      label: `${permit.permitName} (${permit.status})`,
+      value: permit.id,
+    })) ?? [],
+)
+
 watch(
   () => [form.authorityId, form.projectId],
   () => {
@@ -99,6 +111,15 @@ watch(
     // selected under the old pair -- clear it rather than silently keep
     // an orphaned selection that no longer matches any visible option.
     form.formId = ''
+  },
+)
+
+watch(
+  () => form.projectId,
+  () => {
+    // Planned permits are per-project -- clear the linked permit rather
+    // than silently keep another project's selection.
+    form.selectedPermitId = ''
   },
 )
 
@@ -134,6 +155,7 @@ function handleConfirm(): void {
     projectId: form.projectId,
     authorityId: form.authorityId,
     formId: form.formId,
+    selectedPermitId: form.selectedPermitId || undefined,
     expectedDecisionDate: form.expectedDecisionDate || undefined,
     notes: form.notes.trim() || undefined,
   })
@@ -157,6 +179,14 @@ function handleConfirm(): void {
           :hint="!form.authorityId ? t('government.newSubmissionDialog.selectAuthorityFirstHint') : scopeMismatchHint"
         />
       </div>
+
+      <SelectBox
+        v-if="permitOptions.length > 0"
+        v-model="form.selectedPermitId"
+        :label="t('government.newSubmissionDialog.linkedPermit')"
+        :placeholder="t('government.newSubmissionDialog.linkedPermitPlaceholder')"
+        :options="permitOptions"
+      />
 
       <DatePicker v-model="form.expectedDecisionDate" :label="t('government.newSubmissionDialog.expectedDecisionDate')" />
       <TextArea v-model="form.notes" :label="t('common.notes')" :placeholder="t('government.newSubmissionDialog.notesPlaceholder')" :rows="2" />

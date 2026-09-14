@@ -102,7 +102,7 @@ export default {
     entityFinancialAgreements: 'الاتفاقيات المالية',
     entityGovernmentAuthorities: 'الجهات الحكومية',
     entityGovernmentForms: 'النماذج الحكومية',
-    entityGovernmentSubmissions: 'التقديمات الحكومية',
+    entityGovernmentSubmissions: 'طلبات التصاريح',
     entityUsers: 'المستخدمون',
     entityWorkflowTemplates: 'قوالب سير العمل',
     entityCompanySettings: 'إعدادات الشركة',
