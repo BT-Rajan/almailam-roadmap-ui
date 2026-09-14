@@ -14,6 +14,7 @@
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -100,15 +101,38 @@ def filing_window_block_reason(project: Project, report_date: date) -> str | Non
 
 
 def list_engineer_projects(db: Session, engineer_id: int) -> list[Project]:
-    """Projects to offer in the report-filing project picker -- the ones
-    this engineer is actually assigned to, not every project in the
-    system. Deliberately not status-filtered (an engineer might
+    """Projects to offer in the report-filing project picker.
+
+    Two ways a project belongs here, not just one: the project's own
+    overall engineer (Project.engineer_id) -- unchanged from before --
+    plus any project where this person is specifically assigned to a
+    Supervision task (Task.assigned_to), even if they aren't the
+    project's overall engineer. That second case is what makes
+    delegated day-to-day site supervision actually work: a senior
+    engineer can run a project (Project.engineer_id) while a site
+    engineer is assigned the Supervision task itself and needs to file
+    reports against it too. Without this, list_reports_for_task's own
+    Supervision-task matching (Task.assigned_to == report.engineer_id)
+    could never be satisfied for that site engineer, since they'd never
+    even see the project in this picker to file a report in the first
+    place.
+
+    Deliberately not status-filtered on either path (an engineer might
     legitimately still be filing a report against a project mid-
     handover even if its status just changed) -- this is a picker
-    convenience, not a business-rule gate."""
+    convenience, not a business-rule gate.
+    """
+    supervision_project_ids = (
+        db.query(Task.project_id)
+        .filter(Task.assigned_to == engineer_id, Task.selected_supervision_activity_id.isnot(None), Task.deleted_at.is_(None))
+        .distinct()
+    )
     return (
         db.query(Project)
-        .filter(Project.engineer_id == engineer_id, Project.deleted_at.is_(None))
+        .filter(
+            Project.deleted_at.is_(None),
+            or_(Project.engineer_id == engineer_id, Project.id.in_(supervision_project_ids)),
+        )
         .order_by(Project.project_name.asc())
         .all()
     )
@@ -325,6 +349,20 @@ def attach_report(db: Session, report_id: int, task_no: str | None, recipient_no
         task = task_service.get_task(db, task_no)
         if task.project_id != report.project_id:
             raise ValidationAppError("The selected task does not belong to this report's project.")
+        # Only for Supervision tasks -- their visibility rule
+        # (list_reports_for_task) matches by the task's own assignee,
+        # not by whatever gets attached here, so attaching to a
+        # Supervision task assigned to someone other than this report's
+        # engineer would "succeed" here and then the report would never
+        # actually show up on that task. Design/Permit tasks match
+        # directly on attached_task_id regardless of assignee, so
+        # there's no such trap for those.
+        if task.selected_supervision_activity_id is not None and task.assigned_to != report.engineer_id:
+            raise ValidationAppError(
+                "This Supervision task is assigned to a different engineer than the one who filed this report -- "
+                "the report would not appear on that task's history. Choose a task assigned to this report's engineer, "
+                "or leave the task unselected."
+            )
 
     engineer = db.query(User).filter(User.id == report.engineer_id).first()
     engineer_name = engineer.full_name if engineer else "Unknown"
