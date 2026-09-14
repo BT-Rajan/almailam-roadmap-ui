@@ -232,6 +232,7 @@ export default {
     columnReference: 'Reference',
     columnPayer: 'Payer',
     columnOutstanding: 'Outstanding',
+    columnCurrency: 'Currency',
     searchLedger: 'Search payments...',
     noPayments: 'No payments recorded in this range',
     projectionsTitle: 'Projections',

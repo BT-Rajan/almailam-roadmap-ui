@@ -68,17 +68,20 @@ class PaymentLedgerEntry(BaseModel):
 
 class ProjectionByMonth(BaseModel):
     month: str
+    currency: str
     amount: float
 
 
 class ProjectionByProject(BaseModel):
     projectNo: str
     projectName: str
+    currency: str
     amount: float
 
 
 class ProjectionByService(BaseModel):
     service: str
+    currency: str
     amount: float
 
 

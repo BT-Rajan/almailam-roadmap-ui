@@ -244,29 +244,46 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
     """Expected-but-not-yet-received income, grouped three ways -- by the
     month it falls due, by project, and by service (agreement stream) --
     so "what's still coming in" can be read whichever way is useful,
-    without three separate round trips."""
+    without three separate round trips. Each grouping also splits by
+    FinancialAgreement.currency: a project can hold a Design agreement
+    and a Supervision agreement in different currencies (nothing in the
+    schema ties them together), and even within one stream, obligations
+    across different projects/clients can genuinely be priced in
+    different currencies (AED/USD/SAR/KWD -- see AdminCompanyPage).
+    Summing across currencies into one number, the way this used to
+    work, would silently add incompatible amounts together."""
     rows = _outstanding_obligations_query(db, project_no, client_id).all()
 
-    by_month: dict[str, float] = {}
-    by_project: dict[str, dict] = {}
-    by_service: dict[str, float] = {}
+    by_month: dict[tuple[str, str], float] = {}
+    by_project: dict[tuple[str, str], dict] = {}
+    by_service: dict[tuple[str, str], float] = {}
 
     for obligation, agreement, project in rows:
         outstanding = float(obligation.amount_due) - float(obligation.amount_received)
+        currency = agreement.currency
         month_key = obligation.due_date.strftime("%Y-%m")
-        by_month[month_key] = by_month.get(month_key, 0.0) + outstanding
+        by_month[(month_key, currency)] = by_month.get((month_key, currency), 0.0) + outstanding
 
+        project_key = (project.project_no, currency)
         project_entry = by_project.setdefault(
-            project.project_no, {"projectNo": project.project_no, "projectName": project.project_name, "amount": 0.0}
+            project_key,
+            {"projectNo": project.project_no, "projectName": project.project_name, "currency": currency, "amount": 0.0},
         )
         project_entry["amount"] += outstanding
 
-        by_service[agreement.stream] = by_service.get(agreement.stream, 0.0) + outstanding
+        service_key = (agreement.stream, currency)
+        by_service[service_key] = by_service.get(service_key, 0.0) + outstanding
 
     return {
-        "byMonth": [{"month": month, "amount": amount} for month, amount in sorted(by_month.items())],
-        "byProject": sorted(by_project.values(), key=lambda entry: entry["projectNo"]),
-        "byService": [{"service": service, "amount": amount} for service, amount in sorted(by_service.items())],
+        "byMonth": [
+            {"month": month, "currency": currency, "amount": amount}
+            for (month, currency), amount in sorted(by_month.items())
+        ],
+        "byProject": sorted(by_project.values(), key=lambda entry: (entry["projectNo"], entry["currency"])),
+        "byService": [
+            {"service": service, "currency": currency, "amount": amount}
+            for (service, currency), amount in sorted(by_service.items())
+        ],
     }
 
 

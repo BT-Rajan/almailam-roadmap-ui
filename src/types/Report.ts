@@ -63,17 +63,20 @@ export interface PaymentLedgerEntry {
 
 export interface ProjectionByMonth {
   month: string
+  currency: string
   amount: number
 }
 
 export interface ProjectionByProject {
   projectNo: string
   projectName: string
+  currency: string
   amount: number
 }
 
 export interface ProjectionByService {
   service: string
+  currency: string
   amount: number
 }
 
