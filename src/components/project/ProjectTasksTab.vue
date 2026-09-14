@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -8,14 +8,11 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
-import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import TaskList from '@/components/task/TaskList.vue'
 import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import type { TaskInput } from '@/services/taskService'
 import { useClientStore } from '@/stores/clientStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useToastStore } from '@/stores/toastStore'
 import type { Project, WorkflowStage } from '@/types/Project'
 
 const props = defineProps<{
@@ -33,7 +30,6 @@ const props = defineProps<{
 }>()
 
 const taskStore = useTaskStore()
-const toastStore = useToastStore()
 const clientStore = useClientStore()
 const router = useRouter()
 const { t } = useI18n()
@@ -66,16 +62,11 @@ watch(scopedProjectTasks, () => resetPage())
 // Board/My Tasks views do.
 const clientName = computed(() => clientStore.getClientById(props.project.clientId)?.companyName ?? t('project.unknownClient'))
 
-const isCreateDialogOpen = ref(false)
-
-async function handleCreateTask(input: TaskInput): Promise<void> {
-  try {
-    const task = await taskStore.createTask(input)
-    toastStore.show('success', t('project.tasksTab.taskCreatedTitle'), t('project.tasksTab.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('project.tasksTab.failedToCreateTask'), detail)
-  }
+// Opens the shared task-create page (see TaskCreatePage.vue) with the
+// project locked -- a task added from inside this project's own Tasks
+// tab shouldn't quietly end up filed under a different project.
+function createTask(): void {
+  router.push({ name: ROUTE_NAMES.TASK_CREATE, query: { projectId: props.project.id, locked: '1' } })
 }
 
 // Opens the shared task workspace (see TaskWorkspacePage.vue) rather
@@ -91,7 +82,7 @@ function openTask(taskId: string): void {
 
 <template>
   <div class="flex items-center justify-end no-print">
-    <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('project.tasksTab.newTask') }}</BaseButton>
+    <BaseButton size="sm" :icon="Plus" @click="createTask">{{ t('project.tasksTab.newTask') }}</BaseButton>
   </div>
 
   <div v-if="taskStore.isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -118,12 +109,5 @@ function openTask(taskId: string): void {
     :page-size="pageSize"
     @page-change="goToPage"
     @page-size-change="setPageSize"
-  />
-
-  <TaskFormDialog
-    v-model="isCreateDialogOpen"
-    :projects="[project]"
-    :default-project-id="project.id"
-    @create="handleCreateTask"
   />
 </template>

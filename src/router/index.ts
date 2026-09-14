@@ -262,6 +262,24 @@ const router = createRouter({
       },
     },
     {
+      // Placed before ':taskId' (below) for the same reason MY_TASKS
+      // is placed before it -- vue-router matches in definition order,
+      // and ':taskId' would otherwise swallow 'new' as if it were a
+      // task id.
+      path: '/tasks/new',
+      name: ROUTE_NAMES.TASK_CREATE,
+      component: () => import('@/pages/TaskCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.tasks', routeName: ROUTE_NAMES.TASKS },
+          { label: 'breadcrumb.newTask' },
+        ],
+      },
+    },
+    {
       // Placed after '/tasks/my' -- vue-router matches route records in
       // definition order, and ':taskId' would otherwise swallow '/my'
       // as a task id before the fixed MY_TASKS route ever gets a turn.

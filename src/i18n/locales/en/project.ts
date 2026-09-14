@@ -429,23 +429,11 @@ export default {
 
   tasksTab: {
     newTask: 'New Task',
-    taskCreatedTitle: 'Task created',
-    taskCreatedDescription: '"{title}" was assigned to {assignee}.',
-    failedToCreateTask: 'Failed to create task',
-    failedToUpdateStatus: 'Failed to update status',
-    failedToUpdateTitle: 'Failed to update title',
-    failedToReassignTask: 'Failed to reassign task',
-    failedToUpdateSchedule: 'Failed to update the schedule',
     changeStatusTitle: 'Change status',
     reassignTaskTitle: 'Reassign task',
     changeStatusMessage: 'Change "{title}" from {from} to {to}?',
     reassignTaskMessage: 'Reassign "{title}" from {from} to {to}?',
     thisUser: 'this user',
-    deleteTaskTitle: 'Delete task',
-    deleteTaskMessage: 'Delete "{title}"? This cannot be undone.',
-    taskDeletedTitle: 'Task deleted',
-    taskDeletedDescription: '"{title}" was deleted.',
-    failedToDeleteTask: 'Failed to delete task',
   },
 
   reportPage: {

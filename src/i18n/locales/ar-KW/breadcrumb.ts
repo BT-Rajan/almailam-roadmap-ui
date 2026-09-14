@@ -17,6 +17,7 @@ export default {
   tasks: 'المهام',
   myTasks: 'مهامي',
   task: 'المهمة',
+  newTask: 'مهمة جديدة',
   statusReportInbox: 'صندوق تقارير الحالة',
   reports: 'التقارير',
   executiveSummary: 'الملخص التنفيذي',

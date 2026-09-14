@@ -429,23 +429,11 @@ export default {
 
   tasksTab: {
     newTask: 'مهمة جديدة',
-    taskCreatedTitle: 'تم إنشاء المهمة',
-    taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
-    failedToCreateTask: 'فشل إنشاء المهمة',
-    failedToUpdateStatus: 'فشل تحديث الحالة',
-    failedToUpdateTitle: 'فشل تحديث العنوان',
-    failedToReassignTask: 'فشل إعادة إسناد المهمة',
-    failedToUpdateSchedule: 'فشل تحديث الجدول الزمني',
     changeStatusTitle: 'تغيير الحالة',
     reassignTaskTitle: 'إعادة إسناد المهمة',
     changeStatusMessage: 'تغيير حالة "{title}" من {from} إلى {to}؟',
     reassignTaskMessage: 'إعادة إسناد "{title}" من {from} إلى {to}؟',
     thisUser: 'هذا المستخدم',
-    deleteTaskTitle: 'حذف المهمة',
-    deleteTaskMessage: 'حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
-    taskDeletedTitle: 'تم حذف المهمة',
-    taskDeletedDescription: 'تم حذف "{title}".',
-    failedToDeleteTask: 'فشل حذف المهمة',
   },
 
   reportPage: {

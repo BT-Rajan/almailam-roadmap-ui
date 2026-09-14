@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -11,11 +11,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
-import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import type { TaskInput } from '@/services/taskService'
 import { useTaskStore } from '@/stores/taskStore'
-import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
 import type { SelectOption } from '@/types/Ui'
@@ -23,12 +20,10 @@ import type { SelectOption } from '@/types/Ui'
 const { t } = useI18n()
 const router = useRouter()
 const taskStore = useTaskStore()
-const toastStore = useToastStore()
 const userStore = useUserStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
-const isCreateDialogOpen = ref(false)
 
 const projectOptions = computed<SelectOption[]>(() => [
   { label: 'All Projects', value: 'All', labelKey: 'task.tasksPage.allProjects' },
@@ -38,7 +33,7 @@ const projectOptions = computed<SelectOption[]>(() => [
 // Values here are display names, not user ids -- this only filters the
 // already-loaded task list client-side (taskStore.filteredTasks
 // compares task.assignedTo, which is always a resolved name), unlike
-// TaskFormDialog/TaskAssignmentCard which write an assignment back to
+// TaskCreatePage/TaskAssignmentCard which write an assignment back to
 // the backend and need real ids for that.
 const assigneeOptions = computed<SelectOption[]>(() => [
   { label: 'All Assignees', value: 'All', labelKey: 'task.tasksPage.allAssignees' },
@@ -63,16 +58,6 @@ function advanceTask(taskId: string): void {
   const next = getNextTaskStatus(task.status)
   if (next) taskStore.updateTaskStatus(taskId, next)
 }
-
-async function handleCreateTask(input: TaskInput): Promise<void> {
-  try {
-    const task = await taskStore.createTask(input)
-    toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToCreateTask'), detail)
-  }
-}
 </script>
 
 <template>
@@ -82,7 +67,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.MY_TASKS })">
           {{ t('task.tasksPage.myTasks') }}
         </BaseButton>
-        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">{{ t('task.tasksPage.addTask') }}</BaseButton>
+        <BaseButton :icon="Plus" @click="router.push({ name: ROUTE_NAMES.TASK_CREATE })">{{ t('task.tasksPage.addTask') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -124,12 +109,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
       @open="openTask"
       @advance="advanceTask"
-    />
-
-    <TaskFormDialog
-      v-model="isCreateDialogOpen"
-      :projects="taskStore.projects"
-      @create="handleCreateTask"
     />
   </div>
 </template>

@@ -17,6 +17,7 @@ export default {
   tasks: 'Tasks',
   myTasks: 'My Tasks',
   task: 'Task',
+  newTask: 'New Task',
   statusReportInbox: 'Status Report Inbox',
   reports: 'Reports',
   executiveSummary: 'Executive Summary',
