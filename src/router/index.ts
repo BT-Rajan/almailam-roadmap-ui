@@ -652,6 +652,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces ScheduledReportDialog.vue's modal with a dedicated page,
+      // same treatment as PAYMENT_PLAN_FORM -- ':scheduleId' is 'new' or
+      // a real id; the page itself decides create vs edit from whether
+      // that id resolves to an existing schedule.
+      path: '/admin/scheduled-reports/:scheduleId',
+      name: ROUTE_NAMES.ADMIN_SCHEDULED_REPORT_FORM,
+      component: () => import('@/pages/ScheduledReportFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.scheduledReports', routeName: ROUTE_NAMES.ADMIN_SCHEDULED_REPORTS },
+          { label: 'breadcrumb.scheduledReport' },
+        ],
+      },
+    },
+    {
       path: '/admin/audit-log',
       name: ROUTE_NAMES.ADMIN_AUDIT_LOG,
       component: () => import('@/pages/AdminAuditLogPage.vue'),

@@ -40,6 +40,7 @@ export const ROUTE_NAMES = {
   ADMIN_COMPANY: 'admin-company',
   ADMIN_EMAIL: 'admin-email',
   ADMIN_SCHEDULED_REPORTS: 'admin-scheduled-reports',
+  ADMIN_SCHEDULED_REPORT_FORM: 'admin-scheduled-report-form',
   ADMIN_AUDIT_LOG: 'admin-audit-log',
   // Shared with every authenticated user, not just admins -- see
   // ActivityCalendarPage.vue. Kept the ADMIN_ACTIVITY_CALENDAR name so the

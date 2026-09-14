@@ -40,6 +40,7 @@ export default {
   company: 'الشركة',
   email: 'البريد الإلكتروني',
   scheduledReports: 'التقارير المجدولة',
+  scheduledReport: 'تقرير مجدول',
   auditLog: 'سجل التدقيق',
   activityCalendar: 'تقويم الأنشطة',
   myProfile: 'ملفي الشخصي',

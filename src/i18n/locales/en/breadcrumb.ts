@@ -40,6 +40,7 @@ export default {
   company: 'Company',
   email: 'Email',
   scheduledReports: 'Scheduled Reports',
+  scheduledReport: 'Scheduled Report',
   auditLog: 'Audit Log',
   activityCalendar: 'Activity Calendar',
   myProfile: 'My Profile',
