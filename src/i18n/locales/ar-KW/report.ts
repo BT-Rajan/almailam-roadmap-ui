@@ -144,6 +144,8 @@ export default {
     columnCompleted: 'مكتمل',
     columnApproved: 'موافَق عليه',
     columnRejected: 'مرفوض',
+    columnAssigned: 'مُسنَد',
+    columnCommented: 'تعليقات',
     columnWhen: 'الوقت',
     columnActivity: 'النشاط',
     columnItem: 'العنصر',

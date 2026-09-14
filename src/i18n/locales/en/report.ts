@@ -150,6 +150,8 @@ export default {
     columnCompleted: 'Completed',
     columnApproved: 'Approved',
     columnRejected: 'Rejected',
+    columnAssigned: 'Assigned',
+    columnCommented: 'Commented',
     columnWhen: 'When',
     columnActivity: 'Activity',
     columnItem: 'Item',
