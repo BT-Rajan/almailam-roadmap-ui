@@ -35,6 +35,7 @@ export default {
   monthlyFinancials: 'Monthly Financials',
   administration: 'Administration',
   users: 'Users',
+  user: 'User',
   catalogs: 'Catalogs',
   ai: 'AI',
   company: 'Company',

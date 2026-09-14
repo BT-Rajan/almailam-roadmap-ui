@@ -562,6 +562,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces UserDialog.vue's modal, same treatment as
+      // ScheduledReportFormPage.vue -- ':userId' is 'new' or a real id;
+      // the page itself decides create vs edit from whether that id
+      // resolves to an existing user.
+      path: '/admin/users/:userId',
+      name: ROUTE_NAMES.ADMIN_USER_FORM,
+      component: () => import('@/pages/UserFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.users', routeName: ROUTE_NAMES.ADMIN_USERS },
+          { label: 'breadcrumb.user' },
+        ],
+      },
+    },
+    {
       path: '/admin/catalogs',
       name: ROUTE_NAMES.ADMIN_CATALOGS,
       component: () => import('@/pages/AdminCatalogsPage.vue'),

@@ -35,6 +35,7 @@ export default {
   monthlyFinancials: 'الماليات الشهرية',
   administration: 'الإدارة',
   users: 'المستخدمون',
+  user: 'المستخدم',
   catalogs: 'الكتالوجات',
   ai: 'الذكاء الاصطناعي',
   company: 'الشركة',

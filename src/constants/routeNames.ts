@@ -34,6 +34,7 @@ export const ROUTE_NAMES = {
   REPORT_MONTHLY_FINANCIALS: 'report-monthly-financials',
   ADMIN: 'admin',
   ADMIN_USERS: 'admin-users',
+  ADMIN_USER_FORM: 'admin-user-form',
   ADMIN_CATALOGS: 'admin-catalogs',
   ADMIN_DOCUMENTS: 'admin-documents',
   ADMIN_AI: 'admin-ai',
