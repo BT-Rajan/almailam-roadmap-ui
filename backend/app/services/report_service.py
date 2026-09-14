@@ -48,7 +48,9 @@ def tasks_by_priority(db: Session) -> list[dict]:
 
 
 def submissions_by_status(db: Session) -> list[dict]:
-    return _count_by(db, GovernmentSubmission, GovernmentSubmission.status)
+    # Column is `stage` now (Prepare/Apply/Track/Update/Close) -- kept
+    # this function's own name for API/report-heading stability.
+    return _count_by(db, GovernmentSubmission, GovernmentSubmission.stage)
 
 
 def quotations_by_status(db: Session) -> list[dict]:
@@ -516,9 +518,9 @@ def project_report(db: Session, project: Project) -> list[dict]:
         .all()
     )
     submission_counts = dict(
-        db.query(GovernmentSubmission.status, func.count(GovernmentSubmission.id))
+        db.query(GovernmentSubmission.stage, func.count(GovernmentSubmission.id))
         .filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None))
-        .group_by(GovernmentSubmission.status)
+        .group_by(GovernmentSubmission.stage)
         .all()
     )
 

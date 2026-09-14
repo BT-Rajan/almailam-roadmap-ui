@@ -268,7 +268,7 @@ def _search_submissions(db: Session, term: str) -> list[SearchResult]:
             id=submission.submission_no,
             category="Submission",
             title=submission.submission_no,
-            subtitle=submission.status,
+            subtitle=submission.stage,
             routeName="government-submissions",
         )
         for submission in submissions

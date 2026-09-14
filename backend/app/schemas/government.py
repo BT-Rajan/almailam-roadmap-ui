@@ -8,9 +8,9 @@ from app.models.government import (
     FORM_FIELD_TYPES,
     FORM_LANGUAGES,
     FORM_STATUSES,
+    PROJECT_FORM_ENTRY_STATUSES,
     REQUIRED_DOCUMENT_STATUSES,
     RESPONSE_OUTCOMES,
-    SUBMISSION_STATUSES,
 )
 
 
@@ -208,7 +208,7 @@ class ProjectFormEntryUpdate(BaseModel):
 
 class ProjectFormEntryStatusUpdate(BaseModel):
     status: str
-    _check = field_validator("status")(_enum_validator(SUBMISSION_STATUSES, "status"))
+    _check = field_validator("status")(_enum_validator(PROJECT_FORM_ENTRY_STATUSES, "status"))
 
 
 # --- submissions -----------------------------------------------------
@@ -247,31 +247,47 @@ class ProofOfFileOut(BaseModel):
 
 class FollowupOut(BaseModel):
     id: str
+    stage: str
     followupDate: date
     followupTime: str
     contactPerson: str
     notes: str | None
+    document: "ProofOfFileOut | None" = None
     createdBy: str
     createdAt: datetime
 
     @staticmethod
     def from_model(followup, created_by_name: str) -> "FollowupOut":
+        document = None
+        if followup.storage_key:
+            from app.core.file_storage import format_file_size
+
+            document = ProofOfFileOut(
+                originalFilename=followup.original_filename,
+                fileSizeLabel=format_file_size(followup.file_size_bytes),
+                uploadDate=followup.followup_date,
+                uploadedBy=created_by_name,
+            )
         return FollowupOut(
             id=f"FUP-{followup.id:04d}",
+            stage=followup.stage,
             followupDate=followup.followup_date,
             followupTime=followup.followup_time,
             contactPerson=followup.contact_person,
             notes=followup.notes,
+            document=document,
             createdBy=created_by_name,
             createdAt=followup.created_at,
         )
 
 
 class FollowupCreate(BaseModel):
+    entryStage: str
     followupDate: date
     followupTime: str = Field(min_length=1, max_length=20)
     contactPerson: str = Field(min_length=1, max_length=150)
     notes: str | None = None
+    _check_entry_stage = field_validator("entryStage")(_enum_validator(("Track", "Update"), "entryStage"))
 
 
 class SubmissionOut(BaseModel):
@@ -280,12 +296,16 @@ class SubmissionOut(BaseModel):
     authorityId: str
     formId: str
     submissionNo: str
-    status: str
+    stage: str
+    readinessConfirmedAt: datetime | None = None
+    acknowledgementNumber: str | None = None
+    paymentReference: str | None = None
     submittedDate: date | None
     expectedDecisionDate: date | None
     decisionDate: date | None
     documents: list[SubmissionDocumentOut]
     notes: str | None
+    closingNotes: str | None = None
     allDocumentsSatisfied: bool
     proofOfSubmission: ProofOfFileOut | None = None
     proofOfResponse: ProofOfFileOut | None = None
@@ -335,7 +355,10 @@ class SubmissionOut(BaseModel):
             authorityId=f"AUTH-{submission.authority_id:03d}",
             formId=f"FORM-{submission.form_id:03d}",
             submissionNo=submission.submission_no,
-            status=submission.status,
+            stage=submission.stage,
+            readinessConfirmedAt=submission.readiness_confirmed_at,
+            acknowledgementNumber=submission.acknowledgement_number,
+            paymentReference=submission.payment_reference,
             submittedDate=submission.submitted_date,
             expectedDecisionDate=submission.expected_decision_date,
             decisionDate=submission.decision_date,
@@ -343,6 +366,7 @@ class SubmissionOut(BaseModel):
                 SubmissionDocumentOut.from_model(d, document_uploader_names.get(d.id)) for d in documents
             ],
             notes=submission.notes,
+            closingNotes=submission.closing_notes,
             allDocumentsSatisfied=all_satisfied,
             proofOfSubmission=proof_of_submission,
             proofOfResponse=proof_of_response,
@@ -368,21 +392,6 @@ class SubmissionCreate(BaseModel):
 class SubmissionUpdate(BaseModel):
     expectedDecisionDate: date | None = None
     notes: str | None = None
-    status: str | None = None
-    reason: str | None = None
-
-    @field_validator("status")
-    @classmethod
-    def check_status(cls, value: str | None) -> str | None:
-        if value is not None and value not in SUBMISSION_STATUSES:
-            raise ValueError(f"status must be one of {SUBMISSION_STATUSES}")
-        return value
-
-
-class SubmissionStatusUpdate(BaseModel):
-    status: str
-    reason: str | None = None
-    _check = field_validator("status")(_enum_validator(SUBMISSION_STATUSES, "status"))
 
 
 class SubmissionDocumentStatusUpdate(BaseModel):

@@ -22,17 +22,26 @@ FORM_CATEGORIES = (
 )
 FORM_LANGUAGES = ("English", "Arabic", "English / Arabic")
 FORM_STATUSES = ("Active", "Archived")
-SUBMISSION_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected", "Withdrawn")
+SUBMISSION_STAGES = ("Prepare", "Apply", "Track", "Update", "Close")
+# ProjectFormEntry's own status lifecycle -- unrelated to
+# SUBMISSION_STAGES above (this is "is this one filled-in form done,"
+# not "where is this permit application"), kept as the exact vocabulary
+# the old shared SUBMISSION_STATUSES enum used before this became its
+# own constant, since ProjectFormEntry never needed the Permit
+# Application rework and nothing about its own lifecycle changed.
+PROJECT_FORM_ENTRY_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected", "Withdrawn")
 REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
-# Outcome recorded against the "proof of response" upload -- kept as its
-# own field (rather than inferred from submission.status) so the UI can
-# gate the "Mark Complete" action on an explicit Approved call,
-# independent of exactly which status the submission is sitting in.
-# "No Response" covers a follow-up made after the authority's own
-# response window closed with nothing back -- still a real outcome
-# worth recording (with its own proof, e.g. a follow-up acknowledgement),
-# just not one that can ever satisfy "Mark Complete".
-RESPONSE_OUTCOMES = ("Approved", "Rejected", "No Response")
+# Outcome recorded when an application reaches Close -- kept as its own
+# field (rather than inferred from the stage alone) since Close is a
+# single terminal stage but needs to say *how* it ended. "No Response"
+# covers a follow-up made after the authority's own response window
+# closed with nothing back -- still a real outcome worth recording
+# (with its own proof, e.g. a follow-up acknowledgement). "Withdrawn"
+# covers staff pulling the application before a decision came back --
+# there's no separate stage for it anymore (see
+# core/status_transitions.py's SUBMISSION_ALLOWED_TRANSITIONS), just
+# this outcome recorded against whichever stage it was withdrawn from.
+RESPONSE_OUTCOMES = ("Approved", "Rejected", "No Response", "Withdrawn")
 
 
 class GovernmentAuthority(Base, TimestampMixin, SoftDeleteMixin):
@@ -88,6 +97,25 @@ class GovernmentForm(Base, TimestampMixin, SoftDeleteMixin):
 
 
 class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
+    """A permit application's own workspace -- one row per application,
+    walking through 5 stages (SUBMISSION_STAGES): Prepare (pick the
+    authority/form this application is for, fill the form in via
+    ProjectFormEntry, get the required-documents checklist ready) ->
+    Apply (file it, record the authority's acknowledgement) -> Track
+    (log contact made while it's under review) <-> Update (same as
+    Track, plus a document, for when the authority asks for something
+    else) -> Close (the final outcome, permit/decision document, and
+    closing notes). See core/status_transitions.py's
+    SUBMISSION_ALLOWED_TRANSITIONS for the full stage graph and
+    submission_service.py for the one action per transition.
+
+    Named GovernmentSubmission/government_submissions still (not
+    renamed to PermitApplication at the table/class level) to avoid
+    churning every existing FK and import across the codebase for a
+    rename that's purely cosmetic -- the frontend presents this as
+    "Permit Application" regardless of what the Python class is called.
+    """
+
     __tablename__ = "government_submissions"
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -105,22 +133,40 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     # fulfilling -- optional, since a submission can still be created
     # ad hoc against an authority/form with no ProjectSelectedPermit
     # behind it, same as today. When set, this is what
-    # project_service.close_permit_activity's caller uses to find the
-    # submission(s) filed against a given planned permit.
+    # project_service.set_permit_status's caller uses to find the
+    # application(s) filed against a given planned permit -- staff still
+    # close the permit itself by hand there, independent of this
+    # application's own stage (see ProjectSelectedPermit's docstring).
     project_selected_permit_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("project_selected_permits.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    status: Mapped[str] = mapped_column(
-        Enum(*SUBMISSION_STATUSES, name="government_submission_status"), nullable=False, default="Draft"
+    stage: Mapped[str] = mapped_column(
+        Enum(*SUBMISSION_STAGES, name="government_submission_stage"), nullable=False, default="Prepare"
     )
-    submitted_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    expected_decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Proof of submission -- uploaded once every required document is
-    # Uploaded/Verified, gates the Draft -> Submitted transition (see
-    # submission_service.upload_proof_of_submission).
+    # --- Prepare -----------------------------------------------------
+    # Set once every required document (see SubmissionDocument below) is
+    # Uploaded/Verified and staff explicitly confirm it -- see
+    # submission_service.confirm_readiness. Gates Prepare -> Apply the
+    # same way proof-of-submission's checklist gate always has.
+    readiness_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    readiness_confirmed_by: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # --- Apply ---------------------------------------------------------
+    # The authority's acknowledgement of receipt -- filed together in one
+    # action (submission_service.record_acknowledgement), which is also
+    # what moves the application from Apply into Track.
+    acknowledgement_number: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    payment_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    submitted_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expected_decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The acknowledgement upload itself -- named proof_of_submission_*
+    # rather than acknowledgement_* purely to keep the column names
+    # stable across the Government Submission -> Permit Application
+    # rename; it's presented to the user as "Application Acknowledgement".
     proof_of_submission_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
     proof_of_submission_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     proof_of_submission_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -129,8 +175,13 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     )
     proof_of_submission_upload_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    # Proof of the government's response -- uploaded once a decision comes
-    # back; response_outcome drives whether "Mark Complete" is available.
+    # --- Close -----------------------------------------------------
+    # The issued permit or the authority's decision letter, whichever
+    # applies -- same field regardless of outcome, named proof_of_response_*
+    # for the same column-stability reason as above; presented to the
+    # user as "Permit / Decision Document". Optional: a Withdrawn/No
+    # Response close often has nothing to attach.
+    decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     proof_of_response_storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
     proof_of_response_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     proof_of_response_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -141,6 +192,7 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     response_outcome: Mapped[str | None] = mapped_column(
         Enum(*RESPONSE_OUTCOMES, name="submission_response_outcome"), nullable=True
     )
+    closing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class SubmissionDocument(Base):
@@ -164,11 +216,18 @@ class SubmissionDocument(Base):
 
 
 class SubmissionFollowup(Base):
-    """A log entry recording a follow-up call/visit made to the
-    authority while a submission is awaiting a decision -- who checked,
-    and when. Purely additive (no edit/delete from the UI), same idea as
-    audit_log: an append-only trail, not a mutable field on the
-    submission itself."""
+    """A log entry recording contact made with the authority while an
+    application is in Track or Update (SUBMISSION_STAGES) -- who
+    checked, when, and what came of it. Purely additive (no edit/delete
+    from the UI), same idea as audit_log: an append-only trail, not a
+    mutable field on the application itself.
+
+    Update is the same entry shape as Track, plus an optional document
+    -- the authority asking for something else (an additional document,
+    or an updated version of one already sent) rather than a plain
+    check-in. `stage` records which of the two this particular entry was
+    logged under; the document fields stay null for a plain Track entry.
+    """
 
     __tablename__ = "submission_followups"
 
@@ -176,24 +235,29 @@ class SubmissionFollowup(Base):
     submission_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("government_submissions.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    stage: Mapped[str] = mapped_column(Enum("Track", "Update", name="followup_stage"), nullable=False, default="Track")
     followup_date: Mapped[date] = mapped_column(Date, nullable=False)
     followup_time: Mapped[str] = mapped_column(String(20), nullable=False)
     contact_person: Mapped[str] = mapped_column(String(150), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class ProjectFormEntry(Base, TimestampMixin):
     """One government form, filled in and saved for one project -- the
-    Approvals & Permits tab's own record, organized by the form's
-    authority (MEW/KFD/Baladia/...) there. Distinct from
-    GovernmentSubmission above: a submission tracks the back-and-forth
-    of filing something WITH an authority and waiting on a decision;
-    this is just "this project has this one form filled in," with its
-    own status lifecycle (reusing SUBMISSION_STATUSES' vocabulary since
-    the two are conceptually close enough not to need a second set of
-    words for the same idea).
+    Permit Application workspace's Prepare stage uses this to fill in
+    the actual form for whichever authority/type of approval was
+    selected, organized by the form's authority (MEW/KFD/Baladia/...).
+    Distinct from GovernmentSubmission above: an application tracks the
+    back-and-forth of filing something WITH an authority and waiting on
+    a decision; this is just "this project has this one form filled
+    in," with its own status lifecycle (PROJECT_FORM_ENTRY_STATUSES,
+    kept separate from SUBMISSION_STAGES above since the two track
+    genuinely different things now).
 
     Saving (see project_form_service.create_project_form_entry) does
     two things in one action, per how staff actually work: persists
@@ -217,7 +281,7 @@ class ProjectFormEntry(Base, TimestampMixin):
     # for which of them are dropdowns/radio groups vs. plain text.
     field_values: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(
-        Enum(*SUBMISSION_STATUSES, name="project_form_entry_status"), nullable=False, default="Draft"
+        Enum(*PROJECT_FORM_ENTRY_STATUSES, name="project_form_entry_status"), nullable=False, default="Draft"
     )
     # The generated PDF -- always set once this row exists (see the
     # class docstring); nullable only because the FK itself can't be

@@ -5,11 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
-from app.core.status_transitions import (
-    SUBMISSION_ALLOWED_TRANSITIONS,
-    SUBMISSION_STATUSES_REQUIRING_REASON,
-)
-from app.core.workflow import assert_reason_given, assert_transition_allowed
+from app.core.status_transitions import SUBMISSION_ALLOWED_TRANSITIONS
+from app.core.workflow import assert_transition_allowed
 from app.models.client import Client
 from app.models.government import GovernmentSubmission, SubmissionDocument, SubmissionFollowup
 from app.models.project import Project
@@ -28,10 +25,10 @@ from app.services.number_series_service import next_number
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
 UPLOAD_SUBDIRECTORY = "submissions"
 
-# Statuses in which a follow-up call/visit or a proof-of-response upload
-# makes sense -- i.e. the submission has actually gone out and is awaiting
-# a decision from the authority.
-AWAITING_RESPONSE_STATUSES = ("Submitted", "Under Review", "Comments Received")
+# Stages in which logging contact with the authority or closing the
+# application out makes sense -- i.e. it's actually been filed (past
+# Apply) and is awaiting/has reached a resolution.
+AWAITING_RESPONSE_STAGES = ("Track", "Update")
 
 
 def user_name(db: Session, user_id: int | None) -> str:
@@ -49,14 +46,14 @@ def _parse_project_id_from_no(project_no: str, db: Session) -> Project:
 
 
 def list_submissions(
-    db: Session, project_no: str | None = None, status: str | None = None
+    db: Session, project_no: str | None = None, stage: str | None = None
 ) -> list[GovernmentSubmission]:
     query = db.query(GovernmentSubmission).filter(GovernmentSubmission.deleted_at.is_(None))
     if project_no:
         project = db.query(Project).filter(Project.project_no == project_no).first()
         query = query.filter(GovernmentSubmission.project_id == (project.id if project else -1))
-    if status:
-        query = query.filter(GovernmentSubmission.status == status)
+    if stage:
+        query = query.filter(GovernmentSubmission.stage == stage)
     return query.order_by(GovernmentSubmission.id.asc()).all()
 
 
@@ -109,6 +106,11 @@ def user_names(db: Session, user_ids: set[int]) -> dict[int, str]:
 
 
 def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSubmission:
+    """Starts a new Permit Application in Prepare -- picking which
+    authority/form (i.e. which type of approval) this application is
+    for. The rest of Prepare (filling the form in via ProjectFormEntry,
+    getting the required-documents checklist ready, then
+    confirm_readiness below) happens against this row afterward."""
     project = _parse_project_id_from_no(payload.projectId, db)
     authority_id = government_service.parse_authority_id(payload.authorityId)
     form_id = government_service.parse_form_id(payload.formId)
@@ -138,15 +140,17 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
     db.add(submission)
     db.flush()
 
-    # Seed the per-submission document checklist from the form's required
-    # documents template -- each starts Pending until uploaded/verified.
+    # Seed the per-application document checklist from the form's
+    # required documents template -- each starts Pending until
+    # uploaded/verified; this is what confirm_readiness's own check
+    # waits on.
     for document_name in form.required_documents:
         db.add(SubmissionDocument(submission_id=submission.id, name=document_name, status="Pending"))
 
-    audit_service.log_event(db, ENTITY_TYPE, submission.id, "Submission created", user_id, new_value=submission.submission_no)
+    audit_service.log_event(db, ENTITY_TYPE, submission.id, "Application created", user_id, new_value=submission.submission_no)
     timeline_service.create_system_event(
         db, project.id, "submission",
-        title=f"Government submission {submission.submission_no} created",
+        title=f"Permit application {submission.submission_no} created",
         actor_id=user_id,
     )
     db.commit()
@@ -167,70 +171,214 @@ def update_submission(db: Session, submission_no: str, payload, user_id: int | N
     audit_service.log_field_changes(db, ENTITY_TYPE, submission.id, changes, user_id)
     db.commit()
     db.refresh(submission)
-
-    if payload.status is not None and payload.status != submission.status:
-        submission = set_status(db, submission_no, payload.status, payload.reason, user_id)
-
     return submission
 
 
-def set_status(
-    db: Session, submission_no: str, new_status: str, reason: str | None, user_id: int | None
-) -> GovernmentSubmission:
-    submission = get_submission(db, submission_no)
-    assert_transition_allowed(SUBMISSION_ALLOWED_TRANSITIONS, submission.status, new_status, "submission")
-    if new_status in SUBMISSION_STATUSES_REQUIRING_REASON:
-        assert_reason_given(reason, f"A reason is required to move the submission to '{new_status}'.")
+def _set_stage(db: Session, submission: GovernmentSubmission, new_stage: str, user_id: int | None) -> None:
+    """Internal transition helper -- every public stage-advancing action
+    below (confirm_readiness / record_acknowledgement / add_followup /
+    close_application) goes through this rather than exposing a bare
+    "set stage" endpoint, since each of those already carries whatever
+    data that transition actually needs (a readiness confirmation, an
+    acknowledgement, a follow-up entry, a closing outcome) -- there's no
+    stage change in this workflow that isn't also one of those. Does not
+    commit; the caller's own action does that as part of one
+    transaction, same convention as project_service._apply_stage_change.
+    """
+    if new_stage == submission.stage:
+        return
+    assert_transition_allowed(SUBMISSION_ALLOWED_TRANSITIONS, submission.stage, new_stage, "submission")
+    audit_service.log_event(
+        db, ENTITY_TYPE, submission.id, "Stage changed", user_id,
+        previous_value=submission.stage, new_value=new_stage,
+    )
+    submission.stage = new_stage
 
-    # An authority approving a submission implies every document it asked
-    # for has actually been provided, not left at "Pending" (never even
-    # uploaded) -- that's a real state a reviewer could otherwise put the
-    # record in by clicking through the status dropdown directly instead
-    # of going through mark_complete(). Reuses the same bar
-    # all_documents_satisfied() already uses elsewhere in this file
-    # ("Uploaded" or "Verified") rather than inventing a stricter one --
-    # this workflow has no separate verification step, so requiring
-    # "Verified" specifically would make a fully-Approved,
-    # fully-documented submission unable to ever complete. Only
-    # "Approved" is gated, not "Submitted": paperwork can trail a
-    # submission being filed, but the authority's own sign-off should mean
-    # the checklist is actually done.
-    if new_status == "Approved":
-        documents = get_documents(db, submission.id)
-        if not all_documents_satisfied(documents):
-            missing = [d.name for d in documents if d.status not in ("Uploaded", "Verified")]
-            raise ValidationAppError(
-                f"Cannot approve this submission -- these required documents are still pending: {', '.join(missing)}."
-            )
+
+def set_document_status(
+    db: Session, submission_no: str, document_id: int, new_status: str
+) -> SubmissionDocument:
+    submission = get_submission(db, submission_no)
+    document = _get_document(db, submission, document_id)
+    document.status = new_status
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def _get_document(db: Session, submission: GovernmentSubmission, document_id: int) -> SubmissionDocument:
+    document = (
+        db.query(SubmissionDocument)
+        .filter(SubmissionDocument.id == document_id, SubmissionDocument.submission_id == submission.id)
+        .first()
+    )
+    if document is None:
+        raise NotFoundError("Submission document")
+    return document
+
+
+def all_documents_satisfied(documents: list[SubmissionDocument]) -> bool:
+    return bool(documents) and all(d.status in ("Uploaded", "Verified") for d in documents)
+
+
+def upload_document(
+    db: Session, submission_no: str, document_id: int, file: UploadFile, user_id: int | None
+) -> SubmissionDocument:
+    """Attach/replace the file behind one Required Documents checklist
+    entry -- only while the application is still in Prepare, matching
+    the "fill each one in as it becomes available, then confirm
+    readiness" flow."""
+    submission = get_submission(db, submission_no)
+    if submission.stage != "Prepare":
+        raise ValidationAppError("Required documents can only be updated while the application is in Prepare.")
+    document = _get_document(db, submission, document_id)
+
+    storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
+    document.storage_key = storage_key
+    document.original_filename = original_filename
+    document.file_size_bytes = size_bytes
+    document.uploaded_by = user_id
+    document.upload_date = date.today()
+    if document.status == "Pending":
+        document.status = "Uploaded"
 
     audit_service.log_event(
-        db, ENTITY_TYPE, submission.id, "Status changed", user_id,
-        previous_value=submission.status, new_value=new_status, reason=reason,
+        db, ENTITY_TYPE, submission.id, "Required document uploaded", user_id, new_value=document.name
     )
-    submission.status = new_status
-    # Realistic side effects matching how the dates actually get populated:
-    # the submission date is set the first time it's actually submitted,
-    # and the decision date when the authority hands down a decision. The
-    # "was still None" checks double as the FYI-email guard below -- a
-    # resubmission (e.g. Comments Received -> Submitted again) doesn't
-    # re-send "application submitted" since submitted_date is already
-    # set, and similarly for a second real decision after a Rejected ->
-    # Draft -> resubmit cycle -- same idempotency the date fields
-    # themselves already rely on, not a new guard column.
-    is_first_submission = new_status == "Submitted" and submission.submitted_date is None
-    is_first_decision = new_status in ("Approved", "Rejected") and submission.decision_date is None
-    if is_first_submission:
-        submission.submitted_date = date.today()
-    if is_first_decision:
-        submission.decision_date = date.today()
+    db.commit()
+    db.refresh(document)
+    return document
 
-    # An Approved submission is exactly what project_service's Government
-    # Submission -> Supervision exit criterion requires -- flush first so
-    # that check's own fresh query sees this row's new status (session is
-    # autoflush=False), then let the same auto-advance path every other
-    # stage-completing action goes through pick it up, instead of leaving
-    # Supervision waiting on a separate manual "move stage" click.
-    if new_status == "Approved":
+
+def get_document_download_target(db: Session, submission_no: str, document_id: int):
+    submission = get_submission(db, submission_no)
+    document = _get_document(db, submission, document_id)
+    if document.storage_key is None:
+        raise NotFoundError("Submission document file")
+    return resolve_path(document.storage_key), document.original_filename
+
+
+def confirm_readiness(db: Session, submission_no: str, user_id: int | None) -> GovernmentSubmission:
+    """Closes out Prepare and moves the application into Apply -- gated
+    on every required document already being Uploaded/Verified, same
+    bar the old Draft -> Submitted transition always used."""
+    submission = get_submission(db, submission_no)
+    if submission.stage != "Prepare":
+        raise ValidationAppError("Readiness can only be confirmed while the application is in Prepare.")
+    documents = get_documents(db, submission.id)
+    if not all_documents_satisfied(documents):
+        missing = [d.name for d in documents if d.status not in ("Uploaded", "Verified")]
+        raise ValidationAppError(
+            f"Cannot confirm readiness -- these required documents are still pending: {', '.join(missing)}."
+        )
+
+    submission.readiness_confirmed_at = date.today()
+    submission.readiness_confirmed_by = user_id
+    _set_stage(db, submission, "Apply", user_id)
+
+    db.commit()
+    db.refresh(submission)
+    return submission
+
+
+def record_acknowledgement(
+    db: Session,
+    submission_no: str,
+    file: UploadFile | None,
+    acknowledgement_number: str | None,
+    payment_reference: str | None,
+    notes: str | None,
+    user_id: int | None,
+) -> GovernmentSubmission:
+    """Files the application -- records the authority's acknowledgement
+    (number, date, an optional payment reference, and the acknowledgement
+    document itself) and moves Apply -> Track. Mirrors the old Draft ->
+    Submitted transition's role, just carrying more of what actually
+    happens at that moment instead of a bare file upload."""
+    submission = get_submission(db, submission_no)
+    if submission.stage != "Apply":
+        raise ValidationAppError("An acknowledgement can only be recorded while the application is in Apply.")
+
+    if file is not None:
+        storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
+        submission.proof_of_submission_storage_key = storage_key
+        submission.proof_of_submission_filename = original_filename
+        submission.proof_of_submission_size_bytes = size_bytes
+        submission.proof_of_submission_uploaded_by = user_id
+        submission.proof_of_submission_upload_date = date.today()
+
+    submission.acknowledgement_number = acknowledgement_number.strip() if acknowledgement_number else None
+    submission.payment_reference = payment_reference.strip() if payment_reference else None
+    if notes:
+        submission.notes = notes.strip()
+    submission.submitted_date = date.today()
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, submission.id, "Acknowledgement recorded", user_id, new_value=submission.acknowledgement_number
+    )
+    _set_stage(db, submission, "Track", user_id)
+    db.commit()
+    db.refresh(submission)
+
+    _send_permit_fyi_email(db, submission, "permit_application_submitted", {})
+    return submission
+
+
+def get_proof_of_submission_download_target(db: Session, submission_no: str):
+    submission = get_submission(db, submission_no)
+    if submission.proof_of_submission_storage_key is None:
+        raise NotFoundError("Acknowledgement document")
+    return resolve_path(submission.proof_of_submission_storage_key), submission.proof_of_submission_filename
+
+
+def get_proof_of_response_download_target(db: Session, submission_no: str):
+    submission = get_submission(db, submission_no)
+    if submission.proof_of_response_storage_key is None:
+        raise NotFoundError("Permit/decision document")
+    return resolve_path(submission.proof_of_response_storage_key), submission.proof_of_response_filename
+
+
+def close_application(
+    db: Session,
+    submission_no: str,
+    outcome: str,
+    closing_notes: str,
+    file: UploadFile | None,
+    user_id: int | None,
+) -> GovernmentSubmission:
+    """Closes the application out -- records the final outcome, an
+    optional permit/decision document (there's often nothing to attach
+    for a Withdrawn/No Response outcome), and closing notes. Reachable
+    from any stage (see SUBMISSION_ALLOWED_TRANSITIONS), not only
+    Track/Update, so an application can be withdrawn before it's even
+    filed.
+
+    An Approved outcome is exactly what project_service's Government
+    Submission -> Supervision exit criterion cares about -- flush first
+    so that check's own fresh query sees this row's new stage/outcome
+    (session is autoflush=False), then let the same auto-advance path
+    every other stage-completing action goes through pick it up.
+    """
+    submission = get_submission(db, submission_no)
+
+    if file is not None:
+        storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
+        submission.proof_of_response_storage_key = storage_key
+        submission.proof_of_response_filename = original_filename
+        submission.proof_of_response_size_bytes = size_bytes
+        submission.proof_of_response_uploaded_by = user_id
+        submission.proof_of_response_upload_date = date.today()
+
+    submission.response_outcome = outcome
+    submission.closing_notes = closing_notes.strip()
+    submission.decision_date = date.today()
+
+    audit_service.log_event(
+        db, ENTITY_TYPE, submission.id, "Application closed", user_id, new_value=outcome, reason=closing_notes
+    )
+    _set_stage(db, submission, "Close", user_id)
+
+    if outcome == "Approved":
         db.flush()
         project = db.query(Project).filter(Project.id == submission.project_id).first()
         if project is not None:
@@ -239,11 +387,7 @@ def set_status(
     db.commit()
     db.refresh(submission)
 
-    if is_first_submission:
-        _send_permit_fyi_email(db, submission, "permit_application_submitted", {})
-    if is_first_decision:
-        _send_permit_fyi_email(db, submission, "permit_response_received", {"decision": new_status})
-
+    _send_permit_fyi_email(db, submission, "permit_response_received", {"decision": outcome})
     return submission
 
 
@@ -254,9 +398,9 @@ def _send_permit_fyi_email(
     milestone (filed / decision received) -- never OTP-gated, same
     "for your information" category as quotation_approved/
     contract_signed, gated the same way on client.email_consent. Runs
-    after set_status's own commit, in its own try/except, so a delivery
+    after the caller's own commit, in its own try/except, so a delivery
     failure only notifies Administrators (same pattern as those two)
-    rather than unwinding the status change that already succeeded."""
+    rather than unwinding the stage change that already succeeded."""
     project = db.query(Project).filter(Project.id == submission.project_id).first()
     if project is None:
         return
@@ -287,172 +431,13 @@ def _send_permit_fyi_email(
         notification_service.notify_role(
             db, "Administrator",
             "Permit notification email not sent",
-            f"Submission {submission.submission_no} for {project.project_no} reached '{submission.status}', "
+            f"Application {submission.submission_no} for {project.project_no} reached '{submission.stage}', "
             f"but the notification email to the client could not be sent: {error}",
             "System",
             link_route_name="project-workspace", link_params={"projectId": project.project_no},
             link_query={"tab": "government"},
         )
         db.commit()
-
-
-def set_document_status(
-    db: Session, submission_no: str, document_id: int, new_status: str
-) -> SubmissionDocument:
-    submission = get_submission(db, submission_no)
-    document = (
-        db.query(SubmissionDocument)
-        .filter(SubmissionDocument.id == document_id, SubmissionDocument.submission_id == submission.id)
-        .first()
-    )
-    if document is None:
-        raise NotFoundError("Submission document")
-    document.status = new_status
-    db.commit()
-    db.refresh(document)
-    return document
-
-
-def _get_document(db: Session, submission: GovernmentSubmission, document_id: int) -> SubmissionDocument:
-    document = (
-        db.query(SubmissionDocument)
-        .filter(SubmissionDocument.id == document_id, SubmissionDocument.submission_id == submission.id)
-        .first()
-    )
-    if document is None:
-        raise NotFoundError("Submission document")
-    return document
-
-
-def all_documents_satisfied(documents: list[SubmissionDocument]) -> bool:
-    return bool(documents) and all(d.status in ("Uploaded", "Verified") for d in documents)
-
-
-def upload_document(
-    db: Session, submission_no: str, document_id: int, file: UploadFile, user_id: int | None
-) -> SubmissionDocument:
-    """Attach/replace the file behind one Required Documents checklist
-    entry -- only while the submission is in Draft, matching the "move it
-    to draft, then update each document as it becomes available" flow."""
-    submission = get_submission(db, submission_no)
-    if submission.status != "Draft":
-        raise ValidationAppError("Required documents can only be updated while the submission is in Draft.")
-    document = _get_document(db, submission, document_id)
-
-    storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
-    document.storage_key = storage_key
-    document.original_filename = original_filename
-    document.file_size_bytes = size_bytes
-    document.uploaded_by = user_id
-    document.upload_date = date.today()
-    if document.status == "Pending":
-        document.status = "Uploaded"
-
-    audit_service.log_event(
-        db, ENTITY_TYPE, submission.id, "Required document uploaded", user_id, new_value=document.name
-    )
-    db.commit()
-    db.refresh(document)
-    return document
-
-
-def get_document_download_target(db: Session, submission_no: str, document_id: int):
-    submission = get_submission(db, submission_no)
-    document = _get_document(db, submission, document_id)
-    if document.storage_key is None:
-        raise NotFoundError("Submission document file")
-    return resolve_path(document.storage_key), document.original_filename
-
-
-def upload_proof_of_submission(
-    db: Session, submission_no: str, file: UploadFile, user_id: int | None
-) -> GovernmentSubmission:
-    """Records proof the form was actually handed to the authority, and
-    moves the submission Draft -> Submitted. Gated on every required
-    document being Uploaded/Verified first."""
-    submission = get_submission(db, submission_no)
-    if submission.status != "Draft":
-        raise ValidationAppError("Proof of submission can only be uploaded while the submission is in Draft.")
-    documents = get_documents(db, submission.id)
-    if not all_documents_satisfied(documents):
-        raise ValidationAppError("All required documents must be uploaded before recording proof of submission.")
-
-    storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
-    submission.proof_of_submission_storage_key = storage_key
-    submission.proof_of_submission_filename = original_filename
-    submission.proof_of_submission_size_bytes = size_bytes
-    submission.proof_of_submission_uploaded_by = user_id
-    submission.proof_of_submission_upload_date = date.today()
-
-    audit_service.log_event(db, ENTITY_TYPE, submission.id, "Proof of submission uploaded", user_id)
-    db.commit()
-    db.refresh(submission)
-
-    return set_status(db, submission_no, "Submitted", None, user_id)
-
-
-def get_proof_of_submission_download_target(db: Session, submission_no: str):
-    submission = get_submission(db, submission_no)
-    if submission.proof_of_submission_storage_key is None:
-        raise NotFoundError("Proof of submission")
-    return resolve_path(submission.proof_of_submission_storage_key), submission.proof_of_submission_filename
-
-
-def upload_proof_of_response(
-    db: Session, submission_no: str, file: UploadFile, outcome: str, user_id: int | None
-) -> GovernmentSubmission:
-    """Records the authority's decision letter/receipt and the outcome it
-    conveys. Doesn't change status by itself -- see mark_complete for the
-    step that actually closes the submission out on an Approved outcome."""
-    submission = get_submission(db, submission_no)
-    if submission.status not in AWAITING_RESPONSE_STATUSES:
-        raise ValidationAppError(
-            "Proof of response can only be uploaded once the submission has been sent to the authority."
-        )
-
-    storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
-    submission.proof_of_response_storage_key = storage_key
-    submission.proof_of_response_filename = original_filename
-    submission.proof_of_response_size_bytes = size_bytes
-    submission.proof_of_response_uploaded_by = user_id
-    submission.proof_of_response_upload_date = date.today()
-    submission.response_outcome = outcome
-
-    audit_service.log_event(
-        db, ENTITY_TYPE, submission.id, "Proof of government response uploaded", user_id, new_value=outcome
-    )
-    db.commit()
-    db.refresh(submission)
-    return submission
-
-
-def get_proof_of_response_download_target(db: Session, submission_no: str):
-    submission = get_submission(db, submission_no)
-    if submission.proof_of_response_storage_key is None:
-        raise NotFoundError("Proof of response")
-    return resolve_path(submission.proof_of_response_storage_key), submission.proof_of_response_filename
-
-
-def mark_complete(db: Session, submission_no: str, user_id: int | None) -> GovernmentSubmission:
-    """Closes the submission out as Approved once an Approved outcome has
-    been recorded against an uploaded proof of response. Walks the status
-    machine through 'Under Review' first when needed, since that's the
-    only status the workflow allows a direct move to 'Approved' from."""
-    submission = get_submission(db, submission_no)
-    if submission.proof_of_response_storage_key is None:
-        raise ValidationAppError("Upload proof of the government's response before marking this complete.")
-    if submission.response_outcome != "Approved":
-        raise ValidationAppError("This submission can only be marked complete once an Approved response is on file.")
-
-    if submission.status in ("Submitted", "Comments Received"):
-        set_status(db, submission_no, "Under Review", None, user_id)
-    elif submission.status not in ("Under Review", "Approved"):
-        raise ValidationAppError(f"Cannot mark complete from status '{submission.status}'.")
-
-    submission = get_submission(db, submission_no)
-    if submission.status == "Approved":
-        return submission
-    return set_status(db, submission_no, "Approved", None, user_id)
 
 
 def get_followups(db: Session, submission_id: int) -> list[SubmissionFollowup]:
@@ -464,31 +449,60 @@ def get_followups(db: Session, submission_id: int) -> list[SubmissionFollowup]:
     )
 
 
+def get_followup_document_download_target(db: Session, submission_no: str, followup_id: int):
+    submission = get_submission(db, submission_no)
+    followup = (
+        db.query(SubmissionFollowup)
+        .filter(SubmissionFollowup.id == followup_id, SubmissionFollowup.submission_id == submission.id)
+        .first()
+    )
+    if followup is None or followup.storage_key is None:
+        raise NotFoundError("Follow-up document")
+    return resolve_path(followup.storage_key), followup.original_filename
+
+
 def add_followup(
     db: Session,
     submission_no: str,
+    entry_stage: str,
     followup_date,
     followup_time: str,
     contact_person: str,
     notes: str | None,
+    file: UploadFile | None,
     user_id: int | None,
 ) -> SubmissionFollowup:
-    """Logs a call/visit made to the authority to check on a submission
-    that's already been sent. The first follow-up against a freshly
-    'Submitted' application also nudges it to 'Under Review' -- checking in
-    on it is, in practice, what that status transition represents."""
+    """Logs contact made with the authority -- entry_stage is 'Track'
+    for a plain check-in or 'Update' for one that also carries a
+    document (an additional document sought, or an updated version of
+    one already sent). Moves the application's own stage to match
+    entry_stage if it isn't there already (Track <-> Update both being
+    allowed either direction, see SUBMISSION_ALLOWED_TRANSITIONS) --
+    logging the entry and reaching that stage are the same action, not
+    two separate steps."""
     submission = get_submission(db, submission_no)
-    if submission.status not in AWAITING_RESPONSE_STATUSES:
+    if submission.stage not in AWAITING_RESPONSE_STAGES:
         raise ValidationAppError(
-            "Follow-ups can only be recorded once the submission has been sent to the authority."
+            "Contact can only be logged once the application has been filed (Track/Update)."
         )
+    if entry_stage not in ("Track", "Update"):
+        raise ValidationAppError("entry_stage must be 'Track' or 'Update'.")
+
+    storage_key = original_filename = None
+    size_bytes = None
+    if file is not None:
+        storage_key, original_filename, size_bytes = save_upload(file, UPLOAD_SUBDIRECTORY)
 
     followup = SubmissionFollowup(
         submission_id=submission.id,
+        stage=entry_stage,
         followup_date=followup_date,
         followup_time=followup_time,
         contact_person=contact_person.strip(),
         notes=notes.strip() if notes and notes.strip() else None,
+        storage_key=storage_key,
+        original_filename=original_filename,
+        file_size_bytes=size_bytes,
         created_by=user_id,
     )
     db.add(followup)
@@ -496,12 +510,9 @@ def add_followup(
     audit_service.log_event(
         db, ENTITY_TYPE, submission.id, "Follow-up recorded", user_id, new_value=contact_person.strip()
     )
+    _set_stage(db, submission, entry_stage, user_id)
     db.commit()
     db.refresh(followup)
-
-    if submission.status == "Submitted":
-        set_status(db, submission_no, "Under Review", None, user_id)
-
     return followup
 
 

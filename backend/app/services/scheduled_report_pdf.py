@@ -90,7 +90,7 @@ def _business_summary_sections(db: Session) -> tuple[str, list[dict]]:
         {"heading": "Projects by Status", "rows": _chart_rows(report_service.projects_by_status(db))},
         {"heading": "Tasks by Status", "rows": _chart_rows(report_service.tasks_by_status(db))},
         {"heading": "Documents by Status", "rows": _chart_rows(report_service.documents_by_status(db))},
-        {"heading": "Government Submissions by Status", "rows": _chart_rows(report_service.submissions_by_status(db))},
+        {"heading": "Permit Applications by Stage", "rows": _chart_rows(report_service.submissions_by_status(db))},
         {"heading": "Quotations by Status", "rows": _chart_rows(report_service.quotations_by_status(db))},
         {"heading": "Contracts by Status", "rows": _chart_rows(report_service.contracts_by_status(db))},
     ]
