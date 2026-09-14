@@ -13,6 +13,11 @@ class LineChartDataPoint(BaseModel):
     color: str | None = None
 
 
+class PaymentsReceivedByMonth(BaseModel):
+    currency: str
+    series: list[LineChartDataPoint]
+
+
 class ReportMetricChange(BaseModel):
     direction: str
     percentage: float

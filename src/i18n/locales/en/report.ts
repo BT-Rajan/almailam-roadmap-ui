@@ -83,7 +83,7 @@ export default {
     projectStatusTitle: 'Project Status Distribution',
     projectStatusDescription: 'Breakdown of projects by current status',
     paymentsTrendTitle: 'Payments Received Trend',
-    paymentsTrendDescription: 'Payments received over the past 6 months',
+    paymentsTrendDescription: 'Payments received over the past 6 months (in {currency})',
     contractPipelineTitle: 'Contract Pipeline',
     contractPipelineDescription: 'Distribution of contracts by current status',
     footerGenerated: 'This report was automatically generated on {date}',

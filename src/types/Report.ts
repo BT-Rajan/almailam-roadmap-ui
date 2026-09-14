@@ -10,6 +10,11 @@ export interface LineChartData {
   color?: string
 }
 
+export interface PaymentsReceivedByMonth {
+  currency: string
+  series: LineChartData[]
+}
+
 export interface ReportMetric {
   label: string
   value: string | number

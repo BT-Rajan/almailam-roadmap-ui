@@ -77,7 +77,7 @@ export default {
     projectStatusTitle: 'توزيع حالة المشاريع',
     projectStatusDescription: 'تفصيل المشاريع حسب الحالة الحالية',
     paymentsTrendTitle: 'اتجاه المدفوعات المستلمة',
-    paymentsTrendDescription: 'المدفوعات المستلمة خلال آخر 6 أشهر',
+    paymentsTrendDescription: 'المدفوعات المستلمة خلال آخر 6 أشهر (بعملة {currency})',
     contractPipelineTitle: 'خط أنابيب العقود',
     contractPipelineDescription: 'توزيع العقود حسب الحالة الحالية',
     footerGenerated: 'تم إنشاء هذا التقرير تلقائيًا بتاريخ {date}',
