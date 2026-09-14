@@ -384,16 +384,14 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
   }
 }
 
-// Hands the already-approved quotation off via the store and switches
-// to the Contract tab, which picks up the pending request and opens its
-// New Contract dialog prefilled from it -- same mechanism
-// ProjectQuotationTab.vue used to trigger itself before this hop moved
-// here (see quotationStore.requestAdvanceToContract).
+// Takes staff straight to the New Contract page (ContractCreatePage.vue),
+// pinned to this already-approved quotation via ?quotationId= -- used to
+// hand the quotation off through quotationStore for the Contract tab's
+// own dialog to pick up on mount; now it's just a direct navigation.
 function handleAdvanceToContract(): void {
   const quotation = approvedQuotation()
   if (!quotation) return
-  quotationStore.requestAdvanceToContract(quotation.id)
-  emit('navigate-tab', 'contract')
+  router.push({ name: ROUTE_NAMES.CONTRACT_CREATE, params: { projectId: props.projectId }, query: { quotationId: quotation.id } })
 }
 
 function requestDeleteAgreement(agreement: FinancialAgreement): void {

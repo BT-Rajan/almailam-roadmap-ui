@@ -4,6 +4,8 @@ export default {
   newProject: 'New Project',
   project: 'Project',
   paymentPlan: 'Payment Plan',
+  newQuotation: 'New Quotation',
+  newContract: 'New Contract',
   clients: 'Clients',
   newClient: 'New Client',
   client: 'Client',

@@ -4,6 +4,8 @@ export default {
   newProject: 'مشروع جديد',
   project: 'المشروع',
   paymentPlan: 'خطة الدفع',
+  newQuotation: 'عرض سعر جديد',
+  newContract: 'عقد جديد',
   clients: 'العملاء',
   newClient: 'عميل جديد',
   client: 'العميل',
