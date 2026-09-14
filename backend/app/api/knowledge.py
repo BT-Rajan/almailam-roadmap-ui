@@ -76,7 +76,7 @@ def delete_document(document_no: str, db: Session = Depends(get_db), current_use
 @router.post("/ask", response_model=KnowledgeAskOut)
 async def ask(payload: KnowledgeAskIn, db: Session = Depends(get_db), current_user: User = Depends(can_view)):
     try:
-        result = await knowledge_service.ask_question(db, payload.documentId, payload.question)
+        result = await knowledge_service.ask_question(db, payload.documentId, payload.question, current_user.id)
     except ai_service.AIUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return KnowledgeAskOut(**result)

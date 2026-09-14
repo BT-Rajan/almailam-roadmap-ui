@@ -65,7 +65,20 @@ async function handleToggleEnabled(value: boolean): Promise<void> {
       t('administration.aiPage.takesEffectImmediately'),
     )
   } else {
-    toastStore.show('error', t('administration.aiPage.unableToSave'), aiConfigStore.error ?? t('common.pleaseTryAgain'))
+    // Capture the save failure's message before reloading below --
+    // loadConfiguration() sets its own (different) error message on
+    // failure, which would otherwise overwrite this one before the
+    // toast below gets to read it.
+    const saveErrorMessage = aiConfigStore.error ?? t('common.pleaseTryAgain')
+    // The optimistic updateField above already flipped the switch in the
+    // UI -- a failed save otherwise left it sitting on that flipped
+    // value forever (nothing else here ever reverts it), so the toggle
+    // itself kept showing a state that was never actually persisted,
+    // even after the error toast had long since disappeared. Reloading
+    // from the server is the same thing handleCancel already does, and
+    // guarantees the switch reflects what's really saved.
+    await aiConfigStore.loadConfiguration()
+    toastStore.show('error', t('administration.aiPage.unableToSave'), saveErrorMessage)
   }
 }
 
