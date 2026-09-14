@@ -252,6 +252,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces NewSubmissionDialog.vue's modal with a dedicated page,
+      // same treatment as TASK_CREATE/PAYMENT_PLAN_FORM/QUOTATION_CREATE/
+      // CONTRACT_CREATE. Placed before ':submissionNo' below -- vue-router
+      // matches route records in definition order, and ':submissionNo'
+      // would otherwise swallow 'new' as if it were a submission number.
+      path: '/government/submissions/new',
+      name: ROUTE_NAMES.SUBMISSION_CREATE,
+      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
+          { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
       path: '/government/submissions/:submissionNo',
       name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
       component: () => import('@/pages/SubmissionWorkspacePage.vue'),

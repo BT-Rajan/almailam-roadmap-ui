@@ -14,6 +14,7 @@ export default {
   authorities: 'الجهات الحكومية',
   submissions: 'طلبات التصاريح',
   submission: 'المعاملة',
+  newSubmission: 'طلب تصريح جديد',
   documents: 'المستندات',
   viewer: 'العارض',
   knowledgeBase: 'قاعدة المعرفة',

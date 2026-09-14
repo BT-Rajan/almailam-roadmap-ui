@@ -14,6 +14,7 @@ export default {
   authorities: 'Authorities',
   submissions: 'Permit Applications',
   submission: 'Submission',
+  newSubmission: 'New Permit Application',
   documents: 'Documents',
   viewer: 'Viewer',
   knowledgeBase: 'Knowledge Base',

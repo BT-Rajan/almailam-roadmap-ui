@@ -14,7 +14,6 @@ import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
-import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
 import HandoverCard from '@/components/project/HandoverCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -34,7 +33,6 @@ import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/t
 import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
-import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
@@ -516,20 +514,13 @@ function openSubmissionWorkspace(submissionNo: string): void {
   router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo }, query: { projectId: props.project.id } })
 }
 
-const isNewSubmissionDialogOpen = ref(false)
-const isCreatingSubmission = ref(false)
-
-async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {
-  isCreatingSubmission.value = true
-  try {
-    const submission = await governmentSubmissionStore.createSubmission(payload)
-    isNewSubmissionDialogOpen.value = false
-    toastStore.show('success', t('government.submissionsPage.submissionCreatedTitle'), t('common.createdSuccessfully', { no: submission.submissionNo }))
-  } catch (error) {
-    toastStore.show('error', t('government.submissionsPage.failedToCreateSubmission'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  } finally {
-    isCreatingSubmission.value = false
-  }
+// Sends straight to the dedicated New Permit Application page (see
+// SubmissionCreatePage.vue, which replaced NewSubmissionDialog.vue's
+// modal) instead of opening a dialog here -- locked to this project,
+// same convention as ProjectTasksTab's own "Add Task" locking
+// TaskCreatePage's project field.
+function goToCreateSubmission(): void {
+  router.push({ name: ROUTE_NAMES.SUBMISSION_CREATE, query: { projectId: props.project.id, locked: '1' } })
 }
 
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {
@@ -1084,7 +1075,7 @@ function verificationResultLabel(result: string): string {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.approvalsPermitsTitle') }}</h3>
           <div class="flex items-center gap-2 no-print">
-            <BaseButton size="sm" @click="isNewSubmissionDialogOpen = true">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
+            <BaseButton size="sm" @click="goToCreateSubmission">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
             <BaseButton variant="secondary" size="sm" @click="emit('navigate-tab', 'government')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
           </div>
         </div>
@@ -1218,15 +1209,6 @@ function verificationResultLabel(result: string): string {
       v-model="isFillDialogOpen"
       :project-id="project.id"
       :forms="fillDialogForm ? [fillDialogForm] : []"
-    />
-    <NewSubmissionDialog
-      v-model="isNewSubmissionDialogOpen"
-      :projects="[project]"
-      :authorities="governmentSubmissionStore.authorities"
-      :forms="governmentSubmissionStore.forms"
-      :default-project-id="project.id"
-      :loading="isCreatingSubmission"
-      @confirm="handleCreateSubmission"
     />
     <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
     <AddLinkDocumentDialog

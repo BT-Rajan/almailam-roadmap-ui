@@ -13,6 +13,7 @@ export const ROUTE_NAMES = {
   GOVERNMENT_FORMS: 'government-forms',
   GOVERNMENT_AUTHORITIES: 'government-authorities',
   GOVERNMENT_SUBMISSIONS: 'government-submissions',
+  SUBMISSION_CREATE: 'submission-create',
   SUBMISSION_WORKSPACE: 'submission-workspace',
   DOCUMENTS: 'documents',
   DOCUMENT_VIEWER: 'document-viewer',
