@@ -12,6 +12,7 @@ from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
 from app.models.user import User
 from app.models.project import Project
+from app.models.task import Task
 from app.models.client import (
     CLIENT_DOCUMENT_CATEGORIES,
     Client,
@@ -132,6 +133,15 @@ def _lock_client(db: Session, client_id: int) -> Client:
     return client
 
 
+# Only these roles can own a client relationship (see
+# ClientBasicInfoStep.vue / ClientEditDialog.vue's accountManagerOptions,
+# which the frontend keeps in sync with this). In particular this
+# excludes Customer -- a Customer-role account IS a client's own portal
+# login (see User.client_id), so a client can never be assigned as an
+# account manager, on its own record or anyone else's.
+ACCOUNT_MANAGER_ROLES = ("Administrator", "Project Manager", "Engineer")
+
+
 def _resolve_account_manager_id(db: Session, raw: str | None) -> int | None:
     """None = leave untouched (caller's responsibility not to call this),
     "" = unassign, a real "USR-XXX" id = assign (validated to exist)."""
@@ -141,7 +151,64 @@ def _resolve_account_manager_id(db: Session, raw: str | None) -> int | None:
     user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None), User.is_active.is_(True)).first()
     if user is None:
         raise ValidationAppError("accountManagerId does not refer to a known user.")
+    # Authoritative check for direct API calls -- the frontend picker
+    # already limits choices to ACCOUNT_MANAGER_ROLES.
+    if user.role not in ACCOUNT_MANAGER_ROLES:
+        raise ValidationAppError(
+            f"accountManagerId must refer to an Administrator, Project Manager, or Engineer (got role: {user.role})."
+        )
     return user.id
+
+
+def _transfer_open_tasks_to_new_manager(
+    db: Session, client: Client, previous_manager_id: int, new_manager_id: int, actor_id: int | None,
+) -> None:
+    """Called from update_client when account_manager_id is being
+    reassigned from one manager to another (not on initial assignment --
+    there's nothing to move yet -- and not on unassignment). Moves every
+    still-open task on THIS client's own projects that the outgoing
+    manager held over to the incoming one, so they don't sit orphaned on
+    someone no longer responsible for the relationship. Scoped to this
+    client's projects only: the outgoing manager's tasks on any other
+    client's projects are left untouched.
+    """
+    open_tasks = (
+        db.query(Task)
+        .join(Project, Project.id == Task.project_id)
+        .filter(
+            Project.client_id == client.id,
+            Project.deleted_at.is_(None),
+            Task.deleted_at.is_(None),
+            Task.assigned_to == previous_manager_id,
+            Task.status != "Completed",
+        )
+        .all()
+    )
+    if not open_tasks:
+        return
+
+    old_manager_name = _user_display_name(db, previous_manager_id)
+    new_manager_name = _user_display_name(db, new_manager_id)
+    for task in open_tasks:
+        audit_service.log_event(
+            db, "TASK", task.id, "Reassigned (account manager change)", actor_id,
+            previous_value=old_manager_name, new_value=new_manager_name,
+            reason=f"Account manager for {client.company_name} changed to {new_manager_name}.",
+        )
+        task.assigned_to = new_manager_id
+
+    notification_service.create_notification(
+        db, new_manager_id, "Tasks transferred to you",
+        f"{len(open_tasks)} open task(s) on {client.company_name} were transferred to you "
+        f"after you became the account manager.",
+        "Task",
+        link_route_name="tasks",
+    )
+
+
+def _user_display_name(db: Session, user_id: int) -> str:
+    user = db.query(User).filter(User.id == user_id).first()
+    return user.full_name if user else "Unknown"
 
 
 def create_client(db: Session, payload, user_id: int | None) -> Client:
@@ -272,8 +339,14 @@ def update_client(db: Session, client_id: int, payload, user_id: int | None) -> 
 
     if payload.accountManagerId is not None:
         new_manager_id = _resolve_account_manager_id(db, payload.accountManagerId)
-        if client.account_manager_id != new_manager_id:
-            changes["account_manager_id"] = (client.account_manager_id, new_manager_id)
+        previous_manager_id = client.account_manager_id
+        if previous_manager_id != new_manager_id:
+            changes["account_manager_id"] = (previous_manager_id, new_manager_id)
+            # Reassignment specifically (not the initial assignment of a
+            # client that had no manager yet, and not unassignment) -- only
+            # then is there an outgoing manager's open work to move.
+            if previous_manager_id is not None and new_manager_id is not None:
+                _transfer_open_tasks_to_new_manager(db, client, previous_manager_id, new_manager_id, user_id)
         client.account_manager_id = new_manager_id
 
     if payload.notes is not None:
