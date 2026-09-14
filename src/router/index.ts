@@ -108,6 +108,69 @@ const router = createRouter({
       },
     },
     {
+      // Replaces AgreementFormDialog.vue's modal with a dedicated page,
+      // same treatment as TaskCreatePage.vue (see TASK_CREATE above) --
+      // ':stream' is 'Design' or 'Supervision'; the page itself decides
+      // create vs edit from whether that stream already has an agreement.
+      path: '/projects/:projectId/payment-plan/:stream',
+      name: ROUTE_NAMES.PAYMENT_PLAN_FORM,
+      component: () => import('@/pages/PaymentPlanFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          // No routeName here -- PROJECT_WORKSPACE requires :projectId,
+          // which this breadcrumb renderer (TopNavigation.vue) can't
+          // supply when linking by name alone.
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.paymentPlan' },
+        ],
+      },
+    },
+    {
+      // Replaces NewQuotationDialog.vue's modal with a dedicated page,
+      // same treatment as PAYMENT_PLAN_FORM above -- quotation editing
+      // itself stays inline on the Quotation tab (QuotationPreview.vue's
+      // own @patch), this is create only.
+      path: '/projects/:projectId/quotation/new',
+      name: ROUTE_NAMES.QUOTATION_CREATE,
+      component: () => import('@/pages/QuotationCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.newQuotation' },
+        ],
+      },
+    },
+    {
+      // Same treatment for NewContractDialog.vue's modal -- create only,
+      // editing stays inline on the Contract tab (ContractPreview.vue's
+      // own @patch). Optional ?quotationId= query pins which quotation
+      // this contract is generated from (set when navigated here via
+      // "Advance to Contract" on the Payment Plan tab); omitted, the page
+      // resolves the same eligible-quotation fallback
+      // ProjectContractTab.vue always used (selected, else latest).
+      path: '/projects/:projectId/contract/new',
+      name: ROUTE_NAMES.CONTRACT_CREATE,
+      component: () => import('@/pages/ContractCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.newContract' },
+        ],
+      },
+    },
+    {
       path: '/clients',
       name: ROUTE_NAMES.CLIENTS,
       component: () => import('@/pages/ClientsPage.vue'),
@@ -189,6 +252,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces NewSubmissionDialog.vue's modal with a dedicated page,
+      // same treatment as TASK_CREATE/PAYMENT_PLAN_FORM/QUOTATION_CREATE/
+      // CONTRACT_CREATE. Placed before ':submissionNo' below -- vue-router
+      // matches route records in definition order, and ':submissionNo'
+      // would otherwise swallow 'new' as if it were a submission number.
+      path: '/government/submissions/new',
+      name: ROUTE_NAMES.SUBMISSION_CREATE,
+      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
+          { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
       path: '/government/submissions/:submissionNo',
       name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
       component: () => import('@/pages/SubmissionWorkspacePage.vue'),
@@ -258,6 +341,41 @@ const router = createRouter({
           { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'breadcrumb.tasks', routeName: ROUTE_NAMES.TASKS },
           { label: 'breadcrumb.myTasks' },
+        ],
+      },
+    },
+    {
+      // Placed before ':taskId' (below) for the same reason MY_TASKS
+      // is placed before it -- vue-router matches in definition order,
+      // and ':taskId' would otherwise swallow 'new' as if it were a
+      // task id.
+      path: '/tasks/new',
+      name: ROUTE_NAMES.TASK_CREATE,
+      component: () => import('@/pages/TaskCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.tasks', routeName: ROUTE_NAMES.TASKS },
+          { label: 'breadcrumb.newTask' },
+        ],
+      },
+    },
+    {
+      // Placed after '/tasks/my' -- vue-router matches route records in
+      // definition order, and ':taskId' would otherwise swallow '/my'
+      // as a task id before the fixed MY_TASKS route ever gets a turn.
+      path: '/tasks/:taskId',
+      name: ROUTE_NAMES.TASK_WORKSPACE,
+      component: () => import('@/pages/TaskWorkspacePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.tasks', routeName: ROUTE_NAMES.TASKS },
+          { label: 'breadcrumb.task' },
         ],
       },
     },
@@ -530,6 +648,26 @@ const router = createRouter({
           { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'breadcrumb.scheduledReports' },
+        ],
+      },
+    },
+    {
+      // Replaces ScheduledReportDialog.vue's modal with a dedicated page,
+      // same treatment as PAYMENT_PLAN_FORM -- ':scheduleId' is 'new' or
+      // a real id; the page itself decides create vs edit from whether
+      // that id resolves to an existing schedule.
+      path: '/admin/scheduled-reports/:scheduleId',
+      name: ROUTE_NAMES.ADMIN_SCHEDULED_REPORT_FORM,
+      component: () => import('@/pages/ScheduledReportFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.scheduledReports', routeName: ROUTE_NAMES.ADMIN_SCHEDULED_REPORTS },
+          { label: 'breadcrumb.scheduledReport' },
         ],
       },
     },

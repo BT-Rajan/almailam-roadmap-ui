@@ -1,38 +1,29 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
-import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
-import TaskDetails from '@/components/task/TaskDetails.vue'
-import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import type { TaskInput } from '@/services/taskService'
 import { useTaskStore } from '@/stores/taskStore'
-import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
-import type { TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
 const router = useRouter()
 const taskStore = useTaskStore()
-const toastStore = useToastStore()
 const userStore = useUserStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
-const isCreateDialogOpen = ref(false)
 
 const projectOptions = computed<SelectOption[]>(() => [
   { label: 'All Projects', value: 'All', labelKey: 'task.tasksPage.allProjects' },
@@ -42,25 +33,12 @@ const projectOptions = computed<SelectOption[]>(() => [
 // Values here are display names, not user ids -- this only filters the
 // already-loaded task list client-side (taskStore.filteredTasks
 // compares task.assignedTo, which is always a resolved name), unlike
-// TaskFormDialog/TaskAssignmentCard which write an assignment back to
+// TaskCreatePage/TaskAssignmentCard which write an assignment back to
 // the backend and need real ids for that.
 const assigneeOptions = computed<SelectOption[]>(() => [
   { label: 'All Assignees', value: 'All', labelKey: 'task.tasksPage.allAssignees' },
   ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.name })),
 ])
-
-const isTaskDialogOpen = computed({
-  get: () => Boolean(taskStore.selectedTaskId),
-  set: (value: boolean) => {
-    if (!value) taskStore.clearSelectedTask()
-  },
-})
-
-const selectedTaskProjectName = computed(
-  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? t('task.unknownProject'),
-)
-
-const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
 
 function loadData(): void {
   taskStore.loadTasks()
@@ -71,7 +49,7 @@ onMounted(() => {
 })
 
 function openTask(taskId: string): void {
-  taskStore.selectTask(taskId)
+  router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId } })
 }
 
 function advanceTask(taskId: string): void {
@@ -79,99 +57,6 @@ function advanceTask(taskId: string): void {
   if (!task) return
   const next = getNextTaskStatus(task.status)
   if (next) taskStore.updateTaskStatus(taskId, next)
-}
-
-async function handleStatusChange(status: TaskStatus): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateStatus'), detail)
-  }
-}
-
-async function handleReassign(assignee: string): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToReassignTask'), detail)
-  }
-}
-
-async function handleTitleChange(title: string): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateTitle'), detail)
-  }
-}
-
-async function handleStartDateChange(startDate: string): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskStartDate(taskStore.selectedTaskId, startDate)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
-  }
-}
-
-async function handleDueDateChange(dueDate: string): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskDueDate(taskStore.selectedTaskId, dueDate)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
-  }
-}
-
-async function handleDueTimeChange(dueTime: string): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  try {
-    await taskStore.updateTaskDueTime(taskStore.selectedTaskId, dueTime)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToUpdateSchedule'), detail)
-  }
-}
-
-const isDeleteConfirmOpen = ref(false)
-const isDeleting = ref(false)
-
-function requestDelete(): void {
-  isDeleteConfirmOpen.value = true
-}
-
-async function handleConfirmDelete(): Promise<void> {
-  if (!taskStore.selectedTaskId) return
-  const title = taskStore.selectedTask?.title ?? ''
-  isDeleting.value = true
-  try {
-    await taskStore.deleteTask(taskStore.selectedTaskId)
-    toastStore.show('success', t('task.taskActions.taskDeletedTitle'), t('task.taskActions.taskDeletedDescription', { title }))
-    isDeleteConfirmOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToDeleteTask'), detail)
-  } finally {
-    isDeleting.value = false
-  }
-}
-
-async function handleCreateTask(input: TaskInput): Promise<void> {
-  try {
-    const task = await taskStore.createTask(input)
-    toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('task.taskActions.failedToCreateTask'), detail)
-  }
 }
 </script>
 
@@ -182,7 +67,7 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         <BaseButton variant="secondary" @click="router.push({ name: ROUTE_NAMES.MY_TASKS })">
           {{ t('task.tasksPage.myTasks') }}
         </BaseButton>
-        <BaseButton :icon="Plus" @click="isCreateDialogOpen = true">{{ t('task.tasksPage.addTask') }}</BaseButton>
+        <BaseButton :icon="Plus" @click="router.push({ name: ROUTE_NAMES.TASK_CREATE })">{{ t('task.tasksPage.addTask') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -224,37 +109,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
       :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
       @open="openTask"
       @advance="advanceTask"
-    />
-
-    <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
-      <TaskDetails
-        v-if="taskStore.selectedTask"
-        :task="taskStore.selectedTask"
-        :project-name="selectedTaskProjectName"
-        :client-name="selectedTaskClientName"
-        @status-change="handleStatusChange"
-        @title-change="handleTitleChange"
-        @reassign="handleReassign"
-        @start-date-change="handleStartDateChange"
-        @due-date-change="handleDueDateChange"
-        @due-time-change="handleDueTimeChange"
-        @delete="requestDelete"
-      />
-    </BaseDialog>
-
-    <TaskFormDialog
-      v-model="isCreateDialogOpen"
-      :projects="taskStore.projects"
-      @create="handleCreateTask"
-    />
-
-    <ConfirmationDialog
-      v-model="isDeleteConfirmOpen"
-      :title="t('task.taskActions.deleteTaskTitle')"
-      :message="t('task.taskActions.deleteTaskMessage', { title: taskStore.selectedTask?.title ?? '' })"
-      confirm-variant="danger"
-      :loading="isDeleting"
-      @confirm="handleConfirmDelete"
     />
   </div>
 </template>

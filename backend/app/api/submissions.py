@@ -12,7 +12,6 @@ from app.schemas.government import (
     SubmissionCreate,
     SubmissionDocumentStatusUpdate,
     SubmissionOut,
-    SubmissionStatusUpdate,
     SubmissionUpdate,
     check_response_outcome,
 )
@@ -22,9 +21,9 @@ router = APIRouter(prefix="/api/submissions", tags=["submissions"])
 
 can_view = require_permission("Government", "view")
 # Deliberately not gated on the "Government: edit" role permission --
-# any authenticated user can create/edit/manage a submission, not just
-# roles that have been granted that permission in Administration >
-# Roles & Permissions. Still requires being logged in.
+# any authenticated user can create/edit/manage a permit application,
+# not just roles that have been granted that permission in
+# Administration > Roles & Permissions. Still requires being logged in.
 can_edit = get_current_user
 
 
@@ -96,11 +95,11 @@ def _to_out_batch(db: Session, submissions: list) -> list[SubmissionOut]:
 @router.get("", response_model=list[SubmissionOut])
 def list_submissions(
     projectId: str | None = None,
-    status: str | None = None,
+    stage: str | None = None,
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
-    submissions = submission_service.list_submissions(db, projectId, status)
+    submissions = submission_service.list_submissions(db, projectId, stage)
     return _to_out_batch(db, submissions)
 
 
@@ -126,19 +125,6 @@ def update_submission(
     current_user: User = Depends(can_edit),
 ):
     submission = submission_service.update_submission(db, submission_no, payload, current_user.id)
-    return _to_out(db, submission)
-
-
-@router.patch("/{submission_no}/status", response_model=SubmissionOut)
-def set_status(
-    submission_no: str,
-    payload: SubmissionStatusUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    submission = submission_service.set_status(
-        db, submission_no, payload.status, payload.reason, current_user.id
-    )
     return _to_out(db, submission)
 
 
@@ -174,46 +160,60 @@ def download_document(
     return FileResponse(path, filename=original_filename)
 
 
-@router.post("/{submission_no}/proof-of-submission", response_model=SubmissionOut, status_code=201)
-def upload_proof_of_submission(
-    submission_no: str,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(can_edit),
-):
-    submission_service.upload_proof_of_submission(db, submission_no, file, current_user.id)
+@router.post("/{submission_no}/confirm-readiness", response_model=SubmissionOut)
+def confirm_readiness(submission_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
+    """Prepare -> Apply: every required document is Uploaded/Verified
+    and staff explicitly confirm the application is ready to file."""
+    submission_service.confirm_readiness(db, submission_no, current_user.id)
     return _to_out(db, submission_service.get_submission(db, submission_no))
 
 
-@router.get("/{submission_no}/proof-of-submission/download")
-def download_proof_of_submission(submission_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+@router.post("/{submission_no}/acknowledgement", response_model=SubmissionOut, status_code=201)
+def record_acknowledgement(
+    submission_no: str,
+    acknowledgementNumber: str | None = Form(None),
+    paymentReference: str | None = Form(None),
+    notes: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    """Apply -> Track: files the application -- the authority's
+    acknowledgement number/date, an optional payment reference, and the
+    acknowledgement document itself."""
+    submission_service.record_acknowledgement(
+        db, submission_no, file, acknowledgementNumber, paymentReference, notes, current_user.id
+    )
+    return _to_out(db, submission_service.get_submission(db, submission_no))
+
+
+@router.get("/{submission_no}/acknowledgement/download")
+def download_acknowledgement(submission_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     path, original_filename = submission_service.get_proof_of_submission_download_target(db, submission_no)
     return FileResponse(path, filename=original_filename)
 
 
-@router.post("/{submission_no}/proof-of-response", response_model=SubmissionOut, status_code=201)
-def upload_proof_of_response(
+@router.post("/{submission_no}/close", response_model=SubmissionOut)
+def close_application(
     submission_no: str,
     outcome: str = Form(...),
-    file: UploadFile = File(...),
+    closingNotes: str = Form(...),
+    file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
+    """-> Close: the final outcome (Approved/Rejected/No Response/
+    Withdrawn), an optional permit/decision document, and closing
+    notes. Reachable from any stage."""
     checked_outcome = check_response_outcome(outcome)
-    submission_service.upload_proof_of_response(db, submission_no, file, checked_outcome, current_user.id)
+    submission_service.close_application(db, submission_no, checked_outcome, closingNotes, file, current_user.id)
     return _to_out(db, submission_service.get_submission(db, submission_no))
 
 
-@router.get("/{submission_no}/proof-of-response/download")
-def download_proof_of_response(submission_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
+@router.get("/{submission_no}/permit-document/download")
+def download_permit_document(submission_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     path, original_filename = submission_service.get_proof_of_response_download_target(db, submission_no)
     return FileResponse(path, filename=original_filename)
-
-
-@router.post("/{submission_no}/complete", response_model=SubmissionOut)
-def mark_complete(submission_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_edit)):
-    submission_service.mark_complete(db, submission_no, current_user.id)
-    return _to_out(db, submission_service.get_submission(db, submission_no))
 
 
 @router.get("/{submission_no}/followups", response_model=list[FollowupOut])
@@ -226,15 +226,38 @@ def list_followups(submission_no: str, db: Session = Depends(get_db), _=Depends(
 @router.post("/{submission_no}/followups", response_model=FollowupOut, status_code=201)
 def add_followup(
     submission_no: str,
-    payload: FollowupCreate,
+    entryStage: str = Form(...),
+    followupDate: str = Form(...),
+    followupTime: str = Form(...),
+    contactPerson: str = Form(...),
+    notes: str | None = Form(None),
+    file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
+    """Logs contact with the authority. entryStage 'Track' for a plain
+    check-in, 'Update' (with an optional document) for one where the
+    authority asked for something else -- either moves/keeps the
+    application at that stage."""
+    payload = FollowupCreate(
+        entryStage=entryStage, followupDate=followupDate, followupTime=followupTime,
+        contactPerson=contactPerson, notes=notes,
+    )
     followup = submission_service.add_followup(
-        db, submission_no, payload.followupDate, payload.followupTime, payload.contactPerson,
-        payload.notes, current_user.id,
+        db, submission_no, payload.entryStage, payload.followupDate, payload.followupTime,
+        payload.contactPerson, payload.notes, file, current_user.id,
     )
     return FollowupOut.from_model(followup, current_user.full_name)
+
+
+@router.get("/{submission_no}/followups/{followup_id}/download")
+def download_followup_document(
+    submission_no: str, followup_id: str, db: Session = Depends(get_db), _=Depends(can_view)
+):
+    path, original_filename = submission_service.get_followup_document_download_target(
+        db, submission_no, submission_service.parse_followup_id(followup_id)
+    )
+    return FileResponse(path, filename=original_filename)
 
 
 @router.get("/{submission_no}/audit-events")

@@ -160,6 +160,9 @@ export default {
   },
 
   agreementFormDialog: {
+    backToPaymentPlan: 'العودة إلى خطة الدفع',
+    planNotFoundTitle: 'خطة الدفع غير موجودة',
+    planNotFoundDescription: 'تعذّر العثور على هذا المشروع أو فئة الفوترة.',
     editTitle: 'تعديل خطة الدفع',
     createTitle: 'إنشاء خطة دفع',
     client: 'العميل',
