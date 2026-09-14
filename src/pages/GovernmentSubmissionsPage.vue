@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -11,11 +11,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
-import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { ResponseOutcome, SubmissionStage } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
@@ -39,25 +36,12 @@ interface SubmissionTableRow {
 const router = useRouter()
 const { t } = useI18n()
 const submissionStore = useGovernmentSubmissionStore()
-const resultDialogStore = useResultDialogStore()
-const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
 
-async function handleCreateSubmission(payload: SubmissionCreateInput): Promise<void> {
-  isCreating.value = true
-  try {
-    const submission = await submissionStore.createSubmission(payload)
-    resultDialogStore.showSuccess(
-      t('government.submissionsPage.submissionCreatedTitle'),
-      t('common.createdSuccessfully', { no: submission.submissionNo }),
-    )
-    isCreateDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('government.submissionsPage.failedToCreateSubmission'), detail)
-  } finally {
-    isCreating.value = false
-  }
+// Sends straight to the dedicated New Permit Application page (see
+// SubmissionCreatePage.vue, which replaced NewSubmissionDialog.vue's
+// modal) instead of opening a dialog here.
+function goToCreateSubmission(): void {
+  router.push({ name: ROUTE_NAMES.SUBMISSION_CREATE })
 }
 
 const STAGE_OPTIONS = computed<SelectOption[]>(() => [
@@ -145,18 +129,9 @@ function openSubmission(row: SubmissionTableRow): void {
       :subtitle="t('government.submissionsPage.pageSubtitle')"
     >
       <template #actions>
-        <BaseButton size="sm" :icon="Plus" @click="isCreateDialogOpen = true">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
+        <BaseButton size="sm" :icon="Plus" @click="goToCreateSubmission">{{ t('government.submissionsPage.newSubmission') }}</BaseButton>
       </template>
     </PageHeader>
-
-    <NewSubmissionDialog
-      v-model="isCreateDialogOpen"
-      :projects="submissionStore.projects"
-      :authorities="submissionStore.authorities"
-      :forms="submissionStore.forms"
-      :loading="isCreating"
-      @confirm="handleCreateSubmission"
-    />
 
     <FilterBar
       :show-search="false"

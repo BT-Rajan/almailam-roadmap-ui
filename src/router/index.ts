@@ -252,6 +252,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces NewSubmissionDialog.vue's modal with a dedicated page,
+      // same treatment as TASK_CREATE/PAYMENT_PLAN_FORM/QUOTATION_CREATE/
+      // CONTRACT_CREATE. Placed before ':submissionNo' below -- vue-router
+      // matches route records in definition order, and ':submissionNo'
+      // would otherwise swallow 'new' as if it were a submission number.
+      path: '/government/submissions/new',
+      name: ROUTE_NAMES.SUBMISSION_CREATE,
+      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
+          { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
       path: '/government/submissions/:submissionNo',
       name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
       component: () => import('@/pages/SubmissionWorkspacePage.vue'),
@@ -628,6 +648,26 @@ const router = createRouter({
           { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'breadcrumb.scheduledReports' },
+        ],
+      },
+    },
+    {
+      // Replaces ScheduledReportDialog.vue's modal with a dedicated page,
+      // same treatment as PAYMENT_PLAN_FORM -- ':scheduleId' is 'new' or
+      // a real id; the page itself decides create vs edit from whether
+      // that id resolves to an existing schedule.
+      path: '/admin/scheduled-reports/:scheduleId',
+      name: ROUTE_NAMES.ADMIN_SCHEDULED_REPORT_FORM,
+      component: () => import('@/pages/ScheduledReportFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.scheduledReports', routeName: ROUTE_NAMES.ADMIN_SCHEDULED_REPORTS },
+          { label: 'breadcrumb.scheduledReport' },
         ],
       },
     },

@@ -2,6 +2,7 @@
 import { Plus, Send, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -10,12 +11,12 @@ import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import ScheduledReportDialog from '@/components/administration/ScheduledReportDialog.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useScheduledReportStore } from '@/stores/scheduledReportStore'
 import { useToastStore } from '@/stores/toastStore'
 import { formatDateTime } from '@/utils/dateFormatter'
 import type { SmartTableColumn } from '@/types/Table'
-import type { ScheduledReport, ScheduledReportFrequency, ScheduledReportInput, ScheduledReportPeriod, ScheduledReportType } from '@/types/ScheduledReport'
+import type { ScheduledReport, ScheduledReportFrequency, ScheduledReportPeriod, ScheduledReportType } from '@/types/ScheduledReport'
 import type { BadgeVariant } from '@/types/Ui'
 
 interface ScheduleTableRow {
@@ -36,10 +37,8 @@ interface ScheduleTableRow {
 const { t } = useI18n()
 const scheduledReportStore = useScheduledReportStore()
 const toastStore = useToastStore()
+const router = useRouter()
 
-const isDialogOpen = ref(false)
-const editingSchedule = ref<ScheduledReport | undefined>(undefined)
-const isSaving = ref(false)
 const deleteTarget = ref<ScheduledReport | undefined>(undefined)
 const isDeleting = ref(false)
 const sendingTestId = ref<string | undefined>(undefined)
@@ -105,31 +104,16 @@ function lastRunLabel(row: ScheduleTableRow): string {
   return t('administration.scheduledReportsPage.neverRun')
 }
 
+// Sends straight to the dedicated schedule form page (see
+// ScheduledReportFormPage.vue, which replaced ScheduledReportDialog.vue's
+// modal) instead of opening a dialog here -- that page decides create vs
+// edit itself from whether ':scheduleId' resolves to an existing schedule.
 function openCreateDialog(): void {
-  editingSchedule.value = undefined
-  isDialogOpen.value = true
+  router.push({ name: ROUTE_NAMES.ADMIN_SCHEDULED_REPORT_FORM, params: { scheduleId: 'new' } })
 }
 
 function openEditDialog(row: ScheduleTableRow): void {
-  editingSchedule.value = scheduledReportStore.schedules.find((schedule) => schedule.id === row.id)
-  isDialogOpen.value = true
-}
-
-async function handleSave(payload: ScheduledReportInput): Promise<void> {
-  isSaving.value = true
-  try {
-    if (editingSchedule.value) {
-      await scheduledReportStore.updateSchedule(editingSchedule.value.id, payload)
-    } else {
-      await scheduledReportStore.createSchedule(payload)
-    }
-    toastStore.show('success', t('administration.scheduledReportsPage.scheduleSavedTitle'), t('administration.scheduledReportsPage.scheduleSavedDescription', { name: payload.name }))
-    isDialogOpen.value = false
-  } catch (error) {
-    toastStore.show('error', t('administration.scheduledReportsPage.saveFailedTitle'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  } finally {
-    isSaving.value = false
-  }
+  router.push({ name: ROUTE_NAMES.ADMIN_SCHEDULED_REPORT_FORM, params: { scheduleId: row.id } })
 }
 
 function confirmDelete(row: ScheduleTableRow): void {
@@ -221,8 +205,6 @@ async function handleSendTest(row: ScheduleTableRow): Promise<void> {
         </div>
       </template>
     </SmartTable>
-
-    <ScheduledReportDialog v-model="isDialogOpen" :schedule="editingSchedule" :saving="isSaving" @save="handleSave" />
 
     <ConfirmationDialog
       :model-value="deleteTarget !== undefined"
