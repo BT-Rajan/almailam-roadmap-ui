@@ -98,7 +98,9 @@ def _client_display_name(client: Client | None) -> str:
     company, organisation, government entity, or an individual, so
     nothing here has to guess at (or ask for) an individual client's
     gender the way _user_name above does for staff via their optional
-    salutation field."""
+    salutation field. Mirrors client_service.client_display_name, which
+    does the identical thing for outbound emails -- change one, change
+    both."""
     if not client or not client.company_name:
         return ""
     return f"M/s. {client.company_name}"

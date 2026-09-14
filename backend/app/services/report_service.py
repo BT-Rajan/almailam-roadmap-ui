@@ -48,7 +48,9 @@ def tasks_by_priority(db: Session) -> list[dict]:
 
 
 def submissions_by_status(db: Session) -> list[dict]:
-    return _count_by(db, GovernmentSubmission, GovernmentSubmission.status)
+    # Column is `stage` now (Prepare/Apply/Track/Update/Close) -- kept
+    # this function's own name for API/report-heading stability.
+    return _count_by(db, GovernmentSubmission, GovernmentSubmission.stage)
 
 
 def quotations_by_status(db: Session) -> list[dict]:
@@ -244,29 +246,46 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
     """Expected-but-not-yet-received income, grouped three ways -- by the
     month it falls due, by project, and by service (agreement stream) --
     so "what's still coming in" can be read whichever way is useful,
-    without three separate round trips."""
+    without three separate round trips. Each grouping also splits by
+    FinancialAgreement.currency: a project can hold a Design agreement
+    and a Supervision agreement in different currencies (nothing in the
+    schema ties them together), and even within one stream, obligations
+    across different projects/clients can genuinely be priced in
+    different currencies (AED/USD/SAR/KWD -- see AdminCompanyPage).
+    Summing across currencies into one number, the way this used to
+    work, would silently add incompatible amounts together."""
     rows = _outstanding_obligations_query(db, project_no, client_id).all()
 
-    by_month: dict[str, float] = {}
-    by_project: dict[str, dict] = {}
-    by_service: dict[str, float] = {}
+    by_month: dict[tuple[str, str], float] = {}
+    by_project: dict[tuple[str, str], dict] = {}
+    by_service: dict[tuple[str, str], float] = {}
 
     for obligation, agreement, project in rows:
         outstanding = float(obligation.amount_due) - float(obligation.amount_received)
+        currency = agreement.currency
         month_key = obligation.due_date.strftime("%Y-%m")
-        by_month[month_key] = by_month.get(month_key, 0.0) + outstanding
+        by_month[(month_key, currency)] = by_month.get((month_key, currency), 0.0) + outstanding
 
+        project_key = (project.project_no, currency)
         project_entry = by_project.setdefault(
-            project.project_no, {"projectNo": project.project_no, "projectName": project.project_name, "amount": 0.0}
+            project_key,
+            {"projectNo": project.project_no, "projectName": project.project_name, "currency": currency, "amount": 0.0},
         )
         project_entry["amount"] += outstanding
 
-        by_service[agreement.stream] = by_service.get(agreement.stream, 0.0) + outstanding
+        service_key = (agreement.stream, currency)
+        by_service[service_key] = by_service.get(service_key, 0.0) + outstanding
 
     return {
-        "byMonth": [{"month": month, "amount": amount} for month, amount in sorted(by_month.items())],
-        "byProject": sorted(by_project.values(), key=lambda entry: entry["projectNo"]),
-        "byService": [{"service": service, "amount": amount} for service, amount in sorted(by_service.items())],
+        "byMonth": [
+            {"month": month, "currency": currency, "amount": amount}
+            for (month, currency), amount in sorted(by_month.items())
+        ],
+        "byProject": sorted(by_project.values(), key=lambda entry: (entry["projectNo"], entry["currency"])),
+        "byService": [
+            {"service": service, "currency": currency, "amount": amount}
+            for (service, currency), amount in sorted(by_service.items())
+        ],
     }
 
 
@@ -420,13 +439,25 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
     the period being looked at, once for whatever it's being compared
     against) and diffed by the caller -- kept as a single-period query
     rather than baking the comparison in here, so it stays reusable for
-    anything else that just wants "how did we do in period X"."""
-    total_received = (
-        db.query(func.sum(Payment.amount_received))
+    anything else that just wants "how did we do in period X".
+
+    Every total is broken out by currency (FinancialAgreement.currency)
+    rather than summed together: a single project can hold agreements
+    in different currencies (Design vs Supervision), so a flat sum
+    would silently add incompatible amounts. paymentCount is the one
+    exception -- a raw count of Payment rows is meaningful regardless
+    of what currency each payment happened to be in, so it stays a
+    single top-level figure rather than being split too."""
+    received_by_currency: dict[str, float] = {}
+    for currency, total in (
+        db.query(FinancialAgreement.currency, func.sum(Payment.amount_received))
+        .join(FinancialAgreement, Payment.agreement_id == FinancialAgreement.id)
         .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
-        .scalar()
-        or 0
-    )
+        .group_by(FinancialAgreement.currency)
+        .all()
+    ):
+        received_by_currency[currency] = float(total or 0)
+
     payment_count = (
         db.query(func.count(Payment.id))
         .filter(Payment.payment_date >= start_date, Payment.payment_date <= end_date)
@@ -434,32 +465,44 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
         or 0
     )
     obligations_due = (
-        db.query(PaymentObligation)
+        db.query(PaymentObligation, FinancialAgreement)
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
         .filter(PaymentObligation.due_date >= start_date, PaymentObligation.due_date <= end_date)
         .all()
     )
     today = date.today()
-    total_due = 0.0
-    total_outstanding = 0.0
-    total_overdue = 0.0
-    for obligation in obligations_due:
+    due_by_currency: dict[str, float] = {}
+    outstanding_by_currency: dict[str, float] = {}
+    overdue_by_currency: dict[str, float] = {}
+    for obligation, agreement in obligations_due:
+        currency = agreement.currency
         due_amount = float(obligation.amount_due)
-        total_due += due_amount
+        due_by_currency[currency] = due_by_currency.get(currency, 0.0) + due_amount
         if obligation.manual_status is not None:
             continue
         remaining = max(due_amount - float(obligation.amount_received), 0.0)
-        total_outstanding += remaining
+        outstanding_by_currency[currency] = outstanding_by_currency.get(currency, 0.0) + remaining
         if remaining > 0 and obligation.due_date < today:
-            total_overdue += remaining
+            overdue_by_currency[currency] = overdue_by_currency.get(currency, 0.0) + remaining
+
+    currencies = sorted(
+        set(received_by_currency) | set(due_by_currency) | set(outstanding_by_currency) | set(overdue_by_currency)
+    ) or [company_service.get_settings(db).currency]
 
     return {
         "startDate": start_date.isoformat(),
         "endDate": end_date.isoformat(),
-        "totalReceived": float(total_received),
-        "totalDue": total_due,
-        "totalOutstanding": total_outstanding,
-        "totalOverdue": total_overdue,
         "paymentCount": payment_count,
+        "byCurrency": [
+            {
+                "currency": currency,
+                "totalReceived": received_by_currency.get(currency, 0.0),
+                "totalDue": due_by_currency.get(currency, 0.0),
+                "totalOutstanding": outstanding_by_currency.get(currency, 0.0),
+                "totalOverdue": overdue_by_currency.get(currency, 0.0),
+            }
+            for currency in currencies
+        ],
     }
 
 
@@ -516,9 +559,9 @@ def project_report(db: Session, project: Project) -> list[dict]:
         .all()
     )
     submission_counts = dict(
-        db.query(GovernmentSubmission.status, func.count(GovernmentSubmission.id))
+        db.query(GovernmentSubmission.stage, func.count(GovernmentSubmission.id))
         .filter(GovernmentSubmission.project_id == project.id, GovernmentSubmission.deleted_at.is_(None))
-        .group_by(GovernmentSubmission.status)
+        .group_by(GovernmentSubmission.stage)
         .all()
     )
 

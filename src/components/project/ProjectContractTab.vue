@@ -2,6 +2,7 @@
 import { ChevronDown, Download, LockOpen, Mail, Plus, Printer, ShieldCheck, Undo2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -9,16 +10,15 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import NewContractDialog from '@/components/project/NewContractDialog.vue'
 import ContractPreview from '@/components/project/ContractPreview.vue'
 import ContractRevisionHistory from '@/components/project/ContractRevisionHistory.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useCompanyStore } from '@/stores/companyStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import type { ContractCreateInput } from '@/services/contractService'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Contract } from '@/types/Contract'
@@ -40,6 +40,7 @@ const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+const router = useRouter()
 const { t } = useI18n()
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
@@ -62,8 +63,6 @@ const stopSeedingDocumentLanguage = watch(
   { immediate: true },
 )
 
-const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
 const isFinalizing = ref(false)
 
 // Keeps the "download / email / signed time" activity in the Revision
@@ -103,6 +102,12 @@ const eligibleQuotation = () => {
   return quotation && quotation.status === 'Approved' && quotation.finalizedAt ? quotation : undefined
 }
 
+// Sends straight to the dedicated New Contract page (see
+// ContractCreatePage.vue, which replaced NewContractDialog.vue's modal)
+// instead of opening a dialog here -- still checked here first so
+// clicking "New Contract" without an eligible quotation shows the error
+// immediately rather than navigating to a page that would just show the
+// same guard.
 function openCreateDialog(): void {
   if (!eligibleQuotation()) {
     resultDialogStore.showError(
@@ -111,50 +116,7 @@ function openCreateDialog(): void {
     )
     return
   }
-  isCreateDialogOpen.value = true
-}
-
-// Picked up when the user clicks "Advance to Contract" on the Payment
-// Plan tab -- selects that quotation here too (in case a different one
-// was selected on this tab) and opens the dialog straight away.
-onMounted(() => {
-  const pendingId = quotationStore.consumePendingContractRequest()
-  if (pendingId) {
-    quotationStore.selectQuotation(pendingId)
-    isCreateDialogOpen.value = true
-  }
-})
-
-async function handleCreateContract(payload: ContractCreateInput): Promise<void> {
-  const quotation = eligibleQuotation()
-  if (!quotation) {
-    resultDialogStore.showError(
-      t('project.contractTab.noEligibleQuotationTitle'),
-      t('project.contractTab.noEligibleQuotationDescriptionShort'),
-    )
-    return
-  }
-  isCreating.value = true
-  try {
-    const contract = await contractStore.createContract({
-      ...payload,
-      projectId: props.project.id,
-      quotationId: quotation.id,
-    })
-    // A contract's mere existence is one of the things "Quotation" ->
-    // "Contract" waits on (project_service._assert_stage_exit_criteria)
-    // -- the shared project store's cached stage is what the header
-    // badge and Workflow Progress stepper read, and creating a contract
-    // through contractStore never touches it on its own.
-    await projectStore.refreshProject(props.project.id)
-    resultDialogStore.showSuccess(t('project.contractTab.contractCreatedTitle'), t('common.createdSuccessfully', { no: contract.contractNo }))
-    isCreateDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.contractTab.failedToCreateContract'), detail)
-  } finally {
-    isCreating.value = false
-  }
+  router.push({ name: ROUTE_NAMES.CONTRACT_CREATE, params: { projectId: props.project.id } })
 }
 
 // See ProjectQuotationTab.vue's handlePrint for why the blank window has
@@ -528,13 +490,4 @@ async function handleRevertToDraft(): Promise<void> {
       />
     </div>
   </div>
-
-  <NewContractDialog
-    v-model="isCreateDialogOpen"
-    :project="project"
-    :quotation="eligibleQuotation()"
-    :default-client-representative="client?.contactPerson"
-    :loading="isCreating"
-    @confirm="handleCreateContract"
-  />
 </template>

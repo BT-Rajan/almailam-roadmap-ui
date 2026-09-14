@@ -68,17 +68,20 @@ class PaymentLedgerEntry(BaseModel):
 
 class ProjectionByMonth(BaseModel):
     month: str
+    currency: str
     amount: float
 
 
 class ProjectionByProject(BaseModel):
     projectNo: str
     projectName: str
+    currency: str
     amount: float
 
 
 class ProjectionByService(BaseModel):
     service: str
+    currency: str
     amount: float
 
 
@@ -115,11 +118,16 @@ class TeamWorkload(BaseModel):
     capacityAvailable: int
 
 
-class FinancialPeriodSummary(BaseModel):
-    startDate: str
-    endDate: str
+class FinancialCurrencyBreakdown(BaseModel):
+    currency: str
     totalReceived: float
     totalDue: float
     totalOutstanding: float
     totalOverdue: float
+
+
+class FinancialPeriodSummary(BaseModel):
+    startDate: str
+    endDate: str
     paymentCount: int
+    byCurrency: list[FinancialCurrencyBreakdown]

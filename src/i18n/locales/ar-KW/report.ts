@@ -226,6 +226,7 @@ export default {
     columnReference: 'المرجع',
     columnPayer: 'الدافع',
     columnOutstanding: 'المستحق',
+    columnCurrency: 'العملة',
     searchLedger: 'ابحث في المدفوعات...',
     noPayments: 'لا توجد مدفوعات مسجلة خلال هذه الفترة',
     projectionsTitle: 'التوقعات',
