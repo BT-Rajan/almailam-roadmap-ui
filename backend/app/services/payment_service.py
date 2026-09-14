@@ -120,6 +120,45 @@ def get_agreement_by_project(db: Session, project_no: str, stream: str | None = 
     return query.order_by(FinancialAgreement.id.desc()).first()
 
 
+def _assert_design_amount_matches_quotation(
+    db: Session, project: Project, contract_amount: Decimal, currency: str
+) -> None:
+    """The Design agreement's contract_amount is meant to be the same
+    commercial figure the client already approved on the Quotation --
+    Payment Plan can't even be entered without an Approved quotation on
+    file (see project_service._assert_stage_exit_criteria), so there's
+    always one to check against by the time this runs. contract_amount
+    is only ever *pre-filled* from that quotation on the frontend (see
+    PaymentPlanFormPage.vue), not locked to it -- nothing previously
+    stopped it from being typed over with an unrelated number. Checked
+    here rather than only in the schema since discountAmount/lineItems
+    on the Quotation and contractAmount here are edited independently,
+    the same reasoning as quotation_service's own subtotal-vs-discount
+    guard. Supervision is deliberately not covered -- its billing is
+    derived from selected Supervision activities' monthly rates, not
+    from the Quotation total, so there's nothing on the quotation to
+    match it against."""
+    quotation = (
+        db.query(Quotation)
+        .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
+        .order_by(Quotation.id.desc())
+        .first()
+    )
+    if quotation is None:
+        # Belt-and-braces only -- _assert_stage_exit_criteria already
+        # guarantees this is unreachable in the normal flow. Nothing to
+        # validate against if it's somehow missing, so let it through
+        # rather than blocking on a state this function didn't cause.
+        return
+    if currency != quotation.currency or Decimal(str(contract_amount)) != Decimal(str(quotation.amount)):
+        raise ValidationAppError(
+            f"The Design payment plan amount ({contract_amount:.2f} {currency}) must match the approved "
+            f"quotation {quotation.quotation_no}'s amount ({quotation.amount:.2f} {quotation.currency}). "
+            "Edit the amount to match, or create a new quotation first if the commercial terms have "
+            "genuinely changed."
+        )
+
+
 def _compute_contract_terms(
     db: Session,
     project: Project,
@@ -214,6 +253,8 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
         Decimal(str(payload.contractAmount)) if payload.contractAmount is not None else None,
         payload.contractStartDate, payload.contractEndDate, payload.paymentFrequency, payload.milestones,
     )
+    if payload.stream == "Design":
+        _assert_design_amount_matches_quotation(db, project, contract_amount, payload.currency)
 
     agreement = FinancialAgreement(
         project_id=project.id,
@@ -306,6 +347,8 @@ def update_agreement(db: Session, agreement_id: int, payload, user_id: int) -> F
         Decimal(str(payload.contractAmount)) if payload.contractAmount is not None else None,
         payload.contractStartDate, payload.contractEndDate, payload.paymentFrequency, payload.milestones,
     )
+    if agreement.stream == "Design":
+        _assert_design_amount_matches_quotation(db, project, contract_amount, payload.currency)
 
     previous_value = f"{agreement.contract_amount} {agreement.currency}"
     agreement.contract_amount = contract_amount

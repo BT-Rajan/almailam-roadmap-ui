@@ -288,6 +288,8 @@ export default {
     quotationEmailedTitle: 'Quotation emailed',
     failedToCreateQuotation: 'Failed to create quotation',
     quotationCreatedTitle: 'Quotation created',
+    quotationAlreadyApprovedTitle: 'A quotation is already approved',
+    quotationAlreadyApprovedDescription: 'This project already has an Approved quotation -- creating another would just compete with it.',
     failedToUpdateQuotation: 'Failed to update quotation',
     failedToFinalizeQuotation: 'Failed to finalize quotation',
     failedToRevertToDraft: 'Failed to move quotation back to Draft',
@@ -417,6 +419,8 @@ export default {
     noEligibleQuotationTitle: 'No eligible quotation',
     noEligibleQuotationDescriptionShort: 'A contract can only be generated from a quotation that has been Approved and saved as Final.',
     noEligibleQuotationDescriptionLong: 'A contract can only be generated from a quotation that has been Approved and saved as Final. Finalize and approve a quotation on the Quotation tab first.',
+    contractAlreadySignedTitle: 'A contract is already signed',
+    contractAlreadySignedDescription: 'This project already has a signed contract -- its terms are locked in.',
     signingDialog: {
       title: 'Sign Contract',
       description: "Upload a scan of the client's physically signed copy to confirm their signature on the contract.",
@@ -429,23 +433,11 @@ export default {
 
   tasksTab: {
     newTask: 'New Task',
-    taskCreatedTitle: 'Task created',
-    taskCreatedDescription: '"{title}" was assigned to {assignee}.',
-    failedToCreateTask: 'Failed to create task',
-    failedToUpdateStatus: 'Failed to update status',
-    failedToUpdateTitle: 'Failed to update title',
-    failedToReassignTask: 'Failed to reassign task',
-    failedToUpdateSchedule: 'Failed to update the schedule',
     changeStatusTitle: 'Change status',
     reassignTaskTitle: 'Reassign task',
     changeStatusMessage: 'Change "{title}" from {from} to {to}?',
     reassignTaskMessage: 'Reassign "{title}" from {from} to {to}?',
     thisUser: 'this user',
-    deleteTaskTitle: 'Delete task',
-    deleteTaskMessage: 'Delete "{title}"? This cannot be undone.',
-    taskDeletedTitle: 'Task deleted',
-    taskDeletedDescription: '"{title}" was deleted.',
-    failedToDeleteTask: 'Failed to delete task',
   },
 
   reportPage: {
@@ -572,10 +564,12 @@ export default {
 
   newContractDialog: {
     title: 'New Contract',
-    prefilledFromQuotation: 'Prefilled from quotation {number} — currency, value, and scope below all carry over from it and can still be changed.',
+    backToContract: 'Back to Contract',
+    prefilledFromQuotation: 'Generated from quotation {number} — currency and value must match its approved amount and are locked; scope below carries over and can still be changed.',
     currency: 'Currency',
     contractValue: 'Contract Value',
     contractValueMustBePositive: 'Contract value must be greater than 0.',
+    contractValueMustMatchQuotation: 'Contract value must match quotation {number}\'s approved amount ({amount}).',
     expiryDate: 'Expiry Date',
     clientRepresentative: 'Client Representative',
     clientRepresentativePlaceholder: 'Name of the person signing for the client',
@@ -593,6 +587,7 @@ export default {
 
   newQuotationDialog: {
     title: 'New Quotation',
+    backToQuotation: 'Back to Quotation',
     client: 'Client',
     project: 'Project',
     validUntil: 'Valid Until',
@@ -609,6 +604,8 @@ export default {
     removeLineItem: 'Remove service {number}',
     discountAmount: 'Discount Amount',
     discountExceedsSubtotal: 'Discount cannot be more than the line items subtotal.',
+    notes: 'Notes',
+    notesPlaceholder: 'Optional notes for this quotation',
     scopePhases: 'Scope Phases',
     scopePhasesPlaceholder: 'One phase per line, e.g. Phase 1 (Design): architectural design, approvals...',
     scopePhasesHint: "Each line becomes one phase in the document template's phased-scope section.",

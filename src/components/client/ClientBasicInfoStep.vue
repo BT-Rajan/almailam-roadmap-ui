@@ -8,11 +8,12 @@ import FormSection from '@/components/common/FormSection.vue'
 import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { CLIENT_TYPE_OPTIONS } from '@/constants/clientOptions'
+import { CLIENT_TYPE_OPTIONS_FOR_ONBOARDING } from '@/constants/clientOptions'
 import { useUserStore } from '@/stores/userStore'
 import type { ClientDuplicateMatch } from '@/types/Client'
 import type { ClientWizardForm } from '@/types/ClientWizard'
 import type { SelectOption } from '@/types/Ui'
+import type { UserRole } from '@/types/User'
 import type { FieldErrors } from '@/utils/clientValidation'
 import { todayIso } from '@/utils/clientValidation'
 
@@ -36,9 +37,13 @@ const userStore = useUserStore()
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
+// Only these three roles can own a client relationship. Kept in sync
+// with ClientEditDialog.vue's accountManagerOptions and the backend's
+// ACCOUNT_MANAGER_ROLES (client_service.py).
+const ACCOUNT_MANAGER_ROLES: UserRole[] = ['Administrator', 'Project Manager', 'Engineer']
 const accountManagerOptions = computed<SelectOption[]>(() =>
   userStore.users
-    .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
+    .filter((user) => user.status === 'Active' && ACCOUNT_MANAGER_ROLES.includes(user.role))
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
 )
 
@@ -51,7 +56,7 @@ const languageOptions = computed<SelectOption[]>(() => [
 <template>
   <div class="flex flex-col gap-6">
     <FormSection :title="t('client.basicInfoStep.clientTypeTitle')" :description="t('client.basicInfoStep.clientTypeDescription')">
-      <RadioGroup v-model="form.clientType" :options="CLIENT_TYPE_OPTIONS" :vertical="false" />
+      <RadioGroup v-model="form.clientType" :options="CLIENT_TYPE_OPTIONS_FOR_ONBOARDING" :vertical="false" />
     </FormSection>
 
     <DuplicateClientAlert :matches="duplicates" @view="$emit('viewDuplicate', $event)" />

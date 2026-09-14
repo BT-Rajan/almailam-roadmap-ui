@@ -288,6 +288,8 @@ export default {
     quotationEmailedTitle: 'تم إرسال عرض السعر',
     failedToCreateQuotation: 'فشل إنشاء عرض السعر',
     quotationCreatedTitle: 'تم إنشاء عرض السعر',
+    quotationAlreadyApprovedTitle: 'تمت الموافقة على عرض سعر بالفعل',
+    quotationAlreadyApprovedDescription: 'يحتوي هذا المشروع بالفعل على عرض سعر مُعتمد — إنشاء عرض آخر سينافسه فقط.',
     failedToUpdateQuotation: 'فشل تحديث عرض السعر',
     failedToFinalizeQuotation: 'فشل اعتماد عرض السعر كنهائي',
     failedToRevertToDraft: 'فشل إعادة عرض السعر إلى مسودة',
@@ -417,6 +419,8 @@ export default {
     noEligibleQuotationTitle: 'لا يوجد عرض سعر مؤهل',
     noEligibleQuotationDescriptionShort: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي.',
     noEligibleQuotationDescriptionLong: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي. اعتمد عرض السعر كنهائي ووافق عليه من تبويب عرض السعر أولاً.',
+    contractAlreadySignedTitle: 'تم توقيع عقد بالفعل',
+    contractAlreadySignedDescription: 'يحتوي هذا المشروع بالفعل على عقد موقّع — تم تثبيت بنوده.',
     signingDialog: {
       title: 'توقيع العقد',
       description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل لتأكيد توقيعه على العقد.',
@@ -429,23 +433,11 @@ export default {
 
   tasksTab: {
     newTask: 'مهمة جديدة',
-    taskCreatedTitle: 'تم إنشاء المهمة',
-    taskCreatedDescription: 'تم إسناد "{title}" إلى {assignee}.',
-    failedToCreateTask: 'فشل إنشاء المهمة',
-    failedToUpdateStatus: 'فشل تحديث الحالة',
-    failedToUpdateTitle: 'فشل تحديث العنوان',
-    failedToReassignTask: 'فشل إعادة إسناد المهمة',
-    failedToUpdateSchedule: 'فشل تحديث الجدول الزمني',
     changeStatusTitle: 'تغيير الحالة',
     reassignTaskTitle: 'إعادة إسناد المهمة',
     changeStatusMessage: 'تغيير حالة "{title}" من {from} إلى {to}؟',
     reassignTaskMessage: 'إعادة إسناد "{title}" من {from} إلى {to}؟',
     thisUser: 'هذا المستخدم',
-    deleteTaskTitle: 'حذف المهمة',
-    deleteTaskMessage: 'حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
-    taskDeletedTitle: 'تم حذف المهمة',
-    taskDeletedDescription: 'تم حذف "{title}".',
-    failedToDeleteTask: 'فشل حذف المهمة',
   },
 
   reportPage: {
@@ -572,10 +564,12 @@ export default {
 
   newContractDialog: {
     title: 'عقد جديد',
-    prefilledFromQuotation: 'مُعبأ مسبقاً من عرض السعر {number} — العملة والقيمة والنطاق أدناه جميعها منقولة منه ويمكن تغييرها.',
+    backToContract: 'العودة إلى العقد',
+    prefilledFromQuotation: 'تم إنشاؤه من عرض السعر {number} — يجب أن تطابق العملة والقيمة المبلغ المعتمد وهما مقفلتان؛ النطاق أدناه منقول منه ويمكن تغييره.',
     currency: 'العملة',
     contractValue: 'قيمة العقد',
     contractValueMustBePositive: 'يجب أن تكون قيمة العقد أكبر من 0.',
+    contractValueMustMatchQuotation: 'يجب أن تطابق قيمة العقد المبلغ المعتمد في عرض السعر {number} ({amount}).',
     expiryDate: 'تاريخ الانتهاء',
     clientRepresentative: 'ممثل العميل',
     clientRepresentativePlaceholder: 'اسم الشخص الموقّع نيابة عن العميل',
@@ -593,6 +587,7 @@ export default {
 
   newQuotationDialog: {
     title: 'عرض سعر جديد',
+    backToQuotation: 'العودة إلى عرض السعر',
     client: 'العميل',
     project: 'المشروع',
     validUntil: 'صالح حتى',

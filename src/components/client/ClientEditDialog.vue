@@ -11,6 +11,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import { useUserStore } from '@/stores/userStore'
 import type { Client } from '@/types/Client'
 import type { SelectOption } from '@/types/Ui'
+import type { UserRole } from '@/types/User'
 import type { ClientEditForm, FieldErrors } from '@/utils/clientValidation'
 import { hasErrors, todayIso, validateClientEditForm } from '@/utils/clientValidation'
 
@@ -33,16 +34,17 @@ onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
 
-// Any active staff member can be assigned as the relationship owner --
-// Viewer is excluded since that role is read-only/external-stakeholder
-// by design elsewhere in this app, not someone who'd manage a client.
+// Only these three roles can own a client relationship. Kept in sync
+// with ClientBasicInfoStep.vue's accountManagerOptions and the
+// backend's ACCOUNT_MANAGER_ROLES (client_service.py).
 // No "Unassigned" placeholder option: account manager is now a
 // required field (see clientValidation.ts's validateClientEditForm) --
 // an existing client with none assigned will need one picked the next
 // time it's edited, same as any other newly-required field would.
+const ACCOUNT_MANAGER_ROLES: UserRole[] = ['Administrator', 'Project Manager', 'Engineer']
 const accountManagerOptions = computed<SelectOption[]>(() =>
   userStore.users
-    .filter((user) => user.status === 'Active' && user.role !== 'Viewer')
+    .filter((user) => user.status === 'Active' && ACCOUNT_MANAGER_ROLES.includes(user.role))
     .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
 )
 

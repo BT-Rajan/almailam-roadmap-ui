@@ -1,28 +1,30 @@
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
-import type { GovernmentSubmission, ResponseOutcome, SubmissionFollowup, SubmissionStatus } from '@/types/Submission'
+import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
 
 /**
- * Fetch all government submissions from backend API
+ * Fetch government submissions (Permit Applications) from backend API,
+ * optionally narrowed to one project and/or one stage.
  */
-async function getSubmissions(): Promise<GovernmentSubmission[]> {
+async function getSubmissions(projectId?: string, stage?: SubmissionStage): Promise<GovernmentSubmission[]> {
   try {
-    return await apiClient.get<GovernmentSubmission[]>('/api/submissions')
+    const params = new URLSearchParams()
+    if (projectId) params.set('projectId', projectId)
+    if (stage) params.set('stage', stage)
+    const query = params.toString()
+    return await apiClient.get<GovernmentSubmission[]>(`/api/submissions${query ? `?${query}` : ''}`)
   } catch (error) {
     console.error('Failed to fetch submissions:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch submissions')
   }
 }
 
-/**
- * Fetch government submissions for a specific project from backend API
- */
-async function getSubmissionsByProject(projectId: string): Promise<GovernmentSubmission[]> {
+async function getSubmission(submissionNo: string): Promise<GovernmentSubmission> {
   try {
-    return await apiClient.get<GovernmentSubmission[]>(`/api/submissions?projectId=${projectId}`)
+    return await apiClient.get<GovernmentSubmission>(`/api/submissions/${submissionNo}`)
   } catch (error) {
-    console.error(`Failed to fetch submissions for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch submissions')
+    console.error(`Failed to fetch submission ${submissionNo}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch submission')
   }
 }
 
@@ -32,10 +34,14 @@ export interface SubmissionCreateInput {
   formId: string
   expectedDecisionDate?: string
   notes?: string
+  // Optional -- links this application to one of the project's own
+  // planned permits (Project.selectedPermits).
+  selectedPermitId?: string
 }
 
 /**
- * Create a new government submission via backend API
+ * Starts a new Permit Application in Prepare -- picking the type of
+ * approval (authority/form) this application is for.
  */
 async function createSubmission(submissionData: SubmissionCreateInput): Promise<GovernmentSubmission> {
   try {
@@ -47,9 +53,9 @@ async function createSubmission(submissionData: SubmissionCreateInput): Promise<
 }
 
 /**
- * Update a government submission's editable fields (expected decision date,
- * notes) via backend API. Does NOT change status -- use setSubmissionStatus
- * for that, which goes through the real state-machine-enforced endpoint.
+ * Update a submission's editable fields (expected decision date, notes)
+ * -- doesn't change stage, that only ever happens through one of the
+ * dedicated stage-advancing actions below.
  */
 async function updateSubmission(
   submissionId: string,
@@ -60,30 +66,6 @@ async function updateSubmission(
   } catch (error) {
     console.error(`Failed to update submission ${submissionId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update submission')
-  }
-}
-
-/**
- * Move a submission to a new status (Submitted, Under Review, Approved,
- * Rejected, Withdrawn, ...) via the backend's state-machine-enforced
- * status endpoint. A reason is required for Rejected, Comments Received,
- * and Withdrawn -- the backend validates this and returns a 422 if it's
- * missing, or if the transition itself isn't a valid one from the
- * submission's current status.
- */
-async function setSubmissionStatus(
-  submissionId: string,
-  status: SubmissionStatus,
-  reason?: string,
-): Promise<GovernmentSubmission> {
-  try {
-    return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}/status`, {
-      status,
-      reason,
-    })
-  } catch (error) {
-    console.error(`Failed to update status for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update submission status')
   }
 }
 
@@ -136,7 +118,7 @@ async function downloadFile(path: string): Promise<Blob> {
 
 /**
  * Upload/replace the file behind one Required Documents checklist entry --
- * backend only allows this while the submission is in Draft.
+ * backend only allows this while the application is in Prepare.
  */
 async function uploadDocument(submissionId: string, documentId: number, file: File): Promise<GovernmentSubmission> {
   try {
@@ -157,60 +139,76 @@ async function downloadDocument(submissionId: string, documentId: number): Promi
 }
 
 /**
- * Upload proof the form was actually handed to the authority. Backend
- * requires every required document to be Uploaded/Verified first and
- * moves the submission Draft -> Submitted as a side effect.
+ * Prepare -> Apply: every required document is Uploaded/Verified and
+ * staff explicitly confirm the application is ready to file.
  */
-async function uploadProofOfSubmission(submissionId: string, file: File): Promise<GovernmentSubmission> {
+async function confirmReadiness(submissionId: string): Promise<GovernmentSubmission> {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/proof-of-submission`, formData)
+    return await apiClient.post<GovernmentSubmission>(`/api/submissions/${submissionId}/confirm-readiness`, {})
   } catch (error) {
-    console.error(`Failed to upload proof of submission for ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload proof of submission')
+    console.error(`Failed to confirm readiness for submission ${submissionId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to confirm readiness')
   }
 }
 
-async function downloadProofOfSubmission(submissionId: string): Promise<Blob> {
-  return downloadFile(`/api/submissions/${submissionId}/proof-of-submission/download`)
+export interface AcknowledgementInput {
+  acknowledgementNumber?: string
+  paymentReference?: string
+  notes?: string
+  file?: File
 }
 
 /**
- * Upload proof of the authority's response, along with the outcome it
- * conveys (Approved/Rejected/No Response). Doesn't change status by itself.
+ * Apply -> Track: files the application -- the authority's
+ * acknowledgement number, an optional payment reference, and the
+ * acknowledgement document itself.
  */
-async function uploadProofOfResponse(
+async function recordAcknowledgement(
   submissionId: string,
-  file: File,
-  outcome: ResponseOutcome,
+  input: AcknowledgementInput,
 ): Promise<GovernmentSubmission> {
   try {
     const formData = new FormData()
-    formData.append('file', file)
-    formData.append('outcome', outcome)
-    return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/proof-of-response`, formData)
+    if (input.acknowledgementNumber) formData.append('acknowledgementNumber', input.acknowledgementNumber)
+    if (input.paymentReference) formData.append('paymentReference', input.paymentReference)
+    if (input.notes) formData.append('notes', input.notes)
+    if (input.file) formData.append('file', input.file)
+    return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/acknowledgement`, formData)
   } catch (error) {
-    console.error(`Failed to upload proof of response for ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload proof of response')
+    console.error(`Failed to record acknowledgement for submission ${submissionId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to record acknowledgement')
   }
 }
 
-async function downloadProofOfResponse(submissionId: string): Promise<Blob> {
-  return downloadFile(`/api/submissions/${submissionId}/proof-of-response/download`)
+async function downloadAcknowledgement(submissionId: string): Promise<Blob> {
+  return downloadFile(`/api/submissions/${submissionId}/acknowledgement/download`)
+}
+
+export interface CloseApplicationInput {
+  outcome: string
+  closingNotes: string
+  file?: File
 }
 
 /**
- * Marks the submission complete (-> Approved) -- only valid once an
- * Approved outcome has been recorded against an uploaded proof of response.
+ * Closes the application out -- the final outcome, an optional
+ * permit/decision document, and closing notes. Reachable from any stage.
  */
-async function markComplete(submissionId: string): Promise<GovernmentSubmission> {
+async function closeApplication(submissionId: string, input: CloseApplicationInput): Promise<GovernmentSubmission> {
   try {
-    return await apiClient.post<GovernmentSubmission>(`/api/submissions/${submissionId}/complete`, {})
+    const formData = new FormData()
+    formData.append('outcome', input.outcome)
+    formData.append('closingNotes', input.closingNotes)
+    if (input.file) formData.append('file', input.file)
+    return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/close`, formData)
   } catch (error) {
-    console.error(`Failed to mark submission ${submissionId} complete:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to mark submission complete')
+    console.error(`Failed to close submission ${submissionId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to close the application')
   }
+}
+
+async function downloadPermitDocument(submissionId: string): Promise<Blob> {
+  return downloadFile(`/api/submissions/${submissionId}/permit-document/download`)
 }
 
 async function getFollowups(submissionId: string): Promise<SubmissionFollowup[]> {
@@ -223,34 +221,49 @@ async function getFollowups(submissionId: string): Promise<SubmissionFollowup[]>
 }
 
 export interface FollowupCreateInput {
+  // 'Track' for a plain check-in, 'Update' for one where the authority
+  // asked for something else (carries an optional document).
+  entryStage: 'Track' | 'Update'
   followupDate: string
   followupTime: string
   contactPerson: string
   notes?: string
+  file?: File
 }
 
-async function addFollowup(submissionId: string, payload: FollowupCreateInput): Promise<SubmissionFollowup> {
+async function addFollowup(submissionId: string, input: FollowupCreateInput): Promise<SubmissionFollowup> {
   try {
-    return await apiClient.post<SubmissionFollowup>(`/api/submissions/${submissionId}/followups`, payload)
+    const formData = new FormData()
+    formData.append('entryStage', input.entryStage)
+    formData.append('followupDate', input.followupDate)
+    formData.append('followupTime', input.followupTime)
+    formData.append('contactPerson', input.contactPerson)
+    if (input.notes) formData.append('notes', input.notes)
+    if (input.file) formData.append('file', input.file)
+    return await uploadMultipart<SubmissionFollowup>(`/api/submissions/${submissionId}/followups`, formData)
   } catch (error) {
     console.error(`Failed to record follow-up for submission ${submissionId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to record follow-up')
   }
 }
 
+async function downloadFollowupDocument(submissionId: string, followupId: string): Promise<Blob> {
+  return downloadFile(`/api/submissions/${submissionId}/followups/${followupId}/download`)
+}
+
 export const governmentSubmissionService = {
   getSubmissions,
-  getSubmissionsByProject,
+  getSubmission,
   createSubmission,
   updateSubmission,
-  setSubmissionStatus,
   uploadDocument,
   downloadDocument,
-  uploadProofOfSubmission,
-  downloadProofOfSubmission,
-  uploadProofOfResponse,
-  downloadProofOfResponse,
-  markComplete,
+  confirmReadiness,
+  recordAcknowledgement,
+  downloadAcknowledgement,
+  closeApplication,
+  downloadPermitDocument,
   getFollowups,
   addFollowup,
+  downloadFollowupDocument,
 }

@@ -1,6 +1,14 @@
 import type { ClientDocumentCategory, ClientIdentificationType, ClientType } from '@/types/Client'
 import type { SelectOption } from '@/types/Ui'
 
+// The full set of client types that exist in the system -- includes
+// Organisation and Government Entity, which are still valid on clients
+// onboarded before those were retired as choices (see
+// CLIENT_TYPE_OPTIONS_FOR_ONBOARDING below). Used wherever a client of
+// any existing type needs to be represented, e.g. ClientsPage.vue's own
+// type filter -- an Organisation-type client already on file still
+// needs to be filterable/displayable even though nobody can pick that
+// type going forward.
 export const CLIENT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Individual', value: 'Individual', labelKey: 'clientOptions.type.individual' },
   { label: 'Company', value: 'Company', labelKey: 'clientOptions.type.company' },
@@ -8,6 +16,14 @@ export const CLIENT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Government Entity', value: 'Government Entity', labelKey: 'clientOptions.type.governmentEntity' },
   { label: 'Other', value: 'Other', labelKey: 'clientOptions.type.other' },
 ]
+
+// Organisation and Government Entity are retired as choices for NEW
+// clients -- used by ClientBasicInfoStep.vue's onboarding radio group
+// only. See CREATABLE_CLIENT_TYPES in the backend's schemas/client.py
+// for the matching server-side restriction on client creation.
+export const CLIENT_TYPE_OPTIONS_FOR_ONBOARDING: SelectOption[] = CLIENT_TYPE_OPTIONS.filter(
+  (option) => option.value !== 'Organisation' && option.value !== 'Government Entity',
+)
 
 export const CLIENT_CONTACT_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Primary Contact', value: 'Primary Contact', labelKey: 'clientOptions.contactType.primary' },

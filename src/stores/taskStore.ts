@@ -15,7 +15,6 @@ interface TaskStoreState {
   searchTerm: string
   projectFilter: string | 'All'
   assigneeFilter: string | 'All'
-  selectedTaskId: string | undefined
 }
 
 export const useTaskStore = defineStore('task', {
@@ -26,7 +25,6 @@ export const useTaskStore = defineStore('task', {
     searchTerm: '',
     projectFilter: 'All',
     assigneeFilter: 'All',
-    selectedTaskId: undefined,
   }),
 
   getters: {
@@ -95,10 +93,6 @@ export const useTaskStore = defineStore('task', {
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     },
 
-    selectedTask(state): Task | undefined {
-      return state.tasks.find((task) => task.id === state.selectedTaskId)
-    },
-
     tasksByProject(state) {
       return (projectId: string): Task[] => state.tasks.filter((task) => task.projectId === projectId)
     },
@@ -123,14 +117,6 @@ export const useTaskStore = defineStore('task', {
       } finally {
         this.isLoading = false
       }
-    },
-
-    selectTask(taskId: string) {
-      this.selectedTaskId = taskId
-    },
-
-    clearSelectedTask() {
-      this.selectedTaskId = undefined
     },
 
     // Previously all four of these (status/priority/severity/assignee)
@@ -186,7 +172,6 @@ export const useTaskStore = defineStore('task', {
     async deleteTask(taskId: string): Promise<void> {
       await taskService.deleteTask(taskId)
       this.tasks = this.tasks.filter((task) => task.id !== taskId)
-      if (this.selectedTaskId === taskId) this.selectedTaskId = undefined
     },
 
     setSearchTerm(term: string) {

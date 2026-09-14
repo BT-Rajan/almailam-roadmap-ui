@@ -6,17 +6,41 @@ plus the reason-required set for each entity, consumed via
 core/workflow.assert_transition_allowed / assert_reason_given.
 """
 
-# --- Government Submissions -- src/types/Submission.ts: SubmissionStatus
+# --- Permit Applications (formerly "Government Submissions") --
+# src/types/Submission.ts: SubmissionStage
+#
+# Replaces the old Draft/Submitted/Under Review/Comments Received/
+# Approved/Rejected/Withdrawn status machine with the 5-stage permit
+# application workspace: Prepare (select the approval type, fill in the
+# forms, readiness check) -> Apply (file it, record the acknowledgement)
+# -> Track (log contact with the authority while awaiting a decision)
+# <-> Update (the authority came back asking for something -- same
+# contact-log entry as Track, plus a document) -> Close (the final
+# outcome, permit/decision document, closing notes).
+#
+# Track <-> Update loops freely -- a real application can go a few
+# rounds of "checked in, they want more" before it's actually resolved,
+# same as Comments Received <-> Submitted/Under Review did in the old
+# machine. Close is reachable directly from every earlier stage --
+# Prepare/Apply included, for withdrawing an application before it's
+# even filed -- not only from Track/Update. Nothing moves backward into
+# Prepare/Apply once Apply is done, though: the acknowledgement already
+# on file is what Track/Update/Close are following up on.
+#
+# No separate "reason required" set the way Quotations/the old
+# submission statuses have -- every transition here is reached through
+# its own dedicated action (confirm_readiness / record_acknowledgement /
+# add_followup / close_application, see submission_service.py) that
+# already carries its own required free-text field (closing notes, a
+# follow-up's own notes, ...), so there's no bare status dropdown left
+# that would need a second, generic reason prompted on top of it.
 SUBMISSION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "Draft": {"Submitted", "Withdrawn"},
-    "Submitted": {"Under Review", "Withdrawn"},
-    "Under Review": {"Comments Received", "Approved", "Rejected", "Withdrawn"},
-    "Comments Received": {"Submitted", "Under Review", "Rejected", "Withdrawn"},
-    "Approved": set(),
-    "Rejected": {"Draft"},
-    "Withdrawn": set(),
+    "Prepare": {"Apply", "Close"},
+    "Apply": {"Track", "Close"},
+    "Track": {"Update", "Close"},
+    "Update": {"Track", "Close"},
+    "Close": set(),
 }
-SUBMISSION_STATUSES_REQUIRING_REASON = {"Rejected", "Comments Received", "Withdrawn"}
 
 # --- Quotations -- src/types/Quotation.ts: QuotationStatus
 #

@@ -2,11 +2,16 @@ import { defineStore } from 'pinia'
 
 import { governmentFormService } from '@/services/governmentFormService'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
-import type { FollowupCreateInput, SubmissionCreateInput } from '@/services/governmentSubmissionService'
+import type {
+  AcknowledgementInput,
+  CloseApplicationInput,
+  FollowupCreateInput,
+  SubmissionCreateInput,
+} from '@/services/governmentSubmissionService'
 import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
-import type { GovernmentSubmission, ResponseOutcome, SubmissionFollowup, SubmissionStatus } from '@/types/Submission'
+import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
 
 interface GovernmentSubmissionStoreState {
   submissions: GovernmentSubmission[]
@@ -15,7 +20,7 @@ interface GovernmentSubmissionStoreState {
   isLoading: boolean
   error: string | undefined
   searchTerm: string
-  statusFilter: SubmissionStatus | 'All'
+  stageFilter: SubmissionStage | 'All'
   authorityFilter: string | 'All'
   isMutating: boolean
   mutationError: string | undefined
@@ -31,7 +36,7 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     isLoading: false,
     error: undefined,
     searchTerm: '',
-    statusFilter: 'All',
+    stageFilter: 'All',
     authorityFilter: 'All',
     isMutating: false,
     mutationError: undefined,
@@ -51,15 +56,15 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
           submission.submissionNo.toLowerCase().includes(term) ||
           (project?.projectName.toLowerCase().includes(term) ?? false)
 
-        const matchesStatus = state.statusFilter === 'All' || submission.status === state.statusFilter
+        const matchesStage = state.stageFilter === 'All' || submission.stage === state.stageFilter
         const matchesAuthority = state.authorityFilter === 'All' || submission.authorityId === state.authorityFilter
 
-        return matchesSearch && matchesStatus && matchesAuthority
+        return matchesSearch && matchesStage && matchesAuthority
       })
     },
 
     hasActiveFilters(state): boolean {
-      return state.searchTerm.trim().length > 0 || state.statusFilter !== 'All' || state.authorityFilter !== 'All'
+      return state.searchTerm.trim().length > 0 || state.stageFilter !== 'All' || state.authorityFilter !== 'All'
     },
 
     // projectStore is the single, canonical place the full project list
@@ -110,7 +115,7 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
         this.authorities = authorities
         this.forms = forms
       } catch {
-        this.error = 'Unable to load government submissions. Please try again.'
+        this.error = 'Unable to load permit applications. Please try again.'
       } finally {
         this.isLoading = false
       }
@@ -120,8 +125,8 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       this.searchTerm = term
     },
 
-    setStatusFilter(status: SubmissionStatus | 'All') {
-      this.statusFilter = status
+    setStageFilter(stage: SubmissionStage | 'All') {
+      this.stageFilter = stage
     },
 
     setAuthorityFilter(authorityId: string | 'All') {
@@ -130,29 +135,8 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
 
     clearFilters() {
       this.searchTerm = ''
-      this.statusFilter = 'All'
+      this.stageFilter = 'All'
       this.authorityFilter = 'All'
-    },
-
-    // Moves a submission to a new status (e.g. Withdrawn) via the real
-    // state-machine-enforced backend endpoint. Returns true on success so
-    // callers can react (close a dialog, show a toast) without needing to
-    // inspect store state.
-    async setSubmissionStatus(submissionId: string, status: SubmissionStatus, reason?: string): Promise<boolean> {
-      this.isMutating = true
-      this.mutationError = undefined
-      try {
-        const updated = await governmentSubmissionService.setSubmissionStatus(submissionId, status, reason)
-        this.submissions = this.submissions.map((submission) =>
-          submission.id === submissionId ? updated : submission,
-        )
-        return true
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Unable to update the submission status.'
-        return false
-      } finally {
-        this.isMutating = false
-      }
     },
 
     async createSubmission(input: SubmissionCreateInput): Promise<GovernmentSubmission> {
@@ -192,45 +176,32 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       }
     },
 
-    async uploadProofOfSubmission(submissionId: string, file: File): Promise<boolean> {
+    // Prepare -> Apply.
+    async confirmReadiness(submissionId: string): Promise<boolean> {
       this.isMutating = true
       this.mutationError = undefined
       try {
-        const updated = await governmentSubmissionService.uploadProofOfSubmission(submissionId, file)
+        const updated = await governmentSubmissionService.confirmReadiness(submissionId)
         this._replaceSubmission(updated)
         return true
       } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Unable to upload proof of submission.'
+        this.mutationError = error instanceof Error ? error.message : 'Unable to confirm readiness.'
         return false
       } finally {
         this.isMutating = false
       }
     },
 
-    async uploadProofOfResponse(submissionId: string, file: File, outcome: ResponseOutcome): Promise<boolean> {
+    // Apply -> Track.
+    async recordAcknowledgement(submissionId: string, input: AcknowledgementInput): Promise<boolean> {
       this.isMutating = true
       this.mutationError = undefined
       try {
-        const updated = await governmentSubmissionService.uploadProofOfResponse(submissionId, file, outcome)
+        const updated = await governmentSubmissionService.recordAcknowledgement(submissionId, input)
         this._replaceSubmission(updated)
         return true
       } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Unable to upload proof of response.'
-        return false
-      } finally {
-        this.isMutating = false
-      }
-    },
-
-    async markComplete(submissionId: string): Promise<boolean> {
-      this.isMutating = true
-      this.mutationError = undefined
-      try {
-        const updated = await governmentSubmissionService.markComplete(submissionId)
-        this._replaceSubmission(updated)
-        return true
-      } catch (error) {
-        this.mutationError = error instanceof Error ? error.message : 'Unable to mark the submission complete.'
+        this.mutationError = error instanceof Error ? error.message : 'Unable to record the acknowledgement.'
         return false
       } finally {
         this.isMutating = false
@@ -248,17 +219,38 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       }
     },
 
+    // Logs contact with the authority (Track) or one that also carries a
+    // document (Update) -- moves the application's stage to match.
     async addFollowup(submissionId: string, input: FollowupCreateInput): Promise<boolean> {
       this.isMutating = true
       this.mutationError = undefined
       try {
         const followup = await governmentSubmissionService.addFollowup(submissionId, input)
         this.followups = [followup, ...this.followups]
-        // Recording a follow-up can advance Submitted -> Under Review server-side.
-        await this.loadSubmissions()
+        // Recording contact moves the application's own stage to match
+        // (Track/Update) -- refresh so the workspace's header/stepper
+        // reflects it.
+        const updated = await governmentSubmissionService.getSubmission(submissionId)
+        this._replaceSubmission(updated)
         return true
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to record the follow-up.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    // -> Close, reachable from any stage.
+    async closeApplication(submissionId: string, input: CloseApplicationInput): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.closeApplication(submissionId, input)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to close the application.'
         return false
       } finally {
         this.isMutating = false

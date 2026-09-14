@@ -160,6 +160,9 @@ export default {
   },
 
   agreementFormDialog: {
+    backToPaymentPlan: 'العودة إلى خطة الدفع',
+    planNotFoundTitle: 'خطة الدفع غير موجودة',
+    planNotFoundDescription: 'تعذّر العثور على هذا المشروع أو فئة الفوترة.',
     editTitle: 'تعديل خطة الدفع',
     createTitle: 'إنشاء خطة دفع',
     client: 'العميل',
@@ -186,6 +189,7 @@ export default {
     dueDateRequired: 'تاريخ الاستحقاق مطلوب',
     totalMustEqual100: 'يجب أن يكون مجموع نسب الدفعات 100% (الحالي {percent}%).',
     totalAmountRequired: 'يجب أن يكون المبلغ الإجمالي أكبر من 0',
+    totalAmountMustMatchQuotation: 'يجب أن يطابق المبلغ الإجمالي المبلغ المعتمد في عرض السعر {number} ({amount}).',
     contractStartDateRequired: 'تاريخ بدء العقد مطلوب',
     saveChanges: 'حفظ التغييرات',
   },

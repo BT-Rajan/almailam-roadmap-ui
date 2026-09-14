@@ -796,7 +796,7 @@ def _send_project_created_email(db: Session, client: Client, project: Project, e
             "project_created",
             {
                 "contact_person": client.contact_person,
-                "company_name": client.company_name,
+                "company_name": client_service.client_display_name(client),
                 "project_name": project.project_name,
                 "project_no": project.project_no,
                 "service": project.service,

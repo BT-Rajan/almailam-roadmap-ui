@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -84,6 +85,24 @@ def _approved_quotation(db: Session, quotation_no: str, project: Project) -> Quo
             "generated from it."
         )
     return quotation
+
+
+def _assert_contract_value_matches_quotation(quotation: Quotation, contract_value: float, currency: str) -> None:
+    """The contract is generated from an Approved quotation (see
+    _approved_quotation above) -- its value is meant to be the same
+    commercial figure the client already agreed to, not a fresh number.
+    contractValue is only ever *pre-filled* from quotation.amount on the
+    frontend (see ContractCreatePage.vue), not locked to it -- nothing
+    previously stopped it from being typed over with an unrelated
+    number, silently producing a contract that doesn't match what was
+    quoted and approved."""
+    if currency != quotation.currency or Decimal(str(contract_value)) != Decimal(str(quotation.amount)):
+        raise ValidationAppError(
+            f"The contract value ({contract_value:.2f} {currency}) must match its source quotation "
+            f"{quotation.quotation_no}'s approved amount ({quotation.amount:.2f} {quotation.currency}). "
+            "Edit the value to match, or create a new quotation first if the commercial terms have "
+            "genuinely changed."
+        )
 
 
 def _user_name(db: Session, user_id: int) -> str:
@@ -201,6 +220,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     project = _project_by_no(db, payload.projectId)
     project_service.assert_project_open_for_new_work(project)
     quotation = _approved_quotation(db, payload.quotationId, project)
+    _assert_contract_value_matches_quotation(quotation, payload.contractValue, payload.currency)
     _assert_design_emi_within_completion_date(db, project.id, payload.expiryDate)
     contract = Contract(
         contract_no=next_number(db, "CONTRACT"),
@@ -267,6 +287,13 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
         )
     if payload.expiryDate is not None and payload.expiryDate != contract.expiry_date:
         _assert_design_emi_within_completion_date(db, contract.project_id, payload.expiryDate)
+    if payload.contractValue is not None and payload.contractValue != contract.contract_value and contract.quotation_id is not None:
+        # currency isn't editable via ContractUpdate (see schemas/contract.py),
+        # so contract.currency -- set once at creation -- is still the
+        # right value to check the new contractValue against.
+        source_quotation = db.query(Quotation).filter(Quotation.id == contract.quotation_id).first()
+        if source_quotation is not None:
+            _assert_contract_value_matches_quotation(source_quotation, payload.contractValue, contract.currency)
     changes: dict[str, tuple] = {}
 
     for api_field, attr in (

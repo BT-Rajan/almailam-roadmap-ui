@@ -87,16 +87,48 @@ function computeChange(currentValue: number, compareValue: number): { direction:
   return { direction: currentValue >= compareValue ? 'up' : 'down', percentage }
 }
 
-const metrics = computed(() => {
+// financial_period_summary splits every total by currency instead of
+// summing them (a single project's Design and Supervision agreements
+// can be priced differently -- see that function's own comment), so
+// this report renders one full metrics block per currency that shows
+// up in either period, rather than one block that would otherwise add
+// incompatible currencies together. currencyGroups' label only gets a
+// "(CURRENCY)" suffix when more than one group exists, so the common
+// single-currency case looks exactly like the old single-block layout.
+interface CurrencyMetric {
+  key: string
+  label: string
+  value: number
+  compareValue?: number
+  color: string
+}
+interface CurrencyGroup {
+  currency: string
+  metrics: CurrencyMetric[]
+}
+
+function findEntry(summary: FinancialPeriodSummary | undefined, currency: string) {
+  return summary?.byCurrency.find((entry) => entry.currency === currency)
+}
+
+const currencyGroups = computed<CurrencyGroup[]>(() => {
   if (!current.value) return []
-  const c = current.value
-  const cmp = comparison.value
-  return [
-    { key: 'received', label: t('report.monthlyFinancialsPage.metricReceived'), value: c.totalReceived, compareValue: cmp?.totalReceived, color: 'success' },
-    { key: 'due', label: t('report.monthlyFinancialsPage.metricDue'), value: c.totalDue, compareValue: cmp?.totalDue, color: 'primary' },
-    { key: 'outstanding', label: t('report.monthlyFinancialsPage.metricOutstanding'), value: c.totalOutstanding, compareValue: cmp?.totalOutstanding, color: 'warning' },
-    { key: 'overdue', label: t('report.monthlyFinancialsPage.metricOverdue'), value: c.totalOverdue, compareValue: cmp?.totalOverdue, color: 'danger' },
-  ]
+  const currencies = [
+    ...new Set([...current.value.byCurrency.map((e) => e.currency), ...(comparison.value?.byCurrency.map((e) => e.currency) ?? [])]),
+  ].sort()
+  return currencies.map((currency) => {
+    const c = findEntry(current.value, currency) ?? { currency, totalReceived: 0, totalDue: 0, totalOutstanding: 0, totalOverdue: 0 }
+    const cmp = findEntry(comparison.value, currency)
+    return {
+      currency,
+      metrics: [
+        { key: 'received', label: t('report.monthlyFinancialsPage.metricReceived'), value: c.totalReceived, compareValue: cmp?.totalReceived, color: 'success' },
+        { key: 'due', label: t('report.monthlyFinancialsPage.metricDue'), value: c.totalDue, compareValue: cmp?.totalDue, color: 'primary' },
+        { key: 'outstanding', label: t('report.monthlyFinancialsPage.metricOutstanding'), value: c.totalOutstanding, compareValue: cmp?.totalOutstanding, color: 'warning' },
+        { key: 'overdue', label: t('report.monthlyFinancialsPage.metricOverdue'), value: c.totalOverdue, compareValue: cmp?.totalOverdue, color: 'danger' },
+      ],
+    }
+  })
 })
 </script>
 
@@ -134,24 +166,28 @@ const metrics = computed(() => {
 
     <template v-else-if="current">
       <ReportSection
-        :title="t('report.monthlyFinancialsPage.currentPeriodTitle', { start: current.startDate, end: current.endDate })"
+        v-for="group in currencyGroups"
+        :key="group.currency"
+        :title="
+          currencyGroups.length > 1
+            ? `${t('report.monthlyFinancialsPage.currentPeriodTitle', { start: current.startDate, end: current.endDate })} (${group.currency})`
+            : t('report.monthlyFinancialsPage.currentPeriodTitle', { start: current.startDate, end: current.endDate })
+        "
         :description="comparison ? t('report.monthlyFinancialsPage.comparisonNote', { start: comparison.startDate, end: comparison.endDate }) : undefined"
         full-width
       >
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 laptop:grid-cols-4">
           <ReportMetricCard
-            v-for="metric in metrics"
+            v-for="metric in group.metrics"
             :key="metric.key"
             :label="metric.label"
-            :value="formatCurrency(metric.value)"
+            :value="formatCurrency(metric.value, group.currency)"
             :change="computeChange(metric.value, metric.compareValue ?? 0)"
             :color="metric.color"
           />
         </div>
-      </ReportSection>
 
-      <ReportSection v-if="comparison" :title="t('report.monthlyFinancialsPage.sideBySideTitle')" full-width>
-        <div class="overflow-x-auto rounded-xl border border-border-light">
+        <div v-if="comparison" class="mt-4 overflow-x-auto rounded-xl border border-border-light">
           <table class="w-full text-sm">
             <thead class="bg-bg-secondary text-start">
               <tr>
@@ -161,18 +197,20 @@ const metrics = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="metric in metrics" :key="metric.key" class="border-t border-border-light">
+              <tr v-for="metric in group.metrics" :key="metric.key" class="border-t border-border-light">
                 <td class="px-4 py-2 text-text-primary">{{ metric.label }}</td>
-                <td class="px-4 py-2 text-end text-text-primary">{{ formatCurrency(metric.value) }}</td>
-                <td class="px-4 py-2 text-end text-text-muted">{{ formatCurrency(metric.compareValue ?? 0) }}</td>
-              </tr>
-              <tr class="border-t border-border-light">
-                <td class="px-4 py-2 text-text-primary">{{ t('report.monthlyFinancialsPage.metricPaymentCount') }}</td>
-                <td class="px-4 py-2 text-end text-text-primary">{{ current.paymentCount }}</td>
-                <td class="px-4 py-2 text-end text-text-muted">{{ comparison.paymentCount }}</td>
+                <td class="px-4 py-2 text-end text-text-primary">{{ formatCurrency(metric.value, group.currency) }}</td>
+                <td class="px-4 py-2 text-end text-text-muted">{{ formatCurrency(metric.compareValue ?? 0, group.currency) }}</td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </ReportSection>
+
+      <ReportSection v-if="comparison" :title="t('report.monthlyFinancialsPage.metricPaymentCount')" full-width>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 laptop:grid-cols-4">
+          <ReportMetricCard :label="t('report.monthlyFinancialsPage.currentPeriod')" :value="current.paymentCount" color="primary" />
+          <ReportMetricCard :label="t('report.monthlyFinancialsPage.comparisonPeriod')" :value="comparison.paymentCount" color="neutral" />
         </div>
       </ReportSection>
     </template>
