@@ -288,6 +288,8 @@ export default {
     quotationEmailedTitle: 'تم إرسال عرض السعر',
     failedToCreateQuotation: 'فشل إنشاء عرض السعر',
     quotationCreatedTitle: 'تم إنشاء عرض السعر',
+    quotationAlreadyApprovedTitle: 'تمت الموافقة على عرض سعر بالفعل',
+    quotationAlreadyApprovedDescription: 'يحتوي هذا المشروع بالفعل على عرض سعر مُعتمد — إنشاء عرض آخر سينافسه فقط.',
     failedToUpdateQuotation: 'فشل تحديث عرض السعر',
     failedToFinalizeQuotation: 'فشل اعتماد عرض السعر كنهائي',
     failedToRevertToDraft: 'فشل إعادة عرض السعر إلى مسودة',
@@ -417,6 +419,8 @@ export default {
     noEligibleQuotationTitle: 'لا يوجد عرض سعر مؤهل',
     noEligibleQuotationDescriptionShort: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي.',
     noEligibleQuotationDescriptionLong: 'لا يمكن إنشاء عقد إلا من عرض سعر تمت الموافقة عليه وحُفظ كنهائي. اعتمد عرض السعر كنهائي ووافق عليه من تبويب عرض السعر أولاً.',
+    contractAlreadySignedTitle: 'تم توقيع عقد بالفعل',
+    contractAlreadySignedDescription: 'يحتوي هذا المشروع بالفعل على عقد موقّع — تم تثبيت بنوده.',
     signingDialog: {
       title: 'توقيع العقد',
       description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل لتأكيد توقيعه على العقد.',
@@ -560,6 +564,7 @@ export default {
 
   newContractDialog: {
     title: 'عقد جديد',
+    backToContract: 'العودة إلى العقد',
     prefilledFromQuotation: 'مُعبأ مسبقاً من عرض السعر {number} — العملة والقيمة والنطاق أدناه جميعها منقولة منه ويمكن تغييرها.',
     currency: 'العملة',
     contractValue: 'قيمة العقد',
@@ -581,6 +586,7 @@ export default {
 
   newQuotationDialog: {
     title: 'عرض سعر جديد',
+    backToQuotation: 'العودة إلى عرض السعر',
     client: 'العميل',
     project: 'المشروع',
     validUntil: 'صالح حتى',

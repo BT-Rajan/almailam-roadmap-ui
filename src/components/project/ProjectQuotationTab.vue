@@ -2,6 +2,7 @@
 import { Ban, ChevronDown, Clock, Download, LockOpen, Mail, Plus, Printer, ShieldCheck, Undo2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -11,11 +12,10 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUploadDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import NewQuotationDialog from '@/components/project/NewQuotationDialog.vue'
 import QuotationPreview from '@/components/project/QuotationPreview.vue'
 import QuotationRevisionHistory from '@/components/project/QuotationRevisionHistory.vue'
 import { documentTemplateService } from '@/services/documentTemplateService'
-import type { QuotationCreateInput } from '@/services/quotationService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useCompanyStore } from '@/stores/companyStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -40,6 +40,7 @@ const quotationStore = useQuotationStore()
 const projectStore = useProjectStore()
 const companyStore = useCompanyStore()
 const resultDialogStore = useResultDialogStore()
+const router = useRouter()
 const { t } = useI18n()
 
 // Once one quotation for this project has been Approved, that's the
@@ -75,9 +76,14 @@ const stopSeedingDocumentLanguage = watch(
   { immediate: true },
 )
 
-const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
 const isFinalizing = ref(false)
+
+// Sends straight to the dedicated New Quotation page (see
+// QuotationCreatePage.vue, which replaced NewQuotationDialog.vue's modal)
+// instead of opening a dialog here.
+function goToCreateQuotation(): void {
+  router.push({ name: ROUTE_NAMES.QUOTATION_CREATE, params: { projectId: props.project.id } })
+}
 
 // Opens the same admin-uploaded/field-mapped template Download Document
 // merges, as a PDF, in a new tab -- so Print reflects that template
@@ -276,25 +282,6 @@ async function handleConfirmApproval(payload: { file: File }): Promise<void> {
   }
 }
 
-async function handleCreateQuotation(payload: QuotationCreateInput): Promise<void> {
-  isCreating.value = true
-  try {
-    const quotation = await quotationStore.createQuotation({ ...payload, projectId: props.project.id })
-    // Creating a quotation can move current_stage server-side (see
-    // quotation_service.create_quotation -> try_auto_advance_stage) --
-    // same "sync the shared store's cached copy" reasoning as
-    // handleConfirmApproval/handleConfirmReject/handleConfirmExpire.
-    await projectStore.refreshProject(props.project.id)
-    resultDialogStore.showSuccess(t('project.quotationTab.quotationCreatedTitle'), t('common.createdSuccessfully', { no: quotation.quotationNo }))
-    isCreateDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    resultDialogStore.showError(t('project.quotationTab.failedToCreateQuotation'), detail)
-  } finally {
-    isCreating.value = false
-  }
-}
-
 async function handlePatch(patch: Partial<Quotation>): Promise<void> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return
@@ -400,7 +387,7 @@ async function handleRevertToDraft(): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between">
-    <BaseButton size="sm" :icon="Plus" :disabled="hasApprovedQuotation" class="no-print" @click="isCreateDialogOpen = true">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
+    <BaseButton size="sm" :icon="Plus" :disabled="hasApprovedQuotation" class="no-print" @click="goToCreateQuotation">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <div v-if="quotationStore.selectedQuotation?.status === 'Draft'" ref="decisionMenuRef" class="relative">
         <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovalSaving || isFinalizing" @click="toggleDecisionMenu">
@@ -560,7 +547,7 @@ async function handleRevertToDraft(): Promise<void> {
         :title="t('project.quotationTab.noQuotationSelectedTitle')"
         :description="t('project.quotationTab.noQuotationSelectedDescription')"
         :action-label="t('project.quotationTab.newQuotation')"
-        @action="isCreateDialogOpen = true"
+        @action="goToCreateQuotation"
       />
       <QuotationPreview
         v-else
@@ -579,7 +566,4 @@ async function handleRevertToDraft(): Promise<void> {
       />
     </div>
   </div>
-
-  <NewQuotationDialog v-model="isCreateDialogOpen" :project="project" :client="client" :loading="isCreating" @confirm="handleCreateQuotation" />
 </template>
-

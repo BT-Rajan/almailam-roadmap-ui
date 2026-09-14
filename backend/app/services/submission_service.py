@@ -31,6 +31,16 @@ UPLOAD_SUBDIRECTORY = "submissions"
 AWAITING_RESPONSE_STAGES = ("Track", "Update")
 
 
+def parse_followup_id(raw: str) -> int:
+    """"FUP-0004" -> 4, same convention as client_service.parse_prefixed_id
+    -- FollowupOut.id is formatted this way (see schemas/government.py),
+    so the download route needs this to resolve it back to a real row."""
+    text = raw.removeprefix("FUP-") if raw.upper().startswith("FUP-") else raw
+    if not text.isdigit():
+        raise ValidationAppError("Invalid follow-up id.")
+    return int(text)
+
+
 def user_name(db: Session, user_id: int | None) -> str:
     if user_id is None:
         return "System"

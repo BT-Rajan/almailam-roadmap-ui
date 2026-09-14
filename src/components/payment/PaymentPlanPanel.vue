@@ -2,8 +2,8 @@
 import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, RotateCcw, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
-import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
@@ -21,6 +21,7 @@ import { useAuth } from '@/composables/useAuthComposable'
 import { useLocale } from '@/composables/useLocale'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { documentTemplateService } from '@/services/documentTemplateService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useCompanyStore } from '@/stores/companyStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -31,7 +32,7 @@ import { formatDate } from '@/utils/dateFormatter'
 import { computeObligationStatus, getAgreementStreamLabel, getObligationAmountPending, getObligationStatusVariant } from '@/utils/paymentHelpers'
 import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
-import type { AgreementStream, CreateAgreementInput, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
+import type { AgreementStream, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -60,6 +61,7 @@ const store = usePaymentStore()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const companyStore = useCompanyStore()
+const router = useRouter()
 // Matches every other create/edit/delete-style action in the app
 // (Clients, Projects, Quotations, Contracts, Government Submissions) --
 // an explicit acknowledgment dialog for actions that change money on
@@ -167,10 +169,6 @@ const hasAnyAgreement = computed(() => visibleStreams.value.some((stream) => agr
 // once Design's is created.
 const nextMissingStream = computed(() => visibleStreams.value.find((stream) => !agreementForStream(stream)))
 
-const isAgreementFormOpen = ref(false)
-const agreementFormMode = ref<'create' | 'edit'>('create')
-const agreementFormStream = ref<AgreementStream>('Design')
-const agreementBeingEdited = ref<FinancialAgreement | undefined>(undefined)
 const isApprovingStream = ref<AgreementStream | undefined>(undefined)
 const isDeleteConfirmOpen = ref(false)
 const isDeleting = ref(false)
@@ -349,18 +347,16 @@ async function handleSubmitObligationPayment(): Promise<void> {
   }
 }
 
+// Both create and edit now live on their own page (PaymentPlanFormPage.vue)
+// rather than a modal -- it decides create vs edit itself from whether
+// the given stream already has an agreement, so navigating here is all
+// either action needs to do.
 function openCreateAgreement(stream: AgreementStream): void {
-  agreementFormMode.value = 'create'
-  agreementFormStream.value = stream
-  agreementBeingEdited.value = undefined
-  isAgreementFormOpen.value = true
+  router.push({ name: ROUTE_NAMES.PAYMENT_PLAN_FORM, params: { projectId: props.projectId, stream } })
 }
 
 function openEditAgreement(agreement: FinancialAgreement): void {
-  agreementFormMode.value = 'edit'
-  agreementFormStream.value = agreement.stream
-  agreementBeingEdited.value = agreement
-  isAgreementFormOpen.value = true
+  router.push({ name: ROUTE_NAMES.PAYMENT_PLAN_FORM, params: { projectId: props.projectId, stream: agreement.stream } })
 }
 
 // Once this approval was the last one a project needs (every visible
@@ -388,31 +384,14 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
   }
 }
 
-// Hands the already-approved quotation off via the store and switches
-// to the Contract tab, which picks up the pending request and opens its
-// New Contract dialog prefilled from it -- same mechanism
-// ProjectQuotationTab.vue used to trigger itself before this hop moved
-// here (see quotationStore.requestAdvanceToContract).
+// Takes staff straight to the New Contract page (ContractCreatePage.vue),
+// pinned to this already-approved quotation via ?quotationId= -- used to
+// hand the quotation off through quotationStore for the Contract tab's
+// own dialog to pick up on mount; now it's just a direct navigation.
 function handleAdvanceToContract(): void {
   const quotation = approvedQuotation()
   if (!quotation) return
-  quotationStore.requestAdvanceToContract(quotation.id)
-  emit('navigate-tab', 'contract')
-}
-
-async function handleSubmitAgreement(input: CreateAgreementInput): Promise<void> {
-  try {
-    if (agreementFormMode.value === 'edit' && agreementBeingEdited.value) {
-      await store.updateAgreement(agreementBeingEdited.value.id, input)
-      resultDialogStore.showSuccess(t('payment.planPanel.planUpdatedTitle'), t('payment.planPanel.planUpdatedDescription'))
-    } else {
-      await store.createAgreement(input, 'Rajan Kumar')
-      resultDialogStore.showSuccess(t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
-    }
-    isAgreementFormOpen.value = false
-  } catch (error) {
-    resultDialogStore.showError(t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  }
+  router.push({ name: ROUTE_NAMES.CONTRACT_CREATE, params: { projectId: props.projectId }, query: { quotationId: quotation.id } })
 }
 
 function requestDeleteAgreement(agreement: FinancialAgreement): void {
@@ -804,24 +783,6 @@ async function handleSendEmail(): Promise<void> {
         <BaseButton :loading="isSendingEmail" :disabled="!emailTo.trim()" @click="handleSendEmail">{{ t('payment.planPanel.send') }}</BaseButton>
       </template>
     </BaseDialog>
-
-    <AgreementFormDialog
-      v-model="isAgreementFormOpen"
-      :project-id="projectId"
-      :project="project"
-      :client="client"
-      :stream="agreementFormStream"
-      :mode="agreementFormMode"
-      :existing-agreement="agreementBeingEdited"
-      :existing-obligations="agreementBeingEdited ? obligationsForStream(agreementBeingEdited.stream) : []"
-      :approved-contract="
-        approvedQuotation()
-          ? { quotationNo: approvedQuotation()!.quotationNo, contractValue: approvedQuotation()!.amount, currency: approvedQuotation()!.currency }
-          : undefined
-      "
-      :is-submitting="store.isSubmitting"
-      @submit="handleSubmitAgreement"
-    />
 
     <BaseDialog
       v-if="obligationBeingPaid"
