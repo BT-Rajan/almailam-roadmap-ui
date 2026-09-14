@@ -118,11 +118,16 @@ class TeamWorkload(BaseModel):
     capacityAvailable: int
 
 
-class FinancialPeriodSummary(BaseModel):
-    startDate: str
-    endDate: str
+class FinancialCurrencyBreakdown(BaseModel):
+    currency: str
     totalReceived: float
     totalDue: float
     totalOutstanding: float
     totalOverdue: float
+
+
+class FinancialPeriodSummary(BaseModel):
+    startDate: str
+    endDate: str
     paymentCount: int
+    byCurrency: list[FinancialCurrencyBreakdown]

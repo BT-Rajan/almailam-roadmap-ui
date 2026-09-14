@@ -113,12 +113,17 @@ export interface TeamWorkload {
   capacityAvailable: number
 }
 
-export interface FinancialPeriodSummary {
-  startDate: string
-  endDate: string
+export interface FinancialCurrencyBreakdown {
+  currency: string
   totalReceived: number
   totalDue: number
   totalOutstanding: number
   totalOverdue: number
+}
+
+export interface FinancialPeriodSummary {
+  startDate: string
+  endDate: string
   paymentCount: number
+  byCurrency: FinancialCurrencyBreakdown[]
 }

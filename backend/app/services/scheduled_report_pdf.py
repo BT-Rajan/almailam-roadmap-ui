@@ -101,14 +101,15 @@ def _financial_summary_sections(db: Session, period: str | None) -> tuple[str, l
     period = period or "last_30_days"
     start_date, end_date = _period_bounds(period, date.today())
     summary = report_service.financial_period_summary(db, start_date, end_date)
-    rows = [
-        ("Period", f"{summary['startDate']} to {summary['endDate']}"),
-        ("Payments Received", _format_value(summary["totalReceived"])),
-        ("Number of Payments", str(summary["paymentCount"])),
-        ("Total Billed (fell due in period)", _format_value(summary["totalDue"])),
-        ("Outstanding (unpaid, of what's billed)", _format_value(summary["totalOutstanding"])),
-        ("Overdue (unpaid and past due)", _format_value(summary["totalOverdue"])),
-    ]
+    multi_currency = len(summary["byCurrency"]) > 1
+    rows = [("Period", f"{summary['startDate']} to {summary['endDate']}")]
+    for entry in summary["byCurrency"]:
+        suffix = f" ({entry['currency']})" if multi_currency else ""
+        rows.append((f"Payments Received{suffix}", f"{_format_value(entry['totalReceived'])} {entry['currency']}"))
+        rows.append((f"Total Billed (fell due in period){suffix}", f"{_format_value(entry['totalDue'])} {entry['currency']}"))
+        rows.append((f"Outstanding (unpaid, of what's billed){suffix}", f"{_format_value(entry['totalOutstanding'])} {entry['currency']}"))
+        rows.append((f"Overdue (unpaid and past due){suffix}", f"{_format_value(entry['totalOverdue'])} {entry['currency']}"))
+    rows.append(("Number of Payments", str(summary["paymentCount"])))
     title = f"Financial Summary Report \u2014 {PERIOD_LABELS.get(period, period)}"
     return title, [{"heading": "Financial Summary", "rows": rows}]
 

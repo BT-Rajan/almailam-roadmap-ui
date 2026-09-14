@@ -26,6 +26,20 @@ const paymentStore = usePaymentStore()
 const monthSummary = ref<FinancialPeriodSummary>()
 const isLoadingMonthSummary = ref(false)
 
+// financial_period_summary splits every total by currency (a project's
+// Design and Supervision agreements can be priced differently -- see
+// that function's own comment) rather than summing them, which a
+// compact 4-card dashboard tile has no room to show broken out. Picks
+// the currency with the largest amount billed this period as the one
+// "primary" figure to show -- correct and clearly labeled for the
+// common single-currency case, and a reasonable single representative
+// figure on the rare month a company bills in more than one.
+const primaryCurrencyEntry = computed(() => {
+  const entries = monthSummary.value?.byCurrency ?? []
+  if (entries.length === 0) return undefined
+  return entries.reduce((largest, entry) => (entry.totalDue > largest.totalDue ? entry : largest), entries[0])
+})
+
 // loadAll() also ensures projectStore/clientStore/quotationStore are
 // populated (see paymentStore.ts) -- deliberately not fetched until this
 // tab is actually opened, since it's the heaviest of the four loads and
@@ -49,14 +63,14 @@ const statistics = computed<StatisticItem[]>(() => [
   {
     id: 'earned',
     label: t('dashboard.totalEarnedThisMonth'),
-    value: monthSummary.value ? formatCurrency(monthSummary.value.totalDue) : '\u2014',
+    value: primaryCurrencyEntry.value ? formatCurrency(primaryCurrencyEntry.value.totalDue, primaryCurrencyEntry.value.currency) : '\u2014',
     icon: TrendingUp,
     color: 'primary',
   },
   {
     id: 'collected',
     label: t('dashboard.totalCollectedThisMonth'),
-    value: monthSummary.value ? formatCurrency(monthSummary.value.totalReceived) : '\u2014',
+    value: primaryCurrencyEntry.value ? formatCurrency(primaryCurrencyEntry.value.totalReceived, primaryCurrencyEntry.value.currency) : '\u2014',
     icon: Wallet,
     color: 'success',
   },
