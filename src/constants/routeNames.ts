@@ -4,6 +4,7 @@ export const ROUTE_NAMES = {
   PROJECTS: 'projects',
   PROJECT_NEW: 'project-new',
   PROJECT_WORKSPACE: 'project-workspace',
+  PAYMENT_PLAN_FORM: 'payment-plan-form',
   CLIENTS: 'clients',
   CLIENT_NEW: 'client-new',
   CLIENT_WORKSPACE: 'client-workspace',

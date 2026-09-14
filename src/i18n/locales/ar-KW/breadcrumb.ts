@@ -3,6 +3,7 @@ export default {
   projects: 'المشاريع',
   newProject: 'مشروع جديد',
   project: 'المشروع',
+  paymentPlan: 'خطة الدفع',
   clients: 'العملاء',
   newClient: 'عميل جديد',
   client: 'العميل',

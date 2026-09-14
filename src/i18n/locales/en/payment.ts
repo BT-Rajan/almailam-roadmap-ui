@@ -160,6 +160,9 @@ export default {
   },
 
   agreementFormDialog: {
+    backToPaymentPlan: 'Back to Payment Plan',
+    planNotFoundTitle: 'Payment plan not found',
+    planNotFoundDescription: 'This project or billing stream could not be found.',
     editTitle: 'Edit Payment Plan',
     createTitle: 'Create Payment Plan',
     client: 'Client',

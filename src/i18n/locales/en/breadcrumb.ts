@@ -3,6 +3,7 @@ export default {
   projects: 'Projects',
   newProject: 'New Project',
   project: 'Project',
+  paymentPlan: 'Payment Plan',
   clients: 'Clients',
   newClient: 'New Client',
   client: 'Client',

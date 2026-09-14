@@ -15,7 +15,6 @@ import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import NewSubmissionDialog from '@/components/government/NewSubmissionDialog.vue'
-import AgreementFormDialog from '@/components/payment/AgreementFormDialog.vue'
 import HandoverCard from '@/components/project/HandoverCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -32,7 +31,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { documentRequirementService } from '@/services/documentRequirementService'
 import { projectService } from '@/services/projectService'
 import type { DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
-import type { AgreementStream, CreateAgreementInput } from '@/types/Payment'
+import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
 import type { SubmissionCreateInput } from '@/services/governmentSubmissionService'
@@ -438,28 +437,13 @@ const paymentPlanAgreements = computed(() => {
 // and the header action goes back to just opening the full tab.
 const nextMissingPaymentPlanStream = computed(() => paymentPlanAgreements.value.find((row) => !row.agreement)?.stream)
 
-const isPaymentPlanFormOpen = ref(false)
-const paymentPlanFormStream = ref<AgreementStream>('Design')
-
+// Sends straight to the dedicated Payment Plan form page (see
+// PaymentPlanFormPage.vue, which replaced AgreementFormDialog.vue's
+// modal) instead of opening a dialog here -- same page PaymentPlanPanel
+// itself now navigates to for both create and edit.
 function openCreatePaymentPlan(): void {
   if (!nextMissingPaymentPlanStream.value) return
-  paymentPlanFormStream.value = nextMissingPaymentPlanStream.value
-  isPaymentPlanFormOpen.value = true
-}
-
-// Creates the agreement right here instead of sending staff to the
-// Payment Plan tab just to open the same dialog -- paymentPlanAgreements
-// above reads straight from paymentStore.agreements, so the result
-// (the newly created Draft plan) shows in this card immediately once
-// createAgreement resolves, no extra fetch needed.
-async function handleSubmitPaymentPlan(input: CreateAgreementInput): Promise<void> {
-  try {
-    const agreement = await paymentStore.createAgreement(input, 'Rajan Kumar')
-    toastStore.show('success', t('project.overviewTab.paymentPlanCreatedTitle'), t('project.overviewTab.paymentPlanCreatedDescription', { stream: getAgreementStreamLabel(agreement.stream) }))
-    isPaymentPlanFormOpen.value = false
-  } catch (error) {
-    toastStore.show('error', t('project.overviewTab.failedToCreatePaymentPlan'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
-  }
+  router.push({ name: ROUTE_NAMES.PAYMENT_PLAN_FORM, params: { projectId: props.project.id, stream: nextMissingPaymentPlanStream.value } })
 }
 
 // The contract's own linked quotation (contract.quotationNo) rather than
@@ -1245,22 +1229,6 @@ function verificationResultLabel(result: string): string {
       @confirm="handleCreateSubmission"
     />
     <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
-    <AgreementFormDialog
-      v-model="isPaymentPlanFormOpen"
-      :project-id="project.id"
-      :project="project"
-      :client="client"
-      :stream="paymentPlanFormStream"
-      mode="create"
-      :existing-obligations="[]"
-      :approved-contract="
-        paymentPlanQuotation
-          ? { quotationNo: paymentPlanQuotation.quotationNo, contractValue: paymentPlanQuotation.amount, currency: paymentPlanQuotation.currency }
-          : undefined
-      "
-      :is-submitting="paymentStore.isSubmitting"
-      @submit="handleSubmitPaymentPlan"
-    />
     <AddLinkDocumentDialog
       v-model="isAddClosureDocDialogOpen"
       :project-id="project.id"

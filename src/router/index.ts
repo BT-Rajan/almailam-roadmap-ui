@@ -108,6 +108,28 @@ const router = createRouter({
       },
     },
     {
+      // Replaces AgreementFormDialog.vue's modal with a dedicated page,
+      // same treatment as TaskCreatePage.vue (see TASK_CREATE above) --
+      // ':stream' is 'Design' or 'Supervision'; the page itself decides
+      // create vs edit from whether that stream already has an agreement.
+      path: '/projects/:projectId/payment-plan/:stream',
+      name: ROUTE_NAMES.PAYMENT_PLAN_FORM,
+      component: () => import('@/pages/PaymentPlanFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          // No routeName here -- PROJECT_WORKSPACE requires :projectId,
+          // which this breadcrumb renderer (TopNavigation.vue) can't
+          // supply when linking by name alone.
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.paymentPlan' },
+        ],
+      },
+    },
+    {
       path: '/clients',
       name: ROUTE_NAMES.CLIENTS,
       component: () => import('@/pages/ClientsPage.vue'),
