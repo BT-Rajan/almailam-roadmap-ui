@@ -4,8 +4,9 @@ import { messageService } from '@/services/messageService'
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Client } from '@/types/Client'
-import type { MessageChannel, MessageLogEntry, MessageTemplate, SendMessagePayload } from '@/types/Message'
+import type { MessageChannel, MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
 import type { Project } from '@/types/Project'
+import { triggerBlobDownload } from '@/utils/fileDownload'
 
 interface MessageCentreStoreState {
   templates: MessageTemplate[]
@@ -138,6 +139,29 @@ export const useMessageCentreStore = defineStore('messageCentre', {
       } finally {
         this.isSending = false
       }
+    },
+
+    // Real send (SMTP, optional attachments) -- see messageService.sendEmail.
+    // A delivery failure is still recorded as a 'Failed' MessageLogEntry
+    // on the backend (see message_service.send_email), but the backend
+    // also raises alongside logging it, so this call rejects too -- the
+    // compose dialog's own catch block surfaces the error toast, and the
+    // failed entry shows up in this.log on the next loadAll rather than
+    // being spliced in here.
+    async sendEmail(payload: SendEmailPayload): Promise<MessageLogEntry> {
+      this.isSending = true
+      try {
+        const entry = await messageService.sendEmail(payload)
+        this.log = [entry, ...this.log]
+        return entry
+      } finally {
+        this.isSending = false
+      }
+    },
+
+    async downloadAttachment(messageId: string, attachmentId: string, filename: string) {
+      const blob = await messageService.downloadAttachment(messageId, attachmentId)
+      triggerBlobDownload(blob, filename)
     },
   },
 })

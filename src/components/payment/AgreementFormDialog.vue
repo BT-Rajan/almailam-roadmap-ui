@@ -182,12 +182,32 @@ function resetForm(): void {
   milestones.value = buildDefaultMilestones()
 }
 
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- Agreement Date/
+// Total Amount/Contract Start Date were previously only checked inside
+// handleSubmit, via the click-then-see-inline-errors pattern noted
+// above, so they looked like ordinary optional fields until the first
+// failed Create/Save click. Re-runs on every edit to any of the three,
+// and once as soon as the dialog opens, so they're flagged red from
+// the moment they're shown instead.
+function revalidate(): void {
+  validateAll({
+    agreementDate: agreementDate.value,
+    contractAmount: contractAmount.value,
+    contractStartDate: contractStartDate.value,
+  })
+}
+
 watch(
   () => props.modelValue,
   (isOpen) => {
-    if (isOpen) resetForm()
+    if (isOpen) {
+      resetForm()
+      revalidate()
+    }
   },
 )
+watch([agreementDate, contractAmount, contractStartDate], revalidate)
 
 function addMilestone(): void {
   if (milestones.value.length >= MAX_MILESTONES) return

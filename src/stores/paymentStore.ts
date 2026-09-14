@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { paymentService } from '@/services/paymentService'
+import { ApiError } from '@/services/httpClient'
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -165,7 +166,16 @@ export const usePaymentStore = defineStore('payment', {
         ])
         this.agreements = agreements
         this.obligations = obligations
-      } catch {
+      } catch (error) {
+        // A genuine 401 here means httpClient's own refresh-and-retry
+        // already failed (session cookie expired/rotated) and it has
+        // already logged authStore out -- staying on this page and
+        // showing a generic retry-able message would just repeat the
+        // same failed request forever with no token. Let the caller
+        // (PaymentsPage) redirect to login instead, the same way
+        // CustomerProjectViewPage/useIdleLogout treat a real auth
+        // failure as distinct from an ordinary network/server error.
+        if (error instanceof ApiError && error.status === 401) throw error
         this.error = 'Unable to load payment information. Please try again.'
       } finally {
         this.isLoading = false

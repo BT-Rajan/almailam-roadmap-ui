@@ -25,6 +25,11 @@ export default {
   moveTo: 'نقل إلى {status}',
   presetFlag: 'لم تتم مراجعتها بعد',
 
+  progress: {
+    label: 'تقدم المهمة',
+    stepLabel: 'الخطوة {current} من {total} · {label}',
+  },
+
   assignmentCard: {
     assignedTo: 'مسندة إلى',
     reassignTo: 'إعادة الإسناد إلى',

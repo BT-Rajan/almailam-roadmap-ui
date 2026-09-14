@@ -9,6 +9,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { ApiError } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
@@ -18,6 +20,7 @@ import type { SmartTableColumn } from '@/types/Table'
 
 const router = useRouter()
 const store = usePaymentStore()
+const authStore = useAuthStore()
 const { t } = useI18n()
 
 interface AgreementTableRow {
@@ -78,8 +81,20 @@ function goToProjectPayments(row: AgreementTableRow): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: row.projectId } })
 }
 
-function loadData(): void {
-  void store.loadAll()
+async function loadData(): Promise<void> {
+  try {
+    await store.loadAll()
+  } catch (error) {
+    // Mirrors CustomerProjectViewPage/useIdleLogout: httpClient already
+    // retried and logged authStore out by the time a 401 gets here, so
+    // this is a real expired session, not a transient failure -- bounce
+    // to login with the reason instead of leaving the page stuck on a
+    // generic "couldn't load" error with no way to recover.
+    if (error instanceof ApiError && error.status === 401) {
+      authStore.logoutReason = 'Your session has expired. Please sign in again.'
+      await router.push({ name: ROUTE_NAMES.LOGIN })
+    }
+  }
 }
 
 const AGREEMENT_STREAM_LABEL_KEYS: Record<string, string> = {

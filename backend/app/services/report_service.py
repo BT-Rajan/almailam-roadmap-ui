@@ -13,6 +13,7 @@ from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
+from app.services import company_service
 from app.services.payment_service import get_financial_summary
 
 
@@ -63,6 +64,14 @@ def documents_by_status(db: Session) -> list[dict]:
 
 
 def payments_received_by_month(db: Session, months: int = 6) -> list[dict]:
+    """Payments received per month, scoped to the company's configured
+    default currency (see CompanySettings.currency / AdminCompanyPage) --
+    FinancialAgreement.currency is picked per contract/quotation (AED/
+    USD/SAR/KWD, see AgreementFormDialog/NewContractDialog), so summing
+    every Payment regardless of its agreement's currency would silently
+    add different currencies together. A single trend line can only
+    honestly represent one currency at a time; if other currencies are
+    in use, this is the org's default one, not necessarily "all of it"."""
     today = date.today()
     year, month = today.year, today.month
     buckets: list[tuple[int, int]] = []
@@ -73,18 +82,24 @@ def payments_received_by_month(db: Session, months: int = 6) -> list[dict]:
             month, year = 12, year - 1
     buckets.reverse()
 
+    report_currency = company_service.get_settings(db).currency
     rows = (
         db.query(
             func.year(Payment.payment_date),
             func.month(Payment.payment_date),
             func.sum(Payment.amount_received),
         )
+        .join(FinancialAgreement, Payment.agreement_id == FinancialAgreement.id)
+        .filter(FinancialAgreement.currency == report_currency)
         .group_by(func.year(Payment.payment_date), func.month(Payment.payment_date))
         .all()
     )
     totals = {(int(y), int(m)): float(total) for y, m, total in rows}
 
-    return [{"x": f"{month_abbr[m]} {y}", "value": totals.get((y, m), 0.0)} for y, m in buckets]
+    return {
+        "currency": report_currency,
+        "series": [{"x": f"{month_abbr[m]} {y}", "value": totals.get((y, m), 0.0)} for y, m in buckets],
+    }
 
 
 def summary_metrics(db: Session) -> list[dict]:
@@ -111,24 +126,49 @@ def summary_metrics(db: Session) -> list[dict]:
         .scalar()
         or 0
     )
-    total_received = db.query(func.sum(PaymentObligation.amount_received)).scalar() or 0
-    total_pending = (
-        db.query(func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
-        .filter(PaymentObligation.manual_status.is_(None))
-        .scalar()
-        or 0
+    # Total Received / Total Pending, broken out by currency. Obligations
+    # aren't guaranteed to share one currency -- FinancialAgreement.currency
+    # is picked per contract/quotation (AED/USD/SAR/KWD, see
+    # AgreementFormDialog/NewContractDialog/company_service's own default
+    # of "AED") -- so a single unlabeled sum would silently add different
+    # currencies together. Emit one metric per currency actually present;
+    # only fall back to the company's configured default when there's no
+    # payment data at all yet, so the cards aren't just missing.
+    received_by_currency = dict(
+        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_received))
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
+        .group_by(FinancialAgreement.currency)
+        .all()
     )
+    pending_by_currency = dict(
+        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
+        .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
+        .filter(PaymentObligation.manual_status.is_(None))
+        .group_by(FinancialAgreement.currency)
+        .all()
+    )
+    currencies = sorted(set(received_by_currency) | set(pending_by_currency)) or [company_service.get_settings(db).currency]
+    multi_currency = len(currencies) > 1
 
-    return [
+    metrics = [
         {"label": "Total Projects", "value": total_projects, "color": "primary"},
         {"label": "Active Projects", "value": active_projects, "color": "success"},
         {"label": "On Hold Projects", "value": on_hold_projects, "color": "info"},
         {"label": "Total Clients", "value": total_clients, "color": "primary"},
         {"label": "Open Tasks", "value": open_tasks, "color": "warning"},
         {"label": "Overdue Tasks", "value": overdue_tasks, "color": "danger"},
-        {"label": "Total Received", "value": float(total_received), "unit": "KWD", "color": "success"},
-        {"label": "Total Pending", "value": float(total_pending), "unit": "KWD", "color": "warning"},
     ]
+    for currency in currencies:
+        label = f"Total Received ({currency})" if multi_currency else "Total Received"
+        metrics.append(
+            {"label": label, "value": float(received_by_currency.get(currency, 0) or 0), "unit": currency, "color": "success"}
+        )
+    for currency in currencies:
+        label = f"Total Pending ({currency})" if multi_currency else "Total Pending"
+        metrics.append(
+            {"label": label, "value": float(pending_by_currency.get(currency, 0) or 0), "unit": currency, "color": "warning"}
+        )
+    return metrics
 
 
 def _ledger_project_client_filter(query, project_no: str | None, client_id: int | None):
@@ -275,6 +315,100 @@ def employee_performance(db: Session, year: int, month: int) -> list[dict]:
     return sorted(results, key=lambda entry: entry["employeeName"])
 
 
+# No table anywhere tracks a person's actual capacity (hours/week,
+# FTE, or anything similar) -- User has no such column, and Task has no
+# estimate/effort field either (see models/user.py, models/task.py). So
+# "how full is this person" can't be measured, only approximated from
+# what we do track: how many tasks are currently open on them. This
+# constant is that approximation's one free parameter -- the open-task
+# count treated as "fully loaded" for allocation-percent purposes. It's
+# a business assumption, not a measured figure, and should be revisited
+# (or the whole allocationPercent field dropped) if it doesn't match
+# how the team actually thinks about workload.
+TASKS_AT_FULL_CAPACITY = 8
+
+
+def team_workload(db: Session) -> dict:
+    """Real per-engineer workload: currently-open task count, overdue
+    task count, and active (status='Active') project count, each read
+    straight from tasks/projects -- no discipline/department breakdown,
+    since no such field exists on User; role is the only real
+    grouping available. allocationPercent is open tasks against
+    TASKS_AT_FULL_CAPACITY above, not a measured utilization figure.
+    Only active, non-deleted Engineers are included -- they're the
+    role tasks/projects actually get assigned to (see
+    core.permissions.ROLES and Project.engineer_id)."""
+    engineers = (
+        db.query(User)
+        .filter(User.role == "Engineer", User.is_active.is_(True), User.deleted_at.is_(None))
+        .all()
+    )
+    if not engineers:
+        return {
+            "members": [],
+            "totalMembers": 0,
+            "averageUtilization": 0,
+            "overallocatedCount": 0,
+            "capacityAvailable": 0,
+        }
+
+    engineer_ids = [engineer.id for engineer in engineers]
+    today = date.today()
+
+    open_tasks_by_user = dict(
+        db.query(Task.assigned_to, func.count(Task.id))
+        .filter(Task.deleted_at.is_(None), Task.status != "Completed", Task.assigned_to.in_(engineer_ids))
+        .group_by(Task.assigned_to)
+        .all()
+    )
+    overdue_by_user = dict(
+        db.query(Task.assigned_to, func.count(Task.id))
+        .filter(
+            Task.deleted_at.is_(None),
+            Task.status != "Completed",
+            Task.due_date < today,
+            Task.assigned_to.in_(engineer_ids),
+        )
+        .group_by(Task.assigned_to)
+        .all()
+    )
+    active_projects_by_user = dict(
+        db.query(Project.engineer_id, func.count(Project.id))
+        .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.engineer_id.in_(engineer_ids))
+        .group_by(Project.engineer_id)
+        .all()
+    )
+
+    members = []
+    for engineer in engineers:
+        open_tasks = open_tasks_by_user.get(engineer.id, 0)
+        allocation_percent = round(open_tasks * 100 / TASKS_AT_FULL_CAPACITY)
+        members.append(
+            {
+                "userId": str(engineer.id),
+                "name": engineer.full_name,
+                "role": engineer.role,
+                "activeProjects": active_projects_by_user.get(engineer.id, 0),
+                "activeTasks": open_tasks,
+                "overdueTasks": overdue_by_user.get(engineer.id, 0),
+                "allocationPercent": allocation_percent,
+                "overallocated": allocation_percent > 100,
+            }
+        )
+    members.sort(key=lambda member: member["name"])
+
+    average_utilization = round(sum(member["allocationPercent"] for member in members) / len(members))
+    overallocated_count = sum(1 for member in members if member["overallocated"])
+
+    return {
+        "members": members,
+        "totalMembers": len(members),
+        "averageUtilization": average_utilization,
+        "overallocatedCount": overallocated_count,
+        "capacityAvailable": max(0, 100 - average_utilization),
+    }
+
+
 def financial_period_summary(db: Session, start_date: date, end_date: date) -> dict:
     """One period's financial snapshot -- total received (payments
     recorded in the period), total due (obligations that fell due in the
@@ -414,17 +548,30 @@ def project_report(db: Session, project: Project) -> list[dict]:
         },
     ]
 
-    agreement = (
+    # A project can have up to one agreement PER billing stream (Design,
+    # Supervision -- see the (project_id, stream) unique constraint on
+    # FinancialAgreement, and ProjectOverviewTab.vue's own "one row per
+    # stream this project actually includes" handling). Picking only the
+    # single latest-by-id agreement here used to silently drop whichever
+    # stream wasn't picked when a project has both -- e.g. a project with
+    # a Supervision agreement added after its Design one would show only
+    # Supervision's numbers and lose Design's Contract Amount/Received/
+    # Pending/Overdue entirely. Now emits one Finance section per
+    # agreement that actually exists, ordered by stream name so Design
+    # (if present) shows before Supervision.
+    agreements = (
         db.query(FinancialAgreement)
         .filter(FinancialAgreement.project_id == project.id)
-        .order_by(FinancialAgreement.id.desc())
-        .first()
+        .order_by(FinancialAgreement.stream)
+        .all()
     )
-    if agreement is not None:
+    multi_stream = len(agreements) > 1
+    for agreement in agreements:
         financial_summary = get_financial_summary(db, agreement.id)
+        title = f"Finance ({agreement.stream})" if multi_stream else "Finance"
         sections.append(
             {
-                "title": "Finance",
+                "title": title,
                 "metrics": [
                     {"label": "Contract Amount", "value": float(agreement.contract_amount), "unit": agreement.currency},
                     {"label": "Total Received", "value": float(financial_summary["totalReceived"]), "unit": agreement.currency},

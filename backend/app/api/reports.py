@@ -13,8 +13,10 @@ from app.schemas.report import (
     LineChartDataPoint,
     PaymentLedgerEntry,
     PaymentProjections,
+    PaymentsReceivedByMonth,
     ReportMetric,
     ReportSection,
+    TeamWorkload,
 )
 from app.services import client_service, project_service, report_service
 
@@ -63,7 +65,7 @@ def documents_by_status(db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.documents_by_status(db)
 
 
-@router.get("/payments-received-by-month", response_model=list[LineChartDataPoint])
+@router.get("/payments-received-by-month", response_model=PaymentsReceivedByMonth)
 def payments_received_by_month(months: int = 6, db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.payments_received_by_month(db, months)
 
@@ -100,6 +102,11 @@ def payment_projections(
 @router.get("/employee-performance", response_model=list[EmployeePerformance])
 def employee_performance(year: int, month: int, db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.employee_performance(db, year, month)
+
+
+@router.get("/team-workload", response_model=TeamWorkload)
+def team_workload(db: Session = Depends(get_db), _=Depends(can_view)):
+    return report_service.team_workload(db)
 
 
 @router.get("/financial-summary", response_model=FinancialPeriodSummary)

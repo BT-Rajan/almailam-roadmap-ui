@@ -30,19 +30,24 @@ const error = ref<string | undefined>(undefined)
 const keyMetrics = ref<ReportMetric[]>([])
 const projectsByStatus = ref<ChartDataPoint[]>([])
 const paymentsReceivedTrend = ref<LineChartData[]>([])
+const paymentsReceivedCurrency = ref('')
 const contractsByStatus = ref<ChartDataPoint[]>([])
 
 async function loadReport(): Promise<void> {
   isLoading.value = true
   error.value = undefined
   try {
-    ;[keyMetrics.value, projectsByStatus.value, paymentsReceivedTrend.value, contractsByStatus.value] =
-      await Promise.all([
-        reportService.getSummary(),
-        reportService.getProjectsByStatus(),
-        reportService.getPaymentsReceivedByMonth(6),
-        reportService.getContractsByStatus(),
-      ])
+    const [metrics, projects, paymentsTrend, contracts] = await Promise.all([
+      reportService.getSummary(),
+      reportService.getProjectsByStatus(),
+      reportService.getPaymentsReceivedByMonth(6),
+      reportService.getContractsByStatus(),
+    ])
+    keyMetrics.value = metrics
+    projectsByStatus.value = projects
+    paymentsReceivedTrend.value = paymentsTrend.series
+    paymentsReceivedCurrency.value = paymentsTrend.currency
+    contractsByStatus.value = contracts
   } catch {
     error.value = 'Unable to load the executive report. Please try again.'
   } finally {
@@ -93,7 +98,7 @@ const goBack = () => {
       </ReportSection>
 
       <!-- Payments Received Trend -->
-      <ReportSection :title="t('report.executivePage.paymentsTrendTitle')" :description="t('report.executivePage.paymentsTrendDescription')" fullWidth>
+      <ReportSection :title="t('report.executivePage.paymentsTrendTitle')" :description="t('report.executivePage.paymentsTrendDescription', { currency: paymentsReceivedCurrency })" fullWidth>
         <Card>
           <LineChart :data="paymentsReceivedTrend" :height="350" />
         </Card>

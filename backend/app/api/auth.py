@@ -42,7 +42,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
         path=REFRESH_COOKIE_PATH,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
     )
 
 

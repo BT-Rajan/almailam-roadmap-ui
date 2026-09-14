@@ -67,6 +67,25 @@ class Settings(BaseSettings):
     # work around a transport issue.
     COOKIE_SECURE: bool | None = None
 
+    # Controls the `SameSite` attribute on the refresh-token cookie.
+    # "lax" (the default) only works when the frontend and this API are
+    # same-site (same registrable domain -- different ports/subdomains of
+    # the same domain are fine, e.g. the single-process deploy where both
+    # are served from one origin). The moment they're on genuinely
+    # different domains (a separately-hosted frontend calling this API,
+    # a staging frontend pointed at a shared backend, etc.), "lax" means
+    # the browser silently *won't attach the cookie at all* to the
+    # fetch() calls apiClient.ts makes with credentials: 'include' --
+    # cross-site requests only get a Lax cookie on top-level navigations,
+    # never on XHR/fetch. That shows up as exactly this: no CORS error on
+    # the request itself (CORS_ORIGINS being correct is a separate,
+    # necessary-but-not-sufficient condition), but /api/auth/refresh 401s
+    # every time because request.cookies.get("refresh_token") is simply
+    # empty on the server. Set this to "none" for a cross-site deployment
+    # -- browsers require Secure whenever SameSite=None (enforced below),
+    # so that also means the API must be served over HTTPS.
+    COOKIE_SAMESITE: str = "lax"
+
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
@@ -138,6 +157,15 @@ class Settings(BaseSettings):
     def cookie_secure(self) -> bool:
         return self.is_production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
 
+    @property
+    def cookie_samesite(self) -> str:
+        value = self.COOKIE_SAMESITE.strip().lower()
+        if value not in ("lax", "strict", "none"):
+            raise RuntimeError(
+                f"COOKIE_SAMESITE must be one of 'lax', 'strict', or 'none' (got '{self.COOKIE_SAMESITE}')."
+            )
+        return value
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -145,5 +173,16 @@ def get_settings() -> Settings:
     if settings.is_production and len(settings.JWT_SECRET_KEY) < 32:
         raise RuntimeError(
             "JWT_SECRET_KEY must be set to a random value of at least 32 characters in production."
+        )
+    # Browsers reject/strip a SameSite=None cookie outright unless it's
+    # also Secure -- so a cross-site deploy that sets COOKIE_SAMESITE=none
+    # without also getting Secure=true (either via COOKIE_SECURE=true or
+    # ENV=production with COOKIE_SECURE left unset) would silently trade
+    # one broken refresh cookie for another, in a way that's much harder
+    # to spot than failing loudly at startup.
+    if settings.cookie_samesite == "none" and not settings.cookie_secure:
+        raise RuntimeError(
+            "COOKIE_SAMESITE=none requires the refresh cookie to be Secure -- "
+            "set COOKIE_SECURE=true (and serve the API over HTTPS) or use ENV=production."
         )
     return settings

@@ -60,3 +60,21 @@ export interface DocumentItem {
   // Null for a link-only document with no uploaded file.
   size: string | null
 }
+
+export interface RecentClient {
+  id: string
+  name: string
+  type: string
+  status: 'Active' | 'Inactive'
+  city: string
+  createdDate: string
+}
+
+export interface OverdueAgreement {
+  id: string
+  projectId: string
+  project: string
+  client: string
+  overdueAmount: number
+  currency: string
+}

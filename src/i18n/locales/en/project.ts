@@ -173,6 +173,7 @@ export default {
     failedToSaveScope: 'Failed to save scope of work',
     noScopeWarning: 'The scope of work hasn’t been written up yet — required before moving on to Quotation.',
     noClientIdWarning: 'The client has no identification document on file yet — required before moving on to Quotation.',
+    scopeLockedNotice: 'Scope is locked because a quotation has already been approved against it.',
     quotationTitle: 'Quotation',
     goToQuotation: 'Go to Quotation',
     quotationStatusLabel: 'Quotation Status',

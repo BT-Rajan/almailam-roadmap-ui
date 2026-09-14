@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 
@@ -263,6 +263,23 @@ function validateStep(step: number): boolean {
   })
   return validateAll(data)
 }
+
+// Same "highlight empty mandatory fields immediately" behaviour as the
+// Client wizard (see NewClientWizardPage.vue's basicInfoErrors/
+// contactErrors/etc, each a plain computed re-evaluated on every
+// render) -- there, `errors` isn't only populated after a failed
+// "Next"/"Create Project" click, so a blank required field is never
+// shown looking identical to a blank optional one just because it
+// hasn't been touched yet. Re-runs on every form edit and on step
+// change, and `immediate: true` gets it to run once on mount too, so
+// Client/Service/Field Engineer on Step 1 (and Project Name/Start
+// Date/Target Date on Step 2) are already flagged red the moment the
+// wizard opens, before anything is typed or clicked.
+function revalidateCurrentStep(): void {
+  validateStep(currentStep.value)
+}
+watch(form, revalidateCurrentStep, { deep: true, immediate: true })
+watch(currentStep, revalidateCurrentStep)
 
 function goNext(): void {
   if (!validateStep(currentStep.value)) {

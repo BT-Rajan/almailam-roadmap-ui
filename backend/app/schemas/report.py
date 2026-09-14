@@ -13,6 +13,11 @@ class LineChartDataPoint(BaseModel):
     color: str | None = None
 
 
+class PaymentsReceivedByMonth(BaseModel):
+    currency: str
+    series: list[LineChartDataPoint]
+
+
 class ReportMetricChange(BaseModel):
     direction: str
     percentage: float
@@ -89,6 +94,25 @@ class EmployeePerformance(BaseModel):
     assigned: int
     completed: int
     completionRate: int
+
+
+class TeamWorkloadMember(BaseModel):
+    userId: str
+    name: str
+    role: str
+    activeProjects: int
+    activeTasks: int
+    overdueTasks: int
+    allocationPercent: int
+    overallocated: bool
+
+
+class TeamWorkload(BaseModel):
+    members: list[TeamWorkloadMember]
+    totalMembers: int
+    averageUtilization: int
+    overallocatedCount: int
+    capacityAvailable: int
 
 
 class FinancialPeriodSummary(BaseModel):

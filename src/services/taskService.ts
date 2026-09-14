@@ -52,6 +52,21 @@ async function getTasks(): Promise<Task[]> {
 }
 
 /**
+ * Fetch every task for one project as a flat array, walking every page
+ * rather than a single capped request. getTasksPage's own pageSize is
+ * bounded by the server's MAX_PAGE_SIZE (200, see fetchAllPages.ts) --
+ * a project with more open/closed tasks than that (plausible for a
+ * long-running multi-year Supervision project) would silently lose
+ * tasks past the 200th with a single getTasksPage call and no
+ * indication anything was cut off. Use this wherever a UI needs every
+ * task for one project, not just one page of them (e.g. the Project
+ * Stage & Task Tree report).
+ */
+async function getTasksForProject(projectId: string): Promise<Task[]> {
+  return fetchAllPages<Task>((page, pageSize) => getTasksPage({ projectId, page, pageSize }))
+}
+
+/**
  * Fetch a specific task by ID from backend API
  */
 async function getTaskById(taskId: string): Promise<Task | undefined> {
@@ -104,6 +119,7 @@ async function deleteTask(taskId: string): Promise<void> {
 export const taskService = {
   getTasks,
   getTasksPage,
+  getTasksForProject,
   getTaskById,
   createTask,
   updateTask,

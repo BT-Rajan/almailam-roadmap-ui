@@ -43,6 +43,7 @@ interface ClientRow {
   activeProjects: number
   onHoldProjects: number
   completedProjects: number
+  cancelledProjects: number
 }
 
 const clientRows = computed<ClientRow[]>(() =>
@@ -54,6 +55,7 @@ const clientRows = computed<ClientRow[]>(() =>
     activeProjects: client.projects.filter((p) => p.status === 'Active').length,
     onHoldProjects: client.projects.filter((p) => p.status === 'On Hold').length,
     completedProjects: client.projects.filter((p) => p.status === 'Completed').length,
+    cancelledProjects: client.projects.filter((p) => p.status === 'Cancelled').length,
   })),
 )
 
@@ -64,6 +66,7 @@ const clientColumns = computed<SmartTableColumn<ClientRow>[]>(() => [
   { key: 'activeProjects', label: t('report.clientProjectsPage.columnActive'), align: 'right' },
   { key: 'onHoldProjects', label: t('report.clientProjectsPage.columnOnHold'), align: 'right' },
   { key: 'completedProjects', label: t('report.clientProjectsPage.columnCompleted'), align: 'right' },
+  { key: 'cancelledProjects', label: t('report.clientProjectsPage.columnCancelled'), align: 'right' },
 ])
 
 type ProjectRow = ClientProjectSummary & Record<string, unknown>

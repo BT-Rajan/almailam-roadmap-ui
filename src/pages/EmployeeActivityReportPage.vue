@@ -125,6 +125,8 @@ interface EmployeeSummaryRow {
   completed: number
   approved: number
   rejected: number
+  assigned: number
+  commented: number
 }
 
 const employeeSummaries = computed<EmployeeSummaryRow[]>(() => {
@@ -133,7 +135,7 @@ const employeeSummaries = computed<EmployeeSummaryRow[]>(() => {
     const key = activity.userId || '0'
     let row = byUser.get(key)
     if (!row) {
-      row = { userId: key, employee: activity.userName, total: 0, new: 0, updated: 0, completed: 0, approved: 0, rejected: 0 }
+      row = { userId: key, employee: activity.userName, total: 0, new: 0, updated: 0, completed: 0, approved: 0, rejected: 0, assigned: 0, commented: 0 }
       byUser.set(key, row)
     }
     row.total += 1
@@ -147,6 +149,8 @@ const summaryColumns = computed<SmartTableColumn<EmployeeSummaryRow>[]>(() => [
   { key: 'total', label: t('report.employeeActivityPage.columnTotal'), align: 'right', sortable: true },
   { key: 'new', label: t('report.employeeActivityPage.columnNew'), align: 'right' },
   { key: 'updated', label: t('report.employeeActivityPage.columnUpdated'), align: 'right' },
+  { key: 'assigned', label: t('report.employeeActivityPage.columnAssigned'), align: 'right' },
+  { key: 'commented', label: t('report.employeeActivityPage.columnCommented'), align: 'right' },
   { key: 'completed', label: t('report.employeeActivityPage.columnCompleted'), align: 'right' },
   { key: 'approved', label: t('report.employeeActivityPage.columnApproved'), align: 'right' },
   { key: 'rejected', label: t('report.employeeActivityPage.columnRejected'), align: 'right' },

@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { MessageLogEntry, MessageTemplate, SendMessagePayload } from '@/types/Message'
+import type { MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
 
 /**
  * Fetch all message templates from backend API
@@ -37,8 +37,45 @@ async function sendMessage(payload: SendMessagePayload): Promise<MessageLogEntry
   }
 }
 
+/**
+ * Send a real email (with optional attachments) via backend API --
+ * distinct from sendMessage above because it needs a multipart body
+ * for the files, and because it actually delivers over SMTP instead
+ * of just logging a claimed send (see message_service.send_email).
+ */
+async function sendEmail(payload: SendEmailPayload): Promise<MessageLogEntry> {
+  const formData = new FormData()
+  formData.append('clientId', payload.clientId)
+  formData.append('subject', payload.subject)
+  formData.append('body', payload.body)
+  if (payload.projectId) formData.append('projectId', payload.projectId)
+  for (const file of payload.files) formData.append('files', file)
+
+  try {
+    return await apiClient.postForm<MessageLogEntry>('/api/messages/send-email', formData)
+  } catch (error) {
+    console.error('Failed to send email:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to send email')
+  }
+}
+
+/**
+ * Download one attachment from a logged message -- same Blob-based
+ * pattern as documentService.downloadDocument.
+ */
+async function downloadAttachment(messageId: string, attachmentId: string): Promise<Blob> {
+  try {
+    return await apiClient.getBlob(`/api/messages/log/${messageId}/attachments/${attachmentId}/download`)
+  } catch (error) {
+    console.error(`Failed to download attachment ${attachmentId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to download attachment')
+  }
+}
+
 export const messageService = {
   getTemplates,
   getMessageLog,
   sendMessage,
+  sendEmail,
+  downloadAttachment,
 }

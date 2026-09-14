@@ -38,6 +38,12 @@ const options = (): SelectOption[] =>
 const form = reactive({ status: '', reason: '' })
 const errors = reactive({ status: '', reason: '' })
 
+function validate(): boolean {
+  errors.status = form.status ? '' : 'Please select a status'
+  errors.reason = form.status === 'Rejected' && !form.reason.trim() ? 'A reason is required to reject a document' : ''
+  return !errors.status && !errors.reason
+}
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -45,19 +51,25 @@ watch(
     const available = options()
     form.status = available.length === 1 ? available[0].value : ''
     form.reason = ''
-    errors.status = ''
-    errors.reason = ''
+    validate()
   },
 )
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- validate() was
+// previously only run from handleConfirm, so Status (and Reason, once
+// Rejected is picked) looked like ordinary optional fields until the
+// first failed Confirm click. The modelValue watch above now also
+// calls it as soon as the dialog opens; this keeps it live on every
+// edit too.
+watch(form, validate, { deep: true })
 
 function closeDialog(): void {
   emit('update:modelValue', false)
 }
 
 function handleConfirm(): void {
-  errors.status = form.status ? '' : 'Please select a status'
-  errors.reason = form.status === 'Rejected' && !form.reason.trim() ? 'A reason is required to reject a document' : ''
-  if (errors.status || errors.reason) return
+  if (!validate()) return
 
   emit('confirm', { status: form.status as DocumentStatus, reason: form.reason.trim() || undefined })
 }

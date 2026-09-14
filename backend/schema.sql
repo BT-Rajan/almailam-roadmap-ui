@@ -1098,14 +1098,37 @@ CREATE TABLE IF NOT EXISTS message_log (
     client_id       BIGINT UNSIGNED NOT NULL,
     channel         ENUM('Email','SMS','WhatsApp') NOT NULL,
     template_id     BIGINT UNSIGNED NULL,
+    -- Email-only -- NULL for SMS/WhatsApp. Defaults to "{project name}
+    -- - {current stage}" from the Message Centre compose modal, stored
+    -- as whatever was actually sent (migration 0098).
+    subject         VARCHAR(300) NULL,
     body            TEXT NOT NULL,
     project_id      BIGINT UNSIGNED NULL,
     status          ENUM('Sent','Failed') NOT NULL,
+    -- Populated only when status = 'Failed' -- Email goes through real
+    -- SMTP and can genuinely fail; SMS/WhatsApp only ever simulate
+    -- sending so never populate this (migration 0098).
+    error_message   VARCHAR(500) NULL,
     sent_at         DATETIME NOT NULL,
     CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_message_log_template FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE SET NULL,
     CONSTRAINT fk_message_log_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
     INDEX idx_message_log_client (client_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Files attached to an Email-channel message_log row (migration 0098)
+-- -- SMS/WhatsApp rows never have any. Stored the same way as
+-- project_documents (storage_key/original_filename/file_size_bytes),
+-- but kept as its own table since an emailed attachment isn't a
+-- project document (no version history, no project required at all).
+CREATE TABLE IF NOT EXISTS message_attachments (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    message_log_id      BIGINT UNSIGNED NOT NULL,
+    storage_key         VARCHAR(255) NOT NULL,
+    original_filename   VARCHAR(255) NOT NULL,
+    file_size_bytes     BIGINT UNSIGNED NULL,
+    CONSTRAINT fk_message_attachments_log FOREIGN KEY (message_log_id) REFERENCES message_log(id) ON DELETE CASCADE,
+    INDEX idx_message_attachments_log (message_log_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Note: no generic, admin-editable "workflow_templates"/"workflow_stages"

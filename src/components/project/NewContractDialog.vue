@@ -132,6 +132,7 @@ watch(
     }
 
     clauseErrors.splice(0, clauseErrors.length)
+    revalidate()
   },
 )
 
@@ -142,6 +143,20 @@ function addClause(): void {
 function removeClause(index: number): void {
   form.clauses.splice(index, 1)
 }
+
+// Same "highlight empty mandatory fields immediately" fix as
+// NewProjectWizardPage.vue (see the comment there) -- Contract Value/
+// Expiry Date/Client Representative/Scope Summary were previously only
+// checked inside handleConfirm, via the click-then-see-inline-errors
+// pattern noted above, so they looked like ordinary optional fields
+// until the first failed "Create Contract" click. Re-runs on every
+// edit (deep watch below) and once as soon as the dialog opens (see
+// the modelValue watch above), so they're flagged red from the moment
+// they're shown instead.
+function revalidate(): void {
+  validateAll(form)
+}
+watch(form, revalidate, { deep: true })
 
 function closeDialog(): void {
   emit('update:modelValue', false)
