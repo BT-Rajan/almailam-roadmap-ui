@@ -7,7 +7,7 @@ from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import PagedResponse
-from app.schemas.task import TaskCreate, TaskOut, TaskStatusUpdate, TaskUpdate
+from app.schemas.task import TaskCreate, TaskNoteCreate, TaskOut, TaskStatusUpdate, TaskUpdate
 from app.services import task_service
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -94,6 +94,13 @@ def set_status(
 @router.get("/{task_no}/audit-events")
 def list_audit_events(task_no: str, db: Session = Depends(get_db), _=Depends(can_view)):
     return task_service.get_audit_events(db, task_no)
+
+
+@router.post("/{task_no}/notes", status_code=201)
+def add_note(
+    task_no: str, payload: TaskNoteCreate, db: Session = Depends(get_db), current_user: User = Depends(can_edit)
+):
+    return task_service.add_note(db, task_no, payload.note, current_user.id)
 
 
 @router.delete("/{task_no}", status_code=204)

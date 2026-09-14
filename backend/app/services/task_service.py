@@ -269,6 +269,27 @@ def get_audit_events(db: Session, task_no: str) -> list[dict]:
     return audit_service.get_history(db, ENTITY_TYPE, task.id)
 
 
+def add_note(db: Session, task_no: str, note: str, user_id: int) -> list[dict]:
+    """Appends a free-text note to the task's own history feed. Reuses
+    the generic audit_log table (see audit_service.get_history) rather
+    than a dedicated notes table or column -- a note is exactly the
+    same shape as every other entry already logged here (status
+    changes, reassignment, etc): who wrote it and when, just with the
+    note's text as new_value instead of a field's old/new value.
+    Returns the task's full, updated history (same shape as
+    get_audit_events) so the frontend's History panel can render the
+    new note immediately, from this one response, instead of a second
+    round trip.
+    """
+    task = get_task(db, task_no)
+    trimmed = note.strip()
+    if not trimmed:
+        raise ValidationAppError("Note cannot be empty.")
+    audit_service.log_event(db, ENTITY_TYPE, task.id, "Note added", user_id, new_value=trimmed)
+    db.commit()
+    return audit_service.get_history(db, ENTITY_TYPE, task.id)
+
+
 def delete_task(db: Session, task_no: str, actor_id: int) -> None:
     task = get_task(db, task_no)
     audit_service.log_event(db, ENTITY_TYPE, task.id, "Task deleted", actor_id, previous_value=task.title)

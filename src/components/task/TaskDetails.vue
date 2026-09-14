@@ -11,6 +11,7 @@ import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import TaskAssignmentCard from '@/components/task/TaskAssignmentCard.vue'
 import TaskFieldReportHistory from '@/components/task/TaskFieldReportHistory.vue'
+import TaskHistoryPanel from '@/components/task/TaskHistoryPanel.vue'
 import TaskProgressStepper from '@/components/task/TaskProgressStepper.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
 import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
@@ -71,6 +72,13 @@ const details = computed(() => [
 
 <template>
   <div class="flex flex-col gap-5">
+    <TextInput
+      v-model="titleDraft"
+      :label="t('task.details.title')"
+      @blur="commitTitleChange"
+      @keydown.enter="($event.target as HTMLInputElement)?.blur()"
+    />
+
     <div class="flex flex-wrap items-center gap-2">
       <TaskStatusBadge :status="task.status" />
       <span v-if="isTaskOverdue(task)" class="text-xs font-medium text-danger-700">{{ t('task.overdue') }}</span>
@@ -79,13 +87,6 @@ const details = computed(() => [
     <div class="rounded-xl border border-border-light bg-bg-card p-4">
       <TaskProgressStepper :status="task.status" />
     </div>
-
-    <TextInput
-      v-model="titleDraft"
-      :label="t('task.details.title')"
-      @blur="commitTitleChange"
-      @keydown.enter="($event.target as HTMLInputElement)?.blur()"
-    />
 
     <div v-if="task.status === 'Preset'" class="flex items-center gap-2 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
       <AlertTriangle class="h-4 w-4 shrink-0" />
@@ -134,6 +135,8 @@ const details = computed(() => [
         </div>
       </div>
     </div>
+
+    <TaskHistoryPanel :task="task" />
 
     <TaskFieldReportHistory :task="task" />
 

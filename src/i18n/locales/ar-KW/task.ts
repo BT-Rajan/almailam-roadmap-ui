@@ -128,13 +128,24 @@ export default {
   },
 
   fieldReportHistory: {
-    title: 'سجل المهمة',
+    title: 'التقارير الميدانية',
     emptyTitle: 'لا توجد تقارير ميدانية بعد',
     emptyDescription: 'ستظهر هنا التقارير الميدانية التي يقدمها مهندس الموقع لهذا المشروع.',
     by: 'بواسطة {name}',
     untitled: 'تقرير ميداني',
     statusPending: 'قيد المراجعة',
     statusAttached: 'مرفق',
+  },
+
+  historyPanel: {
+    title: 'السجل',
+    notePlaceholder: 'أضف ملاحظة...',
+    addNote: 'إضافة ملاحظة',
+    failedToAddNote: 'فشل إضافة الملاحظة',
+    emptyTitle: 'لا يوجد سجل بعد',
+    emptyDescription: 'ستظهر هنا تغييرات الحالة وإعادة الإسناد وتعديلات الجدول الزمني والملاحظات.',
+    by: 'بواسطة {user}',
+    reason: 'السبب: {reason}',
   },
 
   workloadDialog: {
