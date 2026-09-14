@@ -16,6 +16,7 @@ export default {
   knowledgeBase: 'قاعدة المعرفة',
   tasks: 'المهام',
   myTasks: 'مهامي',
+  task: 'المهمة',
   statusReportInbox: 'صندوق تقارير الحالة',
   reports: 'التقارير',
   executiveSummary: 'الملخص التنفيذي',

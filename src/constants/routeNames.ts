@@ -16,6 +16,7 @@ export const ROUTE_NAMES = {
   KNOWLEDGE_BASE: 'knowledge-base',
   TASKS: 'tasks',
   MY_TASKS: 'my-tasks',
+  TASK_WORKSPACE: 'task-workspace',
   REPORTS: 'reports',
   REPORT_EXECUTIVE: 'report-executive',
   REPORT_PROJECT: 'report-project',

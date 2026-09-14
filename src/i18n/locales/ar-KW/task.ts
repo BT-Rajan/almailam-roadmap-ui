@@ -30,6 +30,13 @@ export default {
     stepLabel: 'الخطوة {current} من {total} · {label}',
   },
 
+  workspace: {
+    backToProject: 'العودة إلى المشروع',
+    backToTasks: 'العودة إلى المهام',
+    notFoundTitle: 'المهمة غير موجودة',
+    notFoundDescription: 'هذه المهمة غير موجودة، أو ربما تم حذفها.',
+  },
+
   assignmentCard: {
     assignedTo: 'مسندة إلى',
     reassignTo: 'إعادة الإسناد إلى',

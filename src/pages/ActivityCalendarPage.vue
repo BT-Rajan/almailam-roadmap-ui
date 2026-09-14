@@ -5,14 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TaskDetails from '@/components/task/TaskDetails.vue'
 import TaskFormDialog from '@/components/task/TaskFormDialog.vue'
 import { useRbac } from '@/composables/useRbac'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -270,19 +268,6 @@ async function ensureTasksLoaded() {
   tasksLoaded.value = true
 }
 
-const isTaskDialogOpen = computed({
-  get: () => Boolean(taskStore.selectedTaskId),
-  set: (value: boolean) => {
-    if (!value) taskStore.clearSelectedTask()
-  },
-})
-
-const selectedTaskProjectName = computed(
-  () => taskStore.getProjectById(taskStore.selectedTask?.projectId ?? '')?.projectName ?? t('task.unknownProject'),
-)
-
-const selectedTaskClientName = computed(() => taskStore.getClientNameByProjectId(taskStore.selectedTask?.projectId ?? ''))
-
 const isCreateTaskDialogOpen = ref(false)
 const createTaskDefaultProjectId = ref<string>()
 const createTaskDefaultTitle = ref<string>()
@@ -291,7 +276,7 @@ async function handleActivityClick(activity: ActivityRecord) {
   if (activity.entityType === EntityType.TASK) {
     await ensureTasksLoaded()
     if (taskStore.tasks.some((task) => task.id === activity.entityId)) {
-      taskStore.selectTask(activity.entityId)
+      router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: activity.entityId } })
       return
     }
   }
@@ -301,16 +286,6 @@ async function handleActivityClick(activity: ActivityRecord) {
   createTaskDefaultProjectId.value = activity.projectId
   createTaskDefaultTitle.value = activity.description || activity.entityName
   isCreateTaskDialogOpen.value = true
-}
-
-function handleStatusChange(status: Parameters<typeof taskStore.updateTaskStatus>[1]): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskStatus(taskStore.selectedTaskId, status)
-}
-function handleReassign(assignee: string): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskAssignee(taskStore.selectedTaskId, assignee)
-}
-function handleTitleChange(title: string): void {
-  if (taskStore.selectedTaskId) taskStore.updateTaskTitle(taskStore.selectedTaskId, title)
 }
 
 async function handleCreateTask(input: TaskInput): Promise<void> {
@@ -513,19 +488,6 @@ async function handleCreateTask(input: TaskInput): Promise<void> {
         </Card>
       </div>
     </BaseDrawer>
-
-    <!-- Task Details -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
-    <BaseDialog v-model="isTaskDialogOpen" :title="taskStore.selectedTask?.id" size="lg">
-      <TaskDetails
-        v-if="taskStore.selectedTask"
-        :task="taskStore.selectedTask"
-        :project-name="selectedTaskProjectName"
-        :client-name="selectedTaskClientName"
-        @status-change="handleStatusChange"
-        @title-change="handleTitleChange"
-        @reassign="handleReassign"
-      />
-    </BaseDialog>
 
     <!-- Create Task -- identical flow to the Task Board at /tasks (TasksPage.vue) -->
     <TaskFormDialog

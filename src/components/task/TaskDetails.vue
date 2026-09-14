@@ -92,10 +92,11 @@ const details = computed(() => [
       <span>{{ t('task.details.presetFlagMessage') }}</span>
     </div>
 
-    <!-- Now rendered inside a wide modal (BaseDialog size="lg") rather
-         than the old narrow drawer, so the read-only context and the
-         editable controls sit side by side instead of stacked the full
-         height of the screen. Single column below tablet width. -->
+    <!-- Rendered full-width inside TaskWorkspacePage.vue (a dedicated
+         route, not a modal -- see that file), so the read-only context
+         and the editable controls sit side by side instead of stacked
+         the full height of the screen. Single column below tablet
+         width. -->
     <div class="grid grid-cols-1 gap-5 tablet:grid-cols-2">
       <div class="flex flex-col gap-5">
         <DetailPanel :title="t('task.details.projectDetailsTitle')" :items="details" />

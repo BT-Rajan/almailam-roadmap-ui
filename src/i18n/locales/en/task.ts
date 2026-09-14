@@ -30,6 +30,13 @@ export default {
     stepLabel: 'Step {current} of {total} · {label}',
   },
 
+  workspace: {
+    backToProject: 'Back to project',
+    backToTasks: 'Back to tasks',
+    notFoundTitle: 'Task not found',
+    notFoundDescription: "This task doesn't exist, or may have been deleted.",
+  },
+
   assignmentCard: {
     assignedTo: 'Assigned To',
     reassignTo: 'Reassign to',

@@ -262,6 +262,23 @@ const router = createRouter({
       },
     },
     {
+      // Placed after '/tasks/my' -- vue-router matches route records in
+      // definition order, and ':taskId' would otherwise swallow '/my'
+      // as a task id before the fixed MY_TASKS route ever gets a turn.
+      path: '/tasks/:taskId',
+      name: ROUTE_NAMES.TASK_WORKSPACE,
+      component: () => import('@/pages/TaskWorkspacePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.tasks', routeName: ROUTE_NAMES.TASKS },
+          { label: 'breadcrumb.task' },
+        ],
+      },
+    },
+    {
       path: '/status-reports/inbox',
       name: ROUTE_NAMES.STATUS_REPORTS_INBOX,
       component: () => import('@/pages/StatusReportInboxPage.vue'),
