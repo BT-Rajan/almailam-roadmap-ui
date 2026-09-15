@@ -2,7 +2,6 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.core.html_sanitizer import sanitize_html
 from app.models.quotation import QUOTATION_STATUSES
 from app.schemas.common import not_past_validator
 
@@ -67,10 +66,6 @@ class QuotationOut(BaseModel):
     currency: str
     preparedBy: str
     discountAmount: float
-    notes: str | None
-    termsAndConditions: list[str]
-    scopePhases: list[str]
-    paymentTerms: list[str]
     lineItems: list[QuotationLineItemOut]
     amount: float
     finalizedAt: datetime | None
@@ -89,10 +84,6 @@ class QuotationOut(BaseModel):
             currency=quotation.currency,
             preparedBy=prepared_by_name,
             discountAmount=float(quotation.discount_amount),
-            notes=quotation.notes,
-            termsAndConditions=quotation.terms_and_conditions,
-            scopePhases=quotation.scope_phases,
-            paymentTerms=quotation.payment_terms,
             lineItems=[QuotationLineItemOut.from_model(i) for i in line_items],
             amount=float(quotation.amount),
             finalizedAt=quotation.finalized_at,
@@ -105,49 +96,19 @@ class QuotationCreate(BaseModel):
     validity: date
     currency: str = Field(default="KWD", min_length=1, max_length=10)
     discountAmount: float = Field(default=0, ge=0)
-    notes: str | None = None
-    termsAndConditions: list[str] = Field(default_factory=list)
-    scopePhases: list[str] = Field(default_factory=list)
-    paymentTerms: list[str] = Field(default_factory=list)
     lineItems: list[QuotationLineItemIn] = Field(min_length=1)
 
     _check_validity = field_validator("validity")(not_past_validator("validity"))
-
-    @field_validator("notes")
-    @classmethod
-    def sanitize_notes(cls, value: str | None) -> str | None:
-        return sanitize_html(value)
-
-    @field_validator("termsAndConditions", "scopePhases", "paymentTerms")
-    @classmethod
-    def sanitize_terms(cls, value: list[str]) -> list[str]:
-        return [sanitize_html(term) or "" for term in value]
 
 
 class QuotationUpdate(BaseModel):
     validity: date | None = None
     discountAmount: float | None = Field(default=None, ge=0)
-    notes: str | None = None
-    termsAndConditions: list[str] | None = None
-    scopePhases: list[str] | None = None
-    paymentTerms: list[str] | None = None
     lineItems: list[QuotationLineItemIn] | None = Field(default=None, min_length=1)
     status: str | None = None
     reason: str | None = None
 
     _check_validity = field_validator("validity")(not_past_validator("validity"))
-
-    @field_validator("notes")
-    @classmethod
-    def sanitize_notes(cls, value: str | None) -> str | None:
-        return sanitize_html(value)
-
-    @field_validator("termsAndConditions", "scopePhases", "paymentTerms")
-    @classmethod
-    def sanitize_terms(cls, value: list[str] | None) -> list[str] | None:
-        if value is None:
-            return None
-        return [sanitize_html(term) or "" for term in value]
 
     @field_validator("status")
     @classmethod

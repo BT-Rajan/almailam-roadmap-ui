@@ -199,10 +199,6 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
         currency=payload.currency,
         prepared_by=user_id,
         discount_amount=payload.discountAmount,
-        notes=payload.notes,
-        terms_and_conditions=payload.termsAndConditions,
-        scope_phases=payload.scopePhases,
-        payment_terms=payload.paymentTerms,
         amount=amount,
     )
     db.add(quotation)
@@ -255,7 +251,7 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
 
 
 _QUOTATION_CONTENT_FIELDS = (
-    "validity", "discountAmount", "notes", "termsAndConditions", "scopePhases", "paymentTerms", "lineItems",
+    "validity", "discountAmount", "lineItems",
 )
 
 
@@ -274,15 +270,6 @@ def update_quotation(db: Session, quotation_no: str, payload, user_id: int) -> Q
     if payload.validity is not None and payload.validity != quotation.validity:
         changes["validity"] = (quotation.validity, payload.validity)
         quotation.validity = payload.validity
-    if payload.notes is not None and payload.notes != quotation.notes:
-        changes["notes"] = (quotation.notes, payload.notes)
-        quotation.notes = payload.notes
-    if payload.termsAndConditions is not None:
-        quotation.terms_and_conditions = payload.termsAndConditions
-    if payload.scopePhases is not None:
-        quotation.scope_phases = payload.scopePhases
-    if payload.paymentTerms is not None:
-        quotation.payment_terms = payload.paymentTerms
 
     discount = payload.discountAmount if payload.discountAmount is not None else quotation.discount_amount
     if payload.discountAmount is not None:

@@ -51,10 +51,6 @@ export interface QuotationCreateInput {
   validity: string
   currency: string
   discountAmount: number
-  notes?: string
-  termsAndConditions: string[]
-  scopePhases: string[]
-  paymentTerms: string[]
   lineItems: QuotationLineItemInput[]
 }
 

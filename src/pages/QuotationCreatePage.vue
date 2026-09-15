@@ -11,7 +11,6 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
@@ -90,10 +89,6 @@ function emptyForm() {
   return {
     validity: '',
     discountAmount: 0,
-    notes: '',
-    termsText: '',
-    scopePhasesText: '',
-    paymentTermsText: '',
     lineItems: [emptyLineItem()] as DraftLineItem[],
   }
 }
@@ -124,37 +119,7 @@ function formFromProject(project: Project | undefined) {
   }))
   const lineItems = [...serviceLineItems, ...supervisionLineItems, ...permitLineItems]
   if (lineItems.length === 0) return emptyForm()
-  return { ...emptyForm(), lineItems, scopePhasesText: buildScopeText(project) }
-}
-
-// Mirrors NewProjectWizardPage.vue's buildScopeText exactly, grouped the
-// same way (Architectural Design / Supervision Activities / Permits to
-// Apply For).
-function buildScopeText(project: Project | undefined): string {
-  const lines: string[] = []
-  const activitiesByService = new Map<string, string[]>()
-  for (const item of project?.selectedActivities ?? []) {
-    const list = activitiesByService.get(item.serviceName) ?? []
-    list.push(item.activityId === item.serviceId ? item.serviceName : item.activityName)
-    activitiesByService.set(item.serviceName, list)
-  }
-  for (const [serviceName, activityNames] of activitiesByService) {
-    lines.push(`${serviceName}:`)
-    activityNames.forEach((name) => lines.push(`- ${name}`))
-  }
-  const supervisionActivities = project?.selectedSupervisionActivities ?? []
-  if (supervisionActivities.length > 0) {
-    if (lines.length > 0) lines.push('')
-    lines.push('Supervision Activities:')
-    supervisionActivities.forEach((item) => lines.push(`- ${item.activityName}`))
-  }
-  const permits = project?.selectedPermits ?? []
-  if (permits.length > 0) {
-    if (lines.length > 0) lines.push('')
-    lines.push('Permits to Apply For:')
-    permits.forEach((permit) => lines.push(`- ${permit.permitName}`))
-  }
-  return lines.join('\n')
+  return { ...emptyForm(), lineItems }
 }
 
 const form = reactive(emptyForm())
@@ -236,19 +201,6 @@ async function handleSubmit(): Promise<void> {
       validity: form.validity,
       currency: QUOTATION_CURRENCY,
       discountAmount: form.discountAmount,
-      notes: form.notes.trim() || undefined,
-      termsAndConditions: form.termsText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
-      scopePhases: form.scopePhasesText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
-      paymentTerms: form.paymentTermsText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
       lineItems,
     })
     // Creating a quotation can move current_stage server-side (see
@@ -369,29 +321,6 @@ async function handleSubmit(): Promise<void> {
           step="0.01"
           :error="errors.discountAmount"
           @update:model-value="form.discountAmount = Number($event)"
-        />
-
-        <TextArea v-model="form.notes" :label="t('project.newQuotationDialog.notes')" :placeholder="t('project.newQuotationDialog.notesPlaceholder')" :rows="2" />
-        <TextArea
-          v-model="form.scopePhasesText"
-          :label="t('project.newQuotationDialog.scopePhases')"
-          :placeholder="t('project.newQuotationDialog.scopePhasesPlaceholder')"
-          :hint="t('project.newQuotationDialog.scopePhasesHint')"
-          :rows="3"
-        />
-        <TextArea
-          v-model="form.paymentTermsText"
-          :label="t('project.newQuotationDialog.paymentTerms')"
-          :placeholder="t('project.newQuotationDialog.paymentTermsPlaceholder')"
-          :hint="t('project.newQuotationDialog.paymentTermsHint')"
-          :rows="3"
-        />
-        <TextArea
-          v-model="form.termsText"
-          :label="t('project.newQuotationDialog.termsAndConditions')"
-          :placeholder="t('project.newQuotationDialog.termsPlaceholder')"
-          :hint="t('project.newQuotationDialog.termsHint')"
-          :rows="3"
         />
 
         <Divider />
