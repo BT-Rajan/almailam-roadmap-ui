@@ -41,6 +41,11 @@ export interface FinancialAgreement {
   // for the agreement's lifetime and never editable. undefined only
   // for an agreement that predates quotation_id.
   quotationNo?: string
+  // The contract eventually generated from this agreement -- resolved
+  // from the real contract_id FK (migration 0101). undefined until a
+  // contract actually exists for the project (Payment Plan always
+  // comes first).
+  contractNo?: string
   stream: AgreementStream
   status: AgreementStatus
   contractAmount: number

@@ -70,6 +70,7 @@ export default {
     agreementDate: 'Agreement Date',
     startDate: 'Start Date',
     sourceQuotation: 'Source Quotation',
+    contractNo: 'Contract',
     columns: {
       number: '#',
       installment: 'Installment',
@@ -126,6 +127,7 @@ export default {
     couldNotRecordPayment: 'Could not record payment',
     totalContractAmount: 'Total Contract Amount',
     sourceQuotation: 'Source Quotation',
+    contractNo: 'Contract',
     totalReceived: 'Total Received',
     totalReceivable: 'Total Receivable',
     paymentDate: 'Payment Date',

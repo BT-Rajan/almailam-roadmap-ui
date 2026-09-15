@@ -40,6 +40,11 @@ class FinancialAgreementOut(BaseModel):
     # quotationReference below. Fixed at creation, never editable. None
     # only for agreements that predate quotation_id.
     quotationNo: str | None
+    # The contract eventually generated from this agreement -- resolved
+    # from the real contract_id FK (migration 0101), not the free-text
+    # contractReference below. None until a contract actually exists
+    # for the project (Payment Plan always comes first).
+    contractNo: str | None
     stream: Literal["Design", "Supervision"]
     # See AGREEMENT_STATUSES -- gates the Payment Plan -> Contract stage
     # transition (project_service._assert_stage_exit_criteria).
@@ -49,19 +54,22 @@ class FinancialAgreementOut(BaseModel):
     contractStartDate: date
     contractEndDate: date | None
     agreementDate: date
-    # Superseded by quotationNo above (migration 0100) -- kept for
-    # historical/back-compat display only.
+    # Superseded by quotationNo/contractNo above (migrations 0100/0101)
+    # -- kept for historical/back-compat display only.
     quotationReference: str | None
     contractReference: str | None
     paymentMode: str
     paymentFrequency: str
 
     @staticmethod
-    def from_model(agreement, project_no: str, quotation_no: str | None = None) -> "FinancialAgreementOut":
+    def from_model(
+        agreement, project_no: str, quotation_no: str | None = None, contract_no: str | None = None,
+    ) -> "FinancialAgreementOut":
         return FinancialAgreementOut(
             id=f"FA-{agreement.id:03d}",
             projectId=project_no,
             quotationNo=quotation_no,
+            contractNo=contract_no,
             stream=agreement.stream,
             status=agreement.status,
             contractAmount=float(agreement.contract_amount),

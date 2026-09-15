@@ -70,6 +70,7 @@ export default {
     agreementDate: 'تاريخ الاتفاقية',
     startDate: 'تاريخ البدء',
     sourceQuotation: 'عرض السعر المصدر',
+    contractNo: 'العقد',
     columns: {
       number: '#',
       installment: 'الدفعة',
@@ -126,6 +127,7 @@ export default {
     couldNotRecordPayment: 'تعذّر تسجيل الدفعة',
     totalContractAmount: 'إجمالي مبلغ العقد',
     sourceQuotation: 'عرض السعر المصدر',
+    contractNo: 'العقد',
     totalReceived: 'إجمالي المستلم',
     totalReceivable: 'إجمالي المستحق التحصيل',
     paymentDate: 'تاريخ الدفعة',

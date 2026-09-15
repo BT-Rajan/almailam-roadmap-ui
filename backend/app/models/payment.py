@@ -41,6 +41,20 @@ class FinancialAgreement(Base):
     quotation_id: Mapped[int | None] = mapped_column(
         BigPK, ForeignKey("quotations.id", ondelete="RESTRICT"), nullable=True, index=True
     )
+    # The contract eventually generated from this agreement (migration
+    # 0101) -- the reverse of quotation_id above. Payment Plan is always
+    # created before Contract exists (see project_service._assert_
+    # stage_exit_criteria), so this starts NULL and is written back
+    # server-side once the contract actually exists (see contract_
+    # service.create_contract), never accepted from the payload.
+    # Cleared again if that contract is later deleted (contract_
+    # service.delete_contract) rather than left dangling. Supersedes
+    # contract_reference below, which -- being free text set at
+    # agreement-creation time, before any contract could exist -- was
+    # never actually possible to fill in correctly.
+    contract_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("contracts.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     # Which billing stream this agreement covers (migration 0059) -- a
     # project can have one Design (one-time) agreement and one
     # Supervision (monthly, day-prorated) agreement side by side, hence
