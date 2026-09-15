@@ -8,6 +8,7 @@ import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { projectService } from '@/services/projectService'
+import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -21,12 +22,25 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const projectStore = useProjectStore()
+const contractStore = useContractStore()
 const toastStore = useToastStore()
 
 const { visibleStreams, summaryForStream } = usePaymentAgreements(
   () => props.project.id,
   () => props.project,
 )
+
+// By Handover the quotation's own role is done -- the fixed reference
+// going forward is the Contract it was generated from (contract.
+// quotationNo, a real FK, not the ambiguous "whichever quotation is
+// Approved" lookup other tabs fall back to before a contract exists).
+// ProjectWorkspacePage already loads contracts for the project on
+// mount, but reloading here too is a cheap, idempotent defensive
+// measure rather than relying on that staying true.
+onMounted(() => {
+  contractStore.loadContractsForProject(props.project.id)
+})
+const sourceQuotationNo = computed(() => contractStore.latestContract?.quotationNo)
 
 // GET /handover self-heals the project's stage on every read (see
 // backend project_service.try_auto_advance_stage) -- fetching it here
@@ -89,6 +103,10 @@ async function handleUnconfirmPayment(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-4">
+    <p v-if="sourceQuotationNo" class="text-xs text-text-muted">
+      {{ t('project.handoverPaymentTab.sourceQuotation') }}: <span class="font-medium text-text-secondary">{{ sourceQuotationNo }}</span>
+    </p>
+
     <Card>
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">{{ t('project.handoverPaymentTab.autoStatusTitle') }}</h3>

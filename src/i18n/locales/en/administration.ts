@@ -103,7 +103,7 @@ export default {
     entityTasks: 'Tasks',
     entityQuotations: 'Quotations',
     entityContracts: 'Contracts',
-    entityFinancialAgreements: 'Financial Agreements',
+    entityFinancialAgreements: 'Payment Plans',
     entityGovernmentAuthorities: 'Government Authorities',
     entityGovernmentForms: 'Government Forms',
     entityGovernmentSubmissions: 'Permit Applications',

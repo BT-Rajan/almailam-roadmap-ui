@@ -69,6 +69,8 @@ export default {
     paymentMode: 'طريقة الدفع',
     agreementDate: 'تاريخ الاتفاقية',
     startDate: 'تاريخ البدء',
+    sourceQuotation: 'عرض السعر المصدر',
+    contractNo: 'العقد',
     columns: {
       number: '#',
       installment: 'الدفعة',
@@ -124,6 +126,8 @@ export default {
     paymentRecordedDescription: 'تم تحديث جدول الدفعات.',
     couldNotRecordPayment: 'تعذّر تسجيل الدفعة',
     totalContractAmount: 'إجمالي مبلغ العقد',
+    sourceQuotation: 'عرض السعر المصدر',
+    contractNo: 'العقد',
     totalReceived: 'إجمالي المستلم',
     totalReceivable: 'إجمالي المستحق التحصيل',
     paymentDate: 'تاريخ الدفعة',
@@ -143,8 +147,8 @@ export default {
     totalReceived: 'إجمالي المستلم',
     totalPending: 'إجمالي المعلّق',
     totalOverdue: 'إجمالي المتأخر',
-    emptyTitle: 'لا توجد اتفاقيات مالية بعد',
-    emptyDescription: 'ستظهر هنا الاتفاقيات المالية التي تُنشأ من خطوة خطة الدفع الخاصة بالمشروع.',
+    emptyTitle: 'لا توجد خطط دفع بعد',
+    emptyDescription: 'ستظهر هنا خطط الدفع التي تُنشأ من خطوة خطة الدفع الخاصة بالمشروع.',
     columns: {
       project: 'المشروع',
       stream: 'المسار',

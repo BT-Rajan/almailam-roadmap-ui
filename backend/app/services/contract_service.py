@@ -105,6 +105,18 @@ def _assert_contract_value_matches_quotation(quotation: Quotation, contract_valu
         )
 
 
+def _link_agreements_to_contract(db: Session, project_id: int, contract_id: int) -> None:
+    """Writes the new contract's id back onto every financial agreement
+    for this project that doesn't have one yet (see FinancialAgreement.
+    contract_id, migration 0101) -- the reverse of quotation_id, filled
+    in from this side since Payment Plan is always created before
+    Contract exists. Never overwrites an agreement that's already
+    linked to a (different, presumably prior) contract."""
+    db.query(FinancialAgreement).filter(
+        FinancialAgreement.project_id == project_id, FinancialAgreement.contract_id.is_(None)
+    ).update({"contract_id": contract_id})
+
+
 def _user_name(db: Session, user_id: int) -> str:
     user = db.query(User).filter(User.id == user_id).first()
     return user.full_name if user else "Unknown"
@@ -236,6 +248,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     )
     db.add(contract)
     db.flush()
+    _link_agreements_to_contract(db, project.id, contract.id)
 
     for index, clause in enumerate(payload.clauses):
         db.add(
@@ -556,4 +569,10 @@ def delete_contract(db: Session, contract_no: str, actor_id: int) -> None:
     contract = get_contract(db, contract_no)
     audit_service.log_event(db, ENTITY_TYPE, contract.id, "Contract deleted", actor_id, previous_value=contract.contract_no)
     contract.deleted_at = datetime.now(timezone.utc)
+    # Un-link -- _assert_agreement_editable treats "no contract on the
+    # project" as its own criterion for whether a payment plan can be
+    # edited again, so a stale contract_id pointing at a just-deleted
+    # contract would leave that check (correctly) unblocked while the
+    # agreement itself still displayed a dead contract reference.
+    db.query(FinancialAgreement).filter(FinancialAgreement.contract_id == contract.id).update({"contract_id": None})
     db.commit()

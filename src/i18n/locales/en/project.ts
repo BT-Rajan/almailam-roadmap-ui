@@ -214,7 +214,7 @@ export default {
     failedToReopenActivity: 'Failed to reopen the activity',
     supervisionTitle: 'Supervision',
     noSupervisionActivities: 'No Supervision activities selected.',
-    supervisionBillingNote: 'Billed monthly and prorated by day for partial months — see the Supervision Financial Agreement on the Payment Plan step for the actual billed schedule.',
+    supervisionBillingNote: 'Billed monthly and prorated by day for partial months — see the Supervision payment plan for the actual billed schedule.',
     requiredDocumentsTitle: 'Required Documents',
     viewForm: 'View',
     fillForm: 'Fill Form',
@@ -675,6 +675,7 @@ export default {
 
   handoverPaymentTab: {
     autoStatusTitle: 'Payment Status (auto)',
+    sourceQuotation: 'Source Quotation',
     noBillableStreams: 'This project has no billable Design or Supervision work.',
     noPlanYet: 'No payment plan yet',
     autoFullyPaid: 'Fully paid',

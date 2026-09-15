@@ -32,6 +32,7 @@ interface ScheduleTableRow {
   nextRunAt: string | null
   lastRunAt: string | null
   lastRunStatus: 'sent' | 'failed' | null
+  lastRunError: string | null
 }
 
 const { t } = useI18n()
@@ -89,6 +90,7 @@ const tableRows = computed<ScheduleTableRow[]>(() =>
     nextRunAt: schedule.nextRunAt,
     lastRunAt: schedule.lastRunAt,
     lastRunStatus: schedule.lastRunStatus,
+    lastRunError: schedule.lastRunError,
   })),
 )
 
@@ -188,9 +190,12 @@ async function handleSendTest(row: ScheduleTableRow): Promise<void> {
         />
       </template>
       <template #cell-lastRunAt="{ row }">
-        <div class="flex flex-col gap-1">
+        <div class="flex max-w-xs flex-col gap-1">
           <StatusBadge :label="lastRunLabel(row)" :variant="lastRunVariant(row.lastRunStatus)" />
           <span v-if="row.lastRunAt" class="text-xs text-text-muted">{{ formatDateTime(row.lastRunAt as string) }}</span>
+          <span v-if="row.lastRunStatus === 'failed' && row.lastRunError" class="truncate text-xs text-danger-600" :title="row.lastRunError">
+            {{ row.lastRunError }}
+          </span>
         </div>
       </template>
       <template #cell-actions="{ row }">

@@ -218,6 +218,12 @@ async function handleRecordPayment(stream: AgreementStream): Promise<void> {
           />
         </div>
 
+        <p class="text-xs text-text-muted">
+          {{ t('payment.statusPanel.sourceQuotation') }}: <span class="font-medium text-text-secondary">{{ agreementForStream(stream)!.quotationNo ?? '—' }}</span>
+          <span class="mx-1">·</span>
+          {{ t('payment.statusPanel.contractNo') }}: <span class="font-medium text-text-secondary">{{ agreementForStream(stream)!.contractNo ?? '—' }}</span>
+        </p>
+
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div class="rounded-lg border border-border-light p-4">
             <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('payment.statusPanel.totalContractAmount') }}</p>

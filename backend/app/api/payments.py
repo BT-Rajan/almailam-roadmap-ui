@@ -50,18 +50,50 @@ def _user_name(db: Session, user_id: int | None) -> str:
 
 
 def _agreement_out(db: Session, agreement) -> FinancialAgreementOut:
-    return FinancialAgreementOut.from_model(agreement, _project_no(db, agreement.project_id))
+    from app.models.contract import Contract
+    from app.models.quotation import Quotation
+
+    quotation_no = None
+    if agreement.quotation_id is not None:
+        quotation = db.query(Quotation).filter(Quotation.id == agreement.quotation_id).first()
+        quotation_no = quotation.quotation_no if quotation else None
+    contract_no = None
+    if agreement.contract_id is not None:
+        contract = db.query(Contract).filter(Contract.id == agreement.contract_id).first()
+        contract_no = contract.contract_no if contract else None
+    return FinancialAgreementOut.from_model(agreement, _project_no(db, agreement.project_id), quotation_no, contract_no)
 
 
 def _agreements_out_batch(db: Session, agreements: list) -> list[FinancialAgreementOut]:
     """Batched sibling of _agreement_out -- one query for every agreement's
-    project instead of one query per agreement."""
+    project, linked quotation, and linked contract, instead of one query
+    per agreement (same fix as contracts.py's _to_out_batch)."""
+    from app.models.contract import Contract
+    from app.models.quotation import Quotation
+
     if not agreements:
         return []
     project_ids = {a.project_id for a in agreements}
     project_nos = {p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()}
+
+    quotation_ids = {a.quotation_id for a in agreements if a.quotation_id is not None}
+    quotation_nos = {
+        q.id: q.quotation_no for q in db.query(Quotation).filter(Quotation.id.in_(quotation_ids)).all()
+    }
+
+    contract_ids = {a.contract_id for a in agreements if a.contract_id is not None}
+    contract_nos = {
+        c.id: c.contract_no for c in db.query(Contract).filter(Contract.id.in_(contract_ids)).all()
+    }
+
     return [
-        FinancialAgreementOut.from_model(a, project_nos.get(a.project_id, "")) for a in agreements
+        FinancialAgreementOut.from_model(
+            a,
+            project_nos.get(a.project_id, ""),
+            quotation_nos.get(a.quotation_id) if a.quotation_id is not None else None,
+            contract_nos.get(a.contract_id) if a.contract_id is not None else None,
+        )
+        for a in agreements
     ]
 
 

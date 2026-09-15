@@ -731,6 +731,14 @@ async function handleSendEmail(): Promise<void> {
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.startDate') }}</p>
                   <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(section.stream)!.contractStartDate) }}</p>
                 </div>
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.sourceQuotation') }}</p>
+                  <p class="text-sm text-text-primary">{{ agreementForStream(section.stream)!.quotationNo ?? '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.contractNo') }}</p>
+                  <p class="text-sm text-text-primary">{{ agreementForStream(section.stream)!.contractNo ?? '—' }}</p>
+                </div>
               </div>
 
               <SmartTable

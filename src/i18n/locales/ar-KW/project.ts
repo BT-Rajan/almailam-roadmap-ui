@@ -214,7 +214,7 @@ export default {
     failedToReopenActivity: 'فشلت إعادة فتح النشاط',
     supervisionTitle: 'الإشراف',
     noSupervisionActivities: 'لم يتم اختيار أنشطة إشراف.',
-    supervisionBillingNote: 'تُحصّل شهرياً وتُحتسب تناسبياً حسب الأيام للأشهر الجزئية — راجع اتفاقية الإشراف المالية في خطوة خطة الدفع لمعرفة الجدول الفعلي المحصّل.',
+    supervisionBillingNote: 'تُحصّل شهرياً وتُحتسب تناسبياً حسب الأيام للأشهر الجزئية — راجع خطة دفع الإشراف لمعرفة الجدول الفعلي المحصّل.',
     requiredDocumentsTitle: 'المستندات المطلوبة',
     viewForm: 'عرض',
     fillForm: 'تعبئة النموذج',
@@ -675,6 +675,7 @@ export default {
 
   handoverPaymentTab: {
     autoStatusTitle: 'حالة الدفع (تلقائي)',
+    sourceQuotation: 'عرض السعر المصدر',
     noBillableStreams: 'لا يوجد لهذا المشروع أعمال تصميم أو إشراف قابلة للفوترة.',
     noPlanYet: 'لا توجد خطة دفع بعد',
     autoFullyPaid: 'مدفوع بالكامل',
