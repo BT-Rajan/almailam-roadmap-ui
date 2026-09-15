@@ -466,10 +466,16 @@ def stamp_report_image(contents: bytes, engineer_name: str, project_no: str, sta
     banner_height = line_height * len(lines) + padding * 2
 
     draw = ImageDraw.Draw(image, "RGBA")
-    draw.rectangle([(0, image.height - banner_height), (image.width, image.height)], fill=(0, 0, 0, 165))
+    # 80% transparent (alpha 51/255) at the person's own request, so the
+    # banner doesn't mask whatever was actually photographed -- only
+    # dark enough to be a hint of where the caption sits, not an opaque
+    # bar. A black stroke around the white text (not just a flat fill)
+    # is what keeps the caption itself legible now that it's sitting on
+    # top of the real photo colors underneath instead of a solid band.
+    draw.rectangle([(0, image.height - banner_height), (image.width, image.height)], fill=(0, 0, 0, 51))
     y = image.height - banner_height + padding
     for line in lines:
-        draw.text((padding, y), line, font=font, fill=(255, 255, 255, 255))
+        draw.text((padding, y), line, font=font, fill=(255, 255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0, 200))
         y += line_height
 
     buffer = BytesIO()
