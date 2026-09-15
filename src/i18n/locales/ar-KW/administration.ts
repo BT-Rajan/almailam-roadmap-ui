@@ -609,6 +609,9 @@ export default {
   },
 
   documentTemplates: {
+    backToDocuments: 'العودة إلى المستندات',
+    templateNotFoundTitle: 'القالب غير موجود',
+    templateNotFoundDescription: 'هذا القالب غير موجود، أو ربما تم حذفه.',
     quotationTitle: 'قوالب عروض الأسعار',
     quotationDescription: 'يُدمج ملف .docx الافتراضي لكل لغة مع بيانات المشروع الحية عند استخدام "تنزيل المستند" على عرض سعر.',
     contractTitle: 'قوالب العقود',

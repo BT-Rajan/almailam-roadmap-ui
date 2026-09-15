@@ -627,6 +627,9 @@ export default {
   },
 
   documentTemplates: {
+    backToDocuments: 'Back to documents',
+    templateNotFoundTitle: 'Template not found',
+    templateNotFoundDescription: "This template doesn't exist, or may have been deleted.",
     quotationTitle: 'Quotation Templates',
     quotationDescription:
       'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',

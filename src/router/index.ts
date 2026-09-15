@@ -612,6 +612,27 @@ const router = createRouter({
       },
     },
     {
+      // Replaces TemplateFieldMapperDialog.vue's modal. No 'new'
+      // sentinel like ADMIN_USER_FORM/PAYMENT_PLAN_FORM -- a template
+      // always exists (uploaded via DocumentTemplatesPanel.vue) before
+      // its fields can be mapped, so this only ever edits one that's
+      // already there.
+      path: '/admin/documents/templates/:templateId/fields',
+      name: ROUTE_NAMES.ADMIN_TEMPLATE_FIELD_MAPPER,
+      component: () => import('@/pages/TemplateFieldMapperPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.documents', routeName: ROUTE_NAMES.ADMIN_DOCUMENTS },
+          { label: 'breadcrumb.mapFields' },
+        ],
+      },
+    },
+    {
       path: '/admin/ai',
       name: ROUTE_NAMES.ADMIN_AI,
       component: () => import('@/pages/AdminAIPage.vue'),

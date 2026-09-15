@@ -16,6 +16,7 @@ export default {
   submission: 'Submission',
   newSubmission: 'New Permit Application',
   documents: 'Documents',
+  mapFields: 'Map Fields',
   viewer: 'Viewer',
   knowledgeBase: 'Knowledge Base',
   tasks: 'Tasks',

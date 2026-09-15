@@ -16,6 +16,7 @@ export default {
   submission: 'المعاملة',
   newSubmission: 'طلب تصريح جديد',
   documents: 'المستندات',
+  mapFields: 'ربط الحقول',
   viewer: 'العارض',
   knowledgeBase: 'قاعدة المعرفة',
   tasks: 'المهام',

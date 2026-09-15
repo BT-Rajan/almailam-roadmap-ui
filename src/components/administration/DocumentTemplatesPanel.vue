@@ -2,6 +2,7 @@
 import { CalendarClock, CheckCircle2, Download, Image, MapPin, Trash2, Upload, UserRound } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -12,8 +13,8 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import FileUploader from '@/components/document/FileUploader.vue'
-import TemplateFieldMapperDialog from '@/components/administration/TemplateFieldMapperDialog.vue'
 import TemplateLayoutDialog from '@/components/administration/TemplateLayoutDialog.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentTemplateStore } from '@/stores/documentTemplateStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { AppLanguage } from '@/types/CompanySettings'
@@ -57,6 +58,7 @@ const SECTIONS = computed<{ type: DocumentTemplateType; title: string; descripti
 
 const store = useDocumentTemplateStore()
 const toastStore = useToastStore()
+const router = useRouter()
 
 const uploadTarget = ref<DocumentTemplateType | undefined>(undefined)
 const uploadLanguage = ref<AppLanguage>('English')
@@ -68,8 +70,9 @@ const isDeleting = ref(false)
 const isSettingDefaultId = ref<string | undefined>(undefined)
 const isDownloadingId = ref<string | undefined>(undefined)
 
-const mappingTarget = ref<DocumentTemplate | undefined>(undefined)
-const isMapperOpen = ref(false)
+function openFieldMapper(template: DocumentTemplate): void {
+  router.push({ name: ROUTE_NAMES.ADMIN_TEMPLATE_FIELD_MAPPER, params: { templateId: template.id } })
+}
 
 const layoutTargetId = ref<string | undefined>(undefined)
 const isLayoutOpen = ref(false)
@@ -90,11 +93,6 @@ function typeLabel(type: DocumentTemplateType): string {
 
 function languageLabel(language: AppLanguage): string {
   return language === 'English' ? t('governmentFormOptions.language.english') : t('governmentFormOptions.language.arabic')
-}
-
-function openFieldMapper(template: DocumentTemplate): void {
-  mappingTarget.value = template
-  isMapperOpen.value = true
 }
 
 function openLayoutDialog(template: DocumentTemplate): void {
@@ -309,7 +307,6 @@ async function confirmDelete(): Promise<void> {
       @confirm="confirmDelete"
     />
 
-    <TemplateFieldMapperDialog v-model="isMapperOpen" :template="mappingTarget" @saved="store.loadTemplates()" />
     <TemplateLayoutDialog v-model="isLayoutOpen" :template="layoutTarget" />
   </div>
 </template>

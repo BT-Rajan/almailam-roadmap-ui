@@ -37,6 +37,7 @@ export const ROUTE_NAMES = {
   ADMIN_USER_FORM: 'admin-user-form',
   ADMIN_CATALOGS: 'admin-catalogs',
   ADMIN_DOCUMENTS: 'admin-documents',
+  ADMIN_TEMPLATE_FIELD_MAPPER: 'admin-template-field-mapper',
   ADMIN_AI: 'admin-ai',
   ADMIN_COMPANY: 'admin-company',
   ADMIN_EMAIL: 'admin-email',
