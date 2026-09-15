@@ -1,4 +1,4 @@
--- Migration 0100: remove notes/terms_and_conditions/scope_phases/
+-- Migration 0102: remove notes/terms_and_conditions/scope_phases/
 -- payment_terms from quotations.
 --
 -- These were free-text fields on the quotation creation/edit forms
@@ -19,7 +19,7 @@
 -- 0094).
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0100_remove_quotation_notes_terms_scope_payment.sql
+--   mysql -u <user> -p <database> < backend/migrations/0102_remove_quotation_notes_terms_scope_payment.sql
 
 SET @db := DATABASE();
 
@@ -32,4 +32,4 @@ SET @sql := IF(@col_exists > 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SELECT 'Migration 0100 complete.' AS status;
+SELECT 'Migration 0102 complete.' AS status;

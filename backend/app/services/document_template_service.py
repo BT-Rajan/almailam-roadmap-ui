@@ -687,7 +687,7 @@ def render_quotation_document(db: Session, quotation: Quotation, language: str |
         "discount_amount": f"{float(quotation.discount_amount):.2f}",
         "amount": f"{float(quotation.amount):.2f}",
         # notes/terms_and_conditions/scope_phases/payment_terms were
-        # dropped from the Quotation model (migration 0100) -- these
+        # dropped from the Quotation model (migration 0102) -- these
         # per-quotation free-text fields turned out to be redundant and
         # were removed from the create/edit UI. Kept here as static
         # empty defaults, not removed outright, so a document template
