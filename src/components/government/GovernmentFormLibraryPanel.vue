@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, LayoutGrid, Pencil, Plus, TableProperties, Trash2 } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -10,13 +11,11 @@ import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
-import GovernmentFormFormDialog from '@/components/administration/GovernmentFormFormDialog.vue'
 import FormDetailDrawer from '@/components/government/FormDetailDrawer.vue'
 import GovernmentFormsView from '@/components/government/GovernmentFormsView.vue'
 import { useLocale } from '@/composables/useLocale'
-import type { FormInput } from '@/services/governmentFormService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
-import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentAuthority, GovernmentForm, GovernmentFormCategory } from '@/types/Government'
 import type { SelectOption } from '@/types/Ui'
@@ -34,23 +33,15 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { isRtl } = useLocale()
+const router = useRouter()
 
 // Points the way "back" actually goes, which flips with reading
 // direction.
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const store = useGovernmentFormStore()
-const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
 
-onMounted(() => {
-  if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
-})
-
 const showArchived = ref(false)
-
-const isFormDialogOpen = ref(false)
-const editingForm = ref<GovernmentForm | undefined>(undefined)
-const isSavingForm = ref(false)
 
 const isDetailDrawerOpen = ref(false)
 const viewingForm = ref<GovernmentForm | undefined>(undefined)
@@ -96,15 +87,8 @@ const authorityForms = computed<GovernmentForm[]>(() => {
   })
 })
 
-// Ensures the "Add Form" dialog defaults to the authority currently being viewed.
-const dialogAuthorities = computed<GovernmentAuthority[]>(() => [
-  props.authority,
-  ...store.authorities.filter((a) => a.id !== props.authority.id),
-])
-
 function openAddForm(): void {
-  editingForm.value = undefined
-  isFormDialogOpen.value = true
+  router.push({ name: ROUTE_NAMES.GOVERNMENT_FORM_FORM, params: { formId: 'new' }, query: { authorityId: props.authority.id } })
 }
 
 // Editing a form affects the shared master copy, so confirm intent first.
@@ -116,27 +100,8 @@ function requestEditForm(form: GovernmentForm): void {
 function confirmEditWarning(): void {
   isEditWarningOpen.value = false
   isDetailDrawerOpen.value = false
-  editingForm.value = pendingEditForm.value
+  if (pendingEditForm.value) router.push({ name: ROUTE_NAMES.GOVERNMENT_FORM_FORM, params: { formId: pendingEditForm.value.id } })
   pendingEditForm.value = undefined
-  isFormDialogOpen.value = true
-}
-
-async function saveForm(input: FormInput): Promise<void> {
-  isSavingForm.value = true
-  try {
-    if (editingForm.value) {
-      await store.updateForm(editingForm.value.id, input)
-      toastStore.show('success', t('government.formLibraryPanel.formUpdatedTitle'), t('government.formLibraryPanel.formUpdatedDescription', { title: input.title }))
-    } else {
-      await store.createForm(input)
-      toastStore.show('success', t('government.formLibraryPanel.formAddedTitle'), t('government.formLibraryPanel.formAddedDescription', { title: input.title }))
-    }
-    isFormDialogOpen.value = false
-  } catch {
-    toastStore.show('error', t('government.formLibraryPanel.unableToSaveForm'), t('common.pleaseTryAgain'))
-  } finally {
-    isSavingForm.value = false
-  }
 }
 
 function requestArchiveForm(form: GovernmentForm): void {
@@ -266,15 +231,6 @@ function printForm(form: GovernmentForm): void {
     @archive="requestArchiveForm"
     @restore="restoreForm"
     @print="printForm"
-  />
-
-  <GovernmentFormFormDialog
-    v-model="isFormDialogOpen"
-    :form="editingForm"
-    :authorities="dialogAuthorities"
-    :services="serviceCatalogStore.services"
-    :saving="isSavingForm"
-    @save="saveForm"
   />
 
   <ConfirmationDialog

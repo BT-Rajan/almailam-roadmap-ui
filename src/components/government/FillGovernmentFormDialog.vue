@@ -54,7 +54,7 @@ const fieldErrors = reactive<Record<string, string>>({})
 
 // Pre-fills whatever real project/client/company data a token's name
 // already matches (the same convention documented in
-// GovernmentFormFormDialog.vue's Template Content hint) -- anything else
+// GovernmentFormFormPage.vue's Template Content hint) -- anything else
 // (e.g. this project's own Kuwait plot fields, which have no home in the
 // data model) is left blank for manual entry.
 function knownDefault(token: string): string {

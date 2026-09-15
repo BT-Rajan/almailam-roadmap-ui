@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Project } from '@/types/Project'
-import type { Task, TaskStatus } from '@/types/Task'
+import type { Task, TaskAuditEvent, TaskStatus } from '@/types/Task'
 
 interface TaskStoreState {
   tasks: Task[]
@@ -15,6 +15,12 @@ interface TaskStoreState {
   searchTerm: string
   projectFilter: string | 'All'
   assigneeFilter: string | 'All'
+  // One task's own history (status changes, reassignment, schedule
+  // edits, notes -- see TaskHistoryPanel.vue), keyed by task id. Same
+  // shape/loading pattern as statusReportStore.taskReports.
+  auditEventsByTask: Record<string, TaskAuditEvent[]>
+  isHistoryLoading: boolean
+  historyError: string | undefined
 }
 
 export const useTaskStore = defineStore('task', {
@@ -25,6 +31,9 @@ export const useTaskStore = defineStore('task', {
     searchTerm: '',
     projectFilter: 'All',
     assigneeFilter: 'All',
+    auditEventsByTask: {},
+    isHistoryLoading: false,
+    historyError: undefined,
   }),
 
   getters: {
@@ -172,6 +181,22 @@ export const useTaskStore = defineStore('task', {
     async deleteTask(taskId: string): Promise<void> {
       await taskService.deleteTask(taskId)
       this.tasks = this.tasks.filter((task) => task.id !== taskId)
+    },
+
+    async loadAuditEvents(taskId: string) {
+      this.isHistoryLoading = true
+      this.historyError = undefined
+      try {
+        this.auditEventsByTask = { ...this.auditEventsByTask, [taskId]: await taskService.getAuditEvents(taskId) }
+      } catch {
+        this.historyError = "Unable to load this task's history. Please try again."
+      } finally {
+        this.isHistoryLoading = false
+      }
+    },
+
+    async addNote(taskId: string, note: string) {
+      this.auditEventsByTask = { ...this.auditEventsByTask, [taskId]: await taskService.addNote(taskId, note) }
     },
 
     setSearchTerm(term: string) {

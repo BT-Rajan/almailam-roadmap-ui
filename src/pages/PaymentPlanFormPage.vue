@@ -183,7 +183,10 @@ function seedForm(): void {
     currency.value = existing.currency
     contractStartDate.value = existing.contractStartDate
     agreementDate.value = existing.agreementDate
-    quotationReference.value = existing.quotationReference ?? ''
+    // Prefer the real quotationNo (from quotation_id, migration 0100)
+    // over the legacy free-text quotationReference -- only falls back
+    // to the latter for an agreement that predates quotation_id.
+    quotationReference.value = existing.quotationNo ?? existing.quotationReference ?? ''
     paymentMode.value = existing.paymentMode
     const rows = [...existingObligations.value].sort((a, b) => a.sequenceNumber - b.sequenceNumber)
     milestones.value = rows.map((obligation) => ({

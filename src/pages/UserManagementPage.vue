@@ -2,6 +2,7 @@
 import { ListChecks, Plus, Users as UsersIcon } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -15,7 +16,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import PasswordResetDialog from '@/components/administration/PasswordResetDialog.vue'
 import RoleCard from '@/components/administration/RoleCard.vue'
 import UserCard from '@/components/administration/UserCard.vue'
-import UserDialog from '@/components/administration/UserDialog.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -35,6 +36,7 @@ interface UserTableRow {
 }
 
 const { t } = useI18n()
+const router = useRouter()
 const userStore = useUserStore()
 const toastStore = useToastStore()
 const authStore = useAuthStore()
@@ -42,15 +44,11 @@ const authStore = useAuthStore()
 const activeTab = ref<'users' | 'roles'>('users')
 const selectedUserId = ref<string | undefined>(undefined)
 const isProfileDialogOpen = ref(false)
-const isDialogOpen = ref(false)
-const editingUser = ref<AppUser | undefined>(undefined)
 const isResetConfirmOpen = ref(false)
 const isResettingPassword = ref(false)
 const isPasswordResultOpen = ref(false)
 const resetPasswordResult = ref('')
 const passwordDialogUserName = ref('')
-const passwordDialogHeading = ref<string | undefined>(undefined)
-const isSavingUser = ref(false)
 const isDeleteConfirmOpen = ref(false)
 const isDeletingUser = ref(false)
 
@@ -128,41 +126,13 @@ function openUser(row: UserTableRow): void {
   isProfileDialogOpen.value = true
 }
 
-function openCreateDialog(): void {
-  editingUser.value = undefined
-  isDialogOpen.value = true
+function openCreateForm(): void {
+  router.push({ name: ROUTE_NAMES.ADMIN_USER_FORM, params: { userId: 'new' } })
 }
 
-function openEditDialog(user: AppUser): void {
-  editingUser.value = user
-  isDialogOpen.value = true
+function openEditForm(user: AppUser): void {
   isProfileDialogOpen.value = false
-}
-
-async function handleSave(user: AppUser): Promise<void> {
-  isSavingUser.value = true
-  try {
-    if (editingUser.value) {
-      await userStore.saveUser(user)
-      toastStore.show('success', t('administration.userManagementPage.userUpdatedTitle'), t('administration.userManagementPage.userUpdatedDescription', { name: user.name }))
-    } else {
-      const created = await userStore.addUser(user)
-      toastStore.show('success', t('administration.userManagementPage.userAddedTitle'), t('administration.userManagementPage.userAddedDescription', { name: created.name }))
-      passwordDialogUserName.value = created.name
-      passwordDialogHeading.value = t('administration.userManagementPage.loginCreatedFor', { name: created.name })
-      resetPasswordResult.value = created.temporaryPassword
-      isPasswordResultOpen.value = true
-    }
-    isDialogOpen.value = false
-  } catch (error) {
-    toastStore.show(
-      'error',
-      editingUser.value ? t('administration.userManagementPage.failedToUpdateUser') : t('administration.userManagementPage.failedToAddUser'),
-      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
-    )
-  } finally {
-    isSavingUser.value = false
-  }
+  router.push({ name: ROUTE_NAMES.ADMIN_USER_FORM, params: { userId: user.id } })
 }
 
 async function handleToggleStatus(user: AppUser): Promise<void> {
@@ -182,7 +152,6 @@ async function handleResetPassword(): Promise<void> {
   try {
     resetPasswordResult.value = await userStore.resetUserPassword(selectedUser.value.id)
     passwordDialogUserName.value = selectedUser.value.name
-    passwordDialogHeading.value = undefined
     isResetConfirmOpen.value = false
     isPasswordResultOpen.value = true
   } catch (error) {
@@ -213,7 +182,7 @@ async function handleDeleteUser(): Promise<void> {
   <div class="flex flex-col gap-6 p-6">
     <PageHeader :title="t('administration.userManagementPage.pageTitle')" :subtitle="t('administration.userManagementPage.pageSubtitle')">
       <template #actions>
-        <BaseButton :icon="Plus" @click="openCreateDialog">{{ t('administration.userManagementPage.addUser') }}</BaseButton>
+        <BaseButton :icon="Plus" @click="openCreateForm">{{ t('administration.userManagementPage.addUser') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -314,12 +283,10 @@ async function handleDeleteUser(): Promise<void> {
           >
             {{ t('administration.userManagementPage.deleteUser') }}
           </BaseButton>
-          <BaseButton @click="openEditDialog(selectedUser)">{{ t('administration.userManagementPage.editUser') }}</BaseButton>
+          <BaseButton @click="openEditForm(selectedUser)">{{ t('administration.userManagementPage.editUser') }}</BaseButton>
         </div>
       </div>
     </BaseDialog>
-
-    <UserDialog v-model="isDialogOpen" :user="editingUser" :saving="isSavingUser" @save="handleSave" />
 
     <ConfirmationDialog
       v-model="isResetConfirmOpen"
@@ -334,7 +301,6 @@ async function handleDeleteUser(): Promise<void> {
       v-model="isPasswordResultOpen"
       :user-name="passwordDialogUserName"
       :password="resetPasswordResult"
-      :heading="passwordDialogHeading"
     />
 
     <ConfirmationDialog

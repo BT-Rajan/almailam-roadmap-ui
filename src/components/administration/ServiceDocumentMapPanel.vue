@@ -13,7 +13,7 @@ import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentForm } from '@/types/Government'
 
 // The single source of truth for "which service needs which document" --
-// a GovernmentForm's own serviceTags (see GovernmentFormFormDialog.vue's
+// a GovernmentForm's own serviceTags (see GovernmentFormFormPage.vue's
 // Tagged Services grid). This panel is the same relationship viewed and
 // edited from the other side: by service, instead of by form. There is
 // deliberately no separate table or duplicate list behind this screen --

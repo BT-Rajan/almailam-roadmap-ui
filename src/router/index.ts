@@ -223,6 +223,25 @@ const router = createRouter({
       },
     },
     {
+      // Replaces GovernmentFormFormDialog.vue's modal, same treatment
+      // as ADMIN_USER_FORM/ADMIN_SCHEDULED_REPORT_FORM -- ':formId' is
+      // 'new' or a real id; the page decides create vs edit itself from
+      // whether that id resolves to an existing form.
+      path: '/government/forms/:formId',
+      name: ROUTE_NAMES.GOVERNMENT_FORM_FORM,
+      component: () => import('@/pages/GovernmentFormFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.forms', routeName: ROUTE_NAMES.GOVERNMENT_FORMS },
+          { label: 'breadcrumb.form' },
+        ],
+      },
+    },
+    {
       path: '/government/authorities',
       name: ROUTE_NAMES.GOVERNMENT_AUTHORITIES,
       component: () => import('@/pages/PlaceholderPage.vue'),
@@ -562,6 +581,26 @@ const router = createRouter({
       },
     },
     {
+      // Replaces UserDialog.vue's modal, same treatment as
+      // ScheduledReportFormPage.vue -- ':userId' is 'new' or a real id;
+      // the page itself decides create vs edit from whether that id
+      // resolves to an existing user.
+      path: '/admin/users/:userId',
+      name: ROUTE_NAMES.ADMIN_USER_FORM,
+      component: () => import('@/pages/UserFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.users', routeName: ROUTE_NAMES.ADMIN_USERS },
+          { label: 'breadcrumb.user' },
+        ],
+      },
+    },
+    {
       path: '/admin/catalogs',
       name: ROUTE_NAMES.ADMIN_CATALOGS,
       component: () => import('@/pages/AdminCatalogsPage.vue'),
@@ -588,6 +627,27 @@ const router = createRouter({
           { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
           { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
           { label: 'breadcrumb.documents' },
+        ],
+      },
+    },
+    {
+      // Replaces TemplateFieldMapperDialog.vue's modal. No 'new'
+      // sentinel like ADMIN_USER_FORM/PAYMENT_PLAN_FORM -- a template
+      // always exists (uploaded via DocumentTemplatesPanel.vue) before
+      // its fields can be mapped, so this only ever edits one that's
+      // already there.
+      path: '/admin/documents/templates/:templateId/fields',
+      name: ROUTE_NAMES.ADMIN_TEMPLATE_FIELD_MAPPER,
+      component: () => import('@/pages/TemplateFieldMapperPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        adminOnly: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.administration', routeName: ROUTE_NAMES.ADMIN },
+          { label: 'breadcrumb.documents', routeName: ROUTE_NAMES.ADMIN_DOCUMENTS },
+          { label: 'breadcrumb.mapFields' },
         ],
       },
     },
