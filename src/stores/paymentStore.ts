@@ -97,9 +97,13 @@ export const usePaymentStore = defineStore('payment', {
         // Resolved from whichever project's quotations are already loaded
         // (the project workspace loads its own before this ever renders)
         // -- null rather than a fetch here, since this is a plain getter.
+        // Matches against quotationNo (the real quotation_id FK,
+        // resolved server-side) -- not the legacy free-text
+        // quotationReference, which can drift from the actual linked
+        // quotation on older rows.
         const quotationStore = useQuotationStore()
-        const quotation = agreement.quotationReference
-          ? quotationStore.quotations.find((item) => item.quotationNo === agreement.quotationReference)
+        const quotation = agreement.quotationNo
+          ? quotationStore.quotations.find((item) => item.quotationNo === agreement.quotationNo)
           : undefined
         summary.estimateAmount = quotation?.amount ?? null
         return summary
