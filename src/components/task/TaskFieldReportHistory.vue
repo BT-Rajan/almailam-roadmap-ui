@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ClipboardList } from '@lucide/vue'
+import { Camera, ClipboardList } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -9,6 +9,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
+import ReportPhotoThumbnails from '@/components/task/ReportPhotoThumbnails.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useStatusReportStore } from '@/stores/statusReportStore'
 import { useUserStore } from '@/stores/userStore'
@@ -101,11 +102,17 @@ function openReport(report: StatusReport): void {
           </div>
           <div class="flex items-center justify-between gap-3">
             <p class="text-xs text-text-muted">{{ t('task.fieldReportHistory.by', { name: report.engineerName }) }}</p>
-            <StatusBadge
-              :label="report.status === 'Attached' ? t('task.fieldReportHistory.statusAttached') : t('task.fieldReportHistory.statusPending')"
-              :variant="report.status === 'Attached' ? 'success' : 'warning'"
-              size="sm"
-            />
+            <div class="flex shrink-0 items-center gap-2">
+              <span v-if="report.images.length > 0" class="flex items-center gap-0.5 text-xs text-text-muted">
+                <Camera class="h-3.5 w-3.5" />
+                {{ report.images.length }}
+              </span>
+              <StatusBadge
+                :label="report.status === 'Attached' ? t('task.fieldReportHistory.statusAttached') : t('task.fieldReportHistory.statusPending')"
+                :variant="report.status === 'Attached' ? 'success' : 'warning'"
+                size="sm"
+              />
+            </div>
           </div>
         </li>
       </ul>
@@ -138,6 +145,10 @@ function openReport(report: StatusReport): void {
         <div>
           <p class="mb-1 text-text-muted">{{ t('project.supervisionReportsTab.notes') }}</p>
           <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ selectedReport.notes }}</p>
+        </div>
+        <div v-if="selectedReport.images.length > 0">
+          <p class="mb-1 text-text-muted">{{ t('task.fieldReportHistory.photos') }}</p>
+          <ReportPhotoThumbnails :report-id="selectedReport.id" :images="selectedReport.images" />
         </div>
       </div>
     </BaseDialog>

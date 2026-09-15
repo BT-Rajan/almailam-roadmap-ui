@@ -26,6 +26,22 @@ class StatusReportFileRequest(BaseModel):
     _check = field_validator("supervisionType")(_enum_validator(STATUS_REPORT_SUPERVISION_TYPES, "supervisionType"))
 
 
+class StatusReportImageOut(BaseModel):
+    id: str
+    filename: str
+    sizeBytes: int
+    createdAt: datetime
+
+    @staticmethod
+    def from_model(image) -> "StatusReportImageOut":
+        return StatusReportImageOut(
+            id=str(image.id),
+            filename=image.original_filename,
+            sizeBytes=image.file_size_bytes,
+            createdAt=image.created_at,
+        )
+
+
 class StatusReportOut(BaseModel):
     id: str
     reportNo: str
@@ -42,9 +58,18 @@ class StatusReportOut(BaseModel):
     attachedBy: str | None = None
     attachedAt: datetime | None = None
     createdAt: datetime
+    images: list[StatusReportImageOut] = []
 
     @staticmethod
-    def from_model(report, project_no: str, project_name: str, engineer_name: str, attached_by_name: str | None, attached_task_no: str | None) -> "StatusReportOut":
+    def from_model(
+        report,
+        project_no: str,
+        project_name: str,
+        engineer_name: str,
+        attached_by_name: str | None,
+        attached_task_no: str | None,
+        images: list | None = None,
+    ) -> "StatusReportOut":
         return StatusReportOut(
             id=str(report.id),
             reportNo=report.report_no,
@@ -61,6 +86,7 @@ class StatusReportOut(BaseModel):
             attachedBy=attached_by_name,
             attachedAt=report.attached_at,
             createdAt=report.created_at,
+            images=[StatusReportImageOut.from_model(i) for i in (images or [])],
         )
 
 

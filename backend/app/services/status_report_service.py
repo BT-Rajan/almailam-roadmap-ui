@@ -12,14 +12,20 @@
 """
 
 from datetime import date, datetime, timezone
+from io import BytesIO
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from fastapi import UploadFile
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.file_storage import resolve_path, save_bytes
 from app.models.project import Project
-from app.models.status_report import StatusReport
+from app.models.status_report import MAX_REPORT_IMAGES, StatusReport, StatusReportImage
 from app.models.task import Task
 from app.models.user import User
 from app.services import company_service, notification_service, task_service, timeline_service
@@ -43,6 +49,16 @@ REPORT_FILING_TIMEZONE = "Asia/Kuwait"
 # start_date/target_date happen to say.
 _CLOSED_PROJECT_STATUSES = ("Cancelled",)
 
+# Same bundled-font reasoning as pdf_render.py's own FONT_PATH: the
+# server this runs on isn't guaranteed to have any font installed via
+# fontconfig, and engineer names are written in Arabic in practice (see
+# StatusReport's own docstring) -- a silently-substituted Latin-only
+# font would render those as boxes/garbage on the stamped photo. Reuses
+# the exact same bundled file already shipped for PDF rendering rather
+# than adding a second font dependency; Noto Naskh Arabic also covers
+# basic Latin, so the same font works for an English name too.
+_STAMP_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoNaskhArabic-Regular.ttf"
+
 
 def _today(db: Session) -> date:
     """"Today" for report-filing purposes is always Kuwait local time,
@@ -64,6 +80,19 @@ def _today(db: Session) -> date:
         return datetime.now(ZoneInfo(REPORT_FILING_TIMEZONE)).date()
     except Exception:
         return date.today()
+
+
+def _now(db: Session) -> datetime:
+    """Same Kuwait-time convention as _today() above, but with the time
+    of day too -- for stamping a report photo with the actual moment it
+    was uploaded (status_report_service.stamp_report_image), not just
+    the report's own report_date (date only, no time). Falls back to
+    server-local time on the same "don't fail an unrelated action over
+    a missing tz database" basis as _today()."""
+    try:
+        return datetime.now(ZoneInfo(REPORT_FILING_TIMEZONE))
+    except Exception:
+        return datetime.now()
 
 
 def report_filing_today(db: Session) -> date:
@@ -393,6 +422,155 @@ def attach_report(db: Session, report_id: int, task_no: str | None, recipient_no
     report.attached_timeline_event_id = event.id
     report.attached_by = actor_id
     report.attached_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(report)
+    return report
+
+
+def stamp_report_image(contents: bytes, engineer_name: str, project_no: str, stamped_at: datetime) -> bytes:
+    """Burns the filing engineer's name, project number, and the exact
+    date/time of upload directly into the photo's pixels (a banner
+    across the bottom), not just alongside it as separate metadata --
+    the point is that the stamp travels with the image itself wherever
+    it's downloaded, printed, or forwarded, the same as a handwritten
+    caption would have on the paper form this digitizes. Re-encodes as
+    JPEG regardless of the source format, so every stored report photo
+    is a consistent, predictable type.
+    """
+    image = Image.open(BytesIO(contents))
+    # Respects the phone camera's own orientation tag -- without this a
+    # portrait photo opened by a library that ignores EXIF (most do)
+    # comes out sideways, since the raw pixel data is often stored
+    # landscape with a rotation flag rather than pre-rotated.
+    image = ImageOps.exif_transpose(image)
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    lines = [
+        engineer_name,
+        f"Project: {project_no}",
+        stamped_at.strftime("%d %b %Y, %H:%M") + " Kuwait time",
+    ]
+
+    font_size = max(16, image.width // 32)
+    try:
+        font = ImageFont.truetype(str(_STAMP_FONT_PATH), font_size)
+    except OSError:
+        # Same "don't fail the whole upload over a font problem" spirit
+        # as _today()/_now()'s own tz fallback -- a smaller, uglier
+        # stamp is far better than the photo not saving at all.
+        font = ImageFont.load_default()
+
+    padding = font_size // 2
+    line_height = int(font_size * 1.3)
+    banner_height = line_height * len(lines) + padding * 2
+
+    draw = ImageDraw.Draw(image, "RGBA")
+    # 80% transparent (alpha 51/255) at the person's own request, so the
+    # banner doesn't mask whatever was actually photographed -- only
+    # dark enough to be a hint of where the caption sits, not an opaque
+    # bar. A black stroke around the white text (not just a flat fill)
+    # is what keeps the caption itself legible now that it's sitting on
+    # top of the real photo colors underneath instead of a solid band.
+    draw.rectangle([(0, image.height - banner_height), (image.width, image.height)], fill=(0, 0, 0, 51))
+    y = image.height - banner_height + padding
+    for line in lines:
+        draw.text((padding, y), line, font=font, fill=(255, 255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0, 200))
+        y += line_height
+
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG", quality=85)
+    return buffer.getvalue()
+
+
+def list_report_images(db: Session, report_id: int) -> list[StatusReportImage]:
+    return (
+        db.query(StatusReportImage)
+        .filter(StatusReportImage.status_report_id == report_id)
+        .order_by(StatusReportImage.sequence.asc())
+        .all()
+    )
+
+
+def _assert_can_edit_images(report: StatusReport, engineer_id: int) -> None:
+    if report.engineer_id != engineer_id:
+        raise NotFoundError("Status report")
+    if report.status == "Attached":
+        raise ValidationAppError("This report has already been reviewed and attached -- photos can no longer be changed.")
+
+
+def add_report_image(db: Session, report_id: int, engineer_id: int, file: UploadFile) -> StatusReport:
+    """Adds one photo to `report_id`, stamped with this engineer's own
+    name, the report's project number, and the current date/time (see
+    stamp_report_image) -- only the report's own filing engineer can
+    add to it (NotFoundError rather than a permission error, so this
+    doesn't confirm another engineer's report even exists), and only
+    while it's still editable, same rule file_todays_report already
+    enforces for the report's own fields. Returns the full report so
+    the caller doesn't need a second round trip to see the updated
+    image list.
+    """
+    report = get_report(db, report_id)
+    _assert_can_edit_images(report, engineer_id)
+
+    existing = list_report_images(db, report_id)
+    if len(existing) >= MAX_REPORT_IMAGES:
+        raise ValidationAppError(f"A report can have at most {MAX_REPORT_IMAGES} photos.")
+
+    project = db.query(Project).filter(Project.id == report.project_id).first()
+    engineer = db.query(User).filter(User.id == engineer_id).first()
+
+    # Same size cap and "read at most one byte over the limit" pattern
+    # as file_storage.save_upload -- read unboundedly here first and a
+    # deliberately huge upload gets fully buffered into memory before
+    # anything has a chance to reject it.
+    max_bytes = get_settings().MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    contents = file.file.read(max_bytes + 1)
+    if len(contents) > max_bytes:
+        raise ValidationAppError(f"Photo exceeds the {get_settings().MAX_UPLOAD_SIZE_MB} MB upload limit.")
+    if not contents:
+        raise ValidationAppError("Uploaded photo is empty.")
+    try:
+        stamped = stamp_report_image(
+            contents,
+            engineer.full_name if engineer else "Unknown",
+            project.project_no if project else "",
+            _now(db),
+        )
+    except Exception as exc:
+        raise ValidationAppError("That file doesn't look like a valid image.") from exc
+
+    storage_key, original_filename, size_bytes = save_bytes(
+        stamped, "status_report_images", ".jpg", file.filename or "photo.jpg"
+    )
+    db.add(
+        StatusReportImage(
+            status_report_id=report.id,
+            storage_key=storage_key,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+            sequence=len(existing) + 1,
+        )
+    )
+    db.commit()
+    db.refresh(report)
+    return report
+
+
+def delete_report_image(db: Session, report_id: int, engineer_id: int, image_id: int) -> StatusReport:
+    report = get_report(db, report_id)
+    _assert_can_edit_images(report, engineer_id)
+
+    image = (
+        db.query(StatusReportImage)
+        .filter(StatusReportImage.id == image_id, StatusReportImage.status_report_id == report_id)
+        .first()
+    )
+    if image is None:
+        raise NotFoundError("Report photo")
+
+    resolve_path(image.storage_key).unlink(missing_ok=True)
+    db.delete(image)
     db.commit()
     db.refresh(report)
     return report

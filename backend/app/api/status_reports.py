@@ -42,6 +42,7 @@ def _report_out(db: Session, report) -> StatusReportOut:
         engineer.full_name if engineer else "Unknown",
         attached_by.full_name if attached_by else None,
         attached_task.task_no if attached_task else None,
+        status_report_service.list_report_images(db, report.id),
     )
 
 
