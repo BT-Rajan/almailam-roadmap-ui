@@ -93,34 +93,38 @@ function emptyForm() {
   }
 }
 
-// Turns the project's picked activities into draft line items (one per
-// activity, quantity 1, unit price = the picked fixedCost). Falls back to
-// emptyForm()'s single blank row when the project has no picks yet.
+// Turns the project's picked Design activities and Permits into draft
+// line items (one per item, quantity 1, unit price = the picked
+// fixedCost/permitPrice) -- these are what the quotation actually
+// prices, discounts, and totals. Falls back to emptyForm()'s single
+// blank row when the project has no picks yet.
 //
-// Also appends one line per selected Supervision activity (informational
-// only -- Supervision is actually billed through the Financial
-// Agreement's prorated monthly schedule once the project reaches
-// Contract) and one per selected Permit.
+// Selected Supervision activities are deliberately excluded from this
+// priced list: Supervision is billed monthly (via the Financial
+// Agreement's own prorated schedule once the project reaches Payment
+// Plan/Contract), not as a one-time fee, so summing a monthly rate
+// into this one-time total would silently inflate it by one month's
+// Supervision cost. Shown to the user as a separate, non-priced
+// reference section instead -- see supervisionActivities/the template.
 function formFromProject(project: Project | undefined) {
   const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
     description: `${item.serviceName} - ${item.activityName}`,
     quantity: 1,
     unitPrice: item.fixedCost,
   }))
-  const supervisionLineItems = (project?.selectedSupervisionActivities ?? []).map((activity) => ({
-    description: `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate})`,
-    quantity: 1,
-    unitPrice: activity.monthlyRate,
-  }))
   const permitLineItems = (project?.selectedPermits ?? []).map((permit) => ({
     description: `Permits to Apply For - ${permit.permitName}`,
     quantity: 1,
     unitPrice: permit.permitPrice ?? 0,
   }))
-  const lineItems = [...serviceLineItems, ...supervisionLineItems, ...permitLineItems]
+  const lineItems = [...serviceLineItems, ...permitLineItems]
   if (lineItems.length === 0) return emptyForm()
   return { ...emptyForm(), lineItems }
 }
+
+// Reference-only -- see formFromProject's comment above for why these
+// never join form.lineItems/subtotal/total.
+const supervisionActivities = computed(() => project.value?.selectedSupervisionActivities ?? [])
 
 const form = reactive(emptyForm())
 interface LineItemError {
@@ -311,6 +315,15 @@ async function handleSubmit(): Promise<void> {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div v-if="supervisionActivities.length > 0" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-secondary p-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
+          <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
+          <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
+            <span class="text-text-secondary">{{ activity.activityName }} ({{ activity.startDate }} – {{ activity.endDate }})</span>
+            <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, QUOTATION_CURRENCY) }}/mo</span>
           </div>
         </div>
 

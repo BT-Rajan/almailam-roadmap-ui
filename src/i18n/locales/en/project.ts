@@ -598,6 +598,8 @@ export default {
     quantityMustBePositive: 'Quantity must be greater than 0.',
     unitPriceCannotBeNegative: 'Unit price cannot be negative.',
     removeLineItem: 'Remove service {number}',
+    supervisionReferenceTitle: 'Supervision (billed separately, monthly)',
+    supervisionReferenceHint: "Not included in this quotation's total -- billed through the Supervision payment plan once the project reaches Payment Plan/Contract.",
     discountAmount: 'Discount Amount',
     discountExceedsSubtotal: 'Discount cannot be more than the line items subtotal.',
     subtotal: 'Subtotal',

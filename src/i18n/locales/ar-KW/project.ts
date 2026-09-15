@@ -598,6 +598,8 @@ export default {
     quantityMustBePositive: 'يجب أن تكون الكمية أكبر من 0.',
     unitPriceCannotBeNegative: 'لا يمكن أن يكون السعر سالباً.',
     removeLineItem: 'إزالة الخدمة {number}',
+    supervisionReferenceTitle: 'الإشراف (يُحصّل بشكل منفصل، شهرياً)',
+    supervisionReferenceHint: 'غير مشمول في إجمالي عرض السعر هذا — يُحصّل عبر خطة دفع الإشراف بمجرد وصول المشروع إلى خطة الدفع/العقد.',
     discountAmount: 'مبلغ الخصم',
     discountExceedsSubtotal: 'لا يمكن أن يتجاوز الخصم إجمالي بنود الخدمات.',
     subtotal: 'المجموع الفرعي',
