@@ -510,10 +510,6 @@ def confirm_contract_signing(db: Session, contract_no: str, file: UploadFile, us
     if client is None or not client.email_consent:
         return contract, True
 
-    client = db.query(Client).filter(Client.id == project.client_id).first()
-    if client is None or not client.email_consent:
-        return contract, True
-
     try:
         clauses = get_clauses(db, contract.id)
         subject, body = email_template_service.render(
