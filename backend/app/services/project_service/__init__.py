@@ -858,8 +858,38 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
             )
             if engineer is None:
                 raise ValidationAppError("engineerId does not refer to a known, active user.")
-            changes["engineer_id"] = (project.engineer_id, new_engineer_id)
+            old_engineer_id = project.engineer_id
+            changes["engineer_id"] = (old_engineer_id, new_engineer_id)
             project.engineer_id = new_engineer_id
+
+            # Supervision tasks are auto-created with assigned_to set to
+            # whoever was the project's engineer at the time (see
+            # _add_task in this same module) -- reassigning the project's
+            # engineer without also moving those tasks left the new
+            # engineer unable to have their filed field reports ever
+            # match this task (status_report_service.list_reports_for_task
+            # matches Task.assigned_to to the report's own engineer), while
+            # the old engineer kept a task for a project they're no longer
+            # the engineer of. Only follows tasks still sitting on the OLD
+            # engineer and not yet Completed -- a task someone deliberately
+            # delegated to a third site engineer (assigned_to is neither
+            # old nor new) is left alone, since that was an intentional
+            # choice this reassignment shouldn't silently undo.
+            moved_tasks = (
+                db.query(Task)
+                .filter(
+                    Task.project_id == project.id,
+                    Task.selected_supervision_activity_id.isnot(None),
+                    Task.assigned_to == old_engineer_id,
+                    Task.status != "Completed",
+                    Task.deleted_at.is_(None),
+                )
+                .all()
+            )
+            for task in moved_tasks:
+                task.assigned_to = new_engineer_id
+            if moved_tasks:
+                changes["supervision_tasks_reassigned"] = (old_engineer_id, [task.task_no for task in moved_tasks])
 
     audit_service.log_field_changes(db, ENTITY_TYPE, project.id, changes, user_id)
     db.commit()

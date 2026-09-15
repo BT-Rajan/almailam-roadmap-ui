@@ -41,7 +41,19 @@ async function openAttachDialog(report: StatusReport): Promise<void> {
   isAttachDialogOpen.value = true
   isLoadingTasks.value = true
   try {
-    const page = await taskService.getTasksPage({ projectId: report.projectId, pageSize: 100 })
+    // Scoped to the reporting engineer, not just the project -- this
+    // picker previously listed every task in the project (any type,
+    // any assignee), so a reviewer could attach a site engineer's
+    // report to an unrelated Design/Permit task or to a Supervision
+    // task belonging to a different engineer entirely, with nothing to
+    // stop it. For a Supervision task specifically, attaching to the
+    // wrong one is silently harmless-looking but wrong: the report
+    // still won't show up there (status_report_service.
+    // list_reports_for_task matches by the task's own assignee, not by
+    // whatever attach_report was told), so the reviewer would see a
+    // successful "attached" toast for a task the report will never
+    // actually appear on.
+    const page = await taskService.getTasksPage({ projectId: report.projectId, assignedTo: report.engineerId, pageSize: 100 })
     taskOptions.value = page.items.map((task) => ({ label: `${task.id} — ${task.title}`, value: task.id }))
   } catch {
     taskOptions.value = []

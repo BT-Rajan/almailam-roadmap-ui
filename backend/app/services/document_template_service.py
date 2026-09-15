@@ -686,10 +686,19 @@ def render_quotation_document(db: Session, quotation: Quotation, language: str |
         "subtotal": f"{subtotal:.2f}",
         "discount_amount": f"{float(quotation.discount_amount):.2f}",
         "amount": f"{float(quotation.amount):.2f}",
-        "notes": _plain_text(quotation.notes),
-        "terms_and_conditions": [_plain_text(term) for term in quotation.terms_and_conditions],
-        "scope_phases": [_plain_text(phase) for phase in quotation.scope_phases],
-        "payment_terms": [_plain_text(term) for term in quotation.payment_terms],
+        # notes/terms_and_conditions/scope_phases/payment_terms were
+        # dropped from the Quotation model (migration 0102) -- these
+        # per-quotation free-text fields turned out to be redundant and
+        # were removed from the create/edit UI. Kept here as static
+        # empty defaults, not removed outright, so a document template
+        # some admin already mapped one of these tokens into (see
+        # MERGE_FIELD_CATALOG below, where they're no longer offered
+        # for *new* mappings) still renders instead of raising an
+        # undefined-variable error at merge time.
+        "notes": "",
+        "terms_and_conditions": [],
+        "scope_phases": [],
+        "payment_terms": [],
     }
     filename = f"{quotation.quotation_no}.docx"
     return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
@@ -887,7 +896,6 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
         {"key": "discount_amount", "label": "Discount Amount", "kind": "text"},
         {"key": "amount", "label": "Total Amount", "kind": "text"},
         {"key": "amount_in_words", "label": "Total Amount (in Words)", "kind": "text"},
-        {"key": "notes", "label": "Notes", "kind": "text"},
         {
             "key": "line_items",
             "label": "Line Items",
@@ -900,9 +908,6 @@ MERGE_FIELD_CATALOG: dict[str, list[dict]] = {
                 {"key": "amount", "label": "Amount"},
             ],
         },
-        {"key": "terms_and_conditions", "label": "Terms & Conditions", "kind": "repeating_list", "loopVar": "term"},
-        {"key": "scope_phases", "label": "Scope Phases", "kind": "repeating_list", "loopVar": "phase"},
-        {"key": "payment_terms", "label": "Payment Terms", "kind": "repeating_list", "loopVar": "term"},
     ],
     "Contract": [
         {"key": "logo", "label": "Company Logo", "kind": "text"},
