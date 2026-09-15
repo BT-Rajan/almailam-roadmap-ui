@@ -35,6 +35,11 @@ def _optional_enum_validator(allowed: tuple[str, ...], label: str):
 class FinancialAgreementOut(BaseModel):
     id: str
     projectId: str
+    # The quotation this agreement was generated from -- resolved from
+    # the real quotation_id FK (migration 0100), not the free-text
+    # quotationReference below. Fixed at creation, never editable. None
+    # only for agreements that predate quotation_id.
+    quotationNo: str | None
     stream: Literal["Design", "Supervision"]
     # See AGREEMENT_STATUSES -- gates the Payment Plan -> Contract stage
     # transition (project_service._assert_stage_exit_criteria).
@@ -44,16 +49,19 @@ class FinancialAgreementOut(BaseModel):
     contractStartDate: date
     contractEndDate: date | None
     agreementDate: date
+    # Superseded by quotationNo above (migration 0100) -- kept for
+    # historical/back-compat display only.
     quotationReference: str | None
     contractReference: str | None
     paymentMode: str
     paymentFrequency: str
 
     @staticmethod
-    def from_model(agreement, project_no: str) -> "FinancialAgreementOut":
+    def from_model(agreement, project_no: str, quotation_no: str | None = None) -> "FinancialAgreementOut":
         return FinancialAgreementOut(
             id=f"FA-{agreement.id:03d}",
             projectId=project_no,
+            quotationNo=quotation_no,
             stream=agreement.stream,
             status=agreement.status,
             contractAmount=float(agreement.contract_amount),

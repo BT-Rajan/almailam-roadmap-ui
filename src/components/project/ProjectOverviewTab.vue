@@ -415,10 +415,21 @@ function viewCivilIdDocument(): void {
 
 const latestQuotation = computed(() => quotationStore.latestQuotation)
 
-// The quotation the payment plan is built against -- the one Approved
-// quotation, same fact the Payment Plan stage's own entry criterion
-// checks server-side (project_service._assert_stage_exit_criteria).
-const paymentPlanQuotation = computed(() => quotationStore.quotations.find((quotation) => quotation.status === 'Approved'))
+// The quotation the payment plan is built against. Once a payment plan
+// exists for any stream, its quotation_id is a fixed reference frozen
+// at creation (migration 0100) -- prefer that exact match over
+// re-deriving "whichever quotation is Approved right now", which could
+// point at the wrong one if a project ever ended up with more than one
+// Approved quotation (see quotation_service.create_quotation, which
+// only warns rather than blocking that). Before any payment plan
+// exists yet, there's nothing frozen to read, so this falls back to
+// the same "Approved" lookup for display purposes only -- matching
+// project_service._assert_stage_exit_criteria's own entry criterion.
+const paymentPlanQuotation = computed(() => {
+  const frozenNo = paymentPlanAgreements.value.find((row) => row.agreement?.quotationNo)?.agreement?.quotationNo
+  if (frozenNo) return quotationStore.quotations.find((quotation) => quotation.quotationNo === frozenNo)
+  return quotationStore.quotations.find((quotation) => quotation.status === 'Approved')
+})
 
 // One row per billing stream this project actually includes, each with
 // its financial agreement if one has been created yet -- mirrors

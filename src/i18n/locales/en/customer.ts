@@ -15,7 +15,7 @@ export default {
 
   budgetPanel: {
     title: 'Budget & Payments',
-    emptyTitle: 'No financial agreement on file',
+    emptyTitle: 'No payment plan on file',
     emptyDescription: 'Contract and payment details will appear here once set up.',
     contractAmount: 'Contract Amount',
     paidToDate: 'Paid to Date',

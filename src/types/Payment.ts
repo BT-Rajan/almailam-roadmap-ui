@@ -36,6 +36,11 @@ export type AgreementStatus = 'Draft' | 'Approved'
 export interface FinancialAgreement {
   id: string
   projectId: string
+  // The quotation this agreement was generated from -- resolved
+  // server-side from the real quotation_id FK (migration 0100), fixed
+  // for the agreement's lifetime and never editable. undefined only
+  // for an agreement that predates quotation_id.
+  quotationNo?: string
   stream: AgreementStream
   status: AgreementStatus
   contractAmount: number
@@ -43,6 +48,8 @@ export interface FinancialAgreement {
   contractStartDate: string
   contractEndDate?: string
   agreementDate: string
+  // Superseded by quotationNo above -- kept for historical/back-compat
+  // display only.
   quotationReference?: string
   contractReference?: string
   paymentMode: PaymentMode

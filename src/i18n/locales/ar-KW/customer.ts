@@ -15,7 +15,7 @@ export default {
 
   budgetPanel: {
     title: 'الميزانية والمدفوعات',
-    emptyTitle: 'لا توجد اتفاقية مالية مسجلة',
+    emptyTitle: 'لا توجد خطة دفع مسجلة',
     emptyDescription: 'ستظهر هنا تفاصيل العقد والمدفوعات بمجرد إعدادها.',
     contractAmount: 'قيمة العقد',
     paidToDate: 'المدفوع حتى الآن',

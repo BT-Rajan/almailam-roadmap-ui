@@ -749,6 +749,13 @@ CREATE TABLE IF NOT EXISTS document_requirement_links (
 CREATE TABLE IF NOT EXISTS financial_agreements (
     id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     project_id              BIGINT UNSIGNED NOT NULL,
+    -- The quotation this agreement was generated from (migration 0100)
+    -- -- mirrors contracts.quotation_id. Resolved and set server-side
+    -- from the project's Approved quotation at creation
+    -- (payment_service.create_agreement), never user-editable, so it
+    -- stays a fixed reference for the agreement's lifetime. Nullable
+    -- only for agreements that predate this column.
+    quotation_id            BIGINT UNSIGNED NULL,
     -- Which billing stream this agreement covers (migration 0059) -- a
     -- project can have one Design agreement (one-time, even-split
     -- installments) AND one Supervision agreement (monthly, prorated on
@@ -768,6 +775,9 @@ CREATE TABLE IF NOT EXISTS financial_agreements (
     contract_start_date     DATE NOT NULL,
     contract_end_date       DATE NULL,
     agreement_date          DATE NOT NULL,
+    -- Superseded by quotation_id above (migration 0100) -- left in
+    -- place for historical rows and the audit trail, but no longer
+    -- read for linking purposes.
     quotation_reference     VARCHAR(30) NULL,
     contract_reference      VARCHAR(30) NULL,
     payment_mode            ENUM('Cash','Bank Transfer','Credit Card','Debit Card','Online Payment','Cheque','Other') NOT NULL,
@@ -775,13 +785,15 @@ CREATE TABLE IF NOT EXISTS financial_agreements (
     -- see payment_service.create_agreement).
     payment_frequency       ENUM('One-time','Daily','Weekly','Monthly','Quarterly','Half-yearly','Yearly','Custom') NOT NULL,
     CONSTRAINT fk_financial_agreements_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_financial_agreements_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE RESTRICT,
     -- One agreement per project *per stream* (migration 0059, relaxed
     -- from one per project) -- the staff UI only ever offers "Create
     -- Agreement" for a stream that doesn't have one yet, this makes that
     -- a real, enforced rule rather than just a UI convention (see
     -- payment_service.create_agreement's own proactive check for a
     -- clearer error message than a raw constraint violation).
-    CONSTRAINT uq_financial_agreements_project_stream UNIQUE (project_id, stream)
+    CONSTRAINT uq_financial_agreements_project_stream UNIQUE (project_id, stream),
+    INDEX idx_financial_agreements_quotation (quotation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payment_obligations (

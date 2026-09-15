@@ -120,6 +120,22 @@ def get_agreement_by_project(db: Session, project_no: str, stream: str | None = 
     return query.order_by(FinancialAgreement.id.desc()).first()
 
 
+def _approved_quotation_for_project(db: Session, project: Project) -> Quotation | None:
+    """The single Approved quotation for a project, if any -- Payment
+    Plan can't be entered without one on file (see
+    project_service._assert_stage_exit_criteria) so there's normally
+    always one to find. Shared by the Design amount check below and by
+    create_agreement/update_agreement, which use it to set the
+    agreement's real quotation_id FK (migration 0100) -- the fixed,
+    non-editable reference for both streams, not just Design."""
+    return (
+        db.query(Quotation)
+        .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
+        .order_by(Quotation.id.desc())
+        .first()
+    )
+
+
 def _assert_design_amount_matches_quotation(
     db: Session, project: Project, contract_amount: Decimal, currency: str
 ) -> None:
@@ -138,12 +154,7 @@ def _assert_design_amount_matches_quotation(
     derived from selected Supervision activities' monthly rates, not
     from the Quotation total, so there's nothing on the quotation to
     match it against."""
-    quotation = (
-        db.query(Quotation)
-        .filter(Quotation.project_id == project.id, Quotation.status == "Approved", Quotation.deleted_at.is_(None))
-        .order_by(Quotation.id.desc())
-        .first()
-    )
+    quotation = _approved_quotation_for_project(db, project)
     if quotation is None:
         # Belt-and-braces only -- _assert_stage_exit_criteria already
         # guarantees this is unreachable in the normal flow. Nothing to
@@ -255,9 +266,14 @@ def create_agreement(db: Session, payload, user_id: int) -> FinancialAgreement:
     )
     if payload.stream == "Design":
         _assert_design_amount_matches_quotation(db, project, contract_amount, payload.currency)
+    # Fixed, non-editable reference for the agreement's lifetime (see
+    # FinancialAgreement.quotation_id) -- resolved here server-side for
+    # both streams, never taken from the payload.
+    source_quotation = _approved_quotation_for_project(db, project)
 
     agreement = FinancialAgreement(
         project_id=project.id,
+        quotation_id=source_quotation.id if source_quotation else None,
         stream=payload.stream,
         contract_amount=contract_amount,
         currency=payload.currency,
@@ -360,6 +376,15 @@ def update_agreement(db: Session, agreement_id: int, payload, user_id: int) -> F
     agreement.contract_reference = payload.contractReference
     agreement.payment_mode = payload.paymentMode
     agreement.payment_frequency = payment_frequency
+    if agreement.quotation_id is None:
+        # quotation_id is fixed for life once set (see the column
+        # comment) -- this only ever fires for a legacy agreement that
+        # predates it and was left NULL by migration 0100's best-effort
+        # backfill; opportunistically resolves it now rather than
+        # leaving it permanently unlinked. Never overwrites an
+        # already-set value.
+        source_quotation = _approved_quotation_for_project(db, project)
+        agreement.quotation_id = source_quotation.id if source_quotation else None
 
     # No payments exist yet (guaranteed by _assert_agreement_editable),
     # so the old schedule can be safely replaced wholesale rather than

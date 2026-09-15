@@ -29,6 +29,18 @@ class FinancialAgreement(Base):
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    # The quotation this agreement was generated from (migration 0100) --
+    # mirrors Contract.quotation_id. Resolved and set server-side from
+    # the project's Approved quotation at creation (see
+    # payment_service.create_agreement), never accepted from the
+    # payload, so it stays a fixed, non-editable reference for the
+    # agreement's lifetime rather than the free-text quotation_reference
+    # below, which was only ever user-typed and never actually linked
+    # to a real quotation row. Nullable only for agreements that predate
+    # this column.
+    quotation_id: Mapped[int | None] = mapped_column(
+        BigPK, ForeignKey("quotations.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     # Which billing stream this agreement covers (migration 0059) -- a
     # project can have one Design (one-time) agreement and one
     # Supervision (monthly, day-prorated) agreement side by side, hence
@@ -45,6 +57,8 @@ class FinancialAgreement(Base):
     contract_start_date: Mapped[date] = mapped_column(Date, nullable=False)
     contract_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     agreement_date: Mapped[date] = mapped_column(Date, nullable=False)
+    # Superseded by quotation_id above (migration 0100) -- kept for
+    # historical rows and the audit trail, no longer read for linking.
     quotation_reference: Mapped[str | None] = mapped_column(String(30), nullable=True)
     contract_reference: Mapped[str | None] = mapped_column(String(30), nullable=True)
     payment_mode: Mapped[str] = mapped_column(Enum(*PAYMENT_MODES, name="agreement_payment_mode"), nullable=False)

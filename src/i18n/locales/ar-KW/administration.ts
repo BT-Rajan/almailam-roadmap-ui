@@ -99,7 +99,7 @@ export default {
     entityTasks: 'المهام',
     entityQuotations: 'عروض الأسعار',
     entityContracts: 'العقود',
-    entityFinancialAgreements: 'الاتفاقيات المالية',
+    entityFinancialAgreements: 'خطط الدفع',
     entityGovernmentAuthorities: 'الجهات الحكومية',
     entityGovernmentForms: 'النماذج الحكومية',
     entityGovernmentSubmissions: 'طلبات التصاريح',

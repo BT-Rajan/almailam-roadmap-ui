@@ -69,6 +69,7 @@ export default {
     paymentMode: 'Payment Mode',
     agreementDate: 'Agreement Date',
     startDate: 'Start Date',
+    sourceQuotation: 'Source Quotation',
     columns: {
       number: '#',
       installment: 'Installment',
@@ -124,6 +125,7 @@ export default {
     paymentRecordedDescription: 'The payment schedule has been updated.',
     couldNotRecordPayment: 'Could not record payment',
     totalContractAmount: 'Total Contract Amount',
+    sourceQuotation: 'Source Quotation',
     totalReceived: 'Total Received',
     totalReceivable: 'Total Receivable',
     paymentDate: 'Payment Date',
@@ -143,8 +145,8 @@ export default {
     totalReceived: 'Total Received',
     totalPending: 'Total Pending',
     totalOverdue: 'Total Overdue',
-    emptyTitle: 'No financial agreements yet',
-    emptyDescription: "Financial agreements created from a project's Payment Plan step will appear here.",
+    emptyTitle: 'No payment plans yet',
+    emptyDescription: "Payment plans created from a project's Payment Plan step will appear here.",
     columns: {
       project: 'Project',
       stream: 'Stream',
