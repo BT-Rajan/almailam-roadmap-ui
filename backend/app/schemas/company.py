@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class CompanySettingsOut(BaseModel):
@@ -92,3 +94,19 @@ class CompanySettingsIn(BaseModel):
     staleProjectAlertDays: int = Field(default=45, ge=1, le=365)
     staleOnboardingAlertDays: int = Field(default=5, ge=1, le=365)
     statusReportRecipientId: str | None = None
+
+    # Free text otherwise -- this value gets interpolated straight into
+    # a <style> block in scheduled_report_pdf.py's PDF template (and
+    # nowhere HTML-escaped there, since it's meant to be a CSS color
+    # token, not text content), so a value like "red}</style><b>" would
+    # break out of the CSS rule and inject arbitrary markup into an
+    # emailed PDF. The frontend's own color-scale generator
+    # (colorScale.ts's hexToRgb) already only ever accepts this same
+    # #rgb/#rrggbb shape; this enforces that at the point data is saved,
+    # not just where one particular consumer happens to read it.
+    @field_validator("brandColor")
+    @classmethod
+    def _validate_brand_color(cls, v: str) -> str:
+        if not re.fullmatch(r"#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{6}", v):
+            raise ValueError("brandColor must be a hex color like #3995BE.")
+        return v

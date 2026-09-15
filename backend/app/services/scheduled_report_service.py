@@ -297,7 +297,23 @@ def send_test_now(db: Session, schedule_id: int) -> None:
     _send(db, schedule, datetime.now(timezone.utc))
 
 
-def _fire(db: Session, schedule: ScheduledReport, now_utc: datetime, tz: ZoneInfo) -> None:
+def _fire(db: Session, schedule_id: int, now_utc: datetime, tz: ZoneInfo) -> bool:
+    """Re-fetches and locks this one schedule's row (SELECT ... FOR
+    UPDATE) for the duration of advancing next_run_at, so two backend
+    worker processes racing the same 5-minute tick can't both see a
+    schedule as due and send a duplicate email. Plain FOR UPDATE (not
+    SKIP LOCKED, which needs MySQL 8.0+/MariaDB 10.6+ that this app
+    can't assume) blocks a second worker briefly instead of erroring --
+    fine for a background tick with no one waiting on it -- and once
+    unblocked it re-checks is_active/next_run_at itself, so it correctly
+    finds nothing left to do rather than sending a second time. Returns
+    False (nothing sent) when that happens; not an error, just lost the
+    race to another worker."""
+    schedule = db.query(ScheduledReport).filter(ScheduledReport.id == schedule_id).with_for_update().first()
+    if schedule is None or not schedule.is_active or schedule.next_run_at is None or schedule.next_run_at > now_utc:
+        db.commit()  # releases the lock; another worker already handled this one
+        return False
+
     fired_at = schedule.next_run_at
     # Advance (and persist) next_run_at BEFORE attempting the send -- see
     # this module's docstring for why: a failure below must not leave
@@ -318,6 +334,7 @@ def _fire(db: Session, schedule: ScheduledReport, now_utc: datetime, tz: ZoneInf
         schedule.last_run_status = "sent"
         schedule.last_run_error = None
     db.commit()
+    return True
 
 
 def run_due_schedules(db: Session) -> int:
@@ -325,29 +342,36 @@ def run_due_schedules(db: Session) -> int:
     (see main.py's own comment on the job) plus this being a single
     cheap indexed query is the whole reason this doesn't add meaningful
     load: on a tick with nothing due (the overwhelmingly common case),
-    this is one SELECT that returns zero rows."""
+    this is one SELECT that returns zero rows.
+
+    This first scan is deliberately unlocked -- it's just deciding
+    which ids to *try*, not claiming them. _fire() re-fetches each one
+    with FOR UPDATE right before acting on it, which is the actual
+    protection against two workers both firing the same schedule (see
+    its own docstring); it's what matters, not this list."""
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-    due = (
-        db.query(ScheduledReport)
+    due_ids = [
+        row.id
+        for row in db.query(ScheduledReport.id)
         .filter(ScheduledReport.is_active.is_(True))
         .filter(ScheduledReport.next_run_at.isnot(None))
         .filter(ScheduledReport.next_run_at <= now_utc)
         .all()
-    )
-    if not due:
+    ]
+    if not due_ids:
         return 0
 
     tz = _company_tz(db)
     sent = 0
-    for schedule in due:
+    for schedule_id in due_ids:
         try:
-            _fire(db, schedule, now_utc, tz)
-            sent += 1
+            if _fire(db, schedule_id, now_utc, tz):
+                sent += 1
         except Exception:
             # _fire already commits its own failure state around the
             # send itself; this guards the surrounding bookkeeping (e.g.
             # compute_next_run raising on bad data) so one broken
             # schedule can't stop the rest of the batch from running.
-            logger.exception("Failed to process scheduled report %s.", schedule.id)
+            logger.exception("Failed to process scheduled report %s.", schedule_id)
             db.rollback()
     return sent
