@@ -64,6 +64,7 @@ export default {
     modelLine: 'Model: {model}',
     serverDefault: 'Server default',
     currentKey: 'Current key: {key}',
+    keyUnreadable: 'The saved key for this provider can no longer be read (e.g. after a server encryption key change). Please re-enter it.',
     apiKey: 'API Key',
     apiKeyPlaceholder: 'Enter new API key to update',
     updateKey: 'Update Key',
@@ -371,6 +372,10 @@ export default {
   governmentFormDialog: {
     editTitle: 'Edit Government Form',
     addTitle: 'Add Government Form',
+    titleRequired: 'Form title is required',
+    formCodeRequired: 'Form code is required',
+    authorityRequired: 'Please select an authority',
+    descriptionRequired: 'Description is required',
     formTitle: 'Form Title',
     formCode: 'Form Code',
     formCodePlaceholder: 'e.g. MUN-BP-01',
@@ -386,7 +391,7 @@ export default {
     templateContent: 'Template Content',
     // {tokens} is a plain named interpolation carrying the literal
     // "{{token}}, e.g. {{clientName}}, ..." example text (see
-    // GovernmentFormFormDialog.vue's own call site) -- NOT written
+    // GovernmentFormFormPage.vue's own call site) -- NOT written
     // inline here. vue-i18n's message compiler treats literal double
     // curly braces in the *template string itself* as an (invalid)
     // nested placeholder and throws "Not allowed nest placeholder",
@@ -463,6 +468,9 @@ export default {
     addUser: 'Add User',
     usersTab: 'Users',
     rolesTab: 'Roles & Permissions',
+    backToUsers: 'Back to users',
+    userNotFoundTitle: 'User not found',
+    userNotFoundDescription: "This user doesn't exist, or may have been deleted.",
     allRoles: 'All Roles',
     noUsersFound: 'No users found',
     noUsersFoundDescription: 'Try adjusting your search or filters, or add a new user.',
@@ -500,6 +508,9 @@ export default {
     addAuthority: 'Add Authority',
     loadStandardForms: 'Load Standard Forms',
     addForm: 'Add Form',
+    backToForms: 'Back to forms',
+    formNotFoundTitle: 'Form not found',
+    formNotFoundDescription: "This form doesn't exist, or may have been deleted.",
     authority: 'Authority',
     editAuthority: 'Edit authority',
     deleteAuthority: 'Delete authority',
@@ -624,6 +635,9 @@ export default {
   },
 
   documentTemplates: {
+    backToDocuments: 'Back to documents',
+    templateNotFoundTitle: 'Template not found',
+    templateNotFoundDescription: "This template doesn't exist, or may have been deleted.",
     quotationTitle: 'Quotation Templates',
     quotationDescription:
       'Each language’s default .docx is merged with a project’s live data when "Download Document" is used on a quotation.',

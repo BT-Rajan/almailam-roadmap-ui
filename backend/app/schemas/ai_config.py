@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import get_settings
 from app.core.security import decrypt_secret
@@ -24,11 +24,23 @@ def provider_has_usable_key(provider) -> bool:
     return bool(env_attr and getattr(get_settings(), env_attr, ""))
 
 
+def provider_key_is_unreadable(provider) -> bool:
+    """True specifically when a key WAS saved (has_api_key) but no longer
+    decrypts (e.g. the server's encryption key has rotated since) --
+    distinct from simply never having had one entered. Without this,
+    apiKeyMasked below keeps showing a normal-looking "••••••••1234" (a
+    persisted display flag, never re-derived) at the same time status
+    flips to not-configured, with nothing to tell an admin *why* a
+    provider that looks configured suddenly can't be used."""
+    return bool(provider.has_api_key and provider.api_key_encrypted and not decrypt_secret(provider.api_key_encrypted))
+
+
 class AIProviderConfigOut(BaseModel):
     id: str
     label: str
     model: str
     apiKeyMasked: str
+    keyUnreadable: bool
     # Reflects whether a live call can actually be made for this provider
     # right now (see provider_has_usable_key above) -- not merely whether
     # an admin has typed something into this form. See testProviderConnection
@@ -42,6 +54,7 @@ class AIProviderConfigOut(BaseModel):
             label=provider.label,
             model=provider.model,
             apiKeyMasked=(f"••••••••{provider.api_key_hint}" if provider.has_api_key else ""),
+            keyUnreadable=provider_key_is_unreadable(provider),
             status="connected" if provider_has_usable_key(provider) else "not-configured",
         )
 
@@ -111,6 +124,34 @@ class AIConfigurationIn(BaseModel):
     kbMaxDocumentChars: int = Field(ge=1000, le=1_000_000)
     kbMaxContextChars: int = Field(ge=1000, le=2_000_000)
     providers: list[AIProviderConfigIn]
+
+    # Every other tunable on this schema has Field-level bounds; these two
+    # don't, since they're not a range but a membership check against the
+    # real provider list. Without this, a defaultProvider/providerPriority
+    # naming an unknown id would save successfully but make
+    # ai_service.generate_text's provider loop skip it silently -- with
+    # both fields wrong at once, every configured API key becomes
+    # unreachable with no indication why (a generic "No AI provider is
+    # configured" even though keys are saved and valid). The admin UI
+    # can't produce this today (its SelectBox is populated from the real
+    # provider list) but this schema is also the contract for anything
+    # else calling POST /api/ai/configuration directly.
+    @field_validator("defaultProvider")
+    @classmethod
+    def default_provider_must_be_known(cls, value: str) -> str:
+        if value not in AI_PROVIDER_IDS:
+            raise ValueError(f"defaultProvider must be one of {AI_PROVIDER_IDS}")
+        return value
+
+    @field_validator("providerPriority")
+    @classmethod
+    def provider_priority_must_be_known(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("providerPriority must not be empty")
+        unknown = [provider_id for provider_id in value if provider_id not in AI_PROVIDER_IDS]
+        if unknown:
+            raise ValueError(f"providerPriority contains unknown provider id(s): {unknown}")
+        return value
 
 
 class ProviderTestResult(BaseModel):

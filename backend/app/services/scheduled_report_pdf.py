@@ -18,6 +18,7 @@ printable/emailable page, not for computing it a second way.
 """
 
 from datetime import date, datetime, timedelta
+import re
 
 from sqlalchemy.orm import Session
 from weasyprint import HTML
@@ -26,6 +27,24 @@ from app.core.exceptions import ValidationAppError
 from app.models.project import Project
 from app.models.scheduled_report import ScheduledReport
 from app.services import company_service, report_service
+
+DEFAULT_BRAND_COLOR = "#3995BE"
+_HEX_COLOR_RE = re.compile(r"#[0-9A-Fa-f]{3}\Z|#[0-9A-Fa-f]{6}\Z")
+
+
+def _safe_brand_color(value: str | None) -> str:
+    """brand_color gets interpolated straight into a <style> block below,
+    unescaped (it's meant to be a CSS color token, not text content), so
+    anything not shaped like a real hex color -- most importantly
+    anything containing '}' that could close the CSS rule early and
+    inject arbitrary markup into an emailed PDF -- falls back to the
+    default instead. CompanySettingsIn.brandColor validates this same
+    shape at save time now, but this stays as a second check against
+    whatever a row already had before that validation existed."""
+    if value and _HEX_COLOR_RE.fullmatch(value):
+        return value
+    return DEFAULT_BRAND_COLOR
+
 
 PERIOD_LABELS = {
     "last_7_days": "Last 7 Days",
@@ -115,7 +134,17 @@ def _financial_summary_sections(db: Session, period: str | None) -> tuple[str, l
 
 
 def _project_status_sections(db: Session, project_id: int | None) -> tuple[str, list[dict]]:
-    project = db.query(Project).filter(Project.id == project_id).first() if project_id else None
+    # deleted_at IS NULL matches every other "does this project exist"
+    # query in the app (see Project's own model comment) -- without it,
+    # a schedule pointed at a project that's since been soft-deleted
+    # would keep firing and emailing a report for a project the rest of
+    # the app already treats as gone, despite this function's own error
+    # message below saying otherwise.
+    project = (
+        db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+        if project_id
+        else None
+    )
     if project is None:
         raise ValidationAppError("The project configured for this scheduled report no longer exists.")
     sections_data = report_service.project_report(db, project)
@@ -177,7 +206,7 @@ def render(db: Session, schedule: ScheduledReport, run_at: datetime) -> tuple[by
         raise ValidationAppError(f"Unknown report type: {schedule.report_type}.")
 
     company = company_service.get_settings(db)
-    html = _wrap_html(company.company_name, company.tagline, company.brand_color or "#3995BE", title, sections, run_at)
+    html = _wrap_html(company.company_name, company.tagline, _safe_brand_color(company.brand_color), title, sections, run_at)
     pdf_bytes = HTML(string=html).write_pdf()
     filename = f"{schedule.report_type}-{run_at.strftime('%Y%m%d-%H%M')}.pdf"
     return pdf_bytes, filename, title

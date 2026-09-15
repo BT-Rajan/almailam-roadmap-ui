@@ -2,6 +2,7 @@
 import { Ban, Eye, Landmark, Pencil, Plus, RotateCcw, Trash2, Upload } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
@@ -12,12 +13,12 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import GovernmentAuthorityFormDialog from '@/components/administration/GovernmentAuthorityFormDialog.vue'
-import GovernmentFormFormDialog from '@/components/administration/GovernmentFormFormDialog.vue'
 import LoadStandardFormsDialog from '@/components/administration/LoadStandardFormsDialog.vue'
 import FormTemplatePreviewDialog from '@/components/government/FormTemplatePreviewDialog.vue'
 import { FORM_STATUS_FILTER_OPTIONS } from '@/constants/governmentFormOptions'
 import { STANDARD_GOVERNMENT_FORMS } from '@/constants/standardGovernmentForms'
-import type { AuthorityInput, FormInput } from '@/services/governmentFormService'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import type { AuthorityInput } from '@/services/governmentFormService'
 import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -40,6 +41,7 @@ interface FormRow {
 }
 
 const { t } = useI18n()
+const router = useRouter()
 const store = useGovernmentFormStore()
 const serviceCatalogStore = useServiceCatalogStore()
 const toastStore = useToastStore()
@@ -50,10 +52,6 @@ const statusFilter = ref<GovernmentFormStatus | 'All'>('Active')
 const isAuthorityDialogOpen = ref(false)
 const editingAuthority = ref<GovernmentAuthority | undefined>(undefined)
 const isSavingAuthority = ref(false)
-
-const isFormDialogOpen = ref(false)
-const editingForm = ref<GovernmentForm | undefined>(undefined)
-const isSavingForm = ref(false)
 
 const isImportDialogOpen = ref(false)
 const isImporting = ref(false)
@@ -145,31 +143,11 @@ async function saveAuthority(input: AuthorityInput): Promise<void> {
 }
 
 function openAddForm(): void {
-  editingForm.value = undefined
-  isFormDialogOpen.value = true
+  router.push({ name: ROUTE_NAMES.GOVERNMENT_FORM_FORM, params: { formId: 'new' } })
 }
 
 function openEditForm(form: GovernmentForm): void {
-  editingForm.value = form
-  isFormDialogOpen.value = true
-}
-
-async function saveForm(input: FormInput): Promise<void> {
-  isSavingForm.value = true
-  try {
-    if (editingForm.value) {
-      await store.updateForm(editingForm.value.id, input)
-      toastStore.show('success', t('administration.governmentFormsPanel.formUpdatedTitle'), t('administration.governmentFormsPanel.formUpdatedDescription', { title: input.title }))
-    } else {
-      await store.createForm(input)
-      toastStore.show('success', t('administration.governmentFormsPanel.formAddedTitle'), t('administration.governmentFormsPanel.formAddedDescription', { title: input.title }))
-    }
-    isFormDialogOpen.value = false
-  } catch {
-    toastStore.show('error', t('administration.governmentFormsPanel.unableToSaveForm'), t('common.pleaseTryAgain'))
-  } finally {
-    isSavingForm.value = false
-  }
+  router.push({ name: ROUTE_NAMES.GOVERNMENT_FORM_FORM, params: { formId: form.id } })
 }
 
 function requestDeleteAuthority(authority: GovernmentAuthority): void {
@@ -375,15 +353,6 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
       :authority="editingAuthority"
       :saving="isSavingAuthority"
       @save="saveAuthority"
-    />
-
-    <GovernmentFormFormDialog
-      v-model="isFormDialogOpen"
-      :form="editingForm"
-      :authorities="store.authorities"
-      :services="serviceCatalogStore.services"
-      :saving="isSavingForm"
-      @save="saveForm"
     />
 
     <LoadStandardFormsDialog

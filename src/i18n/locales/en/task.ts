@@ -128,13 +128,24 @@ export default {
   },
 
   fieldReportHistory: {
-    title: 'Task History',
+    title: 'Field Reports',
     emptyTitle: 'No field reports yet',
     emptyDescription: "This site engineer's field reports for this project will appear here.",
     by: 'By {name}',
     untitled: 'Field report',
     statusPending: 'Pending review',
     statusAttached: 'Attached',
+  },
+
+  historyPanel: {
+    title: 'History',
+    notePlaceholder: 'Add a note...',
+    addNote: 'Add Note',
+    failedToAddNote: 'Failed to add note',
+    emptyTitle: 'No history yet',
+    emptyDescription: 'Status changes, reassignment, schedule edits, and notes will appear here.',
+    by: 'By {user}',
+    reason: 'Reason: {reason}',
   },
 
   workloadDialog: {

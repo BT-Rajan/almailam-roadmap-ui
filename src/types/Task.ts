@@ -39,3 +39,21 @@ export interface Task {
   selectedPermitId?: string
   selectedSupervisionActivityId?: string
 }
+
+// Every field-changing action on a task (status, reassignment,
+// schedule edits, deletion) already writes one of these server-side
+// (see backend audit_service.get_history -- the same shape every
+// other entity's own "History"/"Audit Trail" panel uses, e.g.
+// ContractAuditEvent/FinancialAuditEvent). A user-entered note (see
+// TaskHistoryPanel.vue) is just another entry in the same feed --
+// action: 'Note added', newValue: the note's text -- not a separate
+// concept with its own type or storage.
+export interface TaskAuditEvent {
+  id: string
+  action: string
+  user: string
+  timestamp: string
+  previousValue?: string
+  newValue?: string
+  reason?: string
+}

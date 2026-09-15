@@ -113,3 +113,7 @@ class TaskStatusUpdate(BaseModel):
     status: str
     reason: str | None = None
     _check = field_validator("status")(_enum_validator(TASK_STATUSES, "status"))
+
+
+class TaskNoteCreate(BaseModel):
+    note: str = Field(min_length=1, max_length=4000)

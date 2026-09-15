@@ -29,6 +29,12 @@ interface RequestOptions {
   skipAuth?: boolean
   /** Internal: prevents infinite refresh loops. */
   _retried?: boolean
+  /** Overrides DEFAULT_TIMEOUT_MS for calls that can legitimately take
+   * longer than a plain CRUD request -- e.g. an LLM call, whose own
+   * configurable timeout/retry/provider-count budget (see AI
+   * Configuration) can already exceed 20s well within its own normal,
+   * successful operation. */
+  timeoutMs?: number
 }
 
 async function extractErrorMessage(response: Response): Promise<string> {
@@ -137,7 +143,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       credentials: 'include',
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     },
-    DEFAULT_TIMEOUT_MS,
+    options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   )
 
   if (response.status === 401 && !options.skipAuth && !options._retried) {

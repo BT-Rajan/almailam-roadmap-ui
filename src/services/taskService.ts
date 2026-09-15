@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
-import type { Task } from '@/types/Task'
+import type { Task, TaskAuditEvent } from '@/types/Task'
 import { fetchAllPages } from '@/utils/fetchAllPages'
 
 export type TaskInput = Omit<Task, 'id'>
@@ -116,6 +116,36 @@ async function deleteTask(taskId: string): Promise<void> {
   }
 }
 
+/**
+ * Fetch a task's full history -- every status change, reassignment,
+ * schedule edit, and note, oldest-to-newest as recorded server-side
+ * (see backend audit_service.get_history). Same shape/endpoint pattern
+ * as every other entity's own history panel (Contract/Quotation/
+ * Financial Agreement).
+ */
+async function getAuditEvents(taskId: string): Promise<TaskAuditEvent[]> {
+  try {
+    return await apiClient.get<TaskAuditEvent[]>(`/api/tasks/${taskId}/audit-events`)
+  } catch (error) {
+    console.error(`Failed to fetch history for task ${taskId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch task history')
+  }
+}
+
+/**
+ * Add a free-text note to a task's history. Returns the task's full,
+ * updated history (not just the new note) so the caller can replace
+ * its cached list from this one response instead of a second request.
+ */
+async function addNote(taskId: string, note: string): Promise<TaskAuditEvent[]> {
+  try {
+    return await apiClient.post<TaskAuditEvent[]>(`/api/tasks/${taskId}/notes`, { note })
+  } catch (error) {
+    console.error(`Failed to add note to task ${taskId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to add note')
+  }
+}
+
 export const taskService = {
   getTasks,
   getTasksPage,
@@ -124,4 +154,6 @@ export const taskService = {
   createTask,
   updateTask,
   deleteTask,
+  getAuditEvents,
+  addNote,
 }
