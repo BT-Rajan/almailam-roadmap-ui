@@ -11,7 +11,6 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
@@ -90,72 +89,42 @@ function emptyForm() {
   return {
     validity: '',
     discountAmount: 0,
-    notes: '',
-    termsText: '',
-    scopePhasesText: '',
-    paymentTermsText: '',
     lineItems: [emptyLineItem()] as DraftLineItem[],
   }
 }
 
-// Turns the project's picked activities into draft line items (one per
-// activity, quantity 1, unit price = the picked fixedCost). Falls back to
-// emptyForm()'s single blank row when the project has no picks yet.
+// Turns the project's picked Design activities and Permits into draft
+// line items (one per item, quantity 1, unit price = the picked
+// fixedCost/permitPrice) -- these are what the quotation actually
+// prices, discounts, and totals. Falls back to emptyForm()'s single
+// blank row when the project has no picks yet.
 //
-// Also appends one line per selected Supervision activity (informational
-// only -- Supervision is actually billed through the Financial
-// Agreement's prorated monthly schedule once the project reaches
-// Contract) and one per selected Permit.
+// Selected Supervision activities are deliberately excluded from this
+// priced list: Supervision is billed monthly (via the Financial
+// Agreement's own prorated schedule once the project reaches Payment
+// Plan/Contract), not as a one-time fee, so summing a monthly rate
+// into this one-time total would silently inflate it by one month's
+// Supervision cost. Shown to the user as a separate, non-priced
+// reference section instead -- see supervisionActivities/the template.
 function formFromProject(project: Project | undefined) {
   const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
     description: `${item.serviceName} - ${item.activityName}`,
     quantity: 1,
     unitPrice: item.fixedCost,
   }))
-  const supervisionLineItems = (project?.selectedSupervisionActivities ?? []).map((activity) => ({
-    description: `Supervision - ${activity.activityName} (Monthly, ${activity.startDate} to ${activity.endDate})`,
-    quantity: 1,
-    unitPrice: activity.monthlyRate,
-  }))
   const permitLineItems = (project?.selectedPermits ?? []).map((permit) => ({
     description: `Permits to Apply For - ${permit.permitName}`,
     quantity: 1,
     unitPrice: permit.permitPrice ?? 0,
   }))
-  const lineItems = [...serviceLineItems, ...supervisionLineItems, ...permitLineItems]
+  const lineItems = [...serviceLineItems, ...permitLineItems]
   if (lineItems.length === 0) return emptyForm()
-  return { ...emptyForm(), lineItems, scopePhasesText: buildScopeText(project) }
+  return { ...emptyForm(), lineItems }
 }
 
-// Mirrors NewProjectWizardPage.vue's buildScopeText exactly, grouped the
-// same way (Architectural Design / Supervision Activities / Permits to
-// Apply For).
-function buildScopeText(project: Project | undefined): string {
-  const lines: string[] = []
-  const activitiesByService = new Map<string, string[]>()
-  for (const item of project?.selectedActivities ?? []) {
-    const list = activitiesByService.get(item.serviceName) ?? []
-    list.push(item.activityId === item.serviceId ? item.serviceName : item.activityName)
-    activitiesByService.set(item.serviceName, list)
-  }
-  for (const [serviceName, activityNames] of activitiesByService) {
-    lines.push(`${serviceName}:`)
-    activityNames.forEach((name) => lines.push(`- ${name}`))
-  }
-  const supervisionActivities = project?.selectedSupervisionActivities ?? []
-  if (supervisionActivities.length > 0) {
-    if (lines.length > 0) lines.push('')
-    lines.push('Supervision Activities:')
-    supervisionActivities.forEach((item) => lines.push(`- ${item.activityName}`))
-  }
-  const permits = project?.selectedPermits ?? []
-  if (permits.length > 0) {
-    if (lines.length > 0) lines.push('')
-    lines.push('Permits to Apply For:')
-    permits.forEach((permit) => lines.push(`- ${permit.permitName}`))
-  }
-  return lines.join('\n')
-}
+// Reference-only -- see formFromProject's comment above for why these
+// never join form.lineItems/subtotal/total.
+const supervisionActivities = computed(() => project.value?.selectedSupervisionActivities ?? [])
 
 const form = reactive(emptyForm())
 interface LineItemError {
@@ -236,19 +205,6 @@ async function handleSubmit(): Promise<void> {
       validity: form.validity,
       currency: QUOTATION_CURRENCY,
       discountAmount: form.discountAmount,
-      notes: form.notes.trim() || undefined,
-      termsAndConditions: form.termsText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
-      scopePhases: form.scopePhasesText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
-      paymentTerms: form.paymentTermsText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
       lineItems,
     })
     // Creating a quotation can move current_stage server-side (see
@@ -362,6 +318,15 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
 
+        <div v-if="supervisionActivities.length > 0" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-secondary p-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
+          <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
+          <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
+            <span class="text-text-secondary">{{ activity.activityName }} ({{ activity.startDate }} – {{ activity.endDate }})</span>
+            <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, QUOTATION_CURRENCY) }}/mo</span>
+          </div>
+        </div>
+
         <NumberInput
           :model-value="form.discountAmount"
           :label="t('project.newQuotationDialog.discountAmount')"
@@ -369,29 +334,6 @@ async function handleSubmit(): Promise<void> {
           step="0.01"
           :error="errors.discountAmount"
           @update:model-value="form.discountAmount = Number($event)"
-        />
-
-        <TextArea v-model="form.notes" :label="t('project.newQuotationDialog.notes')" :placeholder="t('project.newQuotationDialog.notesPlaceholder')" :rows="2" />
-        <TextArea
-          v-model="form.scopePhasesText"
-          :label="t('project.newQuotationDialog.scopePhases')"
-          :placeholder="t('project.newQuotationDialog.scopePhasesPlaceholder')"
-          :hint="t('project.newQuotationDialog.scopePhasesHint')"
-          :rows="3"
-        />
-        <TextArea
-          v-model="form.paymentTermsText"
-          :label="t('project.newQuotationDialog.paymentTerms')"
-          :placeholder="t('project.newQuotationDialog.paymentTermsPlaceholder')"
-          :hint="t('project.newQuotationDialog.paymentTermsHint')"
-          :rows="3"
-        />
-        <TextArea
-          v-model="form.termsText"
-          :label="t('project.newQuotationDialog.termsAndConditions')"
-          :placeholder="t('project.newQuotationDialog.termsPlaceholder')"
-          :hint="t('project.newQuotationDialog.termsHint')"
-          :rows="3"
         />
 
         <Divider />

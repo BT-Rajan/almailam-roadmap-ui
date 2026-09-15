@@ -30,33 +30,41 @@ def _project_by_no(db: Session, project_no: str) -> Project:
     return project
 
 
-def _assert_design_emi_within_completion_date(db: Session, project_id: int, expiry_date: date) -> None:
+_STREAM_DISPLAY_LABELS = {"Design": "Design & Permit", "Supervision": "Supervision"}
+
+
+def _assert_agreement_obligations_within_completion_date(db: Session, project_id: int, expiry_date: date) -> None:
     """The contract's expiry date is this project's Project Completion
-    Date. A Design & Permit payment plan's installments (already
-    generated -- normally already Approved, since Payment Plan precedes
-    Contract, see status_transitions.py) must not run past it. Caught
-    here, at the moment the completion date is actually known, rather
-    than silently letting an EMI fall due beyond it -- surfaced as a
+    Date. Neither stream's payment plan installments (already generated
+    -- normally already Approved, since Payment Plan precedes Contract,
+    see status_transitions.py) may run past it -- checked for both
+    Design and Supervision, not just Design (a Supervision plan's
+    schedule comes from its own selected activities' start/end dates,
+    entirely independent of the contract's completion date, so nothing
+    else would ever catch this for Supervision). Caught here, at the
+    moment the completion date is actually known, rather than silently
+    letting an installment fall due beyond it -- surfaced as a
     payment-plan configuration issue the user resolves by picking a
-    later expiry date or editing the Design & Permit plan."""
-    agreement = (
-        db.query(FinancialAgreement)
-        .filter(FinancialAgreement.project_id == project_id, FinancialAgreement.stream == "Design")
-        .order_by(FinancialAgreement.id.desc())
-        .first()
-    )
-    if agreement is None:
-        return
-    obligations = payment_service.get_obligations(db, agreement.id)
-    if not obligations:
-        return
-    last_due_date = max(o.due_date for o in obligations)
-    if last_due_date > expiry_date:
-        raise ValidationAppError(
-            "Payment plan configuration issue: the Design & Permit payment plan's final installment is due "
-            f"{last_due_date.isoformat()}, after the contract's expiry date {expiry_date.isoformat()}. Choose a "
-            "later expiry date, or edit the Design & Permit payment plan so it ends on or before it."
+    later expiry date or editing the relevant payment plan."""
+    for stream, label in _STREAM_DISPLAY_LABELS.items():
+        agreement = (
+            db.query(FinancialAgreement)
+            .filter(FinancialAgreement.project_id == project_id, FinancialAgreement.stream == stream)
+            .order_by(FinancialAgreement.id.desc())
+            .first()
         )
+        if agreement is None:
+            continue
+        obligations = payment_service.get_obligations(db, agreement.id)
+        if not obligations:
+            continue
+        last_due_date = max(o.due_date for o in obligations)
+        if last_due_date > expiry_date:
+            raise ValidationAppError(
+                f"Payment plan configuration issue: the {label} payment plan's final installment is due "
+                f"{last_due_date.isoformat()}, after the contract's expiry date {expiry_date.isoformat()}. Choose a "
+                f"later expiry date, or edit the {label} payment plan so it ends on or before it."
+            )
 
 
 def _approved_quotation(db: Session, quotation_no: str, project: Project) -> Quotation:
@@ -233,7 +241,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     project_service.assert_project_open_for_new_work(project)
     quotation = _approved_quotation(db, payload.quotationId, project)
     _assert_contract_value_matches_quotation(quotation, payload.contractValue, payload.currency)
-    _assert_design_emi_within_completion_date(db, project.id, payload.expiryDate)
+    _assert_agreement_obligations_within_completion_date(db, project.id, payload.expiryDate)
     contract = Contract(
         contract_no=next_number(db, "CONTRACT"),
         project_id=project.id,
@@ -299,7 +307,7 @@ def update_contract(db: Session, contract_no: str, payload, user_id: int) -> Con
             "This contract has been finalized and its content is locked. Reopen it first to make changes."
         )
     if payload.expiryDate is not None and payload.expiryDate != contract.expiry_date:
-        _assert_design_emi_within_completion_date(db, contract.project_id, payload.expiryDate)
+        _assert_agreement_obligations_within_completion_date(db, contract.project_id, payload.expiryDate)
     if payload.contractValue is not None and payload.contractValue != contract.contract_value and contract.quotation_id is not None:
         # currency isn't editable via ContractUpdate (see schemas/contract.py),
         # so contract.currency -- set once at creation -- is still the
@@ -497,10 +505,6 @@ def confirm_contract_signing(db: Session, contract_no: str, file: UploadFile, us
     )
 
     contract = set_status(db, contract_no, "Signed", None, user_id)
-
-    client = db.query(Client).filter(Client.id == project.client_id).first()
-    if client is None or not client.email_consent:
-        return contract, True
 
     client = db.query(Client).filter(Client.id == project.client_id).first()
     if client is None or not client.email_consent:

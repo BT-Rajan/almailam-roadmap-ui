@@ -47,7 +47,7 @@ export interface Deadline {
   project: string
   dueDate: string
   priority: 'low' | 'medium' | 'high'
-  type: 'submission' | 'delivery' | 'approval' | 'review'
+  type: 'submission' | 'delivery' | 'approval' | 'review' | 'contract-expiry'
 }
 
 export interface DocumentItem {
