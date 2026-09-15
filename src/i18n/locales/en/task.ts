@@ -135,6 +135,7 @@ export default {
     untitled: 'Field report',
     statusPending: 'Pending review',
     statusAttached: 'Attached',
+    photos: 'Photos',
   },
 
   historyPanel: {

@@ -1403,6 +1403,18 @@ CREATE TABLE IF NOT EXISTS status_reports (
     INDEX idx_status_reports_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS status_report_images (
+    id                   BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_report_id     BIGINT UNSIGNED NOT NULL,
+    storage_key          VARCHAR(255) NOT NULL,
+    original_filename    VARCHAR(255) NOT NULL,
+    file_size_bytes      BIGINT UNSIGNED NOT NULL,
+    sequence             INT NOT NULL,
+    created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_status_report_images_report FOREIGN KEY (status_report_id) REFERENCES status_reports(id) ON DELETE CASCADE,
+    INDEX idx_status_report_images_report (status_report_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS ai_configuration (
     id                          INT PRIMARY KEY DEFAULT 1,
     is_enabled                  TINYINT(1) NOT NULL DEFAULT 0,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { CheckCircle2, Save } from '@lucide/vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Camera, CheckCircle2, Save, X } from '@lucide/vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '@/components/common/Alert.vue'
@@ -10,10 +10,12 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { sitePortalService } from '@/services/sitePortalService'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useSitePortalStore } from '@/stores/sitePortalStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SelectOption } from '@/types/Ui'
+import type { StatusReportImage } from '@/types/StatusReport'
 
 const { t } = useI18n()
 const sitePortalStore = useSitePortalStore()
@@ -22,6 +24,12 @@ const resultDialogStore = useResultDialogStore()
 
 const isLoading = ref(true)
 const isSaving = ref(false)
+const isUploadingImage = ref(false)
+
+// A report can hold at most this many photos (enforced server-side too --
+// see backend status_report.MAX_REPORT_IMAGES -- this is just the
+// picker's own display cap, not the source of truth).
+const MAX_REPORT_IMAGES = 5
 
 const form = reactive({
   projectId: '',
@@ -143,6 +151,70 @@ async function handleSubmit(): Promise<void> {
     isSaving.value = false
   }
 }
+
+const imageCount = computed(() => currentReport.value?.images.length ?? 0)
+const atImageLimit = computed(() => imageCount.value >= MAX_REPORT_IMAGES)
+
+// Object URLs for the small preview thumbnails -- fetched on demand (a
+// photo just taken/picked by this same engineer, so there are never
+// more than 5 to fetch) rather than trusting any kind of public/static
+// URL, since the backend deliberately serves these through an
+// authenticated endpoint like every other uploaded file in this app.
+const thumbnailUrls = reactive<Record<string, string>>({})
+
+async function loadThumbnail(image: StatusReportImage): Promise<void> {
+  if (thumbnailUrls[image.id] || !currentReport.value) return
+  try {
+    const blob = await sitePortalService.getReportImageBlob(currentReport.value.id, image.id)
+    thumbnailUrls[image.id] = URL.createObjectURL(blob)
+  } catch {
+    // Leave it without a thumbnail (just shows the placeholder icon) --
+    // this is a nice-to-have preview, not worth an error toast over.
+  }
+}
+
+watch(
+  () => currentReport.value?.images,
+  (images) => {
+    for (const image of images ?? []) void loadThumbnail(image)
+  },
+  { immediate: true, deep: true },
+)
+
+onUnmounted(() => {
+  for (const url of Object.values(thumbnailUrls)) URL.revokeObjectURL(url)
+})
+
+async function handleImageSelected(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !currentReport.value) return
+
+  isUploadingImage.value = true
+  try {
+    await sitePortalStore.uploadReportImage(currentReport.value.id, form.projectId, file)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('sitePortal.reportPage.photoUploadFailedTitle'), detail)
+  } finally {
+    isUploadingImage.value = false
+  }
+}
+
+async function handleRemoveImage(image: StatusReportImage): Promise<void> {
+  if (!currentReport.value) return
+  try {
+    await sitePortalStore.deleteReportImage(currentReport.value.id, image.id, form.projectId)
+    if (thumbnailUrls[image.id]) {
+      URL.revokeObjectURL(thumbnailUrls[image.id])
+      delete thumbnailUrls[image.id]
+    }
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('sitePortal.reportPage.photoRemoveFailedTitle'), detail)
+  }
+}
 </script>
 
 <template>
@@ -223,6 +295,66 @@ async function handleSubmit(): Promise<void> {
             required
             :disabled="isLocked()"
           />
+
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-text-primary">
+              {{ t('sitePortal.reportPage.photos') }}
+              <span class="font-normal text-text-muted">({{ imageCount }}/{{ MAX_REPORT_IMAGES }})</span>
+            </label>
+
+            <p v-if="!currentReport" class="text-xs text-text-muted">{{ t('sitePortal.reportPage.photosNeedSavedReport') }}</p>
+
+            <template v-else>
+              <div class="flex flex-wrap gap-2">
+                <div
+                  v-for="image in currentReport.images"
+                  :key="image.id"
+                  class="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border-light bg-bg-secondary"
+                >
+                  <img
+                    v-if="thumbnailUrls[image.id]"
+                    :src="thumbnailUrls[image.id]"
+                    :alt="image.filename"
+                    class="h-full w-full object-cover"
+                  />
+                  <div v-else class="flex h-full w-full items-center justify-center">
+                    <Camera class="h-6 w-6 text-text-muted" />
+                  </div>
+                  <button
+                    v-if="!isLocked()"
+                    type="button"
+                    class="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-danger-600"
+                    :aria-label="t('sitePortal.reportPage.removePhoto')"
+                    @click="handleRemoveImage(image)"
+                  >
+                    <X class="h-3 w-3" />
+                  </button>
+                </div>
+
+                <label
+                  v-if="!isLocked() && !atImageLimit"
+                  class="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border-default text-text-muted transition-colors duration-fast hover:border-accent-400 hover:text-accent-600"
+                  :class="isUploadingImage ? 'pointer-events-none opacity-60' : ''"
+                >
+                  <SkeletonLoader v-if="isUploadingImage" variant="circle" width="1.5rem" height="1.5rem" />
+                  <template v-else>
+                    <Camera class="h-5 w-5" />
+                    <span class="text-[10px]">{{ t('sitePortal.reportPage.addPhoto') }}</span>
+                  </template>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    class="hidden"
+                    :disabled="isUploadingImage"
+                    @change="handleImageSelected"
+                  />
+                </label>
+              </div>
+              <p v-if="atImageLimit" class="text-xs text-text-muted">{{ t('sitePortal.reportPage.photoLimitReached') }}</p>
+              <p v-else-if="!isLocked()" class="text-xs text-text-muted">{{ t('sitePortal.reportPage.photoStampNotice') }}</p>
+            </template>
+          </div>
 
           <BaseButton v-if="!isLocked()" type="submit" :icon="Save" :loading="isSaving" full-width>
             {{ currentReport ? t('sitePortal.reportPage.updateResubmit') : t('sitePortal.reportPage.submitReport') }}

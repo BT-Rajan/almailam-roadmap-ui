@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -9,6 +9,11 @@ from app.models.user import BigPK
 
 STATUS_REPORT_SUPERVISION_TYPES = ("Full-time", "Part-time")
 STATUS_REPORT_STATUSES = ("Pending", "Attached")
+# The paper "تقرير إشراف" form this digitizes had room for a handful of
+# attached site photos, each captioned by hand -- this is the same
+# limit, just enforced instead of merely assumed, and the caption is now
+# a printed stamp (see stamp_report_image) instead of handwriting.
+MAX_REPORT_IMAGES = 5
 
 
 class StatusReport(Base, TimestampMixin):
@@ -64,3 +69,32 @@ class StatusReport(Base, TimestampMixin):
         BigPK, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     attached_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class StatusReportImage(Base):
+    """A site photo attached to a StatusReport (up to MAX_REPORT_IMAGES
+    above) -- stamped server-side with the filing engineer's name,
+    project number, and the exact date/time of the upload (Kuwait time,
+    same clock as report filing) before being saved, see
+    status_report_service.stamp_report_image. Stored the same way as
+    MessageAttachment/ProjectDocument (file_storage's storage_key +
+    original_filename + size), its own table for the same reason
+    MessageAttachment is its own table rather than reusing
+    ProjectDocument: no version history, no stage/exit-criteria
+    involvement, just photos belonging to one specific report."""
+
+    __tablename__ = "status_report_images"
+
+    id: Mapped[int] = mapped_column(BigPK, primary_key=True)
+    status_report_id: Mapped[int] = mapped_column(
+        BigPK, ForeignKey("status_reports.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Display order -- 1-indexed in upload order, not reshuffled if an
+    # earlier one is deleted (so "photo 3" stays meaningfully "the third
+    # one added" rather than being renumbered out from under anyone
+    # looking at it mid-review).
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())

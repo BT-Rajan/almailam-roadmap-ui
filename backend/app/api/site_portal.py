@@ -1,11 +1,15 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError
+from app.core.file_storage import resolve_path
 from app.models.project import Project
+from app.models.status_report import StatusReportImage
 from app.models.user import User
 from app.schemas.status_report import EngineerProjectOption, StatusReportFileRequest, StatusReportOut
 from app.services import status_report_service
@@ -29,6 +33,7 @@ def _report_out(db: Session, report) -> StatusReportOut:
         engineer.full_name if engineer else "Unknown",
         attached_by.full_name if attached_by else None,
         attached_task.task_no if attached_task else None,
+        status_report_service.list_report_images(db, report.id),
     )
 
 
@@ -75,3 +80,48 @@ def list_my_reports(
 ):
     reports = status_report_service.list_reports_for_engineer(db, current_user.id, start, end)
     return [_report_out(db, r) for r in reports]
+
+
+@router.post("/reports/{report_id}/images", response_model=StatusReportOut)
+async def upload_report_image(
+    report_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    report = status_report_service.add_report_image(db, report_id, current_user.id, file)
+    return _report_out(db, report)
+
+
+@router.delete("/reports/{report_id}/images/{image_id}", response_model=StatusReportOut)
+def delete_report_image(
+    report_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    report = status_report_service.delete_report_image(db, report_id, current_user.id, image_id)
+    return _report_out(db, report)
+
+
+@router.get("/reports/{report_id}/images/{image_id}/file")
+def download_report_image(
+    report_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+    # Not restricted to the filing engineer, unlike upload/delete above --
+    # office staff reviewing the inbox (status_reports.py's own endpoints)
+    # need to actually view these photos too, and there isn't a separate
+    # download route registered there. Any authenticated user, same as
+    # every other GET on this router.
+    _current_user: User = Depends(get_current_user),
+):
+    image = (
+        db.query(StatusReportImage)
+        .filter(StatusReportImage.id == image_id, StatusReportImage.status_report_id == report_id)
+        .first()
+    )
+    if image is None:
+        raise NotFoundError("Report photo")
+    path = resolve_path(image.storage_key)
+    return FileResponse(path, filename=image.original_filename)

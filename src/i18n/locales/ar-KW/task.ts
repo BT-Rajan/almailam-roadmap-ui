@@ -135,6 +135,7 @@ export default {
     untitled: 'تقرير ميداني',
     statusPending: 'قيد المراجعة',
     statusAttached: 'مرفق',
+    photos: 'الصور',
   },
 
   historyPanel: {

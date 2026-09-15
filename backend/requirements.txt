@@ -59,6 +59,16 @@ tzdata==2025.2
 # succeeds but importing weasyprint fails, that's the missing piece,
 # not a Python problem.
 weasyprint==69.0
+# Already resolved transitively via weasyprint (which uses it internally
+# for image handling in HTML->PDF rendering) -- pinned here explicitly
+# now that it's also a first-class direct dependency in its own right:
+# stamping the site engineer's name/project/date-time onto Status Report
+# photos before they're saved (see status_report_service.
+# stamp_report_image). Relying on it staying present only as someone
+# else's transitive dependency would be fragile -- a future weasyprint
+# version dropping or replacing its own use of Pillow could silently
+# break this unrelated feature.
+Pillow==12.1.1
 # Server-side sanitizer for the rich-text content saved from Quotation/
 # Contract preview editors (scope summary, clauses, notes, terms) --
 # strips anything outside the small formatting allowlist (bold/italic/

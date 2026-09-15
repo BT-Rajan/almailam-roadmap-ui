@@ -1,6 +1,13 @@
 export type StatusReportSupervisionType = 'Full-time' | 'Part-time'
 export type StatusReportStatus = 'Pending' | 'Attached'
 
+export interface StatusReportImage {
+  id: string
+  filename: string
+  sizeBytes: number
+  createdAt: string
+}
+
 export interface StatusReport {
   id: string
   reportNo: string
@@ -17,6 +24,10 @@ export interface StatusReport {
   attachedBy: string | null
   attachedAt: string | null
   createdAt: string
+  // Up to MAX_REPORT_IMAGES (5) -- each stamped server-side with the
+  // filing engineer's name, project number, and date/time before being
+  // saved (see backend status_report_service.stamp_report_image).
+  images: StatusReportImage[]
 }
 
 export interface EngineerProjectOption {

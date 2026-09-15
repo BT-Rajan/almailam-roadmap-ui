@@ -24,4 +24,26 @@ async function getMyReports(start: string, end: string): Promise<StatusReport[]>
   return apiClient.get<StatusReport[]>(`/api/site-portal/reports?start=${start}&end=${end}`)
 }
 
-export const sitePortalService = { getMyProjects, getTodaysReports, fileTodaysReport, getMyReports }
+async function uploadReportImage(reportId: string, file: File): Promise<StatusReport> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiClient.postForm<StatusReport>(`/api/site-portal/reports/${reportId}/images`, formData)
+}
+
+async function deleteReportImage(reportId: string, imageId: string): Promise<StatusReport> {
+  return apiClient.delete<StatusReport>(`/api/site-portal/reports/${reportId}/images/${imageId}`)
+}
+
+async function getReportImageBlob(reportId: string, imageId: string): Promise<Blob> {
+  return apiClient.getBlob(`/api/site-portal/reports/${reportId}/images/${imageId}/file`)
+}
+
+export const sitePortalService = {
+  getMyProjects,
+  getTodaysReports,
+  fileTodaysReport,
+  getMyReports,
+  uploadReportImage,
+  deleteReportImage,
+  getReportImageBlob,
+}

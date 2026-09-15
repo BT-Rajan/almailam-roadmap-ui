@@ -45,6 +45,18 @@ export const useSitePortalStore = defineStore('sitePortal', {
       return report
     },
 
+    async uploadReportImage(reportId: string, projectId: string, file: File) {
+      const report = await sitePortalService.uploadReportImage(reportId, file)
+      this.todaysReports = { ...this.todaysReports, [projectId]: report }
+      return report
+    },
+
+    async deleteReportImage(reportId: string, imageId: string, projectId: string) {
+      const report = await sitePortalService.deleteReportImage(reportId, imageId)
+      this.todaysReports = { ...this.todaysReports, [projectId]: report }
+      return report
+    },
+
     async loadCalendarRange(start: string, end: string) {
       this.isLoading = true
       this.error = undefined

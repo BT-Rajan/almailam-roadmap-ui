@@ -13,6 +13,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import ReportPhotoThumbnails from '@/components/task/ReportPhotoThumbnails.vue'
 import { taskService } from '@/services/taskService'
 import { useStatusReportStore } from '@/stores/statusReportStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -121,6 +122,7 @@ async function handleAttach(): Promise<void> {
               <span v-if="report.receiptType"> · {{ report.receiptType }}</span>
             </p>
             <p class="mt-2 whitespace-pre-wrap text-sm text-text-secondary" dir="auto">{{ report.notes }}</p>
+            <ReportPhotoThumbnails v-if="report.images.length > 0" class="mt-2" :report-id="report.id" :images="report.images" />
           </div>
           <BaseButton size="sm" :icon="Paperclip" class="shrink-0" @click="openAttachDialog(report)">
             {{ t('report.inboxPage.attach') }}
