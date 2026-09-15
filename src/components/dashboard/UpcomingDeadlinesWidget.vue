@@ -8,11 +8,13 @@ interface Props {
   deadlines: Deadline[]
   title?: string
   maxItems?: number
+  emptyText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: undefined,
   maxItems: 5,
+  emptyText: undefined,
 })
 
 const { t } = useI18n()
@@ -79,7 +81,7 @@ const statusLabel = (status: string, days: number) => {
     </template>
 
     <div v-if="sortedDeadlines.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">{{ t('dashboard.noUpcomingDeadlines') }}</p>
+      <p class="text-sm">{{ emptyText ?? t('dashboard.noUpcomingDeadlines') }}</p>
     </div>
     <div v-else class="space-y-2">
       <div
