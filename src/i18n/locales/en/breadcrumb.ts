@@ -11,6 +11,7 @@ export default {
   client: 'Client',
   governmentCenter: 'Government Center',
   forms: 'Forms',
+  form: 'Form',
   authorities: 'Authorities',
   submissions: 'Permit Applications',
   submission: 'Submission',

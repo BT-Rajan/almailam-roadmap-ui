@@ -11,6 +11,7 @@ export const ROUTE_NAMES = {
   CLIENT_NEW: 'client-new',
   CLIENT_WORKSPACE: 'client-workspace',
   GOVERNMENT_FORMS: 'government-forms',
+  GOVERNMENT_FORM_FORM: 'government-form-form',
   GOVERNMENT_AUTHORITIES: 'government-authorities',
   GOVERNMENT_SUBMISSIONS: 'government-submissions',
   SUBMISSION_CREATE: 'submission-create',

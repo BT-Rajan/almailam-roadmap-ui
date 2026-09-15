@@ -11,6 +11,7 @@ export default {
   client: 'العميل',
   governmentCenter: 'المركز الحكومي',
   forms: 'النماذج',
+  form: 'النموذج',
   authorities: 'الجهات الحكومية',
   submissions: 'طلبات التصاريح',
   submission: 'المعاملة',

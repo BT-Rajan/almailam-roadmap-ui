@@ -371,6 +371,10 @@ export default {
   governmentFormDialog: {
     editTitle: 'Edit Government Form',
     addTitle: 'Add Government Form',
+    titleRequired: 'Form title is required',
+    formCodeRequired: 'Form code is required',
+    authorityRequired: 'Please select an authority',
+    descriptionRequired: 'Description is required',
     formTitle: 'Form Title',
     formCode: 'Form Code',
     formCodePlaceholder: 'e.g. MUN-BP-01',
@@ -386,7 +390,7 @@ export default {
     templateContent: 'Template Content',
     // {tokens} is a plain named interpolation carrying the literal
     // "{{token}}, e.g. {{clientName}}, ..." example text (see
-    // GovernmentFormFormDialog.vue's own call site) -- NOT written
+    // GovernmentFormFormPage.vue's own call site) -- NOT written
     // inline here. vue-i18n's message compiler treats literal double
     // curly braces in the *template string itself* as an (invalid)
     // nested placeholder and throws "Not allowed nest placeholder",
@@ -503,6 +507,9 @@ export default {
     addAuthority: 'Add Authority',
     loadStandardForms: 'Load Standard Forms',
     addForm: 'Add Form',
+    backToForms: 'Back to forms',
+    formNotFoundTitle: 'Form not found',
+    formNotFoundDescription: "This form doesn't exist, or may have been deleted.",
     authority: 'Authority',
     editAuthority: 'Edit authority',
     deleteAuthority: 'Delete authority',

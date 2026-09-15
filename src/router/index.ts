@@ -223,6 +223,25 @@ const router = createRouter({
       },
     },
     {
+      // Replaces GovernmentFormFormDialog.vue's modal, same treatment
+      // as ADMIN_USER_FORM/ADMIN_SCHEDULED_REPORT_FORM -- ':formId' is
+      // 'new' or a real id; the page decides create vs edit itself from
+      // whether that id resolves to an existing form.
+      path: '/government/forms/:formId',
+      name: ROUTE_NAMES.GOVERNMENT_FORM_FORM,
+      component: () => import('@/pages/GovernmentFormFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.forms', routeName: ROUTE_NAMES.GOVERNMENT_FORMS },
+          { label: 'breadcrumb.form' },
+        ],
+      },
+    },
+    {
       path: '/government/authorities',
       name: ROUTE_NAMES.GOVERNMENT_AUTHORITIES,
       component: () => import('@/pages/PlaceholderPage.vue'),
