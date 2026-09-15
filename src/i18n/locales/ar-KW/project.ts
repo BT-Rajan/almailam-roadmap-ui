@@ -565,10 +565,11 @@ export default {
   newContractDialog: {
     title: 'عقد جديد',
     backToContract: 'العودة إلى العقد',
-    prefilledFromQuotation: 'مُعبأ مسبقاً من عرض السعر {number} — العملة والقيمة والنطاق أدناه جميعها منقولة منه ويمكن تغييرها.',
+    prefilledFromQuotation: 'تم إنشاؤه من عرض السعر {number} — يجب أن تطابق العملة والقيمة المبلغ المعتمد وهما مقفلتان؛ النطاق أدناه منقول منه ويمكن تغييره.',
     currency: 'العملة',
     contractValue: 'قيمة العقد',
     contractValueMustBePositive: 'يجب أن تكون قيمة العقد أكبر من 0.',
+    contractValueMustMatchQuotation: 'يجب أن تطابق قيمة العقد المبلغ المعتمد في عرض السعر {number} ({amount}).',
     expiryDate: 'تاريخ الانتهاء',
     clientRepresentative: 'ممثل العميل',
     clientRepresentativePlaceholder: 'اسم الشخص الموقّع نيابة عن العميل',

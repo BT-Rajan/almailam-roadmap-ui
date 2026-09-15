@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, Info, Plug, XCircle } from '@lucide/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -16,7 +16,7 @@ interface Props {
   testResult?: ProviderTestResult
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   testResult: undefined,
 })
 
@@ -35,6 +35,16 @@ const STATUS_VARIANTS: Record<AIProviderConfig['status'], BadgeVariant> = {
   'not-configured': 'neutral',
   error: 'danger',
 }
+
+// The backend's own persisted status (AIProviderConfigOut.status) can
+// only ever be 'connected' or 'not-configured' -- it only reflects
+// whether a key is saved/decryptable, not whether a live call actually
+// works. 'error' is derived here, client-side, from the most recent
+// live test -- without this, the badge could sit on a stale "Connected"
+// while the test result right next to it says the call just failed.
+const effectiveStatus = computed<AIProviderConfig['status']>(() =>
+  props.testResult && !props.testResult.success ? 'error' : props.provider.status,
+)
 
 function applyNewKey(): void {
   if (!newApiKey.value.trim()) return
@@ -56,19 +66,24 @@ function applyNewKey(): void {
         <StatusBadge v-if="isDefault" :label="t('administration.aiPage.default')" variant="primary" />
       </div>
       <StatusBadge
-        :label="provider.status === 'connected' ? t('administration.aiPage.connected') : provider.status === 'error' ? t('administration.aiPage.error') : t('administration.aiPage.notConfigured')"
-        :variant="STATUS_VARIANTS[provider.status]"
+        :label="effectiveStatus === 'connected' ? t('administration.aiPage.connected') : effectiveStatus === 'error' ? t('administration.aiPage.error') : t('administration.aiPage.notConfigured')"
+        :variant="STATUS_VARIANTS[effectiveStatus]"
         show-dot
       />
     </div>
 
     <p class="text-xs text-text-muted">{{ t('administration.aiPage.modelLine', { model: provider.model || t('administration.aiPage.serverDefault') }) }}</p>
 
+    <p v-if="provider.keyUnreadable" class="flex items-center gap-1.5 text-xs text-danger-600">
+      <Info class="h-3.5 w-3.5 shrink-0" />
+      {{ t('administration.aiPage.keyUnreadable') }}
+    </p>
+
     <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
       <TextInput
         v-model="newApiKey"
         type="password"
-        :label="provider.apiKeyMasked ? t('administration.aiPage.currentKey', { key: provider.apiKeyMasked }) : t('administration.aiPage.apiKey')"
+        :label="provider.apiKeyMasked && !provider.keyUnreadable ? t('administration.aiPage.currentKey', { key: provider.apiKeyMasked }) : t('administration.aiPage.apiKey')"
         :placeholder="t('administration.aiPage.apiKeyPlaceholder')"
         class="flex-1"
       />

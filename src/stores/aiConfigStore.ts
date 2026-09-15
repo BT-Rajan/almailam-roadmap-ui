@@ -84,6 +84,15 @@ export const useAIConfigStore = defineStore('aiConfig', {
         const result = await aiConfigService.testProviderConnection(providerId)
         this.testResults = { ...this.testResults, [providerId]: result }
         return result
+      } catch (error) {
+        // Distinct from a clean { success: false, message } response --
+        // this is the request itself failing (network drop, expired
+        // session, a 500) with nothing else here to catch it. Previously
+        // uncaught: the "Testing..." spinner just stopped with no
+        // explanation, unlike every other action on this page.
+        const result = { success: false, message: error instanceof Error ? error.message : 'Unable to reach the server.' }
+        this.testResults = { ...this.testResults, [providerId]: result }
+        return result
       } finally {
         this.testingProviderId = undefined
       }

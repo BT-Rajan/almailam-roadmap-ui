@@ -86,28 +86,31 @@ const goBack = () => {
 
     <template v-else>
       <!-- Key Metrics Overview -->
-      <ReportSection :title="t('report.executivePage.kpiTitle')" :description="t('report.executivePage.kpiDescription')">
-        <ReportMetricCard v-for="(metric, index) in keyMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
+      <ReportSection :title="t('report.executivePage.kpiTitle')" :description="t('report.executivePage.kpiDescription')" full-width>
+        <div class="grid grid-cols-2 gap-4 tablet:grid-cols-4">
+          <ReportMetricCard v-for="(metric, index) in keyMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :change="metric.change" :color="metric.color" />
+        </div>
       </ReportSection>
 
-      <!-- Projects Status Distribution -->
-      <ReportSection :title="t('report.executivePage.projectStatusTitle')" :description="t('report.executivePage.projectStatusDescription')" fullWidth>
-        <Card>
-          <BarChart :data="projectsByStatus" :height="350" />
-        </Card>
-      </ReportSection>
+      <!-- Projects Status Distribution & Contract Pipeline -->
+      <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+        <ReportSection :title="t('report.executivePage.projectStatusTitle')" :description="t('report.executivePage.projectStatusDescription')" full-width>
+          <Card>
+            <BarChart :data="projectsByStatus" :height="300" />
+          </Card>
+        </ReportSection>
+
+        <ReportSection :title="t('report.executivePage.contractPipelineTitle')" :description="t('report.executivePage.contractPipelineDescription')" full-width>
+          <Card>
+            <BarChart :data="contractsByStatus" :height="300" />
+          </Card>
+        </ReportSection>
+      </div>
 
       <!-- Payments Received Trend -->
-      <ReportSection :title="t('report.executivePage.paymentsTrendTitle')" :description="t('report.executivePage.paymentsTrendDescription', { currency: paymentsReceivedCurrency })" fullWidth>
+      <ReportSection :title="t('report.executivePage.paymentsTrendTitle')" :description="t('report.executivePage.paymentsTrendDescription', { currency: paymentsReceivedCurrency })" full-width>
         <Card>
-          <LineChart :data="paymentsReceivedTrend" :height="350" />
-        </Card>
-      </ReportSection>
-
-      <!-- Contract Pipeline -->
-      <ReportSection :title="t('report.executivePage.contractPipelineTitle')" :description="t('report.executivePage.contractPipelineDescription')" fullWidth>
-        <Card>
-          <BarChart :data="contractsByStatus" :height="350" />
+          <LineChart :data="paymentsReceivedTrend" :height="320" />
         </Card>
       </ReportSection>
     </template>

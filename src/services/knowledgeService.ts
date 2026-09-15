@@ -99,10 +99,18 @@ async function deleteDocument(documentId: string): Promise<void> {
  */
 async function ask(question: string, documentId?: string): Promise<KnowledgeAskResult> {
   try {
-    return await apiClient.post<KnowledgeAskResult>('/api/knowledge/ask', {
-      question,
-      documentId: documentId || undefined,
-    })
+    // A real LLM call can legitimately take well past the default 20s
+    // request timeout -- AI Configuration alone allows up to 300s per
+    // attempt, times (retryLimit + 1) attempts, times up to 2 providers
+    // in providerPriority (see backend ai_service.generate_text). Even
+    // at the *defaults* (30s, 2 retries, 2 providers) that's up to 180s.
+    // 180s here is a reasonable practical ceiling for a normal question,
+    // not an attempt to cover every extreme an admin could configure.
+    return await apiClient.post<KnowledgeAskResult>(
+      '/api/knowledge/ask',
+      { question, documentId: documentId || undefined },
+      { timeoutMs: 180_000 },
+    )
   } catch (error) {
     console.error('Failed to ask knowledgebase question:', error)
     throw new Error(error instanceof Error ? error.message : 'Failed to get an answer')

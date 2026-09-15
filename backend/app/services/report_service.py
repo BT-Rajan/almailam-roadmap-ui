@@ -128,49 +128,42 @@ def summary_metrics(db: Session) -> list[dict]:
         .scalar()
         or 0
     )
-    # Total Received / Total Pending, broken out by currency. Obligations
-    # aren't guaranteed to share one currency -- FinancialAgreement.currency
-    # is picked per contract/quotation (AED/USD/SAR/KWD, see
-    # AgreementFormDialog/NewContractDialog/company_service's own default
-    # of "AED") -- so a single unlabeled sum would silently add different
-    # currencies together. Emit one metric per currency actually present;
-    # only fall back to the company's configured default when there's no
-    # payment data at all yet, so the cards aren't just missing.
-    received_by_currency = dict(
-        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_received))
+    # Total Received / Total Pending, scoped to the company's single
+    # configured currency (AdminCompanyPage / CompanySettings.currency)
+    # rather than a literal -- this company only ever operates in one
+    # currency in practice, but which one is a config value, not
+    # something to hardcode. FinancialAgreement.currency is still a
+    # free per-agreement field (AED/USD/SAR/KWD) for general reuse of
+    # this codebase, so filtering to the configured currency (instead
+    # of summing every agreement regardless of currency) means any
+    # stray non-matching agreement -- test data, a typo -- is correctly
+    # left out of these figures rather than silently distorting them.
+    report_currency = company_service.get_settings(db).currency
+    total_received = (
+        db.query(func.sum(PaymentObligation.amount_received))
         .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
-        .group_by(FinancialAgreement.currency)
-        .all()
+        .filter(FinancialAgreement.currency == report_currency)
+        .scalar()
+        or 0
     )
-    pending_by_currency = dict(
-        db.query(FinancialAgreement.currency, func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
+    total_pending = (
+        db.query(func.sum(PaymentObligation.amount_due - PaymentObligation.amount_received))
         .join(FinancialAgreement, PaymentObligation.agreement_id == FinancialAgreement.id)
-        .filter(PaymentObligation.manual_status.is_(None))
-        .group_by(FinancialAgreement.currency)
-        .all()
+        .filter(FinancialAgreement.currency == report_currency, PaymentObligation.manual_status.is_(None))
+        .scalar()
+        or 0
     )
-    currencies = sorted(set(received_by_currency) | set(pending_by_currency)) or [company_service.get_settings(db).currency]
-    multi_currency = len(currencies) > 1
 
-    metrics = [
+    return [
         {"label": "Total Projects", "value": total_projects, "color": "primary"},
         {"label": "Active Projects", "value": active_projects, "color": "success"},
         {"label": "On Hold Projects", "value": on_hold_projects, "color": "info"},
         {"label": "Total Clients", "value": total_clients, "color": "primary"},
         {"label": "Open Tasks", "value": open_tasks, "color": "warning"},
         {"label": "Overdue Tasks", "value": overdue_tasks, "color": "danger"},
+        {"label": "Total Received", "value": float(total_received), "unit": report_currency, "color": "success"},
+        {"label": "Total Pending", "value": float(total_pending), "unit": report_currency, "color": "warning"},
     ]
-    for currency in currencies:
-        label = f"Total Received ({currency})" if multi_currency else "Total Received"
-        metrics.append(
-            {"label": label, "value": float(received_by_currency.get(currency, 0) or 0), "unit": currency, "color": "success"}
-        )
-    for currency in currencies:
-        label = f"Total Pending ({currency})" if multi_currency else "Total Pending"
-        metrics.append(
-            {"label": label, "value": float(pending_by_currency.get(currency, 0) or 0), "unit": currency, "color": "warning"}
-        )
-    return metrics
 
 
 def _ledger_project_client_filter(query, project_no: str | None, client_id: int | None):

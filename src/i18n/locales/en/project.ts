@@ -565,10 +565,11 @@ export default {
   newContractDialog: {
     title: 'New Contract',
     backToContract: 'Back to Contract',
-    prefilledFromQuotation: 'Prefilled from quotation {number} — currency, value, and scope below all carry over from it and can still be changed.',
+    prefilledFromQuotation: 'Generated from quotation {number} — currency and value must match its approved amount and are locked; scope below carries over and can still be changed.',
     currency: 'Currency',
     contractValue: 'Contract Value',
     contractValueMustBePositive: 'Contract value must be greater than 0.',
+    contractValueMustMatchQuotation: 'Contract value must match quotation {number}\'s approved amount ({amount}).',
     expiryDate: 'Expiry Date',
     clientRepresentative: 'Client Representative',
     clientRepresentativePlaceholder: 'Name of the person signing for the client',

@@ -64,6 +64,7 @@ export default {
     modelLine: 'Model: {model}',
     serverDefault: 'Server default',
     currentKey: 'Current key: {key}',
+    keyUnreadable: 'The saved key for this provider can no longer be read (e.g. after a server encryption key change). Please re-enter it.',
     apiKey: 'API Key',
     apiKeyPlaceholder: 'Enter new API key to update',
     updateKey: 'Update Key',

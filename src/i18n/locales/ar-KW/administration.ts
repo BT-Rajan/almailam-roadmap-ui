@@ -61,6 +61,7 @@ export default {
     modelLine: 'النموذج: {model}',
     serverDefault: 'افتراضي الخادم',
     currentKey: 'المفتاح الحالي: {key}',
+    keyUnreadable: 'لا يمكن قراءة المفتاح المحفوظ لهذا المزود بعد الآن (مثلاً بعد تغيير مفتاح التشفير على الخادم). يرجى إعادة إدخاله.',
     apiKey: 'مفتاح API',
     apiKeyPlaceholder: 'أدخل مفتاح API جديدًا للتحديث',
     updateKey: 'تحديث المفتاح',
