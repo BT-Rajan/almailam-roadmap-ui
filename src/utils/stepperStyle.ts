@@ -20,6 +20,13 @@ export function stepBarClasses(status: StepStatus): string[] {
 export function stepLabelClasses(status: StepStatus): string[] {
   return [
     'truncate text-xs hover:text-accent-600 cursor-pointer',
-    status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted',
+    // 'upcoming' used text-text-muted (neutral-400, #a3a3ad in light
+    // mode) here -- against the card's near-white background that's
+    // roughly 2.3:1 contrast, well under WCAG's 4.5:1 floor for normal
+    // text, and reads as barely-there pale grey ("silver") rather than
+    // a legibly de-emphasized label. text-text-secondary (neutral-500)
+    // is the same shade already used for every other secondary-but-
+    // readable label in the app (see main.css's --color-text-secondary).
+    status === 'current' ? 'font-semibold text-info-600' : 'text-text-secondary',
   ]
 }

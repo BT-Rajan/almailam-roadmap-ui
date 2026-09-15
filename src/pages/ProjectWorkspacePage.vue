@@ -86,6 +86,17 @@ const activeTab = ref<ProjectWorkspaceTabKey>('overview')
 // Overview always matches where staff are actually working.
 const project = computed(() => projectStore.projects.find((item) => item.id === projectId.value))
 
+// The Workflow Progress stepper only earns its space at the two ends of
+// the workflow -- Scope (Requirement), where staff genuinely benefit
+// from seeing the whole journey ahead, and Handover, where they're
+// looking back at everything that led here. For the stages in between
+// (Quotation through the Design/Permit/Supervision band) it was
+// permanently visible real estate for a "where am I" indicator staff
+// mid-stage already know the answer to from the tab bar itself --
+// hidden there so that stage's own tab content gets the vertical space
+// back instead.
+const showStepper = computed(() => project.value?.currentStage === 'Requirement' || project.value?.currentStage === 'Handover')
+
 const stageContext = ref<WorkflowStage>('Requirement')
 
 // Resets to Requirement on first load and whenever switching to a
@@ -496,6 +507,7 @@ async function handleConfirmDelete(): Promise<void> {
         />
 
         <WorkflowProgress
+          v-if="showStepper"
           class="no-print"
           :current-stage="project.currentStage"
           :project-status="project.status"
