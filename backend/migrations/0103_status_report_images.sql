@@ -1,4 +1,4 @@
--- Migration 0102: status_report_images table -- up to 5 photos per
+-- Migration 0103: status_report_images table -- up to 5 photos per
 -- site engineer Status Report, each stamped server-side with the
 -- engineer's name, project number, and date/time before being saved
 -- (see status_report_service.stamp_report_image).
@@ -8,7 +8,7 @@
 -- message_attachments table).
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0102_status_report_images.sql
+--   mysql -u <user> -p <database> < backend/migrations/0103_status_report_images.sql
 
 SET @db := DATABASE();
 
@@ -31,4 +31,4 @@ SET @sql := IF(@table_exists = 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SELECT 'Migration 0102 complete.' AS status;
+SELECT 'Migration 0103 complete.' AS status;
