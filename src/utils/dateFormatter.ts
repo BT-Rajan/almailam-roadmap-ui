@@ -1,8 +1,13 @@
 import { i18n } from '@/i18n'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 
-/** Today's date as YYYY-MM-DD, for DatePicker's `min`/`max` props and past/future-date checks. */
+/** Today's date as YYYY-MM-DD, for DatePicker's `min`/`max` props, past/future-date
+ * checks, and period-scoped report queries (currentMonthRange below). Kuwait-local
+ * (see serverTimeStore.ts), not the visiting browser's own clock/timezone -- falls
+ * back to the browser's local date only for the brief window before the app's first
+ * server-time fetch resolves. */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  return useServerTimeStore().todayIso ?? new Date().toISOString().slice(0, 10)
 }
 
 /** `fromIso` (YYYY-MM-DD) shifted by `days` (negative to go back), returned as YYYY-MM-DD.

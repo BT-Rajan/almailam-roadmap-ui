@@ -1,9 +1,45 @@
 import { computed, onMounted, watch } from 'vue'
 
 import { usePaymentStore } from '@/stores/paymentStore'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
 import type { AgreementStream, FinancialAgreement, FinancialSummary, PaymentObligation } from '@/types/Payment'
 import type { Project } from '@/types/Project'
+
+export interface MonthlyBillStreamPortion {
+  stream: AgreementStream
+  // False while the stream's own payment plan is still Draft -- its
+  // schedule (and therefore what's "due this month") can still change,
+  // so it isn't part of the real bill yet. See MonthlyBill.isFinal.
+  isFinalized: boolean
+  due: number
+  received: number
+  outstanding: number
+}
+
+export interface MonthlyBill {
+  monthLabel: string
+  currency: string
+  streams: MonthlyBillStreamPortion[]
+  total: number
+  totalReceived: number
+  totalOutstanding: number
+  // True only once every visible stream that has an obligation due this
+  // month is on an Approved payment plan -- "the monthly bill is
+  // whatever's due as per the Design & Permit payment due that month
+  // plus the Supervision fee ... this gets final when the payment plan
+  // is finalized." False doesn't mean the number shown is wrong, just
+  // that one of its inputs could still change before it's locked in.
+  isFinal: boolean
+  // True if the visible streams with something due this month don't
+  // all bill in the same currency -- extremely unlikely in practice
+  // (Design and Supervision are independent FinancialAgreement rows
+  // and could theoretically be created in different currencies), but
+  // if it ever happens, total/totalReceived/totalOutstanding/currency
+  // above are meaningless (left at 0/'') and the template must show
+  // each stream portion separately instead of one blended figure.
+  isMixedCurrency: boolean
+}
 
 /**
  * Shared agreement/obligation lookups for a project's payment views --
@@ -20,6 +56,7 @@ import type { Project } from '@/types/Project'
  */
 export function usePaymentAgreements(getProjectId: () => string, getProject: () => Project) {
   const store = usePaymentStore()
+  const serverTimeStore = useServerTimeStore()
 
   const id = computed(getProjectId)
   const proj = computed(getProject)
@@ -63,11 +100,77 @@ export function usePaymentAgreements(getProjectId: () => string, getProject: () 
     visibleStreams.value.map((stream) => agreementForStream(stream)?.id).filter((agreementId): agreementId is string => Boolean(agreementId)),
   )
 
+  // Kuwait-local "this month" (see serverTimeStore.ts) -- YYYY-MM, so a
+  // plain string-prefix match against each obligation's dueDate finds
+  // everything due in the current calendar month without needing to
+  // parse dates at all.
+  const currentMonthKey = computed(() => serverTimeStore.todayIso?.slice(0, 7))
+
+  // "Whatever's due as per the Design & Permit payment due that month,
+  // plus the Supervision fee" -- one combined figure per project,
+  // summed across whichever streams actually have something due this
+  // month. Cancelled/Waived obligations are excluded (same reasoning
+  // as getFinancialSummary -- nothing is really "due" on those).
+  // Undefined until serverTimeStore has loaded, or if the project's
+  // visible streams somehow end up billing in more than one currency
+  // (extremely unlikely in practice -- Design and Supervision are
+  // independent FinancialAgreement rows and could theoretically be
+  // created in different currencies -- shown separately rather than
+  // silently added together in that case; see the template).
+  const monthlyBill = computed<MonthlyBill | undefined>(() => {
+    const monthKey = currentMonthKey.value
+    if (!monthKey) return undefined
+
+    const portions: MonthlyBillStreamPortion[] = []
+    let currency: string | undefined
+    let mixedCurrency = false
+
+    for (const stream of visibleStreams.value) {
+      const agreement = agreementForStream(stream)
+      if (!agreement) continue
+      const dueThisMonth = obligationsForStream(stream).filter(
+        (obligation) => obligation.dueDate.slice(0, 7) === monthKey && !obligation.manualStatus,
+      )
+      if (dueThisMonth.length === 0) continue
+
+      if (currency === undefined) currency = agreement.currency
+      else if (currency !== agreement.currency) mixedCurrency = true
+
+      const due = dueThisMonth.reduce((sum, o) => sum + o.amountDue, 0)
+      const received = dueThisMonth.reduce((sum, o) => sum + o.amountReceived, 0)
+      portions.push({
+        stream,
+        isFinalized: agreement.status === 'Approved',
+        due,
+        received,
+        outstanding: Math.max(due - received, 0),
+      })
+    }
+
+    if (portions.length === 0) return undefined
+
+    if (mixedCurrency || !currency) {
+      return { monthLabel: monthKey, currency: '', streams: portions, total: 0, totalReceived: 0, totalOutstanding: 0, isFinal: false, isMixedCurrency: true }
+    }
+
+    return {
+      monthLabel: monthKey,
+      currency,
+      streams: portions,
+      total: portions.reduce((sum, p) => sum + p.due, 0),
+      totalReceived: portions.reduce((sum, p) => sum + p.received, 0),
+      totalOutstanding: portions.reduce((sum, p) => sum + p.outstanding, 0),
+      isFinal: portions.every((p) => p.isFinalized),
+      isMixedCurrency: false,
+    }
+  })
+
   async function loadDetailIfNeeded(): Promise<void> {
     await Promise.all(agreementIds.value.map((agreementId) => store.loadAgreementDetail(agreementId)))
   }
 
   onMounted(loadDetailIfNeeded)
+  onMounted(() => void serverTimeStore.loadServerTime())
   watch(agreementIds, loadDetailIfNeeded)
 
   return {
@@ -76,6 +179,7 @@ export function usePaymentAgreements(getProjectId: () => string, getProject: () 
     obligationsForStream,
     summaryForStream,
     outstandingObligationsForStream,
+    monthlyBill,
     agreementIds,
     loadDetailIfNeeded,
   }

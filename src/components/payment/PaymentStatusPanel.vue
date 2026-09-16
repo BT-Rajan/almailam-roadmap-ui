@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Banknote, Wallet } from '@lucide/vue'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -12,6 +12,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
+import { useLocale } from '@/composables/useLocale'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -35,10 +36,19 @@ const emit = defineEmits<{
   'add-service': []
 }>()
 
-const { visibleStreams, agreementForStream, outstandingObligationsForStream, summaryForStream } = usePaymentAgreements(
+const { visibleStreams, agreementForStream, outstandingObligationsForStream, summaryForStream, monthlyBill } = usePaymentAgreements(
   () => props.projectId,
   () => props.project,
 )
+const { locale } = useLocale()
+
+// monthlyBill.monthLabel is a plain YYYY-MM key (see usePaymentAgreements.ts) --
+// this turns it into a locale-aware "September 2026" / "سبتمبر 2026" for display.
+const monthlyBillMonthLabel = computed(() => {
+  if (!monthlyBill.value) return ''
+  const [year, month] = monthlyBill.value.monthLabel.split('-').map(Number)
+  return new Intl.DateTimeFormat(locale.value, { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+})
 
 const store = usePaymentStore()
 const projectStore = useProjectStore()
@@ -204,6 +214,41 @@ async function handleRecordPayment(stream: AgreementStream): Promise<void> {
     />
 
     <template v-else>
+      <div v-if="monthlyBill" class="rounded-lg border border-border-light bg-bg-secondary p-4">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-text-primary">{{ t('payment.statusPanel.monthlyBillTitle', { month: monthlyBillMonthLabel }) }}</p>
+          <StatusBadge
+            :label="monthlyBill.isFinal ? t('payment.statusPanel.monthlyBillFinal') : t('payment.statusPanel.monthlyBillProvisional')"
+            :variant="monthlyBill.isFinal ? 'success' : 'warning'"
+          />
+        </div>
+
+        <template v-if="monthlyBill.isMixedCurrency">
+          <p class="mt-2 text-xs text-text-muted">{{ t('payment.statusPanel.monthlyBillMixedCurrency') }}</p>
+          <div class="mt-2 flex flex-col gap-1">
+            <p v-for="portion in monthlyBill.streams" :key="portion.stream" class="text-sm text-text-secondary">
+              {{ agreementStreamLabel(portion.stream) }}: {{ formatCurrency(portion.due, agreementForStream(portion.stream)!.currency) }}
+            </p>
+          </div>
+        </template>
+        <template v-else>
+          <div class="mt-2 flex flex-col gap-1">
+            <p v-for="portion in monthlyBill.streams" :key="portion.stream" class="text-sm text-text-secondary">
+              {{ agreementStreamLabel(portion.stream) }}: {{ formatCurrency(portion.due, monthlyBill.currency) }}
+              <span v-if="!portion.isFinalized" class="text-xs text-warning-600">({{ t('payment.statusPanel.monthlyBillPendingFinalization') }})</span>
+            </p>
+          </div>
+          <p class="mt-3 text-lg font-semibold text-text-primary">
+            {{ t('payment.statusPanel.monthlyBillTotal') }}: {{ formatCurrency(monthlyBill.total, monthlyBill.currency) }}
+          </p>
+          <p class="text-xs text-text-muted">
+            {{ t('payment.statusPanel.monthlyBillReceived') }}: {{ formatCurrency(monthlyBill.totalReceived, monthlyBill.currency) }}
+            <span class="mx-1">·</span>
+            {{ t('payment.statusPanel.monthlyBillOutstanding') }}: {{ formatCurrency(monthlyBill.totalOutstanding, monthlyBill.currency) }}
+          </p>
+        </template>
+      </div>
+
       <p v-if="streamsMissingAgreement().length > 0" class="text-sm text-text-muted">
         {{ t('payment.statusPanel.missingPlanNotice', { streams: streamsMissingAgreement().map((s) => agreementStreamLabel(s)).join(' and ') }) }}
         <button type="button" class="text-accent-600 underline" @click="emit('navigate-tab', 'payment-plan')">{{ t('payment.statusPanel.missingPlanLink') }}</button>.
