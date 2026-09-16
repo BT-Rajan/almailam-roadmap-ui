@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import BackgroundTasks, UploadFile
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -114,7 +114,9 @@ def _set_design_activity_status(
         user_id, previous_value=previous, new_value=new_status,
     )
     if not auto:
-        _auto_complete_linked_tasks(db, Task.selected_activity_id == activity.id, user_id)
+        _auto_complete_linked_tasks(
+            db, and_(Task.linked_stage_type == "Design", Task.linked_stage_id == activity.id), user_id
+        )
     if new_status == "Complete":
         project = db.query(Project).filter(Project.id == activity.project_id).first()
         if project is not None:
@@ -259,15 +261,17 @@ def _assert_completion_evidence(db: Session, project: Project, override_no_docum
 def _assert_design_tasks_complete(db: Session, activity_id: int) -> None:
     """Gates marking a Design activity Complete (never Cancelled -- a
     descoped activity doesn't need its tasks finished) on every task
-    linked to it (Task.selected_activity_id) already being Completed.
-    An activity with no linked tasks at all passes through -- nothing
-    to wait on. Unlike _assert_completion_evidence just below, this has
-    no override: task completion is a real, load-bearing signal (it's
-    also what maybe_auto_close_design_activity uses to close the
+    linked to it (Task.linked_stage_type == "Design") already being
+    Completed. An activity with no linked tasks at all passes through --
+    nothing to wait on. Unlike _assert_completion_evidence just below,
+    this has no override: task completion is a real, load-bearing signal
+    (it's also what maybe_auto_close_design_activity uses to close the
     activity automatically), not a paperwork formality, so it isn't
     something a checkbox should be able to skip past."""
     linked_tasks = (
-        db.query(Task).filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None)).all()
+        db.query(Task)
+        .filter(Task.linked_stage_type == "Design", Task.linked_stage_id == activity_id, Task.deleted_at.is_(None))
+        .all()
     )
     if any(task.status != "Completed" for task in linked_tasks):
         raise ValidationAppError(
@@ -345,7 +349,7 @@ def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int
         return
     linked_tasks = (
         db.query(Task)
-        .filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None))
+        .filter(Task.linked_stage_type == "Design", Task.linked_stage_id == activity_id, Task.deleted_at.is_(None))
         .all()
     )
     if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
@@ -368,7 +372,9 @@ def maybe_auto_close_permit(db: Session, permit_id: int, user_id: int) -> None:
     if permit is None or permit.status in ("Complete", "Cancelled"):
         return
     linked_tasks = (
-        db.query(Task).filter(Task.selected_permit_id == permit_id, Task.deleted_at.is_(None)).all()
+        db.query(Task)
+        .filter(Task.linked_stage_type == "Permit", Task.linked_stage_id == permit_id, Task.deleted_at.is_(None))
+        .all()
     )
     if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
         return
@@ -413,7 +419,9 @@ def set_permit_status(
         previous_value=previous, new_value=new_status,
     )
     if new_status in ("Complete", "Cancelled"):
-        _auto_complete_linked_tasks(db, Task.selected_permit_id == permit.id, user_id)
+        _auto_complete_linked_tasks(
+            db, and_(Task.linked_stage_type == "Permit", Task.linked_stage_id == permit.id), user_id
+        )
     db.commit()
     db.refresh(permit)
     try_auto_advance_stage(db, project, user_id)
@@ -433,7 +441,9 @@ def maybe_auto_close_supervision_activity(db: Session, activity_id: int, user_id
         return
     linked_tasks = (
         db.query(Task)
-        .filter(Task.selected_supervision_activity_id == activity_id, Task.deleted_at.is_(None))
+        .filter(
+            Task.linked_stage_type == "Supervision", Task.linked_stage_id == activity_id, Task.deleted_at.is_(None)
+        )
         .all()
     )
     if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
@@ -480,7 +490,9 @@ def set_supervision_status(
         previous_value=previous, new_value=new_status,
     )
     if new_status in ("Complete", "Cancelled"):
-        _auto_complete_linked_tasks(db, Task.selected_supervision_activity_id == activity.id, user_id)
+        _auto_complete_linked_tasks(
+            db, and_(Task.linked_stage_type == "Supervision", Task.linked_stage_id == activity.id), user_id
+        )
     db.commit()
     db.refresh(activity)
     try_auto_advance_stage(db, project, user_id)
@@ -879,7 +891,7 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
                 db.query(Task)
                 .filter(
                     Task.project_id == project.id,
-                    Task.selected_supervision_activity_id.isnot(None),
+                    Task.linked_stage_type == "Supervision",
                     Task.assigned_to == old_engineer_id,
                     Task.status != "Completed",
                     Task.deleted_at.is_(None),
@@ -1290,33 +1302,31 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     task (so a re-entry into this can't happen, since Contract is only
     ever left once per project, doesn't double them up) and any already
     Complete/Cancelled (nothing to do)."""
-    existing_activity_ids = {
-        row[0] for row in db.query(Task.selected_activity_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_activity_id.isnot(None),
-        ).all()
-    }
-    existing_permit_ids = {
-        row[0] for row in db.query(Task.selected_permit_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_permit_id.isnot(None),
-        ).all()
-    }
-    existing_supervision_ids = {
-        row[0] for row in db.query(Task.selected_supervision_activity_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_supervision_activity_id.isnot(None),
-        ).all()
-    }
+    def _existing_linked_ids(stage_type: str) -> set[int]:
+        return {
+            row[0] for row in db.query(Task.linked_stage_id).filter(
+                Task.project_id == project.id,
+                Task.deleted_at.is_(None),
+                Task.linked_stage_type == stage_type,
+            ).all()
+        }
 
-    def _add_task(title: str, **link: int) -> None:
+    existing_activity_ids = _existing_linked_ids("Design")
+    existing_permit_ids = _existing_linked_ids("Permit")
+    existing_supervision_ids = _existing_linked_ids("Supervision")
+
+    def _add_task(title: str, stage_type: str, stage_id: int) -> None:
         task = Task(
             task_no=next_task_number(db, project.id, project.project_no),
             project_id=project.id,
+            linked_stage_type=stage_type,
+            linked_stage_id=stage_id,
             title=title,
             assigned_to=project.engineer_id,
             start_date=project.start_date,
             due_date=project.target_date,
             due_time=_SERVICE_TASK_DUE_TIME,
             status="Preset",
-            **link,
         )
         db.add(task)
         db.flush()
@@ -1330,19 +1340,19 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     for activity in get_selected_activities(db, project.id):
         if activity.id in existing_activity_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, selected_activity_id=activity.id)
+        _add_task(activity.activity_name, "Design", activity.id)
         created_count += 1
 
     for permit in get_selected_permits(db, project.id):
         if permit.id in existing_permit_ids or permit.status in ("Complete", "Cancelled"):
             continue
-        _add_task(permit.permit_name, selected_permit_id=permit.id)
+        _add_task(permit.permit_name, "Permit", permit.id)
         created_count += 1
 
     for activity in get_selected_supervision_activities(db, project.id):
         if activity.id in existing_supervision_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, selected_supervision_activity_id=activity.id)
+        _add_task(activity.activity_name, "Supervision", activity.id)
         created_count += 1
 
     # Only log when this call actually generated something -- it's now

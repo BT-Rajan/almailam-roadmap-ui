@@ -25,17 +25,19 @@ class TaskOut(BaseModel):
     dueDate: date
     dueTime: str
     status: str
-    # The Design activity this task belongs to, if any (migration
-    # 0073) -- None for the common case of a plain to-do. Matches
-    # SelectedActivityOut.id (str(ProjectSelectedActivity.id)).
+    # The Design activity/Permit/Supervision activity this task belongs
+    # to, if any -- None for the common case of a plain to-do. Kept as
+    # three separate fields on the wire (unchanged API shape) even
+    # though the model now stores one linked_stage_type/linked_stage_id
+    # pair (migration 0104) -- see Task.linked_stage_type. Matches
+    # SelectedActivityOut.id / the equivalent Permit/Supervision ids.
     selectedActivityId: str | None = None
-    # Same idea, for Permit/Supervision tracks (migration 0088) -- see
-    # Task.selected_permit_id/selected_supervision_activity_id.
     selectedPermitId: str | None = None
     selectedSupervisionActivityId: str | None = None
 
     @staticmethod
     def from_model(task, project_no: str, assigned_to_name: str) -> "TaskOut":
+        linked_id = str(task.linked_stage_id) if task.linked_stage_id else None
         return TaskOut(
             id=task.task_no,
             projectId=project_no,
@@ -47,11 +49,9 @@ class TaskOut(BaseModel):
             dueDate=task.due_date,
             dueTime=task.due_time.strftime("%H:%M"),
             status=task.status,
-            selectedActivityId=str(task.selected_activity_id) if task.selected_activity_id else None,
-            selectedPermitId=str(task.selected_permit_id) if task.selected_permit_id else None,
-            selectedSupervisionActivityId=(
-                str(task.selected_supervision_activity_id) if task.selected_supervision_activity_id else None
-            ),
+            selectedActivityId=linked_id if task.linked_stage_type == "Design" else None,
+            selectedPermitId=linked_id if task.linked_stage_type == "Permit" else None,
+            selectedSupervisionActivityId=linked_id if task.linked_stage_type == "Supervision" else None,
         )
 
 
