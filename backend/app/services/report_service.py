@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.kuwait_time import kuwait_today
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
@@ -74,7 +75,7 @@ def payments_received_by_month(db: Session, months: int = 6) -> list[dict]:
     add different currencies together. A single trend line can only
     honestly represent one currency at a time; if other currencies are
     in use, this is the org's default one, not necessarily "all of it"."""
-    today = date.today()
+    today = kuwait_today()
     year, month = today.year, today.month
     buckets: list[tuple[int, int]] = []
     for _ in range(months):
@@ -124,7 +125,7 @@ def summary_metrics(db: Session) -> list[dict]:
     )
     overdue_tasks = (
         db.query(func.count(Task.id))
-        .filter(Task.deleted_at.is_(None), Task.status != "Completed", Task.due_date < date.today())
+        .filter(Task.deleted_at.is_(None), Task.status != "Completed", Task.due_date < kuwait_today())
         .scalar()
         or 0
     )
@@ -365,7 +366,7 @@ def team_workload(db: Session) -> dict:
         }
 
     engineer_ids = [engineer.id for engineer in engineers]
-    today = date.today()
+    today = kuwait_today()
 
     open_tasks_by_user = dict(
         db.query(Task.assigned_to, func.count(Task.id))
@@ -463,7 +464,7 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
         .filter(PaymentObligation.due_date >= start_date, PaymentObligation.due_date <= end_date)
         .all()
     )
-    today = date.today()
+    today = kuwait_today()
     due_by_currency: dict[str, float] = {}
     outstanding_by_currency: dict[str, float] = {}
     overdue_by_currency: dict[str, float] = {}

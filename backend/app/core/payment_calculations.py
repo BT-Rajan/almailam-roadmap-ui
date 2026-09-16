@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
+from app.core.kuwait_time import kuwait_today
+
 FREQUENCY_INTERVAL_MONTHS = {
     "Monthly": 1,
     "Quarterly": 3,
@@ -21,7 +23,10 @@ def compute_obligation_status(obligation, today: date | None = None) -> str:
     if obligation.manual_status:
         return obligation.manual_status
 
-    today = today or date.today()
+    # Kuwait-local, not the server's own clock -- see core.kuwait_time.
+    # A payment isn't "overdue yet" or "overdue already" depending on
+    # which timezone happens to be running this process.
+    today = today or kuwait_today()
     is_past_due = obligation.due_date < today
     is_due_today = obligation.due_date == today
     is_fully_paid = obligation.amount_received >= obligation.amount_due
@@ -61,14 +66,14 @@ def get_next_payment_obligation(obligations: list, today: date | None = None):
 
 
 def get_days_until_due(due_date: date, today: date | None = None) -> int:
-    today = today or date.today()
+    today = today or kuwait_today()
     return (due_date - today).days
 
 
 def get_financial_summary(
     agreement, obligations: list, payments: list | None = None, refunds: list | None = None
 ) -> dict:
-    today = date.today()
+    today = kuwait_today()
     active_obligations = [o for o in obligations if o.manual_status not in ("Cancelled", "Waived")]
 
     # Pending and overdue are mutually exclusive: once an obligation's due

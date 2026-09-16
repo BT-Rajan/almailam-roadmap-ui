@@ -14,7 +14,6 @@
 from datetime import date, datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from fastapi import UploadFile
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -24,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_bytes
+from app.core.kuwait_time import kuwait_now, kuwait_today
 from app.models.project import Project
 from app.models.status_report import MAX_REPORT_IMAGES, StatusReport, StatusReportImage
 from app.models.task import Task
@@ -33,16 +33,20 @@ from app.services.number_series_service import next_number
 
 ENTITY_TYPE = "STATUS_REPORT"
 
-# Deliberately hardcoded, not read from CompanySettings.timezone -- that
-# setting is a general display preference (invoices, dashboards, and
-# defaults to "Asia/Dubai" today) that an admin can change at any time
-# for unrelated reasons. The daily report cutoff is a specific, stated
-# business rule ("editable until 11:59 PM Kuwait time, wherever the
-# engineer physically is"), not a display preference -- it must not
-# silently shift if someone later changes the company's display
-# timezone. Kuwait is UTC+3; Dubai is UTC+4, so conflating the two
-# would move the real cutoff by an hour.
-REPORT_FILING_TIMEZONE = "Asia/Kuwait"
+# Deliberately hardcoded via core.kuwait_time, not read from
+# CompanySettings.timezone -- that setting is a general display
+# preference (invoices, dashboards, and defaults to "Asia/Dubai"
+# today) that an admin can change at any time for unrelated reasons.
+# The daily report cutoff is a specific, stated business rule
+# ("editable until 11:59 PM Kuwait time, wherever the engineer
+# physically is"), not a display preference -- it must not silently
+# shift if someone later changes the company's display timezone.
+# Kuwait is UTC+3; Dubai is UTC+4, so conflating the two would move
+# the real cutoff by an hour. Same reasoning core.kuwait_time itself
+# documents for every other date-sensitive business decision that now
+# shares it (payment obligation overdue status, quotation/contract
+# expiry, and so on) -- none of them should drift just because someone
+# changes the company's display timezone either.
 
 # A cancelled project is finished -- no more field activity is expected
 # on it, so no new/edited reports either, independent of what
@@ -71,28 +75,19 @@ def _today(db: Session) -> date:
     "only today's report is editable, until 11:59 PM Kuwait time"
     rule failing in the one window it actually matters. The `db`
     parameter is unused now (kept so callers don't need to change) --
-    see REPORT_FILING_TIMEZONE above for why this no longer reads
-    CompanySettings.timezone. Falls back to plain date.today() if
-    the "Asia/Kuwait" zone can't be loaded (e.g. no tzdata installed)
-    rather than raising in the middle of an unrelated action.
+    see the module comment above for why this doesn't read
+    CompanySettings.timezone. Delegates to core.kuwait_time, which
+    every other date-sensitive decision in the app now shares.
     """
-    try:
-        return datetime.now(ZoneInfo(REPORT_FILING_TIMEZONE)).date()
-    except Exception:
-        return date.today()
+    return kuwait_today()
 
 
 def _now(db: Session) -> datetime:
     """Same Kuwait-time convention as _today() above, but with the time
     of day too -- for stamping a report photo with the actual moment it
     was uploaded (status_report_service.stamp_report_image), not just
-    the report's own report_date (date only, no time). Falls back to
-    server-local time on the same "don't fail an unrelated action over
-    a missing tz database" basis as _today()."""
-    try:
-        return datetime.now(ZoneInfo(REPORT_FILING_TIMEZONE))
-    except Exception:
-        return datetime.now()
+    the report's own report_date (date only, no time)."""
+    return kuwait_now()
 
 
 def report_filing_today(db: Session) -> date:

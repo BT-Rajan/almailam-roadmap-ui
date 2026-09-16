@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload
+from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     CONTRACT_ALLOWED_TRANSITIONS,
     CONTRACT_STATUSES_REQUIRING_REASON,
@@ -145,7 +146,7 @@ def _record_revision(db: Session, contract: Contract, summary: str, user_id: int
     new_label = _next_revision_label(contract.revision) if bump else contract.revision
     db.add(
         ContractRevision(
-            contract_id=contract.id, revision=new_label, revised_at=date.today(),
+            contract_id=contract.id, revision=new_label, revised_at=kuwait_today(),
             changed_by=user_id, summary=summary,
         )
     )
@@ -248,7 +249,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
         quotation_id=quotation.id,
         currency=payload.currency,
         contract_value=payload.contractValue,
-        issue_date=date.today(),
+        issue_date=kuwait_today(),
         expiry_date=payload.expiryDate,
         prepared_by=user_id,
         client_representative=payload.clientRepresentative,
@@ -381,7 +382,7 @@ def set_status(db: Session, contract_no: str, new_status: str, reason: str | Non
     )
     contract.status = new_status
     if new_status == "Signed" and contract.signed_date is None:
-        contract.signed_date = date.today()
+        contract.signed_date = kuwait_today()
     # Moving back to Draft always reopens the content for editing again
     # -- status == 'Draft' and locked content are mutually exclusive.
     if new_status == "Draft" and contract.finalized_at is not None:

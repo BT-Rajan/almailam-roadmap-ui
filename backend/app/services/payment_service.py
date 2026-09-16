@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core import payment_calculations as calc
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
+from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     FINANCIAL_AGREEMENT_ALLOWED_TRANSITIONS,
     FINANCIAL_AGREEMENT_STATUSES_REQUIRING_REASON,
@@ -868,7 +869,7 @@ def create_adjustment(db: Session, payload, user_id: int, agreement_id: int) -> 
         amount=payload.amount,
         reason=payload.reason,
         authorising_user=user_id,
-        adjusted_at=date.today(),
+        adjusted_at=kuwait_today(),
     )
     db.add(adjustment)
 

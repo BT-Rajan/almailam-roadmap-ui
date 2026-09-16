@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload
+from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     QUOTATION_ALLOWED_TRANSITIONS,
     QUOTATION_STATUSES_REQUIRING_REASON,
@@ -72,7 +73,7 @@ def _record_revision(db: Session, quotation: Quotation, summary: str, user_id: i
     new_label = _next_revision_label(quotation.revision) if bump else quotation.revision
     db.add(
         QuotationRevision(
-            quotation_id=quotation.id, revision=new_label, revised_at=date.today(),
+            quotation_id=quotation.id, revision=new_label, revised_at=kuwait_today(),
             changed_by=user_id, summary=summary,
         )
     )
@@ -194,7 +195,7 @@ def create_quotation(db: Session, payload, user_id: int) -> Quotation:
     quotation = Quotation(
         quotation_no=next_number(db, "QUOTATION"),
         project_id=project.id,
-        issue_date=date.today(),
+        issue_date=kuwait_today(),
         validity=payload.validity,
         currency=payload.currency,
         prepared_by=user_id,
@@ -618,7 +619,10 @@ def check_and_expire_quotations(db: Session) -> int:
     same shape as the other check_and_notify_* functions elsewhere in
     the codebase. Returns how many quotations were expired in this run.
     """
-    today = date.today()
+    # Kuwait-local, not the server's own clock -- see core.kuwait_time.
+    # A quotation whose validity date has passed in Kuwait shouldn't
+    # stay Draft for hours just because the scheduler's host is on UTC.
+    today = kuwait_today()
     candidates = (
         db.query(Quotation)
         .filter(

@@ -65,8 +65,8 @@ def _to_utc_naive(local_dt: datetime, tz: ZoneInfo) -> datetime:
     naive throughout (see models/mixins.py's TimestampMixin -- MySQL's
     DATETIME has no offset), and comparing against Python's own
     datetime.now(timezone.utc) (not the DB server's NOW(), which this
-    app already treats as untrustworthy -- see status_report_service's
-    REPORT_FILING_TIMEZONE comment) is what keeps the scheduler tick's
+    app already treats as untrustworthy -- see core.kuwait_time's
+    module comment) is what keeps the scheduler tick's
     "is this due yet" check correct regardless of what timezone the
     server itself happens to be configured in."""
     return local_dt.replace(tzinfo=tz).astimezone(timezone.utc).replace(tzinfo=None)
@@ -191,7 +191,7 @@ def _validate_schedule_fields(payload: ScheduledReportIn, tz: ZoneInfo) -> None:
     if payload.frequency == "monthly" and payload.dayOfMonth is None:
         raise ValidationAppError("Pick which day of the month this report should be sent.")
     if payload.endDate is not None:
-        start = payload.startDate or date.today()
+        start = payload.startDate or datetime.now(tz).date()
         if payload.endDate < start:
             raise ValidationAppError("The end date can't be before the start date.")
 

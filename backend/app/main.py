@@ -35,6 +35,7 @@ from app.api.reports import router as reports_router
 from app.api.roles import router as roles_router
 from app.api.scheduled_reports import router as scheduled_reports_router
 from app.api.search import router as search_router
+from app.api.server_time import router as server_time_router
 from app.api.document_requirements import router as document_requirements_router
 from app.api.permit_catalog import router as permit_catalog_router
 from app.api.service_catalog import router as service_catalog_router
@@ -214,6 +215,7 @@ app.include_router(reports_router)
 app.include_router(scheduled_reports_router)
 app.include_router(messages_router)
 app.include_router(search_router)
+app.include_router(server_time_router)
 app.include_router(site_portal_router)
 app.include_router(status_reports_router)
 
