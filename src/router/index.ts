@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 import { useToastStore } from '@/stores/toastStore'
 
 const router = createRouter({
@@ -822,6 +823,13 @@ router.beforeEach(async (to) => {
   // server-side limit (expiry, rotation, idle timeout) still applies
   // exactly as before; see authStore.hydrate()/tryRefresh().
   await authStore.hydrate()
+
+  // Loaded once per app session, right after auth resolves and before
+  // any authenticated page can mount -- see serverTimeStore.ts. Every
+  // date-sensitive screen (Payment Status, the dashboard, Contract
+  // expiry) needs this ready before it renders, not fetched lazily by
+  // whichever one happens to mount first.
+  if (to.meta.requiresAuth) void useServerTimeStore().loadServerTime()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Site/customer portal routes bounce to their own login, not the

@@ -8,6 +8,7 @@ import UpcomingDeadlinesWidget from '@/components/dashboard/UpcomingDeadlinesWid
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { contractService } from '@/services/contractService'
 import { useProjectStore } from '@/stores/projectStore'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 import { useTaskStore } from '@/stores/taskStore'
 import type { Contract } from '@/types/Contract'
 import type { Deadline, StatisticItem } from '@/types/Dashboard'
@@ -16,6 +17,7 @@ const router = useRouter()
 const { t } = useI18n()
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
+const serverTimeStore = useServerTimeStore()
 const contractRenewalsWidget = ref<InstanceType<typeof UpcomingDeadlinesWidget> | null>(null)
 
 // Deadlines are derived from task due dates, and each task's project name
@@ -29,7 +31,13 @@ function projectNameFor(projectId: string): string {
   return projectStore.projects.find((project) => project.id === projectId)?.projectName ?? 'Unknown Project'
 }
 
-const today = computed(() => new Date().setHours(0, 0, 0, 0))
+// The server's Kuwait-local "today" (see serverTimeStore.ts), not the
+// browser's own clock -- a contract's expiry/renewal status needs the
+// same server-anchored "today" as every payment-overdue decision does
+// (see utils/paymentHelpers.ts). Falls back to the browser's local
+// date only for the brief window before the app's first server-time
+// fetch resolves.
+const today = computed(() => serverTimeStore.todayTimestamp ?? new Date().setHours(0, 0, 0, 0))
 
 // Contract renewals -- not from any per-project store (contractStore is
 // scoped to whichever single project a workspace tab has open), fetched
@@ -101,7 +109,7 @@ const statistics = computed<StatisticItem[]>(() => [
 // more room to show them now that it has a whole tab instead of a
 // sidebar slot.
 const upcomingDeadlines = computed<Deadline[]>(() => {
-  const now = Date.now()
+  const now = today.value
   const twoWeeksFromNow = now + 14 * 24 * 60 * 60 * 1000
   return taskStore.tasks
     .filter((task) => task.status !== 'Completed')

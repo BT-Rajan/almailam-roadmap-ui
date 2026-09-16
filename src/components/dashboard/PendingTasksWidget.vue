@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 import type { Task } from '@/types/Dashboard'
 import type { BadgeVariant } from '@/types/Ui'
 import { formatShortDate } from '@/utils/dateFormatter'
@@ -17,6 +18,8 @@ const props = withDefaults(defineProps<Props>(), {
   title: undefined,
   maxItems: 4,
 })
+
+const serverTimeStore = useServerTimeStore()
 
 const { t } = useI18n()
 
@@ -57,7 +60,10 @@ const priorityColor = (priority: string): BadgeVariant => {
   return colors[priority] || 'neutral'
 }
 
-const isOverdue = (dueDate: string) => new Date(dueDate) < new Date()
+// Server's Kuwait-local "today" (see serverTimeStore.ts), not the
+// browser's own clock -- falls back to it only for the brief window
+// before the app's first server-time fetch resolves.
+const isOverdue = (dueDate: string) => new Date(dueDate).getTime() < (serverTimeStore.todayTimestamp ?? new Date().setHours(0, 0, 0, 0))
 
 const formatDate = formatShortDate
 </script>

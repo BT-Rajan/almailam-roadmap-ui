@@ -29,7 +29,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
-import { computeObligationStatus, getAgreementStreamLabel, getObligationAmountPending, getObligationStatusVariant } from '@/utils/paymentHelpers'
+import { computeObligationStatus, getAgreementStreamLabel, getObligationAmountPending, getObligationStatusVariant, todayIsoDate } from '@/utils/paymentHelpers'
 import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
 import type { AgreementStream, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
@@ -281,7 +281,7 @@ const OBLIGATION_PAYMENT_MODE_OPTIONS: SelectOption[] = [
 const isObligationPaymentDialogOpen = ref(false)
 const obligationBeingPaid = ref<{ stream: AgreementStream; obligation: PaymentObligation } | undefined>(undefined)
 const obligationPaymentForm = reactive({
-  paymentDate: new Date().toISOString().slice(0, 10),
+  paymentDate: todayIsoDate(),
   paymentMode: 'Cash' as PaymentMode,
   referenceNumber: '',
   amount: 0,
@@ -303,7 +303,7 @@ function handleObligationRowClick(stream: AgreementStream, row: { id: string }):
   if (status === 'Paid' || status === 'Cancelled' || status === 'Waived') return
 
   obligationBeingPaid.value = { stream, obligation }
-  obligationPaymentForm.paymentDate = new Date().toISOString().slice(0, 10)
+  obligationPaymentForm.paymentDate = todayIsoDate()
   obligationPaymentForm.paymentMode = 'Cash'
   obligationPaymentForm.referenceNumber = ''
   obligationPaymentForm.amount = getObligationAmountPending(obligation)

@@ -16,7 +16,7 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { getAgreementStreamLabel, getObligationAmountPending } from '@/utils/paymentHelpers'
+import { getAgreementStreamLabel, getObligationAmountPending, todayIsoDate } from '@/utils/paymentHelpers'
 import type { Client } from '@/types/Client'
 import type { AgreementStream, PaymentMode, RecordPaymentInput } from '@/types/Payment'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -98,7 +98,7 @@ interface EntryForm {
 
 function freshForm(stream: AgreementStream): EntryForm {
   return {
-    paymentDate: new Date().toISOString().slice(0, 10),
+    paymentDate: todayIsoDate(),
     paymentMode: 'Cash',
     referenceNumber: '',
     actualAmount: expectedAmountFor(stream),

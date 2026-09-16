@@ -1,5 +1,6 @@
 import type { BadgeVariant } from '@/types/Ui'
 import type { AgreementStream, FinancialAgreement, FinancialSummary, ObligationStatus, PaymentObligation } from '@/types/Payment'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
 
 // Design/Permit work is billed once, split into up to 5 user-
 // configurable installments (or paid in full as a single payment);
@@ -19,14 +20,34 @@ export function getAgreementStreamLabel(stream: AgreementStream): string {
   return AGREEMENT_STREAM_LABELS[stream]
 }
 
+// The server's Kuwait-local "today" as a YYYY-MM-DD string (see
+// serverTimeStore.ts) -- for pre-filling a date field with today's
+// date (payment date, agreement date, contract start date). Falls back
+// to the browser's local date only for the brief window before the
+// app's first server-time fetch resolves; every one of these fields
+// is a plain editable default a human reviews before submitting, not
+// a silent calculation, but it should still start from the right day.
+export function todayIsoDate(): string {
+  return useServerTimeStore().todayIso ?? new Date().toISOString().slice(0, 10)
+}
+
 function startOfDay(date: Date): number {
   const copy = new Date(date)
   copy.setHours(0, 0, 0, 0)
   return copy.getTime()
 }
 
+// The server's own Kuwait-local "today" (see serverTimeStore.ts and
+// backend/app/core/kuwait_time.py) -- every obligation-overdue/due-date
+// decision in this file must be anchored to this, never to the
+// visiting browser's own clock/timezone. Falls back to the browser's
+// local date only for the brief window before the app's very first
+// server-time fetch resolves (see router/index.ts) -- once it has,
+// every caller here reactively re-evaluates against the real value, so
+// this fallback is never an ongoing substitute for it.
 function todayTimestamp(): number {
-  return startOfDay(new Date())
+  const serverToday = useServerTimeStore().todayTimestamp
+  return serverToday ?? startOfDay(new Date())
 }
 
 /**

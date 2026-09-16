@@ -20,6 +20,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
+import { todayIsoDate } from '@/utils/paymentHelpers'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { AgreementStream, CreateAgreementInput, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
 import type { Project } from '@/types/Project'
@@ -127,8 +128,8 @@ function buildDefaultMilestones(): PaymentMilestoneInput[] {
 
 const contractAmount = ref(0)
 const currency = ref('KWD')
-const contractStartDate = ref(new Date().toISOString().slice(0, 10))
-const agreementDate = ref(new Date().toISOString().slice(0, 10))
+const contractStartDate = ref(todayIsoDate())
+const agreementDate = ref(todayIsoDate())
 const quotationReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
 const milestones = ref<PaymentMilestoneInput[]>([])
@@ -204,8 +205,8 @@ function seedForm(): void {
   // a legacy mismatch can be corrected back into agreement with it.
   contractAmount.value = approvedQuotation.value?.amount ?? 0
   currency.value = approvedQuotation.value?.currency ?? 'KWD'
-  contractStartDate.value = new Date().toISOString().slice(0, 10)
-  agreementDate.value = new Date().toISOString().slice(0, 10)
+  contractStartDate.value = todayIsoDate()
+  agreementDate.value = todayIsoDate()
   quotationReference.value = approvedQuotation.value?.quotationNo ?? ''
   paymentMode.value = 'Bank Transfer'
   milestones.value = buildDefaultMilestones()
