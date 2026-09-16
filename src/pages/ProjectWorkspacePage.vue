@@ -22,6 +22,7 @@ const ProjectQuotationTab = defineAsyncComponent(() => import('@/components/proj
 const ProjectContractTab = defineAsyncComponent(() => import('@/components/project/ProjectContractTab.vue'))
 const ContractDocumentsTab = defineAsyncComponent(() => import('@/components/project/ContractDocumentsTab.vue'))
 const ProjectDocumentsTab = defineAsyncComponent(() => import('@/components/project/ProjectDocumentsTab.vue'))
+const ProjectDesignTab = defineAsyncComponent(() => import('@/components/project/ProjectDesignTab.vue'))
 const SupervisionStatusReportsTab = defineAsyncComponent(() => import('@/components/project/SupervisionStatusReportsTab.vue'))
 const ProjectGovernmentTab = defineAsyncComponent(() => import('@/components/project/ProjectGovernmentTab.vue'))
 const ProjectTasksTab = defineAsyncComponent(() => import('@/components/project/ProjectTasksTab.vue'))
@@ -229,11 +230,11 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
       ]
     case 'Design':
-      // Reuses the existing 'design' tab key (ProjectDocumentsTab's
-      // mode="design", Drawing-typed documents only) rather than the
-      // generic 'documents' key, which would show every project
-      // document, not just design deliverables. No Payments tab here --
-      // see the Contract case above for why.
+      // 'design' tab key now renders ProjectDesignTab.vue (Drawing-typed
+      // documents only, migration 0104/#3) rather than the generic
+      // 'documents' key, which would show every project document, not
+      // just design deliverables. No Payments tab here -- see the
+      // Contract case above for why.
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'design', label: t('project.workspaceTabs.documents') },
@@ -552,13 +553,22 @@ async function handleConfirmDelete(): Promise<void> {
         <ContractDocumentsTab :project="project" />
       </div>
       <div
-        v-else-if="activeTab === 'documents' || activeTab === 'design'"
-        :id="activeTab === 'documents' ? 'project-tabpanel-documents' : undefined"
+        v-else-if="activeTab === 'documents'"
+        id="project-tabpanel-documents"
         role="tabpanel"
-        :aria-labelledby="activeTab === 'documents' ? 'project-tab-documents' : undefined"
+        aria-labelledby="project-tab-documents"
         tabindex="0"
       >
-        <ProjectDocumentsTab :project="project" :mode="activeTab" />
+        <ProjectDocumentsTab :project="project" />
+      </div>
+      <div
+        v-else-if="activeTab === 'design'"
+        id="project-tabpanel-design"
+        role="tabpanel"
+        aria-labelledby="project-tab-design"
+        tabindex="0"
+      >
+        <ProjectDesignTab :project="project" />
       </div>
       <div v-else-if="activeTab === 'supervision'" id="project-tabpanel-supervision" role="tabpanel" aria-labelledby="project-tab-supervision" tabindex="0">
         <SupervisionStatusReportsTab :project="project" />

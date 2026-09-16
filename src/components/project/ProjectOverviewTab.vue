@@ -468,7 +468,7 @@ const contractQuotation = computed(() =>
 )
 
 // Design deliverables -- documents of type 'Drawing' added against this
-// project (see ProjectDocumentsTab.vue's mode="design").
+// project (see ProjectDesignTab.vue).
 const designDocuments = computed(() => documentStore.documentsByProject(props.project.id).filter((document) => document.type === 'Drawing'))
 
 // Required Documents -- every fillable government form the Service
