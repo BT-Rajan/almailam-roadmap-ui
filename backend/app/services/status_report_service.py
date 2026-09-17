@@ -148,7 +148,7 @@ def list_engineer_projects(db: Session, engineer_id: int) -> list[Project]:
     """
     supervision_project_ids = (
         db.query(Task.project_id)
-        .filter(Task.assigned_to == engineer_id, Task.selected_supervision_activity_id.isnot(None), Task.deleted_at.is_(None))
+        .filter(Task.assigned_to == engineer_id, Task.linked_stage_type == "Supervision", Task.deleted_at.is_(None))
         .distinct()
     )
     return (
@@ -306,7 +306,7 @@ def list_reports_for_task(db: Session, task: Task) -> list[StatusReport]:
     """Every field report relevant to this specific task -- the "task
     history" shown on a task once it's assigned to a site engineer.
 
-    Supervision-track tasks (selected_supervision_activity_id set) show
+    Supervision-track tasks (linked_stage_type == "Supervision") show
     every report the assigned engineer has filed for the task's
     project, full stop -- not only the ones a recipient happened to
     manually pick this exact task for in attach_report's optional task
@@ -323,7 +323,7 @@ def list_reports_for_task(db: Session, task: Task) -> list[StatusReport]:
     on, so they keep the narrower original behavior: only reports this
     exact task was explicitly chosen for during attach.
     """
-    if task.selected_supervision_activity_id is not None:
+    if task.linked_stage_type == "Supervision":
         return (
             db.query(StatusReport)
             .filter(StatusReport.project_id == task.project_id, StatusReport.engineer_id == task.assigned_to)
@@ -381,7 +381,7 @@ def attach_report(db: Session, report_id: int, task_no: str | None, recipient_no
         # actually show up on that task. Design/Permit tasks match
         # directly on attached_task_id regardless of assignee, so
         # there's no such trap for those.
-        if task.selected_supervision_activity_id is not None and task.assigned_to != report.engineer_id:
+        if task.linked_stage_type == "Supervision" and task.assigned_to != report.engineer_id:
             raise ValidationAppError(
                 "This Supervision task is assigned to a different engineer than the one who filed this report -- "
                 "the report would not appear on that task's history. Choose a task assigned to this report's engineer, "

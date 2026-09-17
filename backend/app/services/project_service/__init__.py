@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import BackgroundTasks, UploadFile
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -114,7 +114,9 @@ def _set_design_activity_status(
         user_id, previous_value=previous, new_value=new_status,
     )
     if not auto:
-        _auto_complete_linked_tasks(db, Task.selected_activity_id == activity.id, user_id)
+        _auto_complete_linked_tasks(
+            db, and_(Task.linked_stage_type == "Design", Task.linked_stage_id == activity.id), user_id
+        )
     if new_status == "Complete":
         project = db.query(Project).filter(Project.id == activity.project_id).first()
         if project is not None:
@@ -259,15 +261,17 @@ def _assert_completion_evidence(db: Session, project: Project, override_no_docum
 def _assert_design_tasks_complete(db: Session, activity_id: int) -> None:
     """Gates marking a Design activity Complete (never Cancelled -- a
     descoped activity doesn't need its tasks finished) on every task
-    linked to it (Task.selected_activity_id) already being Completed.
-    An activity with no linked tasks at all passes through -- nothing
-    to wait on. Unlike _assert_completion_evidence just below, this has
-    no override: task completion is a real, load-bearing signal (it's
-    also what maybe_auto_close_design_activity uses to close the
+    linked to it (Task.linked_stage_type == "Design") already being
+    Completed. An activity with no linked tasks at all passes through --
+    nothing to wait on. Unlike _assert_completion_evidence just below,
+    this has no override: task completion is a real, load-bearing signal
+    (it's also what maybe_auto_close_design_activity uses to close the
     activity automatically), not a paperwork formality, so it isn't
     something a checkbox should be able to skip past."""
     linked_tasks = (
-        db.query(Task).filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None)).all()
+        db.query(Task)
+        .filter(Task.linked_stage_type == "Design", Task.linked_stage_id == activity_id, Task.deleted_at.is_(None))
+        .all()
     )
     if any(task.status != "Completed" for task in linked_tasks):
         raise ValidationAppError(
@@ -326,114 +330,39 @@ def reopen_design_activity(db: Session, project_no: str, activity_id: int, user_
     return activity
 
 
-def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int) -> None:
-    """Called by task_service.set_status whenever a task linked to a
-    Design activity is marked Completed -- if every one of that
-    activity's linked tasks (there must be at least one) is now
-    Completed, closes the activity automatically. Never overrides a
-    status already set by hand (Complete/Cancelled), and is a no-op
-    for the common case of a task with no linked activity. Doesn't
-    commit its own status change -- the caller's status-change
-    transaction covers that too -- but the stage-advance check it may
-    trigger (try_auto_advance_stage, which can itself reach Handover and
-    fire the checklist/hand-over notice -- see _apply_stage_change) does
-    commit its own work partway through; that's fine, it just means this
-    call and the caller's own commit each cover part of the same
-    overall change."""
-    activity = db.query(ProjectSelectedActivity).filter(ProjectSelectedActivity.id == activity_id).first()
+def _maybe_auto_close_stage_activity(
+    db: Session,
+    *,
+    stage_type: str,
+    model_cls,
+    activity_id: int,
+    user_id: int,
+    audit_label: str,
+    on_complete=None,
+) -> None:
+    """Shared body of maybe_auto_close_design_activity/permit/
+    supervision_activity below -- called by task_service.set_status
+    whenever a task linked to a Design activity/Permit/Supervision
+    activity is marked Completed. If every one of that item's linked
+    tasks (there must be at least one) is now Completed, closes it
+    automatically. Never overrides a status already set by hand
+    (Complete/Cancelled), and is a no-op for the common case of a task
+    with no linked activity. on_complete(project), if given, runs right
+    after the close is logged and before the stage-advance check (only
+    Design's wrapper uses this, to recompute Permit/Supervision
+    eligibility). Doesn't commit its own status change -- the caller's
+    status-change transaction covers that too -- but the stage-advance
+    check it may trigger (try_auto_advance_stage, which can itself reach
+    Handover and fire the checklist/hand-over notice -- see
+    _apply_stage_change) does commit its own work partway through;
+    that's fine, it just means this call and the caller's own commit
+    each cover part of the same overall change."""
+    activity = db.query(model_cls).filter(model_cls.id == activity_id).first()
     if activity is None or activity.status in ("Complete", "Cancelled"):
         return
     linked_tasks = (
         db.query(Task)
-        .filter(Task.selected_activity_id == activity_id, Task.deleted_at.is_(None))
-        .all()
-    )
-    if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
-        return
-    _set_design_activity_status(db, activity, "Complete", user_id, auto=True)
-    project = db.query(Project).filter(Project.id == activity.project_id).first()
-    if project is not None:
-        db.flush()
-        try_auto_advance_stage(db, project, user_id)
-
-
-def maybe_auto_close_permit(db: Session, permit_id: int, user_id: int) -> None:
-    """Same shape as maybe_auto_close_design_activity above, for Permits
-    (migration 0088) -- called by task_service.set_status whenever a
-    task linked to a permit is marked Completed. Never overrides a
-    status already set by hand, a no-op for a permit with no linked
-    tasks. Doesn't commit its own status change -- see
-    maybe_auto_close_design_activity's docstring for why."""
-    permit = db.query(ProjectSelectedPermit).filter(ProjectSelectedPermit.id == permit_id).first()
-    if permit is None or permit.status in ("Complete", "Cancelled"):
-        return
-    linked_tasks = (
-        db.query(Task).filter(Task.selected_permit_id == permit_id, Task.deleted_at.is_(None)).all()
-    )
-    if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
-        return
-    previous = permit.status
-    permit.status = "Complete"
-    permit.closed_at = datetime.now(timezone.utc)
-    permit.closed_by = user_id
-    audit_service.log_event(
-        db, ENTITY_TYPE, permit.project_id, "Permit auto-closed (all linked tasks completed)", user_id,
-        previous_value=previous, new_value="Complete",
-    )
-    project = db.query(Project).filter(Project.id == permit.project_id).first()
-    if project is not None:
-        db.flush()
-        try_auto_advance_stage(db, project, user_id)
-
-
-def set_permit_status(
-    db: Session, project_no: str, permit_id: int, new_status: str, user_id: int, override_no_document: bool = False,
-) -> ProjectSelectedPermit:
-    """Permits have no sub-tasks of their own status-wise -- the user
-    can always set this directly at their own discretion ("permit stage
-    completion updated by the user directly"), on top of the
-    task-driven auto-close above, same "user has full control"
-    philosophy as Design. new_status is 'In Progress', 'Complete', or
-    'Cancelled' (enforced by SetPermitStatusRequest) -- 'Eligible' is
-    computed, not settable here (see _recompute_permit_eligibility)."""
-    project = get_project(db, project_no)
-    if new_status == "Complete":
-        _assert_completion_evidence(db, project, override_no_document)
-    permit = get_selected_permit(db, project.id, permit_id)
-    previous = permit.status
-    permit.status = new_status
-    if new_status in ("Complete", "Cancelled"):
-        permit.closed_at = datetime.now(timezone.utc)
-        permit.closed_by = user_id
-    else:
-        permit.closed_at = None
-        permit.closed_by = None
-    audit_service.log_event(
-        db, ENTITY_TYPE, project.id, "Permit status changed", user_id,
-        previous_value=previous, new_value=new_status,
-    )
-    if new_status in ("Complete", "Cancelled"):
-        _auto_complete_linked_tasks(db, Task.selected_permit_id == permit.id, user_id)
-    db.commit()
-    db.refresh(permit)
-    try_auto_advance_stage(db, project, user_id)
-    return permit
-
-
-def maybe_auto_close_supervision_activity(db: Session, activity_id: int, user_id: int) -> None:
-    """Same shape as maybe_auto_close_permit above, for Supervision
-    activities (migration 0088). Doesn't commit its own status change --
-    see maybe_auto_close_design_activity's docstring for why."""
-    activity = (
-        db.query(ProjectSelectedSupervisionActivity)
-        .filter(ProjectSelectedSupervisionActivity.id == activity_id)
-        .first()
-    )
-    if activity is None or activity.status in ("Complete", "Cancelled"):
-        return
-    linked_tasks = (
-        db.query(Task)
-        .filter(Task.selected_supervision_activity_id == activity_id, Task.deleted_at.is_(None))
+        .filter(Task.linked_stage_type == stage_type, Task.linked_stage_id == activity_id, Task.deleted_at.is_(None))
         .all()
     )
     if not linked_tasks or any(task.status != "Completed" for task in linked_tasks):
@@ -443,30 +372,79 @@ def maybe_auto_close_supervision_activity(db: Session, activity_id: int, user_id
     activity.closed_at = datetime.now(timezone.utc)
     activity.closed_by = user_id
     audit_service.log_event(
-        db, ENTITY_TYPE, activity.project_id, "Supervision activity auto-closed (all linked tasks completed)",
-        user_id, previous_value=previous, new_value="Complete",
+        db, ENTITY_TYPE, activity.project_id, audit_label, user_id,
+        previous_value=previous, new_value="Complete",
     )
     project = db.query(Project).filter(Project.id == activity.project_id).first()
-    if project is not None:
-        db.flush()
-        try_auto_advance_stage(db, project, user_id)
+    if project is None:
+        return
+    if on_complete is not None:
+        on_complete(project)
+    db.flush()
+    try_auto_advance_stage(db, project, user_id)
 
 
-def set_supervision_status(
-    db: Session, project_no: str, activity_id: int, new_status: str, user_id: int, override_no_document: bool = False,
-) -> ProjectSelectedSupervisionActivity:
-    """Supervision has no sub-tasks of its own status-wise -- the user
-    can always set this directly, based on their own read of the site
-    engineer's reports, whenever they judge it done ("closes anytime as
-    they deem fit"), on top of the task-driven auto-close above.
+def maybe_auto_close_design_activity(db: Session, activity_id: int, user_id: int) -> None:
+    """Design's wrapper around _maybe_auto_close_stage_activity above --
+    the only one of the three whose completion has a downstream effect
+    (recomputing Permit/Supervision eligibility, same as a manual
+    close_design_activity would -- see _set_design_activity_status)."""
+
+    def _on_complete(project: Project) -> None:
+        _recompute_permit_eligibility(db, project)
+        _recompute_supervision_eligibility(db, project)
+
+    _maybe_auto_close_stage_activity(
+        db, stage_type="Design", model_cls=ProjectSelectedActivity, activity_id=activity_id, user_id=user_id,
+        audit_label="Design activity auto-closed (all linked tasks completed)",
+        on_complete=_on_complete,
+    )
+
+
+def maybe_auto_close_permit(db: Session, permit_id: int, user_id: int) -> None:
+    """Permit's wrapper around _maybe_auto_close_stage_activity above
+    (migration 0088)."""
+    _maybe_auto_close_stage_activity(
+        db, stage_type="Permit", model_cls=ProjectSelectedPermit, activity_id=permit_id, user_id=user_id,
+        audit_label="Permit auto-closed (all linked tasks completed)",
+    )
+
+
+def maybe_auto_close_supervision_activity(db: Session, activity_id: int, user_id: int) -> None:
+    """Supervision's wrapper around _maybe_auto_close_stage_activity
+    above (migration 0088)."""
+    _maybe_auto_close_stage_activity(
+        db, stage_type="Supervision", model_cls=ProjectSelectedSupervisionActivity,
+        activity_id=activity_id, user_id=user_id,
+        audit_label="Supervision activity auto-closed (all linked tasks completed)",
+    )
+
+
+def _set_stage_activity_status_directly(
+    db: Session,
+    project: Project,
+    *,
+    stage_type: str,
+    get_activity,
+    activity_id: int,
+    new_status: str,
+    user_id: int,
+    override_no_document: bool,
+    audit_label: str,
+):
+    """Shared body of set_permit_status/set_supervision_status below --
+    Permits and Supervision activities have no sub-tasks of their own
+    status-wise, so the user can always set this directly at their own
+    discretion ("closes anytime as they deem fit"), on top of the
+    task-driven auto-close above (_maybe_auto_close_stage_activity).
     new_status is 'In Progress', 'Complete', or 'Cancelled' -- 'Eligible'
-    is computed, not settable here (see
-    _recompute_supervision_eligibility). Same shape as
-    set_permit_status."""
-    project = get_project(db, project_no)
+    is computed, not settable here (see _recompute_permit_eligibility/
+    _recompute_supervision_eligibility). Design has no equivalent of
+    this -- see close_design_activity/reopen_design_activity, which gate
+    Complete on linked tasks instead of letting the user set it freely."""
     if new_status == "Complete":
         _assert_completion_evidence(db, project, override_no_document)
-    activity = get_selected_supervision_activity(db, project.id, activity_id)
+    activity = get_activity(db, project.id, activity_id)
     previous = activity.status
     activity.status = new_status
     if new_status in ("Complete", "Cancelled"):
@@ -476,15 +454,41 @@ def set_supervision_status(
         activity.closed_at = None
         activity.closed_by = None
     audit_service.log_event(
-        db, ENTITY_TYPE, project.id, "Supervision activity status changed", user_id,
+        db, ENTITY_TYPE, project.id, audit_label, user_id,
         previous_value=previous, new_value=new_status,
     )
     if new_status in ("Complete", "Cancelled"):
-        _auto_complete_linked_tasks(db, Task.selected_supervision_activity_id == activity.id, user_id)
+        _auto_complete_linked_tasks(
+            db, and_(Task.linked_stage_type == stage_type, Task.linked_stage_id == activity.id), user_id
+        )
     db.commit()
     db.refresh(activity)
     try_auto_advance_stage(db, project, user_id)
     return activity
+
+
+def set_permit_status(
+    db: Session, project_no: str, permit_id: int, new_status: str, user_id: int, override_no_document: bool = False,
+) -> ProjectSelectedPermit:
+    project = get_project(db, project_no)
+    return _set_stage_activity_status_directly(
+        db, project,
+        stage_type="Permit", get_activity=get_selected_permit, activity_id=permit_id,
+        new_status=new_status, user_id=user_id, override_no_document=override_no_document,
+        audit_label="Permit status changed",
+    )
+
+
+def set_supervision_status(
+    db: Session, project_no: str, activity_id: int, new_status: str, user_id: int, override_no_document: bool = False,
+) -> ProjectSelectedSupervisionActivity:
+    project = get_project(db, project_no)
+    return _set_stage_activity_status_directly(
+        db, project,
+        stage_type="Supervision", get_activity=get_selected_supervision_activity, activity_id=activity_id,
+        new_status=new_status, user_id=user_id, override_no_document=override_no_document,
+        audit_label="Supervision activity status changed",
+    )
 
 
 def _persist_supervision_selection(
@@ -879,7 +883,7 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
                 db.query(Task)
                 .filter(
                     Task.project_id == project.id,
-                    Task.selected_supervision_activity_id.isnot(None),
+                    Task.linked_stage_type == "Supervision",
                     Task.assigned_to == old_engineer_id,
                     Task.status != "Completed",
                     Task.deleted_at.is_(None),
@@ -1290,33 +1294,31 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     task (so a re-entry into this can't happen, since Contract is only
     ever left once per project, doesn't double them up) and any already
     Complete/Cancelled (nothing to do)."""
-    existing_activity_ids = {
-        row[0] for row in db.query(Task.selected_activity_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_activity_id.isnot(None),
-        ).all()
-    }
-    existing_permit_ids = {
-        row[0] for row in db.query(Task.selected_permit_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_permit_id.isnot(None),
-        ).all()
-    }
-    existing_supervision_ids = {
-        row[0] for row in db.query(Task.selected_supervision_activity_id).filter(
-            Task.project_id == project.id, Task.deleted_at.is_(None), Task.selected_supervision_activity_id.isnot(None),
-        ).all()
-    }
+    def _existing_linked_ids(stage_type: str) -> set[int]:
+        return {
+            row[0] for row in db.query(Task.linked_stage_id).filter(
+                Task.project_id == project.id,
+                Task.deleted_at.is_(None),
+                Task.linked_stage_type == stage_type,
+            ).all()
+        }
 
-    def _add_task(title: str, **link: int) -> None:
+    existing_activity_ids = _existing_linked_ids("Design")
+    existing_permit_ids = _existing_linked_ids("Permit")
+    existing_supervision_ids = _existing_linked_ids("Supervision")
+
+    def _add_task(title: str, stage_type: str, stage_id: int) -> None:
         task = Task(
             task_no=next_task_number(db, project.id, project.project_no),
             project_id=project.id,
+            linked_stage_type=stage_type,
+            linked_stage_id=stage_id,
             title=title,
             assigned_to=project.engineer_id,
             start_date=project.start_date,
             due_date=project.target_date,
             due_time=_SERVICE_TASK_DUE_TIME,
             status="Preset",
-            **link,
         )
         db.add(task)
         db.flush()
@@ -1330,19 +1332,19 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     for activity in get_selected_activities(db, project.id):
         if activity.id in existing_activity_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, selected_activity_id=activity.id)
+        _add_task(activity.activity_name, "Design", activity.id)
         created_count += 1
 
     for permit in get_selected_permits(db, project.id):
         if permit.id in existing_permit_ids or permit.status in ("Complete", "Cancelled"):
             continue
-        _add_task(permit.permit_name, selected_permit_id=permit.id)
+        _add_task(permit.permit_name, "Permit", permit.id)
         created_count += 1
 
     for activity in get_selected_supervision_activities(db, project.id):
         if activity.id in existing_supervision_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, selected_supervision_activity_id=activity.id)
+        _add_task(activity.activity_name, "Supervision", activity.id)
         created_count += 1
 
     # Only log when this call actually generated something -- it's now

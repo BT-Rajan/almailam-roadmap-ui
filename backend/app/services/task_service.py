@@ -117,7 +117,8 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     task = Task(
         task_no=next_task_number(db, project.id, project.project_no),
         project_id=project.id,
-        selected_activity_id=selected_activity_id,
+        linked_stage_type="Design" if selected_activity_id is not None else None,
+        linked_stage_id=selected_activity_id,
         title=payload.title,
         assigned_to=assignee_id,
         priority=payload.priority,
@@ -175,9 +176,17 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
 
     if payload.selectedActivityId is not None:
         new_activity_id = _resolve_selected_activity(db, task.project_id, payload.selectedActivityId)
-        if new_activity_id != task.selected_activity_id:
-            changes["selected_activity_id"] = (task.selected_activity_id, new_activity_id)
-            task.selected_activity_id = new_activity_id
+        # Manual (re)linking only ever targets a Design activity -- Permit/
+        # Supervision links only ever come from _create_service_tasks --
+        # so the current value only counts as the "old" one when it was
+        # already a Design link; a task previously linked to a Permit/
+        # Supervision row (or unlinked) reads as None here, same as before
+        # this comparison had to account for more than one link type.
+        old_activity_id = task.linked_stage_id if task.linked_stage_type == "Design" else None
+        if new_activity_id != old_activity_id:
+            changes["linked_stage_id"] = (old_activity_id, new_activity_id)
+            task.linked_stage_type = "Design"
+            task.linked_stage_id = new_activity_id
 
     if task.start_date is not None and task.start_date > task.due_date:
         # Same check as create_task -- needs to run here too (not just
@@ -225,13 +234,14 @@ def set_status(db: Session, task_no: str, new_status: str, reason: str | None, u
         # maybe_auto_close_design_activity/maybe_auto_close_permit/
         # maybe_auto_close_supervision_activity, each of which no-ops if
         # other linked tasks are still open or it was already closed by
-        # hand. A task is linked to at most one of the three.
-        if task.selected_activity_id is not None:
-            project_service.maybe_auto_close_design_activity(db, task.selected_activity_id, user_id)
-        if task.selected_permit_id is not None:
-            project_service.maybe_auto_close_permit(db, task.selected_permit_id, user_id)
-        if task.selected_supervision_activity_id is not None:
-            project_service.maybe_auto_close_supervision_activity(db, task.selected_supervision_activity_id, user_id)
+        # hand. A task is linked to at most one of the three (linked_stage_
+        # type), so exactly one of these branches ever fires.
+        if task.linked_stage_type == "Design":
+            project_service.maybe_auto_close_design_activity(db, task.linked_stage_id, user_id)
+        elif task.linked_stage_type == "Permit":
+            project_service.maybe_auto_close_permit(db, task.linked_stage_id, user_id)
+        elif task.linked_stage_type == "Supervision":
+            project_service.maybe_auto_close_supervision_activity(db, task.linked_stage_id, user_id)
         # "Every task closed" is itself one of Handover's own exit
         # criteria (see project_service._assert_stage_exit_criteria),
         # independent of whichever activity/permit/supervision item the

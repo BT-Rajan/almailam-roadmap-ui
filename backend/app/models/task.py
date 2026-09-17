@@ -9,6 +9,12 @@ from app.models.user import BigPK
 
 TASK_PRIORITIES = ("High", "Medium", "Low")
 TASK_SEVERITIES = ("Critical", "Major", "Minor")
+# A task is linked to at most one Design activity, Permit, or Supervision
+# activity (see task_service.set_status) -- linked_stage_type says which
+# table linked_stage_id's value refers to (project_selected_activities,
+# project_selected_permits, or project_selected_supervision_activities,
+# respectively). None/None is the common case: a plain, unlinked to-do.
+TASK_LINKED_STAGE_TYPES = ("Design", "Permit", "Supervision")
 # 'Preset' (migration 0088) is the initial status for a system-generated
 # service task (see project_service._create_service_tasks) -- distinct
 # from 'Pending', a manually-created task's own default. Graduates to
@@ -29,6 +35,7 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
     __table_args__ = (
         Index("idx_tasks_deleted_due_date", "deleted_at", "due_date"),
         Index("idx_tasks_deleted_status", "deleted_at", "status"),
+        Index("idx_tasks_linked_stage", "linked_stage_type", "linked_stage_id"),
     )
 
     id: Mapped[int] = mapped_column(BigPK, primary_key=True)
@@ -36,36 +43,23 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
     project_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    # Optional link to the Design activity this task belongs to
-    # (migration 0073) -- only Design uses this; Permit/Supervision
-    # tracks have no sub-tasks (see ProjectSelectedPermit/
-    # ProjectSelectedSupervisionActivity, both closed directly by the
-    # user). A task with no link here is just a generic to-do, same as
-    # every task before this column existed. See project_service.
-    # _maybe_auto_close_design_activity for what closing the last
-    # linked task does.
-    selected_activity_id: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("project_selected_activities.id", ondelete="SET NULL"), nullable=True, index=True
+    # Optional link to the Design activity, Permit, or Supervision
+    # activity this task belongs to (migration 0104, replacing the three
+    # separate nullable FKs migrations 0073/0088 had added one per track).
+    # A task with both None is just a generic to-do, same as every task
+    # before either column existed. No native FK constraint here -- which
+    # table linked_stage_id points at depends on linked_stage_type, and
+    # MySQL can't express a FK that targets one of three tables -- so
+    # referential integrity is the service layer's job (see
+    # project_service.get_selected_activity/get_selected_permit/
+    # get_selected_supervision_activity, all of which 404 on a bad id).
+    # See project_service.maybe_auto_close_design_activity/
+    # maybe_auto_close_permit/maybe_auto_close_supervision_activity for
+    # what closing the last linked task does.
+    linked_stage_type: Mapped[str | None] = mapped_column(
+        Enum(*TASK_LINKED_STAGE_TYPES, name="task_linked_stage_type"), nullable=True
     )
-    # Same idea as selected_activity_id above, for Permit/Supervision
-    # tracks (migration 0088) -- Permits and Supervision activities used
-    # to have no sub-tasks at all (closed directly by the user, see
-    # project_service.set_permit_status/set_supervision_status); now
-    # every one of the three tracks gets auto-generated tasks the moment
-    # the project leaves Contract (_create_service_tasks), and closing
-    # the last task linked to a permit/supervision row auto-closes it
-    # too, mirroring maybe_auto_close_design_activity exactly (see
-    # project_service.maybe_auto_close_permit/
-    # maybe_auto_close_supervision_activity).
-    selected_permit_id: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("project_selected_permits.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    selected_supervision_activity_id: Mapped[int | None] = mapped_column(
-        BigPK,
-        ForeignKey("project_selected_supervision_activities.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    linked_stage_id: Mapped[int | None] = mapped_column(BigPK, nullable=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     assigned_to: Mapped[int] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     priority: Mapped[str] = mapped_column(
