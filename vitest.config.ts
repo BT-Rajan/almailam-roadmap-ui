@@ -30,9 +30,9 @@ export default mergeConfig(
           url: 'http://localhost:5173',
         },
       },
-      include: ['e2e/component-smoke.test.ts'],
+      include: ['e2e/*.test.ts'],
       // No dev-server proxy exists in this environment -- component
-      // tests hit the backend directly. See e2e/component-smoke.test.ts.
+      // tests hit the backend directly.
       env: {
         VITE_API_BASE_URL: process.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
       },

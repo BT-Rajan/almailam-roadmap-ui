@@ -20,29 +20,6 @@ const router = createRouter({
       meta: { layout: 'auth' },
     },
     {
-      path: '/customer-portal',
-      name: ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN,
-      component: () => import('@/pages/CustomerPortalLoginPage.vue'),
-      meta: { layout: 'customer-portal' },
-    },
-    {
-      // Landed on right after login -- auto-redirects straight into the
-      // one project a customer has, or shows a picker when they have
-      // more than one (see CustomerPortalProjectsPage.vue). Login no
-      // longer carries a single project ID with it the way the old
-      // mobile+projectId verify flow did.
-      path: '/customer-portal/projects',
-      name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECTS,
-      component: () => import('@/pages/CustomerPortalProjectsPage.vue'),
-      meta: { layout: 'customer-portal', requiresAuth: true },
-    },
-    {
-      path: '/customer-portal/:projectId',
-      name: ROUTE_NAMES.CUSTOMER_PORTAL_PROJECT,
-      component: () => import('@/pages/CustomerProjectViewPage.vue'),
-      meta: { layout: 'customer-portal', requiresAuth: true },
-    },
-    {
       path: '/site-portal',
       name: ROUTE_NAMES.SITE_PORTAL_LOGIN,
       component: () => import('@/pages/SitePortalLoginPage.vue'),
@@ -832,31 +809,19 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth) void useServerTimeStore().loadServerTime()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Site/customer portal routes bounce to their own login, not the
-    // staff one -- same session mechanism underneath, different entry
-    // point, and someone hitting a bare portal link shouldn't land on
-    // the staff sign-in screen.
-    const loginRoute =
-      to.meta.layout === 'site-portal'
-        ? ROUTE_NAMES.SITE_PORTAL_LOGIN
-        : to.meta.layout === 'customer-portal'
-          ? ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
-          : ROUTE_NAMES.LOGIN
+    // Site portal routes bounce to their own login, not the staff one --
+    // same session mechanism underneath, different entry point, and
+    // someone hitting a bare portal link shouldn't land on the staff
+    // sign-in screen.
+    const loginRoute = to.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
     return { name: loginRoute, query: { redirect: to.fullPath } }
   }
 
   if (
     authStore.isAuthenticated &&
-    (to.name === ROUTE_NAMES.LOGIN ||
-      to.name === ROUTE_NAMES.SITE_PORTAL_LOGIN ||
-      to.name === ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN)
+    (to.name === ROUTE_NAMES.LOGIN || to.name === ROUTE_NAMES.SITE_PORTAL_LOGIN)
   ) {
-    const homeRoute =
-      to.name === ROUTE_NAMES.SITE_PORTAL_LOGIN
-        ? ROUTE_NAMES.SITE_PORTAL_REPORT
-        : to.name === ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
-          ? ROUTE_NAMES.CUSTOMER_PORTAL_PROJECTS
-          : ROUTE_NAMES.DASHBOARD
+    const homeRoute = to.name === ROUTE_NAMES.SITE_PORTAL_LOGIN ? ROUTE_NAMES.SITE_PORTAL_REPORT : ROUTE_NAMES.DASHBOARD
     return { name: homeRoute }
   }
 

@@ -17,7 +17,6 @@ from app.api.audit_logs import router as audit_logs_router
 from app.api.clients import router as clients_router
 from app.api.company import router as company_router
 from app.api.contracts import router as contracts_router
-from app.api.customer_portal import router as customer_portal_router
 from app.api.document_templates import router as document_templates_router
 from app.api.documents import router as documents_router
 from app.api.email import router as email_router
@@ -201,7 +200,6 @@ app.include_router(knowledge_router)
 app.include_router(submissions_router)
 app.include_router(quotations_router)
 app.include_router(contracts_router)
-app.include_router(customer_portal_router)
 app.include_router(payments_router)
 app.include_router(documents_router)
 app.include_router(email_router)

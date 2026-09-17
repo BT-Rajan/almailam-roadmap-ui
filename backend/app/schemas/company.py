@@ -54,8 +54,8 @@ class CompanySettingsOut(BaseModel):
 
 
 class CompanyBrandingOut(BaseModel):
-    """The subset of CompanySettings every logged-in role (Customer/Site
-    portal included, not just staff with Administration:view) needs to
+    """The subset of CompanySettings every logged-in role (Site portal
+    included, not just staff with Administration:view) needs to
     theme its own UI consistently -- see GET /api/company/branding.
     Deliberately excludes every other field on CompanySettingsOut (trade
     license, address, alert thresholds, etc.), which stay behind the

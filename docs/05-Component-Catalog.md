@@ -316,7 +316,6 @@ Variants
 - Project Timeline
 - Activity Timeline
 - Government Timeline
-- Customer Timeline
 
 ---
 
@@ -348,7 +347,6 @@ Includes
 ---
 
 # 15. Drawer Components
-
 - BaseDrawer
 - AIDrawer
 - PreviewDrawer
@@ -358,17 +356,7 @@ Includes
 
 ---
 
-# 16. Customer Portal Components
-
-- StatusSearchForm
-- ProjectStatusCard
-- ProgressTimeline
-- CustomerUpdateCard
-- PendingActionCard
-
----
-
-# 17. Chart Components
+# 16. Chart Components
 
 Reusable wrappers around the chart library.
 

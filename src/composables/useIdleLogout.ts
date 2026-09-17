@@ -19,9 +19,9 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchsta
  * and bounces to the right login screen for whichever portal the person
  * was using, with a message explaining why they landed there.
  *
- * Deliberately keyed off authStore.isAuthenticated -- covers all three
- * frontends (staff app, Site Engineer Portal, Customer Portal), since
- * all three now authenticate through authStore.
+ * Deliberately keyed off authStore.isAuthenticated -- covers both
+ * frontends (staff app, Site Engineer Portal), since both now
+ * authenticate through authStore.
  */
 export function useIdleLogout(): void {
   const authStore = useAuthStore()
@@ -42,12 +42,7 @@ export function useIdleLogout(): void {
     if (!authStore.isAuthenticated) return
 
     const currentRoute = router.currentRoute.value
-    const loginRoute =
-      currentRoute.meta.layout === 'site-portal'
-        ? ROUTE_NAMES.SITE_PORTAL_LOGIN
-        : currentRoute.meta.layout === 'customer-portal'
-          ? ROUTE_NAMES.CUSTOMER_PORTAL_LOGIN
-          : ROUTE_NAMES.LOGIN
+    const loginRoute = currentRoute.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
 
     await authStore.logout()
     // Carried via authStore.logoutReason (in-memory), not a ?reason=

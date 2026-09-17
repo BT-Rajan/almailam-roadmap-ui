@@ -1407,9 +1407,9 @@ def _apply_stage_change(
     # The only automatic, system-generated timeline entry this app
     # produces today -- everything else on the timeline is still a
     # manually-added milestone (see timeline_service.create_event). This
-    # is what lets the customer portal's "Recent Updates" feed and the
-    # staff Timeline tab show real stage progression at all, rather than
-    # being empty until someone remembers to log it by hand.
+    # is what lets the staff Timeline tab show real stage progression at
+    # all, rather than being empty until someone remembers to log it by
+    # hand.
     timeline_service.create_system_event(
         db, project.id, "stage",
         title=f"Stage advanced to {new_stage}",

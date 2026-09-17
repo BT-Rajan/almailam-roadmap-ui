@@ -51,9 +51,6 @@ export const ROUTE_NAMES = {
   // second route pointing at the same page.
   ADMIN_ACTIVITY_CALENDAR: 'activity-calendar',
   MY_PROFILE: 'my-profile',
-  CUSTOMER_PORTAL_LOGIN: 'customer-portal',
-  CUSTOMER_PORTAL_PROJECTS: 'customer-portal-projects',
-  CUSTOMER_PORTAL_PROJECT: 'customer-project',
   SITE_PORTAL_LOGIN: 'site-portal-login',
   SITE_PORTAL_CALENDAR: 'site-portal-calendar',
   SITE_PORTAL_REPORT: 'site-portal-report',

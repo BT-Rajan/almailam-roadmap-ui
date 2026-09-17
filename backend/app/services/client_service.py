@@ -1,12 +1,10 @@
-import logging
 import re
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import BackgroundTasks, UploadFile
+from fastapi import UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.pagination import DEFAULT_PAGE_SIZE, sort_and_paginate
@@ -23,9 +21,7 @@ from app.models.client import (
     ClientIdentification,
 )
 from app.schemas.client import ClientFullCreate
-from app.services import audit_service, company_service, email_service, email_template_service, notification_service, user_service
-
-logger = logging.getLogger("app")
+from app.services import audit_service, company_service, notification_service
 
 ENTITY_TYPE = "CLIENT"
 
@@ -135,10 +131,7 @@ def _lock_client(db: Session, client_id: int) -> Client:
 
 # Only these roles can own a client relationship (see
 # ClientBasicInfoStep.vue / ClientEditDialog.vue's accountManagerOptions,
-# which the frontend keeps in sync with this). In particular this
-# excludes Customer -- a Customer-role account IS a client's own portal
-# login (see User.client_id), so a client can never be assigned as an
-# account manager, on its own record or anyone else's.
+# which the frontend keeps in sync with this).
 ACCOUNT_MANAGER_ROLES = ("Administrator", "Project Manager", "Engineer")
 
 
@@ -394,61 +387,6 @@ def set_status(db: Session, client_id: int, status: str, user_id: int | None) ->
     return client
 
 
-def _send_welcome_email(db: Session, client: Client, portal_user: User, temporary_password: str) -> None:
-    subject, body = email_template_service.render(
-        db,
-        "client_welcome",
-        {
-            "contact_person": client.contact_person,
-            "client_type": client.client_type,
-            "company_name": client_display_name(client),
-            "mobile": client.mobile,
-            "email": client.email,
-            "city": client.city,
-            "preferred_language": client.preferred_language,
-            "preferred_channel": client.preferred_channel,
-            "customer_id": portal_user.customer_id,
-            "temporary_password": temporary_password,
-        },
-    )
-    email_service.send_email(client.email, subject, body, db=db)
-
-
-def _send_welcome_email_task(client_id: int, portal_user_id: int, temporary_password: str) -> None:
-    """Runs via BackgroundTasks, after create_client_full's response has
-    already gone back to the browser -- FastAPI tears down the request's
-    own `db` dependency (see app/core/database.py's get_db) before
-    background tasks execute, so this can't reuse that session and opens
-    its own instead. Everything else mirrors the old inline call exactly,
-    including the admin notification on failure -- a down/misconfigured
-    mail server still must never surface as an error to whoever's adding
-    the client, it just does so from a task they're no longer watching
-    instead of from inside their own request.
-    """
-    db = SessionLocal()
-    try:
-        client = db.query(Client).filter(Client.id == client_id).first()
-        portal_user = db.query(User).filter(User.id == portal_user_id).first()
-        if not client or not portal_user:
-            return
-        try:
-            _send_welcome_email(db, client, portal_user, temporary_password)
-        except ValidationAppError as error:
-            notification_service.notify_role(
-                db, "Administrator",
-                "Client welcome email not sent",
-                f"{client.company_name} was added, but the welcome email could not be sent: {error}",
-                "System",
-                link_route_name="client-workspace",
-                link_params={"clientId": f"CLT-{client.id:03d}"},
-            )
-        db.commit()
-    except Exception:
-        logger.exception("Unexpected error sending welcome email for client_id=%s", client_id)
-    finally:
-        db.close()
-
-
 def create_client_full(
     db: Session,
     payload: ClientFullCreate,
@@ -456,7 +394,6 @@ def create_client_full(
     document_category: str | None,
     document_title: str | None,
     user_id: int | None,
-    background_tasks: BackgroundTasks | None = None,
 ) -> Client:
     """The New Client wizard's submit action -- creates the client and
     every sub-record (contacts, address, identification, identification
@@ -466,16 +403,6 @@ def create_client_full(
     document_title are computed by the frontend exactly as they already
     are for a live create_document call (see clientOptions.ts's
     getDocumentCategoryForIdentificationType).
-
-    Also provisions the client's Customer Portal login and emails them a
-    welcome message right away -- there's no separate verification step
-    left to gate that on, so a newly added client can access the portal
-    immediately. The email send itself is backgrounded (see
-    _send_welcome_email_task) when background_tasks is provided, since a
-    slow (not down -- that's already handled) mail server otherwise adds
-    directly to how long the person submitting this wizard has to wait
-    before seeing the confirmation. background_tasks is optional so any
-    other caller of this function keeps the old synchronous behavior.
     """
     client = create_client(db, payload.client, user_id)
 
@@ -501,29 +428,6 @@ def create_client_full(
             storage_key, original_filename, size_bytes,
             user_id,
         )
-
-    portal_user, temporary_password = user_service.create_client_portal_user(db, client, user_id)
-    if background_tasks is not None:
-        background_tasks.add_task(_send_welcome_email_task, client.id, portal_user.id, temporary_password)
-    else:
-        try:
-            _send_welcome_email(db, client, portal_user, temporary_password)
-        except ValidationAppError as error:
-            # A down/misconfigured mail server must never block adding a
-            # client -- that's exactly the friction this silent-add flow
-            # exists to remove. The portal account above is already created
-            # either way; this only surfaces that the welcome email didn't
-            # go out, so someone can follow up (e.g. share the login another
-            # way) -- mirrors quotation_service.confirm_quotation_approval's
-            # identical fallback for its own confirmation email.
-            notification_service.notify_role(
-                db, "Administrator",
-                "Client welcome email not sent",
-                f"{client.company_name} was added, but the welcome email could not be sent: {error}",
-                "System",
-                link_route_name="client-workspace",
-                link_params={"clientId": f"CLT-{client.id:03d}"},
-            )
 
     notification_service.notify_role(
         db, "Administrator",

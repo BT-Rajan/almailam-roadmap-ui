@@ -32,12 +32,10 @@ implicitly exercises: the same picked-at-setup activities followed all
 the way through, not a different make-believe scope per stage.
 
 Also provisions one Site Engineer Portal login (the engineer assigned
-to every demo project) and one Customer Portal login (for the
-Completed project's client, since a finished project is what portal
-browsing is most interesting against).
+to every demo project).
 
 Safe to run against a staging/test database. Creates new records only
-(new clients, new projects, catalog rows, two new users) -- it does not
+(new clients, new projects, catalog rows, one new user) -- it does not
 modify or delete anything that already exists. Do not run this against
 production unless you're comfortable with these test records living
 there permanently (there's no cleanup step).
@@ -93,7 +91,6 @@ from app.services import (
     service_catalog_service,
     submission_service,
     task_service,
-    user_service,
 )
 
 settings = get_settings()
@@ -285,9 +282,7 @@ def get_or_create_demo_form(authority: GovernmentAuthority, actor: user_models.U
 
 # A short per-run numeric tag, not just a per-client counter that
 # restarts at 0 every process start -- otherwise a second run of this
-# script hits the exact same client mobile/email as the first, which
-# collides once something checks for global uniqueness (Customer Portal
-# login provisioning does, even though Client rows themselves don't).
+# script hits the exact same client mobile/email as the first.
 _run_tag = str(int(time.time()) % 100000)
 _client_counter = 0
 
@@ -312,10 +307,7 @@ def create_ready_client(actor: user_models.User, label: str):
     client = client_service.create_client(db, payload, actor.id)
     # The lightweight onboarding path -- goes straight from create_client's
     # actual starting state ("Pending Verification") to "Ready" in one
-    # hop, rather than the full signed-document-upload confirmation (see
-    # the Completed project's client near the end of main(), which does
-    # get a real Customer Portal login provisioned via
-    # user_service.create_client_portal_user directly).
+    # hop, rather than the full signed-document-upload confirmation.
     client_service.set_onboarding_state(db, client.id, "Ready", None, actor.id)
     return client
 
@@ -793,13 +785,6 @@ def main() -> None:
     complete_handover(actor, project_8)
     results.append((project_8.project_no, "Completed (fully paid, hand-over acknowledged)"))
 
-    # Give the Completed project's client a working Customer Portal
-    # login -- create_client_portal_user is normally only ever called
-    # from confirm_onboarding_verification/confirm_onboarding_request
-    # (the real signed-document-upload confirmation), but calling it
-    # directly here is the same real provisioning step without needing
-    # to run every other demo client through that extra round trip too.
-    portal_user, portal_password = user_service.create_client_portal_user(db, client_8, actor.id)
     db.commit()
 
     print()
@@ -814,7 +799,6 @@ def main() -> None:
     print()
     print("--- Logins ---")
     print("  Site Engineer:   Employee ID = EMP-STAGEDEMO-001   Password = StageDemo123!")
-    print(f"  Customer Portal: Mobile = {client_8.mobile}   Username = {portal_user.username}   Password = {portal_password}")
     print()
     print("=" * 78)
 

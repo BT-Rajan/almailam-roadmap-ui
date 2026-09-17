@@ -460,28 +460,6 @@ Sample Records
 
 ---
 
-# Customer Status Record
-
-Public project tracking.
-
-## Fields
-
-| Field | Type |
-|--------|------|
-| mobile | String |
-| projectId | String |
-| projectName | String |
-| currentStage | String |
-| progress | Number |
-| latestUpdate | String |
-| pendingAction | String |
-
-Sample Records
-
-3
-
----
-
 # Lookup Values
 
 These should be maintained as reusable constants.

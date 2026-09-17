@@ -518,7 +518,6 @@ AI available from
 - Documents
 - Government Forms
 - Contracts
-- Customer Status
 
 Always via reusable AI Drawer.
 
@@ -538,30 +537,6 @@ Each form has
 - Authority
 - Instructions
 - Required Documents
-
----
-
-# Customer Portal
-
-Separate lightweight frontend.
-
-Purpose
-
-Project Status Tracking.
-
-Input
-
-- Mobile Number
-- Project ID
-
-Output
-
-- Current Stage
-- Timeline
-- Progress
-- Latest Update
-
-No login required.
 
 ---
 

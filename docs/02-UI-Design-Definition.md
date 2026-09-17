@@ -490,7 +490,6 @@ AI appears in
 - Documents
 - Contracts
 - Government Forms
-- Customer Status
 
 Never create a separate AI application.
 
@@ -513,7 +512,6 @@ Display workflow on
 
 - Dashboard
 - Project Workspace
-- Customer Portal
 - Government Submission
 
 ---
@@ -527,7 +525,6 @@ Used for
 - Project History
 - Activities
 - Government Submission
-- Customer Status
 
 ---
 
@@ -616,27 +613,6 @@ Comments
 
 Version History
 ```
-
----
-
-# Customer Portal
-
-Simple interface.
-
-Input
-
-- Mobile Number
-- Project ID
-
-Display
-
-- Current Stage
-- Progress
-- Timeline
-- Latest Update
-- Pending Customer Action
-
-No unnecessary information.
 
 ---
 

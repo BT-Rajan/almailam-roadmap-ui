@@ -2,8 +2,8 @@
 
 Same shape as auth_service.py's per-user lockout (N failures -> locked
 for M minutes) but for callers that don't have a persistent account row
-to store failed_login_attempts/locked_until on -- e.g. the customer
-portal's mobile-number verification, which is keyed by project instead
+to store failed_login_attempts/locked_until on -- e.g. auth_service.
+login's own per-client-IP lockout, which is keyed by IP address instead
 of a user account.
 
 Deliberately stdlib-only and per-process, same trade-off and same

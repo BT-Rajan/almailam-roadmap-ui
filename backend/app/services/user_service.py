@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.security import hash_password
-from app.models.client import Client
 from app.models.user import User
 from app.schemas.user import ProfileUpdate, UserCreate, UserUpdate
 from app.services import audit_service
@@ -39,10 +38,10 @@ def get_user(db: Session, user_id: int) -> User:
 
 
 def _save_new_user(db: Session, user: User, actor_id: int | None) -> User:
-    """Shared tail of create_user and create_client_portal_user below --
-    both persist a freshly-built User and audit-log the creation. Each
-    caller already holds the temporary password from before calling
-    this, so only the refreshed User is returned here."""
+    """Shared tail of create_user below -- persists a freshly-built User
+    and audit-logs the creation. The caller already holds the temporary
+    password from before calling this, so only the refreshed User is
+    returned here."""
     db.add(user)
     db.flush()
     audit_service.log_event(db, ENTITY_TYPE, user.id, "User created", actor_id, new_value=user.role)
@@ -71,37 +70,6 @@ def create_user(db: Session, payload: UserCreate, actor_id: int) -> tuple[User, 
         designation=payload.designation,
         mobile=payload.mobile,
         role=payload.role,
-        is_active=True,
-    )
-    user = _save_new_user(db, user, actor_id)
-    return user, temporary_password
-
-
-def create_client_portal_user(db: Session, client: Client, actor_id: int | None) -> tuple[User, str]:
-    """Provisions (or re-provisions) the Customer Portal login for a
-    client -- see client_service.create_client_full, its caller.
-
-    Reuses the existing Customer account for that client_id when one's
-    already there (e.g. the client was deleted and later restored)
-    instead of failing on the email-uniqueness constraint -- same
-    "reset instead of recreate" idea as reset_user_password.
-    """
-    existing = db.query(User).filter(User.client_id == client.id, User.deleted_at.is_(None)).first()
-    if existing is not None:
-        return reset_user_password(db, existing.id, actor_id)
-
-    if db.query(User).filter(User.email == client.email).first() is not None:
-        raise ConflictError("A user with this email already exists.")
-
-    temporary_password = _generate_temporary_password()
-    user = User(
-        username=client.email,
-        email=client.email,
-        password_hash=hash_password(temporary_password),
-        full_name=client.contact_person,
-        role="Customer",
-        customer_id=f"CUS-{client.id:04d}",
-        client_id=client.id,
         is_active=True,
     )
     user = _save_new_user(db, user, actor_id)

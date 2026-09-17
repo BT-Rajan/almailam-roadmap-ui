@@ -88,11 +88,11 @@ def create_event(db: Session, project_no: str, payload, actor_id: int) -> Projec
         # The dialog this comes from asks for a title, a date, and an
         # Upcoming/In Progress/Completed status -- that's milestone
         # vocabulary, not a general note, and it's the only entry point
-        # that lets staff add anything the customer portal's Milestones
-        # panel actually reads (which filters on type in
-        # ('milestone', 'stage')). Previously hardcoded to "note", which
-        # meant nothing created here could ever show up as a milestone
-        # anywhere, despite the UI clearly being built for exactly that.
+        # that lets staff add anything that reads as a milestone (type
+        # in ('milestone', 'stage')). Previously hardcoded to "note",
+        # which meant nothing created here could ever show up as a
+        # milestone anywhere, despite the UI clearly being built for
+        # exactly that.
         type="milestone",
         title=payload.title,
         description=payload.description,

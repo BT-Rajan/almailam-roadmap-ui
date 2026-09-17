@@ -12,7 +12,6 @@ const ROLE_VARIANTS: Record<UserRole, BadgeVariant> = {
   Engineer: 'info',
   'Document Controller': 'warning',
   Viewer: 'neutral',
-  Customer: 'neutral',
 }
 
 export function getUserStatusVariant(status: UserStatus): BadgeVariant {

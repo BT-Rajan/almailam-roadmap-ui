@@ -4,7 +4,6 @@
 // OTP-code confirmation flow switched to a signed-document upload (see
 // migration 0080).
 export type EmailTemplateKey =
-  | 'client_welcome'
   | 'project_created'
   | 'requirement_confirmed'
   | 'quotation_approved'

@@ -28,26 +28,6 @@ ENTITY_TYPE = "EMAIL_TEMPLATE"
 _TOKEN_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
-    "client_welcome": {
-        "subject": "Welcome to Al Mailam -- your account is ready",
-        "body": (
-            "Dear {{ contact_person }},\n\n"
-            "Welcome to Al Mailam! Your onboarding is complete.\n\n"
-            "Here are the details we have on file for you:\n"
-            "Client type: {{ client_type }}\n"
-            "Name: {{ company_name }}\n"
-            "Contact person: {{ contact_person }}\n"
-            "Mobile: {{ mobile }}\n"
-            "Email: {{ email }}\n"
-            "City: {{ city }}\n"
-            "Preferred language: {{ preferred_language }}\n"
-            "Preferred contact channel: {{ preferred_channel }}\n\n"
-            "You can now sign in to the Client Portal to track your projects:\n"
-            "Customer ID: {{ customer_id }}\n"
-            "Temporary password: {{ temporary_password }}\n\n"
-            "For your security, please sign in and change this password as soon as possible."
-        ),
-    },
     "project_created": {
         "subject": "New project created: {{ project_name }} ({{ project_no }})",
         "body": (
@@ -147,18 +127,6 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
 # just not editable/removable data the way a plain field like {{ code }}
 # is understood to be.
 MERGE_FIELD_CATALOG: dict[str, list[dict[str, str]]] = {
-    "client_welcome": [
-        {"key": "contact_person", "label": "Contact Person"},
-        {"key": "client_type", "label": "Client Type"},
-        {"key": "company_name", "label": "Company / Client Name"},
-        {"key": "mobile", "label": "Mobile"},
-        {"key": "email", "label": "Email"},
-        {"key": "city", "label": "City"},
-        {"key": "preferred_language", "label": "Preferred Language"},
-        {"key": "preferred_channel", "label": "Preferred Contact Channel"},
-        {"key": "customer_id", "label": "Client Portal Customer ID"},
-        {"key": "temporary_password", "label": "Client Portal Temporary Password"},
-    ],
     "project_created": [
         {"key": "contact_person", "label": "Contact Person"},
         {"key": "company_name", "label": "Client Name"},

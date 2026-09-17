@@ -177,8 +177,8 @@ export const usePaymentStore = defineStore('payment', {
         // showing a generic retry-able message would just repeat the
         // same failed request forever with no token. Let the caller
         // (PaymentsPage) redirect to login instead, the same way
-        // CustomerProjectViewPage/useIdleLogout treat a real auth
-        // failure as distinct from an ordinary network/server error.
+        // useIdleLogout treats a real auth failure as distinct from an
+        // ordinary network/server error.
         if (error instanceof ApiError && error.status === 401) throw error
         this.error = 'Unable to load payment information. Please try again.'
       } finally {

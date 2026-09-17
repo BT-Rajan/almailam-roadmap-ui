@@ -17,7 +17,6 @@ from app.models.user import BigPK
 # switched from an emailed OTP code to a signed-document upload -- see
 # quotation_service.confirm_quotation_approval and its siblings.
 EMAIL_TEMPLATE_KEYS = (
-    "client_welcome",
     "project_created",
     "requirement_confirmed",
     "quotation_approved",

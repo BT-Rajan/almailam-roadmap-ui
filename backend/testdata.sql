@@ -94,13 +94,6 @@ SET @c_marina = (SELECT id FROM clients WHERE company_name = 'Marina Bay Hospita
 SET @c_ahmadi = (SELECT id FROM clients WHERE company_name = 'Ahmadi Industrial Holdings');
 SET @c_khalid = (SELECT id FROM clients WHERE company_name = 'Khalid Al Mansoori');
 
--- Customer Portal demo logins -- same password hash as every other demo
--- account, resolved via customer_id (see auth_service.login) and scoped
--- to their own client's projects via client_id.
-INSERT INTO users (username, customer_id, client_id, email, password_hash, full_name, mobile, role, is_active) VALUES
-('customer1@almailam.ai', 'CUST-1001', @c_alreem, 'customer1@almailam.ai', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Khalid Al Reem',  '+96550200001', 'Customer', 1),
-('customer2@almailam.ai', 'CUST-1002', @c_falcon, 'customer2@almailam.ai', '$2b$12$A.fpsSUrwUczc6W6XeOmO.k06k0Km2GJ9zMkGnFQFBYdic4PGLa0O', 'Yousef Al Amiri', '+96550200002', 'Customer', 1);
-
 INSERT INTO client_contacts (client_id, name, contact_type, mobile, email, is_authorised_representative) VALUES
 (@c_alreem, 'Khalid Al Reem',   'Primary Contact', '+96550200001', 'khalid@alreemdev.example', 1),
 (@c_falcon, 'Yousef Al Amiri',  'Primary Contact', '+96550200002', 'yousef@falconheights.example', 1),

@@ -2,7 +2,7 @@ import type { ROUTE_NAMES } from '@/constants/routeNames'
 
 export type RouteNameValue = (typeof ROUTE_NAMES)[keyof typeof ROUTE_NAMES]
 
-type LayoutName = 'auth' | 'dashboard' | 'customer-portal' | 'site-portal'
+type LayoutName = 'auth' | 'dashboard' | 'site-portal'
 
 interface BreadcrumbItem {
   /** i18n key under the `breadcrumb` namespace, resolved by Breadcrumb.vue -- not display text. */

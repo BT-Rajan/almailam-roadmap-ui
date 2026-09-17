@@ -299,41 +299,6 @@ Each administration module is independent.
 
 ---
 
-# Customer Portal Navigation
-
-The Customer Portal is intentionally separate from the internal application.
-
-```text
-Project Status Tracker
-
-↓
-
-Enter
-
-• Mobile Number
-• Project ID
-
-↓
-
-Search
-
-↓
-
-Project Status
-
-↓
-
-Timeline
-
-↓
-
-Latest Update
-```
-
-No login required.
-
----
-
 # AI Navigation
 
 AI is available from every major workspace.
@@ -363,7 +328,6 @@ Also available in
 - Document Viewer
 - Government Forms
 - Contracts
-- Customer Status
 
 AI never navigates away from the current page.
 

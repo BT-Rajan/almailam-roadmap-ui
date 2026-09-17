@@ -273,10 +273,6 @@ export default {
     savedDescription: 'ستستخدم الرسالة هذه الصياغة من الآن فصاعداً.',
     failedToSave: 'فشل حفظ القالب',
     keys: {
-      clientWelcome: {
-        label: 'تهيئة العميل: الترحيب',
-        description: 'تُرسل بمجرد تأكيد العميل عبر رفع مستند موقّع -- وتتضمن بيانات دخول بوابة العميل.',
-      },
       projectCreated: {
         label: 'إنشاء مشروع',
         description: 'تُرسل إلى العميل عند إنشاء مشروع جديد له.',

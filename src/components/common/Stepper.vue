@@ -72,9 +72,8 @@ function handleStepClick(index: number): void {
   <!-- One rendering only: a colored bar above each label, no connector
        or numbered circle -- same treatment everywhere this component is
        used (client/project creation wizards, the project workspace's
-       Workflow Progress bar, the customer portal's stage progress), so
-       a project or client's stage progress reads identically no matter
-       which screen shows it. Color rules live in
+       Workflow Progress bar), so a project or client's stage progress
+       reads identically no matter which screen shows it. Color rules live in
        src/utils/stepperStyle.ts, shared with WorkflowProgress.vue's own
        parallel-band ticks. -->
   <div class="flex items-stretch gap-2">

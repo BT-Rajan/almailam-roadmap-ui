@@ -14,7 +14,6 @@ import { useViewport } from '@/composables/useViewport'
 import { useCompanyStore } from '@/stores/companyStore'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
-import CustomerPortalLayout from '@/layouts/CustomerPortalLayout.vue'
 import SitePortalLayout from '@/layouts/SitePortalLayout.vue'
 
 const route = useRoute()
@@ -33,7 +32,6 @@ useIdleLogout()
 onMounted(() => companyStore.loadBranding())
 
 const layout = computed(() => {
-  if (route.meta.layout === 'customer-portal') return CustomerPortalLayout
   if (route.meta.layout === 'site-portal') return SitePortalLayout
   if (route.meta.layout === 'dashboard') return DashboardLayout
   // Anything else -- including the unmatched start location before the

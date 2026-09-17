@@ -5,7 +5,7 @@ import { useCompanyStore } from '@/stores/companyStore'
 
 // The app's logo mark, shared by every shell that used to hardcode its
 // own "SO" gradient badge (Sidebar, MobileSidebar, AuthLayout, the
-// Customer/Site portal headers) -- now shows the company's own
+// Site portal header) -- now shows the company's own
 // uploaded logo (Administration > Company > Branding) when there is
 // one, falling back to the original badge (via the default slot)
 // otherwise. companyStore.branding is loaded once at app boot

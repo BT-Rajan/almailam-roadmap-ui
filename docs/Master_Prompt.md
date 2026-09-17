@@ -46,27 +46,7 @@ Every business function revolves around a Project.
 
 The UI must clearly demonstrate solutions for these problems.
 
-### 1. Project Visibility
-
-Customers repeatedly call asking for project status.
-
-Provide a public Project Status Tracker where a customer enters:
-
-- Mobile Number
-- Project ID
-
-and sees
-
-- Current Status
-- Current Stage
-- Progress
-- Timeline
-- Latest Update
-- Pending Customer Action
-
----
-
-### 2. Government Forms
+### 1. Government Forms
 
 Government work requires numerous forms from different authorities.
 
@@ -83,7 +63,7 @@ Provide a Government Forms Library with:
 
 ---
 
-### 3. AI Assistance
+### 2. AI Assistance
 
 AI should be integrated throughout the application.
 
@@ -113,10 +93,6 @@ Government Forms
 - Explain purpose
 - List required documents
 - Explain how to complete
-
-Customer Portal
-
-- Generate customer-friendly status updates
 
 Use mock AI responses only.
 
@@ -316,12 +292,6 @@ Activity
 
 ---
 
-## Customer Portal
-
-- Project Status Tracker
-
----
-
 ## Reports
 
 - Dashboard Reports
@@ -514,10 +484,6 @@ Environment
 
 5 Mock AI responses
 
-## Customer Status Records
-
-3 Sample records
-
 Maintain realistic relationships between all records.
 
 ---
@@ -626,5 +592,5 @@ Do not:
 
 # Success Criteria
 
-The completed prototype should enable Almailam's stakeholders to navigate every major workflow—from project creation through government submission to customer status tracking—with realistic data and interactions. It should feel like a finished application awaiting backend integration, providing confidence in both the user experience and the overall product direction.
+The completed prototype should enable Almailam's stakeholders to navigate every major workflow—from project creation through government submission to project completion—with realistic data and interactions. It should feel like a finished application awaiting backend integration, providing confidence in both the user experience and the overall product direction.
 ````

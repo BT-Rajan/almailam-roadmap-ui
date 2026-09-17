@@ -280,10 +280,6 @@ export default {
     savedDescription: 'The email will use this wording from now on.',
     failedToSave: 'Failed to save template',
     keys: {
-      clientWelcome: {
-        label: 'Client Onboarding: Welcome',
-        description: 'Sent once a client is confirmed via a signed document upload -- includes their Client Portal login.',
-      },
       projectCreated: {
         label: 'Project Created',
         description: 'Sent to the client when a new project is created for them.',

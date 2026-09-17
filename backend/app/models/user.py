@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer, SmallInteger, String
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -21,22 +21,14 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     # login email for every user except the 'admin' bootstrap account
     # (see user_service.create_user), so it needs the same width.
     username: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    # Alternate login identifiers -- auth_service.login() resolves by
-    # username OR employee_id OR customer_id, one shared mechanism for
-    # all three frontends (staff app, Site Engineer Portal, Customer
-    # Portal) rather than a separate login endpoint/token type per
-    # portal. Both optional/nullable since only the relevant portal's
-    # users have one set; every other login path keeps using username.
-    # Same password_hash serves all three -- these are additional ways
-    # to identify the same account, not separate credentials.
+    # Alternate login identifier -- auth_service.login() resolves by
+    # username OR employee_id, one shared mechanism for both frontends
+    # (staff app, Site Engineer Portal) rather than a separate login
+    # endpoint/token type per portal. Nullable since only Site Engineer
+    # Portal users have one set; every other login path keeps using
+    # username. Same password_hash serves both -- this is an additional
+    # way to identify the same account, not a separate credential.
     employee_id: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
-    customer_id: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
-    # Scopes a Customer-role account to the one client record it's
-    # allowed to see projects for (see customer_portal_service). Only
-    # set for role == "Customer".
-    client_id: Mapped[int | None] = mapped_column(
-        BigPK, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=True
-    )
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)

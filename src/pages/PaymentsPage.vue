@@ -85,8 +85,8 @@ async function loadData(): Promise<void> {
   try {
     await store.loadAll()
   } catch (error) {
-    // Mirrors CustomerProjectViewPage/useIdleLogout: httpClient already
-    // retried and logged authStore out by the time a 401 gets here, so
+    // Mirrors useIdleLogout: httpClient already retried and logged
+    // authStore out by the time a 401 gets here, so
     // this is a real expired session, not a transient failure -- bounce
     // to login with the reason instead of leaving the page stuck on a
     // generic "couldn't load" error with no way to recover.

@@ -87,14 +87,12 @@ def _ensure_seeded(db: Session) -> None:
 
 
 def _backfill_missing_roles(db: Session) -> None:
-    """A role added to ROLES after this database was already seeded (e.g.
-    "Customer", added when the Customer Portal was unified onto the same
-    login/permission system) never gets a role_definitions row at all --
-    the seed-once check above only fires on a completely empty table.
-    Without this, the Administration > Roles & Permissions screen simply
-    never lists the new role. Only inserts a definition (+ its module
-    rows) for a role that's entirely missing; never touches one that
-    already exists."""
+    """A role added to ROLES after this database was already seeded
+    never gets a role_definitions row at all -- the seed-once check
+    above only fires on a completely empty table. Without this, the
+    Administration > Roles & Permissions screen simply never lists the
+    new role. Only inserts a definition (+ its module rows) for a role
+    that's entirely missing; never touches one that already exists."""
     existing_roles = {definition.role for definition in db.query(RoleDefinition).all()}
     missing_roles = [role for role in ROLES if role not in existing_roles]
     if not missing_roles:

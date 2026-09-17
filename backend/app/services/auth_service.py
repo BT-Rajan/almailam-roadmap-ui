@@ -69,22 +69,21 @@ def _register_failed_attempt(db: Session, user: User) -> None:
 
 
 def login(db: Session, identifier: str, password: str, client_ip: str = "unknown") -> dict:
-    """Single entry point for all three frontends (staff app, Site
-    Engineer Portal, Customer Portal) -- resolves the identifier against
-    username, employee_id, or customer_id, whichever matches. A user only
-    ever has one of these actually set (aside from every account having a
-    username), so this can never match two different accounts at once.
-    Same generic error message regardless of which field (or none) would
-    have matched, for the same reason the old per-portal logins used one:
-    this can't be used to enumerate valid usernames/employee IDs/customer
-    IDs."""
+    """Single entry point for both frontends (staff app, Site Engineer
+    Portal) -- resolves the identifier against username or employee_id,
+    whichever matches. A user only ever has one of these actually set
+    (aside from every account having a username), so this can never
+    match two different accounts at once. Same generic error message
+    regardless of which field (or none) would have matched, for the
+    same reason the old per-portal logins used one: this can't be used
+    to enumerate valid usernames/employee IDs."""
     if _login_ip_lockout.seconds_locked(client_ip):
         raise AuthError("Too many attempts from this network. Please try again later.")
 
     user = (
         db.query(User)
         .filter(
-            or_(User.username == identifier, User.employee_id == identifier, User.customer_id == identifier),
+            or_(User.username == identifier, User.employee_id == identifier),
             User.deleted_at.is_(None),
         )
         .first()

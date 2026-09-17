@@ -31,7 +31,7 @@ def get_branding(db: Session = Depends(get_db)):
     """Unlike /settings above, entirely public -- no auth at all, not
     even a bare login. The sign-in screen itself needs the brand color
     and logo before anyone has a session, and every logged-in role
-    (Customer/Site portal included) needs them too to theme its own UI
+    (the Site portal included) needs them too to theme its own UI
     consistently with whatever an admin has configured. None of these
     three fields (company name, brand color, whether a logo exists) is
     sensitive. See CompanyBrandingOut's own docstring for why this is a

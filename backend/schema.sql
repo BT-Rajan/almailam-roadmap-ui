@@ -36,19 +36,13 @@ CREATE TABLE IF NOT EXISTS users (
     -- width.
     username                VARCHAR(120) NOT NULL UNIQUE,
     employee_id             VARCHAR(30)  NULL UNIQUE,
-    -- Customer Portal login identifier -- same idea as employee_id above,
-    -- an alternate way to resolve the same users table to one login
-    -- mechanism instead of a separate one. client_id scopes a Customer
-    -- account to the one client record it's allowed to see projects for.
-    customer_id             VARCHAR(30)  NULL UNIQUE,
-    client_id               BIGINT UNSIGNED NULL,
     email                   VARCHAR(120) NOT NULL UNIQUE,
     password_hash           VARCHAR(255) NOT NULL,
     full_name               VARCHAR(120) NOT NULL,
     salutation              ENUM('Mr.','Ms.') NULL,
     designation             VARCHAR(120) NULL,
     mobile                  VARCHAR(30)  NULL,
-    role                    ENUM('Administrator','Project Manager','Engineer','Document Controller','Viewer','Customer')
+    role                    ENUM('Administrator','Project Manager','Engineer','Document Controller','Viewer')
                                 NOT NULL DEFAULT 'Viewer',
     is_active               TINYINT(1) NOT NULL DEFAULT 1,
     failed_login_attempts   SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -56,10 +50,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at              DATETIME NULL,
-    CONSTRAINT fk_users_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     INDEX idx_users_role (role),
-    INDEX idx_users_deleted_at (deleted_at),
-    INDEX idx_users_client (client_id)
+    INDEX idx_users_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS role_definitions (
@@ -1467,10 +1459,12 @@ CREATE TABLE IF NOT EXISTS email_settings (
 -- start empty -- a row only needs to exist once an admin actually edits
 -- that template. The five *_otp keys that used to exist here were
 -- removed (migration 0080) once every confirmation flow switched from
--- an emailed OTP code to a signed-document upload.
+-- an emailed OTP code to a signed-document upload. 'client_welcome'
+-- was removed (migration 0105) once the Customer Portal it provisioned
+-- logins for was removed.
 CREATE TABLE IF NOT EXISTS email_templates (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `key`           ENUM('client_welcome','project_created','requirement_confirmed','quotation_approved',
+    `key`           ENUM('project_created','requirement_confirmed','quotation_approved',
                           'contract_signed','permit_application_submitted','permit_response_received',
                           'payment_received','payment_reminder') NOT NULL,
     subject         VARCHAR(300) NOT NULL,

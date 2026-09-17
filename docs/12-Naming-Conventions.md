@@ -190,8 +190,6 @@ Examples
 AuthLayout.vue
 
 DashboardLayout.vue
-
-CustomerLayout.vue
 ```
 
 ---
@@ -809,8 +807,6 @@ Examples
 project-management
 
 government-center
-
-customer-portal
 
 shared-components
 ```

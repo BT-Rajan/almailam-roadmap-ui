@@ -22,7 +22,7 @@ The `fix/code-audit-uniform-practices` branch has further in-progress fixes not 
 
 ### Modules
 
-Dashboard · Client Onboarding (individual/company/organisation/government entity) · Project Explorer & Workspace · Project Timeline · Document Repository & AI Review · Government Forms Library & Submission Workspace · Quotations · Contracts · Task Management · Reports (executive/project/workload) · Customer Status Portal (public, mobile number + project ID) · Notification Centre · Global Search · AI Assistant · Administration (users, roles/permissions, workflow config, government forms admin, AI configuration, company settings) · Activity Calendar · Audit Log
+Dashboard · Client Onboarding (individual/company/organisation/government entity) · Project Explorer & Workspace · Project Timeline · Document Repository & AI Review · Government Forms Library & Submission Workspace · Quotations · Contracts · Task Management · Reports (executive/project/workload) · Notification Centre · Global Search · AI Assistant · Administration (users, roles/permissions, workflow config, government forms admin, AI configuration, company settings) · Activity Calendar · Audit Log
 
 ---
 

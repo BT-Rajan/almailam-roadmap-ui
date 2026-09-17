@@ -76,7 +76,6 @@ Administration
 |--------|------|
 | `/` | Login |
 | `/login` | Login |
-| `/status` | Customer Project Status Tracker |
 
 ---
 
@@ -435,7 +434,6 @@ Never use
 | admin-forms | `/admin/forms` |
 | admin-ai | `/admin/ai` |
 | admin-company | `/admin/company` |
-| customer-status | `/status` |
 
 ---
 

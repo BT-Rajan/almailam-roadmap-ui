@@ -90,10 +90,6 @@ PASS 22
 Reports
 Executive reports, project reports, workload summaries, reusable charts.
 
-PASS 23
-Customer Status Portal
-Public project tracking using Mobile Number + Project ID.
-
 PASS 24
 Notification Center
 Notification drawer, grouped notifications, read/unread behaviour.

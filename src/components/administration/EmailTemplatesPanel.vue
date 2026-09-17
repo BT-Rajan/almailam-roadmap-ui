@@ -32,7 +32,6 @@ const toastStore = useToastStore()
 // (friendly name + "when this sends"), not a second source of truth
 // for which keys exist (that's EMAIL_TEMPLATE_KEYS on the backend).
 const TEMPLATE_INFO: { key: EmailTemplateKey; labelKey: string; descriptionKey: string }[] = [
-  { key: 'client_welcome', labelKey: 'administration.emailTemplates.keys.clientWelcome.label', descriptionKey: 'administration.emailTemplates.keys.clientWelcome.description' },
   { key: 'project_created', labelKey: 'administration.emailTemplates.keys.projectCreated.label', descriptionKey: 'administration.emailTemplates.keys.projectCreated.description' },
   { key: 'requirement_confirmed', labelKey: 'administration.emailTemplates.keys.requirementConfirmed.label', descriptionKey: 'administration.emailTemplates.keys.requirementConfirmed.description' },
   { key: 'quotation_approved', labelKey: 'administration.emailTemplates.keys.quotationApproved.label', descriptionKey: 'administration.emailTemplates.keys.quotationApproved.description' },
