@@ -136,6 +136,10 @@ export default {
     failedToRemoveDocument: 'فشلت إزالة المستند',
     removeDocumentConfirmTitle: 'إزالة المستند',
     removeDocumentConfirmMessage: 'إزالة {name}؟ لا يمكن التراجع عن هذا من داخل التطبيق.',
+    checklistTitle: 'قائمة مستندات التسليم',
+    checklistEmpty: 'لا توجد مستندات مرتبطة بهذا النشاط حتى الآن -- لا يوجد ما يجب تحديده.',
+    checklistFulfilledBy: 'تم التحقق من قبل {name} في {date}',
+    failedToUpdateChecklistItem: 'فشل تحديث عنصر القائمة',
   },
 
   supervisionReportsTab: {

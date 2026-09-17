@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/httpClient'
-import type { DocumentRequirement, DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
+import type { ChecklistItem, DocumentRequirement, DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
 
 async function getRequirements(): Promise<DocumentRequirement[]> {
   try {
@@ -84,6 +84,76 @@ async function removeLink(linkId: string): Promise<void> {
   }
 }
 
+// Handover document checklist (#4/#5) -- a project's own copy of the
+// reference list above, plus its own fulfillment state. One GET/PUT
+// pair per track (see api/projects.py's own _checklist_out/
+// _set_checklist_item, shared the same way there).
+async function getDesignChecklist(projectNo: string, activityId: string): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/design-activities/${activityId}/checklist`)
+  } catch (error) {
+    console.error(`Failed to fetch design checklist for activity ${activityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch design checklist')
+  }
+}
+
+async function setDesignChecklistItem(
+  projectNo: string, activityId: string, linkId: string, fulfilled: boolean, documentId?: string,
+): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.put<ChecklistItem[]>(
+      `/api/projects/${projectNo}/design-activities/${activityId}/checklist/${linkId}`, { fulfilled, documentId },
+    )
+  } catch (error) {
+    console.error(`Failed to update design checklist item ${linkId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update design checklist item')
+  }
+}
+
+async function getPermitChecklist(projectNo: string, permitId: string): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/permits/${permitId}/checklist`)
+  } catch (error) {
+    console.error(`Failed to fetch permit checklist for permit ${permitId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch permit checklist')
+  }
+}
+
+async function setPermitChecklistItem(
+  projectNo: string, permitId: string, linkId: string, fulfilled: boolean, documentId?: string,
+): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.put<ChecklistItem[]>(
+      `/api/projects/${projectNo}/permits/${permitId}/checklist/${linkId}`, { fulfilled, documentId },
+    )
+  } catch (error) {
+    console.error(`Failed to update permit checklist item ${linkId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update permit checklist item')
+  }
+}
+
+async function getSupervisionChecklist(projectNo: string, activityId: string): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/supervision-activities/${activityId}/checklist`)
+  } catch (error) {
+    console.error(`Failed to fetch supervision checklist for activity ${activityId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch supervision checklist')
+  }
+}
+
+async function setSupervisionChecklistItem(
+  projectNo: string, activityId: string, linkId: string, fulfilled: boolean, documentId?: string,
+): Promise<ChecklistItem[]> {
+  try {
+    return await apiClient.put<ChecklistItem[]>(
+      `/api/projects/${projectNo}/supervision-activities/${activityId}/checklist/${linkId}`, { fulfilled, documentId },
+    )
+  } catch (error) {
+    console.error(`Failed to update supervision checklist item ${linkId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to update supervision checklist item')
+  }
+}
+
 export const documentRequirementService = {
   getRequirements,
   createRequirement,
@@ -93,4 +163,10 @@ export const documentRequirementService = {
   getLinksForRequirement,
   addLink,
   removeLink,
+  getDesignChecklist,
+  setDesignChecklistItem,
+  getPermitChecklist,
+  setPermitChecklistItem,
+  getSupervisionChecklist,
+  setSupervisionChecklistItem,
 }

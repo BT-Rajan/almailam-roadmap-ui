@@ -72,3 +72,42 @@ class DocumentRequirementLinkCreate(BaseModel):
         if value not in DOCUMENT_REQUIREMENT_TARGET_TYPES:
             raise ValueError(f"targetType must be one of {DOCUMENT_REQUIREMENT_TARGET_TYPES}")
         return value
+
+
+class ChecklistItemOut(BaseModel):
+    """One row of a project's own Design activity/Permit/Supervision
+    activity handover document checklist (#4/#5) -- a
+    DocumentRequirementLink plus this project's own fulfillment state
+    for it. fulfilledByName is denormalized the same way requirementName/
+    requirementDescription are on DocumentRequirementLinkOut above, so
+    the checklist UI doesn't need a second round trip per row."""
+
+    id: str
+    requirementId: str
+    requirementName: str
+    requirementDescription: str | None = None
+    fulfilled: bool
+    fulfilledAt: str | None = None
+    fulfilledByName: str | None = None
+    documentId: str | None = None
+
+    @staticmethod
+    def from_model(link, requirement, fulfillment, fulfilled_by_name: str | None) -> "ChecklistItemOut":
+        return ChecklistItemOut(
+            id=str(link.id),
+            requirementId=str(requirement.id),
+            requirementName=requirement.name,
+            requirementDescription=requirement.description,
+            fulfilled=fulfillment is not None,
+            fulfilledAt=fulfillment.fulfilled_at.isoformat() if fulfillment else None,
+            fulfilledByName=fulfilled_by_name if fulfillment else None,
+            documentId=str(fulfillment.document_id) if fulfillment and fulfillment.document_id else None,
+        )
+
+
+class SetChecklistItemRequest(BaseModel):
+    fulfilled: bool
+    # Which of this project's own ProjectDocuments satisfies this item,
+    # if the user picked one -- optional (see ProjectDocumentRequirement
+    # Fulfillment.document_id's own docstring for why).
+    documentId: str | None = None

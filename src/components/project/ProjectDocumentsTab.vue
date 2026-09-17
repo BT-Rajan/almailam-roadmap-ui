@@ -1,63 +1,35 @@
 <script setup lang="ts">
-import { ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { FilePlus } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import IconButton from '@/components/common/IconButton.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import SmartTable from '@/components/common/SmartTable.vue'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
 import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
-import DesignDocumentDialog from '@/components/document/DesignDocumentDialog.vue'
-import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import LinkDocumentCard from '@/components/document/LinkDocumentCard.vue'
 import { useClientStore } from '@/stores/clientStore'
-import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
-import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
-import type { ProjectDocument, ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
+import type { ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
 import type { Project } from '@/types/Project'
-import type { SmartTableColumn } from '@/types/Table'
-import { formatDate } from '@/utils/dateFormatter'
 
+// The project's general document manager -- Customer ID / Property /
+// Government / Others link-only categories. Design's own Drawing-typed
+// document table used to live here too, behind a mode="design" prop
+// (see ProjectDesignTab.vue, migration 0104/#3, for why that moved out).
 const props = defineProps<{
   project: Project
-  mode: 'documents' | 'design'
 }>()
 
-const documentStore = useDocumentStore()
 const clientStore = useClientStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
-const projectStore = useProjectStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
-
-const isDesignDialogOpen = ref(false)
-const isDesignSaving = ref(false)
-const designDialogTarget = ref<ProjectDocument | null>(null)
-
-const isDeleteDialogOpen = ref(false)
-const isDeleteSaving = ref(false)
-const deleteTarget = ref<ProjectDocument | null>(null)
-
-// Mirrors the "Client Submitted" confirmation in the New Client wizard --
-// a dedicated pop-up confirming what was just added (title + link),
-// not just a toast, and only for a new document (editing an existing
-// one's link doesn't re-show this).
-const isDocumentAddedDialogOpen = ref(false)
-const addedDocumentTitle = ref('')
-const addedDocumentLink = ref('')
-
-function closeDocumentAddedDialog(): void {
-  isDocumentAddedDialogOpen.value = false
-}
 
 const isAddDialogOpen = ref(false)
 const addDialogCategory = ref<ProjectLinkDocumentCategory>('Property')
@@ -66,126 +38,6 @@ const addDialogInitialName = ref<string>()
 const isLinkDeleteDialogOpen = ref(false)
 const isLinkDeleteSaving = ref(false)
 const linkDeleteTarget = ref<ProjectLinkDocument | null>(null)
-
-function openAddDesignDialog(): void {
-  designDialogTarget.value = null
-  isDesignDialogOpen.value = true
-}
-
-function openEditDesignDialog(document: ProjectDocument): void {
-  designDialogTarget.value = document
-  isDesignDialogOpen.value = true
-}
-
-async function handleSaveDesignDocument(payload: {
-  title: string
-  date: string
-  link: string
-  file: File | undefined
-}): Promise<void> {
-  isDesignSaving.value = true
-  try {
-    if (designDialogTarget.value) {
-      const target = designDialogTarget.value
-      await documentStore.updateDocument(target.id, payload.title, payload.link || null, payload.date)
-      if (payload.file) {
-        await documentStore.attachFile(target.id, payload.file)
-      }
-      toastStore.show('success', t('project.documentsTab.documentUpdatedTitle'), t('project.documentsTab.documentUpdatedDescription', { title: payload.title }))
-    } else {
-      const created = await documentStore.uploadDocument(
-        payload.file,
-        props.project.id,
-        payload.title,
-        'Drawing',
-        payload.link || undefined,
-      )
-      if (payload.date !== created.uploadDate) {
-        await documentStore.updateDocument(created.id, payload.title, payload.link || null, payload.date)
-      }
-      addedDocumentTitle.value = payload.title
-      addedDocumentLink.value = payload.link
-      isDocumentAddedDialogOpen.value = true
-    }
-    // A saved design link is one of the things "Design" -> "Government
-    // Submission" waits on (project_service._assert_stage_exit_criteria)
-    // -- refresh the shared project store so the header badge and
-    // Workflow Progress stepper reflect an auto-advance immediately.
-    await projectStore.refreshProject(props.project.id)
-    isDesignDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', designDialogTarget.value ? t('project.documentsTab.failedToUpdateDocument') : t('project.documentsTab.failedToAddDocumentDetail'), detail)
-  } finally {
-    isDesignSaving.value = false
-  }
-}
-
-function requestDelete(document: ProjectDocument): void {
-  deleteTarget.value = document
-  isDeleteDialogOpen.value = true
-}
-
-async function handleConfirmDelete(): Promise<void> {
-  if (!deleteTarget.value) return
-  isDeleteSaving.value = true
-  try {
-    await documentStore.deleteDocument(deleteTarget.value.id)
-    toastStore.show('success', t('project.documentsTab.documentDeletedTitle'), t('project.documentsTab.wasRemoved', { title: deleteTarget.value.title }))
-    isDeleteDialogOpen.value = false
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
-    toastStore.show('error', t('project.documentsTab.failedToDeleteDocument'), detail)
-  } finally {
-    isDeleteSaving.value = false
-  }
-}
-
-const projectDocuments = computed(() => documentStore.documentsByProject(props.project.id))
-const visibleDocuments = computed(() =>
-  props.mode === 'documents'
-    ? projectDocuments.value
-    : projectDocuments.value.filter((document) => document.type === 'Drawing'),
-)
-
-interface DesignDocumentRow {
-  [key: string]: unknown
-  id: string
-  title: string
-  fileName: string
-  date: string
-  link: string
-  raw: ProjectDocument
-}
-
-const DESIGN_TABLE_COLUMNS = computed<SmartTableColumn<DesignDocumentRow>[]>(() => [
-  { key: 'title', label: t('project.documentsTab.columns.document'), sortable: true },
-  { key: 'fileName', label: t('project.documentsTab.columns.fileName'), sortable: true },
-  { key: 'date', label: t('project.documentsTab.columns.date'), sortable: true, width: '140px' },
-  { key: 'link', label: t('project.documentsTab.columns.link'), width: '120px' },
-])
-
-const designTableRows = computed<DesignDocumentRow[]>(() =>
-  visibleDocuments.value.map((document) => ({
-    id: document.id,
-    title: document.title,
-    fileName: document.originalFilename ?? '',
-    date: document.uploadDate,
-    link: document.externalLink ?? '',
-    raw: document,
-  })),
-)
-
-// Opens the document inline, without leaving the project workspace --
-// this used to route to the standalone /documents/:id page, which
-// dropped the user out of the project entirely.
-const isPreviewOpen = ref(false)
-const previewDocumentId = ref<string | undefined>(undefined)
-
-function openDocument(documentId: string): void {
-  previewDocumentId.value = documentId
-  isPreviewOpen.value = true
-}
 
 // Customer ID Documents -- read-only, sourced from the client's own
 // onboarding documents (not stored against the project at all).
@@ -237,7 +89,6 @@ async function handleConfirmLinkDelete(): Promise<void> {
 }
 
 function loadDocumentsData(): void {
-  if (props.mode !== 'documents') return
   linkDocumentStore.loadForProject(props.project.id)
   if (clientId.value) {
     clientStore.loadClientDetail(clientId.value)
@@ -245,100 +96,10 @@ function loadDocumentsData(): void {
 }
 
 onMounted(loadDocumentsData)
-watch(() => [props.project.id, props.mode], loadDocumentsData)
 </script>
 
 <template>
-  <!-- Design mode: a single editable table of Document / File Name / Date / Link. -->
-  <template v-if="mode === 'design'">
-    <div class="flex items-center justify-end">
-      <BaseButton variant="secondary" size="sm" :icon="FilePlus" class="no-print" @click="openAddDesignDialog">
-        {{ t('project.documentsTab.addDocument') }}
-      </BaseButton>
-    </div>
-
-    <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
-
-    <SmartTable
-      v-else
-      :columns="DESIGN_TABLE_COLUMNS"
-      :rows="designTableRows"
-      row-key="id"
-      :loading="documentStore.isLoading"
-      :searchable="false"
-      :empty-title="t('project.documentsTab.emptyTitle')"
-      :empty-description="t('project.documentsTab.emptyDescription')"
-    >
-      <template #cell-fileName="{ row }">
-        <button
-          v-if="row.fileName"
-          type="button"
-          class="text-primary-600 hover:underline"
-          @click.stop="openDocument(row.id)"
-        >
-          {{ row.fileName }}
-        </button>
-        <span v-else class="text-text-muted">—</span>
-      </template>
-      <template #cell-date="{ value }">
-        {{ formatDate(value as string) }}
-      </template>
-      <template #cell-link="{ row }">
-        <a
-          v-if="row.link"
-          :href="row.link as string"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-primary-600 hover:underline"
-          @click.stop
-        >
-          <ExternalLink class="h-3.5 w-3.5" />
-          {{ t('project.documentsTab.open') }}
-        </a>
-        <span v-else class="text-text-muted">—</span>
-      </template>
-      <template #row-actions="{ row }">
-        <div class="flex items-center justify-end gap-1" @click.stop>
-          <IconButton :icon="Pencil" :label="t('project.documentsTab.editDocument', { title: row.raw.title })" size="sm" variant="ghost" @click="openEditDesignDialog(row.raw)" />
-          <IconButton :icon="Trash2" :label="t('project.documentsTab.deleteDocument', { title: row.raw.title })" size="sm" variant="ghost" @click="requestDelete(row.raw)" />
-        </div>
-      </template>
-    </SmartTable>
-
-    <DesignDocumentDialog
-      v-model="isDesignDialogOpen"
-      :document="designDialogTarget"
-      :is-saving="isDesignSaving"
-      @save="handleSaveDesignDocument"
-    />
-    <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
-    <ConfirmationDialog
-      v-model="isDeleteDialogOpen"
-      :title="t('project.documentsTab.deleteDialogTitle')"
-      :message="deleteTarget ? t('project.documentsTab.deleteDialogMessage', { title: deleteTarget.title }) : ''"
-      :confirm-label="t('common.delete')"
-      confirm-variant="danger"
-      :loading="isDeleteSaving"
-      @confirm="handleConfirmDelete"
-    />
-    <BaseDialog :model-value="isDocumentAddedDialogOpen" :title="t('project.documentsTab.documentAddedTitle')" size="sm" :closable="false">
-      <p class="text-sm text-text-secondary">
-        <strong>{{ addedDocumentTitle }}</strong> {{ t('project.documentsTab.documentAddedMessage') }}
-      </p>
-      <p class="mt-1 truncate text-sm">
-        <a :href="addedDocumentLink" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline">
-          {{ addedDocumentLink }}
-        </a>
-      </p>
-
-      <template #footer>
-        <BaseButton variant="primary" @click="closeDocumentAddedDialog">{{ t('project.documentsTab.ok') }}</BaseButton>
-      </template>
-    </BaseDialog>
-  </template>
-
-  <!-- Documents mode: four fixed categories. -->
-  <div v-else class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3">
     <!-- 1. Customer ID Documents -->
     <section class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
