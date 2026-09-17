@@ -1,4 +1,4 @@
--- Migration 0105: remove the Customer Portal feature's schema footprint.
+-- Migration 0106: remove the Customer Portal feature's schema footprint.
 --
 -- The Customer Portal (external client-facing login + project view,
 -- unified onto the staff auth mechanism by migration 0026) has been
@@ -16,7 +16,7 @@
 -- migration here.
 --
 -- Run this against your MySQL/MariaDB database, e.g.:
---   mysql -u <user> -p <database> < backend/migrations/0105_remove_customer_portal.sql
+--   mysql -u <user> -p <database> < backend/migrations/0106_remove_customer_portal.sql
 
 -- Drop any Customer-role accounts first -- narrowing the role enum
 -- below would otherwise fail with rows still using the value being

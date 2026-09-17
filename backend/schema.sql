@@ -1460,7 +1460,7 @@ CREATE TABLE IF NOT EXISTS email_settings (
 -- that template. The five *_otp keys that used to exist here were
 -- removed (migration 0080) once every confirmation flow switched from
 -- an emailed OTP code to a signed-document upload. 'client_welcome'
--- was removed (migration 0105) once the Customer Portal it provisioned
+-- was removed (migration 0106) once the Customer Portal it provisioned
 -- logins for was removed.
 CREATE TABLE IF NOT EXISTS email_templates (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
