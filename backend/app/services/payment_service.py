@@ -693,6 +693,49 @@ def _notify_installments_settled(
         )
 
 
+def _notify_payment_override(
+    db: Session, agreement: FinancialAgreement, expected: Decimal, actual: float, obligations: list[PaymentObligation],
+) -> None:
+    """Notifies every Administrator when a recorded payment's amount
+    doesn't match what was actually still owed, before this payment, on
+    exactly the obligation(s) it allocates to (calc.get_obligation_
+    amount_pending, summed) -- the same figure "Expected Amount" shows
+    staff on the entry form before they type in what was actually
+    received.
+
+    Staff can and do legitimately record a different amount -- a
+    partial payment, paying two installments at once, a negotiated
+    adjustment -- that's their call to make and isn't blocked here, but
+    per policy every such override needs to be visible to admins, not
+    just logged silently in the audit trail alongside every other
+    payment event. Administrators only (not the project's Account
+    Manager, unlike _notify_installments_settled above) -- this is
+    specifically an oversight/exception review, not a general payment
+    update the account team already gets told about via the settlement
+    and receipt-email notifications."""
+    project = db.query(Project).filter(Project.id == agreement.project_id).first()
+    if project is None:
+        return
+    admins = (
+        db.query(User)
+        .filter(User.role == "Administrator", User.deleted_at.is_(None), User.is_active.is_(True))
+        .all()
+    )
+    if not admins:
+        return
+    targets = ", ".join(o.description for o in obligations) or "no obligation"
+    message = (
+        f"{project.project_name} ({project.project_no}): recorded {actual} {agreement.currency} against "
+        f"{targets}, but {expected} {agreement.currency} was expected (the pending balance on what was allocated)."
+    )
+    for admin in admins:
+        notification_service.create_notification(
+            db, admin.id, "Payment amount overridden", message, "Payment",
+            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_query={"tab": "payment-status"},
+        )
+
+
 def record_payment(db: Session, payload, user_id: int) -> Payment:
     agreement = get_agreement(db, parse_agreement_id(payload.agreementId))
 
@@ -712,6 +755,19 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
 
     if total_allocated > Decimal(str(payload.amountReceived)):
         raise ValidationAppError("Total allocated amount cannot exceed the amount received.")
+
+    # "Expected" is the sum of what was actually still owed, before this
+    # payment, on exactly the obligation(s) this payment allocates to --
+    # not the agreement's single overall "next due" obligation, since
+    # staff can and do pay a specific later obligation directly (see
+    # PaymentPlanPanel.vue's per-obligation "Record Payment" action) or
+    # catch up more than one at once. Comparing against a fixed "next"
+    # obligation regardless of what's actually being paid would flag a
+    # perfectly exact payment as an override just because it wasn't the
+    # earliest one outstanding. Skipped entirely for an unallocated
+    # payment (nothing proposed to compare against).
+    expected_amount = sum((calc.get_obligation_amount_pending(obligation) for obligation, _ in allocation_targets), Decimal("0"))
+    is_override = bool(allocation_targets) and abs(Decimal(str(payload.amountReceived)) - expected_amount) > Decimal("0.009")
 
     payment = Payment(
         agreement_id=agreement.id,
@@ -757,6 +813,8 @@ def record_payment(db: Session, payload, user_id: int) -> Payment:
         )
 
     _notify_installments_settled(db, agreement, newly_settled)
+    if is_override:
+        _notify_payment_override(db, agreement, expected_amount, payload.amountReceived, [o for o, _ in allocation_targets])
 
     db.commit()
     db.refresh(payment)

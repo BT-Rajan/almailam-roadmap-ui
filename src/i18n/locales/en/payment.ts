@@ -145,6 +145,7 @@ export default {
     expectedAmount: 'Expected Amount',
     actualAmount: 'Actual Amount',
     exceedsOutstanding: "Can't exceed the {amount} still outstanding.",
+    overrideNotifiesAdmin: "Differs from the expected amount — administrators will be notified of this override.",
     fullySettled: 'Fully settled — nothing outstanding on this plan.',
   },
 

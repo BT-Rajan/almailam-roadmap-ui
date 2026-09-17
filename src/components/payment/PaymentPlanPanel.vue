@@ -823,6 +823,11 @@ async function handleSendEmail(): Promise<void> {
           :min="0"
           step="0.01"
           required
+          :hint="
+            Math.abs(obligationPaymentForm.amount - pendingForObligationBeingPaid) > 0.009
+              ? t('payment.statusPanel.overrideNotifiesAdmin')
+              : undefined
+          "
           :error="
             obligationPaymentForm.amount > pendingForObligationBeingPaid + 0.009
               ? t('payment.statusPanel.exceedsOutstanding', {

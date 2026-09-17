@@ -144,6 +144,24 @@ function allocationsFor(stream: AgreementStream, amount: number) {
   return result
 }
 
+// Mirrors payment_service.record_payment's own override check exactly:
+// the sum of what's actually still owed on whichever obligation(s) the
+// entered amount would be allocated to (not always the single earliest
+// obligation -- entering enough to clear two installments at once is a
+// clean, non-override payment too, provided it lands exactly on the
+// sum of their full pending balances rather than partially into the
+// last one it reaches).
+function expectedAmountForEntered(stream: AgreementStream): number {
+  const allocations = allocationsFor(stream, formFor(stream).actualAmount)
+  const obligations = outstandingObligationsForStream(stream)
+  return Math.round(
+    allocations.reduce((sum, allocation) => {
+      const obligation = obligations.find((o) => o.id === allocation.obligationId)
+      return sum + (obligation ? getObligationAmountPending(obligation) : 0)
+    }, 0) * 100,
+  ) / 100
+}
+
 function totalOutstandingFor(stream: AgreementStream): number {
   return Math.round(
     outstandingObligationsForStream(stream).reduce((sum, obligation) => sum + getObligationAmountPending(obligation), 0) * 100,
@@ -318,6 +336,11 @@ async function handleRecordPayment(stream: AgreementStream): Promise<void> {
                 :min="0"
                 step="0.01"
                 required
+                :hint="
+                  Math.abs(formFor(stream).actualAmount - expectedAmountForEntered(stream)) > 0.009
+                    ? t('payment.statusPanel.overrideNotifiesAdmin')
+                    : undefined
+                "
                 :error="
                   formFor(stream).actualAmount > totalOutstandingFor(stream) + 0.009
                     ? t('payment.statusPanel.exceedsOutstanding', { amount: formatCurrency(totalOutstandingFor(stream), agreementForStream(stream)!.currency) })

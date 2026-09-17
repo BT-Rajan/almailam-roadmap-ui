@@ -145,6 +145,7 @@ export default {
     expectedAmount: 'المبلغ المتوقع',
     actualAmount: 'المبلغ الفعلي',
     exceedsOutstanding: 'لا يمكن أن يتجاوز {amount} المتبقي المستحق.',
+    overrideNotifiesAdmin: 'يختلف عن المبلغ المتوقع — سيتم إشعار المسؤولين بهذا التجاوز.',
     fullySettled: 'مسدد بالكامل — لا يوجد مبلغ مستحق على هذه الخطة.',
   },
 
