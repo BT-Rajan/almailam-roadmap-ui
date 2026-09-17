@@ -136,6 +136,10 @@ export default {
     failedToRemoveDocument: 'Failed to remove document',
     removeDocumentConfirmTitle: 'Remove document',
     removeDocumentConfirmMessage: 'Remove {name}? This cannot be undone from the app.',
+    checklistTitle: 'Handover Document Checklist',
+    checklistEmpty: 'No documents linked to this activity yet -- nothing to check off.',
+    checklistFulfilledBy: 'Checked by {name} on {date}',
+    failedToUpdateChecklistItem: 'Failed to update checklist item',
   },
 
   supervisionReportsTab: {

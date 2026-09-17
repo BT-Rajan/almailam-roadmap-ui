@@ -1,36 +1,43 @@
 <script setup lang="ts">
-import { ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ChevronDown, ChevronRight, ExternalLink, FilePlus, Pencil, Trash2 } from '@lucide/vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Checkbox from '@/components/common/Checkbox.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import DesignDocumentDialog from '@/components/document/DesignDocumentDialog.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
+import { documentRequirementService } from '@/services/documentRequirementService'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { ChecklistItem } from '@/types/DocumentRequirement'
 import type { ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 import type { SmartTableColumn } from '@/types/Table'
-import { formatDate } from '@/utils/dateFormatter'
+import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 
 // Design's own tab (migration 0104/#3 -- previously ProjectDocumentsTab's
 // mode="design", a flag on the generic any-document manager rather than a
 // first-class component of its own, unlike Government Submission's
 // ProjectGovernmentTab.vue and Supervision's SupervisionStatusReportsTab.vue).
-// Same table/dialogs as before, lifted out unchanged -- still just the
-// project's Drawing-typed ProjectDocuments, still no per-activity linkage
-// (see DesignDocumentDialog.vue -- title/date/link/file only, no activity
-// picker). Per-activity close/reopen controls stay on ProjectOverviewTab's
-// own stage-arrival card (projectService.closeDesignActivity/
-// reopenDesignActivity) -- this tab is the documents side only, same
-// division Government Submission/Supervision already have between their
-// own tab and Overview's activity controls.
+// Owns two things now: the Drawing-typed document table (unchanged from
+// before) and, below it, each selected Design activity's own handover
+// document checklist (#4/#5 -- checking these off is what
+// project_service.assert_checklist_fulfilled actually gates on when
+// closing the activity or moving the project into Handover; ticking a box
+// here is no longer just for show). Per-activity close/reopen itself
+// still stays on ProjectOverviewTab's own stage-arrival card
+// (projectService.closeDesignActivity/reopenDesignActivity) -- this tab
+// is the documents-and-checklist side only, same division Government
+// Submission/Supervision already have between their own tab and
+// Overview's activity controls.
 const props = defineProps<{
   project: Project
 }>()
@@ -181,6 +188,57 @@ function loadDesignData(): void {
 
 onMounted(loadDesignData)
 watch(() => props.project.id, loadDesignData)
+
+// Handover document checklist (#4/#5) -- one disclosure per selected
+// Design activity that's actually been persisted (a fresh pick in
+// ServicePickerDialog has no id yet, and nothing to check a checklist
+// against until the project itself is saved).
+const designActivities = computed(() => (props.project.selectedActivities ?? []).filter((activity) => activity.id))
+
+const expandedActivityIds = ref<Set<string>>(new Set())
+const checklistByActivity = reactive<Record<string, ChecklistItem[]>>({})
+const checklistLoadingIds = ref<Set<string>>(new Set())
+const checklistErrorByActivity = reactive<Record<string, string | undefined>>({})
+const savingLinkId = ref<string | null>(null)
+
+async function loadChecklist(activityId: string): Promise<void> {
+  checklistLoadingIds.value = new Set(checklistLoadingIds.value).add(activityId)
+  checklistErrorByActivity[activityId] = undefined
+  try {
+    checklistByActivity[activityId] = await documentRequirementService.getDesignChecklist(props.project.id, activityId)
+  } catch (error) {
+    checklistErrorByActivity[activityId] = error instanceof Error ? error.message : t('common.pleaseTryAgain')
+  } finally {
+    const next = new Set(checklistLoadingIds.value)
+    next.delete(activityId)
+    checklistLoadingIds.value = next
+  }
+}
+
+function toggleActivityChecklist(activityId: string): void {
+  const next = new Set(expandedActivityIds.value)
+  if (next.has(activityId)) {
+    next.delete(activityId)
+  } else {
+    next.add(activityId)
+    if (!checklistByActivity[activityId]) void loadChecklist(activityId)
+  }
+  expandedActivityIds.value = next
+}
+
+async function toggleChecklistItem(activityId: string, item: ChecklistItem, fulfilled: boolean): Promise<void> {
+  savingLinkId.value = item.id
+  try {
+    checklistByActivity[activityId] = await documentRequirementService.setDesignChecklistItem(
+      props.project.id, activityId, item.id, fulfilled,
+    )
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
+    toastStore.show('error', t('project.documentsTab.failedToUpdateChecklistItem'), detail)
+  } finally {
+    savingLinkId.value = null
+  }
+}
 </script>
 
 <template>
@@ -237,6 +295,61 @@ watch(() => props.project.id, loadDesignData)
       </div>
     </template>
   </SmartTable>
+
+  <section v-if="designActivities.length > 0" class="mt-6 flex flex-col gap-3">
+    <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.checklistTitle') }}</h3>
+    <div
+      v-for="activity in designActivities"
+      :key="activity.id"
+      class="rounded-xl border border-border-light bg-bg-card"
+    >
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        @click="toggleActivityChecklist(activity.id as string)"
+      >
+        <span class="flex items-center gap-2 text-sm font-medium text-text-primary">
+          <ChevronDown v-if="expandedActivityIds.has(activity.id as string)" class="h-4 w-4 shrink-0 text-text-muted" />
+          <ChevronRight v-else class="h-4 w-4 shrink-0 text-text-muted" />
+          {{ activity.activityName }}
+        </span>
+        <span class="text-xs text-text-muted">{{ activity.status }}</span>
+      </button>
+
+      <div v-if="expandedActivityIds.has(activity.id as string)" class="border-t border-border-light px-4 py-3">
+        <SkeletonLoader v-if="checklistLoadingIds.has(activity.id as string)" :rows="2" />
+        <ErrorState
+          v-else-if="checklistErrorByActivity[activity.id as string]"
+          :description="checklistErrorByActivity[activity.id as string]"
+          @retry="loadChecklist(activity.id as string)"
+        />
+        <p
+          v-else-if="(checklistByActivity[activity.id as string]?.length ?? 0) === 0"
+          class="text-sm text-text-muted"
+        >
+          {{ t('project.documentsTab.checklistEmpty') }}
+        </p>
+        <div v-else class="flex flex-col gap-2">
+          <div
+            v-for="item in checklistByActivity[activity.id as string]"
+            :key="item.id"
+            class="flex flex-col gap-0.5"
+          >
+            <Checkbox
+              :model-value="item.fulfilled"
+              :label="item.requirementName"
+              :hint="item.requirementDescription ?? undefined"
+              :disabled="savingLinkId === item.id"
+              @update:model-value="(value) => toggleChecklistItem(activity.id as string, item, Boolean(value))"
+            />
+            <p v-if="item.fulfilled && item.fulfilledByName" class="pl-7 text-xs text-text-muted">
+              {{ t('project.documentsTab.checklistFulfilledBy', { name: item.fulfilledByName, date: item.fulfilledAt ? formatDateTime(item.fulfilledAt) : '' }) }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <DesignDocumentDialog
     v-model="isDesignDialogOpen"

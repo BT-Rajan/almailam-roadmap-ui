@@ -8,6 +8,7 @@ from app.core.exceptions import ValidationAppError
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
 from app.schemas.common import PagedResponse
+from app.schemas.document_requirement import ChecklistItemOut, SetChecklistItemRequest
 from app.schemas.project import (
     AddServicesInput,
     CloseDesignActivityRequest,
@@ -28,7 +29,7 @@ from app.schemas.project import (
     StageEligibilityOut,
 )
 from app.schemas.timeline import TimelineEventCreate, TimelineEventOut, TimelineEventUpdate
-from app.services import project_service, timeline_service
+from app.services import document_requirement_service, project_service, timeline_service
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -239,6 +240,90 @@ def set_supervision_status(
         db, project_no, activity_id, payload.status, current_user.id, payload.overrideNoDocument,
     )
     return SelectedSupervisionActivityOut.from_model(activity)
+
+
+# --- handover document checklist (#4/#5) -- one GET/PUT pair per track,
+# sharing the two helpers below rather than repeating the combine-and-
+# format logic three times (same reasoning as project_service's own
+# _maybe_auto_close_stage_activity/_set_stage_activity_status_directly).
+
+def _checklist_out(db: Session, project, target_type: str, selected_row) -> list[ChecklistItemOut]:
+    links = document_requirement_service.list_links_for_selected_item(db, target_type, selected_row)
+    if not links:
+        return []
+    fulfillments = document_requirement_service.list_fulfillments_for_project(db, project.id)
+    out: list[ChecklistItemOut] = []
+    for link in links:
+        requirement = document_requirement_service.get_requirement(db, str(link.document_requirement_id))
+        fulfillment = fulfillments.get(link.id)
+        fulfilled_by_name = (
+            project_service.engineer_name(db, fulfillment.fulfilled_by)
+            if fulfillment and fulfillment.fulfilled_by
+            else None
+        )
+        out.append(ChecklistItemOut.from_model(link, requirement, fulfillment, fulfilled_by_name))
+    return out
+
+
+def _set_checklist_item(
+    db: Session, project, target_type: str, selected_row, link_id: int, payload: SetChecklistItemRequest, user_id: int,
+) -> list[ChecklistItemOut]:
+    document_id = int(payload.documentId) if payload.fulfilled and payload.documentId else None
+    document_requirement_service.set_fulfillment(db, project, link_id, payload.fulfilled, document_id, user_id)
+    return _checklist_out(db, project, target_type, selected_row)
+
+
+@router.get("/{project_no}/design-activities/{activity_id}/checklist", response_model=list[ChecklistItemOut])
+def get_design_checklist(project_no: str, activity_id: int, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    activity = project_service.get_selected_activity(db, project.id, activity_id)
+    return _checklist_out(db, project, "Design", activity)
+
+
+@router.put("/{project_no}/design-activities/{activity_id}/checklist/{link_id}", response_model=list[ChecklistItemOut])
+def set_design_checklist_item(
+    project_no: str, activity_id: int, link_id: int, payload: SetChecklistItemRequest,
+    db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    project = project_service.get_project(db, project_no)
+    activity = project_service.get_selected_activity(db, project.id, activity_id)
+    return _set_checklist_item(db, project, "Design", activity, link_id, payload, current_user.id)
+
+
+@router.get("/{project_no}/permits/{permit_id}/checklist", response_model=list[ChecklistItemOut])
+def get_permit_checklist(project_no: str, permit_id: int, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    permit = project_service.get_selected_permit(db, project.id, permit_id)
+    return _checklist_out(db, project, "Permit", permit)
+
+
+@router.put("/{project_no}/permits/{permit_id}/checklist/{link_id}", response_model=list[ChecklistItemOut])
+def set_permit_checklist_item(
+    project_no: str, permit_id: int, link_id: int, payload: SetChecklistItemRequest,
+    db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    project = project_service.get_project(db, project_no)
+    permit = project_service.get_selected_permit(db, project.id, permit_id)
+    return _set_checklist_item(db, project, "Permit", permit, link_id, payload, current_user.id)
+
+
+@router.get("/{project_no}/supervision-activities/{activity_id}/checklist", response_model=list[ChecklistItemOut])
+def get_supervision_checklist(project_no: str, activity_id: int, db: Session = Depends(get_db), _=Depends(can_view)):
+    project = project_service.get_project(db, project_no)
+    activity = project_service.get_selected_supervision_activity(db, project.id, activity_id)
+    return _checklist_out(db, project, "Supervision", activity)
+
+
+@router.put(
+    "/{project_no}/supervision-activities/{activity_id}/checklist/{link_id}", response_model=list[ChecklistItemOut]
+)
+def set_supervision_checklist_item(
+    project_no: str, activity_id: int, link_id: int, payload: SetChecklistItemRequest,
+    db: Session = Depends(get_db), current_user: User = Depends(can_edit),
+):
+    project = project_service.get_project(db, project_no)
+    activity = project_service.get_selected_supervision_activity(db, project.id, activity_id)
+    return _set_checklist_item(db, project, "Supervision", activity, link_id, payload, current_user.id)
 
 
 @router.patch("/{project_no}/status", response_model=ProjectOut)

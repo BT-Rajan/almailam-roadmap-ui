@@ -31,7 +31,7 @@ from app.models.project import (
 from app.models.quotation import Quotation
 from app.models.task import Task
 from app.models.user import User
-from app.services import audit_service, client_service, company_service, document_service, email_service, email_template_service, notification_service, payment_service, permit_catalog_service, timeline_service, user_service
+from app.services import audit_service, client_service, company_service, document_requirement_service, document_service, email_service, email_template_service, notification_service, payment_service, permit_catalog_service, timeline_service, user_service
 from app.services.number_series_service import next_number, next_task_number
 from app.services.project_service._shared import ENTITY_TYPE, logger
 
@@ -302,6 +302,9 @@ def close_design_activity(
     if new_status == "Complete":
         _assert_design_tasks_complete(db, activity.id)
         _assert_completion_evidence(db, project, override_no_document)
+        document_requirement_service.assert_checklist_fulfilled(
+            db, project, "Design", activity, override_no_document
+        )
     _set_design_activity_status(db, activity, new_status, user_id, auto=False)
     db.flush()
     try_auto_advance_stage(db, project, user_id)
@@ -442,9 +445,12 @@ def _set_stage_activity_status_directly(
     _recompute_supervision_eligibility). Design has no equivalent of
     this -- see close_design_activity/reopen_design_activity, which gate
     Complete on linked tasks instead of letting the user set it freely."""
+    activity = get_activity(db, project.id, activity_id)
     if new_status == "Complete":
         _assert_completion_evidence(db, project, override_no_document)
-    activity = get_activity(db, project.id, activity_id)
+        document_requirement_service.assert_checklist_fulfilled(
+            db, project, stage_type, activity, override_no_document
+        )
     previous = activity.status
     activity.status = new_status
     if new_status in ("Complete", "Cancelled"):
@@ -913,6 +919,32 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
 # move is allowed; PROJECT_STAGE_ALLOWED_TRANSITIONS already guarantees
 # only one stage can be "previous_stage" for any given new_stage, so the
 # target alone is enough to know which check applies.
+def _checklist_problem_for_track(db: Session, project: Project, target_type: str, label: str, items: list) -> str | None:
+    """One "every X's handover document checklist complete" problem
+    string for _assert_stage_exit_criteria's Handover branch below --
+    covers every currently-Complete item in this track (Cancelled items
+    have nothing to hand over, same exclusion _generate_handover_checklist
+    makes, so they're skipped here too). Separate from each track's own
+    "every X closed" check right next to this call: an item can be
+    Complete with its checklist still unchecked -- closed before this
+    gate existed, or before a requirement was added to the catalog
+    afterwards -- so "closed" and "checklist satisfied" are two
+    different facts, both required, same as previous_stage == 'Contract'
+    needing a signed contract *and* every task closed above."""
+    outstanding: dict[str, list[str]] = {}
+    for item in items:
+        if item.status != "Complete":
+            continue
+        missing = document_requirement_service.list_outstanding_checklist_items(db, project, target_type, item)
+        if missing:
+            name = getattr(item, "activity_name", None) or getattr(item, "permit_name", None)
+            outstanding[name] = missing
+    if not outstanding:
+        return None
+    details = "; ".join(f"{name}: {', '.join(missing)}" for name, missing in outstanding.items())
+    return f"every {label}'s handover document checklist complete ({details})"
+
+
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
     """See docs/PROJECT_WORKFLOW_MAP for the source diagram (migration
     0089). Requirement -> Quotation -> Payment Plan -> Contract is a
@@ -1093,6 +1125,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"every Design activity closed ({len(unfinished_activities)} still open: "
                     f"{', '.join(a.activity_name for a in unfinished_activities)})"
                 )
+            design_checklist_problem = _checklist_problem_for_track(
+                db, project, "Design", "Design activity", get_selected_activities(db, project.id)
+            )
+            if design_checklist_problem:
+                problems.append(design_checklist_problem)
         if includes_government_submission:
             # Symmetric with Design/Supervision just below/above --
             # every selected Permit's own status (Complete/Cancelled) is
@@ -1115,6 +1152,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"every Permit closed ({len(unfinished_permits)} still open: "
                     f"{', '.join(p.permit_name for p in unfinished_permits)})"
                 )
+            permit_checklist_problem = _checklist_problem_for_track(
+                db, project, "Permit", "Permit", get_selected_permits(db, project.id)
+            )
+            if permit_checklist_problem:
+                problems.append(permit_checklist_problem)
         if includes_supervision:
             unfinished_supervision = [
                 a for a in get_selected_supervision_activities(db, project.id) if a.status not in ("Complete", "Cancelled")
@@ -1124,6 +1166,11 @@ def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: s
                     f"every Supervision activity closed ({len(unfinished_supervision)} still open: "
                     f"{', '.join(a.activity_name for a in unfinished_supervision)})"
                 )
+            supervision_checklist_problem = _checklist_problem_for_track(
+                db, project, "Supervision", "Supervision activity", get_selected_supervision_activities(db, project.id)
+            )
+            if supervision_checklist_problem:
+                problems.append(supervision_checklist_problem)
         # An activity/permit can be force-closed by a human even while a
         # task under it (or a generic, unlinked one) is still open, so
         # this is a separate check, not implied by the ones above:
