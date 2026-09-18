@@ -309,6 +309,14 @@ function selectedClientName(): string {
   return projectStore.clients.find((client) => client.id === form.clientId)?.companyName ?? 'Not selected'
 }
 
+// Read-only -- the account manager comes from the client's own record
+// (set during client onboarding / Edit Client), not chosen per project.
+// Shown so staff can see who owns the relationship while assigning a
+// Field Engineer, without implying it can be changed here.
+const selectedClientAccountManager = computed(
+  () => projectStore.clients.find((client) => client.id === form.clientId)?.accountManagerName ?? t('client.unassigned'),
+)
+
 function selectedEngineerName(): string {
   return userStore.users.find((user) => user.id === form.engineer)?.name ?? 'Not selected'
 }
@@ -477,6 +485,9 @@ function goToCreatedProject(): void {
               </p>
             </div>
             <div>
+              <TextInput :model-value="selectedClientAccountManager" :label="t('project.newWizard.accountManager')" disabled />
+            </div>
+            <div>
               <SelectBox
                 v-model="form.engineer"
                 :label="t('project.newWizard.fieldEngineer')"
@@ -553,6 +564,10 @@ function goToCreatedProject(): void {
             <div class="tablet:col-span-2">
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.scopeOfWork') }}</p>
               <p class="whitespace-pre-line text-sm text-text-primary">{{ scopeText || t('project.newWizard.notEntered') }}</p>
+            </div>
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.accountManager') }}</p>
+              <p class="text-sm text-text-primary">{{ selectedClientAccountManager }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.fieldEngineer') }}</p>
