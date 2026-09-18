@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from '@lucide/vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -20,6 +21,8 @@ defineProps<{
 const form = defineModel<ClientWizardForm>({ required: true })
 
 const { t } = useI18n()
+
+const isIndividual = computed(() => form.value.clientType === 'Individual')
 
 function addContact(): void {
   form.value.contacts.push({
@@ -87,7 +90,7 @@ function handleContactTypeChange(index: number, type: string): void {
 
     <FormSection :title="t('client.contactAddressStep.addressTitle')" :description="t('client.contactAddressStep.addressDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-        <SelectBox v-model="form.address.addressType" :label="t('client.contactAddressStep.addressType')" required :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
+        <SelectBox v-if="!isIndividual" v-model="form.address.addressType" :label="t('client.contactAddressStep.addressType')" required :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
         <TextInput v-model="form.address.country" :label="t('client.contactAddressStep.country')" required :error="addressErrors.country" />
         <TextInput v-model="form.address.state" :label="t('client.contactAddressStep.state')" required :error="addressErrors.state" />
         <TextInput v-model="form.address.city" :label="t('client.contactAddressStep.city')" required :error="addressErrors.city" />

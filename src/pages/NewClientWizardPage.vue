@@ -437,12 +437,10 @@ function goToCreatedClient(): void {
 
     <BaseDialog :model-value="showConfirmation" :title="t('client.newWizard.clientSubmittedTitle')" size="sm" :closable="false">
       <p class="text-sm text-text-secondary">
-        <strong>{{ createdClient ? getClientDisplayName(createdClient) : '' }}</strong>
-        {{ t('client.newWizard.clientSubmittedMessagePart1') }}
-        <strong>{{ createdClient?.code }}</strong>.
+        {{ t('client.newWizard.clientSubmittedMessage', { name: createdClient ? getClientDisplayName(createdClient) : '' }) }}
       </p>
       <p class="mt-2 text-sm text-text-secondary">
-        {{ t('client.newWizard.clientReadyNotice') }}
+        {{ t('client.newWizard.clientIdNotice', { code: createdClient?.code ?? '' }) }}
       </p>
 
       <template #footer>

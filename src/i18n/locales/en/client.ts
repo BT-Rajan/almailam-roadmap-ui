@@ -189,7 +189,6 @@ export default {
 
   basicInfoStep: {
     clientTypeTitle: 'Client Type',
-    clientTypeDescription: 'Select the type of client being onboarded.',
     personalInformation: 'Personal Information',
     organisationInformation: 'Organisation Information',
     contactDetails: 'Contact Details',
@@ -227,7 +226,7 @@ export default {
     authorisedToggle: "Authorised to Act on Client's Behalf",
     addContact: 'Add Contact',
     addressTitle: 'Address',
-    addressDescription: "Add this client's address.",
+    addressDescription: "Add the Client's Address.",
     addressType: 'Address Type',
     country: 'Country',
     state: 'Governorate / State',
@@ -320,8 +319,8 @@ export default {
     startFresh: 'Start Fresh',
     resumeDraft: 'Resume Draft',
     clientSubmittedTitle: 'Client Submitted',
-    clientSubmittedMessagePart1: 'was successfully created as client',
-    clientReadyNotice: 'The client is Ready and can now be selected on a project. Their Client Portal login has been emailed to them.',
+    clientSubmittedMessage: 'New Client M/s {name} Created Successfully',
+    clientIdNotice: 'Please Note down Client Id {code} for future use.',
     viewClientWorkspace: 'View Client Workspace',
     failedToOnboardClient: 'Failed to onboard client',
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',

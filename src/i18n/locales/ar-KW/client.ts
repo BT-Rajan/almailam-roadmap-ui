@@ -190,7 +190,6 @@ export default {
 
   basicInfoStep: {
     clientTypeTitle: 'نوع العميل',
-    clientTypeDescription: 'حدد نوع العميل الجاري تهيئته.',
     personalInformation: 'المعلومات الشخصية',
     organisationInformation: 'معلومات الجهة',
     contactDetails: 'بيانات الاتصال',
@@ -228,7 +227,7 @@ export default {
     authorisedToggle: 'مفوض للتصرف نيابة عن العميل',
     addContact: 'إضافة جهة اتصال',
     addressTitle: 'العنوان',
-    addressDescription: 'أضف عنوان هذا العميل.',
+    addressDescription: 'أضف عنوان العميل.',
     addressType: 'نوع العنوان',
     country: 'الدولة',
     state: 'المحافظة',
@@ -321,8 +320,8 @@ export default {
     startFresh: 'البدء من جديد',
     resumeDraft: 'استئناف المسودة',
     clientSubmittedTitle: 'تم إرسال العميل',
-    clientSubmittedMessagePart1: 'تم إنشاؤه بنجاح كعميل',
-    clientReadyNotice: 'حالة العميل الآن "جاهز" ويمكن اختياره في مشروع. تم إرسال بيانات دخول بوابة العميل إليه عبر البريد الإلكتروني.',
+    clientSubmittedMessage: 'تم إنشاء العميل الجديد م/ {name} بنجاح',
+    clientIdNotice: 'يرجى تدوين رقم العميل {code} للاستخدام مستقبلاً.',
     viewClientWorkspace: 'عرض مساحة عمل العميل',
     failedToOnboardClient: 'فشلت تهيئة العميل',
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',

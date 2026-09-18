@@ -55,7 +55,7 @@ const languageOptions = computed<SelectOption[]>(() => [
 
 <template>
   <div class="flex flex-col gap-6">
-    <FormSection :title="t('client.basicInfoStep.clientTypeTitle')" :description="t('client.basicInfoStep.clientTypeDescription')">
+    <FormSection :title="t('client.basicInfoStep.clientTypeTitle')">
       <RadioGroup v-model="form.clientType" :options="CLIENT_TYPE_OPTIONS_FOR_ONBOARDING" :vertical="false" />
     </FormSection>
 
@@ -94,16 +94,16 @@ const languageOptions = computed<SelectOption[]>(() => [
           :error="errors.mobile"
         />
         <TextInput v-model="form.email" :label="t('client.basicInfoStep.emailAddress')" type="email" required :error="errors.email" />
-        <SelectBox
-          v-model="form.communicationPreference.preferredLanguage"
-          :label="t('client.basicInfoStep.preferredLanguage')"
-          :options="languageOptions"
-        />
       </div>
     </FormSection>
 
     <FormSection :title="t('client.basicInfoStep.assignment')" :description="t('client.basicInfoStep.assignmentDescription')">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+        <SelectBox
+          v-model="form.communicationPreference.preferredLanguage"
+          :label="t('client.basicInfoStep.preferredLanguage')"
+          :options="languageOptions"
+        />
         <div>
           <SelectBox v-model="form.accountManagerId" :label="t('client.basicInfoStep.accountManager')" required :options="accountManagerOptions" :error="errors.accountManagerId" />
           <!-- The account manager list is required to complete this step
