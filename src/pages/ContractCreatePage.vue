@@ -244,7 +244,7 @@ async function handleSubmit(): Promise<void> {
       {{ t('project.newContractDialog.backToContract') }}
     </BaseButton>
 
-    <div v-if="isLoading" class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
     </div>
 
@@ -262,7 +262,7 @@ async function handleSubmit(): Promise<void> {
       :description="t('project.contractTab.noEligibleQuotationDescriptionLong')"
     />
 
-    <div v-else class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-else class="rounded-xl border border-border-light bg-bg-card p-5">
       <h1 class="mb-4 text-lg font-semibold text-text-primary">{{ t('project.newContractDialog.title') }}</h1>
 
       <div class="flex flex-col gap-5">

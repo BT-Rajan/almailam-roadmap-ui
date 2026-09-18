@@ -17,12 +17,14 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { useScheduledReportStore } from '@/stores/scheduledReportStore'
 import { useToastStore } from '@/stores/toastStore'
 import { todayIso } from '@/utils/dateFormatter'
+import { validators } from '@/utils/validators'
 import type { ScheduledReportFrequency, ScheduledReportInput, ScheduledReportPeriod, ScheduledReportType } from '@/types/ScheduledReport'
 import type { SelectOption } from '@/types/Ui'
 
@@ -125,7 +127,32 @@ function blankForm(): ScheduledReportInput {
 }
 
 const form = ref<ScheduledReportInput>(blankForm())
-const errorMessage = ref('')
+
+const isRecurring = computed(() => form.value.frequency !== 'once')
+
+const { errors, setRules, validateAll } = useFormValidation()
+
+setRules({
+  name: [validators.required(t('administration.scheduledReportsPage.nameRequired'))],
+  recipients: [() => form.value.recipients.length > 0 || t('administration.scheduledReportsPage.recipientsHint')],
+  sendTime: [() => !isRecurring.value || Boolean(form.value.sendTime) || t('administration.scheduledReportsPage.sendTimeRequired')],
+  startDate: [() => !isRecurring.value || Boolean(form.value.startDate) || t('administration.scheduledReportsPage.startDateRequired')],
+})
+
+// Same "highlight empty mandatory fields immediately" behaviour as the
+// Client/Project wizards -- `errors` isn't only populated after a
+// failed submit, so Name/Recipients/Send Time/Start Date are already
+// flagged red the moment the page opens (once seeded below), before
+// anything is typed or clicked.
+function revalidate(): void {
+  validateAll({
+    name: form.value.name,
+    recipients: form.value.recipients,
+    sendTime: form.value.sendTime,
+    startDate: form.value.startDate,
+  })
+}
+watch(form, revalidate, { deep: true })
 
 // Seeds once loading finishes (from the existing schedule when editing,
 // blank otherwise) -- guarded so a later reactive update to
@@ -158,20 +185,15 @@ watch(
       form.value = blankForm()
     }
     isFormSeeded.value = true
+    revalidate()
   },
   { immediate: true },
 )
 
-const isRecurring = computed(() => form.value.frequency !== 'once')
-
 const isSaving = ref(false)
 
 async function handleSubmit(): Promise<void> {
-  errorMessage.value = ''
-  if (form.value.recipients.length === 0) {
-    errorMessage.value = t('administration.scheduledReportsPage.recipientsHint')
-    return
-  }
+  if (!validateAll({ name: form.value.name, recipients: form.value.recipients, sendTime: form.value.sendTime, startDate: form.value.startDate })) return
 
   const payload: ScheduledReportInput = {
     ...form.value,
@@ -208,7 +230,7 @@ async function handleSubmit(): Promise<void> {
       {{ t('administration.scheduledReportsPage.backToSchedules') }}
     </BaseButton>
 
-    <div v-if="isLoading" class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
     </div>
 
@@ -218,18 +240,16 @@ async function handleSubmit(): Promise<void> {
       :description="t('administration.scheduledReportsPage.scheduleNotFoundDescription')"
     />
 
-    <div v-else class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-else class="rounded-xl border border-border-light bg-bg-card p-5">
       <h1 class="mb-4 text-lg font-semibold text-text-primary">
         {{ isCreateMode ? t('administration.scheduledReportsPage.createDialogTitle') : t('administration.scheduledReportsPage.editDialogTitle') }}
       </h1>
 
       <div class="flex flex-col gap-6">
-        <p v-if="errorMessage" class="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{{ errorMessage }}</p>
-
         <FormSection :title="t('administration.scheduledReportsPage.sectionBasics')">
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <div class="tablet:col-span-2">
-              <TextInput v-model="form.name" :label="t('administration.scheduledReportsPage.name')" :placeholder="t('administration.scheduledReportsPage.namePlaceholder')" required />
+              <TextInput v-model="form.name" :label="t('administration.scheduledReportsPage.name')" :placeholder="t('administration.scheduledReportsPage.namePlaceholder')" required :error="errors.name" />
             </div>
             <SelectBox
               :model-value="form.reportType"
@@ -265,6 +285,7 @@ async function handleSubmit(): Promise<void> {
                 :placeholder="t('administration.scheduledReportsPage.recipientsPlaceholder')"
                 :max="MAX_RECIPIENTS"
                 required
+                :error="errors.recipients"
                 @update:model-value="(value) => (form.recipients = value)"
               />
             </div>
@@ -312,6 +333,7 @@ async function handleSubmit(): Promise<void> {
                 :model-value="form.sendTime ?? ''"
                 :label="t('administration.scheduledReportsPage.sendTimeLabel')"
                 required
+                :error="errors.sendTime"
                 @update:model-value="(value) => (form.sendTime = value)"
               />
               <SelectBox
@@ -333,6 +355,7 @@ async function handleSubmit(): Promise<void> {
                 :model-value="form.startDate ?? ''"
                 :label="t('administration.scheduledReportsPage.startDate')"
                 required
+                :error="errors.startDate"
                 @update:model-value="(value) => (form.startDate = value)"
               />
               <DatePicker

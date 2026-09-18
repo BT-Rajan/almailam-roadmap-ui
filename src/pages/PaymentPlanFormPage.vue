@@ -328,7 +328,7 @@ async function handleSubmit(): Promise<void> {
       {{ t('payment.agreementFormDialog.backToPaymentPlan') }}
     </BaseButton>
 
-    <div v-if="isLoading" class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
     </div>
 
@@ -338,7 +338,7 @@ async function handleSubmit(): Promise<void> {
       :description="t('payment.agreementFormDialog.planNotFoundDescription')"
     />
 
-    <div v-else class="max-w-3xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-else class="rounded-xl border border-border-light bg-bg-card p-5">
       <h1 class="mb-4 text-lg font-semibold text-text-primary">
         {{ isEditMode ? t('payment.agreementFormDialog.editTitle') : t('payment.agreementFormDialog.createTitle') }}
       </h1>

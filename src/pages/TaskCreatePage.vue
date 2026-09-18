@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -9,6 +9,7 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
@@ -18,6 +19,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
+import { validators } from '@/utils/validators'
 
 // Replaces TaskFormDialog.vue's modal -- a dedicated route (/tasks/new)
 // like NewProjectWizardPage/NewClientWizardPage, instead of a popup.
@@ -57,33 +59,52 @@ onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
   if (clientStore.clients.length === 0) clientStore.loadClients()
   if (taskStore.projects.length === 0) taskStore.loadTasks()
-  title.value = queryTitle.value ?? ''
-  projectId.value = queryProjectId.value ?? ''
-  assignedTo.value = authStore.user?.id ?? ''
+  form.title = queryTitle.value ?? ''
+  form.projectId = queryProjectId.value ?? ''
+  form.assignedTo = authStore.user?.id ?? ''
 })
 
-const title = ref('')
-const projectId = ref('')
-// A real user id (e.g. "USR-004"), not a display name -- the backend
-// resolves assignedTo to a real user server-side (task_service.py's
-// _resolve_assignee), so sending anything else fails validation
-// outright.
-const assignedTo = ref('')
-const priority = ref<TaskPriority>('Medium')
-const severity = ref<TaskSeverity>('Minor')
-const startDate = ref('')
-const dueDate = ref('')
-const dueTime = ref('17:00')
-// Optional -- links this task to one of the chosen project's own
-// Design activities, so closing every task linked to it can auto-close
-// the activity (see project_service.maybe_auto_close_design_activity).
-const selectedActivityId = ref('')
-const titleError = ref<string>()
-const projectError = ref<string>()
-const assignedToError = ref<string>()
-const dueDateError = ref<string>()
-const startDateError = ref<string>()
+const form = reactive({
+  title: '',
+  projectId: '',
+  // A real user id (e.g. "USR-004"), not a display name -- the backend
+  // resolves assignedTo to a real user server-side (task_service.py's
+  // _resolve_assignee), so sending anything else fails validation
+  // outright.
+  assignedTo: '',
+  priority: 'Medium' as TaskPriority,
+  severity: 'Minor' as TaskSeverity,
+  startDate: '',
+  dueDate: '',
+  dueTime: '17:00',
+  // Optional -- links this task to one of the chosen project's own
+  // Design activities, so closing every task linked to it can auto-close
+  // the activity (see project_service.maybe_auto_close_design_activity).
+  selectedActivityId: '',
+})
 const isSubmitting = ref(false)
+
+const { errors, setRules, validateAll } = useFormValidation()
+
+setRules({
+  title: [validators.required(t('task.formDialog.titleRequired'))],
+  projectId: [validators.required(t('task.formDialog.projectRequired'))],
+  assignedTo: [validators.required(t('task.formDialog.assigneeRequired'))],
+  dueDate: [validators.required(t('task.formDialog.dueDateRequired'))],
+  startDate: [
+    () => !form.startDate || !form.dueDate || form.startDate <= form.dueDate || t('task.formDialog.startDateAfterDueDate'),
+  ],
+})
+
+// Same "highlight empty mandatory fields immediately" behaviour as the
+// Client/Project wizards (see NewClientWizardPage.vue's basicInfoErrors/
+// etc) -- `errors` isn't only populated after a failed "Create Task"
+// click, so Title/Project/Assign To/Completion Date are already flagged
+// red the moment the page opens, before anything is typed or clicked.
+function revalidate(): void {
+  validateAll(form)
+}
+watch(form, revalidate, { deep: true, immediate: true })
 
 const availableProjects = computed(() => {
   if (isProjectLocked.value) {
@@ -96,7 +117,7 @@ const projectOptions = computed<SelectOption[]>(() =>
   availableProjects.value.map((project) => ({ label: project.projectName, value: project.id })),
 )
 
-const selectedProject = computed(() => taskStore.projects.find((project) => project.id === projectId.value))
+const selectedProject = computed(() => taskStore.projects.find((project) => project.id === form.projectId))
 
 const designActivityOptions = computed<SelectOption[]>(() =>
   (selectedProject.value?.selectedActivities ?? [])
@@ -109,7 +130,7 @@ const designActivityOptions = computed<SelectOption[]>(() =>
 // as a project is picked makes that tagging visible to whoever is
 // creating the task, rather than leaving the client implicit.
 const selectedClientName = computed<string | undefined>(() => {
-  const project = taskStore.projects.find((item) => item.id === projectId.value)
+  const project = taskStore.projects.find((item) => item.id === form.projectId)
   if (!project) return undefined
   return clientStore.getClientById(project.clientId)?.companyName ?? t('task.formDialog.unknownClient')
 })
@@ -132,27 +153,21 @@ function goBack(): void {
 }
 
 async function submitTask(): Promise<void> {
-  titleError.value = title.value.trim().length === 0 ? t('task.formDialog.titleRequired') : undefined
-  projectError.value = projectId.value.length === 0 ? t('task.formDialog.projectRequired') : undefined
-  assignedToError.value = assignedTo.value.length === 0 ? t('task.formDialog.assigneeRequired') : undefined
-  dueDateError.value = dueDate.value.length === 0 ? t('task.formDialog.dueDateRequired') : undefined
-  startDateError.value =
-    startDate.value && dueDate.value && startDate.value > dueDate.value ? t('task.formDialog.startDateAfterDueDate') : undefined
-  if (titleError.value || projectError.value || assignedToError.value || dueDateError.value || startDateError.value) return
+  if (!validateAll(form)) return
 
   isSubmitting.value = true
   try {
     const task = await taskStore.createTask({
-      projectId: projectId.value,
-      title: title.value.trim(),
-      assignedTo: assignedTo.value,
-      priority: priority.value,
-      severity: severity.value,
-      startDate: startDate.value || undefined,
-      dueDate: dueDate.value,
-      dueTime: dueTime.value,
+      projectId: form.projectId,
+      title: form.title.trim(),
+      assignedTo: form.assignedTo,
+      priority: form.priority,
+      severity: form.severity,
+      startDate: form.startDate || undefined,
+      dueDate: form.dueDate,
+      dueTime: form.dueTime,
       status: 'Pending',
-      selectedActivityId: selectedActivityId.value || undefined,
+      selectedActivityId: form.selectedActivityId || undefined,
     })
     toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
     router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: task.id } })
@@ -171,51 +186,54 @@ async function submitTask(): Promise<void> {
       {{ isProjectLocked ? t('task.workspace.backToProject') : t('task.workspace.backToTasks') }}
     </BaseButton>
 
-    <div class="max-w-2xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div class="rounded-xl border border-border-light bg-bg-card p-5">
       <h1 class="mb-4 text-lg font-semibold text-text-primary">{{ t('task.formDialog.title') }}</h1>
 
       <div class="flex flex-col gap-4">
         <TextInput
-          v-model="title"
+          v-model="form.title"
           :label="t('task.formDialog.taskTitle')"
           :placeholder="t('task.formDialog.taskTitlePlaceholder')"
           required
-          :error="titleError"
+          :error="errors.title"
         />
 
-        <SelectBox
-          v-model="projectId"
-          :label="t('task.formDialog.project')"
-          :placeholder="t('task.formDialog.projectPlaceholder')"
-          :options="projectOptions"
-          required
-          :disabled="isProjectLocked"
-          :error="projectError"
-        />
-        <p v-if="selectedClientName" class="-mt-2 text-xs text-text-muted">{{ t('task.formDialog.client', { name: selectedClientName }) }}</p>
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <div>
+            <SelectBox
+              v-model="form.projectId"
+              :label="t('task.formDialog.project')"
+              :placeholder="t('task.formDialog.projectPlaceholder')"
+              :options="projectOptions"
+              required
+              :disabled="isProjectLocked"
+              :error="errors.projectId"
+            />
+            <p v-if="selectedClientName" class="mt-1.5 text-xs text-text-muted">{{ t('task.formDialog.client', { name: selectedClientName }) }}</p>
+          </div>
+
+          <SelectBox
+            :model-value="form.assignedTo"
+            :label="t('task.formDialog.assignTo')"
+            :options="assigneeOptions"
+            required
+            :error="errors.assignedTo"
+            @update:model-value="form.assignedTo = $event"
+          />
+        </div>
 
         <SelectBox
           v-if="designActivityOptions.length > 0"
-          v-model="selectedActivityId"
+          v-model="form.selectedActivityId"
           :label="t('task.formDialog.designActivity')"
           :placeholder="t('task.formDialog.designActivityPlaceholder')"
           :options="designActivityOptions"
         />
 
-        <SelectBox
-          :model-value="assignedTo"
-          :label="t('task.formDialog.assignTo')"
-          :options="assigneeOptions"
-          required
-          :error="assignedToError"
-          @update:model-value="assignedTo = $event"
-        />
-
-        <DatePicker v-model="startDate" :label="t('task.formDialog.startDate')" :max="dueDate || undefined" :error="startDateError" />
-
-        <div class="grid grid-cols-2 gap-4">
-          <DatePicker v-model="dueDate" :label="t('task.formDialog.completionDate')" required :min="startDate || undefined" :error="dueDateError" />
-          <TimePicker v-model="dueTime" :label="t('task.formDialog.completionTime')" required />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+          <DatePicker v-model="form.startDate" :label="t('task.formDialog.startDate')" :max="form.dueDate || undefined" :error="errors.startDate" />
+          <DatePicker v-model="form.dueDate" :label="t('task.formDialog.completionDate')" required :min="form.startDate || undefined" :error="errors.dueDate" />
+          <TimePicker v-model="form.dueTime" :label="t('task.formDialog.completionTime')" required />
         </div>
       </div>
 

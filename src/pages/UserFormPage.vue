@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -12,6 +12,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import PasswordResetDialog from '@/components/administration/PasswordResetDialog.vue'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
@@ -85,16 +86,33 @@ function goBack(): void {
 // profile being viewed is your own).
 const isSelf = computed(() => Boolean(existingUser.value) && existingUser.value?.id === authStore.user?.id)
 
-const name = ref('')
-const salutation = ref<UserSalutation | ''>('')
-const designation = ref('')
-const email = ref('')
-const mobile = ref('')
-const role = ref<UserRole | ''>('')
+const form = reactive({
+  name: '',
+  salutation: '' as UserSalutation | '',
+  designation: '',
+  email: '',
+  mobile: '',
+  role: '' as UserRole | '',
+})
 const isActive = ref(true)
-const nameError = ref<string>()
-const emailError = ref<string>()
-const roleError = ref<string>()
+
+const { errors, setRules, validateAll } = useFormValidation()
+
+setRules({
+  name: [validators.required(t('administration.userDialog.nameRequired'))],
+  email: [validators.required(t('administration.userDialog.emailRequired')), validators.email(t('administration.userDialog.emailInvalid'))],
+  role: [validators.required(t('administration.userDialog.roleRequired'))],
+})
+
+// Same "highlight empty mandatory fields immediately" behaviour as the
+// Client/Project wizards and TaskCreatePage -- `errors` isn't only
+// populated after a failed submit, so Name/Email/Role are already
+// flagged red the moment the page opens (once seeded below), before
+// anything is typed or clicked.
+function revalidate(): void {
+  validateAll(form)
+}
+watch(form, revalidate, { deep: true })
 
 // Seeds once loading finishes (from the existing user when editing,
 // blank otherwise) -- guarded so a later reactive update to
@@ -104,14 +122,15 @@ watch(
   () => [isLoading.value, existingUser.value] as const,
   ([loading, user]) => {
     if (loading || isFormSeeded.value) return
-    name.value = user?.name ?? ''
-    salutation.value = user?.salutation ?? ''
-    designation.value = user?.designation ?? ''
-    email.value = user?.email ?? ''
-    mobile.value = user?.mobile ?? ''
-    role.value = user?.role ?? ''
+    form.name = user?.name ?? ''
+    form.salutation = user?.salutation ?? ''
+    form.designation = user?.designation ?? ''
+    form.email = user?.email ?? ''
+    form.mobile = user?.mobile ?? ''
+    form.role = user?.role ?? ''
     isActive.value = user ? user.status === 'Active' : true
     isFormSeeded.value = true
+    revalidate()
   },
   { immediate: true },
 )
@@ -127,32 +146,18 @@ const createdPassword = ref('')
 const createdUserName = ref('')
 
 async function submitForm(): Promise<void> {
-  nameError.value = name.value.trim().length === 0 ? t('administration.userDialog.nameRequired') : undefined
+  if (!validateAll(form)) return
 
-  const trimmedEmail = email.value.trim()
-  if (trimmedEmail.length === 0) {
-    emailError.value = t('administration.userDialog.emailRequired')
-  } else {
-    // Reuses the same shared email-format check as everywhere else in
-    // the app (validators.ts) instead of a separate, slightly different
-    // regex.
-    const check = validators.email(t('administration.userDialog.emailInvalid'))(trimmedEmail)
-    emailError.value = check === true ? undefined : check
-  }
-
-  roleError.value = role.value === '' ? t('administration.userDialog.roleRequired') : undefined
-
-  if (nameError.value || emailError.value || roleError.value) return
-
+  const trimmedEmail = form.email.trim()
   const user: AppUser = {
     id: existingUser.value?.id ?? `USR-${uuid().slice(0, 6).toUpperCase()}`,
-    name: name.value.trim(),
-    salutation: salutation.value || undefined,
-    designation: designation.value.trim(),
+    name: form.name.trim(),
+    salutation: form.salutation || undefined,
+    designation: form.designation.trim(),
     email: trimmedEmail,
-    mobile: mobile.value.trim(),
-    role: role.value as UserRole,
-    avatar: initialsFor(name.value.trim()),
+    mobile: form.mobile.trim(),
+    role: form.role as UserRole,
+    avatar: initialsFor(form.name.trim()),
     status: isActive.value ? 'Active' : 'Inactive',
   }
 
@@ -196,7 +201,7 @@ function handlePasswordDialogClosed(open: boolean): void {
       {{ t('administration.userManagementPage.backToUsers') }}
     </BaseButton>
 
-    <div v-if="isLoading" class="max-w-2xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="7" />
     </div>
 
@@ -206,58 +211,67 @@ function handlePasswordDialogClosed(open: boolean): void {
       :description="t('administration.userManagementPage.userNotFoundDescription')"
     />
 
-    <div v-else class="max-w-2xl rounded-xl border border-border-light bg-bg-card p-5">
+    <div v-else class="rounded-xl border border-border-light bg-bg-card p-5">
       <h1 class="mb-4 text-lg font-semibold text-text-primary">
         {{ existingUser ? t('administration.userDialog.editTitle') : t('administration.userDialog.addTitle') }}
       </h1>
 
       <div class="flex flex-col gap-4">
-        <TextInput
-          v-model="name"
-          :label="t('administration.userDialog.fullName')"
-          :placeholder="t('administration.userDialog.fullNamePlaceholder')"
-          required
-          :error="nameError"
-        />
-        <SelectBox
-          :model-value="salutation"
-          :label="t('administration.userDialog.salutation')"
-          :placeholder="t('administration.userDialog.salutationPlaceholder')"
-          :options="SALUTATION_OPTIONS"
-          @update:model-value="salutation = ($event || '') as UserSalutation | ''"
-        />
-        <TextInput
-          v-model="designation"
-          :label="t('administration.userDialog.designation')"
-          :placeholder="t('administration.userDialog.designationPlaceholder')"
-        />
-        <TextInput
-          v-model="email"
-          type="email"
-          :label="t('administration.userDialog.email')"
-          :placeholder="t('administration.userDialog.emailPlaceholder')"
-          required
-          :error="emailError"
-        />
-        <TextInput
-          v-model="mobile"
-          type="tel"
-          :label="t('administration.userDialog.mobile')"
-          :placeholder="t('administration.userDialog.mobilePlaceholder')"
-        />
-        <div>
-          <SelectBox
-            :model-value="role"
-            :label="t('administration.userDialog.role')"
-            :placeholder="t('administration.userDialog.rolePlaceholder')"
-            :options="ROLE_OPTIONS"
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <TextInput
+            v-model="form.name"
+            :label="t('administration.userDialog.fullName')"
+            :placeholder="t('administration.userDialog.fullNamePlaceholder')"
             required
-            :disabled="isSelf"
-            :error="roleError"
-            @update:model-value="role = $event as UserRole"
+            :error="errors.name"
           />
-          <p v-if="isSelf" class="mt-1.5 text-xs text-text-muted">{{ t('administration.userDialog.cannotChangeOwnRole') }}</p>
+          <SelectBox
+            :model-value="form.salutation"
+            :label="t('administration.userDialog.salutation')"
+            :placeholder="t('administration.userDialog.salutationPlaceholder')"
+            :options="SALUTATION_OPTIONS"
+            @update:model-value="form.salutation = ($event || '') as UserSalutation | ''"
+          />
         </div>
+
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <TextInput
+            v-model="form.designation"
+            :label="t('administration.userDialog.designation')"
+            :placeholder="t('administration.userDialog.designationPlaceholder')"
+          />
+          <TextInput
+            v-model="form.email"
+            type="email"
+            :label="t('administration.userDialog.email')"
+            :placeholder="t('administration.userDialog.emailPlaceholder')"
+            required
+            :error="errors.email"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <TextInput
+            v-model="form.mobile"
+            type="tel"
+            :label="t('administration.userDialog.mobile')"
+            :placeholder="t('administration.userDialog.mobilePlaceholder')"
+          />
+          <div>
+            <SelectBox
+              :model-value="form.role"
+              :label="t('administration.userDialog.role')"
+              :placeholder="t('administration.userDialog.rolePlaceholder')"
+              :options="ROLE_OPTIONS"
+              required
+              :disabled="isSelf"
+              :error="errors.role"
+              @update:model-value="form.role = $event as UserRole"
+            />
+            <p v-if="isSelf" class="mt-1.5 text-xs text-text-muted">{{ t('administration.userDialog.cannotChangeOwnRole') }}</p>
+          </div>
+        </div>
+
         <ToggleSwitch
           v-model="isActive"
           :label="t('administration.userDialog.active')"
