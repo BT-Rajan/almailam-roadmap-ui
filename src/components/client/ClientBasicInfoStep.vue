@@ -76,10 +76,8 @@ const languageOptions = computed<SelectOption[]>(() => [
         <TextInput v-model="form.organisationProfile.tradeName" :label="t('client.basicInfoStep.tradeName')" />
         <TextInput v-model="form.organisationProfile.organisationType" :label="t('client.basicInfoStep.organisationType')" required :error="errors.organisationType" />
         <TextInput v-model="form.organisationProfile.registrationNumber" :label="t('client.basicInfoStep.registrationNumber')" required :error="errors.registrationNumber" />
-        <TextInput v-model="form.organisationProfile.tradeLicenceNumber" :label="t('client.basicInfoStep.tradeLicenceNumber')" />
         <TextInput v-model="form.organisationProfile.countryOfRegistration" :label="t('client.basicInfoStep.countryOfRegistration')" required :error="errors.countryOfRegistration" />
         <DatePicker v-model="form.organisationProfile.dateOfIncorporation" :label="t('client.basicInfoStep.dateOfIncorporation')" required :max="maxDate" :error="errors.dateOfIncorporation" />
-        <TextInput v-model="form.organisationProfile.website" :label="t('client.basicInfoStep.website')" placeholder="example.com" :error="errors.website" />
       </div>
     </FormSection>
 

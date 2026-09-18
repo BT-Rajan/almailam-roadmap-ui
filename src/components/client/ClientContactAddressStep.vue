@@ -23,6 +23,9 @@ const form = defineModel<ClientWizardForm>({ required: true })
 const { t } = useI18n()
 
 const isIndividual = computed(() => form.value.clientType === 'Individual')
+const addressDescription = computed(() =>
+  isIndividual.value ? t('client.contactAddressStep.addressDescription') : t('client.contactAddressStep.addressDescriptionOrganisation'),
+)
 
 function addContact(): void {
   form.value.contacts.push({
@@ -88,7 +91,7 @@ function handleContactTypeChange(index: number, type: string): void {
       </div>
     </FormSection>
 
-    <FormSection :title="t('client.contactAddressStep.addressTitle')" :description="t('client.contactAddressStep.addressDescription')">
+    <FormSection :title="t('client.contactAddressStep.addressTitle')" :description="addressDescription">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox v-if="!isIndividual" v-model="form.address.addressType" :label="t('client.contactAddressStep.addressType')" required :options="CLIENT_ADDRESS_TYPE_OPTIONS" />
         <TextInput v-model="form.address.country" :label="t('client.contactAddressStep.country')" required :error="addressErrors.country" />

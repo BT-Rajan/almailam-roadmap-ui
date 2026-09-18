@@ -97,7 +97,11 @@ export function createEmptyClientWizardForm(): ClientWizardForm {
       registrationNumber: '',
       tradeLicenceNumber: '',
       taxIdentificationNumber: '',
-      countryOfRegistration: '',
+      // Almailam only onboards Kuwait-registered organisations -- prefilled
+      // so staff aren't re-typing the same value on every onboarding, but
+      // (unlike individualProfile.countryOfResidence above) the field stays
+      // visible in the wizard in case a client is registered elsewhere.
+      countryOfRegistration: 'Kuwait',
       dateOfIncorporation: '',
       website: '',
     },

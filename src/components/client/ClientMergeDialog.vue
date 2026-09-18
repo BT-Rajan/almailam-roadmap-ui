@@ -101,7 +101,7 @@ function handleOptionKeydown(event: KeyboardEvent): void {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="closeDialog">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton variant="secondary" @click="closeDialog">{{ t('client.mergeDialog.override') }}</BaseButton>
       <BaseButton variant="danger" :icon="ArrowLeftRight" :loading="loading" @click="emit('confirm', direction)">
         {{ t('client.mergeDialog.mergeClients') }}
       </BaseButton>

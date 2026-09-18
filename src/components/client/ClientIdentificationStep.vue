@@ -33,6 +33,10 @@ const isEntityClient = computed(() => form.value.clientType !== 'Individual' && 
 const identificationDescription = computed(() =>
   isEntityClient.value ? t('client.identificationStep.entityDescription') : t('client.identificationStep.individualDescription'),
 )
+const isOrganisation = computed(() => form.value.clientType !== 'Individual')
+const documentNumberLabel = computed(() =>
+  isOrganisation.value ? t('client.identificationStep.registrationNumber') : t('client.identificationStep.documentNumber'),
+)
 
 // If the client type changes (e.g. Individual -> Company) after a document
 // type was already picked, drop it back to a valid choice for the new type
@@ -92,7 +96,7 @@ function handleUploaderError(message: string): void {
     <FormSection :title="t('client.identificationStep.title')" :description="identificationDescription">
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox v-model="form.identification.documentType" :label="t('client.identificationStep.documentType')" required :options="identificationTypeOptions" />
-        <TextInput v-model="form.identification.documentNumber" :label="t('client.identificationStep.documentNumber')" required :error="errors.documentNumber" />
+        <TextInput v-model="form.identification.documentNumber" :label="documentNumberLabel" required :error="errors.documentNumber" />
         <DatePicker v-model="form.identification.issueDate" :label="t('client.identificationStep.issueDate')" required :max="maxDate" :error="errors.issueDate" />
         <DatePicker v-model="form.identification.expiryDate" :label="t('client.identificationStep.expiryDate')" required :min="maxDate" :error="errors.expiryDate" />
       </div>

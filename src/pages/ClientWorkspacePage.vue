@@ -522,7 +522,7 @@ function createProjectForClient(): void {
           :description="t('client.workspacePage.duplicateDescription', { fields: match.matchedOn.join(', '), name: getClientDisplayName(match.client), code: match.client.code })"
         >
           <template #action>
-            <BaseButton size="sm" variant="secondary" @click="openMergeDialog(match)">{{ t('client.workspacePage.reviewAndMerge') }}</BaseButton>
+            <BaseButton size="sm" variant="secondary" @click="openMergeDialog(match)">{{ t('client.workspacePage.review') }}</BaseButton>
           </template>
         </Alert>
       </div>
