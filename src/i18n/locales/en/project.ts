@@ -588,9 +588,9 @@ export default {
 
   newQuotationDialog: {
     title: 'New Quotation',
-    backToQuotation: 'Back to Quotation',
     client: 'Client',
     project: 'Project',
+    quotationDate: 'Quotation Date',
     validUntil: 'Valid Until',
     lineItems: 'Services',
     addLineItem: 'Add Service',

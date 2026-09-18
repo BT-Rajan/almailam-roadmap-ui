@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from '@lucide/vue'
+import { Plus, Trash2 } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -12,14 +12,14 @@ import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { QuotationLineItemInput } from '@/services/quotationService'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate, todayIso } from '@/utils/dateFormatter'
@@ -39,12 +39,10 @@ const QUOTATION_CURRENCY = 'KWD'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const resultDialogStore = useResultDialogStore()
 
-const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 const projectId = computed(() => route.params.projectId as string)
 
 const isLoading = ref(true)
@@ -73,6 +71,15 @@ function goBack(): void {
     return
   }
   router.push({ name: ROUTE_NAMES.PROJECTS })
+}
+
+// The stepper (replacing the old plain "Back to Quotation" link) lets
+// staff jump to any stage of the project from here, the same way
+// WorkflowProgress's own click always does on the project workspace
+// itself -- not just back to Quotation.
+function navigateToTab(tab: ProjectWorkspaceTabKey): void {
+  if (!project.value) return
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.value.id }, query: { tab } })
 }
 
 interface DraftLineItem {
@@ -223,9 +230,19 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <BaseButton variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
-      {{ t('project.newQuotationDialog.backToQuotation') }}
-    </BaseButton>
+    <WorkflowProgress
+      v-if="project"
+      class="no-print"
+      :current-stage="project.currentStage"
+      :project-status="project.status"
+      :includes-design="project.includesDesign"
+      :includes-government-submission="project.includesGovernmentSubmission"
+      :includes-supervision="project.includesSupervision"
+      :selected-activities="project.selectedActivities"
+      :selected-permits="project.selectedPermits"
+      :selected-supervision-activities="project.selectedSupervisionActivities"
+      @navigate-tab="navigateToTab"
+    />
 
     <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
@@ -248,7 +265,10 @@ async function handleSubmit(): Promise<void> {
           <TextInput :model-value="`${project.projectName} (${project.projectNo})`" :label="t('project.newQuotationDialog.project')" disabled />
         </div>
 
-        <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :min="todayIso()" :error="errors.validity" />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <TextInput :model-value="formatDate(todayIso())" :label="t('project.newQuotationDialog.quotationDate')" disabled />
+          <DatePicker v-model="form.validity" :label="t('project.newQuotationDialog.validUntil')" required :min="todayIso()" :error="errors.validity" />
+        </div>
 
         <div class="flex flex-col gap-3">
           <div class="flex items-center justify-between">
@@ -318,23 +338,16 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
 
-        <div v-if="supervisionActivities.length > 0" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-secondary p-3">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
-          <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
-          <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
-            <span class="text-text-secondary">{{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }})</span>
-            <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, QUOTATION_CURRENCY) }}/mo</span>
-          </div>
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <NumberInput
+            :model-value="form.discountAmount"
+            :label="t('project.newQuotationDialog.discountAmount')"
+            :min="0"
+            step="0.01"
+            :error="errors.discountAmount"
+            @update:model-value="form.discountAmount = Number($event)"
+          />
         </div>
-
-        <NumberInput
-          :model-value="form.discountAmount"
-          :label="t('project.newQuotationDialog.discountAmount')"
-          :min="0"
-          step="0.01"
-          :error="errors.discountAmount"
-          @update:model-value="form.discountAmount = Number($event)"
-        />
 
         <Divider />
 
@@ -351,6 +364,15 @@ async function handleSubmit(): Promise<void> {
           <div class="flex items-center justify-between">
             <span class="text-sm font-semibold text-text-primary">{{ t('project.newQuotationDialog.total') }}</span>
             <span class="text-lg font-semibold text-primary-700">{{ formatCurrency(total, QUOTATION_CURRENCY) }}</span>
+          </div>
+        </div>
+
+        <div v-if="supervisionActivities.length > 0" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-secondary p-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
+          <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
+          <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
+            <span class="text-text-secondary">{{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }})</span>
+            <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, QUOTATION_CURRENCY) }}/mo</span>
           </div>
         </div>
       </div>

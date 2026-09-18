@@ -588,9 +588,9 @@ export default {
 
   newQuotationDialog: {
     title: 'عرض سعر جديد',
-    backToQuotation: 'العودة إلى عرض السعر',
     client: 'العميل',
     project: 'المشروع',
+    quotationDate: 'تاريخ عرض السعر',
     validUntil: 'صالح حتى',
     lineItems: 'الخدمات',
     addLineItem: 'إضافة خدمة',
