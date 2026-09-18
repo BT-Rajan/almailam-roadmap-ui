@@ -18,7 +18,7 @@ import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import type { ReportSection as ReportSectionData } from '@/types/Report'
 import type { BadgeVariant } from '@/types/Ui'
-import { formatDate } from '@/utils/dateFormatter'
+import { formatDate, formatDateTime } from '@/utils/dateFormatter'
 import { getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const route = useRoute()
@@ -26,13 +26,7 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const { t } = useI18n()
 
-const reportDate = new Date().toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
+const reportDate = formatDateTime(new Date().toISOString())
 
 const isLoading = ref(true)
 const error = ref<string | undefined>(undefined)

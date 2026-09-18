@@ -12,18 +12,13 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { reportService } from '@/services/reportService'
+import { formatDateTime } from '@/utils/dateFormatter'
 import type { ChartDataPoint, LineChartData, ReportMetric } from '@/types/Report'
 
 const router = useRouter()
 const { t } = useI18n()
 
-const reportDate = new Date().toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
+const reportDate = formatDateTime(new Date().toISOString())
 
 const isLoading = ref(true)
 const error = ref<string | undefined>(undefined)

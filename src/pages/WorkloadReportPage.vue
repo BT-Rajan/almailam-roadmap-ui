@@ -14,6 +14,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { DEFAULT_CHART_COLOR, STATUS_CHART_COLORS } from '@/constants/chartColors'
 import { reportService } from '@/services/reportService'
+import { formatDateTime } from '@/utils/dateFormatter'
 import type { ChartDataPoint, TeamWorkload, TeamWorkloadMember } from '@/types/Report'
 
 const router = useRouter()
@@ -26,13 +27,7 @@ const { t } = useI18n()
 // this too (see that constant's own comment for why it exists at all).
 const TASKS_AT_FULL_CAPACITY = 8
 
-const reportDate = new Date().toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
+const reportDate = formatDateTime(new Date().toISOString())
 
 const isLoading = ref(false)
 const loadError = ref('')

@@ -22,7 +22,7 @@ import type { QuotationLineItemInput } from '@/services/quotationService'
 import type { Project } from '@/types/Project'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { todayIso } from '@/utils/dateFormatter'
+import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 // Replaces NewQuotationDialog.vue's modal -- a dedicated route
@@ -322,7 +322,7 @@ async function handleSubmit(): Promise<void> {
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
           <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
           <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
-            <span class="text-text-secondary">{{ activity.activityName }} ({{ activity.startDate }} – {{ activity.endDate }})</span>
+            <span class="text-text-secondary">{{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }})</span>
             <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, QUOTATION_CURRENCY) }}/mo</span>
           </div>
         </div>

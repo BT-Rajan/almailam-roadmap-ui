@@ -30,9 +30,15 @@ export function currentMonthRange(): { start: string; end: string } {
   return { start: `${yearMonth}-01`, end: `${yearMonth}-${String(lastDay).padStart(2, '0')}` }
 }
 
+// Everywhere a date is shown as text (not typed into a native date
+// input, which follows the browser/OS locale on its own -- see
+// DatePicker.vue), it must read as DD-MM-YYYY. en-GB's 2-digit/2-digit/
+// numeric order is already day/month/year; swapping its "/" separator
+// for "-" gets the exact DD-MM-YYYY string without hand-rolling
+// zero-padding or a separate timezone-handling path for every caller.
 const DISPLAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: '2-digit',
-  month: 'short',
+  month: '2-digit',
   year: 'numeric',
 }
 
@@ -43,8 +49,8 @@ const DISPLAY_FORMAT_WITH_TIME: Intl.DateTimeFormatOptions = {
 }
 
 const SHORT_DATE_FORMAT: Intl.DateTimeFormatOptions = {
-  day: 'numeric',
-  month: 'short',
+  day: '2-digit',
+  month: '2-digit',
 }
 
 const TIME_FORMAT: Intl.DateTimeFormatOptions = {
@@ -56,27 +62,27 @@ const TIME_FORMAT: Intl.DateTimeFormatOptions = {
 export function formatDate(isoDate: string): string {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) return isoDate
-  return date.toLocaleDateString('en-GB', DISPLAY_FORMAT)
+  return date.toLocaleDateString('en-GB', DISPLAY_FORMAT).replace(/\//g, '-')
 }
 
 export function formatDateTime(isoDateTime: string): string {
   const date = new Date(isoDateTime)
   if (Number.isNaN(date.getTime())) return isoDateTime
-  return date.toLocaleString('en-GB', DISPLAY_FORMAT_WITH_TIME)
+  return date.toLocaleString('en-GB', DISPLAY_FORMAT_WITH_TIME).replace(/\//g, '-')
 }
 
-/** Compact "5 Jan" style, for widgets too narrow for the full year (dashboard cards, due-date chips). */
+/** Compact "05-01" style (day-month, no year), for widgets too narrow for the full year (dashboard cards, due-date chips). */
 export function formatShortDate(isoDate: string): string {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) return isoDate
-  return date.toLocaleDateString('en-GB', SHORT_DATE_FORMAT)
+  return date.toLocaleDateString('en-GB', SHORT_DATE_FORMAT).replace(/\//g, '-')
 }
 
-/** "5 Jan, 14:30" -- the formatShortDate() style with a time appended. */
+/** "05-01, 14:30" -- the formatShortDate() style with a time appended. */
 export function formatShortDateTime(isoDateTime: string): string {
   const date = new Date(isoDateTime)
   if (Number.isNaN(date.getTime())) return isoDateTime
-  return date.toLocaleString('en-GB', { ...SHORT_DATE_FORMAT, ...TIME_FORMAT })
+  return date.toLocaleString('en-GB', { ...SHORT_DATE_FORMAT, ...TIME_FORMAT }).replace(/\//g, '-')
 }
 
 /** 24-hour "14:30", from an already-parsed Date (e.g. a calendar grid cell). */
