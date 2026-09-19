@@ -17,6 +17,7 @@ import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
+import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -24,7 +25,7 @@ import type { ContractClauseInput } from '@/services/contractService'
 import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import type { SelectOption } from '@/types/Ui'
-import { todayIso } from '@/utils/dateFormatter'
+import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 // Replaces NewContractDialog.vue's modal -- a dedicated route
@@ -40,6 +41,7 @@ const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
+const paymentStore = usePaymentStore()
 const resultDialogStore = useResultDialogStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
@@ -61,6 +63,9 @@ async function loadData(): Promise<void> {
   await Promise.all([
     quotationStore.loadQuotationsForProject(projectId.value),
     contractStore.loadContractsForProject(projectId.value),
+    // The approved payment plan(s) come first in the workflow and the
+    // contract has to fit them -- see lastInstallmentDate below.
+    paymentStore.agreements.length === 0 ? paymentStore.loadAll() : Promise.resolve(),
   ])
   isLoading.value = false
 }
@@ -77,6 +82,28 @@ const eligibleQuotation = computed<Quotation | undefined>(() => {
     ? quotationStore.quotations.find((quotation) => quotation.id === queryQuotationId.value)
     : (quotationStore.selectedQuotation ?? quotationStore.latestQuotation)
   return candidate && candidate.status === 'Approved' && candidate.finalizedAt ? candidate : undefined
+})
+
+// The latest due date across this project's payment plan(s), Design and
+// Supervision. Payment Plan is approved *before* a contract exists, so
+// the plan is the fixed input here and the contract's expiry date is
+// what has to fit it -- mirrors contract_service._assert_agreement_
+// obligations_within_completion_date (the API is the real boundary),
+// surfaced here so staff see it before submitting rather than after.
+const lastInstallmentDate = computed<string | undefined>(() => {
+  const dueDates = (['Design', 'Supervision'] as const).flatMap((stream) => {
+    const agreement = paymentStore.getAgreementByProject(projectId.value, stream)
+    return agreement ? paymentStore.obligationsForAgreement(agreement.id).map((obligation) => obligation.dueDate) : []
+  })
+  return dueDates.length > 0 ? dueDates.reduce((latest, date) => (date > latest ? date : latest)) : undefined
+})
+
+// Earliest expiry date that's both in the future and on/after the last
+// installment.
+const minExpiryDate = computed(() => {
+  const today = todayIso()
+  const last = lastInstallmentDate.value
+  return last && last > today ? last : today
 })
 
 // Once any contract for this project has ever been signed, its terms
@@ -154,7 +181,15 @@ setRules({
         amount: eligibleQuotation.value.amount,
       }),
   ],
-  expiryDate: [validators.required('Expiry date is required'), validators.notPastDate('Expiry date cannot be in the past')],
+  expiryDate: [
+    validators.required('Expiry date is required'),
+    validators.notPastDate('Expiry date cannot be in the past'),
+    () =>
+      !form.expiryDate ||
+      !lastInstallmentDate.value ||
+      form.expiryDate >= lastInstallmentDate.value ||
+      t('project.newContractDialog.expiryBeforeLastInstallment', { date: formatDate(lastInstallmentDate.value) }),
+  ],
   clientRepresentative: [validators.required("Client representative's name is required")],
   scopeSummary: [validators.required('Scope summary is required')],
 })
@@ -176,6 +211,9 @@ watch(
     form.contractValue = quotation?.amount ?? proj?.serviceTotal ?? 0
     form.scopeSummary = quotation ? scopeSummaryFromQuotation(quotation) : scopeSummaryFromProject(proj)
     if (quotation) form.currency = quotation.currency
+    // Starts on the earliest date that fits the approved payment plan
+    // (its last installment) -- still freely changeable to a later one.
+    if (lastInstallmentDate.value && lastInstallmentDate.value >= todayIso()) form.expiryDate = lastInstallmentDate.value
     isFormSeeded.value = true
     revalidate()
   },
@@ -282,7 +320,14 @@ async function handleSubmit(): Promise<void> {
             :error="errors.contractValue"
             @update:model-value="form.contractValue = Number($event)"
           />
-          <DatePicker v-model="form.expiryDate" :label="t('project.newContractDialog.expiryDate')" required :min="todayIso()" :error="errors.expiryDate" />
+          <DatePicker
+            v-model="form.expiryDate"
+            :label="t('project.newContractDialog.expiryDate')"
+            required
+            :min="minExpiryDate"
+            :hint="lastInstallmentDate ? t('project.newContractDialog.expiryHint', { date: formatDate(lastInstallmentDate) }) : undefined"
+            :error="errors.expiryDate"
+          />
         </div>
 
         <TextInput

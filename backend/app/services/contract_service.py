@@ -5,6 +5,7 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.display_format import format_display_date
 from app.core.file_storage import assert_pdf_upload
 from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
@@ -34,19 +35,51 @@ def _project_by_no(db: Session, project_no: str) -> Project:
 _STREAM_DISPLAY_LABELS = {"Design": "Design & Permit", "Supervision": "Supervision"}
 
 
+def _assert_payment_plans_approved(db: Session, project: Project) -> None:
+    """A contract is only ever created once the project's payment plan(s)
+    exist and are Approved -- Design & Permit and/or Supervision, whichever
+    this project's scope actually includes (the same rule
+    project_service._assert_stage_exit_criteria applies to leave Payment
+    Plan for Contract, repeated here because the API is the real
+    boundary). The contract is built on top of the approved plan, not the
+    other way round: its expiry date has to follow the plan's dates (see
+    _assert_agreement_obligations_within_completion_date below), so a
+    contract with no approved plan behind it has nothing to be checked
+    against and shouldn't exist yet."""
+    includes_design, _, includes_supervision = project_service.compute_stage_flags(
+        project_service.get_selected_activities(db, project.id),
+        project_service.get_selected_supervision_activities(db, project.id),
+        project_service.get_selected_permits(db, project.id),
+    )
+    problems: list[str] = []
+    for stream, included in (("Design", includes_design), ("Supervision", includes_supervision)):
+        if not included:
+            continue
+        label = _STREAM_DISPLAY_LABELS[stream]
+        agreement = payment_service.get_agreement_by_project(db, project.project_no, stream)
+        if agreement is None:
+            problems.append(f"a {label} payment plan created")
+        elif agreement.status != "Approved":
+            problems.append(f"the {label} payment plan approved")
+    if problems:
+        raise ValidationAppError(
+            f"A contract can't be created until this project has {' and '.join(problems)}. "
+            "Complete the Payment Plan stage first."
+        )
+
+
 def _assert_agreement_obligations_within_completion_date(db: Session, project_id: int, expiry_date: date) -> None:
     """The contract's expiry date is this project's Project Completion
-    Date. Neither stream's payment plan installments (already generated
-    -- normally already Approved, since Payment Plan precedes Contract,
-    see status_transitions.py) may run past it -- checked for both
+    Date, and it has to follow the (already approved) payment plans --
+    not the other way round: Payment Plan comes before Contract, an
+    Approved plan is terminal, so the plan's schedule is the fixed
+    input and the expiry date is what gets chosen to fit it. Neither
+    stream's installments may fall due after it -- checked for both
     Design and Supervision, not just Design (a Supervision plan's
     schedule comes from its own selected activities' start/end dates,
     entirely independent of the contract's completion date, so nothing
-    else would ever catch this for Supervision). Caught here, at the
-    moment the completion date is actually known, rather than silently
-    letting an installment fall due beyond it -- surfaced as a
-    payment-plan configuration issue the user resolves by picking a
-    later expiry date or editing the relevant payment plan."""
+    else would ever catch this for Supervision). The fix is always to
+    pick a later expiry date, never to edit the plan."""
     for stream, label in _STREAM_DISPLAY_LABELS.items():
         agreement = (
             db.query(FinancialAgreement)
@@ -62,9 +95,9 @@ def _assert_agreement_obligations_within_completion_date(db: Session, project_id
         last_due_date = max(o.due_date for o in obligations)
         if last_due_date > expiry_date:
             raise ValidationAppError(
-                f"Payment plan configuration issue: the {label} payment plan's final installment is due "
-                f"{last_due_date.isoformat()}, after the contract's expiry date {expiry_date.isoformat()}. Choose a "
-                f"later expiry date, or edit the {label} payment plan so it ends on or before it."
+                f"The contract's expiry date ({format_display_date(expiry_date)}) is before the last installment of the "
+                f"{label} payment plan ({format_display_date(last_due_date)}). Set the expiry date on or after "
+                f"{format_display_date(last_due_date)}."
             )
 
 
@@ -242,6 +275,7 @@ def create_contract(db: Session, payload, user_id: int) -> Contract:
     project_service.assert_project_open_for_new_work(project)
     quotation = _approved_quotation(db, payload.quotationId, project)
     _assert_contract_value_matches_quotation(quotation, payload.contractValue, payload.currency)
+    _assert_payment_plans_approved(db, project)
     _assert_agreement_obligations_within_completion_date(db, project.id, payload.expiryDate)
     contract = Contract(
         contract_no=next_number(db, "CONTRACT"),

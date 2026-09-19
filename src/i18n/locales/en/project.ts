@@ -572,6 +572,8 @@ export default {
     contractValueMustBePositive: 'Contract value must be greater than 0.',
     contractValueMustMatchQuotation: 'Contract value must match quotation {number}\'s approved amount ({amount}).',
     expiryDate: 'Expiry Date',
+    expiryHint: 'Must be on or after {date}, the last installment of the approved payment plan.',
+    expiryBeforeLastInstallment: 'The expiry date can\'t be before the last payment plan installment ({date}).',
     clientRepresentative: 'Client Representative',
     clientRepresentativePlaceholder: 'Name of the person signing for the client',
     scopeSummary: 'Scope Summary',

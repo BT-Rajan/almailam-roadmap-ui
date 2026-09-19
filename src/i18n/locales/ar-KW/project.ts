@@ -572,6 +572,8 @@ export default {
     contractValueMustBePositive: 'يجب أن تكون قيمة العقد أكبر من 0.',
     contractValueMustMatchQuotation: 'يجب أن تطابق قيمة العقد المبلغ المعتمد في عرض السعر {number} ({amount}).',
     expiryDate: 'تاريخ الانتهاء',
+    expiryHint: 'يجب أن يكون في {date} أو بعده، وهو موعد آخر دفعة في خطة الدفع المعتمدة.',
+    expiryBeforeLastInstallment: 'لا يمكن أن يكون تاريخ الانتهاء قبل آخر دفعة في خطة الدفع ({date}).',
     clientRepresentative: 'ممثل العميل',
     clientRepresentativePlaceholder: 'اسم الشخص الموقّع نيابة عن العميل',
     scopeSummary: 'ملخص النطاق',
