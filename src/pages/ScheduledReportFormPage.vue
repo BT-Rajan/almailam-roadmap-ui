@@ -28,11 +28,10 @@ import { validators } from '@/utils/validators'
 import type { ScheduledReportFrequency, ScheduledReportInput, ScheduledReportPeriod, ScheduledReportType } from '@/types/ScheduledReport'
 import type { SelectOption } from '@/types/Ui'
 
-// Replaces ScheduledReportDialog.vue's modal -- a dedicated route
-// (/admin/scheduled-reports/:scheduleId), same treatment as
-// PaymentPlanFormPage.vue: one page decides create vs edit itself from
-// whether :scheduleId ('new', or a real id) resolves to an existing
-// schedule, rather than a caller-chosen mode prop.
+// Dedicated route (/admin/scheduled-reports/:scheduleId). The page
+// decides create vs edit from whether :scheduleId ('new', or a real
+// id) resolves to an existing schedule, rather than a caller-chosen
+// mode prop.
 
 // Every recipient beyond this is rejected by EmailListInput before it's
 // even added, and the backend's own ScheduledReportIn.recipients caps
@@ -139,11 +138,9 @@ setRules({
   startDate: [() => !isRecurring.value || Boolean(form.value.startDate) || t('administration.scheduledReportsPage.startDateRequired')],
 })
 
-// Same "highlight empty mandatory fields immediately" behaviour as the
-// Client/Project wizards -- `errors` isn't only populated after a
-// failed submit, so Name/Recipients/Send Time/Start Date are already
-// flagged red the moment the page opens (once seeded below), before
-// anything is typed or clicked.
+// `errors` is populated live, not only after a failed submit, so
+// Name/Recipients/Send Time/Start Date are flagged red as soon as the
+// page opens (once seeded below) if left empty.
 function revalidate(): void {
   validateAll({
     name: form.value.name,

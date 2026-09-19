@@ -25,15 +25,10 @@ import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
-// Replaces NewQuotationDialog.vue's modal -- a dedicated route
-// (/projects/:projectId/quotation/new), same treatment as
-// TaskCreatePage.vue/PaymentPlanFormPage.vue. Create only -- editing an
-// existing quotation stays inline on the Quotation tab
-// (QuotationPreview.vue's own @patch).
+// Dedicated route for creating a quotation. Editing an existing
+// quotation happens inline on the Quotation tab (QuotationPreview.vue).
 
-// The quotation always prices in the company's one operating currency --
-// there was never actually a need for staff to pick a different one per
-// quotation.
+// Quotations always price in the company's one operating currency.
 const QUOTATION_CURRENCY = 'KWD'
 
 const route = useRoute()
@@ -59,10 +54,7 @@ watch(projectId, loadData)
 const project = computed(() => projectStore.getProjectById(projectId.value))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
-// Only one quotation should ever be "in play" for a project at a time
-// -- a Draft still awaiting a decision or an already-Approved quotation
-// both block a second one from being created here (matches
-// ProjectQuotationTab.vue's own hasActiveQuotation).
+// A Draft or Approved quotation blocks creating a new one for this project.
 const hasActiveQuotation = computed(() =>
   quotationStore.quotations.some((quotation) => quotation.status === 'Draft' || quotation.status === 'Approved'),
 )
@@ -75,10 +67,7 @@ function goBack(): void {
   router.push({ name: ROUTE_NAMES.PROJECTS })
 }
 
-// The stepper (replacing the old plain "Back to Quotation" link) lets
-// staff jump to any stage of the project from here, the same way
-// WorkflowProgress's own click always does on the project workspace
-// itself -- not just back to Quotation.
+// Lets staff jump to any stage of the project, not just back to Quotation.
 function navigateToTab(tab: ProjectWorkspaceTabKey): void {
   if (!project.value) return
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.value.id }, query: { tab } })
@@ -88,11 +77,10 @@ interface DraftLineItem {
   description: string
   quantity: number
   unitPrice: number
-  // True for a row seeded from the project's own picked Design
-  // activities/Permits (see formFromProject below) -- its description
-  // and rate come from the scope the client already agreed to, so they
-  // render as fixed text rather than inputs. A row added via Add
-  // Service is free-text/free-rate instead.
+  // True for a row seeded from the project's picked Design activities
+  // or Permits: its description and rate render as fixed text since
+  // they reflect the agreed scope. A row added via Add Service is
+  // free-text/free-rate instead.
   fromScope: boolean
 }
 
@@ -108,19 +96,15 @@ function emptyForm() {
   }
 }
 
-// Turns the project's picked Design activities and Permits into draft
-// line items (one per item, quantity 1, unit price = the picked
-// fixedCost/permitPrice) -- these are what the quotation actually
-// prices, discounts, and totals. Falls back to emptyForm()'s single
-// blank row when the project has no picks yet.
+// Turns the project's picked Design activities and Permits into priced
+// draft line items (one per item, quantity 1, unit price = the picked
+// fixedCost/permitPrice). Falls back to emptyForm()'s single blank row
+// when the project has no picks yet.
 //
-// Selected Supervision activities are deliberately excluded from this
-// priced list: Supervision is billed monthly (via the Financial
-// Agreement's own prorated schedule once the project reaches Payment
-// Plan/Contract), not as a one-time fee, so summing a monthly rate
-// into this one-time total would silently inflate it by one month's
-// Supervision cost. Shown to the user as a separate, non-priced
-// reference section instead -- see supervisionActivities/the template.
+// Supervision activities are excluded: Supervision is billed monthly
+// via the Financial Agreement, not as a one-time fee, so it's shown
+// separately as a non-priced reference instead (see
+// supervisionActivities/the template).
 function formFromProject(project: Project | undefined) {
   const serviceLineItems = (project?.selectedActivities ?? []).map((item) => ({
     description: `${item.serviceName} - ${item.activityName}`,

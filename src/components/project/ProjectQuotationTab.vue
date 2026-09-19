@@ -43,13 +43,9 @@ const resultDialogStore = useResultDialogStore()
 const router = useRouter()
 const { t } = useI18n()
 
-// Only one quotation should ever be "in play" for a project at a time
-// -- a Draft still awaiting a decision or an already-Approved quotation
-// both count as active, so New Quotation stays disabled until that one
-// is Rejected or Expired. Matches isScopeLocked's own "an Approved
-// quotation exists" check on the Scope card in ProjectOverviewTab.vue,
-// just widened to cover Draft too since a second quotation would
-// otherwise compete with one that's still pending.
+// A Draft or Approved quotation counts as active, so New Quotation
+// stays disabled until it's Rejected or Expired -- matches
+// isScopeLocked's own check on the Scope card in ProjectOverviewTab.vue.
 const hasActiveQuotation = computed(() =>
   quotationStore.quotations.some((quotation) => quotation.status === 'Draft' || quotation.status === 'Approved'),
 )
@@ -81,9 +77,7 @@ const stopSeedingDocumentLanguage = watch(
 
 const isFinalizing = ref(false)
 
-// Sends straight to the dedicated New Quotation page (see
-// QuotationCreatePage.vue, which replaced NewQuotationDialog.vue's modal)
-// instead of opening a dialog here.
+// Sends straight to the dedicated New Quotation page instead of opening a dialog.
 function goToCreateQuotation(): void {
   router.push({ name: ROUTE_NAMES.QUOTATION_CREATE, params: { projectId: props.project.id } })
 }
@@ -132,15 +126,13 @@ async function handleDownloadDocument(): Promise<void> {
   }
 }
 
-// Print and Download used to be two separate buttons -- merged into one
-// trigger with a small menu underneath so the toolbar reads as "produce
-// a document, pick the format" instead of two competing top-level
-// actions. Same treatment for Approve/Reject/Expire below -- one
-// "Decision" trigger instead of three competing top-level buttons.
-// Plain click-toggle + outside-click/Escape close; this toolbar isn't
-// nested inside anything that clips or scrolls independently, so it
-// doesn't need the teleported-to-body positioning UserMenu.vue's own
-// dropdown needs for the top nav.
+// One "Print/Download" trigger with a menu underneath, and one
+// "Decision" trigger for Approve/Reject/Expire below, instead of
+// several competing top-level buttons. Plain click-toggle +
+// outside-click/Escape close; this toolbar isn't nested inside
+// anything that clips or scrolls independently, so it doesn't need
+// the teleported-to-body positioning UserMenu.vue's dropdown needs
+// for the top nav.
 const isDocumentMenuOpen = ref(false)
 const documentMenuRef = ref<HTMLElement>()
 const isDecisionMenuOpen = ref(false)
@@ -220,12 +212,9 @@ async function handleSendEmail(): Promise<void> {
   }
 }
 
-// A quotation has to be finalized (content locked) before it can be
-// sent for a decision -- previously a separate "Save as Final" button
-// the user finalized before deciding, this now happens transparently
-// as the first step of Approve/Reject/Expire instead, since there's no
-// longer a standalone finalize action in the UI. No-ops (and doesn't
-// re-finalize) if it already is.
+// A quotation is finalized (content locked) automatically as the first
+// step of Approve/Reject/Expire, before the decision itself is
+// recorded. No-ops (and doesn't re-finalize) if it already is.
 async function ensureFinalized(): Promise<boolean> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return false

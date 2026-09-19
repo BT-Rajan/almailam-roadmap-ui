@@ -23,11 +23,9 @@ import { validators } from '@/utils/validators'
 import type { AppUser, UserRole, UserSalutation } from '@/types/User'
 import type { SelectOption } from '@/types/Ui'
 
-// Replaces UserDialog.vue's modal -- a dedicated route
-// (/admin/users/:userId), same treatment as
-// ScheduledReportFormPage.vue/PaymentPlanFormPage.vue: the page decides
-// create vs edit itself from whether :userId ('new', or a real id)
-// resolves to an existing user, rather than a caller-chosen mode prop.
+// Dedicated route (/admin/users/:userId). The page decides create vs
+// edit from whether :userId ('new', or a real id) resolves to an
+// existing user, rather than a caller-chosen mode prop.
 
 const ROLE_OPTIONS: SelectOption[] = [
   { label: 'Administrator', value: 'Administrator', labelKey: 'administration.userRole.administrator' },
@@ -37,12 +35,11 @@ const ROLE_OPTIONS: SelectOption[] = [
   { label: 'Viewer', value: 'Viewer', labelKey: 'administration.userRole.viewer' },
 ]
 
-// Not required -- a user with no salutation set just keeps printing as
-// their bare name on generated documents (see backend migration 0097),
-// same as every user did before this field existed. The leading blank
-// option is real and selectable (not the SelectBox placeholder, which
-// is disabled once something else has been picked) so an admin can
-// explicitly clear a salutation back to "none" after setting one.
+// Not required -- a user with no salutation set just prints as their
+// bare name on generated documents. The leading blank option is real
+// and selectable (not the SelectBox placeholder, which is disabled
+// once something else has been picked) so an admin can explicitly
+// clear a salutation back to "none" after setting one.
 const SALUTATION_OPTIONS: SelectOption[] = [
   { label: 'Not specified', value: '', labelKey: 'administration.userDialog.salutationNone' },
   { label: 'Mr.', value: 'Mr.', labelKey: 'administration.userDialog.salutationMr' },
@@ -80,10 +77,7 @@ function goBack(): void {
 // The backend rejects changing your own role outright
 // (user_service.update_user: "You cannot change your own role.") --
 // disabling it here instead of letting someone pick a new role, submit,
-// and only then find out it did nothing, matching the same
-// self-protection treatment UserManagementPage.vue's own Delete/
-// Deactivate buttons already give (both hide themselves when the
-// profile being viewed is your own).
+// and only then find out it did nothing.
 const isSelf = computed(() => Boolean(existingUser.value) && existingUser.value?.id === authStore.user?.id)
 
 const form = reactive({
@@ -104,11 +98,9 @@ setRules({
   role: [validators.required(t('administration.userDialog.roleRequired'))],
 })
 
-// Same "highlight empty mandatory fields immediately" behaviour as the
-// Client/Project wizards and TaskCreatePage -- `errors` isn't only
-// populated after a failed submit, so Name/Email/Role are already
-// flagged red the moment the page opens (once seeded below), before
-// anything is typed or clicked.
+// `errors` is populated live, not only after a failed submit, so
+// Name/Email/Role are flagged red as soon as the page opens (once
+// seeded below) if left empty.
 function revalidate(): void {
   validateAll(form)
 }

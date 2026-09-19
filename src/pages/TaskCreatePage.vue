@@ -21,10 +21,8 @@ import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 import { validators } from '@/utils/validators'
 
-// Replaces TaskFormDialog.vue's modal -- a dedicated route (/tasks/new)
-// like NewProjectWizardPage/NewClientWizardPage, instead of a popup.
-// TasksPage, MyTasksPage, ProjectTasksTab, and ActivityCalendarPage all
-// navigate here now instead of opening a dialog.
+// Dedicated route (/tasks/new) for creating a task, used from TasksPage,
+// MyTasksPage, ProjectTasksTab, and ActivityCalendarPage.
 
 const route = useRoute()
 const router = useRouter()
@@ -96,11 +94,9 @@ setRules({
   ],
 })
 
-// Same "highlight empty mandatory fields immediately" behaviour as the
-// Client/Project wizards (see NewClientWizardPage.vue's basicInfoErrors/
-// etc) -- `errors` isn't only populated after a failed "Create Task"
-// click, so Title/Project/Assign To/Completion Date are already flagged
-// red the moment the page opens, before anything is typed or clicked.
+// `errors` is populated live, not only after a failed "Create Task"
+// click, so Title/Project/Assign To/Completion Date are flagged red as
+// soon as the page opens if left empty.
 function revalidate(): void {
   validateAll(form)
 }

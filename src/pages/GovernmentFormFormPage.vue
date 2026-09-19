@@ -24,11 +24,9 @@ import { useToastStore } from '@/stores/toastStore'
 import type { GovernmentFormCategory, GovernmentFormField, GovernmentFormLanguage } from '@/types/Government'
 import type { SelectOption } from '@/types/Ui'
 
-// Replaces GovernmentFormFormDialog.vue's modal -- a dedicated route
-// (/government/forms/:formId), same treatment as
-// ADMIN_USER_FORM/ADMIN_SCHEDULED_REPORT_FORM: ':formId' is 'new' or a
-// real id, and the page decides create vs edit itself from whether
-// that id resolves to an existing form.
+// Dedicated route (/government/forms/:formId). ':formId' is 'new' or a
+// real id, and the page decides create vs edit from whether that id
+// resolves to an existing form.
 
 const route = useRoute()
 const router = useRouter()

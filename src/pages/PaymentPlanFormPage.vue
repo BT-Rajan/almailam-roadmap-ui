@@ -30,11 +30,10 @@ import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
-// Replaces AgreementFormDialog.vue's modal -- a dedicated route
-// (/projects/:projectId/payment-plan/:stream), same treatment as
-// TaskCreatePage.vue replacing TaskFormDialog.vue. Create vs edit isn't
-// a caller-chosen mode here: it's simply whether this project's given
-// stream already has an agreement (usePaymentAgreements.agreementForStream).
+// Dedicated route (/projects/:projectId/payment-plan/:stream). Create
+// vs edit isn't a caller-chosen mode: it's simply whether this
+// project's given stream already has an agreement
+// (usePaymentAgreements.agreementForStream).
 
 const route = useRoute()
 const router = useRouter()
@@ -96,9 +95,7 @@ function goBack(): void {
   router.push({ name: ROUTE_NAMES.PROJECTS })
 }
 
-// The stepper (replacing the old plain "Back to Payment Plan" link) lets
-// staff jump to any stage of the project from here, same as
-// QuotationCreatePage.vue's own navigateToTab.
+// Lets staff jump to any stage of the project, not just back to Payment Plan.
 function navigateToTab(tab: ProjectWorkspaceTabKey): void {
   if (!project.value) return
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.value.id }, query: { tab } })
@@ -165,9 +162,8 @@ setRules({
 })
 
 const isSupervision = computed(() => stream.value === 'Supervision')
-// Design & Permit is always billed as installments now -- 1 installment
-// is exactly a single one-time payment, so there's no separate
-// "One-time" structure/toggle needed alongside this one.
+// Design & Permit is billed as installments; a single installment is a
+// one-time payment.
 const isMilestonePlan = computed(() => !isSupervision.value)
 
 // Supervision shows the very same Installments table as Design, but its
@@ -189,9 +185,9 @@ function seedForm(): void {
     contractAmount.value = existing.contractAmount
     currency.value = existing.currency
     agreementDate.value = existing.agreementDate
-    // Prefer the real quotationNo (from quotation_id, migration 0100)
-    // over the legacy free-text quotationReference -- only falls back
-    // to the latter for an agreement that predates quotation_id.
+    // Prefers the real quotationNo (from quotation_id) over the
+    // free-text quotationReference, falling back to the latter only
+    // when an agreement has no quotation_id.
     quotationReference.value = existing.quotationNo ?? existing.quotationReference ?? ''
     paymentMode.value = existing.paymentMode
     const rows = [...existingObligations.value].sort((a, b) => a.sequenceNumber - b.sequenceNumber)
@@ -217,9 +213,8 @@ function seedForm(): void {
   isFormSeeded.value = true
 }
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue -- flagged red from the moment the form is
-// shown instead of only after a failed submit.
+// Mandatory fields are flagged red from the moment the form is shown,
+// not only after a failed submit.
 function revalidate(): void {
   validateAll({
     agreementDate: agreementDate.value,
@@ -230,9 +225,8 @@ function revalidate(): void {
 
 // Same immediate-highlight treatment for the installment rows'
 // mandatory fields (Description/%/Due Date) as the top-level fields
-// above -- previously only checked on submit, so a blank Due Date
-// (the one field buildDefaultMilestones() doesn't pre-fill) stayed
-// unflagged until the first failed save.
+// above, including a blank Due Date -- the one field
+// buildDefaultMilestones() doesn't pre-fill.
 function revalidateMilestones(): void {
   if (!isMilestonePlan.value) return
   milestoneErrors.value = milestones.value.map((m) => {
@@ -309,9 +303,8 @@ async function handleSubmit(): Promise<void> {
         stream: stream.value,
         contractAmount: contractAmount.value,
         currency: currency.value,
-        // No separate Contract Start Date field in the UI any more --
-        // the contract is always treated as starting on the agreement
-        // date itself (still required by the backend for a Design
+        // The contract is treated as starting on the agreement date
+        // itself (still required by the backend for a Design
         // agreement, see payment_service._compute_contract_terms).
         contractStartDate: agreementDate.value,
         agreementDate: agreementDate.value,

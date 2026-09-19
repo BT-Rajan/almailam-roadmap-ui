@@ -35,9 +35,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-// Reference-only, exactly like QuotationCreatePage.vue's own
-// supervisionActivities -- Supervision is billed monthly via the
-// Financial Agreement, not folded into this one-time quotation total.
+// Reference-only -- Supervision is billed monthly via the Financial
+// Agreement, not folded into this one-time quotation total.
 const supervisionActivities = computed(() => props.project.selectedSupervisionActivities ?? [])
 
 // Click Edit to unlock changes, Save/Save as Final to lock them back down.

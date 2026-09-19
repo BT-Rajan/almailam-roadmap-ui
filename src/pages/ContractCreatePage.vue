@@ -31,11 +31,9 @@ import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { sanitizeHtml } from '@/utils/sanitizeHtml'
 import { validators } from '@/utils/validators'
 
-// Replaces NewContractDialog.vue's modal -- a dedicated route
-// (/projects/:projectId/contract/new), same treatment as
-// TaskCreatePage.vue/PaymentPlanFormPage.vue/QuotationCreatePage.vue.
-// Create only -- editing an existing contract stays inline on the
-// Contract tab (ContractPreview.vue's own @patch).
+// Dedicated route (/projects/:projectId/contract/new). Editing an
+// existing contract happens inline on the Contract tab
+// (ContractPreview.vue).
 //
 // Laid out as the contract document itself (same shape as
 // ContractPreview.vue) with only the fields staff actually decide --
@@ -125,9 +123,7 @@ function goBack(): void {
   router.push({ name: ROUTE_NAMES.PROJECTS })
 }
 
-// The stepper (replacing the old plain "Back to Contract" link) lets
-// staff jump to any stage of the project from here, same as
-// QuotationCreatePage.vue's/PaymentPlanFormPage.vue's own navigateToTab.
+// Lets staff jump to any stage of the project, not just back to Contract.
 function navigateToTab(tab: ProjectWorkspaceTabKey): void {
   if (!project.value) return
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.value.id }, query: { tab } })
