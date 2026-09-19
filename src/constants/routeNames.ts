@@ -16,6 +16,8 @@ export const ROUTE_NAMES = {
   GOVERNMENT_SUBMISSIONS: 'government-submissions',
   SUBMISSION_CREATE: 'submission-create',
   SUBMISSION_WORKSPACE: 'submission-workspace',
+  PROJECT_SUBMISSION_CREATE: 'project-submission-create',
+  PROJECT_SUBMISSION_WORKSPACE: 'project-submission-workspace',
   DOCUMENTS: 'documents',
   DOCUMENT_VIEWER: 'document-viewer',
   KNOWLEDGE_BASE: 'knowledge-base',
