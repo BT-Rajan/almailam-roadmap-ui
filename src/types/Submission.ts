@@ -9,6 +9,11 @@
 // reachable from every stage, not only Track.
 export type SubmissionStage = 'Prepare' | 'Apply' | 'Track' | 'Close'
 
+// What the workspace's stepper shows: Overview (application details --
+// a UI-only first step, not a backend stage) followed by the 4 real
+// stages above, so 5 steps in all.
+export type SubmissionWorkspaceTab = 'Overview' | SubmissionStage
+
 export type RequiredDocumentStatus = 'Pending' | 'Uploaded' | 'Verified'
 
 // The final outcome recorded when an application reaches Close --

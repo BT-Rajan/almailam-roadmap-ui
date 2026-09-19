@@ -9,6 +9,7 @@ export default {
     withdrawn: 'مسحوب',
   },
   submissionStage: {
+    overview: 'نظرة عامة',
     prepare: 'تحضير',
     apply: 'تقديم',
     track: 'متابعة',
@@ -183,7 +184,7 @@ export default {
     backToSubmissions: 'العودة إلى طلبات التصاريح',
     editApplication: 'تعديل',
     tabsAria: 'مراحل طلب التصريح',
-    tabLockedHint: 'يتاح بعد إتمام المراحل السابقة',
+    stageNotReached: 'لم يتم الوصول إلى هذه المرحلة بعد. ستتاح بعد إتمام المراحل السابقة.',
     notFiledYet: 'تم إغلاق هذا الطلب قبل تقديمه، لذا لا توجد بيانات تقديم لعرضها.',
     neverTracked: 'تم إغلاق هذا الطلب قبل مرحلة المتابعة، لذا لا توجد اتصالات لعرضها.',
     closeApplicationNotice: 'سجّل النتيجة النهائية بعد أن تبتّ الجهة في الطلب، أو اسحب الطلب في أي مرحلة. لا يمكن التراجع عن الإغلاق.',

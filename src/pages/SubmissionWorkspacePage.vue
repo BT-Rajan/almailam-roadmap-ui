@@ -13,8 +13,6 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TabBar from '@/components/common/TabBar.vue'
-import type { TabBarTab } from '@/components/common/TabBar.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
@@ -23,7 +21,7 @@ import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDial
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
 import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
-import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
+import SubmissionWorkflowProgress from '@/components/government/SubmissionWorkflowProgress.vue'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
@@ -31,11 +29,11 @@ import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore
 import { useProjectFormStore } from '@/stores/projectFormStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ResponseOutcome, SubmissionStage } from '@/types/Submission'
+import type { ResponseOutcome, SubmissionWorkspaceTab } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 import { formatDate } from '@/utils/dateFormatter'
-import { SUBMISSION_STAGES, getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
+import { SUBMISSION_WORKSPACE_TABS, getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,43 +143,26 @@ function submissionStageLabel(stage: string): string {
   return key ? t(key) : stage
 }
 
-// -- Tabs: one per stage ------------------------------------------------------
-// The four stages are the page's tabs. The current stage's tab opens
-// first (or the one named in ?tab=, if it's reachable), and moves along
-// on its own when the application advances -- filing it lands on Track.
-// Stages not reached yet are locked; Close is never locked, since an
-// application can be closed (withdrawn) from any stage.
+// -- Steps: Overview + one per stage ---------------------------------------
+// Five steps, driven by the stepper above (same behaviour as the
+// project's Workflow Progress stepper): Overview, then Prepare / Apply /
+// Track / Close. Every step is always open to click -- the stepper's
+// colors show where the application actually is, and a step it hasn't
+// reached yet just says so. Opens on Overview (or the step named in
+// ?tab=), and moves along on its own when the application advances --
+// filing it lands on Track.
 
-const activeTab = ref<SubmissionStage>('Prepare')
+const activeTab = ref<SubmissionWorkspaceTab>('Overview')
 const seededSubmissionNo = ref<string>()
 
-function isTabReachable(tab: SubmissionStage, currentStage: SubmissionStage): boolean {
-  return tab === 'Close' || SUBMISSION_STAGES.indexOf(tab) <= SUBMISSION_STAGES.indexOf(currentStage)
-}
-
-function tabFromQuery(): SubmissionStage | undefined {
+function tabFromQuery(): SubmissionWorkspaceTab | undefined {
   const value = route.query.tab
-  return SUBMISSION_STAGES.find((stage) => typeof value === 'string' && stage.toLowerCase() === value.toLowerCase())
+  return SUBMISSION_WORKSPACE_TABS.find((tab) => typeof value === 'string' && tab.toLowerCase() === value.toLowerCase())
 }
 
-const stageTabs = computed<TabBarTab[]>(() => {
-  const currentStage = submission.value?.stage ?? 'Prepare'
-  return SUBMISSION_STAGES.map((stage) => {
-    const locked = !isTabReachable(stage, currentStage)
-    return {
-      key: stage,
-      label: submissionStageLabel(stage),
-      disabled: locked,
-      title: locked ? t('government.workspacePage.tabLockedHint') : undefined,
-    }
-  })
-})
-
-function selectTab(key: string): void {
-  const stage = SUBMISSION_STAGES.find((candidate) => candidate === key)
-  if (!stage) return
-  activeTab.value = stage
-  router.replace({ query: { ...route.query, tab: stage.toLowerCase() } })
+function selectTab(tab: SubmissionWorkspaceTab): void {
+  activeTab.value = tab
+  router.replace({ query: { ...route.query, tab: tab.toLowerCase() } })
 }
 
 watch(
@@ -191,8 +172,7 @@ watch(
     if (seededSubmissionNo.value !== no) {
       // First time this application is on screen.
       seededSubmissionNo.value = no
-      const requested = tabFromQuery()
-      activeTab.value = requested && isTabReachable(requested, stage) ? requested : stage
+      activeTab.value = tabFromQuery() ?? 'Overview'
     } else if (stage !== oldValue?.[1]) {
       // It moved to a new stage (e.g. filed -> Track): follow it.
       activeTab.value = stage
@@ -512,54 +492,60 @@ function goBack(): void {
         @cancel="isDeleteConfirmOpen = false"
       />
 
-      <div class="flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
-        <div class="flex flex-col gap-1">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ authority?.name ?? t('government.unknownAuthority') }} &middot; {{ form?.title ?? t('government.unknownForm') }}</p>
-          <h1 class="text-xl font-semibold text-text-primary">{{ submission.submissionNo }}</h1>
+      <div class="overflow-hidden rounded-xl border border-border-light bg-bg-card shadow-soft">
+        <div class="flex flex-col gap-3 p-4 tablet:flex-row tablet:items-center tablet:justify-between">
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ authority?.name ?? t('government.unknownAuthority') }} &middot; {{ form?.title ?? t('government.unknownForm') }}</p>
+            <h1 class="text-xl font-semibold text-text-primary">{{ submission.submissionNo }}</h1>
+          </div>
+          <div class="flex items-center gap-2">
+            <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
+            <BaseButton v-if="canEdit" size="sm" variant="secondary" :icon="Pencil" class="no-print" @click="goEdit">
+              {{ t('government.workspacePage.editApplication') }}
+            </BaseButton>
+            <BaseButton size="sm" variant="secondary" :icon="Trash2" class="no-print" @click="isDeleteConfirmOpen = true">
+              {{ t('government.workspacePage.deleteApplication') }}
+            </BaseButton>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
-          <BaseButton v-if="canEdit" size="sm" variant="secondary" :icon="Pencil" class="no-print" @click="goEdit">
-            {{ t('government.workspacePage.editApplication') }}
-          </BaseButton>
-          <BaseButton size="sm" variant="secondary" :icon="Trash2" class="no-print" @click="isDeleteConfirmOpen = true">
-            {{ t('government.workspacePage.deleteApplication') }}
-          </BaseButton>
-        </div>
+
+        <SubmissionWorkflowProgress
+          class="no-print"
+          :stage="submission.stage"
+          :response-outcome="submission.responseOutcome"
+          @navigate-tab="selectTab"
+        />
       </div>
 
-      <Card>
-        <SubmissionApprovalStepper :stage="submission.stage" :response-outcome="submission.responseOutcome" />
-      </Card>
+      <!-- Overview -->
+      <div
+        v-if="activeTab === 'Overview'"
+        id="permit-application-panel-Overview"
+        role="region"
+        :aria-label="t('government.submissionStage.overview')"
+        class="flex flex-col gap-6"
+      >
+        <Card>
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.submissionDetails') }}</h3>
+          </template>
+          <DetailPanel :title="t('government.workspacePage.submissionDetails')" :items="submissionDetails" />
+        </Card>
 
-      <Card>
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.submissionDetails') }}</h3>
-        </template>
-        <DetailPanel :title="t('government.workspacePage.submissionDetails')" :items="submissionDetails" />
-      </Card>
-
-      <Card v-if="submission.notes">
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.notes') }}</h3>
-        </template>
-        <p class="text-sm text-text-secondary">{{ submission.notes }}</p>
-      </Card>
-
-      <TabBar
-        :tabs="stageTabs"
-        :model-value="activeTab"
-        :tablist-label="t('government.workspacePage.tabsAria')"
-        id-prefix="permit-application"
-        @update:model-value="selectTab"
-      />
+        <Card v-if="submission.notes">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.notes') }}</h3>
+          </template>
+          <p class="text-sm text-text-secondary">{{ submission.notes }}</p>
+        </Card>
+      </div>
 
       <!-- Prepare -->
       <div
-        v-if="activeTab === 'Prepare'"
-        id="permit-application-tabpanel-Prepare"
-        role="tabpanel"
-        aria-labelledby="permit-application-tab-Prepare"
+        v-else-if="activeTab === 'Prepare'"
+        id="permit-application-panel-Prepare"
+        role="region"
+        :aria-label="t('government.submissionStage.prepare')"
         class="flex flex-col gap-6"
       >
         <Card>
@@ -611,9 +597,9 @@ function goBack(): void {
       <!-- Apply -->
       <div
         v-else-if="activeTab === 'Apply'"
-        id="permit-application-tabpanel-Apply"
-        role="tabpanel"
-        aria-labelledby="permit-application-tab-Apply"
+        id="permit-application-panel-Apply"
+        role="region"
+        :aria-label="t('government.submissionStage.apply')"
         class="flex flex-col gap-6"
       >
         <Card v-if="submission.stage === 'Apply'">
@@ -667,16 +653,18 @@ function goBack(): void {
         </Card>
 
         <Card v-else>
-          <p class="text-sm text-text-muted">{{ t('government.workspacePage.notFiledYet') }}</p>
+          <p class="text-sm text-text-muted">
+            {{ submission.stage === 'Close' ? t('government.workspacePage.notFiledYet') : t('government.workspacePage.stageNotReached') }}
+          </p>
         </Card>
       </div>
 
       <!-- Track -->
       <div
         v-else-if="activeTab === 'Track'"
-        id="permit-application-tabpanel-Track"
-        role="tabpanel"
-        aria-labelledby="permit-application-tab-Track"
+        id="permit-application-panel-Track"
+        role="region"
+        :aria-label="t('government.submissionStage.track')"
         class="flex flex-col gap-6"
       >
         <Card v-if="hasTrackHistory">
@@ -755,16 +743,18 @@ function goBack(): void {
         </Card>
 
         <Card v-else>
-          <p class="text-sm text-text-muted">{{ t('government.workspacePage.neverTracked') }}</p>
+          <p class="text-sm text-text-muted">
+            {{ submission.stage === 'Close' ? t('government.workspacePage.neverTracked') : t('government.workspacePage.stageNotReached') }}
+          </p>
         </Card>
       </div>
 
       <!-- Close -->
       <div
         v-else-if="activeTab === 'Close'"
-        id="permit-application-tabpanel-Close"
-        role="tabpanel"
-        aria-labelledby="permit-application-tab-Close"
+        id="permit-application-panel-Close"
+        role="region"
+        :aria-label="t('government.submissionStage.close')"
         class="flex flex-col gap-6"
       >
         <Card v-if="submission.stage === 'Close'">
