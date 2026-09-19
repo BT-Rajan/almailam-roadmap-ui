@@ -362,6 +362,10 @@ export default {
     permitFilesTitle: 'Permit Application Files',
     noPermitFiles: 'No files have been uploaded to permit applications yet.',
     openApplication: 'Open application',
+    statusReportsTitle: 'Status Reports',
+    noStatusReportsTitle: 'No status reports yet',
+    noStatusReportsDescription: 'Daily reports filed by the site engineer once Supervision starts will be listed here.',
+    viewReport: 'View report',
   },
 
   quotationPreview: {

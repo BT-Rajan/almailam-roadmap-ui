@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
@@ -21,11 +22,14 @@ import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
+import { useStatusReportStore } from '@/stores/statusReportStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
 import type { AgreementStream } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 import type { GovernmentSubmission, SubmissionFollowup } from '@/types/Submission'
+import type { StatusReport, StatusReportStatus } from '@/types/StatusReport'
+import { formatDate } from '@/utils/dateFormatter'
 import { openBlobInWindow } from '@/utils/fileDownload'
 import { buildSubmissionFiles } from '@/utils/submissionFiles'
 import type { SubmissionFile } from '@/utils/submissionFiles'
@@ -42,18 +46,21 @@ const router = useRouter()
 const paymentStore = usePaymentStore()
 const quotationStore = useQuotationStore()
 const resultDialogStore = useResultDialogStore()
+const statusReportStore = useStatusReportStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
 // A read-only, view-only summary of a project's system-generated
 // paperwork -- client ID, accepted quotation, payment plan(s), accepted
-// contract -- each opened as a PDF, same "print" mechanism as those
-// documents' own tabs use. Lives on the Scope tab (reachable via the
-// Workflow Progress stepper regardless of the project's current stage,
-// same as Overview), so it's a fixed place to check back on as each
-// document becomes available, rather than only late in the project's
-// life. No edit/delete here: this is a snapshot for reference, not
-// another place to manage them from.
+// contract, permit application files, and (once Supervision is under
+// way) every daily status report filed against it -- each opened as a
+// PDF/detail view, same "print" mechanism as those documents' own tabs
+// use. Lives on the Scope tab (reachable via the Workflow Progress
+// stepper regardless of the project's current stage, same as
+// Overview), so it's a fixed place to check back on as each document
+// becomes available, rather than only late in the project's life. No
+// edit/delete here: this is a snapshot for reference, not another
+// place to manage them from.
 
 const identityDocuments = computed<ClientDocument[]>(() =>
   clientStore.documents.filter((document) => document.category === 'Identity Document'),
@@ -196,6 +203,42 @@ function openPermitApplication(submissionNo: string): void {
     query: { tab: 'overview' },
   })
 }
+
+// Every status report the site engineer has ever filed for this
+// project -- newest first, as a flat list (unlike SupervisionStatus
+// ReportsTab.vue's own calendar, which covers the same data but by
+// month) -- linked here automatically the moment it's filed, with
+// nothing for staff to upload or attach themselves. Only shown for a
+// project that actually includes Supervision; a Design/Government-only
+// project has none of these to expect.
+function loadStatusReports(): void {
+  if (props.project.includesSupervision) void statusReportStore.loadForProject(props.project.projectNo)
+}
+onMounted(loadStatusReports)
+watch(() => props.project.projectNo, loadStatusReports)
+
+const statusReports = computed<StatusReport[]>(() =>
+  [...(statusReportStore.projectReports[props.project.projectNo] ?? [])].sort((a, b) => b.reportDate.localeCompare(a.reportDate)),
+)
+
+// Same recipient's-eye framing as SupervisionStatusReportsTab.vue's own
+// STATUS_LABEL_KEYS -- "Pending Review" / "Reviewed" reads more clearly
+// here than the engineer portal's own "Submitted" / "Reviewed" framing.
+const STATUS_LABEL_KEYS: Record<StatusReportStatus, string> = {
+  Pending: 'project.supervisionReportsTab.statusPendingReview',
+  Attached: 'project.supervisionReportsTab.statusReviewed',
+}
+function reportStatusLabel(status: StatusReportStatus): string {
+  return t(STATUS_LABEL_KEYS[status])
+}
+function reportStatusVariant(status: StatusReportStatus): 'info' | 'success' {
+  return status === 'Attached' ? 'success' : 'info'
+}
+
+const selectedReport = ref<StatusReport | null>(null)
+function viewStatusReport(report: StatusReport): void {
+  selectedReport.value = report
+}
 </script>
 
 <template>
@@ -329,5 +372,58 @@ function openPermitApplication(submissionNo: string): void {
         </Card>
       </template>
     </div>
+
+    <div v-if="project.includesSupervision" class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('project.contractDocumentsTab.statusReportsTitle') }}</h3>
+      <EmptyState
+        v-if="statusReports.length === 0"
+        :title="t('project.contractDocumentsTab.noStatusReportsTitle')"
+        :description="t('project.contractDocumentsTab.noStatusReportsDescription')"
+      />
+      <Card v-else :padded="false">
+        <ul class="flex flex-col divide-y divide-border-light">
+          <li v-for="report in statusReports" :key="report.id" class="flex items-center justify-between gap-3 px-5 py-4">
+            <div class="flex items-center gap-3">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                <FileText class="h-5 w-5" />
+              </span>
+              <div>
+                <p class="text-sm font-semibold text-text-primary">{{ formatDate(report.reportDate) }}</p>
+                <p class="text-xs text-text-muted">{{ report.engineerName }} · {{ report.reportNo }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <StatusBadge :label="reportStatusLabel(report.status)" :variant="reportStatusVariant(report.status)" />
+              <IconButton :icon="Eye" :label="t('project.contractDocumentsTab.viewReport')" size="sm" @click="viewStatusReport(report)" />
+            </div>
+          </li>
+        </ul>
+      </Card>
+    </div>
+
+    <BaseDialog :model-value="!!selectedReport" :title="selectedReport?.reportDate ? formatDate(selectedReport.reportDate) : ''" size="md" @update:model-value="selectedReport = null">
+      <div v-if="selectedReport" class="flex flex-col gap-3 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-text-primary">{{ selectedReport.engineerName }}</span>
+          <StatusBadge :label="reportStatusLabel(selectedReport.status)" :variant="reportStatusVariant(selectedReport.status)" />
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-text-muted">{{ t('project.supervisionReportsTab.reportNo') }}</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.reportNo }}</span>
+        </div>
+        <div v-if="selectedReport.receiptType" class="flex items-center justify-between">
+          <span class="text-text-muted">{{ t('project.supervisionReportsTab.receiptHandover') }}</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.receiptType }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-text-muted">{{ t('project.supervisionReportsTab.supervision') }}</span>
+          <span class="font-medium text-text-primary">{{ selectedReport.supervisionType }}</span>
+        </div>
+        <div>
+          <p class="mb-1 text-text-muted">{{ t('project.supervisionReportsTab.notes') }}</p>
+          <p class="whitespace-pre-wrap rounded-lg bg-bg-secondary p-3 text-text-primary" dir="auto">{{ selectedReport.notes }}</p>
+        </div>
+      </div>
+    </BaseDialog>
   </div>
 </template>

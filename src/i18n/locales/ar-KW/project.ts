@@ -358,6 +358,10 @@ export default {
     permitFilesTitle: 'ملفات طلبات التصاريح',
     noPermitFiles: 'لا توجد ملفات مرفوعة لطلبات التصاريح بعد.',
     openApplication: 'فتح الطلب',
+    statusReportsTitle: 'تقارير الحالة',
+    noStatusReportsTitle: 'لا توجد تقارير حالة بعد',
+    noStatusReportsDescription: 'ستظهر هنا التقارير اليومية التي يقدمها مهندس الموقع بمجرد بدء الإشراف.',
+    viewReport: 'عرض التقرير',
   },
 
   quotationPreview: {

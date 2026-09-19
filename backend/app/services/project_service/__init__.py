@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.exceptions import AppError, NotFoundError, ValidationAppError
 from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
+from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     PROJECT_STAGE_ALLOWED_TRANSITIONS,
     PROJECT_STAGE_STATUSES_REQUIRING_REASON,
@@ -1330,10 +1331,12 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     their tracked to-dos are created together rather than staggered by
     whichever stage the project's current_stage literal happens to sit
     on. Assigned to the project's own engineer, spanning the project's
-    own start_date/target_date -- staff can reassign the owner or either
-    date on any of them afterward (see task_service.update_task). Starts
-    life as 'Preset' (see TASK_STATUSES) rather than a manually-created
-    task's 'Pending' default, until touched -- the UI flags a task still
+    own start_date/target_date -- except Supervision's, which spans the
+    project's own supervision_start_date/supervision_end_date instead
+    (see the loop below). Staff can reassign the owner or either date on
+    any of them afterward (see task_service.update_task). Starts life as
+    'Preset' (see TASK_STATUSES) rather than a manually-created task's
+    'Pending' default, until touched -- the UI flags a task still
     sitting in 'Preset' to prompt review instead of silently leaving it
     on the original engineer/dates forever.
 
@@ -1354,7 +1357,7 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     existing_permit_ids = _existing_linked_ids("Permit")
     existing_supervision_ids = _existing_linked_ids("Supervision")
 
-    def _add_task(title: str, stage_type: str, stage_id: int) -> None:
+    def _add_task(title: str, stage_type: str, stage_id: int, start_date: date, due_date: date) -> None:
         task = Task(
             task_no=next_task_number(db, project.id, project.project_no),
             project_id=project.id,
@@ -1362,8 +1365,8 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
             linked_stage_id=stage_id,
             title=title,
             assigned_to=project.engineer_id,
-            start_date=project.start_date,
-            due_date=project.target_date,
+            start_date=start_date,
+            due_date=due_date,
             due_time=_SERVICE_TASK_DUE_TIME,
             status="Preset",
         )
@@ -1379,19 +1382,34 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
     for activity in get_selected_activities(db, project.id):
         if activity.id in existing_activity_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, "Design", activity.id)
+        _add_task(activity.activity_name, "Design", activity.id, project.start_date, project.target_date)
         created_count += 1
 
     for permit in get_selected_permits(db, project.id):
         if permit.id in existing_permit_ids or permit.status in ("Complete", "Cancelled"):
             continue
-        _add_task(permit.permit_name, "Permit", permit.id)
+        _add_task(permit.permit_name, "Permit", permit.id, project.start_date, project.target_date)
         created_count += 1
 
+    # Spans the project's own Supervision engagement window
+    # (supervision_start_date/supervision_end_date), not the project's
+    # overall start_date/target_date -- those cover every track the
+    # project includes (Design, Government Submission, Supervision) and
+    # can easily run on a different schedule than Supervision itself.
+    # supervision_start_date is required once any Supervision activity
+    # is selected (see add_selected_services/create_project), so it's
+    # only ever absent here for pre-existing data from before that
+    # requirement existed -- falls back to the project's own dates
+    # rather than crashing on a null start_date for those.
+    # check_and_start_supervision_tasks below is what actually flips
+    # status to 'In Progress' once supervision_start_date arrives (this
+    # only creates the task itself, still 'Preset' either way).
+    supervision_start = project.supervision_start_date or project.start_date
+    supervision_end = project.supervision_end_date or project.target_date
     for activity in get_selected_supervision_activities(db, project.id):
         if activity.id in existing_supervision_ids or activity.status in ("Complete", "Cancelled"):
             continue
-        _add_task(activity.activity_name, "Supervision", activity.id)
+        _add_task(activity.activity_name, "Supervision", activity.id, supervision_start, supervision_end)
         created_count += 1
 
     # Only log when this call actually generated something -- it's now
@@ -2191,3 +2209,49 @@ def check_and_notify_overdue_projects(db: Session) -> int:
 
     db.commit()
     return notified_count
+
+
+def check_and_start_supervision_tasks(db: Session) -> int:
+    """Moves a Supervision-linked task from 'Preset'/'Pending' to
+    'In Progress' the moment its own start_date (the project's
+    supervision_start_date -- see _create_service_tasks) actually
+    arrives, so a project's Supervision work shows as under way from
+    day one without someone having to notice and flip it by hand.
+
+    Deliberately a one-way nudge, not an ongoing override: only tasks
+    still sitting in their untouched starting status are moved here --
+    staff remain free to set any status they like at any point within
+    (or even before/after) the supervision_start_date..supervision_end_date
+    window afterward (task_service.set_status), and this never runs
+    again for a task once it's left 'Preset'/'Pending' behind, so it
+    can never fight a manual choice.
+
+    No corresponding auto-'Completed' at supervision_end_date -- unlike
+    starting, closing out a Supervision task is a real judgment call
+    (the work actually finishing), not a calendar fact, so that stays a
+    manual decision same as every other task; a task left open past its
+    due_date simply shows as overdue like any other.
+
+    Called daily by the background scheduler (see main.py's lifespan),
+    same shape as the other check_and_notify_*/check_and_expire_*
+    functions elsewhere in the codebase. Returns how many tasks were
+    started in this run."""
+    from app.services import task_service  # local import: task_service imports this module
+
+    today = kuwait_today()
+    candidates = (
+        db.query(Task)
+        .filter(
+            Task.deleted_at.is_(None),
+            Task.linked_stage_type == "Supervision",
+            Task.status.in_(("Preset", "Pending")),
+            Task.start_date <= today,
+        )
+        .all()
+    )
+
+    started_count = 0
+    for task in candidates:
+        task_service.set_status(db, task.task_no, "In Progress", "Automatically started: supervision start date reached.", None)
+        started_count += 1
+    return started_count
