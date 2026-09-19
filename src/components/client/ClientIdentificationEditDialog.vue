@@ -78,13 +78,9 @@ watch(
   },
 )
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue (see the comment there) -- validate() was
-// previously only run from handleConfirm, so Document Number/Issue
-// Date/Expiry Date/Issuing Country looked like ordinary optional
-// fields until the first failed Save click. The modelValue watch above
-// now also calls it as soon as the dialog opens; this keeps it live on
-// every edit too.
+// validate() runs as soon as the dialog opens (via the modelValue watch
+// above) and on every edit, so Document Number/Issue Date/Expiry
+// Date/Issuing Country are flagged red immediately if left empty.
 watch(form, validate, { deep: true })
 
 function closeDialog(): void {

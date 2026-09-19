@@ -40,9 +40,7 @@ const documentNumberLabel = computed(() =>
 
 // If the client type changes (e.g. Individual -> Company) after a document
 // type was already picked, drop it back to a valid choice for the new type
-// instead of silently submitting an identification type that doesn't apply
-// (this is what previously let every client onboard defaulted to 'Civil ID'
-// regardless of type -- see createEmptyClientWizardForm in ClientWizard.ts).
+// instead of silently submitting an identification type that doesn't apply.
 watch(
   () => form.value.clientType,
   (clientType) => {

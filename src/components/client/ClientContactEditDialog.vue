@@ -55,23 +55,16 @@ watch(
   },
 )
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue (see the comment there) -- validate() was
-// previously only run from handleConfirm, so Name/Mobile/Email looked
-// like ordinary optional fields until the first failed Save click. The
-// modelValue watch above now also calls it as soon as the dialog
-// opens; this keeps it live on every edit too.
+// validate() runs as soon as the dialog opens (via the modelValue watch
+// above) and on every edit, so Name/Mobile/Email are flagged red
+// immediately if left empty.
 watch(form, validate, { deep: true })
 
-// Selecting the "Authorised Representative" contact type and the
-// "authorised to act on the client's behalf" toggle used to be two
-// completely independent fields with the same-sounding label -- easy to
-// set inconsistently (a contact typed as the authorised representative
-// but with the flag left off). One-directional: explicitly typing
-// someone as the authorised representative always implies the flag;
-// the reverse isn't forced, since e.g. a Billing Contact can
-// independently be authorised to act without being *the* designated
-// representative contact.
+// One-directional: explicitly typing someone as the authorised
+// representative always implies the "authorised to act on the
+// client's behalf" flag; the reverse isn't forced, since e.g. a
+// Billing Contact can independently be authorised to act without
+// being *the* designated representative contact.
 watch(
   () => form.contactType,
   (type) => {

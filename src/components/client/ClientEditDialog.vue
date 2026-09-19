@@ -37,10 +37,9 @@ onMounted(() => {
 // Only these three roles can own a client relationship. Kept in sync
 // with ClientBasicInfoStep.vue's accountManagerOptions and the
 // backend's ACCOUNT_MANAGER_ROLES (client_service.py).
-// No "Unassigned" placeholder option: account manager is now a
-// required field (see clientValidation.ts's validateClientEditForm) --
-// an existing client with none assigned will need one picked the next
-// time it's edited, same as any other newly-required field would.
+// No "Unassigned" placeholder option: account manager is a required
+// field (see clientValidation.ts's validateClientEditForm), so an
+// existing client with none assigned needs one picked here.
 const ACCOUNT_MANAGER_ROLES: UserRole[] = ['Administrator', 'Project Manager', 'Engineer']
 const accountManagerOptions = computed<SelectOption[]>(() =>
   userStore.users
@@ -136,12 +135,9 @@ watch(
   },
 )
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue (see the comment there) -- validate() was
-// previously only run from handleConfirm, so every required field
-// above looked like an ordinary optional one until the first failed
-// "Save Changes" click. The modelValue watch above now also calls it
-// as soon as the dialog opens; this keeps it live on every edit too.
+// validate() runs as soon as the dialog opens (via the modelValue watch
+// above) and on every edit, so every required field above is flagged
+// red immediately if left empty.
 watch(form, validate, { deep: true })
 
 function closeDialog(): void {
