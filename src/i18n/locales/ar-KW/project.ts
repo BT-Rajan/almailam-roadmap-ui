@@ -355,6 +355,9 @@ export default {
     supervisionPaymentPlan: 'خطة الدفع (الإشراف)',
     contract: 'العقد',
     notAvailable: 'غير متوفر بعد',
+    permitFilesTitle: 'ملفات طلبات التصاريح',
+    noPermitFiles: 'لا توجد ملفات مرفوعة لطلبات التصاريح بعد.',
+    openApplication: 'فتح الطلب',
   },
 
   quotationPreview: {

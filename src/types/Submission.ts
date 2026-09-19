@@ -3,7 +3,7 @@
 // core/status_transitions.py's SUBMISSION_ALLOWED_TRANSITIONS):
 // Prepare (pick the authority/form, fill it in, get the required
 // documents ready) -> Apply (file it, record the authority's
-// acknowledgement) -> Track (log contact made while it's under review,
+// acknowledgement) -> Track (record follow-ups made while it's under review,
 // including any document the authority asks for) -> Close (final
 // outcome, permit/decision document, closing notes). Close is
 // reachable from every stage, not only Track.

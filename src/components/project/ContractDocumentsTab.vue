@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { Eye, FileSignature, FileText, Wallet } from '@lucide/vue'
+import { ArrowRight, Eye, FileSignature, FileText, Wallet } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IconButton from '@/components/common/IconButton.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import CustomerIdDocumentCard from '@/components/document/CustomerIdDocumentCard.vue'
+import SubmissionFilesList from '@/components/government/SubmissionFilesList.vue'
+import { ROUTE_NAMES } from '@/constants/routeNames'
 import { documentTemplateService } from '@/services/documentTemplateService'
+import { governmentSubmissionService } from '@/services/governmentSubmissionService'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
+import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -17,7 +25,11 @@ import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
 import type { AgreementStream } from '@/types/Payment'
 import type { Project } from '@/types/Project'
+import type { GovernmentSubmission, SubmissionFollowup } from '@/types/Submission'
 import { openBlobInWindow } from '@/utils/fileDownload'
+import { buildSubmissionFiles } from '@/utils/submissionFiles'
+import type { SubmissionFile } from '@/utils/submissionFiles'
+import { getSubmissionStageVariant } from '@/utils/submissionHelpers'
 
 const props = defineProps<{
   project: Project
@@ -25,6 +37,8 @@ const props = defineProps<{
 
 const clientStore = useClientStore()
 const contractStore = useContractStore()
+const governmentSubmissionStore = useGovernmentSubmissionStore()
+const router = useRouter()
 const paymentStore = usePaymentStore()
 const quotationStore = useQuotationStore()
 const resultDialogStore = useResultDialogStore()
@@ -115,6 +129,72 @@ async function viewContractPdf(): Promise<void> {
   } finally {
     isOpeningContract.value = false
   }
+}
+
+// Permit application files -- everything uploaded against this project's
+// permit applications (required documents, the filing acknowledgement,
+// follow-up documents, the authority's response), grouped by
+// application, each with a view link. Fetched fresh whenever this tab
+// opens, so a file uploaded on an application's own page shows up here
+// straight away. Applications with nothing uploaded yet are left out.
+interface PermitApplicationFiles {
+  submission: GovernmentSubmission
+  files: SubmissionFile[]
+}
+
+const permitApplications = ref<PermitApplicationFiles[]>([])
+const isLoadingPermitFiles = ref(false)
+
+const permitFileLabels = computed(() => ({
+  acknowledgement: t('government.workspacePage.acknowledgementFileLabel'),
+  followup: t('government.workspacePage.followUpFileLabel'),
+  response: t('government.workspacePage.authorityResponse'),
+}))
+
+async function loadPermitFiles(): Promise<void> {
+  const projectId = props.project.id
+  isLoadingPermitFiles.value = true
+  try {
+    const submissions = await governmentSubmissionService.getSubmissions(projectId)
+    const groups = await Promise.all(
+      submissions.map(async (submission): Promise<PermitApplicationFiles> => {
+        let followups: SubmissionFollowup[] = []
+        // Follow-ups only exist from Track onward.
+        if (submission.stage === 'Track' || submission.stage === 'Close') {
+          try {
+            followups = await governmentSubmissionService.getFollowups(submission.submissionNo)
+          } catch {
+            followups = []
+          }
+        }
+        return { submission, files: buildSubmissionFiles(submission, followups, permitFileLabels.value) }
+      }),
+    )
+    if (projectId !== props.project.id) return
+    permitApplications.value = groups.filter((group) => group.files.length > 0)
+  } catch {
+    if (projectId === props.project.id) permitApplications.value = []
+  } finally {
+    if (projectId === props.project.id) isLoadingPermitFiles.value = false
+  }
+}
+onMounted(loadPermitFiles)
+watch(() => props.project.id, loadPermitFiles)
+
+// What each application group is headed with: the form it's for, when
+// the store already has the forms loaded (it does once the Approvals &
+// Permits card has been visited), else just its number.
+function permitApplicationTitle(submission: GovernmentSubmission): string {
+  const formTitle = governmentSubmissionStore.getFormById(submission.formId)?.title
+  return formTitle ? `${submission.submissionNo} · ${formTitle}` : submission.submissionNo
+}
+
+function openPermitApplication(submissionNo: string): void {
+  router.push({
+    name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE,
+    params: { projectId: props.project.id, submissionNo },
+    query: { tab: 'overview' },
+  })
 }
 </script>
 
@@ -224,6 +304,30 @@ async function viewContractPdf(): Promise<void> {
           </li>
         </ul>
       </Card>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-text-primary">{{ t('project.contractDocumentsTab.permitFilesTitle') }}</h3>
+      <div v-if="isLoadingPermitFiles && permitApplications.length === 0" class="rounded-xl border border-border-light bg-bg-card p-5">
+        <SkeletonLoader :rows="2" />
+      </div>
+      <EmptyState v-else-if="permitApplications.length === 0" :title="t('project.contractDocumentsTab.noPermitFiles')" />
+      <template v-else>
+        <Card v-for="group in permitApplications" :key="group.submission.submissionNo" :padded="false">
+          <template #header>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex min-w-0 items-center gap-2">
+                <p class="truncate text-sm font-semibold text-text-primary">{{ permitApplicationTitle(group.submission) }}</p>
+                <StatusBadge :label="t(`government.submissionStage.${group.submission.stage.toLowerCase()}`)" :variant="getSubmissionStageVariant(group.submission.stage)" />
+              </div>
+              <BaseButton size="sm" variant="ghost" :icon="ArrowRight" class="shrink-0 no-print" @click="openPermitApplication(group.submission.submissionNo)">
+                {{ t('project.contractDocumentsTab.openApplication') }}
+              </BaseButton>
+            </div>
+          </template>
+          <SubmissionFilesList :files="group.files" />
+        </Card>
+      </template>
     </div>
   </div>
 </template>

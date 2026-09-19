@@ -359,6 +359,9 @@ export default {
     supervisionPaymentPlan: 'Payment Plan (Supervision)',
     contract: 'Contract',
     notAvailable: 'Not available yet',
+    permitFilesTitle: 'Permit Application Files',
+    noPermitFiles: 'No files have been uploaded to permit applications yet.',
+    openApplication: 'Open application',
   },
 
   quotationPreview: {

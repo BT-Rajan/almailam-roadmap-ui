@@ -102,7 +102,7 @@ class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     authority/form this application is for, fill the form in via
     ProjectFormEntry, get the required-documents checklist ready) ->
     Apply (file it, record the authority's acknowledgement) -> Track
-    (log contact made with the authority while it's under review --
+    (record follow-ups made with the authority while it's under review --
     including any document they asked for, which used to be its own
     "Update" stage, merged into Track by migration 0108) -> Close (the
     final outcome, permit/decision document, and closing notes). See core/status_transitions.py's
@@ -216,7 +216,7 @@ class SubmissionDocument(Base):
 
 
 class SubmissionFollowup(Base):
-    """A log entry recording contact made with the authority while an
+    """A log entry recording a follow-up made with the authority while an
     application is in Track (SUBMISSION_STAGES) -- who checked, when,
     and what came of it, plus an optional document (an additional
     document the authority asked for, or an updated version of one
