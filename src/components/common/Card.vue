@@ -22,13 +22,13 @@ withDefaults(defineProps<Props>(), {
       padded ? '' : 'overflow-hidden',
     ]"
   >
-    <div v-if="$slots.header" class="rounded-t-xl border-b border-border-light px-5 py-4">
+    <div v-if="$slots.header" class="rounded-t-xl border-b border-border-light bg-bg-secondary px-5 py-3.5">
       <slot name="header" />
     </div>
     <div :class="padded ? 'p-5' : ''">
       <slot />
     </div>
-    <div v-if="$slots.footer" class="rounded-b-xl border-t border-border-light px-5 py-4">
+    <div v-if="$slots.footer" class="rounded-b-xl border-t border-border-light bg-bg-secondary px-5 py-3.5">
       <slot name="footer" />
     </div>
   </div>

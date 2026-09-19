@@ -438,7 +438,7 @@ async function handleActivityClick(activity: ActivityRecord) {
 
       <!-- Other view modes not yet built out -- Monthly is the only one currently backed by data. -->
       <Card v-else>
-        <EmptyState :title="t('workspace.activityCalendarPage.comingSoon')" :description="t('workspace.activityCalendarPage.comingSoonDescription', { view: viewMode })" />
+        <EmptyState :title="t('workspace.activityCalendarPage.comingSoon')" :description="t('workspace.activityCalendarPage.comingSoonDescription', { view: viewMode })" :bordered="false" />
       </Card>
     </div>
 

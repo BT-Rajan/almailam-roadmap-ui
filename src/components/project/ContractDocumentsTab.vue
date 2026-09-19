@@ -242,7 +242,7 @@ function viewStatusReport(report: StatusReport): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-6">
     <div class="flex flex-col gap-3">
       <h3 class="text-sm font-semibold text-text-primary">{{ t('project.documentsTab.customerIdTitle') }}</h3>
       <EmptyState
