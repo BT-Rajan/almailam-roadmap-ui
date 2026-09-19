@@ -378,6 +378,15 @@ export default {
     discountAmount: 'Discount Amount',
   },
 
+  contractDates: {
+    client: 'Client',
+    project: 'Project',
+    designPermitStart: 'Design & Permit Start Date',
+    designPermitEnd: 'Design & Permit End Date',
+    supervisionStart: 'Supervision Start Date',
+    supervisionEnd: 'Supervision End Date',
+  },
+
   contractPreview: {
     client: 'Client',
     clientRepresentative: 'Client representative',
@@ -565,9 +574,10 @@ export default {
 
   newContractDialog: {
     title: 'New Contract',
-    backToContract: 'Back to Contract',
-    prefilledFromQuotation: 'Generated from quotation {number} — currency and value must match its approved amount and are locked; scope below carries over and can still be changed.',
-    currency: 'Currency',
+    draftPreview: 'Draft preview',
+    contractNoOnCreation: 'Contract number is assigned when created',
+    issueDate: 'Issue Date',
+    prefilledFromQuotation: 'Generated from quotation {number} — client, project, dates, scope and value are filled in automatically and locked. Set the expiry date, client representative and any clauses directly in the preview below.',
     contractValue: 'Contract Value',
     contractValueMustBePositive: 'Contract value must be greater than 0.',
     contractValueMustMatchQuotation: 'Contract value must match quotation {number}\'s approved amount ({amount}).',
@@ -577,7 +587,6 @@ export default {
     clientRepresentative: 'Client Representative',
     clientRepresentativePlaceholder: 'Name of the person signing for the client',
     scopeSummary: 'Scope Summary',
-    scopeSummaryPlaceholder: 'Describe the scope of work covered by this contract',
     clausesOptional: 'Clauses (optional)',
     addClause: 'Add Clause',
     clauseTitlePlaceholder: 'Clause title',
