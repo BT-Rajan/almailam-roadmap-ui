@@ -159,7 +159,7 @@ const router = createRouter({
       // 'new' isn't swallowed as a submission number.
       path: '/projects/:projectId/permit-applications/new',
       name: ROUTE_NAMES.PROJECT_SUBMISSION_CREATE,
-      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      component: () => import('@/pages/SubmissionFormPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
@@ -168,6 +168,21 @@ const router = createRouter({
           { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
           { label: 'breadcrumb.project' },
           { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
+      path: '/projects/:projectId/permit-applications/:submissionNo/edit',
+      name: ROUTE_NAMES.PROJECT_SUBMISSION_EDIT,
+      component: () => import('@/pages/SubmissionFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.editSubmission' },
         ],
       },
     },
@@ -294,7 +309,7 @@ const router = createRouter({
       // would otherwise swallow 'new' as if it were a submission number.
       path: '/government/submissions/new',
       name: ROUTE_NAMES.SUBMISSION_CREATE,
-      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      component: () => import('@/pages/SubmissionFormPage.vue'),
       meta: {
         layout: 'dashboard',
         requiresAuth: true,
@@ -303,6 +318,24 @@ const router = createRouter({
           { label: 'breadcrumb.governmentCenter' },
           { label: 'breadcrumb.submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
           { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
+      // Edit an existing application -- same page as SUBMISSION_CREATE
+      // (SubmissionFormPage.vue), which switches to edit mode when the
+      // route carries a :submissionNo.
+      path: '/government/submissions/:submissionNo/edit',
+      name: ROUTE_NAMES.SUBMISSION_EDIT,
+      component: () => import('@/pages/SubmissionFormPage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.governmentCenter' },
+          { label: 'breadcrumb.submissions', routeName: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS },
+          { label: 'breadcrumb.editSubmission' },
         ],
       },
     },

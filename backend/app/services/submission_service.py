@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -169,19 +169,104 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
 
 
 def update_submission(db: Session, submission_no: str, payload, user_id: int | None) -> GovernmentSubmission:
+    """Edits an application's own details -- doesn't change its stage,
+    that only ever happens through the dedicated stage-advancing actions
+    below. A closed application is a finished record and can't be edited.
+    Only the fields actually present in the request are applied."""
     submission = get_submission(db, submission_no)
+    if submission.stage == "Close":
+        raise ValidationAppError("A closed permit application can no longer be edited.")
+
+    provided = payload.model_fields_set
     changes: dict[str, tuple] = {}
-    if payload.expectedDecisionDate is not None and payload.expectedDecisionDate != submission.expected_decision_date:
+
+    if "expectedDecisionDate" in provided and payload.expectedDecisionDate != submission.expected_decision_date:
         changes["expected_decision_date"] = (submission.expected_decision_date, payload.expectedDecisionDate)
         submission.expected_decision_date = payload.expectedDecisionDate
-    if payload.notes is not None and payload.notes != submission.notes:
-        changes["notes"] = (submission.notes, payload.notes)
-        submission.notes = payload.notes
+
+    if "notes" in provided:
+        new_notes = (payload.notes or "").strip() or None
+        if new_notes != submission.notes:
+            changes["notes"] = (submission.notes, new_notes)
+            submission.notes = new_notes
+
+    if "selectedPermitId" in provided:
+        new_permit_id = None
+        if payload.selectedPermitId:
+            if not payload.selectedPermitId.isdigit():
+                raise ValidationAppError("selectedPermitId must be a valid id.")
+            # Scoped to this application's own project -- 404s rather than
+            # silently linking to another project's planned permit.
+            new_permit_id = project_service.get_selected_permit(
+                db, submission.project_id, int(payload.selectedPermitId)
+            ).id
+        if new_permit_id != submission.project_selected_permit_id:
+            changes["project_selected_permit_id"] = (submission.project_selected_permit_id, new_permit_id)
+            submission.project_selected_permit_id = new_permit_id
+
+    if "authorityId" in provided or "formId" in provided:
+        new_authority_id = (
+            government_service.parse_authority_id(payload.authorityId)
+            if payload.authorityId is not None
+            else submission.authority_id
+        )
+        new_form_id = (
+            government_service.parse_form_id(payload.formId) if payload.formId is not None else submission.form_id
+        )
+        if (new_authority_id, new_form_id) != (submission.authority_id, submission.form_id):
+            _change_authority_and_form(db, submission, new_authority_id, new_form_id, changes)
 
     audit_service.log_field_changes(db, ENTITY_TYPE, submission.id, changes, user_id)
     db.commit()
     db.refresh(submission)
     return submission
+
+
+def _change_authority_and_form(
+    db: Session, submission: GovernmentSubmission, authority_id: int, form_id: int, changes: dict[str, tuple]
+) -> None:
+    """Re-points an application at a different authority/form and
+    re-seeds its required-documents checklist from the new form. Only
+    allowed while nothing has been done against the old one -- still in
+    Prepare, and no document uploaded/verified -- since the checklist
+    (and anything filed) belongs to that form."""
+    documents = get_documents(db, submission.id)
+    if submission.stage != "Prepare" or any(d.status != "Pending" for d in documents):
+        raise ValidationAppError(
+            "The authority and form can only be changed while the application is still in Prepare and "
+            "no required document has been uploaded. Delete this application and create a new one instead."
+        )
+    government_service.get_authority(db, authority_id)  # 404 if unknown
+    form = government_service.get_form(db, form_id)
+    if form.authority_id != authority_id:
+        raise ValidationAppError("The selected form doesn't belong to the selected authority.")
+
+    changes["authority_id"] = (submission.authority_id, authority_id)
+    changes["form_id"] = (submission.form_id, form_id)
+    submission.authority_id = authority_id
+    submission.form_id = form_id
+
+    db.query(SubmissionDocument).filter(SubmissionDocument.submission_id == submission.id).delete()
+    for document_name in form.required_documents:
+        db.add(SubmissionDocument(submission_id=submission.id, name=document_name, status="Pending"))
+
+
+def delete_submission(db: Session, submission_no: str, user_id: int | None) -> None:
+    """Soft-deletes a permit application -- it disappears from every list,
+    search and report (they all filter on deleted_at), while its audit
+    trail stays readable. The planned permit it was linked to and the
+    project's filled-in forms are left alone."""
+    submission = get_submission(db, submission_no)
+    audit_service.log_event(
+        db, ENTITY_TYPE, submission.id, "Application deleted", user_id, previous_value=submission.submission_no
+    )
+    timeline_service.create_system_event(
+        db, submission.project_id, "submission",
+        title=f"Permit application {submission.submission_no} deleted",
+        actor_id=user_id,
+    )
+    submission.deleted_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 def _set_stage(db: Session, submission: GovernmentSubmission, new_stage: str, user_id: int | None) -> None:

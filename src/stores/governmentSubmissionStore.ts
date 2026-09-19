@@ -7,6 +7,7 @@ import type {
   CloseApplicationInput,
   FollowupCreateInput,
   SubmissionCreateInput,
+  SubmissionUpdateInput,
 } from '@/services/governmentSubmissionService'
 import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
@@ -143,6 +144,17 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       const submission = await governmentSubmissionService.createSubmission(input)
       this.submissions = [submission, ...this.submissions]
       return submission
+    },
+
+    async updateSubmission(submissionNo: string, input: SubmissionUpdateInput): Promise<GovernmentSubmission> {
+      const updated = await governmentSubmissionService.updateSubmission(submissionNo, input)
+      this._replaceSubmission(updated)
+      return updated
+    },
+
+    async deleteSubmission(submissionNo: string): Promise<void> {
+      await governmentSubmissionService.deleteSubmission(submissionNo)
+      this.submissions = this.submissions.filter((submission) => submission.submissionNo !== submissionNo)
     },
 
     // Loads a single submission by number into the store's list, for the

@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -16,14 +17,17 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
+import type { SubmissionUpdateInput } from '@/services/governmentSubmissionService'
 import type { SelectOption } from '@/types/Ui'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { validators } from '@/utils/validators'
 
-// Replaces NewSubmissionDialog.vue's modal -- a dedicated route, same
-// treatment as TaskCreatePage.vue/PaymentPlanFormPage.vue/
-// QuotationCreatePage.vue/ContractCreatePage.vue. Opened two ways, both
-// preserved from the dialog:
+// New Permit Application and Edit Permit Application -- one page, like
+// PaymentPlanFormPage.vue: it's an edit whenever the route carries a
+// :submissionNo (SUBMISSION_EDIT / PROJECT_SUBMISSION_EDIT), otherwise a
+// create. Replaces NewSubmissionDialog.vue's modal with a dedicated
+// route, same treatment as TaskCreatePage.vue/QuotationCreatePage.vue/
+// ContractCreatePage.vue. Opened two ways, both preserved from the dialog:
 //  - the global Permit Applications list (/government/submissions/new,
 //    any project pickable);
 //  - a project's own Approvals & Permits card
@@ -32,6 +36,10 @@ import { validators } from '@/utils/validators'
 //    breadcrumbs stay so staff never leave the project. The older
 //    ?projectId=&locked=1 query form of the global route still behaves
 //    the same way.
+// Editing always keeps the project fixed; the authority and form can
+// only change while the application is still in Prepare with nothing
+// uploaded (the API enforces the same rule), and a closed application
+// can't be edited at all.
 
 const route = useRoute()
 const router = useRouter()
@@ -53,6 +61,24 @@ const queryProjectId = computed(() => {
 })
 const isProjectLocked = computed(() => typeof route.params.projectId === 'string' || route.query.locked === '1')
 
+// Edit mode: which application is being edited (see the header comment).
+const editSubmissionNo = computed(() => (typeof route.params.submissionNo === 'string' ? route.params.submissionNo : undefined))
+const isEditMode = computed(() => editSubmissionNo.value !== undefined)
+const editingSubmission = computed(() => (editSubmissionNo.value ? submissionStore.getSubmissionByNo(editSubmissionNo.value) : undefined))
+const isClosed = computed(() => editingSubmission.value?.stage === 'Close')
+
+// In edit mode the project is never changeable, wherever the page was
+// opened from.
+const isProjectFieldFixed = computed(() => isProjectLocked.value || isEditMode.value)
+
+// Same rule as submission_service._change_authority_and_form: nothing
+// has been done against the current form yet.
+const canChangeAuthorityAndForm = computed(() => {
+  const submission = editingSubmission.value
+  if (!submission) return !isEditMode.value
+  return submission.stage === 'Prepare' && submission.documents.every((document) => document.status === 'Pending')
+})
+
 // The full project (with the workflow flags/selections the stepper
 // needs) -- only looked up when opened from a project.
 const originProject = computed(() =>
@@ -64,14 +90,29 @@ const isLoading = ref(true)
 async function loadData(): Promise<void> {
   isLoading.value = true
   if (isProjectLocked.value && projectStore.projects.length === 0) await projectStore.loadProjects()
-  if (submissionStore.authorities.length === 0 || submissionStore.forms.length === 0) {
+  if (isEditMode.value && editSubmissionNo.value) {
+    await submissionStore.loadSubmissionByNo(editSubmissionNo.value)
+  } else if (submissionStore.authorities.length === 0 || submissionStore.forms.length === 0) {
     await submissionStore.loadSubmissions()
   }
   isLoading.value = false
 }
 onMounted(loadData)
 
+// Back to the application being edited (in its project when this was
+// opened from one), or -- when creating -- to wherever it was started.
 function goBack(): void {
+  if (isEditMode.value && editSubmissionNo.value) {
+    if (typeof route.params.projectId === 'string') {
+      router.push({
+        name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE,
+        params: { projectId: route.params.projectId, submissionNo: editSubmissionNo.value },
+      })
+      return
+    }
+    router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: editSubmissionNo.value } })
+    return
+  }
   if (isProjectLocked.value && queryProjectId.value) {
     // Back to the Approvals & Permits card this was opened from.
     router.push({
@@ -105,6 +146,9 @@ setRules({
 })
 
 const availableProjects = computed(() => {
+  if (isEditMode.value && editingSubmission.value) {
+    return submissionStore.projects.filter((project) => project.id === editingSubmission.value!.projectId)
+  }
   if (isProjectLocked.value) {
     return submissionStore.projects.filter((project) => project.id === queryProjectId.value)
   }
@@ -134,15 +178,28 @@ const scopedForms = computed(() =>
     : formsForAuthority.value,
 )
 
-const formOptions = computed<SelectOption[]>(() =>
-  scopedForms.value.map((formItem) => ({ label: `${formItem.formCode} — ${formItem.title}`, value: formItem.id })),
-)
+const formOptions = computed<SelectOption[]>(() => {
+  const options = scopedForms.value.map((formItem) => ({ label: `${formItem.formCode} — ${formItem.title}`, value: formItem.id }))
+  // An application's own form always stays selectable when editing, even
+  // if the Service Document Map no longer maps it to this project.
+  const current = editingSubmission.value ? submissionStore.forms.find((formItem) => formItem.id === editingSubmission.value!.formId) : undefined
+  if (current && current.authorityId === form.authorityId && !options.some((option) => option.value === current.id)) {
+    options.unshift({ label: `${current.formCode} — ${current.title}`, value: current.id })
+  }
+  return options
+})
 
 const scopeMismatchHint = computed(() =>
   form.authorityId && formsForAuthority.value.length > 0 && scopedForms.value.length === 0
     ? t('government.newSubmissionDialog.scopeMismatchHint')
     : undefined,
 )
+
+const formHint = computed(() => {
+  if (isEditMode.value && !canChangeAuthorityAndForm.value) return t('government.newSubmissionDialog.authorityFormLockedHint')
+  if (!form.authorityId) return t('government.newSubmissionDialog.selectAuthorityFirstHint')
+  return scopeMismatchHint.value
+})
 
 const selectedForm = computed(() => submissionStore.forms.find((formItem) => formItem.id === form.formId))
 
@@ -163,7 +220,9 @@ watch(
     // Changing the authority or project can invalidate whatever form was
     // selected under the old pair -- clear it rather than silently keep
     // an orphaned selection that no longer matches any visible option.
-    form.formId = ''
+    // (Only when it really no longer matches: seeding an edit sets the
+    // authority and form together and must keep both.)
+    if (form.formId && !formOptions.value.some((option) => option.value === form.formId)) form.formId = ''
   },
 )
 
@@ -172,7 +231,9 @@ watch(
   () => {
     // Planned permits are per-project -- clear the linked permit rather
     // than silently keep another project's selection.
-    form.selectedPermitId = ''
+    if (form.selectedPermitId && !permitOptions.value.some((option) => option.value === form.selectedPermitId)) {
+      form.selectedPermitId = ''
+    }
   },
 )
 
@@ -181,10 +242,23 @@ watch(
 // own reset-on-open, just gated on data having actually arrived.
 const isFormSeeded = ref(false)
 watch(
-  () => [isLoading.value, availableProjects.value] as const,
+  () => [isLoading.value, availableProjects.value, editingSubmission.value] as const,
   ([loading, projects]) => {
     if (loading || isFormSeeded.value) return
-    form.projectId = queryProjectId.value ?? projects[0]?.id ?? ''
+    const existing = editingSubmission.value
+    if (isEditMode.value) {
+      // Nothing to seed until the application itself has loaded (or it
+      // doesn't exist / is closed, which the template reports).
+      if (!existing || existing.stage === 'Close') return
+      form.projectId = existing.projectId
+      form.authorityId = existing.authorityId
+      form.formId = existing.formId
+      form.selectedPermitId = existing.selectedPermitId ?? ''
+      form.expectedDecisionDate = existing.expectedDecisionDate ?? ''
+      form.notes = existing.notes ?? ''
+    } else {
+      form.projectId = queryProjectId.value ?? projects[0]?.id ?? ''
+    }
     isFormSeeded.value = true
     revalidate()
   },
@@ -198,8 +272,41 @@ watch(form, revalidate, { deep: true })
 
 const isSubmitting = ref(false)
 
+async function handleUpdate(submissionNo: string): Promise<void> {
+  const input: SubmissionUpdateInput = {
+    expectedDecisionDate: form.expectedDecisionDate || null,
+    notes: form.notes.trim() || null,
+    selectedPermitId: form.selectedPermitId || null,
+  }
+  // Authority/form are only ever sent when the API would accept a change.
+  if (canChangeAuthorityAndForm.value) {
+    input.authorityId = form.authorityId
+    input.formId = form.formId
+  }
+  isSubmitting.value = true
+  try {
+    await submissionStore.updateSubmission(submissionNo, input)
+    resultDialogStore.showSuccess(
+      t('government.submissionsPage.submissionUpdatedTitle'),
+      t('government.submissionsPage.submissionUpdatedDescription', { no: submissionNo }),
+    )
+    goBack()
+  } catch (error) {
+    resultDialogStore.showError(
+      t('government.submissionsPage.failedToUpdateSubmission'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 async function handleSubmit(): Promise<void> {
   if (!validateAll(form)) return
+  if (isEditMode.value && editSubmissionNo.value) {
+    await handleUpdate(editSubmissionNo.value)
+    return
+  }
   isSubmitting.value = true
   try {
     const submission = await submissionStore.createSubmission({
@@ -241,36 +348,63 @@ async function handleSubmit(): Promise<void> {
   <div class="flex flex-col gap-6 p-6">
     <ProjectStageStepper v-if="originProject" :project="originProject" />
     <BaseButton v-else variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
-      {{ isProjectLocked ? t('government.workspacePage.backToProject') : t('government.workspacePage.backToSubmissions') }}
+      {{
+        isEditMode
+          ? t('government.newSubmissionDialog.backToApplication')
+          : isProjectLocked
+            ? t('government.workspacePage.backToProject')
+            : t('government.workspacePage.backToSubmissions')
+      }}
     </BaseButton>
 
     <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
     </div>
 
+    <EmptyState
+      v-else-if="isEditMode && !editingSubmission"
+      :title="t('government.workspacePage.submissionNotFound')"
+      :description="t('government.workspacePage.submissionNotFoundDescription')"
+    />
+
+    <EmptyState
+      v-else-if="isEditMode && isClosed"
+      :title="t('government.newSubmissionDialog.closedTitle')"
+      :description="t('government.newSubmissionDialog.closedDescription')"
+    />
+
     <div v-else class="rounded-xl border border-border-light bg-bg-card p-5">
-      <h1 class="mb-4 text-lg font-semibold text-text-primary">{{ t('government.newSubmissionDialog.title') }}</h1>
+      <h1 class="mb-4 text-lg font-semibold text-text-primary">
+        {{ isEditMode ? t('government.newSubmissionDialog.editTitle') : t('government.newSubmissionDialog.title') }}
+      </h1>
 
       <div class="flex flex-col gap-5">
         <SelectBox
           v-model="form.projectId"
           :label="t('government.newSubmissionDialog.project')"
           required
-          :disabled="isProjectLocked"
+          :disabled="isProjectFieldFixed"
           :options="projectOptions"
           :error="errors.projectId"
         />
 
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <SelectBox v-model="form.authorityId" :label="t('government.newSubmissionDialog.authority')" required :options="authorityOptions" :error="errors.authorityId" />
+          <SelectBox
+            v-model="form.authorityId"
+            :label="t('government.newSubmissionDialog.authority')"
+            required
+            :disabled="!canChangeAuthorityAndForm"
+            :options="authorityOptions"
+            :error="errors.authorityId"
+          />
           <SelectBox
             v-model="form.formId"
             :label="t('government.newSubmissionDialog.form')"
             required
-            :disabled="!form.authorityId"
+            :disabled="!form.authorityId || !canChangeAuthorityAndForm"
             :options="formOptions"
             :error="errors.formId"
-            :hint="!form.authorityId ? t('government.newSubmissionDialog.selectAuthorityFirstHint') : scopeMismatchHint"
+            :hint="formHint"
           />
         </div>
 
@@ -295,7 +429,7 @@ async function handleSubmit(): Promise<void> {
 
       <div class="mt-6 flex justify-end gap-3">
         <BaseButton variant="secondary" :disabled="isSubmitting" @click="goBack">{{ t('common.cancel') }}</BaseButton>
-        <BaseButton :loading="isSubmitting" @click="handleSubmit">{{ t('government.newSubmissionDialog.createSubmission') }}</BaseButton>
+        <BaseButton :loading="isSubmitting" @click="handleSubmit">{{ isEditMode ? t('government.newSubmissionDialog.saveChanges') : t('government.newSubmissionDialog.createSubmission') }}</BaseButton>
       </div>
     </div>
   </div>

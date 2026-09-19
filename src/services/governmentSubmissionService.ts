@@ -52,20 +52,41 @@ async function createSubmission(submissionData: SubmissionCreateInput): Promise<
   }
 }
 
+// Only the fields present are applied; an explicit null clears the
+// expected decision date / notes / linked permit. authorityId + formId
+// can only change while the application is still in Prepare with no
+// document uploaded (the API rejects it otherwise).
+export interface SubmissionUpdateInput {
+  expectedDecisionDate?: string | null
+  notes?: string | null
+  authorityId?: string
+  formId?: string
+  selectedPermitId?: string | null
+}
+
 /**
- * Update a submission's editable fields (expected decision date, notes)
- * -- doesn't change stage, that only ever happens through one of the
- * dedicated stage-advancing actions below.
+ * Update a submission's own details -- doesn't change stage, that only
+ * ever happens through one of the dedicated stage-advancing actions
+ * below.
  */
-async function updateSubmission(
-  submissionId: string,
-  submissionData: { expectedDecisionDate?: string; notes?: string },
-): Promise<GovernmentSubmission> {
+async function updateSubmission(submissionId: string, submissionData: SubmissionUpdateInput): Promise<GovernmentSubmission> {
   try {
     return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}`, submissionData)
   } catch (error) {
     console.error(`Failed to update submission ${submissionId}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to update submission')
+  }
+}
+
+/**
+ * Delete a permit application (soft delete server-side).
+ */
+async function deleteSubmission(submissionId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/submissions/${submissionId}`)
+  } catch (error) {
+    console.error(`Failed to delete submission ${submissionId}:`, error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete submission')
   }
 }
 
@@ -256,6 +277,7 @@ export const governmentSubmissionService = {
   getSubmission,
   createSubmission,
   updateSubmission,
+  deleteSubmission,
   uploadDocument,
   downloadDocument,
   confirmReadiness,

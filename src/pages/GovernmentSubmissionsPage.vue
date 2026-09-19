@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
-import { computed, onMounted } from 'vue'
+import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { SmartTableColumn } from '@/types/Table'
 import type { ResponseOutcome, SubmissionStage } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
@@ -36,6 +39,7 @@ interface SubmissionTableRow {
 const router = useRouter()
 const { t } = useI18n()
 const submissionStore = useGovernmentSubmissionStore()
+const toastStore = useToastStore()
 
 // Sends straight to the dedicated New Permit Application page (see
 // SubmissionCreatePage.vue, which replaced NewSubmissionDialog.vue's
@@ -120,6 +124,41 @@ onMounted(() => {
 function openSubmission(row: SubmissionTableRow): void {
   router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: row.submissionNo } })
 }
+
+function editSubmission(row: SubmissionTableRow): void {
+  router.push({ name: ROUTE_NAMES.SUBMISSION_EDIT, params: { submissionNo: row.submissionNo } })
+}
+
+// Delete asks for confirmation in a panel above the table rather than a
+// modal -- see InlineConfirmPanel.vue.
+const pendingDelete = ref<SubmissionTableRow>()
+const isDeleting = ref(false)
+
+const deleteConfirmMessage = computed(() => {
+  const base = t('government.workspacePage.deleteConfirmMessage')
+  return pendingDelete.value && pendingDelete.value.stage !== 'Prepare'
+    ? `${base} ${t('government.workspacePage.deleteConfirmMessageFiled')}`
+    : base
+})
+
+async function confirmDelete(): Promise<void> {
+  const row = pendingDelete.value
+  if (!row) return
+  isDeleting.value = true
+  try {
+    await submissionStore.deleteSubmission(row.submissionNo)
+    toastStore.show(
+      'success',
+      t('government.submissionsPage.submissionDeletedTitle'),
+      t('government.submissionsPage.submissionDeletedDescription', { no: row.submissionNo }),
+    )
+  } catch (error) {
+    toastStore.show('error', t('government.submissionsPage.failedToDeleteSubmission'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isDeleting.value = false
+    pendingDelete.value = undefined
+  }
+}
 </script>
 
 <template>
@@ -156,6 +195,16 @@ function openSubmission(row: SubmissionTableRow): void {
       </template>
     </FilterBar>
 
+    <InlineConfirmPanel
+      v-if="pendingDelete"
+      :title="t('government.workspacePage.deleteConfirmTitle', { no: pendingDelete.submissionNo })"
+      :message="deleteConfirmMessage"
+      :confirm-label="t('government.workspacePage.deleteApplication')"
+      :loading="isDeleting"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = undefined"
+    />
+
     <ErrorState v-if="submissionStore.error" :description="submissionStore.error" @retry="loadData" />
 
     <SmartTable
@@ -185,6 +234,24 @@ function openSubmission(row: SubmissionTableRow): void {
       </template>
       <template #cell-decisionDate="{ value }">
         {{ value ? formatDate(value as string) : t('government.submissionsPage.notYetReceived') }}
+      </template>
+      <template #row-actions="{ row }">
+        <div class="flex items-center justify-end gap-1">
+          <IconButton
+            v-if="row.stage !== 'Close'"
+            :icon="Pencil"
+            :label="t('government.submissionsPage.editSubmission', { no: row.submissionNo })"
+            size="sm"
+            @click="editSubmission(row)"
+          />
+          <IconButton
+            :icon="Trash2"
+            :label="t('government.submissionsPage.deleteSubmission', { no: row.submissionNo })"
+            size="sm"
+            variant="danger"
+            @click="pendingDelete = row"
+          />
+        </div>
       </template>
     </SmartTable>
   </div>

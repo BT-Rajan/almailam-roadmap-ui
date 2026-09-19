@@ -20,6 +20,7 @@ from app.services import submission_service
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
 
 can_view = require_permission("Government", "view")
+can_delete = require_permission("Government", "delete")
 # Deliberately not gated on the "Government: edit" role permission --
 # any authenticated user can create/edit/manage a permit application,
 # not just roles that have been granted that permission in
@@ -126,6 +127,11 @@ def update_submission(
 ):
     submission = submission_service.update_submission(db, submission_no, payload, current_user.id)
     return _to_out(db, submission)
+
+
+@router.delete("/{submission_no}", status_code=204)
+def delete_submission(submission_no: str, db: Session = Depends(get_db), current_user: User = Depends(can_delete)):
+    submission_service.delete_submission(db, submission_no, current_user.id)
 
 
 @router.patch("/{submission_no}/documents/{document_id}")

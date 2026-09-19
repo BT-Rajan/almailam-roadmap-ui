@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, Ban, CircleCheck, FileEdit, Send } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Ban, CircleCheck, FileEdit, Pencil, Send, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -21,6 +21,7 @@ import TimePicker from '@/components/common/TimePicker.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
+import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
 import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import { useLocale } from '@/composables/useLocale'
@@ -299,6 +300,49 @@ const canLogContact = computed(() => submission.value?.stage === 'Track' || subm
 // -- Close: final outcome ----------------------------------------------------
 
 const canClose = computed(() => !!submission.value && submission.value.stage !== 'Close')
+
+// -- Edit / Delete ---------------------------------------------------------
+// A closed application is a finished record -- it can be deleted (by
+// someone with that permission) but no longer edited.
+const canEdit = computed(() => !!submission.value && submission.value.stage !== 'Close')
+
+function goEdit(): void {
+  if (originProjectId.value) {
+    router.push({ name: ROUTE_NAMES.PROJECT_SUBMISSION_EDIT, params: { projectId: originProjectId.value, submissionNo: submissionNo.value } })
+    return
+  }
+  router.push({ name: ROUTE_NAMES.SUBMISSION_EDIT, params: { submissionNo: submissionNo.value } })
+}
+
+const isDeleteConfirmOpen = ref(false)
+const isDeleting = ref(false)
+
+const deleteConfirmMessage = computed(() => {
+  const base = t('government.workspacePage.deleteConfirmMessage')
+  // Once it's been filed there's a real record with the authority --
+  // point at Withdrawn as the way to keep it.
+  return submission.value && submission.value.stage !== 'Prepare'
+    ? `${base} ${t('government.workspacePage.deleteConfirmMessageFiled')}`
+    : base
+})
+
+async function handleConfirmDelete(): Promise<void> {
+  isDeleting.value = true
+  try {
+    await submissionStore.deleteSubmission(submissionNo.value)
+    toastStore.show(
+      'success',
+      t('government.submissionsPage.submissionDeletedTitle'),
+      t('government.submissionsPage.submissionDeletedDescription', { no: submissionNo.value }),
+    )
+    goBack()
+  } catch (error) {
+    toastStore.show('error', t('government.submissionsPage.failedToDeleteSubmission'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    isDeleteConfirmOpen.value = false
+  } finally {
+    isDeleting.value = false
+  }
+}
 const isCloseDialogOpen = ref(false)
 const closeOutcome = ref<ResponseOutcome>('Approved')
 const closingNotes = ref('')
@@ -403,6 +447,16 @@ function goBack(): void {
     />
 
     <template v-else>
+      <InlineConfirmPanel
+        v-if="isDeleteConfirmOpen"
+        :title="t('government.workspacePage.deleteConfirmTitle', { no: submission.submissionNo })"
+        :message="deleteConfirmMessage"
+        :confirm-label="t('government.workspacePage.deleteApplication')"
+        :loading="isDeleting"
+        @confirm="handleConfirmDelete"
+        @cancel="isDeleteConfirmOpen = false"
+      />
+
       <div class="flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ authority?.name ?? t('government.unknownAuthority') }} &middot; {{ form?.title ?? t('government.unknownForm') }}</p>
@@ -410,6 +464,12 @@ function goBack(): void {
         </div>
         <div class="flex items-center gap-2">
           <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
+          <BaseButton v-if="canEdit" size="sm" variant="secondary" :icon="Pencil" class="no-print" @click="goEdit">
+            {{ t('government.workspacePage.editApplication') }}
+          </BaseButton>
+          <BaseButton size="sm" variant="secondary" :icon="Trash2" class="no-print" @click="isDeleteConfirmOpen = true">
+            {{ t('government.workspacePage.deleteApplication') }}
+          </BaseButton>
           <BaseButton v-if="canClose" size="sm" variant="danger" :icon="Ban" @click="openCloseDialog">
             {{ t('government.workspacePage.closeApplication') }}
           </BaseButton>
