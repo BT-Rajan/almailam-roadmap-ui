@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, FileText, Pencil, Plus, Trash2, X } from '@lucide/vue'
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -9,14 +9,12 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
-import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import PricingSummary from '@/components/project/PricingSummary.vue'
 import type { Client } from '@/types/Client'
 import type { Project } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
-import type { SelectOption } from '@/types/Ui'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getQuotationStatusVariant } from '@/utils/quotationHelpers'
@@ -37,12 +35,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const CURRENCY_OPTIONS: SelectOption[] = [
-  { label: 'KWD', value: 'KWD' },
-  { label: 'USD', value: 'USD' },
-  { label: 'AED', value: 'AED' },
-  { label: 'EUR', value: 'EUR' },
-]
+// Reference-only, exactly like QuotationCreatePage.vue's own
+// supervisionActivities -- Supervision is billed monthly via the
+// Financial Agreement, not folded into this one-time quotation total.
+const supervisionActivities = computed(() => props.project.selectedSupervisionActivities ?? [])
 
 // Click Edit to unlock changes, Save/Save as Final to lock them back down.
 const isEditing = ref(false)
@@ -145,19 +141,13 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
         </div>
       </div>
 
-      <div class="flex flex-col gap-4 tablet:flex-row tablet:items-start tablet:justify-between">
-        <div class="flex items-center gap-3">
-          <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-            <FileText class="h-5 w-5" />
-          </span>
-          <div>
-            <p class="text-sm font-semibold text-text-primary">{{ t('common.companyName') }}</p>
-            <p class="text-xs text-text-muted">{{ t('project.quotationPreview.companyTagline') }}</p>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-1 tablet:items-end">
-          <p class="text-xs text-text-muted">{{ t('project.quotationPreview.revision', { revision: quotation.revision }) }}</p>
+      <div class="flex items-center gap-3">
+        <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+          <FileText class="h-5 w-5" />
+        </span>
+        <div>
+          <p class="text-sm font-semibold text-text-primary">{{ t('common.companyName') }}</p>
+          <p class="text-xs text-text-muted">{{ t('project.quotationPreview.companyTagline') }}</p>
         </div>
       </div>
 
@@ -180,7 +170,6 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
           <p class="text-sm text-text-muted">{{ t('project.quotationPreview.issued', { date: formatDate(quotation.issueDate) }) }}</p>
           <template v-if="isEditing">
             <DatePicker v-model="draft.validity" :label="t('project.quotationPreview.validUntil')" />
-            <SelectBox v-model="draft.currency" :label="t('project.quotationPreview.currency')" :options="CURRENCY_OPTIONS" />
           </template>
           <p v-else class="text-sm text-text-muted">{{ t('project.quotationPreview.validUntilValue', { date: formatDate(quotation.validity) }) }}</p>
           <p class="text-sm text-text-muted">{{ t('project.quotationPreview.preparedBy', { name: quotation.preparedBy }) }}</p>
@@ -189,10 +178,17 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
 
       <Divider />
 
+      <PricingSummary :quotation="isEditing ? { ...quotation, ...buildPatch() } : quotation" />
+
+      <Divider />
+
       <div v-if="!isEditing" class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
             <tr class="border-b border-border-light bg-bg-secondary">
+              <th class="w-12 px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
+                {{ t('project.quotationPreview.serialNo') }}
+              </th>
               <th class="px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {{ t('common.description') }}
               </th>
@@ -208,7 +204,8 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in quotation.lineItems" :key="item.id" class="border-b border-border-light last:border-0">
+            <tr v-for="(item, index) in quotation.lineItems" :key="item.id" class="border-b border-border-light last:border-0">
+              <td class="px-3 py-3 text-sm text-text-secondary">{{ index + 1 }}</td>
               <td class="px-3 py-3 text-sm text-text-secondary">{{ item.description }}</td>
               <td class="px-3 py-3 text-end text-sm text-text-secondary">{{ item.quantity }}</td>
               <td class="px-3 py-3 text-end text-sm text-text-secondary">
@@ -229,6 +226,7 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
         </div>
         <div v-for="(item, index) in draft.lineItems" :key="item.id" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
           <div class="flex items-start gap-2">
+            <span class="pt-2 text-sm text-text-muted">{{ index + 1 }}.</span>
             <div class="flex-1">
               <TextInput v-model="item.description" :placeholder="t('common.description')" />
             </div>
@@ -246,14 +244,17 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
           :model-value="draft.discountAmount"
           :label="t('project.quotationPreview.discountAmount')"
           :min="0"
-          step="0.01"
+          step="1"
           @update:model-value="draft.discountAmount = Number($event)"
         />
       </div>
 
-      <div class="flex justify-end">
-        <div class="w-full tablet:w-80">
-          <PricingSummary :quotation="isEditing ? { ...quotation, ...buildPatch() } : quotation" />
+      <div v-if="supervisionActivities.length > 0" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-secondary p-3">
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceTitle') }}</p>
+        <p class="text-xs text-text-muted">{{ t('project.newQuotationDialog.supervisionReferenceHint') }}</p>
+        <div v-for="activity in supervisionActivities" :key="activity.activityId" class="flex items-center justify-between text-sm">
+          <span class="text-text-secondary">{{ activity.activityName }} ({{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }})</span>
+          <span class="font-medium text-text-primary">{{ formatCurrency(activity.monthlyRate, quotation.currency) }}/mo</span>
         </div>
       </div>
     </div>

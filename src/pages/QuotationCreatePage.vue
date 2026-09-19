@@ -59,11 +59,13 @@ watch(projectId, loadData)
 const project = computed(() => projectStore.getProjectById(projectId.value))
 const client = computed(() => (project.value ? projectStore.getClientById(project.value.clientId) : undefined))
 
-// Once one quotation for this project has been Approved, that's the
-// quotation the project moves forward on -- creating another would just
-// be a second, competing quotation for the same project (matches
-// ProjectQuotationTab.vue's own hasApprovedQuotation).
-const hasApprovedQuotation = computed(() => quotationStore.quotations.some((quotation) => quotation.status === 'Approved'))
+// Only one quotation should ever be "in play" for a project at a time
+// -- a Draft still awaiting a decision or an already-Approved quotation
+// both block a second one from being created here (matches
+// ProjectQuotationTab.vue's own hasActiveQuotation).
+const hasActiveQuotation = computed(() =>
+  quotationStore.quotations.some((quotation) => quotation.status === 'Draft' || quotation.status === 'Approved'),
+)
 
 function goBack(): void {
   if (project.value) {
@@ -86,10 +88,16 @@ interface DraftLineItem {
   description: string
   quantity: number
   unitPrice: number
+  // True for a row seeded from the project's own picked Design
+  // activities/Permits (see formFromProject below) -- its description
+  // and rate come from the scope the client already agreed to, so they
+  // render as fixed text rather than inputs. A row added via Add
+  // Service is free-text/free-rate instead.
+  fromScope: boolean
 }
 
 function emptyLineItem(): DraftLineItem {
-  return { description: '', quantity: 1, unitPrice: 0 }
+  return { description: '', quantity: 1, unitPrice: 0, fromScope: false }
 }
 
 function emptyForm() {
@@ -118,11 +126,13 @@ function formFromProject(project: Project | undefined) {
     description: `${item.serviceName} - ${item.activityName}`,
     quantity: 1,
     unitPrice: item.fixedCost,
+    fromScope: true,
   }))
   const permitLineItems = (project?.selectedPermits ?? []).map((permit) => ({
     description: `Permits to Apply For - ${permit.permitName}`,
     quantity: 1,
     unitPrice: permit.permitPrice ?? 0,
+    fromScope: true,
   }))
   const lineItems = [...serviceLineItems, ...permitLineItems]
   if (lineItems.length === 0) return emptyForm()
@@ -251,7 +261,7 @@ async function handleSubmit(): Promise<void> {
     <EmptyState v-else-if="!project" :title="t('project.workspacePage.notFoundTitle')" :description="t('project.workspacePage.notFoundDescription')" />
 
     <EmptyState
-      v-else-if="hasApprovedQuotation"
+      v-else-if="hasActiveQuotation"
       :title="t('project.quotationTab.quotationAlreadyApprovedTitle')"
       :description="t('project.quotationTab.quotationAlreadyApprovedDescription')"
     />
@@ -277,19 +287,22 @@ async function handleSubmit(): Promise<void> {
           </div>
 
           <div class="overflow-x-auto rounded-lg border border-border-light">
-            <table class="w-full min-w-[560px] border-collapse">
+            <table class="w-full min-w-[640px] border-collapse">
               <thead>
                 <tr class="border-b border-border-light bg-bg-secondary">
+                  <th class="w-12 px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    {{ t('project.newQuotationDialog.columnSerialNo') }}
+                  </th>
                   <th class="px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {{ t('project.newQuotationDialog.columnLineItem') }}
                   </th>
                   <th class="w-24 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {{ t('project.newQuotationDialog.columnQty') }}
                   </th>
-                  <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  <th class="w-36 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {{ t('project.newQuotationDialog.columnRate') }}
                   </th>
-                  <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  <th class="w-36 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {{ t('project.newQuotationDialog.columnAmount') }}
                   </th>
                   <th class="w-10 px-2 py-2.5"></th>
@@ -298,7 +311,16 @@ async function handleSubmit(): Promise<void> {
               <tbody>
                 <tr v-for="(item, index) in form.lineItems" :key="index" class="border-b border-border-light last:border-0">
                   <td class="px-3 py-2 align-top">
-                    <TextInput v-model="item.description" :placeholder="t('project.newQuotationDialog.descriptionPlaceholder')" :error="lineItemErrors[index]?.description" />
+                    <span class="inline-block pt-2 text-sm text-text-secondary">{{ index + 1 }}</span>
+                  </td>
+                  <td class="px-3 py-2 align-top">
+                    <TextInput
+                      v-if="!item.fromScope"
+                      v-model="item.description"
+                      :placeholder="t('project.newQuotationDialog.descriptionPlaceholder')"
+                      :error="lineItemErrors[index]?.description"
+                    />
+                    <span v-else class="inline-block pt-2 text-sm text-text-secondary">{{ item.description }}</span>
                   </td>
                   <td class="px-3 py-2 align-top">
                     <NumberInput
@@ -311,12 +333,14 @@ async function handleSubmit(): Promise<void> {
                   </td>
                   <td class="px-3 py-2 align-top">
                     <NumberInput
+                      v-if="!item.fromScope"
                       :model-value="item.unitPrice"
                       :min="0"
                       step="0.01"
                       :error="lineItemErrors[index]?.unitPrice"
                       @update:model-value="item.unitPrice = Number($event)"
                     />
+                    <span v-else class="inline-block pt-2 text-end text-sm text-text-secondary">{{ formatCurrency(item.unitPrice, QUOTATION_CURRENCY) }}</span>
                   </td>
                   <td class="px-3 py-2 text-end align-top">
                     <span class="inline-block pt-2 text-sm font-medium text-text-primary">
@@ -343,7 +367,7 @@ async function handleSubmit(): Promise<void> {
             :model-value="form.discountAmount"
             :label="t('project.newQuotationDialog.discountAmount')"
             :min="0"
-            step="0.01"
+            step="1"
             :error="errors.discountAmount"
             @update:model-value="form.discountAmount = Number($event)"
           />

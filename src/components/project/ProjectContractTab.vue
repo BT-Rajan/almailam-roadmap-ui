@@ -88,8 +88,8 @@ const hasDecisionOptions = computed(() => contractStore.selectedContract?.status
 
 // Once any contract for this project has ever been signed, its terms
 // are locked in -- "New Contract" is disabled the same way Quotation's
-// "New Quotation" is disabled once one's Approved (see
-// ProjectQuotationTab.vue's hasApprovedQuotation).
+// "New Quotation" is disabled once a quotation is Draft or Approved
+// (see ProjectQuotationTab.vue's hasActiveQuotation).
 const hasSignedContract = computed(() => contractStore.contracts.some((contract) => contract.status !== 'Draft'))
 
 // A contract must come from a specific quotation that's Approved and

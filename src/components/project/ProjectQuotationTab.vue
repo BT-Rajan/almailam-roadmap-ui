@@ -43,13 +43,16 @@ const resultDialogStore = useResultDialogStore()
 const router = useRouter()
 const { t } = useI18n()
 
-// Once one quotation for this project has been Approved, that's the
-// quotation the project moves forward on -- creating another would just
-// be a second, competing quotation for the same project, so New
-// Quotation is disabled from here on (matches isScopeLocked's same
-// "an Approved quotation exists" check on the Scope card in
-// ProjectOverviewTab.vue).
-const hasApprovedQuotation = computed(() => quotationStore.quotations.some((quotation) => quotation.status === 'Approved'))
+// Only one quotation should ever be "in play" for a project at a time
+// -- a Draft still awaiting a decision or an already-Approved quotation
+// both count as active, so New Quotation stays disabled until that one
+// is Rejected or Expired. Matches isScopeLocked's own "an Approved
+// quotation exists" check on the Scope card in ProjectOverviewTab.vue,
+// just widened to cover Draft too since a second quotation would
+// otherwise compete with one that's still pending.
+const hasActiveQuotation = computed(() =>
+  quotationStore.quotations.some((quotation) => quotation.status === 'Draft' || quotation.status === 'Approved'),
+)
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
@@ -271,7 +274,7 @@ async function handleConfirmApproval(payload: { file: File }): Promise<void> {
     isApprovalDialogOpen.value = false
     resultDialogStore.showSuccess(t('project.quotationTab.approvalDialog.approvedTitle'), t('project.quotationTab.approvalDialog.approvedDescription'))
     // An Approved quotation is exactly what unlocks Payment Plan (see
-    // hasApprovedQuotation above) -- take staff straight there instead
+    // hasActiveQuotation above) -- take staff straight there instead
     // of leaving them on the now-locked Quotation tab.
     emit('navigate-tab', 'payment-plan')
   } catch (error) {
@@ -387,7 +390,7 @@ async function handleRevertToDraft(): Promise<void> {
 
 <template>
   <div class="flex items-center justify-between">
-    <BaseButton size="sm" :icon="Plus" :disabled="hasApprovedQuotation" class="no-print" @click="goToCreateQuotation">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
+    <BaseButton size="sm" :icon="Plus" :disabled="hasActiveQuotation" class="no-print" @click="goToCreateQuotation">{{ t('project.quotationTab.newQuotation') }}</BaseButton>
     <div class="no-print flex items-center gap-2">
       <div v-if="quotationStore.selectedQuotation?.status === 'Draft'" ref="decisionMenuRef" class="relative">
         <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovalSaving || isFinalizing" @click="toggleDecisionMenu">
