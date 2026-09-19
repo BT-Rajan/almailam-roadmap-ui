@@ -232,7 +232,6 @@ def list_followups(submission_no: str, db: Session = Depends(get_db), _=Depends(
 @router.post("/{submission_no}/followups", response_model=FollowupOut, status_code=201)
 def add_followup(
     submission_no: str,
-    entryStage: str = Form(...),
     followupDate: str = Form(...),
     followupTime: str = Form(...),
     contactPerson: str = Form(...),
@@ -241,16 +240,14 @@ def add_followup(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    """Logs contact with the authority. entryStage 'Track' for a plain
-    check-in, 'Update' (with an optional document) for one where the
-    authority asked for something else -- either moves/keeps the
-    application at that stage."""
+    """Logs contact with the authority while the application is in
+    Track -- a plain check-in, or one carrying a document the authority
+    asked for. Doesn't change the application's stage."""
     payload = FollowupCreate(
-        entryStage=entryStage, followupDate=followupDate, followupTime=followupTime,
-        contactPerson=contactPerson, notes=notes,
+        followupDate=followupDate, followupTime=followupTime, contactPerson=contactPerson, notes=notes,
     )
     followup = submission_service.add_followup(
-        db, submission_no, payload.entryStage, payload.followupDate, payload.followupTime,
+        db, submission_no, payload.followupDate, payload.followupTime,
         payload.contactPerson, payload.notes, file, current_user.id,
     )
     return FollowupOut.from_model(followup, current_user.full_name)

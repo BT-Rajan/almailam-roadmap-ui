@@ -242,9 +242,6 @@ async function getFollowups(submissionId: string): Promise<SubmissionFollowup[]>
 }
 
 export interface FollowupCreateInput {
-  // 'Track' for a plain check-in, 'Update' for one where the authority
-  // asked for something else (carries an optional document).
-  entryStage: 'Track' | 'Update'
   followupDate: string
   followupTime: string
   contactPerson: string
@@ -255,7 +252,6 @@ export interface FollowupCreateInput {
 async function addFollowup(submissionId: string, input: FollowupCreateInput): Promise<SubmissionFollowup> {
   try {
     const formData = new FormData()
-    formData.append('entryStage', input.entryStage)
     formData.append('followupDate', input.followupDate)
     formData.append('followupTime', input.followupTime)
     formData.append('contactPerson', input.contactPerson)

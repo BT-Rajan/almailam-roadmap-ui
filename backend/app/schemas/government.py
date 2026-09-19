@@ -247,7 +247,6 @@ class ProofOfFileOut(BaseModel):
 
 class FollowupOut(BaseModel):
     id: str
-    stage: str
     followupDate: date
     followupTime: str
     contactPerson: str
@@ -270,7 +269,6 @@ class FollowupOut(BaseModel):
             )
         return FollowupOut(
             id=f"FUP-{followup.id:04d}",
-            stage=followup.stage,
             followupDate=followup.followup_date,
             followupTime=followup.followup_time,
             contactPerson=followup.contact_person,
@@ -282,12 +280,10 @@ class FollowupOut(BaseModel):
 
 
 class FollowupCreate(BaseModel):
-    entryStage: str
     followupDate: date
     followupTime: str = Field(min_length=1, max_length=20)
     contactPerson: str = Field(min_length=1, max_length=150)
     notes: str | None = None
-    _check_entry_stage = field_validator("entryStage")(_enum_validator(("Track", "Update"), "entryStage"))
 
 
 class SubmissionOut(BaseModel):

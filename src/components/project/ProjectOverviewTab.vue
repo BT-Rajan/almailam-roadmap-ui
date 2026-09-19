@@ -567,7 +567,6 @@ const SUBMISSION_STAGE_LABEL_KEYS: Record<string, string> = {
   Prepare: 'government.submissionStage.prepare',
   Apply: 'government.submissionStage.apply',
   Track: 'government.submissionStage.track',
-  Update: 'government.submissionStage.update',
   Close: 'government.submissionStage.close',
 }
 function submissionStageLabel(stage: string): string {

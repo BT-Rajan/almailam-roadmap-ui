@@ -25,10 +25,9 @@ from app.services.number_series_service import next_number
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
 UPLOAD_SUBDIRECTORY = "submissions"
 
-# Stages in which logging contact with the authority or closing the
-# application out makes sense -- i.e. it's actually been filed (past
-# Apply) and is awaiting/has reached a resolution.
-AWAITING_RESPONSE_STAGES = ("Track", "Update")
+# Stages in which logging contact with the authority makes sense --
+# i.e. it's actually been filed (past Apply) and is awaiting a decision.
+AWAITING_RESPONSE_STAGES = ("Track",)
 
 
 def parse_followup_id(raw: str) -> int:
@@ -445,8 +444,7 @@ def close_application(
     optional permit/decision document (there's often nothing to attach
     for a Withdrawn/No Response outcome), and closing notes. Reachable
     from any stage (see SUBMISSION_ALLOWED_TRANSITIONS), not only
-    Track/Update, so an application can be withdrawn before it's even
-    filed.
+    Track, so an application can be withdrawn before it's even filed.
 
     An Approved outcome is exactly what project_service's Government
     Submission -> Supervision exit criterion cares about -- flush first
@@ -559,7 +557,6 @@ def get_followup_document_download_target(db: Session, submission_no: str, follo
 def add_followup(
     db: Session,
     submission_no: str,
-    entry_stage: str,
     followup_date,
     followup_time: str,
     contact_person: str,
@@ -567,21 +564,14 @@ def add_followup(
     file: UploadFile | None,
     user_id: int | None,
 ) -> SubmissionFollowup:
-    """Logs contact made with the authority -- entry_stage is 'Track'
-    for a plain check-in or 'Update' for one that also carries a
-    document (an additional document sought, or an updated version of
-    one already sent). Moves the application's own stage to match
-    entry_stage if it isn't there already (Track <-> Update both being
-    allowed either direction, see SUBMISSION_ALLOWED_TRANSITIONS) --
-    logging the entry and reaching that stage are the same action, not
-    two separate steps."""
+    """Logs contact made with the authority while the application is in
+    Track -- a plain check-in, or one that also carries a document (an
+    additional document the authority asked for, or an updated version
+    of one already sent). Doesn't move the application: it stays in
+    Track until it's closed."""
     submission = get_submission(db, submission_no)
     if submission.stage not in AWAITING_RESPONSE_STAGES:
-        raise ValidationAppError(
-            "Contact can only be logged once the application has been filed (Track/Update)."
-        )
-    if entry_stage not in ("Track", "Update"):
-        raise ValidationAppError("entry_stage must be 'Track' or 'Update'.")
+        raise ValidationAppError("Contact can only be logged once the application has been filed (Track).")
 
     storage_key = original_filename = None
     size_bytes = None
@@ -590,7 +580,6 @@ def add_followup(
 
     followup = SubmissionFollowup(
         submission_id=submission.id,
-        stage=entry_stage,
         followup_date=followup_date,
         followup_time=followup_time,
         contact_person=contact_person.strip(),
@@ -605,7 +594,6 @@ def add_followup(
     audit_service.log_event(
         db, ENTITY_TYPE, submission.id, "Follow-up recorded", user_id, new_value=contact_person.strip()
     )
-    _set_stage(db, submission, entry_stage, user_id)
     db.commit()
     db.refresh(followup)
     return followup

@@ -19,7 +19,6 @@ const STAGE_LABEL_KEYS: Record<SubmissionStage, string> = {
   Prepare: 'government.submissionStage.prepare',
   Apply: 'government.submissionStage.apply',
   Track: 'government.submissionStage.track',
-  Update: 'government.submissionStage.update',
   Close: 'government.submissionStage.close',
 }
 

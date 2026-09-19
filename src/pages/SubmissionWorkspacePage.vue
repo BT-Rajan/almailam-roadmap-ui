@@ -5,16 +5,16 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import RadioGroup from '@/components/common/RadioGroup.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TabBar from '@/components/common/TabBar.vue'
+import type { TabBarTab } from '@/components/common/TabBar.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
@@ -31,11 +31,11 @@ import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore
 import { useProjectFormStore } from '@/stores/projectFormStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
-import type { ResponseOutcome } from '@/types/Submission'
+import type { ResponseOutcome, SubmissionStage } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 import { formatDate } from '@/utils/dateFormatter'
-import { getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
+import { SUBMISSION_STAGES, getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,7 +77,7 @@ async function loadData(): Promise<void> {
     if (originProjectId.value && projectStore.projects.length === 0) await projectStore.loadProjects()
     const loaded = await submissionStore.loadSubmissionByNo(submissionNo.value)
     if (loaded) {
-      if (loaded.stage === 'Track' || loaded.stage === 'Update' || loaded.stage === 'Close') {
+      if (loaded.stage === 'Track' || loaded.stage === 'Close') {
         await submissionStore.loadFollowups(submissionNo.value)
       }
       // Always reload for this submission's own project -- projectFormStore
@@ -137,7 +137,6 @@ const SUBMISSION_STAGE_LABEL_KEYS: Record<string, string> = {
   Prepare: 'government.submissionStage.prepare',
   Apply: 'government.submissionStage.apply',
   Track: 'government.submissionStage.track',
-  Update: 'government.submissionStage.update',
   Close: 'government.submissionStage.close',
 }
 
@@ -145,6 +144,62 @@ function submissionStageLabel(stage: string): string {
   const key = SUBMISSION_STAGE_LABEL_KEYS[stage]
   return key ? t(key) : stage
 }
+
+// -- Tabs: one per stage ------------------------------------------------------
+// The four stages are the page's tabs. The current stage's tab opens
+// first (or the one named in ?tab=, if it's reachable), and moves along
+// on its own when the application advances -- filing it lands on Track.
+// Stages not reached yet are locked; Close is never locked, since an
+// application can be closed (withdrawn) from any stage.
+
+const activeTab = ref<SubmissionStage>('Prepare')
+const seededSubmissionNo = ref<string>()
+
+function isTabReachable(tab: SubmissionStage, currentStage: SubmissionStage): boolean {
+  return tab === 'Close' || SUBMISSION_STAGES.indexOf(tab) <= SUBMISSION_STAGES.indexOf(currentStage)
+}
+
+function tabFromQuery(): SubmissionStage | undefined {
+  const value = route.query.tab
+  return SUBMISSION_STAGES.find((stage) => typeof value === 'string' && stage.toLowerCase() === value.toLowerCase())
+}
+
+const stageTabs = computed<TabBarTab[]>(() => {
+  const currentStage = submission.value?.stage ?? 'Prepare'
+  return SUBMISSION_STAGES.map((stage) => {
+    const locked = !isTabReachable(stage, currentStage)
+    return {
+      key: stage,
+      label: submissionStageLabel(stage),
+      disabled: locked,
+      title: locked ? t('government.workspacePage.tabLockedHint') : undefined,
+    }
+  })
+})
+
+function selectTab(key: string): void {
+  const stage = SUBMISSION_STAGES.find((candidate) => candidate === key)
+  if (!stage) return
+  activeTab.value = stage
+  router.replace({ query: { ...route.query, tab: stage.toLowerCase() } })
+}
+
+watch(
+  () => [submission.value?.submissionNo, submission.value?.stage] as const,
+  ([no, stage], oldValue) => {
+    if (!no || !stage) return
+    if (seededSubmissionNo.value !== no) {
+      // First time this application is on screen.
+      seededSubmissionNo.value = no
+      const requested = tabFromQuery()
+      activeTab.value = requested && isTabReachable(requested, stage) ? requested : stage
+    } else if (stage !== oldValue?.[1]) {
+      // It moved to a new stage (e.g. filed -> Track): follow it.
+      activeTab.value = stage
+    }
+  },
+  { immediate: true },
+)
 
 // -- Prepare: fill in the form ---------------------------------------------
 
@@ -239,29 +294,25 @@ async function downloadAcknowledgement(): Promise<void> {
   }
 }
 
-// -- Track / Update: contact log --------------------------------------------
+// -- Track: contact log ---------------------------------------------------------
+// Logged in an inline form on the Track tab (not a dialog). Every entry
+// can carry a document -- an additional one the authority asked for, or
+// an updated version of one already sent.
 
-const isFollowupDialogOpen = ref(false)
-const followupEntryStage = ref<'Track' | 'Update'>('Track')
+const isFollowupFormOpen = ref(false)
 const followupDate = ref('')
 const followupTime = ref('')
 const followupContactPerson = ref('')
 const followupNotes = ref('')
 const followupFile = ref<File>()
 
-const ENTRY_STAGE_OPTIONS = computed<SelectOption[]>(() => [
-  { label: 'Track', value: 'Track', labelKey: 'government.workspacePage.entryStageTrack' },
-  { label: 'Update', value: 'Update', labelKey: 'government.workspacePage.entryStageUpdate' },
-])
-
-function openFollowupDialog(): void {
-  followupEntryStage.value = 'Track'
+function openFollowupForm(): void {
   followupDate.value = new Date().toISOString().slice(0, 10)
   followupTime.value = ''
   followupContactPerson.value = ''
   followupNotes.value = ''
   followupFile.value = undefined
-  isFollowupDialogOpen.value = true
+  isFollowupFormOpen.value = true
 }
 
 function handleFollowupFileSelect(file: File | undefined): void {
@@ -271,15 +322,14 @@ function handleFollowupFileSelect(file: File | undefined): void {
 async function confirmFollowup(): Promise<void> {
   if (!followupDate.value || !followupTime.value || !followupContactPerson.value.trim()) return
   const success = await submissionStore.addFollowup(submissionNo.value, {
-    entryStage: followupEntryStage.value,
     followupDate: followupDate.value,
     followupTime: followupTime.value,
     contactPerson: followupContactPerson.value.trim(),
     notes: followupNotes.value.trim() || undefined,
-    file: followupEntryStage.value === 'Update' ? followupFile.value : undefined,
+    file: followupFile.value,
   })
   if (success) {
-    isFollowupDialogOpen.value = false
+    isFollowupFormOpen.value = false
     toastStore.show('success', t('government.workspacePage.followUpRecordedTitle'), t('government.workspacePage.followUpRecordedDescription'))
   } else {
     toastStore.show('error', t('government.workspacePage.unableToRecordFollowUp'), submissionStore.mutationError ?? t('common.pleaseTryAgain'))
@@ -295,7 +345,12 @@ async function downloadFollowupDocument(followupId: string, originalFilename: st
   }
 }
 
-const canLogContact = computed(() => submission.value?.stage === 'Track' || submission.value?.stage === 'Update')
+const canLogContact = computed(() => submission.value?.stage === 'Track')
+
+// A closed application only has a Track history if it was ever filed.
+const hasTrackHistory = computed(
+  () => canLogContact.value || submissionStore.followups.length > 0 || !!submission.value?.submittedDate,
+)
 
 // -- Close: final outcome ----------------------------------------------------
 
@@ -343,7 +398,7 @@ async function handleConfirmDelete(): Promise<void> {
     isDeleting.value = false
   }
 }
-const isCloseDialogOpen = ref(false)
+const isCloseFormOpen = ref(false)
 const closeOutcome = ref<ResponseOutcome>('Approved')
 const closingNotes = ref('')
 const closeFile = ref<File>()
@@ -368,11 +423,11 @@ function outcomeLabel(outcome: string | null | undefined): string {
   return key ? t(key) : outcome
 }
 
-function openCloseDialog(): void {
+function openCloseForm(): void {
   closeOutcome.value = 'Approved'
   closingNotes.value = ''
   closeFile.value = undefined
-  isCloseDialogOpen.value = true
+  isCloseFormOpen.value = true
 }
 
 function handleCloseFileSelect(file: File | undefined): void {
@@ -388,7 +443,7 @@ async function confirmClose(): Promise<void> {
     file: closeFile.value,
   })
   if (success) {
-    isCloseDialogOpen.value = false
+    isCloseFormOpen.value = false
     toastStore.show('success', t('government.workspacePage.applicationClosedTitle'), t('government.workspacePage.applicationClosedDescription', { submissionNo: submissionNo.value }))
     // An Approved close can advance the project's own workflow stage
     // server-side -- refresh so the project's cached stage (used by the
@@ -470,9 +525,6 @@ function goBack(): void {
           <BaseButton size="sm" variant="secondary" :icon="Trash2" class="no-print" @click="isDeleteConfirmOpen = true">
             {{ t('government.workspacePage.deleteApplication') }}
           </BaseButton>
-          <BaseButton v-if="canClose" size="sm" variant="danger" :icon="Ban" @click="openCloseDialog">
-            {{ t('government.workspacePage.closeApplication') }}
-          </BaseButton>
         </div>
       </div>
 
@@ -487,251 +539,309 @@ function goBack(): void {
         <DetailPanel :title="t('government.workspacePage.submissionDetails')" :items="submissionDetails" />
       </Card>
 
-      <Card>
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.prepareTheApplication') }}</h3>
-        </template>
-        <div class="flex flex-col gap-4">
-          <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-bg-secondary p-3">
-            <span class="text-sm text-text-secondary">
-              {{ formEntry ? t('government.workspacePage.formFilledIn') : t('government.workspacePage.formNotFilledInYet') }}
-            </span>
-            <div class="flex items-center gap-2 no-print">
-              <BaseButton v-if="formEntry" variant="secondary" size="sm" @click="viewFilledForm">{{ t('common.view') }}</BaseButton>
-              <BaseButton variant="secondary" size="sm" :icon="FileEdit" @click="openFormEntryDialog">
-                {{ formEntry ? t('common.edit') : t('government.workspacePage.fillForm') }}
-              </BaseButton>
-            </div>
-          </div>
-
-          <RequiredDocumentChecklist
-            :documents="submission.documents"
-            :can-upload="canUploadDocuments"
-            :uploading-document-id="uploadingDocumentId"
-            @upload="handleDocumentUpload"
-            @download="handleDocumentDownload"
-          />
-
-          <template v-if="submission.stage === 'Prepare'">
-            <p v-if="!canConfirmReadiness" class="text-xs text-text-muted">
-              {{ t('government.workspacePage.uploadDocumentsNotice') }}
-            </p>
-            <BaseButton
-              v-else
-              :icon="CircleCheck"
-              class="self-start"
-              :loading="submissionStore.isMutating"
-              @click="handleConfirmReadiness"
-            >
-              {{ t('government.workspacePage.confirmReadiness') }}
-            </BaseButton>
-          </template>
-          <p v-else-if="submission.readinessConfirmedAt" class="text-xs text-text-muted">
-            {{ t('government.workspacePage.readinessConfirmedOn', { date: formatDate(submission.readinessConfirmedAt) }) }}
-          </p>
-        </div>
-      </Card>
-
-      <Card v-if="submission.stage === 'Apply'">
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.fileTheApplication') }}</h3>
-        </template>
-        <div class="flex flex-col gap-4">
-          <p class="text-sm text-text-secondary">{{ t('government.workspacePage.fileApplicationNotice') }}</p>
-          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <TextInput v-model="acknowledgementNumber" :label="t('government.workspacePage.acknowledgementNumber')" :placeholder="t('government.workspacePage.acknowledgementNumberPlaceholder')" />
-            <TextInput v-model="paymentReference" :label="t('government.workspacePage.paymentReference')" :placeholder="t('government.workspacePage.paymentReferencePlaceholder')" />
-          </div>
-          <TextArea v-model="acknowledgementNotes" :label="t('common.notes')" :rows="2" />
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.acknowledgementDocument') }}</label>
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
-              class="block w-full text-sm text-text-secondary"
-              @change="handleAcknowledgementFileSelect(($event.target as HTMLInputElement).files?.[0])"
-            />
-          </div>
-          <BaseButton :icon="Send" class="self-start" :loading="submissionStore.isMutating" @click="handleRecordAcknowledgement">
-            {{ t('government.workspacePage.recordAcknowledgement') }}
-          </BaseButton>
-        </div>
-      </Card>
-
-      <Card v-if="submission.proofOfSubmission || submission.acknowledgementNumber">
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.filingDetails') }}</h3>
-        </template>
-        <div class="flex flex-col gap-2 text-sm text-text-secondary">
-          <p v-if="submission.acknowledgementNumber">{{ t('government.workspacePage.acknowledgementNumberLine', { value: submission.acknowledgementNumber }) }}</p>
-          <p v-if="submission.paymentReference">{{ t('government.workspacePage.paymentReferenceLine', { value: submission.paymentReference }) }}</p>
-          <div v-if="submission.proofOfSubmission" class="flex items-center justify-between gap-3">
-            <span class="text-sm text-text-secondary">
-              {{ submission.proofOfSubmission.originalFilename }}
-              &middot; {{ submission.proofOfSubmission.fileSizeLabel }}
-              &middot;
-              {{
-                t('government.workspacePage.uploadedByLine', {
-                  date: formatDate(submission.proofOfSubmission.uploadDate),
-                  user: submission.proofOfSubmission.uploadedBy,
-                })
-              }}
-            </span>
-            <BaseButton variant="secondary" size="sm" @click="downloadAcknowledgement">{{ t('government.workspacePage.download') }}</BaseButton>
-          </div>
-        </div>
-      </Card>
-
-      <Card v-if="canLogContact || submissionStore.followups.length > 0">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.followUpLog') }}</h3>
-            <BaseButton v-if="canLogContact" size="sm" variant="secondary" @click="openFollowupDialog">
-              {{ t('government.workspacePage.recordFollowUp') }}
-            </BaseButton>
-          </div>
-        </template>
-        <div v-if="submissionStore.followups.length === 0" class="text-sm text-text-muted">
-          {{ t('government.workspacePage.noFollowUpsRecorded') }}
-        </div>
-        <ul v-else class="flex flex-col divide-y divide-border-light">
-          <li v-for="followup in submissionStore.followups" :key="followup.id" class="flex flex-col gap-1 py-3">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-text-primary">{{ followup.contactPerson }}</span>
-                <StatusBadge :label="followup.stage === 'Update' ? t('government.workspacePage.entryStageUpdate') : t('government.workspacePage.entryStageTrack')" variant="neutral" size="sm" />
-              </div>
-              <span class="text-xs text-text-muted">{{
-                t('government.workspacePage.followUpAt', { date: formatDate(followup.followupDate), time: followup.followupTime })
-              }}</span>
-            </div>
-            <p v-if="followup.notes" class="text-sm text-text-secondary">{{ followup.notes }}</p>
-            <div v-if="followup.document" class="flex items-center gap-2 text-xs text-text-muted">
-              <span>{{ followup.document.originalFilename }} &middot; {{ followup.document.fileSizeLabel }}</span>
-              <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="downloadFollowupDocument(followup.id, followup.document.originalFilename)">
-                {{ t('common.download') }}
-              </button>
-            </div>
-            <p class="text-xs text-text-muted">{{ t('government.workspacePage.loggedBy', { name: followup.createdBy }) }}</p>
-          </li>
-        </ul>
-      </Card>
-
-      <Card v-if="submission.stage === 'Close'">
-        <template #header>
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.closingDetails') }}</h3>
-        </template>
-        <div class="flex flex-col gap-3">
-          <StatusBadge
-            :label="t('government.workspacePage.responseOutcome', { outcome: outcomeLabel(submission.responseOutcome) })"
-            :variant="getSubmissionOutcomeVariant(submission.responseOutcome)"
-          />
-          <p v-if="submission.closingNotes" class="text-sm text-text-secondary">{{ submission.closingNotes }}</p>
-          <div v-if="submission.proofOfResponse" class="flex items-center justify-between gap-3">
-            <span class="text-sm text-text-secondary">
-              {{ submission.proofOfResponse.originalFilename }}
-              &middot; {{ submission.proofOfResponse.fileSizeLabel }}
-              &middot;
-              {{
-                t('government.workspacePage.uploadedByLine', {
-                  date: formatDate(submission.proofOfResponse.uploadDate),
-                  user: submission.proofOfResponse.uploadedBy,
-                })
-              }}
-            </span>
-            <BaseButton variant="secondary" size="sm" @click="downloadPermitDocument">{{ t('government.workspacePage.download') }}</BaseButton>
-          </div>
-        </div>
-      </Card>
-
       <Card v-if="submission.notes">
         <template #header>
           <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.notes') }}</h3>
         </template>
         <p class="text-sm text-text-secondary">{{ submission.notes }}</p>
       </Card>
+
+      <TabBar
+        :tabs="stageTabs"
+        :model-value="activeTab"
+        :tablist-label="t('government.workspacePage.tabsAria')"
+        id-prefix="permit-application"
+        @update:model-value="selectTab"
+      />
+
+      <!-- Prepare -->
+      <div
+        v-if="activeTab === 'Prepare'"
+        id="permit-application-tabpanel-Prepare"
+        role="tabpanel"
+        aria-labelledby="permit-application-tab-Prepare"
+        class="flex flex-col gap-6"
+      >
+        <Card>
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.prepareTheApplication') }}</h3>
+          </template>
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-bg-secondary p-3">
+              <span class="text-sm text-text-secondary">
+                {{ formEntry ? t('government.workspacePage.formFilledIn') : t('government.workspacePage.formNotFilledInYet') }}
+              </span>
+              <div class="flex items-center gap-2 no-print">
+                <BaseButton v-if="formEntry" variant="secondary" size="sm" @click="viewFilledForm">{{ t('common.view') }}</BaseButton>
+                <BaseButton variant="secondary" size="sm" :icon="FileEdit" @click="openFormEntryDialog">
+                  {{ formEntry ? t('common.edit') : t('government.workspacePage.fillForm') }}
+                </BaseButton>
+              </div>
+            </div>
+
+            <RequiredDocumentChecklist
+              :documents="submission.documents"
+              :can-upload="canUploadDocuments"
+              :uploading-document-id="uploadingDocumentId"
+              @upload="handleDocumentUpload"
+              @download="handleDocumentDownload"
+            />
+
+            <template v-if="submission.stage === 'Prepare'">
+              <p v-if="!canConfirmReadiness" class="text-xs text-text-muted">
+                {{ t('government.workspacePage.uploadDocumentsNotice') }}
+              </p>
+              <BaseButton
+                v-else
+                :icon="CircleCheck"
+                class="self-start"
+                :loading="submissionStore.isMutating"
+                @click="handleConfirmReadiness"
+              >
+                {{ t('government.workspacePage.confirmReadiness') }}
+              </BaseButton>
+            </template>
+            <p v-else-if="submission.readinessConfirmedAt" class="text-xs text-text-muted">
+              {{ t('government.workspacePage.readinessConfirmedOn', { date: formatDate(submission.readinessConfirmedAt) }) }}
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      <!-- Apply -->
+      <div
+        v-else-if="activeTab === 'Apply'"
+        id="permit-application-tabpanel-Apply"
+        role="tabpanel"
+        aria-labelledby="permit-application-tab-Apply"
+        class="flex flex-col gap-6"
+      >
+        <Card v-if="submission.stage === 'Apply'">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.fileTheApplication') }}</h3>
+          </template>
+          <div class="flex flex-col gap-4">
+            <p class="text-sm text-text-secondary">{{ t('government.workspacePage.fileApplicationNotice') }}</p>
+            <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+              <TextInput v-model="acknowledgementNumber" :label="t('government.workspacePage.acknowledgementNumber')" :placeholder="t('government.workspacePage.acknowledgementNumberPlaceholder')" />
+              <TextInput v-model="paymentReference" :label="t('government.workspacePage.paymentReference')" :placeholder="t('government.workspacePage.paymentReferencePlaceholder')" />
+            </div>
+            <TextArea v-model="acknowledgementNotes" :label="t('common.notes')" :rows="2" />
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.acknowledgementDocument') }}</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
+                class="block w-full text-sm text-text-secondary"
+                @change="handleAcknowledgementFileSelect(($event.target as HTMLInputElement).files?.[0])"
+              />
+            </div>
+            <BaseButton :icon="Send" class="self-start" :loading="submissionStore.isMutating" @click="handleRecordAcknowledgement">
+              {{ t('government.workspacePage.recordAcknowledgement') }}
+            </BaseButton>
+          </div>
+        </Card>
+
+        <Card v-else-if="submission.proofOfSubmission || submission.acknowledgementNumber">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.filingDetails') }}</h3>
+          </template>
+          <div class="flex flex-col gap-2 text-sm text-text-secondary">
+            <p v-if="submission.acknowledgementNumber">{{ t('government.workspacePage.acknowledgementNumberLine', { value: submission.acknowledgementNumber }) }}</p>
+            <p v-if="submission.paymentReference">{{ t('government.workspacePage.paymentReferenceLine', { value: submission.paymentReference }) }}</p>
+            <div v-if="submission.proofOfSubmission" class="flex items-center justify-between gap-3">
+              <span class="text-sm text-text-secondary">
+                {{ submission.proofOfSubmission.originalFilename }}
+                &middot; {{ submission.proofOfSubmission.fileSizeLabel }}
+                &middot;
+                {{
+                  t('government.workspacePage.uploadedByLine', {
+                    date: formatDate(submission.proofOfSubmission.uploadDate),
+                    user: submission.proofOfSubmission.uploadedBy,
+                  })
+                }}
+              </span>
+              <BaseButton variant="secondary" size="sm" @click="downloadAcknowledgement">{{ t('government.workspacePage.download') }}</BaseButton>
+            </div>
+          </div>
+        </Card>
+
+        <Card v-else>
+          <p class="text-sm text-text-muted">{{ t('government.workspacePage.notFiledYet') }}</p>
+        </Card>
+      </div>
+
+      <!-- Track -->
+      <div
+        v-else-if="activeTab === 'Track'"
+        id="permit-application-tabpanel-Track"
+        role="tabpanel"
+        aria-labelledby="permit-application-tab-Track"
+        class="flex flex-col gap-6"
+      >
+        <Card v-if="hasTrackHistory">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.followUpLog') }}</h3>
+              <BaseButton v-if="canLogContact && !isFollowupFormOpen" size="sm" variant="secondary" class="no-print" @click="openFollowupForm">
+                {{ t('government.workspacePage.recordFollowUp') }}
+              </BaseButton>
+            </div>
+          </template>
+
+          <div v-if="isFollowupFormOpen" class="mb-4 flex flex-col gap-4 rounded-lg border border-border-light bg-bg-secondary p-4 no-print">
+            <p class="text-sm text-text-secondary">
+              {{ t('government.workspacePage.followUpDialogDescription', { submissionNo }) }}
+            </p>
+            <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+              <DatePicker v-model="followupDate" :label="t('government.workspacePage.followUpDate')" required />
+              <TimePicker v-model="followupTime" :label="t('government.workspacePage.followUpTime')" required />
+            </div>
+            <TextInput
+              v-model="followupContactPerson"
+              :label="t('government.workspacePage.followUpContactPerson')"
+              :placeholder="t('government.workspacePage.followUpContactPersonPlaceholder')"
+              required
+            />
+            <TextArea
+              v-model="followupNotes"
+              :label="t('government.workspacePage.followUpNotes')"
+              :placeholder="t('government.workspacePage.followUpNotesPlaceholder')"
+              :rows="3"
+            />
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.followUpDocument') }}</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
+                class="block w-full text-sm text-text-secondary"
+                @change="handleFollowupFileSelect(($event.target as HTMLInputElement).files?.[0])"
+              />
+              <p class="mt-1 text-xs text-text-muted">{{ t('government.workspacePage.followUpDocumentHint') }}</p>
+            </div>
+            <div class="flex justify-end gap-2">
+              <BaseButton variant="ghost" @click="isFollowupFormOpen = false">{{ t('common.cancel') }}</BaseButton>
+              <BaseButton
+                :disabled="!followupDate || !followupTime || !followupContactPerson.trim()"
+                :loading="submissionStore.isMutating"
+                @click="confirmFollowup"
+              >
+                {{ t('government.workspacePage.saveFollowUp') }}
+              </BaseButton>
+            </div>
+          </div>
+
+          <div v-if="submissionStore.followups.length === 0" class="text-sm text-text-muted">
+            {{ t('government.workspacePage.noFollowUpsRecorded') }}
+          </div>
+          <ul v-else class="flex flex-col divide-y divide-border-light">
+            <li v-for="followup in submissionStore.followups" :key="followup.id" class="flex flex-col gap-1 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-sm font-medium text-text-primary">{{ followup.contactPerson }}</span>
+                <span class="text-xs text-text-muted">{{
+                  t('government.workspacePage.followUpAt', { date: formatDate(followup.followupDate), time: followup.followupTime })
+                }}</span>
+              </div>
+              <p v-if="followup.notes" class="text-sm text-text-secondary">{{ followup.notes }}</p>
+              <div v-if="followup.document" class="flex items-center gap-2 text-xs text-text-muted">
+                <span>{{ followup.document.originalFilename }} &middot; {{ followup.document.fileSizeLabel }}</span>
+                <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="downloadFollowupDocument(followup.id, followup.document.originalFilename)">
+                  {{ t('common.download') }}
+                </button>
+              </div>
+              <p class="text-xs text-text-muted">{{ t('government.workspacePage.loggedBy', { name: followup.createdBy }) }}</p>
+            </li>
+          </ul>
+        </Card>
+
+        <Card v-else>
+          <p class="text-sm text-text-muted">{{ t('government.workspacePage.neverTracked') }}</p>
+        </Card>
+      </div>
+
+      <!-- Close -->
+      <div
+        v-else-if="activeTab === 'Close'"
+        id="permit-application-tabpanel-Close"
+        role="tabpanel"
+        aria-labelledby="permit-application-tab-Close"
+        class="flex flex-col gap-6"
+      >
+        <Card v-if="submission.stage === 'Close'">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.closingDetails') }}</h3>
+          </template>
+          <div class="flex flex-col gap-3">
+            <StatusBadge
+              :label="t('government.workspacePage.responseOutcome', { outcome: outcomeLabel(submission.responseOutcome) })"
+              :variant="getSubmissionOutcomeVariant(submission.responseOutcome)"
+            />
+            <p v-if="submission.closingNotes" class="text-sm text-text-secondary">{{ submission.closingNotes }}</p>
+            <div v-if="submission.proofOfResponse" class="flex items-center justify-between gap-3">
+              <span class="text-sm text-text-secondary">
+                {{ submission.proofOfResponse.originalFilename }}
+                &middot; {{ submission.proofOfResponse.fileSizeLabel }}
+                &middot;
+                {{
+                  t('government.workspacePage.uploadedByLine', {
+                    date: formatDate(submission.proofOfResponse.uploadDate),
+                    user: submission.proofOfResponse.uploadedBy,
+                  })
+                }}
+              </span>
+              <BaseButton variant="secondary" size="sm" @click="downloadPermitDocument">{{ t('government.workspacePage.download') }}</BaseButton>
+            </div>
+          </div>
+        </Card>
+
+        <Card v-else>
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.closeApplicationTitle') }}</h3>
+          </template>
+          <div class="flex flex-col gap-4">
+            <p class="text-sm text-text-secondary">{{ t('government.workspacePage.closeApplicationNotice') }}</p>
+
+            <BaseButton v-if="!isCloseFormOpen && canClose" variant="danger" :icon="Ban" class="self-start no-print" @click="openCloseForm">
+              {{ t('government.workspacePage.closeApplication') }}
+            </BaseButton>
+
+            <div v-if="isCloseFormOpen" class="flex flex-col gap-4 rounded-lg border border-border-light bg-bg-secondary p-4 no-print">
+              <p class="text-sm text-text-secondary">
+                {{ t('government.workspacePage.closeDialogDescription', { submissionNo }) }}
+              </p>
+              <SelectBox v-model="closeOutcome" :label="t('government.workspacePage.outcome')" :options="OUTCOME_OPTIONS" />
+              <TextArea
+                v-model="closingNotes"
+                :label="t('government.workspacePage.closingNotes')"
+                :placeholder="t('government.workspacePage.closingNotesPlaceholder')"
+                :rows="3"
+                required
+              />
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.permitDocument') }}</label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
+                  class="block w-full text-sm text-text-secondary"
+                  @change="handleCloseFileSelect(($event.target as HTMLInputElement).files?.[0])"
+                />
+              </div>
+              <div class="flex justify-end gap-2">
+                <BaseButton variant="ghost" @click="isCloseFormOpen = false">{{ t('common.cancel') }}</BaseButton>
+                <BaseButton
+                  variant="danger"
+                  :disabled="!closingNotes.trim()"
+                  :loading="submissionStore.isMutating"
+                  @click="confirmClose"
+                >
+                  {{ t('government.workspacePage.closeApplication') }}
+                </BaseButton>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
     </template>
-
-    <BaseDialog v-model="isFollowupDialogOpen" :title="t('government.workspacePage.recordFollowUp')" size="sm">
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-text-secondary">
-          {{ t('government.workspacePage.followUpDialogDescription', { submissionNo }) }}
-        </p>
-        <RadioGroup v-model="followupEntryStage" :label="t('government.workspacePage.entryStage')" :options="ENTRY_STAGE_OPTIONS" :vertical="false" />
-        <p class="-mt-2 text-xs text-text-muted">
-          {{ followupEntryStage === 'Update' ? t('government.workspacePage.entryStageUpdateHint') : t('government.workspacePage.entryStageTrackHint') }}
-        </p>
-        <DatePicker v-model="followupDate" :label="t('government.workspacePage.followUpDate')" required />
-        <TimePicker v-model="followupTime" :label="t('government.workspacePage.followUpTime')" required />
-        <TextInput
-          v-model="followupContactPerson"
-          :label="t('government.workspacePage.followUpContactPerson')"
-          :placeholder="t('government.workspacePage.followUpContactPersonPlaceholder')"
-          required
-        />
-        <TextArea
-          v-model="followupNotes"
-          :label="t('government.workspacePage.followUpNotes')"
-          :placeholder="t('government.workspacePage.followUpNotesPlaceholder')"
-          :rows="3"
-        />
-        <div v-if="followupEntryStage === 'Update'">
-          <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.followUpDocument') }}</label>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
-            class="block w-full text-sm text-text-secondary"
-            @change="handleFollowupFileSelect(($event.target as HTMLInputElement).files?.[0])"
-          />
-        </div>
-        <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isFollowupDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
-          <BaseButton
-            :disabled="!followupDate || !followupTime || !followupContactPerson.trim()"
-            :loading="submissionStore.isMutating"
-            @click="confirmFollowup"
-          >
-            {{ t('government.workspacePage.saveFollowUp') }}
-          </BaseButton>
-        </div>
-      </div>
-    </BaseDialog>
-
-    <BaseDialog v-model="isCloseDialogOpen" :title="t('government.workspacePage.closeApplicationTitle')" size="sm">
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-text-secondary">
-          {{ t('government.workspacePage.closeDialogDescription', { submissionNo }) }}
-        </p>
-        <SelectBox v-model="closeOutcome" :label="t('government.workspacePage.outcome')" :options="OUTCOME_OPTIONS" />
-        <TextArea
-          v-model="closingNotes"
-          :label="t('government.workspacePage.closingNotes')"
-          :placeholder="t('government.workspacePage.closingNotesPlaceholder')"
-          :rows="3"
-          required
-        />
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.permitDocument') }}</label>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
-            class="block w-full text-sm text-text-secondary"
-            @change="handleCloseFileSelect(($event.target as HTMLInputElement).files?.[0])"
-          />
-        </div>
-        <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" @click="isCloseDialogOpen = false">{{ t('common.cancel') }}</BaseButton>
-          <BaseButton
-            variant="danger"
-            :disabled="!closingNotes.trim()"
-            :loading="submissionStore.isMutating"
-            @click="confirmClose"
-          >
-            {{ t('government.workspacePage.closeApplication') }}
-          </BaseButton>
-        </div>
-      </div>
-    </BaseDialog>
 
     <ProjectFormEntryDialog
       v-if="submission && form"
