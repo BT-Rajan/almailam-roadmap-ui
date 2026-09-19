@@ -240,7 +240,7 @@ def add_followup(
     db: Session = Depends(get_db),
     current_user: User = Depends(can_edit),
 ):
-    """Logs contact with the authority while the application is in
+    """Records a follow-up with the authority while the application is in
     Track -- a plain check-in, or one carrying a document the authority
     asked for. Doesn't change the application's stage."""
     payload = FollowupCreate(

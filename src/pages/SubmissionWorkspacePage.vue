@@ -21,6 +21,7 @@ import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDial
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
 import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
+import SubmissionFilesList from '@/components/government/SubmissionFilesList.vue'
 import SubmissionWorkflowProgress from '@/components/government/SubmissionWorkflowProgress.vue'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -33,6 +34,7 @@ import type { ResponseOutcome, SubmissionWorkspaceTab } from '@/types/Submission
 import type { SelectOption } from '@/types/Ui'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 import { formatDate } from '@/utils/dateFormatter'
+import { buildSubmissionFiles } from '@/utils/submissionFiles'
 import { SUBMISSION_WORKSPACE_TABS, getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
 
 const route = useRoute()
@@ -130,6 +132,22 @@ const submissionDetails = computed(() => {
     },
   ]
 })
+
+// Every file uploaded so far -- required documents, the acknowledgement,
+// follow-up documents, the authority's response -- for the Overview's
+// Uploaded Files card (and the Close tab's response row). Follow-ups are
+// only loaded once the application reaches Track, which is also the
+// first point one can exist.
+const submissionFiles = computed(() =>
+  submission.value
+    ? buildSubmissionFiles(submission.value, submissionStore.followups, {
+        acknowledgement: t('government.workspacePage.acknowledgementFileLabel'),
+        followup: t('government.workspacePage.followUpFileLabel'),
+        response: t('government.workspacePage.authorityResponse'),
+      })
+    : [],
+)
+const authorityResponseFiles = computed(() => submissionFiles.value.filter((file) => file.source.kind === 'response'))
 
 const SUBMISSION_STAGE_LABEL_KEYS: Record<string, string> = {
   Prepare: 'government.submissionStage.prepare',
@@ -274,7 +292,7 @@ async function downloadAcknowledgement(): Promise<void> {
   }
 }
 
-// -- Track: contact log ---------------------------------------------------------
+// -- Track: follow-ups ---------------------------------------------------------
 // Logged in an inline form on the Track tab (not a dialog). Every entry
 // can carry a document -- an additional one the authority asked for, or
 // an updated version of one already sent.
@@ -434,15 +452,6 @@ async function confirmClose(): Promise<void> {
   }
 }
 
-async function downloadPermitDocument(): Promise<void> {
-  try {
-    const blob = await governmentSubmissionService.downloadPermitDocument(submissionNo.value)
-    triggerBlobDownload(blob, submission.value?.proofOfResponse?.originalFilename ?? 'permit-document')
-  } catch {
-    toastStore.show('error', t('common.downloadFailed'), t('common.pleaseTryAgain'))
-  }
-}
-
 function goBack(): void {
   if (originProjectId.value) {
     // Back to the Approvals & Permits card this was opened from.
@@ -537,6 +546,14 @@ function goBack(): void {
             <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.notes') }}</h3>
           </template>
           <p class="text-sm text-text-secondary">{{ submission.notes }}</p>
+        </Card>
+
+        <Card :padded="false">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.uploadedFilesTitle') }}</h3>
+          </template>
+          <SubmissionFilesList v-if="submissionFiles.length > 0" :files="submissionFiles" />
+          <p v-else class="px-5 py-4 text-sm text-text-muted">{{ t('government.workspacePage.noFilesUploaded') }}</p>
         </Card>
       </div>
 
@@ -767,19 +784,12 @@ function goBack(): void {
               :variant="getSubmissionOutcomeVariant(submission.responseOutcome)"
             />
             <p v-if="submission.closingNotes" class="text-sm text-text-secondary">{{ submission.closingNotes }}</p>
-            <div v-if="submission.proofOfResponse" class="flex items-center justify-between gap-3">
-              <span class="text-sm text-text-secondary">
-                {{ submission.proofOfResponse.originalFilename }}
-                &middot; {{ submission.proofOfResponse.fileSizeLabel }}
-                &middot;
-                {{
-                  t('government.workspacePage.uploadedByLine', {
-                    date: formatDate(submission.proofOfResponse.uploadDate),
-                    user: submission.proofOfResponse.uploadedBy,
-                  })
-                }}
-              </span>
-              <BaseButton variant="secondary" size="sm" @click="downloadPermitDocument">{{ t('government.workspacePage.download') }}</BaseButton>
+            <div class="flex flex-col gap-2">
+              <h4 class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('government.workspacePage.authorityResponse') }}</h4>
+              <div v-if="authorityResponseFiles.length > 0" class="-mx-5 border-t border-border-light">
+                <SubmissionFilesList :files="authorityResponseFiles" />
+              </div>
+              <p v-else class="text-sm text-text-muted">{{ t('government.workspacePage.noAuthorityResponse') }}</p>
             </div>
           </div>
         </Card>
@@ -808,13 +818,20 @@ function goBack(): void {
                 required
               />
               <div>
-                <label class="mb-1.5 block text-sm font-medium text-text-secondary">{{ t('government.workspacePage.permitDocument') }}</label>
+                <label for="close-authority-response" class="mb-1.5 block text-sm font-medium text-text-secondary">
+                  {{ t('government.workspacePage.authorityResponseOptional') }}
+                </label>
                 <input
+                  id="close-authority-response"
                   type="file"
                   accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff,.tif"
                   class="block w-full text-sm text-text-secondary"
                   @change="handleCloseFileSelect(($event.target as HTMLInputElement).files?.[0])"
                 />
+                <p class="mt-1 text-xs text-text-muted">{{ t('government.workspacePage.authorityResponseHint') }}</p>
+                <p v-if="closeFile" class="mt-1 text-xs font-medium text-text-secondary">
+                  {{ t('government.workspacePage.fileSelected', { name: closeFile.name }) }}
+                </p>
               </div>
               <div class="flex justify-end gap-2">
                 <BaseButton variant="ghost" @click="isCloseFormOpen = false">{{ t('common.cancel') }}</BaseButton>

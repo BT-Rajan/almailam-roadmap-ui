@@ -25,7 +25,7 @@ from app.services.number_series_service import next_number
 ENTITY_TYPE = "GOVERNMENT_SUBMISSION"
 UPLOAD_SUBDIRECTORY = "submissions"
 
-# Stages in which logging contact with the authority makes sense --
+# Stages in which recording a follow-up with the authority makes sense --
 # i.e. it's actually been filed (past Apply) and is awaiting a decision.
 AWAITING_RESPONSE_STAGES = ("Track",)
 
@@ -564,14 +564,14 @@ def add_followup(
     file: UploadFile | None,
     user_id: int | None,
 ) -> SubmissionFollowup:
-    """Logs contact made with the authority while the application is in
+    """Records a follow-up made with the authority while the application is in
     Track -- a plain check-in, or one that also carries a document (an
     additional document the authority asked for, or an updated version
     of one already sent). Doesn't move the application: it stays in
     Track until it's closed."""
     submission = get_submission(db, submission_no)
     if submission.stage not in AWAITING_RESPONSE_STAGES:
-        raise ValidationAppError("Contact can only be logged once the application has been filed (Track).")
+        raise ValidationAppError("A follow-up can only be recorded once the application has been filed (Track).")
 
     storage_key = original_filename = None
     size_bytes = None

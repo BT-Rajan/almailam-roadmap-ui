@@ -13,7 +13,7 @@ core/workflow.assert_transition_allowed / assert_reason_given.
 # Approved/Rejected/Withdrawn status machine with the 4-stage permit
 # application workspace: Prepare (select the approval type, fill in the
 # forms, readiness check) -> Apply (file it, record the acknowledgement)
-# -> Track (log contact with the authority while awaiting a decision,
+# -> Track (record follow-ups with the authority while awaiting a decision,
 # including any document they ask for -- a separate "Update" stage used
 # to cover that, merged into Track by migration 0108) -> Close (the
 # final outcome, permit/decision document, closing notes).
