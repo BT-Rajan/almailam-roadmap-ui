@@ -13,6 +13,7 @@ export default {
   },
   // The Permit Application workspace's 4 stages.
   submissionStage: {
+    overview: 'Overview',
     prepare: 'Prepare',
     apply: 'Apply',
     track: 'Track',
@@ -189,7 +190,7 @@ export default {
     backToSubmissions: 'Back to Permit Applications',
     editApplication: 'Edit',
     tabsAria: 'Permit application stages',
-    tabLockedHint: 'Available once the earlier stages are done',
+    stageNotReached: 'This stage has not been reached yet. It opens up once the earlier stages are done.',
     notFiledYet: 'This application was closed before it was filed, so there is no filing to show.',
     neverTracked: 'This application was closed before it reached Track, so there is no contact to show.',
     closeApplicationNotice: "Record the final outcome once the authority has decided, or withdraw the application at any stage. Closing can't be undone.",
