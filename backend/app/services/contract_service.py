@@ -5,6 +5,7 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.display_format import format_display_date
 from app.core.file_storage import assert_pdf_upload
 from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
@@ -94,9 +95,9 @@ def _assert_agreement_obligations_within_completion_date(db: Session, project_id
         last_due_date = max(o.due_date for o in obligations)
         if last_due_date > expiry_date:
             raise ValidationAppError(
-                f"The contract's expiry date ({expiry_date.isoformat()}) is before the last installment of the "
-                f"{label} payment plan ({last_due_date.isoformat()}). Set the expiry date on or after "
-                f"{last_due_date.isoformat()}."
+                f"The contract's expiry date ({format_display_date(expiry_date)}) is before the last installment of the "
+                f"{label} payment plan ({format_display_date(last_due_date)}). Set the expiry date on or after "
+                f"{format_display_date(last_due_date)}."
             )
 
 
