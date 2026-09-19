@@ -15,6 +15,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ClientDocument } from '@/types/Client'
+import type { AgreementStream } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 import { openBlobInWindow } from '@/utils/fileDownload'
 
@@ -30,10 +31,14 @@ const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
-// A read-only summary of the paperwork a Contract-stage project has
-// produced so far -- client ID, quotation, payment plan, contract --
-// each opened as a PDF, same "print" mechanism as those documents' own
-// tabs use. No edit/delete here: this is a snapshot for reference, not
+// A read-only, view-only summary of a project's system-generated
+// paperwork -- client ID, accepted quotation, payment plan(s), accepted
+// contract -- each opened as a PDF, same "print" mechanism as those
+// documents' own tabs use. Lives on the Scope tab (reachable via the
+// Workflow Progress stepper regardless of the project's current stage,
+// same as Overview), so it's a fixed place to check back on as each
+// document becomes available, rather than only late in the project's
+// life. No edit/delete here: this is a snapshot for reference, not
 // another place to manage them from.
 
 const identityDocuments = computed<ClientDocument[]>(() =>
@@ -52,7 +57,12 @@ function viewClientDocument(document: ClientDocument): void {
   })
 }
 
-const hasAnyAgreement = computed(() => paymentStore.agreements.some((agreement) => agreement.projectId === props.project.id))
+// Design and Permit and Supervision are billed as two separate
+// FinancialAgreements now (see AGREEMENT_STREAMS) -- shown here as two
+// separate payment plan documents rather than one merged file, mirroring
+// how the Payment Plan panel itself already splits them into two tabs.
+const designAgreement = computed(() => paymentStore.getAgreementByProject(props.project.id, 'Design'))
+const supervisionAgreement = computed(() => paymentStore.getAgreementByProject(props.project.id, 'Supervision'))
 
 // Same "open a blank tab synchronously, fill it once the PDF is
 // fetched" dance as ProjectQuotationTab.vue/ProjectContractTab.vue's
@@ -75,18 +85,18 @@ async function viewQuotationPdf(): Promise<void> {
   }
 }
 
-const isOpeningPaymentPlan = ref(false)
-async function viewPaymentPlanPdf(): Promise<void> {
+const openingPaymentPlanStream = ref<AgreementStream | null>(null)
+async function viewPaymentPlanPdf(stream: AgreementStream): Promise<void> {
   const printWindow = window.open('', '_blank')
-  isOpeningPaymentPlan.value = true
+  openingPaymentPlanStream.value = stream
   try {
-    const blob = await documentTemplateService.getPaymentPlanDocumentPdf(props.project.projectNo)
+    const blob = await documentTemplateService.getPaymentPlanDocumentPdf(props.project.projectNo, undefined, stream)
     openBlobInWindow(blob, printWindow)
   } catch (error) {
     printWindow?.close()
     resultDialogStore.showError(t('common.failedToGenerateDocument'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
-    isOpeningPaymentPlan.value = false
+    openingPaymentPlanStream.value = null
   }
 }
 
@@ -158,9 +168,9 @@ async function viewContractPdf(): Promise<void> {
                 <Wallet class="h-5 w-5" />
               </span>
               <div>
-                <p class="text-sm font-semibold text-text-primary">{{ t('project.contractDocumentsTab.paymentPlan') }}</p>
+                <p class="text-sm font-semibold text-text-primary">{{ t('project.contractDocumentsTab.designPaymentPlan') }}</p>
                 <p class="text-xs text-text-muted">
-                  {{ hasAnyAgreement ? project.projectNo : t('project.contractDocumentsTab.notAvailable') }}
+                  {{ designAgreement ? project.projectNo : t('project.contractDocumentsTab.notAvailable') }}
                 </p>
               </div>
             </div>
@@ -168,8 +178,28 @@ async function viewContractPdf(): Promise<void> {
               :icon="Eye"
               :label="t('document.card.viewDocument')"
               size="sm"
-              :disabled="!hasAnyAgreement || isOpeningPaymentPlan"
-              @click="viewPaymentPlanPdf"
+              :disabled="!designAgreement || openingPaymentPlanStream === 'Design'"
+              @click="viewPaymentPlanPdf('Design')"
+            />
+          </li>
+          <li class="flex items-center justify-between gap-3 px-5 py-4">
+            <div class="flex items-center gap-3">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                <Wallet class="h-5 w-5" />
+              </span>
+              <div>
+                <p class="text-sm font-semibold text-text-primary">{{ t('project.contractDocumentsTab.supervisionPaymentPlan') }}</p>
+                <p class="text-xs text-text-muted">
+                  {{ supervisionAgreement ? project.projectNo : t('project.contractDocumentsTab.notAvailable') }}
+                </p>
+              </div>
+            </div>
+            <IconButton
+              :icon="Eye"
+              :label="t('document.card.viewDocument')"
+              size="sm"
+              :disabled="!supervisionAgreement || openingPaymentPlanStream === 'Supervision'"
+              @click="viewPaymentPlanPdf('Supervision')"
             />
           </li>
           <li class="flex items-center justify-between gap-3 px-5 py-4">
