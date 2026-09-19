@@ -390,8 +390,20 @@ class SubmissionCreate(BaseModel):
 
 
 class SubmissionUpdate(BaseModel):
+    """Only the fields present in the request are applied (see
+    submission_service.update_submission, which reads model_fields_set),
+    so an explicit null clears expectedDecisionDate/notes instead of
+    being ignored as "not provided"."""
+
     expectedDecisionDate: date | None = None
     notes: str | None = None
+    # authorityId/formId can only change while the application is still
+    # in Prepare with nothing uploaded yet -- the document checklist is
+    # derived from the form. Send both when changing the authority.
+    authorityId: str | None = None
+    formId: str | None = None
+    # The planned permit this application fulfils; "" (or null) unlinks.
+    selectedPermitId: str | None = None
 
 
 class SubmissionDocumentStatusUpdate(BaseModel):

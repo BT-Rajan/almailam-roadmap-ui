@@ -16,6 +16,7 @@ export default {
   submissions: 'Permit Applications',
   submission: 'Submission',
   newSubmission: 'New Permit Application',
+  editSubmission: 'Edit Permit Application',
   documents: 'Documents',
   mapFields: 'Map Fields',
   viewer: 'Viewer',
