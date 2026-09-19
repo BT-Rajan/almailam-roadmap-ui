@@ -12,6 +12,9 @@ interface Props {
   min?: number
   max?: number
   step?: number | string
+  // Short unit shown inside the field ahead of the number (e.g. a
+  // currency code) -- purely visual, never part of the value.
+  prefix?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +27,7 @@ const props = withDefaults(defineProps<Props>(), {
   min: undefined,
   max: undefined,
   step: 1,
+  prefix: undefined,
 })
 
 defineEmits<{
@@ -31,6 +35,13 @@ defineEmits<{
 }>()
 
 const inputId = useId()
+
+// Leaves room for the prefix inside the field: the start padding plus
+// about 0.75em per (uppercase) character, in the input's own font size,
+// so it tracks the prefix length instead of assuming a fixed width.
+const prefixPadding = computed(() =>
+  props.prefix ? { paddingInlineStart: `calc(1.125rem + ${(props.prefix.length * 0.75).toFixed(2)}em)` } : undefined,
+)
 
 const inputClasses = computed(() => [
   'h-10 w-full rounded-lg border bg-bg-card text-sm text-text-primary',
@@ -49,21 +60,27 @@ const inputClasses = computed(() => [
       {{ label }}
       <span v-if="required" class="text-danger-500">*</span>
     </label>
-    <input
-      :id="inputId"
-      type="number"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      :required="required"
-      :min="min"
-      :max="max"
-      :step="step"
-      :class="inputClasses"
-      :aria-invalid="Boolean(error)"
-      :aria-describedby="error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-    />
+    <div class="relative">
+      <span v-if="prefix" class="pointer-events-none absolute inset-y-0 start-3 flex items-center text-sm font-medium text-text-muted" aria-hidden="true">
+        {{ prefix }}
+      </span>
+      <input
+        :id="inputId"
+        type="number"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :required="required"
+        :min="min"
+        :max="max"
+        :step="step"
+        :class="inputClasses"
+        :style="prefixPadding"
+        :aria-invalid="Boolean(error)"
+        :aria-describedby="error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined"
+        @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      />
+    </div>
     <p v-if="error" :id="`${inputId}-error`" class="text-xs text-danger-500">{{ error }}</p>
     <p v-else-if="hint" :id="`${inputId}-hint`" class="text-xs text-text-muted">{{ hint }}</p>
   </div>

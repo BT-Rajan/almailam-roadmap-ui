@@ -378,6 +378,15 @@ export default {
     discountAmount: 'مبلغ الخصم',
   },
 
+  contractDates: {
+    client: 'العميل',
+    project: 'المشروع',
+    designPermitStart: 'تاريخ بدء التصميم والتصاريح',
+    designPermitEnd: 'تاريخ انتهاء التصميم والتصاريح',
+    supervisionStart: 'تاريخ بدء الإشراف',
+    supervisionEnd: 'تاريخ انتهاء الإشراف',
+  },
+
   contractPreview: {
     client: 'العميل',
     clientRepresentative: 'ممثل العميل',
@@ -565,9 +574,10 @@ export default {
 
   newContractDialog: {
     title: 'عقد جديد',
-    backToContract: 'العودة إلى العقد',
-    prefilledFromQuotation: 'تم إنشاؤه من عرض السعر {number} — يجب أن تطابق العملة والقيمة المبلغ المعتمد وهما مقفلتان؛ النطاق أدناه منقول منه ويمكن تغييره.',
-    currency: 'العملة',
+    draftPreview: 'معاينة المسودة',
+    contractNoOnCreation: 'يتم تعيين رقم العقد عند الإنشاء',
+    issueDate: 'تاريخ الإصدار',
+    prefilledFromQuotation: 'تم إنشاؤه من عرض السعر {number} — يتم تعبئة العميل والمشروع والتواريخ والنطاق والقيمة تلقائيًا وهي مقفلة. حدّد تاريخ الانتهاء وممثل العميل وأي بنود مباشرة في المعاينة أدناه.',
     contractValue: 'قيمة العقد',
     contractValueMustBePositive: 'يجب أن تكون قيمة العقد أكبر من 0.',
     contractValueMustMatchQuotation: 'يجب أن تطابق قيمة العقد المبلغ المعتمد في عرض السعر {number} ({amount}).',
@@ -577,7 +587,6 @@ export default {
     clientRepresentative: 'ممثل العميل',
     clientRepresentativePlaceholder: 'اسم الشخص الموقّع نيابة عن العميل',
     scopeSummary: 'ملخص النطاق',
-    scopeSummaryPlaceholder: 'صف نطاق العمل الذي يغطيه هذا العقد',
     clausesOptional: 'البنود (اختياري)',
     addClause: 'إضافة بند',
     clauseTitlePlaceholder: 'عنوان البند',

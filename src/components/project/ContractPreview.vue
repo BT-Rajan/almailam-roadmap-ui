@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, FileSignature, Pencil, Plus, Trash2, X } from '@lucide/vue'
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -10,16 +10,15 @@ import Divider from '@/components/common/Divider.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
-import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import type { Client } from '@/types/Client'
 import type { Contract, ContractClause } from '@/types/Contract'
 import type { Project } from '@/types/Project'
-import type { SelectOption } from '@/types/Ui'
+import { getClientFormalName } from '@/utils/clientHelpers'
+import { getContractStatusVariant, getDesignPermitPeriod, getSupervisionPeriod } from '@/utils/contractHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
-import { getContractStatusVariant } from '@/utils/contractHelpers'
 import { sanitizeHtml } from '@/utils/sanitizeHtml'
 
 interface Props {
@@ -38,11 +37,14 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const CURRENCY_OPTIONS: SelectOption[] = [
-  { label: 'KWD', value: 'KWD' },
-  { label: 'USD', value: 'USD' },
-  { label: 'EUR', value: 'EUR' },
-]
+// Filled in automatically from the project, never edited on the
+// contract itself -- same as the New Contract page.
+const designPermitPeriod = computed(() => getDesignPermitPeriod(props.project))
+const supervisionPeriod = computed(() => getSupervisionPeriod(props.project))
+
+function displayDate(value: string | null | undefined): string {
+  return value ? formatDate(value) : '—'
+}
 
 // Same edit-mode flow as QuotationPreview -- click Edit to unlock
 // changes, Save to persist them as a new draft revision. Finalizing
@@ -58,11 +60,9 @@ interface DraftClause {
 
 function draftFromContract(contract: Contract) {
   return {
-    currency: contract.currency,
     contractValue: contract.contractValue,
     expiryDate: contract.expiryDate,
     clientRepresentative: contract.clientRepresentative,
-    scopeSummary: contract.scopeSummary,
     clauses: contract.clauses.map((clause) => ({ ...clause })) as DraftClause[],
   }
 }
@@ -97,12 +97,12 @@ function removeClause(index: number): void {
 }
 
 function buildPatch(): Partial<Contract> {
+  // Currency and Scope Summary are locked once a contract exists (they
+  // carry over from the source quotation), so neither is part of an edit.
   return {
-    currency: draft.currency,
     contractValue: draft.contractValue,
     expiryDate: draft.expiryDate,
     clientRepresentative: draft.clientRepresentative.trim(),
-    scopeSummary: draft.scopeSummary.trim(),
     clauses: draft.clauses.map((clause) => ({
       id: clause.id,
       title: clause.title.trim(),
@@ -171,14 +171,14 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
       <div class="grid grid-cols-1 gap-6 tablet:grid-cols-3">
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractPreview.client') }}</p>
-          <p class="text-sm font-semibold text-text-primary">{{ client?.companyName ?? t('client.unknownClient') }}</p>
+          <p class="text-sm font-semibold text-text-primary">{{ client ? getClientFormalName(client) : t('client.unknownClient') }}</p>
           <TextInput v-if="isEditing" v-model="draft.clientRepresentative" :placeholder="t('project.contractPreview.clientRepresentative')" class="mt-1" />
           <p v-else class="text-sm text-text-muted">{{ t('project.contractPreview.representedBy', { name: contract.clientRepresentative }) }}</p>
         </div>
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.project') }}</p>
-          <p class="text-sm font-semibold text-text-primary">{{ project.projectName }}</p>
-          <p class="text-sm text-text-muted">{{ project.projectNo }} · {{ project.service }}</p>
+          <p class="text-sm font-semibold text-text-primary">{{ project.projectName }} ({{ project.projectNo }})</p>
+          <p class="text-sm text-text-muted">{{ project.service }}</p>
         </div>
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.dates') }}</p>
@@ -186,20 +186,39 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
           <p v-if="contract.signedDate" class="text-sm text-text-muted">
             {{ t('project.contractPreview.signed', { date: formatDate(contract.signedDate) }) }}
           </p>
-          <template v-if="isEditing">
-            <DatePicker v-model="draft.expiryDate" :label="t('project.contractPreview.expiryDate')" />
-            <SelectBox v-model="draft.currency" :label="t('project.quotationPreview.currency')" :options="CURRENCY_OPTIONS" />
-          </template>
+          <DatePicker v-if="isEditing" v-model="draft.expiryDate" :label="t('project.contractPreview.expiryDate')" />
           <p v-else class="text-sm text-text-muted">{{ t('project.contractPreview.expires', { date: formatDate(contract.expiryDate) }) }}</p>
         </div>
+      </div>
+
+      <div v-if="designPermitPeriod || supervisionPeriod" class="grid grid-cols-1 gap-6 tablet:grid-cols-2">
+        <template v-if="designPermitPeriod">
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.designPermitStart') }}</p>
+            <p class="text-sm text-text-primary">{{ displayDate(designPermitPeriod.start) }}</p>
+          </div>
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.designPermitEnd') }}</p>
+            <p class="text-sm text-text-primary">{{ displayDate(designPermitPeriod.end) }}</p>
+          </div>
+        </template>
+        <template v-if="supervisionPeriod">
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.supervisionStart') }}</p>
+            <p class="text-sm text-text-primary">{{ displayDate(supervisionPeriod.start) }}</p>
+          </div>
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.supervisionEnd') }}</p>
+            <p class="text-sm text-text-primary">{{ displayDate(supervisionPeriod.end) }}</p>
+          </div>
+        </template>
       </div>
 
       <Divider />
 
       <div class="flex flex-col gap-2">
         <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractPreview.scopeSummary') }}</p>
-        <RichTextEditor v-if="isEditing" v-model="draft.scopeSummary" />
-        <div v-else class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(contract.scopeSummary)" />
+        <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(contract.scopeSummary)" />
       </div>
 
       <div class="flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
@@ -207,9 +226,10 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
         <NumberInput
           v-if="isEditing"
           :model-value="draft.contractValue"
+          :prefix="contract.currency"
           :min="0.01"
           step="0.01"
-          class="w-40"
+          class="w-56"
           @update:model-value="draft.contractValue = Number($event)"
         />
         <span v-else class="text-lg font-semibold text-primary-700">
