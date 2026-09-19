@@ -39,7 +39,7 @@ import { validators } from '@/utils/validators'
 //
 // Laid out as the contract document itself (same shape as
 // ContractPreview.vue) with only the fields staff actually decide --
-// Expiry Date, Client Representative and Clauses -- editable in place.
+// Expiry Date and Clauses -- editable in place.
 // Everything else (client, project, Design & Permit / Supervision
 // dates, scope, value) is filled in automatically and locked.
 
@@ -151,7 +151,6 @@ function emptyForm() {
     currency: 'KWD',
     contractValue: 0,
     expiryDate: '',
-    clientRepresentative: '',
     scopeSummary: '',
     clauses: [] as ContractClauseInput[],
   }
@@ -214,25 +213,21 @@ setRules({
       form.expiryDate >= lastInstallmentDate.value ||
       t('project.newContractDialog.expiryBeforeLastInstallment', { date: formatDate(lastInstallmentDate.value) }),
   ],
-  clientRepresentative: [validators.required("Client representative's name is required")],
   scopeSummary: [validators.required('Scope summary is required')],
 })
 
-// Seeds once the page's own data (project/quotation/client) has finished
+// Seeds once the page's own data (project/quotation) has finished
 // loading, rather than on every reactive change -- re-seeding after the
 // user has started editing would silently discard their in-progress edits.
 const isFormSeeded = ref(false)
 watch(
-  () => [isLoading.value, eligibleQuotation.value, project.value, client.value] as const,
-  ([loading, quotation, proj, clientValue]) => {
+  () => [isLoading.value, eligibleQuotation.value, project.value] as const,
+  ([loading, quotation, proj]) => {
     if (loading || isFormSeeded.value) return
-    // clientRepresentative is only a starting point and stays freely
-    // editable. Everything else seeded here is locked: contractValue
-    // has to match the source quotation's approved amount (see the
-    // validator above and contract_service._assert_contract_value_
-    // matches_quotation), and scopeSummary/currency simply carry over
-    // from it.
-    form.clientRepresentative = clientValue?.contactPerson || ''
+    // Everything seeded here is locked: contractValue has to match the
+    // source quotation's approved amount (see the validator above and
+    // contract_service._assert_contract_value_matches_quotation), and
+    // scopeSummary/currency simply carry over from it.
     form.contractValue = quotation?.amount ?? proj?.serviceTotal ?? 0
     form.scopeSummary = quotation ? scopeSummaryFromQuotation(quotation, proj) : scopeSummaryFromProject(proj)
     if (quotation) form.currency = quotation.currency
@@ -284,7 +279,6 @@ async function handleSubmit(): Promise<void> {
       currency: form.currency,
       contractValue: form.contractValue,
       expiryDate: form.expiryDate,
-      clientRepresentative: form.clientRepresentative.trim(),
       scopeSummary: form.scopeSummary.trim(),
       clauses: form.clauses.map((clause) => ({ title: clause.title.trim(), content: clause.content.trim() })),
     })
@@ -363,18 +357,9 @@ async function handleSubmit(): Promise<void> {
         <Divider />
 
         <div class="grid grid-cols-1 gap-6 tablet:grid-cols-3">
-          <div class="flex flex-col gap-2">
-            <div class="flex flex-col gap-1">
-              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.client') }}</p>
-              <p class="text-sm font-semibold text-text-primary">{{ client ? getClientFormalName(client) : t('client.unknownClient') }}</p>
-            </div>
-            <TextInput
-              v-model="form.clientRepresentative"
-              :label="t('project.newContractDialog.clientRepresentative')"
-              :placeholder="t('project.newContractDialog.clientRepresentativePlaceholder')"
-              required
-              :error="errors.clientRepresentative"
-            />
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractDates.client') }}</p>
+            <p class="text-sm font-semibold text-text-primary">{{ client ? getClientFormalName(client) : t('client.unknownClient') }}</p>
           </div>
 
           <div class="flex flex-col gap-1">

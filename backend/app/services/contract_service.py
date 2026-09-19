@@ -494,11 +494,10 @@ def reopen_contract(db: Session, contract_no: str, user_id: int) -> Contract:
 
 
 def _contract_summary_text(contract: Contract, clauses: list[ContractClause]) -> str:
-    lines = [
-        f"Contract Value: {contract.contract_value:.2f} {contract.currency}",
-        f"Client Representative: {contract.client_representative}",
-        f"Expiry Date: {contract.expiry_date.isoformat()}",
-    ]
+    lines = [f"Contract Value: {contract.contract_value:.2f} {contract.currency}"]
+    if contract.client_representative:
+        lines.append(f"Client Representative: {contract.client_representative}")
+    lines.append(f"Expiry Date: {contract.expiry_date.isoformat()}")
     if clauses:
         lines.append("")
         lines.append("Clauses:")

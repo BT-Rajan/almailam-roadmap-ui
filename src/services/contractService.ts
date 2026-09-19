@@ -50,7 +50,6 @@ export interface ContractCreateInput {
   currency: string
   contractValue: number
   expiryDate: string
-  clientRepresentative: string
   scopeSummary: string
   clauses: ContractClauseInput[]
 }

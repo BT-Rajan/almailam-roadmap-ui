@@ -389,8 +389,6 @@ export default {
 
   contractPreview: {
     client: 'Client',
-    clientRepresentative: 'Client representative',
-    representedBy: 'Represented by {name}',
     signed: 'Signed: {date}',
     expiryDate: 'Expiry Date',
     expires: 'Expires: {date}',
@@ -584,8 +582,6 @@ export default {
     expiryDate: 'Expiry Date',
     expiryHint: 'Must be on or after {date}, the last installment of the approved payment plan.',
     expiryBeforeLastInstallment: 'The expiry date can\'t be before the last payment plan installment ({date}).',
-    clientRepresentative: 'Client Representative',
-    clientRepresentativePlaceholder: 'Name of the person signing for the client',
     scopeSummary: 'Scope Summary',
     clausesOptional: 'Clauses (optional)',
     addClause: 'Add Clause',

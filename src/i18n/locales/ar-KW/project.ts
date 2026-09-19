@@ -389,8 +389,6 @@ export default {
 
   contractPreview: {
     client: 'العميل',
-    clientRepresentative: 'ممثل العميل',
-    representedBy: 'يمثله {name}',
     signed: 'تاريخ التوقيع: {date}',
     expiryDate: 'تاريخ الانتهاء',
     expires: 'ينتهي في: {date}',
@@ -584,8 +582,6 @@ export default {
     expiryDate: 'تاريخ الانتهاء',
     expiryHint: 'يجب أن يكون في {date} أو بعده، وهو موعد آخر دفعة في خطة الدفع المعتمدة.',
     expiryBeforeLastInstallment: 'لا يمكن أن يكون تاريخ الانتهاء قبل آخر دفعة في خطة الدفع ({date}).',
-    clientRepresentative: 'ممثل العميل',
-    clientRepresentativePlaceholder: 'اسم الشخص الموقّع نيابة عن العميل',
     scopeSummary: 'ملخص النطاق',
     clausesOptional: 'البنود (اختياري)',
     addClause: 'إضافة بند',
