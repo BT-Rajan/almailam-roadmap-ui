@@ -35,8 +35,13 @@ const currentRank = computed(() => {
   return rank === -1 ? 0 : rank
 })
 
+// A Completed task is finished, so every step -- Completed included --
+// reads green ('complete'), never blue ('current'): blue means "in
+// progress here", which a done task no longer is.
+const isFinished = computed(() => props.status === 'Completed')
+
 function stepStatus(rank: number): StepStatus {
-  if (rank < currentRank.value) return 'complete'
+  if (isFinished.value || rank < currentRank.value) return 'complete'
   if (rank === currentRank.value) return 'current'
   return 'upcoming'
 }
@@ -54,7 +59,10 @@ function segmentClasses(status: StepStatus): string[] {
   ]
 }
 
-function labelClasses(status: StepStatus): string[] {
+function labelClasses(status: StepStatus, rank: number): string[] {
+  // The final step of a finished task keeps the "you are here"
+  // emphasis, in green to match its bar.
+  if (isFinished.value && rank === currentRank.value) return ['truncate text-xs text-center font-semibold text-success-600']
   return ['truncate text-xs text-center', status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted']
 }
 </script>
@@ -67,7 +75,7 @@ function labelClasses(status: StepStatus): string[] {
     <div class="flex items-stretch gap-2" role="group" :aria-label="t('task.progress.label')">
       <div v-for="(step, rank) in STEPS" :key="step.status" class="flex flex-1 flex-col items-stretch gap-1">
         <span :class="segmentClasses(stepStatus(rank))" :aria-current="stepStatus(rank) === 'current' ? 'step' : undefined" />
-        <span :class="labelClasses(stepStatus(rank))">{{ t(step.labelKey) }}</span>
+        <span :class="labelClasses(stepStatus(rank), rank)">{{ t(step.labelKey) }}</span>
       </div>
     </div>
   </div>

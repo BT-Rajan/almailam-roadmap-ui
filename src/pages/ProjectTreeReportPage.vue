@@ -95,7 +95,9 @@ type NodeStatus = 'complete' | 'current' | 'upcoming'
 const LINEAR_STAGES: WorkflowStage[] = ['Requirement', 'Quotation', 'Payment Plan', 'Contract']
 const PARALLEL_STAGES: WorkflowStage[] = ['Government Submission', 'Design', 'Supervision']
 
-function linearStatus(stage: WorkflowStage, currentStage: WorkflowStage): NodeStatus {
+function linearStatus(stage: WorkflowStage, currentStage: WorkflowStage, projectStatus?: Project['status']): NodeStatus {
+  // A Completed project is finished -- nothing in it reads "current".
+  if (projectStatus === 'Completed') return 'complete'
   const rank = LINEAR_STAGES.indexOf(stage)
   const currentRank = PARALLEL_STAGES.includes(currentStage) || currentStage === 'Handover' ? LINEAR_STAGES.length : LINEAR_STAGES.indexOf(currentStage)
   if (rank < currentRank) return 'complete'
@@ -117,7 +119,7 @@ function isTrackDone(stage: WorkflowStage, p: Project): boolean {
 }
 
 function parallelStatus(stage: WorkflowStage, p: Project): NodeStatus {
-  if (isTrackDone(stage, p)) return 'complete'
+  if (p.status === 'Completed' || isTrackDone(stage, p)) return 'complete'
   const isPastContract = PARALLEL_STAGES.includes(p.currentStage) || p.currentStage === 'Handover'
   return isPastContract ? 'current' : 'upcoming'
 }
@@ -177,7 +179,7 @@ const linearStageNodes = computed<StageNode[]>(() => {
   return LINEAR_STAGES.map((stage) => ({
     key: stage,
     label: getWorkflowStageLabel(stage),
-    status: linearStatus(stage, project.value!.currentStage),
+    status: linearStatus(stage, project.value!.currentStage, project.value!.status),
   }))
 })
 
