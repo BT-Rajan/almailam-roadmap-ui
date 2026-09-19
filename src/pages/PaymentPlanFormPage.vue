@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from '@lucide/vue'
+import { Plus, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -13,9 +13,9 @@ import NumberInput from '@/components/common/NumberInput.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useProjectStore } from '@/stores/projectStore'
 import { usePaymentStore } from '@/stores/paymentStore'
@@ -23,7 +23,7 @@ import { useQuotationStore } from '@/stores/quotationStore'
 import { todayIsoDate } from '@/utils/paymentHelpers'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { AgreementStream, CreateAgreementInput, PaymentMilestoneInput, PaymentMode } from '@/types/Payment'
-import type { Project } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
@@ -39,13 +39,10 @@ import { validators } from '@/utils/validators'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { isRtl } = useLocale()
 const projectStore = useProjectStore()
 const paymentStore = usePaymentStore()
 const quotationStore = useQuotationStore()
 const resultDialogStore = useResultDialogStore()
-
-const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 
 const projectId = computed(() => route.params.projectId as string)
 const VALID_STREAMS: AgreementStream[] = ['Design', 'Supervision']
@@ -99,6 +96,14 @@ function goBack(): void {
   router.push({ name: ROUTE_NAMES.PROJECTS })
 }
 
+// The stepper (replacing the old plain "Back to Payment Plan" link) lets
+// staff jump to any stage of the project from here, same as
+// QuotationCreatePage.vue's own navigateToTab.
+function navigateToTab(tab: ProjectWorkspaceTabKey): void {
+  if (!project.value) return
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: project.value.id }, query: { tab } })
+}
+
 const PAYMENT_MODE_OPTIONS: SelectOption[] = [
   { label: 'Cash', value: 'Cash', labelKey: 'payment.paymentMode.cash' },
   { label: 'Bank Transfer', value: 'Bank Transfer', labelKey: 'payment.paymentMode.bankTransfer' },
@@ -107,12 +112,6 @@ const PAYMENT_MODE_OPTIONS: SelectOption[] = [
   { label: 'Online Payment', value: 'Online Payment', labelKey: 'payment.paymentMode.onlinePayment' },
   { label: 'Cheque', value: 'Cheque', labelKey: 'payment.paymentMode.cheque' },
   { label: 'Other', value: 'Other', labelKey: 'payment.paymentMode.other' },
-]
-
-const CURRENCY_OPTIONS: SelectOption[] = [
-  { label: 'KWD', value: 'KWD' },
-  { label: 'USD', value: 'USD' },
-  { label: 'EUR', value: 'EUR' },
 ]
 
 // The default 4-installment plan requested for this project: 25% at
@@ -324,9 +323,19 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <BaseButton variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
-      {{ t('payment.agreementFormDialog.backToPaymentPlan') }}
-    </BaseButton>
+    <WorkflowProgress
+      v-if="project"
+      class="no-print"
+      :current-stage="project.currentStage"
+      :project-status="project.status"
+      :includes-design="project.includesDesign"
+      :includes-government-submission="project.includesGovernmentSubmission"
+      :includes-supervision="project.includesSupervision"
+      :selected-activities="project.selectedActivities"
+      :selected-permits="project.selectedPermits"
+      :selected-supervision-activities="project.selectedSupervisionActivities"
+      @navigate-tab="navigateToTab"
+    />
 
     <div v-if="isLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
       <SkeletonLoader :rows="8" />
@@ -344,55 +353,40 @@ async function handleSubmit(): Promise<void> {
       </h1>
 
       <div class="flex flex-col gap-5">
-        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput :model-value="client ? getClientDisplayName(client) : ''" :label="t('payment.agreementFormDialog.client')" disabled />
-          <TextInput :model-value="`${project.projectName} (${project.projectNo})`" :label="t('payment.agreementFormDialog.project')" disabled />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+          <div class="flex flex-col gap-1">
+            <span class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.client') }}</span>
+            <span class="text-sm text-text-primary">{{ client ? getClientDisplayName(client) : '—' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.project') }}</span>
+            <span class="text-sm text-text-primary">{{ project.projectName }} ({{ project.projectNo }})</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.quotationReference') }}</span>
+            <span class="text-sm text-text-primary">{{ quotationReference || '—' }}</span>
+          </div>
         </div>
 
-        <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-[minmax(0,1fr)_2fr]">
+          <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
+          <SelectBox :model-value="paymentMode" :label="t('payment.agreementFormDialog.paymentModeTitle')" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
+        </div>
 
         <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
           <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
-          <TextInput
-            v-model="quotationReference"
-            :label="t('payment.agreementFormDialog.quotationReference')"
-            disabled
-            :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
-          />
         </div>
 
-        <template v-else>
-          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
-              <div class="flex gap-2">
-                <div class="w-24 shrink-0">
-                  <SelectBox :model-value="currency" :options="CURRENCY_OPTIONS" :disabled="!isEditMode" @update:model-value="currency = $event" />
-                </div>
-                <NumberInput
-                  class="flex-1"
-                  :model-value="contractAmount"
-                  :min="0"
-                  step="0.01"
-                  required
-                  :disabled="!isEditMode"
-                  :error="errors.contractAmount"
-                  @update:model-value="contractAmount = Number($event)"
-                />
-              </div>
+        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
+            <div class="flex h-10 items-center rounded-lg border border-border-light bg-bg-secondary px-3 text-sm font-medium text-text-primary">
+              {{ formatCurrency(contractAmount, currency) }}
             </div>
-            <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" :error="errors.contractStartDate" />
+            <p v-if="errors.contractAmount" class="text-xs text-danger-700">{{ errors.contractAmount }}</p>
           </div>
-
-          <TextInput
-            v-model="quotationReference"
-            :label="t('payment.agreementFormDialog.quotationReference')"
-            disabled
-            :hint="t('payment.agreementFormDialog.quotationReferenceHint')"
-          />
-        </template>
-
-        <SelectBox :model-value="paymentMode" :label="t('payment.agreementFormDialog.paymentModeTitle')" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
+          <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" :error="errors.contractStartDate" />
+        </div>
 
         <div v-if="isMilestonePlan" class="flex flex-col gap-3">
           <div class="flex items-center justify-between">
