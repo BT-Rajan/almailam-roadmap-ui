@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { ApiError, apiClient } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { AddServicesInput, HandoverStatus, Project, ScopeOfWork, SelectedPermit, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
@@ -44,6 +44,7 @@ async function getProjectsPage(
     return await apiClient.get<PagedResponse<Project>>(`/api/projects${query}`)
   } catch (error) {
     console.error('Failed to fetch projects:', error)
+    if (error instanceof ApiError) throw error
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch projects')
   }
 }

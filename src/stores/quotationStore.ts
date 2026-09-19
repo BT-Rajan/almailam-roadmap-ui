@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { quotationService } from '@/services/quotationService'
 import type { QuotationCreateInput } from '@/services/quotationService'
 import type { Quotation, QuotationAuditEvent } from '@/types/Quotation'
+import { describeLoadError } from '@/utils/loadError'
 
 interface QuotationStoreState {
   projectId: string | undefined
@@ -49,8 +50,8 @@ export const useQuotationStore = defineStore('quotation', {
         this.quotations = await quotationService.getQuotationsByProject(projectId)
         this.selectedQuotationId = this.latestQuotation?.id
         if (this.selectedQuotationId) await this.loadAuditEvents(this.selectedQuotationId)
-      } catch {
-        this.error = 'Unable to load quotations. Please try again.'
+      } catch (error) {
+        this.error = describeLoadError('Unable to load quotations. Please try again.', error)
       } finally {
         this.isLoading = false
       }

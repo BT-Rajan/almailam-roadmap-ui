@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
 import type { Client } from '@/types/Client'
 import type { AddServicesInput, Project, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
+import { describeLoadError } from '@/utils/loadError'
 
 interface ProjectPaginationState {
   page: number
@@ -93,8 +94,8 @@ export const useProjectStore = defineStore('project', {
       try {
         const [projects] = await Promise.all([projectService.getProjects(), useClientStore().loadClients()])
         this.projects = projects
-      } catch {
-        this.error = 'Unable to load projects. Please try again.'
+      } catch (error) {
+        this.error = describeLoadError('Unable to load projects. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -129,8 +130,8 @@ export const useProjectStore = defineStore('project', {
           total: result.total,
           totalPages: result.totalPages,
         }
-      } catch {
-        this.error = 'Unable to load projects. Please try again.'
+      } catch (error) {
+        this.error = describeLoadError('Unable to load projects. Please try again.', error)
       } finally {
         this.isPageLoading = false
       }
