@@ -33,6 +33,7 @@ function projectName(projectId: string): string {
       :icon="ListChecks"
       :title="t('task.list.emptyTitle')"
       :description="t('task.list.emptyDescription')"
+      :bordered="false"
     />
 
     <ul v-else class="divide-y divide-border-light">

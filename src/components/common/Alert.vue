@@ -31,10 +31,10 @@ const variantIcons: Record<ToastVariant, Component> = {
 }
 
 const variantClasses: Record<ToastVariant, string> = {
-  success: 'bg-success-50 border-success-100 text-success-700',
-  error: 'bg-danger-50 border-danger-100 text-danger-700',
-  warning: 'bg-warning-50 border-warning-100 text-warning-700',
-  info: 'bg-info-50 border-info-100 text-info-700',
+  success: 'border-success-100 border-l-success-500 bg-success-50 text-success-700',
+  error: 'border-danger-100 border-l-danger-500 bg-danger-50 text-danger-700',
+  warning: 'border-warning-100 border-l-warning-500 bg-warning-50 text-warning-700',
+  info: 'border-info-100 border-l-info-500 bg-info-50 text-info-700',
 }
 
 const icon = computed(() => variantIcons[props.variant])
@@ -42,7 +42,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="flex items-start gap-3 rounded-lg border p-4" :class="variantClasses[variant]" role="alert">
+  <div class="flex items-start gap-3 rounded-lg border border-l-4 p-4 shadow-glass-sm" :class="variantClasses[variant]" role="alert">
     <component :is="icon" class="mt-0.5 h-5 w-5 shrink-0" />
     <div class="flex-1">
       <p class="text-sm font-semibold">{{ title }}</p>
