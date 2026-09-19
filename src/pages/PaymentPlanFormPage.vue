@@ -127,7 +127,6 @@ function buildDefaultMilestones(): PaymentMilestoneInput[] {
 
 const contractAmount = ref(0)
 const currency = ref('KWD')
-const contractStartDate = ref(todayIsoDate())
 const agreementDate = ref(todayIsoDate())
 const quotationReference = ref('')
 const paymentMode = ref<PaymentMode>('Bank Transfer')
@@ -163,9 +162,6 @@ setRules({
         amount: approvedQuotation.value.amount,
       }),
   ],
-  contractStartDate: [
-    () => isSupervision.value || contractStartDate.value.length > 0 || t('payment.agreementFormDialog.contractStartDateRequired'),
-  ],
 })
 
 const isSupervision = computed(() => stream.value === 'Supervision')
@@ -181,7 +177,6 @@ function seedForm(): void {
   if (existing) {
     contractAmount.value = existing.contractAmount
     currency.value = existing.currency
-    contractStartDate.value = existing.contractStartDate
     agreementDate.value = existing.agreementDate
     // Prefer the real quotationNo (from quotation_id, migration 0100)
     // over the legacy free-text quotationReference -- only falls back
@@ -204,7 +199,6 @@ function seedForm(): void {
   // a legacy mismatch can be corrected back into agreement with it.
   contractAmount.value = approvedQuotation.value?.amount ?? 0
   currency.value = approvedQuotation.value?.currency ?? 'KWD'
-  contractStartDate.value = todayIsoDate()
   agreementDate.value = todayIsoDate()
   quotationReference.value = approvedQuotation.value?.quotationNo ?? ''
   paymentMode.value = 'Bank Transfer'
@@ -219,7 +213,23 @@ function revalidate(): void {
   validateAll({
     agreementDate: agreementDate.value,
     contractAmount: contractAmount.value,
-    contractStartDate: contractStartDate.value,
+  })
+  revalidateMilestones()
+}
+
+// Same immediate-highlight treatment for the installment rows'
+// mandatory fields (Description/%/Due Date) as the top-level fields
+// above -- previously only checked on submit, so a blank Due Date
+// (the one field buildDefaultMilestones() doesn't pre-fill) stayed
+// unflagged until the first failed save.
+function revalidateMilestones(): void {
+  if (!isMilestonePlan.value) return
+  milestoneErrors.value = milestones.value.map((m) => {
+    const rowError: MilestoneError = {}
+    if (!m.description.trim()) rowError.description = t('payment.agreementFormDialog.descriptionRequired')
+    if (m.percentage <= 0) rowError.percentage = t('payment.agreementFormDialog.percentageRequired')
+    if (!m.dueDate) rowError.dueDate = t('payment.agreementFormDialog.dueDateRequired')
+    return rowError
   })
 }
 
@@ -236,7 +246,8 @@ watch(
   },
   { immediate: true },
 )
-watch([agreementDate, contractAmount, contractStartDate], revalidate)
+watch([agreementDate, contractAmount], revalidate)
+watch(milestones, revalidateMilestones, { deep: true })
 
 function addMilestone(): void {
   if (milestones.value.length >= MAX_MILESTONES) return
@@ -262,21 +273,13 @@ async function handleSubmit(): Promise<void> {
   const formValid = validateAll({
     agreementDate: agreementDate.value,
     contractAmount: contractAmount.value,
-    contractStartDate: contractStartDate.value,
   })
 
   let rowsValid = true
   if (isMilestonePlan.value) {
-    const itemErrors: MilestoneError[] = milestones.value.map((m) => {
-      const rowError: MilestoneError = {}
-      if (!m.description.trim()) rowError.description = t('payment.agreementFormDialog.descriptionRequired')
-      if (m.percentage <= 0) rowError.percentage = t('payment.agreementFormDialog.percentageRequired')
-      if (!m.dueDate) rowError.dueDate = t('payment.agreementFormDialog.dueDateRequired')
-      return rowError
-    })
-    milestoneErrors.value = itemErrors
+    revalidateMilestones()
     totalError.value = milestoneTotalValid.value ? '' : t('payment.agreementFormDialog.totalMustEqual100', { percent: milestoneTotal.value })
-    rowsValid = itemErrors.every((rowError) => Object.keys(rowError).length === 0) && milestoneTotalValid.value
+    rowsValid = milestoneErrors.value.every((rowError) => Object.keys(rowError).length === 0) && milestoneTotalValid.value
   }
 
   if (!formValid || !rowsValid) return
@@ -295,7 +298,11 @@ async function handleSubmit(): Promise<void> {
         stream: stream.value,
         contractAmount: contractAmount.value,
         currency: currency.value,
-        contractStartDate: contractStartDate.value,
+        // No separate Contract Start Date field in the UI any more --
+        // the contract is always treated as starting on the agreement
+        // date itself (still required by the backend for a Design
+        // agreement, see payment_service._compute_contract_terms).
+        contractStartDate: agreementDate.value,
         agreementDate: agreementDate.value,
         quotationReference: quotationReference.value.trim() || undefined,
         paymentMode: paymentMode.value,
@@ -368,16 +375,22 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-[minmax(0,1fr)_2fr]">
+        <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+          <SelectBox
+            :model-value="paymentMode"
+            :label="t('payment.agreementFormDialog.paymentModeTitle')"
+            required
+            :options="PAYMENT_MODE_OPTIONS"
+            @update:model-value="paymentMode = $event as PaymentMode"
+          />
           <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
-          <SelectBox :model-value="paymentMode" :label="t('payment.agreementFormDialog.paymentModeTitle')" :options="PAYMENT_MODE_OPTIONS" @update:model-value="paymentMode = $event as PaymentMode" />
         </div>
 
         <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
           <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
         </div>
 
-        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
+        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
             <div class="flex h-10 items-center rounded-lg border border-border-light bg-bg-secondary px-3 text-sm font-medium text-text-primary">
@@ -385,7 +398,14 @@ async function handleSubmit(): Promise<void> {
             </div>
             <p v-if="errors.contractAmount" class="text-xs text-danger-700">{{ errors.contractAmount }}</p>
           </div>
-          <DatePicker v-model="contractStartDate" :label="t('payment.agreementFormDialog.contractStartDate')" required :max="todayIso()" :error="errors.contractStartDate" />
+          <SelectBox
+            :model-value="paymentMode"
+            :label="t('payment.agreementFormDialog.paymentModeTitle')"
+            required
+            :options="PAYMENT_MODE_OPTIONS"
+            @update:model-value="paymentMode = $event as PaymentMode"
+          />
+          <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
         </div>
 
         <div v-if="isMilestonePlan" class="flex flex-col gap-3">

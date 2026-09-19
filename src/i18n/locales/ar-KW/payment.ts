@@ -184,7 +184,6 @@ export default {
     quotationReference: 'مرجع عرض السعر',
     quotationReferenceHint: 'يُملأ تلقائياً من عرض السعر المعتمد لهذا المشروع.',
     totalAmount: 'المبلغ الإجمالي',
-    contractStartDate: 'تاريخ بدء العقد',
     paymentModeTitle: 'طريقة الدفع',
     installments: 'الأقساط',
     addInstallment: 'إضافة قسط',
@@ -202,7 +201,6 @@ export default {
     totalMustEqual100: 'يجب أن يكون مجموع نسب الدفعات 100% (الحالي {percent}%).',
     totalAmountRequired: 'يجب أن يكون المبلغ الإجمالي أكبر من 0',
     totalAmountMustMatchQuotation: 'يجب أن يطابق المبلغ الإجمالي المبلغ المعتمد في عرض السعر {number} ({amount}).',
-    contractStartDateRequired: 'تاريخ بدء العقد مطلوب',
     saveChanges: 'حفظ التغييرات',
   },
 }
