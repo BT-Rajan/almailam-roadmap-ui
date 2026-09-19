@@ -89,11 +89,9 @@ export const useUserStore = defineStore('user', {
       return updated
     },
 
-    // Persist first, then store the backend-assigned user (including its
-    // real id) -- previously this stored the caller's locally-generated
-    // placeholder id (see UserFormPage.vue) and discarded what the backend
-    // actually created, so the id shown in the UI right after creating a
-    // user didn't match the one it would have after a refresh.
+    // Persist first, then store the backend-assigned user, including
+    // its real id, so the id shown in the UI matches what a refresh
+    // would show.
     async addUser(user: AppUser): Promise<CreatedUser> {
       const created = await userService.createUser(user)
       // UserCreate has no is_active field server-side -- new users are
@@ -108,9 +106,8 @@ export const useUserStore = defineStore('user', {
     },
 
     // Persist first, then reconcile local state from what the backend
-    // actually saved -- previously this wrote the caller's optimistic
-    // AppUser into local state *before* the update call, so a failed or
-    // partially-accepted save still looked successful in the UI.
+    // actually saved, so a failed or partially-accepted save doesn't
+    // still look successful in the UI.
     async saveUser(user: AppUser) {
       const updated = await userService.updateUser(user)
       if (updated.status !== user.status) {

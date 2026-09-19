@@ -28,13 +28,9 @@ interface AuthState {
    * One-shot message for the login page to show after a forced logout
    * (e.g. "You were signed out after 30 minutes of inactivity" -- see
    * useIdleLogout). Carried in memory rather than a ?reason= query
-   * param: a query string surviving into a later hard reload/reopened
-   * tab at that exact URL was landing some users on a login page that
-   * silently refused to submit, and stripping the query was the
-   * reported fix -- so the login route now always stays the bare
-   * /login, and this in-memory field is read once by LoginPage.vue and
-   * cleared, the same "nothing survives a reload" convention already
-   * used for the session itself.
+   * param, since the login route always stays the bare /login. Read
+   * once by LoginPage.vue and cleared, the same "nothing survives a
+   * reload" convention already used for the session itself.
    */
   logoutReason: string | null
 }

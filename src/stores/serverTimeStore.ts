@@ -36,12 +36,11 @@ export const useServerTimeStore = defineStore('serverTime', {
   getters: {
     isLoaded: (state): boolean => state.todayIso !== null,
 
-    // Local midnight of the server's Kuwait-local date, as a
-    // timestamp -- the same shape paymentHelpers.ts's todayTimestamp()
-    // previously built from `new Date()`. Null until loaded; callers
-    // fall back to the browser's own clock only for that narrow
-    // bootstrap window (see paymentHelpers.ts), never as an ongoing
-    // substitute for the real value once it's arrived.
+    // Local midnight of the server's Kuwait-local date, as a timestamp.
+    // Null until loaded; callers fall back to the browser's own clock
+    // only for that narrow bootstrap window (see paymentHelpers.ts),
+    // never as an ongoing substitute for the real value once it's
+    // arrived.
     todayTimestamp(state): number | null {
       if (state.todayIso === null) return null
       const [year, month, day] = state.todayIso.split('-').map(Number)

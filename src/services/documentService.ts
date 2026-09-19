@@ -83,14 +83,8 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
  * Upload a new document via backend API
  * Note: This uses multipart/form-data, handled specially by the API client
  */
-// Uploads a document via the backend API. Was previously pointed at a
-// nonexistent /api/documents/upload route with mismatched form field names
-// (project_id instead of projectId, no title/type at all) and read its auth
-// token from a localStorage key this app never writes to -- so calling it
-// would always have failed with a 401/404. It was also never actually
-// wired up: DocumentUploadDialog.vue fabricated a fake client-side id and
-// never called this function at all, so uploaded documents never persisted
-// and didn't have a real, unique, server-issued id.
+// Uploads a document via the backend API and returns the persisted
+// document, with a real, unique, server-issued id.
 async function uploadDocument(
   file: File | undefined,
   projectId: string,

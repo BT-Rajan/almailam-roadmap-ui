@@ -201,9 +201,7 @@ export const useDocumentStore = defineStore('document', {
       this.documents = [document, ...this.documents]
     },
 
-    // Persists an uploaded document via the backend API -- see the comment
-    // on documentService.uploadDocument for why this replaces the old
-    // fake-id, non-persistent upload path.
+    // Persists an uploaded document via the backend API.
     async uploadDocument(
       file: File | undefined,
       projectId: string,

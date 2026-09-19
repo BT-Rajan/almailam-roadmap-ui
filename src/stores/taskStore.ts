@@ -38,12 +38,8 @@ export const useTaskStore = defineStore('task', {
 
   getters: {
     // projectStore is the single, canonical place the full project list
-    // lives -- this store used to keep an entirely separate copy fetched
-    // independently in loadTasks() below. Delegating means every
-    // existing `taskStore.projects` / `taskStore.getProjectById` call
-    // site keeps working unchanged, but the actual fetch (and the O(1)
-    // id lookup) now happens once, shared with every other store that
-    // needs the same data.
+    // lives -- delegating shares one fetch and O(1) lookup with every
+    // other store that needs the same data.
     projects(): Project[] {
       return useProjectStore().projects
     },

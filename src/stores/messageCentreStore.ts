@@ -33,12 +33,9 @@ export const useMessageCentreStore = defineStore('messageCentre', {
 
   getters: {
     // clientStore/projectStore are the single, canonical places these
-    // full lists live -- this store used to keep two more independently-
-    // fetched copies of the exact same data (loadAll below). Client
-    // needs its full contact fields here (composing a message needs
-    // mobile/email), which clientStore's list already carries -- this
-    // isn't a slimmed-down lookup, just no longer a duplicate fetch of
-    // the same full records.
+    // full lists live. Client needs its full contact fields here
+    // (composing a message needs mobile/email), which clientStore's
+    // list already carries.
     clients(): Client[] {
       return useClientStore().clients
     },

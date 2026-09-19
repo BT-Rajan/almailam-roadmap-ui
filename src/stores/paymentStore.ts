@@ -63,11 +63,7 @@ export const usePaymentStore = defineStore('payment', {
 
   getters: {
     // projectStore/clientStore are the single, canonical places these
-    // full lists live -- this store used to keep two more independently-
-    // fetched copies of the exact same data (loadAll below). Delegating
-    // keeps every existing `paymentStore.getProjectById`/`getClientById`
-    // call site working unchanged while removing those duplicate fetches
-    // and getting the O(1) Map lookup those stores already do.
+    // full lists live -- delegating gives an O(1) Map lookup.
     getProjectById(): (projectId: string) => Project | undefined {
       return (projectId: string) => useProjectStore().getProjectById(projectId)
     },
@@ -76,9 +72,8 @@ export const usePaymentStore = defineStore('payment', {
       return (clientId: string) => useClientStore().getClientById(clientId)
     },
 
-    // stream is optional only for legacy callers that pre-date Supervision
-    // agreements -- a project can have one agreement per stream now, so
-    // any caller that cares which one should always pass it.
+    // stream is optional -- a project can have one agreement per stream,
+    // so any caller that cares which one should pass it.
     getAgreementByProject(state) {
       return (projectId: string, stream?: AgreementStream): FinancialAgreement | undefined =>
         state.agreements.find((agreement) => agreement.projectId === projectId && (!stream || agreement.stream === stream))
@@ -98,9 +93,8 @@ export const usePaymentStore = defineStore('payment', {
         // (the project workspace loads its own before this ever renders)
         // -- null rather than a fetch here, since this is a plain getter.
         // Matches against quotationNo (the real quotation_id FK,
-        // resolved server-side) -- not the legacy free-text
-        // quotationReference, which can drift from the actual linked
-        // quotation on older rows.
+        // resolved server-side), not the free-text quotationReference,
+        // which can drift from the actual linked quotation.
         const quotationStore = useQuotationStore()
         const quotation = agreement.quotationNo
           ? quotationStore.quotations.find((item) => item.quotationNo === agreement.quotationNo)

@@ -63,11 +63,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // clientStore is the single, canonical place the full client list
-    // lives -- this used to be a second, independently-fetched copy of
-    // the exact same data (loadProjects/loadProjectsPage both called
-    // clientService.getClients() themselves). Delegating keeps every
-    // existing `projectStore.clients` / `projectStore.getClientById`
-    // call site working unchanged while removing that duplicate fetch.
+    // lives -- delegating avoids a duplicate fetch.
     clients(): Client[] {
       return useClientStore().clients
     },
