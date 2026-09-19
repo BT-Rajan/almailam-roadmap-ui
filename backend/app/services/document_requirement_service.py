@@ -231,7 +231,11 @@ def _resolve_selected_item_catalog_id(db: Session, target_type: str, selected_ro
         return selected_row.permit_catalog_item_id
     try:
         return service_catalog_service.get_activity(db, selected_row.activity_id).id
-    except NotFoundError:
+    except (NotFoundError, ValidationAppError):
+        # ValidationAppError = the stored snapshot id isn't a parseable
+        # catalog display id ("Invalid activity id."). Same fail-open as
+        # a renamed/removed catalog row -- otherwise it escapes through
+        # _assert_stage_exit_criteria and blocks Handover forever.
         return None
 
 
