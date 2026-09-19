@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, ChevronDown, Download, Mail, Pencil, Plus, Printer, RotateCcw, ShieldCheck, Trash2, Wallet } from '@lucide/vue'
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -135,6 +135,21 @@ const sections = computed<AgreementStream[]>(() => {
 
 const hasAnyScope = computed(() => visibleStreams.value.length > 0)
 
+// Which plan's tab is showing -- Design and Permit, then Supervision.
+// Reset whenever the set of visible plans changes out from under it
+// (e.g. "Add Service" just added Supervision, or this is the very first
+// render) so it never points at a plan that isn't there.
+const activeStream = ref<AgreementStream | undefined>(sections.value[0])
+watch(
+  sections,
+  (streams) => {
+    if (!activeStream.value || !streams.includes(activeStream.value)) {
+      activeStream.value = streams[0]
+    }
+  },
+  { immediate: true },
+)
+
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
   { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
@@ -163,7 +178,6 @@ const hasAnyAgreement = computed(() => visibleStreams.value.some((stream) => agr
 // left to create and the button disappears. A project needing both
 // Design and Supervision plans just gets this pointed at Supervision
 // once Design's is created.
-const nextMissingStream = computed(() => visibleStreams.value.find((stream) => !agreementForStream(stream)))
 
 const isApprovingStream = ref<AgreementStream | undefined>(undefined)
 const isDeleteConfirmOpen = ref(false)
@@ -360,16 +374,7 @@ function openCreateAgreement(stream: AgreementStream): void {
   router.push({ name: ROUTE_NAMES.PAYMENT_PLAN_FORM, params: { projectId: props.projectId, stream } })
 }
 
-const panelRef = ref<HTMLElement>()
 const isCreatingSupervisionPlan = ref(false)
-
-// Brings a plan section into view -- used after Supervision's plan is
-// created automatically, so staff land on it instead of being left
-// looking at the Design plan they just approved.
-async function scrollToSection(stream: AgreementStream): Promise<void> {
-  await nextTick()
-  panelRef.value?.querySelector(`[data-stream="${stream}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 async function createSupervisionAgreement(): Promise<void> {
   const quotation = approvedQuotation()
@@ -390,7 +395,7 @@ async function handleCreateSupervisionPlan(): Promise<void> {
   try {
     await createSupervisionAgreement()
     resultDialogStore.showSuccess(t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
-    await scrollToSection('Supervision')
+    activeStream.value = 'Supervision'
   } catch (error) {
     resultDialogStore.showError(t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
@@ -422,6 +427,12 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
       handleAdvanceToContract()
     } else if (agreement.stream === 'Design' && needsSupervisionPlan()) {
       await moveOnToSupervisionPlan(approvedTitle)
+    } else if (agreement.stream === 'Design' && visibleStreams.value.includes('Supervision')) {
+      // Its Supervision plan already exists (still a Draft, or all
+      // required plans would be approved and we'd be off to Contract
+      // above) -- just take them to it.
+      resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.planApprovedDescription'))
+      activeStream.value = 'Supervision'
     } else {
       resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.planApprovedDescription'))
     }
@@ -433,7 +444,7 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
 }
 
 // Design and Permit is approved, and this project also bills Supervision
-// but has no plan for it yet -- create it for them and bring it into view
+// but has no plan for it yet -- create it for them and switch to its tab
 // rather than leaving them to find and click "Create Payment Plan".
 // Design's approval already went through by the time this runs, so a
 // failure here (e.g. a Supervision activity with no end date) is
@@ -445,7 +456,7 @@ async function moveOnToSupervisionPlan(approvedTitle: string): Promise<void> {
   try {
     await createSupervisionAgreement()
     resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.supervisionPlanReadyDescription'))
-    await scrollToSection('Supervision')
+    activeStream.value = 'Supervision'
   } catch (error) {
     resultDialogStore.showError(
       t('payment.planPanel.couldNotCreateSupervisionPlan'),
@@ -634,7 +645,7 @@ async function handleSendEmail(): Promise<void> {
 </script>
 
 <template>
-  <div ref="panelRef" class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3">
     <EmptyState
       v-if="!hasAnyScope"
       :icon="Wallet"
@@ -657,17 +668,35 @@ async function handleSendEmail(): Promise<void> {
     </div>
 
     <div v-if="hasAnyScope" class="flex flex-wrap items-center justify-between gap-2">
-      <BaseButton
-        size="sm"
-        :icon="Plus"
-        :disabled="!nextMissingStream"
-        :loading="isCreatingSupervisionPlan"
-        class="no-print"
-        @click="nextMissingStream && openCreateAgreement(nextMissingStream)"
-      >
-        {{ t('payment.planPanel.createPaymentPlan') }}
-      </BaseButton>
+      <div v-if="sections.length > 1" class="no-print flex gap-1 border-b border-border-light" role="tablist">
+        <button
+          v-for="stream in sections"
+          :key="stream"
+          type="button"
+          role="tab"
+          :aria-selected="activeStream === stream"
+          class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2.5 text-sm font-medium transition-colors duration-fast"
+          :class="
+            activeStream === stream
+              ? 'border-accent-500 text-accent-700 dark:text-accent-400'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          "
+          @click="activeStream = stream"
+        >
+          {{ sectionLabel(stream) }}
+        </button>
+      </div>
+      <div v-else />
       <div class="no-print flex flex-wrap items-center gap-2">
+        <BaseButton
+          size="sm"
+          :icon="Plus"
+          :disabled="!activeStream || !!agreementForStream(activeStream)"
+          :loading="isCreatingSupervisionPlan"
+          @click="activeStream && openCreateAgreement(activeStream)"
+        >
+          {{ t('payment.planPanel.createPaymentPlan') }}
+        </BaseButton>
         <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
           <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream !== undefined" @click="toggleDecisionMenu">
             {{ t('payment.planPanel.decision') }}
@@ -729,9 +758,9 @@ async function handleSendEmail(): Promise<void> {
     </div>
 
     <template v-for="stream in sections" :key="stream">
-      <div class="flex flex-col gap-4" :data-stream="stream">
+      <div v-show="stream === activeStream" class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ sectionLabel(stream) }}</h3>
+          <h3 v-if="sections.length === 1" class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ sectionLabel(stream) }}</h3>
           <StatusBadge
             v-if="agreementForStream(stream)"
             :label="agreementStatusLabel(agreementForStream(stream)!.status)"
