@@ -335,6 +335,7 @@ async function handleSubmit(): Promise<void> {
                     <NumberInput
                       v-if="!item.fromScope"
                       :model-value="item.unitPrice"
+                      :prefix="QUOTATION_CURRENCY"
                       :min="0"
                       step="0.01"
                       :error="lineItemErrors[index]?.unitPrice"
@@ -366,6 +367,7 @@ async function handleSubmit(): Promise<void> {
           <NumberInput
             :model-value="form.discountAmount"
             :label="t('project.newQuotationDialog.discountAmount')"
+            :prefix="QUOTATION_CURRENCY"
             :min="0"
             step="1"
             :error="errors.discountAmount"

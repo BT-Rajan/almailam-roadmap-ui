@@ -234,7 +234,7 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
           </div>
           <div class="grid grid-cols-2 gap-2">
             <NumberInput :model-value="item.quantity" :placeholder="t('project.quotationPreview.quantity')" :min="0.01" step="0.01" @update:model-value="item.quantity = Number($event)" />
-            <NumberInput :model-value="item.unitPrice" :placeholder="t('project.quotationPreview.unitPrice')" :min="0" step="0.01" @update:model-value="item.unitPrice = Number($event)" />
+            <NumberInput :model-value="item.unitPrice" :placeholder="t('project.quotationPreview.unitPrice')" :prefix="quotation.currency" :min="0" step="0.01" @update:model-value="item.unitPrice = Number($event)" />
           </div>
         </div>
       </div>
@@ -243,6 +243,7 @@ const QUOTATION_STATUS_KEYS: Record<Quotation['status'], string> = {
         <NumberInput
           :model-value="draft.discountAmount"
           :label="t('project.quotationPreview.discountAmount')"
+          :prefix="quotation.currency"
           :min="0"
           step="1"
           @update:model-value="draft.discountAmount = Number($event)"
