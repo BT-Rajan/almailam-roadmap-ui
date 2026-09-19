@@ -49,7 +49,7 @@ def tasks_by_priority(db: Session) -> list[dict]:
 
 
 def submissions_by_status(db: Session) -> list[dict]:
-    # Column is `stage` now (Prepare/Apply/Track/Update/Close) -- kept
+    # Column is `stage` now (Prepare/Apply/Track/Close) -- kept
     # this function's own name for API/report-heading stability.
     return _count_by(db, GovernmentSubmission, GovernmentSubmission.stage)
 

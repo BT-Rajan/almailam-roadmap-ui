@@ -53,7 +53,6 @@ const STAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: 'Prepare', value: 'Prepare', labelKey: 'government.submissionStage.prepare' },
   { label: 'Apply', value: 'Apply', labelKey: 'government.submissionStage.apply' },
   { label: 'Track', value: 'Track', labelKey: 'government.submissionStage.track' },
-  { label: 'Update', value: 'Update', labelKey: 'government.submissionStage.update' },
   { label: 'Close', value: 'Close', labelKey: 'government.submissionStage.close' },
 ])
 
@@ -66,7 +65,6 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   Prepare: 'government.submissionStage.prepare',
   Apply: 'government.submissionStage.apply',
   Track: 'government.submissionStage.track',
-  Update: 'government.submissionStage.update',
   Close: 'government.submissionStage.close',
 }
 

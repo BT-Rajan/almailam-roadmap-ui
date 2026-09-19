@@ -231,19 +231,14 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       }
     },
 
-    // Logs contact with the authority (Track) or one that also carries a
-    // document (Update) -- moves the application's stage to match.
+    // Logs contact with the authority, optionally with a document. Stays
+    // in Track -- logging contact never changes the application's stage.
     async addFollowup(submissionId: string, input: FollowupCreateInput): Promise<boolean> {
       this.isMutating = true
       this.mutationError = undefined
       try {
         const followup = await governmentSubmissionService.addFollowup(submissionId, input)
         this.followups = [followup, ...this.followups]
-        // Recording contact moves the application's own stage to match
-        // (Track/Update) -- refresh so the workspace's header/stepper
-        // reflects it.
-        const updated = await governmentSubmissionService.getSubmission(submissionId)
-        this._replaceSubmission(updated)
         return true
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to record the follow-up.'

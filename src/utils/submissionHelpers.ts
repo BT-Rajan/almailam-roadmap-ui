@@ -1,13 +1,12 @@
 import type { BadgeVariant } from '@/types/Ui'
 import type { RequiredDocumentStatus, ResponseOutcome, SubmissionStage } from '@/types/Submission'
 
-export const SUBMISSION_STAGES: SubmissionStage[] = ['Prepare', 'Apply', 'Track', 'Update', 'Close']
+export const SUBMISSION_STAGES: SubmissionStage[] = ['Prepare', 'Apply', 'Track', 'Close']
 
 const STAGE_VARIANTS: Record<SubmissionStage, BadgeVariant> = {
   Prepare: 'neutral',
   Apply: 'info',
   Track: 'warning',
-  Update: 'warning',
   Close: 'success',
 }
 

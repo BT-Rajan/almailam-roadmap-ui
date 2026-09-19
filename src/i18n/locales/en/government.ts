@@ -1,7 +1,7 @@
 export default {
   // Kept for ProjectFormEntry (Approvals & Permits' filed-form records,
   // authorityFormsPanel below) -- its own status lifecycle, unrelated to
-  // the Permit Application workspace's 5-stage model (submissionStage).
+  // the Permit Application workspace's 4-stage model (submissionStage).
   submissionStatus: {
     draft: 'Draft',
     submitted: 'Submitted',
@@ -11,12 +11,11 @@ export default {
     rejected: 'Rejected',
     withdrawn: 'Withdrawn',
   },
-  // The Permit Application workspace's 5 stages.
+  // The Permit Application workspace's 4 stages.
   submissionStage: {
     prepare: 'Prepare',
     apply: 'Apply',
     track: 'Track',
-    update: 'Update',
     close: 'Close',
   },
   // Final outcome recorded when an application reaches Close.
@@ -189,6 +188,12 @@ export default {
     backToProject: 'Back to Project',
     backToSubmissions: 'Back to Permit Applications',
     editApplication: 'Edit',
+    tabsAria: 'Permit application stages',
+    tabLockedHint: 'Available once the earlier stages are done',
+    notFiledYet: 'This application was closed before it was filed, so there is no filing to show.',
+    neverTracked: 'This application was closed before it reached Track, so there is no contact to show.',
+    closeApplicationNotice: "Record the final outcome once the authority has decided, or withdraw the application at any stage. Closing can't be undone.",
+    followUpDocumentHint: 'Attach a document if the authority asked for one, or an updated version of one already sent.',
     deleteApplication: 'Delete',
     deleteConfirmTitle: 'Delete {no}?',
     deleteConfirmMessage: 'This permit application, its document checklist and its follow-ups will be removed from the project and from Permit Applications.',
@@ -237,7 +242,7 @@ export default {
     acknowledgementNumberLine: 'Acknowledgement Number: {value}',
     paymentReferenceLine: 'Payment Reference: {value}',
 
-    // Track / Update
+    // Track
     followUpLog: 'Contact Log',
     recordFollowUp: 'Log Contact',
     noFollowUpsRecorded: 'No contact logged yet.',
@@ -245,11 +250,6 @@ export default {
     loggedBy: 'Logged by {name}',
     refresh: 'Refresh',
     followUpDialogDescription: 'Log a call or visit made to the authority to check on {submissionNo}.',
-    entryStage: 'Type of entry',
-    entryStageTrack: 'Track (plain check-in)',
-    entryStageUpdate: 'Update (authority asked for something else)',
-    entryStageTrackHint: 'A plain check-in with the authority -- no document.',
-    entryStageUpdateHint: 'The authority asked for an additional or updated document -- attach it below.',
     followUpDate: 'Contact date',
     followUpTime: 'Contact time',
     followUpContactPerson: 'Person who checked with the Government',
