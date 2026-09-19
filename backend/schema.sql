@@ -1206,6 +1206,27 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
 -- Still fully admin-editable afterward from Admin > Permit Catalog.
 INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
 
+-- The authority + starting permit application form behind each of those
+-- two permit types (migration 0107), so New Permit Application has an
+-- Authority and Form to pick on a fresh database. Each form carries a
+-- required-documents checklist (an application can't be confirmed ready
+-- with an empty one). service_tags stay empty here because the Services
+-- catalog doesn't exist yet at this point -- map each form to your Design
+-- services in Administration > Service Document Map (a form with no tags
+-- is offered for no project). Migration 0107 does that tagging itself on
+-- an install that already has services.
+INSERT INTO government_authorities (name, category, website, description) VALUES
+('Kuwait Municipality', 'Municipality', 'https://www.baladia.gov.kw', 'Kuwait Municipality (Baladia) -- regulates building permits, occupancy, and municipal compliance across Kuwait.'),
+('Kuwait Fire Service Directorate', 'Fire Department', 'https://www.kff.gov.kw', 'Kuwait Fire Service Directorate (KFD) -- approves fire and life safety systems for buildings and facilities in Kuwait.');
+
+INSERT INTO government_forms (authority_id, form_code, title, version, language, category, description, required_documents, service_tags, status) VALUES
+((SELECT id FROM government_authorities WHERE name = 'Kuwait Municipality'), 'BALADIA-PERMIT', 'Baladia Building Permit Application', 'v1.0', 'English / Arabic', 'Building Permit',
+ 'Application to Kuwait Municipality for a building permit / design approval for the project.',
+ '["Ownership Proof","Owner Civil ID","Site Plan","Architectural Drawings","Structural Drawings"]', '[]', 'Active'),
+((SELECT id FROM government_authorities WHERE name = 'Kuwait Fire Service Directorate'), 'KFD-PERMIT', 'Fire Safety Approval Application', 'v1.0', 'English / Arabic', 'Fire Safety Approval',
+ 'Application to the Kuwait Fire Service Directorate for approval of the project''s fire and life safety systems.',
+ '["Architectural Drawings","Fire System Drawings","Material Safety Data Sheets"]', '[]', 'Active');
+
 -- Which Design activities have to be Complete before a given permit
 -- becomes "Eligible" to apply for (migration 0089, Admin > Permit
 -- Catalog) -- see project_service._recompute_permit_eligibility. A
