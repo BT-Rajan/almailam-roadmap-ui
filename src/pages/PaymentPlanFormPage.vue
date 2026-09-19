@@ -27,7 +27,7 @@ import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import { todayIso } from '@/utils/dateFormatter'
+import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
 
 // Replaces AgreementFormDialog.vue's modal -- a dedicated route
@@ -169,6 +169,17 @@ const isSupervision = computed(() => stream.value === 'Supervision')
 // is exactly a single one-time payment, so there's no separate
 // "One-time" structure/toggle needed alongside this one.
 const isMilestonePlan = computed(() => !isSupervision.value)
+
+// Supervision shows the very same Installments table as Design, but its
+// rows are read-only: one installment per month between the supervision
+// start and end dates, amounts derived from the selected activities'
+// monthly rates (see payment_calculations.generate_prorated_monthly_
+// schedule) -- so there's nothing to edit in it, only to review. Only
+// shown once the plan exists; the schedule is generated when it's
+// created.
+const showInstallments = computed(() => isMilestonePlan.value || (isSupervision.value && isEditMode.value))
+const displayedTotalPercent = computed(() => (isSupervision.value ? 100 : milestoneTotal.value))
+const totalAmountText = computed(() => (isSupervision.value && !isEditMode.value ? '—' : formatCurrency(contractAmount.value, currency.value)))
 
 function seedForm(): void {
   milestoneErrors.value = []
@@ -375,26 +386,11 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
 
-        <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <SelectBox
-            :model-value="paymentMode"
-            :label="t('payment.agreementFormDialog.paymentModeTitle')"
-            required
-            :options="PAYMENT_MODE_OPTIONS"
-            @update:model-value="paymentMode = $event as PaymentMode"
-          />
-          <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
-        </div>
-
-        <div v-if="isSupervision" class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput v-model="currency" :label="t('payment.agreementFormDialog.currency')" placeholder="KWD" required />
-        </div>
-
-        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.totalAmount') }} <span class="text-danger-500">*</span></label>
             <div class="flex h-10 items-center rounded-lg border border-border-light bg-bg-secondary px-3 text-sm font-medium text-text-primary">
-              {{ formatCurrency(contractAmount, currency) }}
+              {{ totalAmountText }}
             </div>
             <p v-if="errors.contractAmount" class="text-xs text-danger-700">{{ errors.contractAmount }}</p>
           </div>
@@ -408,13 +404,16 @@ async function handleSubmit(): Promise<void> {
           <DatePicker v-model="agreementDate" :label="t('payment.agreementFormDialog.agreementDate')" required :max="todayIso()" :error="errors.agreementDate" />
         </div>
 
-        <div v-if="isMilestonePlan" class="flex flex-col gap-3">
+        <p v-if="isSupervision && !isEditMode" class="text-sm text-text-muted">{{ t('payment.agreementFormDialog.supervisionScheduleOnCreate') }}</p>
+
+        <div v-if="showInstallments" class="flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <label class="text-sm font-medium text-text-secondary">{{ t('payment.agreementFormDialog.installments') }}</label>
-            <BaseButton variant="ghost" size="sm" :icon="Plus" :disabled="milestones.length >= MAX_MILESTONES" @click="addMilestone">
+            <BaseButton v-if="isMilestonePlan" variant="ghost" size="sm" :icon="Plus" :disabled="milestones.length >= MAX_MILESTONES" @click="addMilestone">
               {{ t('payment.agreementFormDialog.addInstallment') }}
             </BaseButton>
           </div>
+          <p v-if="isSupervision" class="text-xs text-text-muted">{{ t('payment.agreementFormDialog.supervisionScheduleHint') }}</p>
 
           <div class="overflow-x-auto rounded-lg border border-border-light">
             <table class="w-full min-w-[560px] border-collapse">
@@ -432,15 +431,21 @@ async function handleSubmit(): Promise<void> {
                   <th class="w-32 px-3 py-2.5 text-end text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {{ t('payment.agreementFormDialog.columnAmount') }}
                   </th>
-                  <th class="w-10 px-2 py-2.5"></th>
+                  <th v-if="isMilestonePlan" class="w-10 px-2 py-2.5"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(milestone, index) in milestones" :key="index" class="border-b border-border-light last:border-0">
-                  <td class="px-3 py-2 align-top">
+                  <td v-if="isSupervision" class="px-3 py-2 align-top">
+                    <span class="inline-block pt-2 text-sm text-text-primary">{{ milestone.description }}</span>
+                  </td>
+                  <td v-else class="px-3 py-2 align-top">
                     <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="milestoneErrors[index]?.description" />
                   </td>
-                  <td class="px-3 py-2 align-top">
+                  <td v-if="isSupervision" class="px-3 py-2 text-end align-top">
+                    <span class="inline-block pt-2 text-sm text-text-primary">{{ milestone.percentage }}%</span>
+                  </td>
+                  <td v-else class="px-3 py-2 align-top">
                     <NumberInput
                       :model-value="milestone.percentage"
                       :min="0"
@@ -450,13 +455,16 @@ async function handleSubmit(): Promise<void> {
                       @update:model-value="milestone.percentage = Number($event)"
                     />
                   </td>
-                  <td class="px-3 py-2 align-top">
+                  <td v-if="isSupervision" class="px-3 py-2 text-end align-top">
+                    <span class="inline-block pt-2 text-sm text-text-primary">{{ formatDate(milestone.dueDate) }}</span>
+                  </td>
+                  <td v-else class="px-3 py-2 align-top">
                     <DatePicker v-model="milestone.dueDate" :error="milestoneErrors[index]?.dueDate" />
                   </td>
                   <td class="px-3 py-2 text-end align-top">
                     <span class="inline-block pt-2 text-sm font-medium text-text-primary">{{ formatCurrency(milestoneAmount(milestone), currency) }}</span>
                   </td>
-                  <td class="px-2 py-2 text-end align-top">
+                  <td v-if="isMilestonePlan" class="px-2 py-2 text-end align-top">
                     <IconButton
                       :icon="Trash2"
                       :label="t('payment.agreementFormDialog.removeInstallment', { number: index + 1 })"
@@ -471,12 +479,12 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
 
-        <Divider v-if="isMilestonePlan" />
+        <Divider v-if="showInstallments" />
 
-        <div v-if="isMilestonePlan" class="flex flex-col gap-2 text-sm">
+        <div v-if="showInstallments" class="flex flex-col gap-2 text-sm">
           <div class="flex items-center justify-between text-text-secondary">
             <span>{{ t('payment.agreementFormDialog.milestoneTotal') }}</span>
-            <span :class="milestoneTotalValid ? 'font-medium text-text-primary' : 'font-medium text-danger-600'">{{ t('payment.agreementFormDialog.total', { percent: milestoneTotal }) }}</span>
+            <span :class="isSupervision || milestoneTotalValid ? 'font-medium text-text-primary' : 'font-medium text-danger-600'">{{ t('payment.agreementFormDialog.total', { percent: displayedTotalPercent }) }}</span>
           </div>
           <p v-if="totalError" class="text-xs text-danger-700">{{ totalError }}</p>
           <Divider />

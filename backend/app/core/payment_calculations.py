@@ -278,6 +278,12 @@ def generate_prorated_monthly_schedule(activities: list[SupervisionActivityPerio
 
     year, month = min((a.start_date.year, a.start_date.month) for a in activities)
     end_year, end_month = max((a.end_date.year, a.end_date.month) for a in activities)
+    # Every installment falls inside the supervision window -- the first
+    # month's due date is the supervision start date itself when that's
+    # mid-month (rather than the 1st, which would sit before supervision
+    # has even begun); every later month is due on its 1st, which is
+    # always on or before the last activity's end date.
+    earliest_start = min(a.start_date for a in activities)
 
     schedule: list[dict] = []
     sequence_number = 1
@@ -303,7 +309,7 @@ def generate_prorated_monthly_schedule(activities: list[SupervisionActivityPerio
                     "sequenceNumber": sequence_number,
                     "description": f"Supervision - {month_start.strftime('%B %Y')}",
                     "amountDue": total,
-                    "dueDate": month_start,
+                    "dueDate": max(month_start, earliest_start),
                 }
             )
             sequence_number += 1
