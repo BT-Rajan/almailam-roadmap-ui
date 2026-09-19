@@ -243,6 +243,7 @@ export default {
       readyToSend: 'Every planned item across Design, Approvals & Permits, and Supervision is closed — ready for hand-over.',
       readySinceFragment: "Ready for hand-over since {date}. Confirm payment (Payment Confirmation tab) and collect the client's signed acknowledgment.",
       confirmPaymentFirst: 'Confirm payment received (Payment Confirmation tab) before completing hand-over.',
+      noEditPermission: 'Your role can’t edit projects, so hand-over can only be confirmed by someone with edit access to Projects.',
       acknowledgedOnFragment: 'Client acknowledged hand-over on {date}.',
       confirmHandover: 'Confirm Hand-over',
       confirmDialogTitle: 'Confirm Hand-over',
@@ -703,6 +704,8 @@ export default {
   },
 
   handoverPaymentTab: {
+    noEditPermission: 'Your role can’t edit projects. Ask someone with edit access to Projects to confirm or undo payment.',
+    financeRestricted: 'Payment figures are only shown to roles with Finance access.',
     autoStatusTitle: 'Payment Status (auto)',
     sourceQuotation: 'Source Quotation',
     noBillableStreams: 'This project has no billable Design or Supervision work.',
@@ -724,6 +727,7 @@ export default {
   },
 
   handoverNotesTab: {
+    noEditPermission: 'Your role can’t edit projects, so these notes are read-only.',
     notesTitle: 'Closing Notes',
     notesPlaceholder: 'Any final remarks for this project’s hand-over...',
     saveNotes: 'Save Notes',

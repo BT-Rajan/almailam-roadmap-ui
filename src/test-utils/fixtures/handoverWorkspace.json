@@ -1,0 +1,687 @@
+{
+ "projectNo": "2600007",
+ "project": {
+  "id": "2600007",
+  "projectNo": "2600007",
+  "projectName": "Handover Repro",
+  "description": "Full architectural and structural design for a 3-storey residential building, including MEP coordination, municipal permit filing, and construction-phase site supervision -- per the client's approved concept drawings.",
+  "scopeClientConfirmedAt": "2026-09-19T10:35:47",
+  "clientId": "CLT-014",
+  "service": "Civil Engineering",
+  "engineer": "Stage Demo Engineer",
+  "currentStage": "Handover",
+  "progress": 37,
+  "startDate": "2026-09-20",
+  "targetDate": "2027-03-01",
+  "status": "Active",
+  "selectedActivities": [
+   {
+    "id": "13",
+    "serviceId": "SVC-003",
+    "serviceName": "Architectural Design",
+    "activityId": "ACT-006",
+    "activityName": "Structural Drawings & Calculations",
+    "fixedCost": 6000.0,
+    "status": "Not Started",
+    "closedAt": null
+   },
+   {
+    "id": "14",
+    "serviceId": "SVC-003",
+    "serviceName": "Architectural Design",
+    "activityId": "ACT-007",
+    "activityName": "Site Inspection & Sign-off",
+    "fixedCost": 2500.0,
+    "status": "Not Started",
+    "closedAt": null
+   }
+  ],
+  "serviceTotal": 8500.0,
+  "selectedSupervisionActivities": [
+   {
+    "id": "7",
+    "activityId": "ACT-002",
+    "activityName": "Weekly Site Visits",
+    "monthlyRate": 250.0,
+    "startDate": "2026-09-21",
+    "endDate": "2026-11-30",
+    "status": "Complete",
+    "eligibilityMetAt": "2026-09-19T10:35:47",
+    "closedAt": "2026-09-19T10:35:47"
+   }
+  ],
+  "supervisionMonthlyTotal": 250.0,
+  "supervisionStartDate": "2026-09-21",
+  "supervisionEndDate": "2026-11-30",
+  "selectedPermits": [
+   {
+    "id": "7",
+    "permitId": "PER-001",
+    "permitName": "Baladia Permits",
+    "permitPrice": 0.0,
+    "status": "Complete",
+    "eligibilityMetAt": "2026-09-19T10:35:47",
+    "closedAt": "2026-09-19T10:35:47"
+   }
+  ],
+  "includesDesign": true,
+  "includesGovernmentSubmission": true,
+  "includesSupervision": true,
+  "siteAddress": "Plot 12, Block 4, Salmiya, Kuwait",
+  "handoverPaymentConfirmedAt": null,
+  "handoverPaymentConfirmedBy": null,
+  "handoverNotes": null
+ },
+ "projectsPage": {
+  "items": [
+   {
+    "id": "2600007",
+    "projectNo": "2600007",
+    "projectName": "Handover Repro",
+    "description": "Full architectural and structural design for a 3-storey residential building, including MEP coordination, municipal permit filing, and construction-phase site supervision -- per the client's approved concept drawings.",
+    "scopeClientConfirmedAt": "2026-09-19T10:35:47",
+    "clientId": "CLT-014",
+    "service": "Civil Engineering",
+    "engineer": "Stage Demo Engineer",
+    "currentStage": "Handover",
+    "progress": 37,
+    "startDate": "2026-09-20",
+    "targetDate": "2027-03-01",
+    "status": "Active",
+    "selectedActivities": [
+     {
+      "id": "13",
+      "serviceId": "SVC-003",
+      "serviceName": "Architectural Design",
+      "activityId": "ACT-006",
+      "activityName": "Structural Drawings & Calculations",
+      "fixedCost": 6000.0,
+      "status": "Not Started",
+      "closedAt": null
+     },
+     {
+      "id": "14",
+      "serviceId": "SVC-003",
+      "serviceName": "Architectural Design",
+      "activityId": "ACT-007",
+      "activityName": "Site Inspection & Sign-off",
+      "fixedCost": 2500.0,
+      "status": "Not Started",
+      "closedAt": null
+     }
+    ],
+    "serviceTotal": 8500.0,
+    "selectedSupervisionActivities": [
+     {
+      "id": "7",
+      "activityId": "ACT-002",
+      "activityName": "Weekly Site Visits",
+      "monthlyRate": 250.0,
+      "startDate": "2026-09-21",
+      "endDate": "2026-11-30",
+      "status": "Complete",
+      "eligibilityMetAt": "2026-09-19T10:35:47",
+      "closedAt": "2026-09-19T10:35:47"
+     }
+    ],
+    "supervisionMonthlyTotal": 250.0,
+    "supervisionStartDate": "2026-09-21",
+    "supervisionEndDate": "2026-11-30",
+    "selectedPermits": [
+     {
+      "id": "7",
+      "permitId": "PER-001",
+      "permitName": "Baladia Permits",
+      "permitPrice": 0.0,
+      "status": "Complete",
+      "eligibilityMetAt": "2026-09-19T10:35:47",
+      "closedAt": "2026-09-19T10:35:47"
+     }
+    ],
+    "includesDesign": true,
+    "includesGovernmentSubmission": true,
+    "includesSupervision": true,
+    "siteAddress": "Plot 12, Block 4, Salmiya, Kuwait",
+    "handoverPaymentConfirmedAt": null,
+    "handoverPaymentConfirmedBy": null,
+    "handoverNotes": null
+   }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 200,
+  "totalPages": 1
+ },
+ "clientsPage": {
+  "items": [
+   {
+    "id": "CLT-014",
+    "code": "CLT-014",
+    "clientType": "Individual",
+    "companyName": "Stage Demo Client -- HandoverRepro",
+    "contactPerson": "Stage Demo Client -- HandoverRepro",
+    "mobile": "+96514146001",
+    "email": "stage.demo.14146.1@example.com",
+    "city": "Kuwait City",
+    "status": "Active",
+    "onboardingState": "Ready",
+    "createdDate": "2026-09-19",
+    "individualProfile": {
+     "fullLegalName": "Stage Demo Client 1",
+     "preferredName": null,
+     "nationality": "Kuwaiti",
+     "dateOfBirth": "1988-06-15",
+     "countryOfResidence": "Kuwait"
+    },
+    "organisationProfile": null,
+    "communicationPreference": {
+     "preferredLanguage": "English",
+     "preferredChannel": "Email",
+     "emailConsent": false,
+     "whatsappConsent": false,
+     "smsConsent": false
+    },
+    "accountManagerId": null,
+    "accountManagerName": null,
+    "notes": null
+   }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 200,
+  "totalPages": 1
+ },
+ "users": [
+  {
+   "id": "USR-001",
+   "name": "System Administrator",
+   "salutation": null,
+   "designation": "System Administrator",
+   "email": "admin@almailam.example",
+   "mobile": "+971501000001",
+   "role": "Administrator",
+   "avatar": "SA",
+   "status": "Active"
+  },
+  {
+   "id": "USR-002",
+   "name": "Sarah Al-Farsi",
+   "salutation": null,
+   "designation": "Project Manager",
+   "email": "projectmanager@almailam.ai",
+   "mobile": "+971501000002",
+   "role": "Project Manager",
+   "avatar": "SA",
+   "status": "Active"
+  },
+  {
+   "id": "USR-003",
+   "name": "Layla Haddad",
+   "salutation": null,
+   "designation": "Structural Engineer",
+   "email": "engineer1@almailam.ai",
+   "mobile": "+971501000003",
+   "role": "Engineer",
+   "avatar": "LH",
+   "status": "Active"
+  },
+  {
+   "id": "USR-004",
+   "name": "Ahmed Rashid",
+   "salutation": null,
+   "designation": "MEP Engineer",
+   "email": "engineer2@almailam.ai",
+   "mobile": "+971501000004",
+   "role": "Engineer",
+   "avatar": "AR",
+   "status": "Active"
+  },
+  {
+   "id": "USR-005",
+   "name": "Fatima Noor",
+   "salutation": null,
+   "designation": "Document Controller",
+   "email": "documentcontroller@almailam.ai",
+   "mobile": "+971501000006",
+   "role": "Document Controller",
+   "avatar": "FN",
+   "status": "Active"
+  },
+  {
+   "id": "USR-006",
+   "name": "Stage Demo Engineer",
+   "salutation": null,
+   "designation": null,
+   "email": "stage.demo.engineer@example.com",
+   "mobile": null,
+   "role": "Engineer",
+   "avatar": "SE",
+   "status": "Active"
+  },
+  {
+   "id": "USR-007",
+   "name": "Viewer User",
+   "salutation": null,
+   "designation": null,
+   "email": "viewer@almailam.ai",
+   "mobile": null,
+   "role": "Viewer",
+   "avatar": "VU",
+   "status": "Active"
+  }
+ ],
+ "serverTime": {
+  "date": "2026-09-19",
+  "datetime": "2026-09-19T19:44:16.229867+03:00",
+  "timezone": "Asia/Kuwait"
+ },
+ "serviceCatalog": [
+  {
+   "id": "SVC-003",
+   "name": "Architectural Design",
+   "branch": "Design",
+   "activities": [
+    {
+     "id": "ACT-006",
+     "name": "Structural Drawings & Calculations",
+     "fixedCost": 6000.0
+    },
+    {
+     "id": "ACT-007",
+     "name": "Site Inspection & Sign-off",
+     "fixedCost": 2500.0
+    }
+   ]
+  },
+  {
+   "id": "SVC-005",
+   "name": "Civil Engineering",
+   "branch": "Design",
+   "activities": []
+  },
+  {
+   "id": "SVC-004",
+   "name": "Fire & Safety Engineering",
+   "branch": "Design",
+   "activities": []
+  },
+  {
+   "id": "SVC-002",
+   "name": "MEP Design",
+   "branch": "Design",
+   "activities": []
+  },
+  {
+   "id": "SVC-006",
+   "name": "Permit",
+   "branch": "Design",
+   "activities": [
+    {
+     "id": "ACT-001",
+     "name": "Approval Service",
+     "fixedCost": 0.0
+    }
+   ]
+  },
+  {
+   "id": "SVC-001",
+   "name": "Structural Engineering",
+   "branch": "Design",
+   "activities": []
+  },
+  {
+   "id": "SVC-007",
+   "name": "Supervision",
+   "branch": "Supervision",
+   "activities": [
+    {
+     "id": "ACT-002",
+     "name": "Weekly Site Visits",
+     "fixedCost": 250.0
+    },
+    {
+     "id": "ACT-003",
+     "name": "Progress Reporting",
+     "fixedCost": 100.0
+    },
+    {
+     "id": "ACT-004",
+     "name": "Materials Testing Coordination",
+     "fixedCost": 150.0
+    },
+    {
+     "id": "ACT-005",
+     "name": "Snagging & Handover Inspection",
+     "fixedCost": 200.0
+    }
+   ]
+  }
+ ],
+ "agreements": [
+  {
+   "id": "FA-007",
+   "projectId": "2600007",
+   "quotationNo": "QUO-2026-006",
+   "contractNo": "CON-2026-004",
+   "stream": "Design",
+   "status": "Approved",
+   "contractAmount": 12700.0,
+   "currency": "KWD",
+   "contractStartDate": "2026-09-19",
+   "contractEndDate": null,
+   "agreementDate": "2026-09-19",
+   "quotationReference": "QUO-2026-006",
+   "contractReference": null,
+   "paymentMode": "Bank Transfer",
+   "paymentFrequency": "One-time"
+  },
+  {
+   "id": "FA-008",
+   "projectId": "2600007",
+   "quotationNo": "QUO-2026-006",
+   "contractNo": "CON-2026-004",
+   "stream": "Supervision",
+   "status": "Approved",
+   "contractAmount": 583.33,
+   "currency": "KWD",
+   "contractStartDate": "2026-09-21",
+   "contractEndDate": "2026-11-30",
+   "agreementDate": "2026-09-19",
+   "quotationReference": null,
+   "contractReference": null,
+   "paymentMode": "Bank Transfer",
+   "paymentFrequency": "Monthly"
+  }
+ ],
+ "obligations": [
+  {
+   "id": "OBL-007-01",
+   "agreementId": "FA-007",
+   "sequenceNumber": 1,
+   "description": "Full payment",
+   "amountDue": 12700.0,
+   "dueDate": "2026-09-19",
+   "amountReceived": 0.0,
+   "status": "Due",
+   "manualStatus": null,
+   "datePaid": null,
+   "paymentMethod": null,
+   "referenceNumber": null,
+   "notes": null
+  },
+  {
+   "id": "OBL-008-01",
+   "agreementId": "FA-008",
+   "sequenceNumber": 1,
+   "description": "Supervision - September 2026",
+   "amountDue": 83.33,
+   "dueDate": "2026-09-21",
+   "amountReceived": 0.0,
+   "status": "Scheduled",
+   "manualStatus": null,
+   "datePaid": null,
+   "paymentMethod": null,
+   "referenceNumber": null,
+   "notes": null
+  },
+  {
+   "id": "OBL-008-02",
+   "agreementId": "FA-008",
+   "sequenceNumber": 2,
+   "description": "Supervision - October 2026",
+   "amountDue": 250.0,
+   "dueDate": "2026-10-01",
+   "amountReceived": 0.0,
+   "status": "Scheduled",
+   "manualStatus": null,
+   "datePaid": null,
+   "paymentMethod": null,
+   "referenceNumber": null,
+   "notes": null
+  },
+  {
+   "id": "OBL-008-03",
+   "agreementId": "FA-008",
+   "sequenceNumber": 3,
+   "description": "Supervision - November 2026",
+   "amountDue": 250.0,
+   "dueDate": "2026-11-01",
+   "amountReceived": 0.0,
+   "status": "Scheduled",
+   "manualStatus": null,
+   "datePaid": null,
+   "paymentMethod": null,
+   "referenceNumber": null,
+   "notes": null
+  }
+ ],
+ "quotations": [
+  {
+   "id": "QUO-2026-006",
+   "projectId": "2600007",
+   "quotationNo": "QUO-2026-006",
+   "revision": "R0",
+   "issueDate": "2026-09-19",
+   "validity": "2026-12-31",
+   "status": "Approved",
+   "currency": "KWD",
+   "preparedBy": "System Administrator",
+   "discountAmount": 0.0,
+   "lineItems": [
+    {
+     "id": "LI-016",
+     "description": "Architectural & structural design",
+     "quantity": 1.0,
+     "unitPrice": 8000.0
+    },
+    {
+     "id": "LI-017",
+     "description": "MEP coordination",
+     "quantity": 1.0,
+     "unitPrice": 3500.0
+    },
+    {
+     "id": "LI-018",
+     "description": "Municipal permit filing",
+     "quantity": 1.0,
+     "unitPrice": 1200.0
+    }
+   ],
+   "amount": 12700.0,
+   "finalizedAt": "2026-09-19T10:35:47",
+   "revisions": [
+    {
+     "id": "REV-006",
+     "revision": "R0",
+     "date": "2026-09-19",
+     "changedBy": "System Administrator",
+     "summary": "Initial quotation created"
+    }
+   ]
+  }
+ ],
+ "contracts": [
+  {
+   "id": "CON-2026-004",
+   "projectId": "2600007",
+   "quotationNo": "QUO-2026-006",
+   "contractNo": "CON-2026-004",
+   "revision": "R0",
+   "currency": "KWD",
+   "contractValue": 12700.0,
+   "issueDate": "2026-09-19",
+   "signedDate": "2026-09-19",
+   "expiryDate": "2027-03-01",
+   "status": "Signed",
+   "preparedBy": "System Administrator",
+   "clientRepresentative": "Stage Demo Client",
+   "scopeSummary": "Design, municipal permit filing, and construction-phase supervision per the approved quotation.",
+   "clauses": [
+    {
+     "id": "CL-004",
+     "title": "Payment Terms",
+     "content": "As per the agreed payment plan."
+    }
+   ],
+   "revisions": [
+    {
+     "id": "REV-004",
+     "revision": "R0",
+     "date": "2026-09-19",
+     "changedBy": "System Administrator",
+     "summary": "Initial contract created from quotation QUO-2026-006"
+    }
+   ],
+   "finalizedAt": "2026-09-19T10:35:47",
+   "confirmationEmailSent": null
+  }
+ ],
+ "quotationAudit": {
+  "QUO-2026-006": [
+   {
+    "id": "136",
+    "action": "Quotation approved",
+    "user": "System Administrator",
+    "timestamp": "2026-09-19T10:35:47",
+    "previousValue": "Draft",
+    "newValue": "Approved",
+    "reason": null
+   },
+   {
+    "id": "135",
+    "action": "Approval document uploaded",
+    "user": "System Administrator",
+    "timestamp": "2026-09-19T10:35:47",
+    "previousValue": null,
+    "newValue": "signed-quotation.pdf",
+    "reason": null
+   },
+   {
+    "id": "133",
+    "action": "Quotation finalized",
+    "user": "System Administrator",
+    "timestamp": "2026-09-19T10:35:47",
+    "previousValue": null,
+    "newValue": null,
+    "reason": null
+   },
+   {
+    "id": "132",
+    "action": "Quotation created",
+    "user": "System Administrator",
+    "timestamp": "2026-09-19T10:35:47",
+    "previousValue": null,
+    "newValue": "QUO-2026-006",
+    "reason": null
+   }
+  ]
+ },
+ "handover": {
+  "handoverSentAt": "2026-09-19T10:36:12",
+  "handoverAcknowledgedAt": null,
+  "checklist": [
+   {
+    "id": "1",
+    "sourceType": "Permit",
+    "title": "Baladia Permits",
+    "completedAt": "2026-09-19T10:35:47"
+   },
+   {
+    "id": "2",
+    "sourceType": "Supervision",
+    "title": "Weekly Site Visits",
+    "completedAt": "2026-09-19T10:35:47"
+   }
+  ],
+  "stageReached": true,
+  "notReadyReason": null
+ },
+ "agreementDetail": {
+  "FA-007": {
+   "payments": [],
+   "audit-events": [
+    {
+     "id": "144",
+     "action": "Agreement Approved",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "139",
+     "action": "Obligation Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "138",
+     "action": "Agreement Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    }
+   ],
+   "refunds": [],
+   "adjustments": []
+  },
+  "FA-008": {
+   "payments": [],
+   "audit-events": [
+    {
+     "id": "145",
+     "action": "Agreement Approved",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "143",
+     "action": "Obligation Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "142",
+     "action": "Obligation Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "141",
+     "action": "Obligation Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    },
+    {
+     "id": "140",
+     "action": "Agreement Created",
+     "user": "System Administrator",
+     "timestamp": "2026-09-19T10:35:47",
+     "previousValue": null,
+     "newValue": null,
+     "reason": null
+    }
+   ],
+   "refunds": [],
+   "adjustments": []
+  }
+ }
+}

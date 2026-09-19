@@ -5,6 +5,8 @@ interface TokenResponse {
   token_type: string
 }
 
+export type PermissionAction = 'view' | 'edit' | 'delete'
+
 export interface CurrentUser {
   id: string
   name: string
@@ -14,6 +16,13 @@ export interface CurrentUser {
   role: string
   avatar: string
   status: string
+  /**
+   * The caller's effective permissions per module, straight from the
+   * server's role matrix (the same one require_permission enforces).
+   * Optional only so older cached/mocked users don't crash: consumers
+   * must treat a missing entry as "no access" (see usePermissions).
+   */
+  permissions?: Record<string, Record<PermissionAction, boolean>>
 }
 
 function login(username: string, password: string): Promise<TokenResponse> {

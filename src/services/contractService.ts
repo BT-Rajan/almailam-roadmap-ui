@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { ApiError, apiClient } from '@/services/httpClient'
 import type { Contract, ContractAuditEvent } from '@/types/Contract'
 
 /**
@@ -9,6 +9,7 @@ async function getContractsByProject(projectId: string): Promise<Contract[]> {
     return await apiClient.get<Contract[]>(`/api/contracts?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch contracts for project ${projectId}:`, error)
+    if (error instanceof ApiError) throw error
     throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
   }
 }

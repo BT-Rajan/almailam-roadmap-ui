@@ -39,6 +39,31 @@ class UserOut(BaseModel):
         )
 
 
+class ModulePermissionsOut(BaseModel):
+    view: bool
+    edit: bool
+    delete: bool
+
+
+class CurrentUserOut(UserOut):
+    """UserOut plus the caller's own effective permissions, keyed by
+    module (e.g. permissions["Projects"].edit). Only /api/auth/me returns
+    this: GET /api/roles needs Administration:view, so without it ordinary
+    users had no way to learn what the server would let them do, and the
+    frontend could only guess from a hardcoded table that drifts from the
+    database-driven (and admin-editable) role matrix."""
+
+    permissions: dict[str, ModulePermissionsOut]
+
+    @staticmethod
+    def from_model_with_permissions(user: User, permissions: dict[str, dict[str, bool]]) -> "CurrentUserOut":
+        base = UserOut.from_model(user)
+        return CurrentUserOut(
+            **base.model_dump(),
+            permissions={module: ModulePermissionsOut(**flags) for module, flags in permissions.items()},
+        )
+
+
 class UserCreatedOut(UserOut):
     temporary_password: str
 

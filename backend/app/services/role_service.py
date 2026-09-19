@@ -176,6 +176,14 @@ def has_permission(db: Session, role: str, module: str, action: str) -> bool:
     return _load_cache(db).get(role, {}).get(module, {}).get(action, False)
 
 
+def get_role_permissions(db: Session, role: str) -> dict[str, dict[str, bool]]:
+    """Every module's view/edit/delete flags for one role, read from the
+    same cache has_permission() (and so require_permission) uses -- what
+    the UI is told and what the API enforces can never disagree.
+    Returns copies so callers can't mutate the shared cache."""
+    return {module: dict(flags) for module, flags in _load_cache(db).get(role, {}).items()}
+
+
 def update_role_permissions(
     db: Session,
     role: str,
