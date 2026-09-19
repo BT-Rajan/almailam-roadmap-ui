@@ -30,9 +30,12 @@ export default mergeConfig(
           url: 'http://localhost:5173',
         },
       },
-      include: ['e2e/*.test.ts'],
-      // No dev-server proxy exists in this environment -- component
-      // tests hit the backend directly.
+      // src/**/*.test.ts are self-contained: they mock only the HTTP layer
+      // (see src/test-utils/mockApi.ts) and need no backend. Anything added
+      // under e2e/*.test.ts is expected to hit a real backend instead.
+      include: ['e2e/*.test.ts', 'src/**/*.test.ts'],
+      // No dev-server proxy exists in this environment -- tests that do
+      // talk to a backend hit it directly.
       env: {
         VITE_API_BASE_URL: process.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
       },
