@@ -108,6 +108,11 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   'handover-notes': 'Handover',
 }
 
+// Stages whose stepper step lands on that stage's Overview card rather
+// than its dedicated activities tab -- see handleStageArrival below, and
+// the ?view=overview handling in the watcher right after this.
+const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission', 'Handover']
+
 watch(
   project,
   (value, oldValue) => {
@@ -135,10 +140,16 @@ watch(
       const requestedStage =
         typeof requestedTab === 'string' ? STAGE_TAB_KEYS[requestedTab as ProjectWorkspaceTabKey] : undefined
       if (requestedStage) {
-        activeTab.value = requestedTab as ProjectWorkspaceTabKey
+        // ?view=overview asks for that stage's Overview card instead of
+        // its dedicated tab -- what a page opened from the card (e.g.
+        // New Permit Application, from Approvals & Permits) sends staff
+        // back to, so they land where they started.
+        const landOnOverview = route.query.view === 'overview' && STAGE_OVERVIEW_DEFAULT_STAGES.includes(requestedStage)
+        activeTab.value = landOnOverview ? 'overview' : (requestedTab as ProjectWorkspaceTabKey)
         stageContext.value = requestedStage
         const restQuery = { ...route.query }
         delete restQuery.tab
+        delete restQuery.view
         void router.replace({ query: restQuery })
       } else {
         activeTab.value = 'overview'
@@ -171,7 +182,6 @@ watch(
 // straight there, not loop back to the Overview it was just clicked
 // from -- so only route stepper-style "I'm arriving at this stage"
 // events through this, never ProjectOverviewTab's own navigate-tab.
-const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission', 'Handover']
 
 function handleStageArrival(tab: ProjectWorkspaceTabKey): void {
   const stage = STAGE_TAB_KEYS[tab]

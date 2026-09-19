@@ -116,7 +116,10 @@ class ContractCreate(BaseModel):
     currency: str = Field(default="KWD", min_length=1, max_length=10)
     contractValue: float = Field(gt=0)
     expiryDate: date
-    clientRepresentative: str = Field(min_length=1, max_length=150)
+    # No longer asked for on the New Contract page -- kept optional (stored as
+    # an empty string, the column is NOT NULL) so older clients and scripts
+    # that still send one keep working.
+    clientRepresentative: str = Field(default="", max_length=150)
     scopeSummary: str = Field(min_length=1)
     clauses: list[ContractClauseIn] = Field(default_factory=list)
 

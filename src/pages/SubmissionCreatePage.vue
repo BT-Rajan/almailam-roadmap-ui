@@ -9,42 +9,61 @@ import DatePicker from '@/components/common/DatePicker.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { SelectOption } from '@/types/Ui'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { validators } from '@/utils/validators'
 
-// Replaces NewSubmissionDialog.vue's modal -- a dedicated route
-// (/government/submissions/new), same treatment as TaskCreatePage.vue/
-// PaymentPlanFormPage.vue/QuotationCreatePage.vue/ContractCreatePage.vue.
-// Opened two ways, both preserved from the dialog: the global Permit
-// Applications list (any project pickable) and a project's own Overview
-// card (?projectId=&locked=1, same convention as TaskCreatePage's own
-// ProjectTasksTab origin -- the project field is fixed, not just prefilled).
+// Replaces NewSubmissionDialog.vue's modal -- a dedicated route, same
+// treatment as TaskCreatePage.vue/PaymentPlanFormPage.vue/
+// QuotationCreatePage.vue/ContractCreatePage.vue. Opened two ways, both
+// preserved from the dialog:
+//  - the global Permit Applications list (/government/submissions/new,
+//    any project pickable);
+//  - a project's own Approvals & Permits card
+//    (/projects/:projectId/permit-applications/new) -- the project field
+//    is fixed, not just prefilled, and the project stepper and project
+//    breadcrumbs stay so staff never leave the project. The older
+//    ?projectId=&locked=1 query form of the global route still behaves
+//    the same way.
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { isRtl } = useLocale()
 const submissionStore = useGovernmentSubmissionStore()
+const projectStore = useProjectStore()
 const resultDialogStore = useResultDialogStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
 
+// The project this page was opened from, if any -- the route param on
+// the project-scoped route, else the ?projectId= query of the global one.
 const queryProjectId = computed(() => {
+  const param = route.params.projectId
+  if (typeof param === 'string') return param
   const value = route.query.projectId
   return typeof value === 'string' ? value : undefined
 })
-const isProjectLocked = computed(() => route.query.locked === '1')
+const isProjectLocked = computed(() => typeof route.params.projectId === 'string' || route.query.locked === '1')
+
+// The full project (with the workflow flags/selections the stepper
+// needs) -- only looked up when opened from a project.
+const originProject = computed(() =>
+  isProjectLocked.value && queryProjectId.value ? projectStore.getProjectById(queryProjectId.value) : undefined,
+)
 
 const isLoading = ref(true)
 
 async function loadData(): Promise<void> {
   isLoading.value = true
+  if (isProjectLocked.value && projectStore.projects.length === 0) await projectStore.loadProjects()
   if (submissionStore.authorities.length === 0 || submissionStore.forms.length === 0) {
     await submissionStore.loadSubmissions()
   }
@@ -54,10 +73,12 @@ onMounted(loadData)
 
 function goBack(): void {
   if (isProjectLocked.value && queryProjectId.value) {
-    // Opening a project always lands on Workflow Progress Stage 1
-    // (Requirement/Scope) -- see SubmissionWorkspacePage.vue's own
-    // goBack for why this doesn't carry a ?tab= query.
-    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: queryProjectId.value } })
+    // Back to the Approvals & Permits card this was opened from.
+    router.push({
+      name: ROUTE_NAMES.PROJECT_WORKSPACE,
+      params: { projectId: queryProjectId.value },
+      query: { tab: 'government', view: 'overview' },
+    })
     return
   }
   router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })
@@ -194,14 +215,17 @@ async function handleSubmit(): Promise<void> {
       t('common.createdSuccessfully', { no: submission.submissionNo }),
     )
     // Lands straight on the new application's own workspace, same as
-    // TaskCreatePage.vue does for a newly created task -- carrying
-    // ?projectId= when opened from a project so its own "Back to
-    // Project" keeps working immediately.
-    router.push({
-      name: ROUTE_NAMES.SUBMISSION_WORKSPACE,
-      params: { submissionNo: submission.submissionNo },
-      query: isProjectLocked.value && queryProjectId.value ? { projectId: queryProjectId.value } : undefined,
-    })
+    // TaskCreatePage.vue does for a newly created task -- the
+    // project-scoped one when opened from a project, so the stepper and
+    // "Back to Project" carry straight over.
+    if (isProjectLocked.value && queryProjectId.value) {
+      router.push({
+        name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE,
+        params: { projectId: queryProjectId.value, submissionNo: submission.submissionNo },
+      })
+      return
+    }
+    router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo: submission.submissionNo } })
   } catch (error) {
     resultDialogStore.showError(
       t('government.submissionsPage.failedToCreateSubmission'),
@@ -215,7 +239,8 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <BaseButton variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
+    <ProjectStageStepper v-if="originProject" :project="originProject" />
+    <BaseButton v-else variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
       {{ isProjectLocked ? t('government.workspacePage.backToProject') : t('government.workspacePage.backToSubmissions') }}
     </BaseButton>
 

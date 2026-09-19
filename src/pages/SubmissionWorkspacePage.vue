@@ -21,6 +21,7 @@ import TimePicker from '@/components/common/TimePicker.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
+import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
 import SubmissionApprovalStepper from '@/components/government/SubmissionApprovalStepper.vue'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -50,13 +51,21 @@ const toastStore = useToastStore()
 
 const submissionNo = computed(() => route.params.submissionNo as string)
 // Present when this page was opened with a specific project in
-// context -- carried in the query rather than assumed from route
-// history, so a hard refresh or a shared link still remembers where
-// "back" goes.
+// context -- the route param on the project-scoped route
+// (/projects/:projectId/permit-applications/:submissionNo), else the
+// ?projectId= query of the global one. Carried in the URL rather than
+// assumed from route history, so a hard refresh or a shared link still
+// remembers where "back" goes.
 const originProjectId = computed(() => {
+  const param = route.params.projectId
+  if (typeof param === 'string') return param
   const value = route.query.projectId
   return typeof value === 'string' ? value : undefined
 })
+// The full project (with the workflow flags/selections the stepper
+// needs), only when opened from a project. Not the same as `project`
+// below, which is the slimmer record the Permit Applications store keeps.
+const originProject = computed(() => (originProjectId.value ? projectStore.getProjectById(originProjectId.value) : undefined))
 const isLoading = ref(true)
 const loadError = ref<string | undefined>(undefined)
 
@@ -64,6 +73,7 @@ async function loadData(): Promise<void> {
   isLoading.value = true
   loadError.value = undefined
   try {
+    if (originProjectId.value && projectStore.projects.length === 0) await projectStore.loadProjects()
     const loaded = await submissionStore.loadSubmissionByNo(submissionNo.value)
     if (loaded) {
       if (loaded.stage === 'Track' || loaded.stage === 'Update' || loaded.stage === 'Close') {
@@ -356,11 +366,12 @@ async function downloadPermitDocument(): Promise<void> {
 
 function goBack(): void {
   if (originProjectId.value) {
-    // Opening a project always lands on Workflow Progress Stage 1
-    // (Requirement/Scope) -- that's the only landing view, everywhere.
-    // Staff reach Permit Applications from there via the stepper/top
-    // tab bar.
-    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: originProjectId.value } })
+    // Back to the Approvals & Permits card this was opened from.
+    router.push({
+      name: ROUTE_NAMES.PROJECT_WORKSPACE,
+      params: { projectId: originProjectId.value },
+      query: { tab: 'government', view: 'overview' },
+    })
     return
   }
   router.push({ name: ROUTE_NAMES.GOVERNMENT_SUBMISSIONS })
@@ -369,7 +380,8 @@ function goBack(): void {
 
 <template>
   <div class="flex flex-col gap-6 p-6">
-    <BaseButton variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
+    <ProjectStageStepper v-if="originProject" :project="originProject" />
+    <BaseButton v-else variant="ghost" size="sm" :icon="backIcon" class="self-start no-print" @click="goBack">
       {{ originProjectId ? t('government.workspacePage.backToProject') : t('government.workspacePage.backToSubmissions') }}
     </BaseButton>
 

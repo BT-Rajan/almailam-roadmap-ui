@@ -62,7 +62,6 @@ function draftFromContract(contract: Contract) {
   return {
     contractValue: contract.contractValue,
     expiryDate: contract.expiryDate,
-    clientRepresentative: contract.clientRepresentative,
     clauses: contract.clauses.map((clause) => ({ ...clause })) as DraftClause[],
   }
 }
@@ -102,7 +101,6 @@ function buildPatch(): Partial<Contract> {
   return {
     contractValue: draft.contractValue,
     expiryDate: draft.expiryDate,
-    clientRepresentative: draft.clientRepresentative.trim(),
     clauses: draft.clauses.map((clause) => ({
       id: clause.id,
       title: clause.title.trim(),
@@ -172,8 +170,6 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractPreview.client') }}</p>
           <p class="text-sm font-semibold text-text-primary">{{ client ? getClientFormalName(client) : t('client.unknownClient') }}</p>
-          <TextInput v-if="isEditing" v-model="draft.clientRepresentative" :placeholder="t('project.contractPreview.clientRepresentative')" class="mt-1" />
-          <p v-else class="text-sm text-text-muted">{{ t('project.contractPreview.representedBy', { name: contract.clientRepresentative }) }}</p>
         </div>
         <div class="flex flex-col gap-1">
           <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.quotationPreview.project') }}</p>

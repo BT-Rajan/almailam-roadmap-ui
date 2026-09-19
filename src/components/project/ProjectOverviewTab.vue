@@ -522,16 +522,17 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 }
 
 function openSubmissionWorkspace(submissionNo: string): void {
-  router.push({ name: ROUTE_NAMES.SUBMISSION_WORKSPACE, params: { submissionNo }, query: { projectId: props.project.id } })
+  router.push({ name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE, params: { projectId: props.project.id, submissionNo } })
 }
 
 // Sends straight to the dedicated New Permit Application page (see
 // SubmissionCreatePage.vue, which replaced NewSubmissionDialog.vue's
-// modal) instead of opening a dialog here -- locked to this project,
-// same convention as ProjectTasksTab's own "Add Task" locking
-// TaskCreatePage's project field.
+// modal) instead of opening a dialog here -- the project-scoped route,
+// so the page is locked to this project and keeps the project stepper
+// and breadcrumbs (same convention as QuotationCreatePage/
+// ContractCreatePage).
 function goToCreateSubmission(): void {
-  router.push({ name: ROUTE_NAMES.SUBMISSION_CREATE, query: { projectId: props.project.id, locked: '1' } })
+  router.push({ name: ROUTE_NAMES.PROJECT_SUBMISSION_CREATE, params: { projectId: props.project.id } })
 }
 
 const QUOTATION_STATUS_LABEL_KEYS: Record<string, string> = {

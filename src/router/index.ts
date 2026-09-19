@@ -149,6 +149,44 @@ const router = createRouter({
       },
     },
     {
+      // The same New Permit Application / Permit Application pages the
+      // global Government Center list uses (SubmissionCreatePage.vue /
+      // SubmissionWorkspacePage.vue), but reached from inside a project
+      // (Approvals & Permits step) -- so the project stepper and the
+      // project's own breadcrumbs stay, instead of dropping staff into
+      // Government Center. Same treatment as QUOTATION_CREATE/
+      // CONTRACT_CREATE above. Registered before '/:submissionNo' so
+      // 'new' isn't swallowed as a submission number.
+      path: '/projects/:projectId/permit-applications/new',
+      name: ROUTE_NAMES.PROJECT_SUBMISSION_CREATE,
+      component: () => import('@/pages/SubmissionCreatePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.newSubmission' },
+        ],
+      },
+    },
+    {
+      path: '/projects/:projectId/permit-applications/:submissionNo',
+      name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE,
+      component: () => import('@/pages/SubmissionWorkspacePage.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        breadcrumbs: [
+          { label: 'breadcrumb.dashboard', routeName: ROUTE_NAMES.DASHBOARD },
+          { label: 'breadcrumb.projects', routeName: ROUTE_NAMES.PROJECTS },
+          { label: 'breadcrumb.project' },
+          { label: 'breadcrumb.submission' },
+        ],
+      },
+    },
+    {
       path: '/clients',
       name: ROUTE_NAMES.CLIENTS,
       component: () => import('@/pages/ClientsPage.vue'),
