@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { FileText } from '@lucide/vue'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import { usePermissions } from '@/composables/usePermissions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
 import { useProjectStore } from '@/stores/projectStore'
@@ -21,6 +22,10 @@ const { t } = useI18n()
 const router = useRouter()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+
+// PATCH /handover/notes needs Projects:edit -- read-only for anyone without it.
+const { can } = usePermissions()
+const canEditProject = computed(() => can('Projects', 'edit'))
 
 // Local draft, seeded from the project and re-seeded whenever a fresh
 // copy loads (e.g. switching projects) -- same "edit a draft, save
@@ -76,8 +81,10 @@ function viewReport(): void {
           v-model="notes"
           :placeholder="t('project.handoverNotesTab.notesPlaceholder')"
           :rows="8"
+          :disabled="!canEditProject"
         />
-        <BaseButton size="sm" :disabled="!isDirty" :loading="isSaving" class="self-start no-print" @click="handleSave">
+        <p v-if="!canEditProject" class="text-xs text-text-muted">{{ t('project.handoverNotesTab.noEditPermission') }}</p>
+        <BaseButton size="sm" :disabled="!isDirty || !canEditProject" :loading="isSaving" class="self-start no-print" @click="handleSave">
           {{ t('project.handoverNotesTab.saveNotes') }}
         </BaseButton>
       </div>

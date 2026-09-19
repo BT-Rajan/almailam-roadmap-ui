@@ -7,6 +7,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
+import { usePermissions } from '@/composables/usePermissions'
 import { projectService } from '@/services/projectService'
 import { useContractStore } from '@/stores/contractStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -24,6 +25,15 @@ const { t } = useI18n()
 const projectStore = useProjectStore()
 const contractStore = useContractStore()
 const toastStore = useToastStore()
+
+// Mirror the server's own checks so nobody is offered a button that can
+// only answer 403: confirm/unconfirm-payment need Projects:edit, and the
+// payment figures below come from Finance endpoints (Finance:view) -- for
+// a role without it the store just ends up empty, which would otherwise
+// read as "No payment plan yet" even though the plans exist.
+const { can } = usePermissions()
+const canEditProject = computed(() => can('Projects', 'edit'))
+const canViewFinance = computed(() => can('Finance', 'view'))
 
 const { visibleStreams, summaryForStream } = usePaymentAgreements(
   () => props.project.id,
@@ -115,7 +125,10 @@ async function handleUnconfirmPayment(): Promise<void> {
       <template #header>
         <h3 class="text-sm font-semibold text-text-primary">{{ t('project.handoverPaymentTab.autoStatusTitle') }}</h3>
       </template>
-      <div v-if="streamSummaries.length === 0" class="text-sm text-text-muted">
+      <div v-if="!canViewFinance" class="text-sm text-text-muted">
+        {{ t('project.handoverPaymentTab.financeRestricted') }}
+      </div>
+      <div v-else-if="streamSummaries.length === 0" class="text-sm text-text-muted">
         {{ t('project.handoverPaymentTab.noBillableStreams') }}
       </div>
       <div v-else class="flex flex-col gap-3">
@@ -162,7 +175,15 @@ async function handleUnconfirmPayment(): Promise<void> {
               })
             }}
           </p>
-          <BaseButton variant="secondary" size="sm" :loading="isSaving" class="no-print" @click="handleUnconfirmPayment">
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :loading="isSaving"
+            :disabled="!canEditProject"
+            :title="canEditProject ? undefined : t('project.handoverPaymentTab.noEditPermission')"
+            class="no-print"
+            @click="handleUnconfirmPayment"
+          >
             {{ t('project.handoverPaymentTab.undoConfirmation') }}
           </BaseButton>
         </div>
@@ -171,11 +192,16 @@ async function handleUnconfirmPayment(): Promise<void> {
           size="sm"
           :icon="ShieldCheck"
           :loading="isSaving"
+          :disabled="!canEditProject"
+          :title="canEditProject ? undefined : t('project.handoverPaymentTab.noEditPermission')"
           class="self-start no-print"
           @click="handleConfirmPayment"
         >
           {{ t('project.handoverPaymentTab.confirmPayment') }}
         </BaseButton>
+        <p v-if="!canEditProject" class="text-xs text-text-muted">
+          {{ t('project.handoverPaymentTab.noEditPermission') }}
+        </p>
       </div>
     </Card>
   </div>

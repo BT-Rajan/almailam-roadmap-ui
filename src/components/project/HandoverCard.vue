@@ -11,6 +11,7 @@ import SignedDocumentUploadDialog from '@/components/common/SignedDocumentUpload
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
+import { usePermissions } from '@/composables/usePermissions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { projectService } from '@/services/projectService'
 import { useProjectStore } from '@/stores/projectStore'
@@ -42,6 +43,13 @@ const { t } = useI18n()
 const router = useRouter()
 const projectStore = useProjectStore()
 const toastStore = useToastStore()
+
+// Confirming hand-over needs Projects:edit; the archive offer that follows
+// it needs Projects:delete (DELETE /projects/{no}) -- so it's only offered
+// to roles that can actually do it instead of a "Yes" that answers 403.
+const { can } = usePermissions()
+const canEditProject = computed(() => can('Projects', 'edit'))
+const canDeleteProject = computed(() => can('Projects', 'delete'))
 
 // Loaded unconditionally rather than gated behind stageContext, since
 // staff can land on a project already past Handover too (reviewing
@@ -110,7 +118,7 @@ async function handleConfirmHandover(payload: { file: File }): Promise<void> {
     await loadHandoverStatus()
     isHandoverDialogOpen.value = false
     toastStore.show('success', t('project.overviewTab.handover.confirmedTitle'), t('project.overviewTab.handover.confirmedDescription'))
-    isArchivePromptOpen.value = true
+    if (canDeleteProject.value) isArchivePromptOpen.value = true
   } catch (error) {
     toastStore.show('error', t('project.overviewTab.handover.failedToConfirm'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
@@ -207,13 +215,17 @@ watch(() => props.project.id, loadHandoverStatus)
         size="sm"
         :icon="Mail"
         :loading="isHandoverSaving"
-        :disabled="!project.handoverPaymentConfirmedAt || !handoverStatus?.stageReached"
+        :disabled="!canEditProject || !project.handoverPaymentConfirmedAt || !handoverStatus?.stageReached"
+        :title="canEditProject ? undefined : t('project.overviewTab.handover.noEditPermission')"
         class="no-print"
         @click="isHandoverDialogOpen = true"
       >
         {{ t('project.overviewTab.handover.confirmHandover') }}
       </BaseButton>
     </div>
+    <p v-if="!canEditProject && project.status !== 'Completed' && client" class="mt-2 text-xs text-text-muted">
+      {{ t('project.overviewTab.handover.noEditPermission') }}
+    </p>
 
     <SignedDocumentUploadDialog
       v-if="client"
