@@ -1,7 +1,7 @@
 import { ApiError } from '@/services/httpClient'
 
 /**
- * Message for a store's `error` field after a failed load: keeps the
+ * Message for a store's error field after a failed load or save: keeps the
  * store's friendly sentence and appends what actually went wrong, so
  * "Unable to load contracts. Please try again." no longer looks identical
  * whether the cause was a rate limit (429), a permission problem (403),
@@ -17,7 +17,7 @@ import { ApiError } from '@/services/httpClient'
  * bug in our own code -- keep the friendly sentence, but log it so it
  * isn't silently swallowed.
  */
-export function describeLoadError(fallback: string, error: unknown): string {
+export function describeStoreError(fallback: string, error: unknown): string {
   if (!(error instanceof ApiError)) {
     console.error(`${fallback} (unexpected error, not an API error)`, error)
     return fallback

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { contractService } from '@/services/contractService'
 import type { ContractCreateInput } from '@/services/contractService'
 import type { Contract, ContractAuditEvent } from '@/types/Contract'
-import { describeLoadError } from '@/utils/loadError'
+import { describeStoreError } from '@/utils/storeError'
 
 interface ContractStoreState {
   projectId: string | undefined
@@ -47,7 +47,7 @@ export const useContractStore = defineStore('contract', {
         const defaultContractId = this.latestContract?.id
         this.selectedContractId = defaultContractId ?? undefined
       } catch (error) {
-        this.error = describeLoadError('Unable to load contracts. Please try again.', error)
+        this.error = describeStoreError('Unable to load contracts. Please try again.', error)
       } finally {
         this.isLoading = false
       }
