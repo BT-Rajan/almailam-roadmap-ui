@@ -11,8 +11,8 @@ from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
 )
-from app.schemas.user import ProfileUpdate, UserOut
-from app.services import auth_service, user_service
+from app.schemas.user import CurrentUserOut, ProfileUpdate
+from app.services import auth_service, role_service, user_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
@@ -89,16 +89,21 @@ def change_password(
     return {"message": "Password changed. Please log in again."}
 
 
-@router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
-    return UserOut.from_model(current_user)
+@router.get("/me", response_model=CurrentUserOut)
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return CurrentUserOut.from_model_with_permissions(
+        current_user, role_service.get_role_permissions(db, current_user.role)
+    )
 
 
-@router.patch("/me", response_model=UserOut)
+# Same shape as GET /me on purpose: the frontend replaces its whole
+# signed-in user with this response after a profile edit, so a response
+# without `permissions` would silently strip them from the session.
+@router.patch("/me", response_model=CurrentUserOut)
 def update_me(
     payload: ProfileUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     user = user_service.update_own_profile(db, current_user, payload)
-    return UserOut.from_model(user)
+    return CurrentUserOut.from_model_with_permissions(user, role_service.get_role_permissions(db, user.role))
