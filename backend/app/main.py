@@ -53,6 +53,7 @@ from app.services.project_service import (
     check_and_notify_overdue_projects,
     check_and_notify_stale_projects,
     check_and_notify_unpaid_completed_projects,
+    check_and_start_supervision_tasks,
 )
 from app.services.quotation_service import check_and_expire_quotations
 from app.services.scheduled_report_service import run_due_schedules
@@ -116,6 +117,14 @@ def _run_staleness_checks() -> None:
             logger.info("Quotation-expiry check: expired %d quotation(s).", expired)
     except Exception:
         logger.exception("Quotation-expiry check failed.")
+        db.rollback()
+
+    try:
+        started = check_and_start_supervision_tasks(db)
+        if started:
+            logger.info("Supervision-task-start check: started %d task(s).", started)
+    except Exception:
+        logger.exception("Supervision-task-start check failed.")
         db.rollback()
     finally:
         db.close()

@@ -355,6 +355,10 @@ export default {
     supervisionPaymentPlan: 'خطة الدفع (الإشراف)',
     contract: 'العقد',
     notAvailable: 'غير متوفر بعد',
+    statusReportsTitle: 'تقارير الحالة',
+    noStatusReportsTitle: 'لا توجد تقارير حالة بعد',
+    noStatusReportsDescription: 'ستظهر هنا التقارير اليومية التي يقدمها مهندس الموقع بمجرد بدء الإشراف.',
+    viewReport: 'عرض التقرير',
   },
 
   quotationPreview: {

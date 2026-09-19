@@ -105,18 +105,41 @@ def filing_window_block_reason(project: Project, report_date: date) -> str | Non
     list (so the portal can show/disable the right thing before the
     engineer even opens the form, not just reject on submit).
 
-    The window is simply [start_date, target_date] inclusive -- since
-    this is checked live against the project's *current* target_date
-    rather than a value captured once, an extension (target_date
-    pushed later) automatically widens the window with no extra code,
-    and the same is true in reverse if it's ever pulled in. A closed
-    project (Completed/Cancelled) blocks filing outright, even for a
-    date that would otherwise be in range -- once the project is
-    actually finished there's nothing left to report on regardless of
-    what the planned dates say.
+    A project with Supervision activities selected files against its
+    own Supervision engagement window (supervision_start_date/
+    supervision_end_date -- see Project model and project_service.
+    _create_service_tasks) instead of the project's overall start_date/
+    target_date: those cover every track the project includes (Design,
+    Government Submission, Supervision too) and can easily run on a
+    different schedule than Supervision itself actually does, so a
+    project whose Design work starts well before its Supervision
+    engagement would otherwise open report filing far too early. This
+    is also what makes a project "go live" for daily field reporting
+    right as it reaches the Supervision stage (contract signed with
+    Supervision): supervision_start_date is only ever in the past by
+    the time Supervision is genuinely under way. A project with no
+    Supervision activities keeps the original project-wide window, and
+    an open-ended engagement (no supervision_end_date set yet) has no
+    upper bound.
+
+    Checked live against the project's *current* dates rather than a
+    value captured once, so an extension automatically widens the
+    window with no extra code, and the same is true in reverse if it's
+    ever pulled in. A closed project (Completed/Cancelled) blocks
+    filing outright, even for a date that would otherwise be in range --
+    once the project is actually finished there's nothing left to
+    report on regardless of what the planned dates say.
     """
     if project.status in _CLOSED_PROJECT_STATUSES:
         return "This project is closed. Status reports can no longer be filed for it."
+
+    if project.supervision_start_date is not None:
+        if report_date < project.supervision_start_date:
+            return "This project's Supervision engagement hasn't started yet."
+        if project.supervision_end_date is not None and report_date > project.supervision_end_date:
+            return "This project's Supervision report filing window has closed."
+        return None
+
     if report_date < project.start_date:
         return "This project hasn't started yet."
     if report_date > project.target_date:

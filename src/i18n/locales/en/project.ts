@@ -359,6 +359,10 @@ export default {
     supervisionPaymentPlan: 'Payment Plan (Supervision)',
     contract: 'Contract',
     notAvailable: 'Not available yet',
+    statusReportsTitle: 'Status Reports',
+    noStatusReportsTitle: 'No status reports yet',
+    noStatusReportsDescription: 'Daily reports filed by the site engineer once Supervision starts will be listed here.',
+    viewReport: 'View report',
   },
 
   quotationPreview: {
