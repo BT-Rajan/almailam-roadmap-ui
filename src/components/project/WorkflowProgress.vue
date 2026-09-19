@@ -179,7 +179,7 @@ const currentStepIndex = computed(() => {
        ProjectHeader.vue inside a single shared card (see
        ProjectWorkspacePage.vue), separated only by a hairline, instead
        of each being its own bordered box with a gap between them. -->
-  <div class="border-t border-border-light p-3">
+  <div class="border-t border-border-light px-5 py-4">
     <div class="mb-2 flex items-center justify-between gap-3">
       <p class="text-sm font-medium text-text-primary">
         {{
