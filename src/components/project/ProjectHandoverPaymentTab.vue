@@ -34,12 +34,16 @@ const { visibleStreams, summaryForStream } = usePaymentAgreements(
 // going forward is the Contract it was generated from (contract.
 // quotationNo, a real FK, not the ambiguous "whichever quotation is
 // Approved" lookup other tabs fall back to before a contract exists).
-// ProjectWorkspacePage already loads contracts for the project on
-// mount, but reloading here too is a cheap, idempotent defensive
-// measure rather than relying on that staying true.
-onMounted(() => {
-  contractStore.loadContractsForProject(props.project.id)
-})
+//
+// Contracts are loaded by ProjectWorkspacePage itself on mount (for
+// every tab, this one included), and latestContract is reactive, so
+// this tab deliberately does NOT load them again. Reloading here is not
+// harmless: loadContractsForProject sets contractStore.isLoading, which
+// ProjectWorkspacePage folds into its own isLoading and answers by
+// swapping the whole workspace -- this tab included -- for skeleton
+// loaders. That unmounts the tab; when loading ends it remounts and
+// reloads again, forever, hammering the API until the rate limiter
+// answers 429 and the page lands on "Unable to load contracts".
 const sourceQuotationNo = computed(() => contractStore.latestContract?.quotationNo)
 
 // GET /handover self-heals the project's stage on every read (see
