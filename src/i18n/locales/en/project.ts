@@ -350,7 +350,13 @@ export default {
   contractDocumentsTab: {
     projectPaperworkTitle: 'Project Paperwork',
     quotation: 'Quotation',
+    // Kept alongside the two stream-specific labels below for
+    // ProjectCard.vue's quick-link button, which still opens the
+    // merged (all-streams) payment plan PDF rather than either stream
+    // individually.
     paymentPlan: 'Payment Plan',
+    designPaymentPlan: 'Payment Plan (Design and Permit)',
+    supervisionPaymentPlan: 'Payment Plan (Supervision)',
     contract: 'Contract',
     notAvailable: 'Not available yet',
   },

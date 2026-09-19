@@ -351,6 +351,8 @@ export default {
     projectPaperworkTitle: 'مستندات المشروع',
     quotation: 'عرض السعر',
     paymentPlan: 'خطة الدفع',
+    designPaymentPlan: 'خطة الدفع (التصميم والتصريح)',
+    supervisionPaymentPlan: 'خطة الدفع (الإشراف)',
     contract: 'العقد',
     notAvailable: 'غير متوفر بعد',
   },

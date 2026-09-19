@@ -361,16 +361,24 @@ def list_audit_events(agreement_id: str, db: Session = Depends(get_db), _=Depend
 
 
 # --- Payment Plan document -- unlike Quotation/Contract, this isn't one
-# record's own document: it merges every billing stream's agreement +
-# schedule the project actually has into a single PDF (see
+# record's own document: by default it merges every billing stream's
+# agreement + schedule the project actually has into a single PDF (see
 # document_template_service.render_payment_plan_document), so these are
-# scoped by project rather than by agreement id.
+# scoped by project rather than by agreement id. An optional `stream`
+# query param narrows it to just Design or just Supervision, for a
+# project's Documents tab to offer them as two separate files.
 
 
 @router.get("/projects/{project_no}/payment-plan/document")
-def download_payment_plan_document(project_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_payment_plan_document(
+    project_no: str,
+    language: str | None = None,
+    stream: str | None = Query(default=None, description="Design or Supervision -- omit for the merged document"),
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
     project = _project_by_no(db, project_no)
-    content, filename = document_template_service.render_payment_plan_document(db, project, language)
+    content, filename = document_template_service.render_payment_plan_document(db, project, language, stream)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -379,9 +387,15 @@ def download_payment_plan_document(project_no: str, language: str | None = None,
 
 
 @router.get("/projects/{project_no}/payment-plan/document/pdf")
-def download_payment_plan_document_pdf(project_no: str, language: str | None = None, db: Session = Depends(get_db), _=Depends(can_view)):
+def download_payment_plan_document_pdf(
+    project_no: str,
+    language: str | None = None,
+    stream: str | None = Query(default=None, description="Design or Supervision -- omit for the merged document"),
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
     project = _project_by_no(db, project_no)
-    content, filename = document_template_service.render_payment_plan_pdf(db, project, language)
+    content, filename = document_template_service.render_payment_plan_pdf(db, project, language, stream)
     return Response(
         content=content,
         media_type="application/pdf",
@@ -394,6 +408,7 @@ def download_payment_plan_document_pdf(project_no: str, language: str | None = N
 def email_payment_plan_document(
     project_no: str,
     payload: DocumentEmailRequest,
+    stream: str | None = Query(default=None, description="Design or Supervision -- omit for the merged document"),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
@@ -403,7 +418,7 @@ def email_payment_plan_document(
     if not to_email:
         raise ValidationAppError("No recipient email address on file for this project's client.")
 
-    content, filename = document_template_service.render_payment_plan_pdf(db, project, payload.language)
+    content, filename = document_template_service.render_payment_plan_pdf(db, project, payload.language, stream)
     email_service.send_document_email(
         to_email=to_email,
         subject=f"Payment Plan -- {project.project_no}",
