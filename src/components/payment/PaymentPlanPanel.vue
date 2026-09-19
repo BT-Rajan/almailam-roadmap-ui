@@ -32,7 +32,7 @@ import { formatDate } from '@/utils/dateFormatter'
 import { computeObligationStatus, getAgreementStreamLabel, getObligationAmountPending, getObligationStatusVariant, todayIsoDate } from '@/utils/paymentHelpers'
 import { getWorkflowStageLabelKey, getWorkflowStageTabKey, hasProjectPassedStage } from '@/utils/projectHelpers'
 import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
-import type { AgreementStream, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
+import type { AgreementStream, CreateAgreementInput, FinancialAgreement, ObligationStatus, PaymentMode, PaymentObligation, RecordPaymentInput } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
@@ -118,26 +118,37 @@ function sectionLabel(stream: AgreementStream): string {
 }
 
 // One page, one set of controls -- no more per-stream sub-tabs. Every
-// visible stream's plan (and the read-only Permits summary below) is
-// shown as its own stacked section instead, same "everything on one
-// screen" shape as ProjectQuotationTab.vue/ProjectContractTab.vue.
-type PlanSection = { kind: 'stream'; stream: AgreementStream } | { kind: 'permits' }
-
-const selectedPermits = computed(() => props.project.selectedPermits ?? [])
-const hasPermits = computed(() => selectedPermits.value.length > 0)
-const permitsTotal = computed(() => selectedPermits.value.reduce((sum, permit) => sum + (permit.permitPrice ?? 0), 0))
-
-// Design, Permits, Supervision -- in that order, and only the ones
-// this project's scope actually includes.
-const sections = computed<PlanSection[]>(() => {
-  const list: PlanSection[] = []
-  if (visibleStreams.value.includes('Design')) list.push({ kind: 'stream', stream: 'Design' })
-  if (hasPermits.value) list.push({ kind: 'permits' })
-  if (visibleStreams.value.includes('Supervision')) list.push({ kind: 'stream', stream: 'Supervision' })
+// visible stream's plan is shown as its own stacked section instead,
+// same "everything on one screen" shape as ProjectQuotationTab.vue/
+// ProjectContractTab.vue. Permit fees aren't listed separately: they're
+// already part of the Design and Permit plan's own total, so a
+// standalone permits card read as a second, additional charge.
+//
+// Design then Supervision -- in that order, and only the ones this
+// project's scope actually includes.
+const sections = computed<AgreementStream[]>(() => {
+  const list: AgreementStream[] = []
+  if (visibleStreams.value.includes('Design')) list.push('Design')
+  if (visibleStreams.value.includes('Supervision')) list.push('Supervision')
   return list
 })
 
-const hasAnyScope = computed(() => visibleStreams.value.length > 0 || hasPermits.value)
+const hasAnyScope = computed(() => visibleStreams.value.length > 0)
+
+// Which plan's tab is showing -- Design and Permit, then Supervision.
+// Reset whenever the set of visible plans changes out from under it
+// (e.g. "Add Service" just added Supervision, or this is the very first
+// render) so it never points at a plan that isn't there.
+const activeStream = ref<AgreementStream | undefined>(sections.value[0])
+watch(
+  sections,
+  (streams) => {
+    if (!activeStream.value || !streams.includes(activeStream.value)) {
+      activeStream.value = streams[0]
+    }
+  },
+  { immediate: true },
+)
 
 const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.english'), value: 'English' },
@@ -167,7 +178,6 @@ const hasAnyAgreement = computed(() => visibleStreams.value.some((stream) => agr
 // left to create and the button disappears. A project needing both
 // Design and Supervision plans just gets this pointed at Supervision
 // once Design's is created.
-const nextMissingStream = computed(() => visibleStreams.value.find((stream) => !agreementForStream(stream)))
 
 const isApprovingStream = ref<AgreementStream | undefined>(undefined)
 const isDeleteConfirmOpen = ref(false)
@@ -352,7 +362,45 @@ async function handleSubmitObligationPayment(): Promise<void> {
 // the given stream already has an agreement, so navigating here is all
 // either action needs to do.
 function openCreateAgreement(stream: AgreementStream): void {
+  // Supervision has nothing to fill in -- its amount and monthly
+  // installments are derived from the project's selected Supervision
+  // activities, and payment mode/agreement date have sensible defaults
+  // that stay editable while the plan is Draft -- so it's created
+  // straight away instead of sending staff through a form first.
+  if (stream === 'Supervision') {
+    void handleCreateSupervisionPlan()
+    return
+  }
   router.push({ name: ROUTE_NAMES.PAYMENT_PLAN_FORM, params: { projectId: props.projectId, stream } })
+}
+
+const isCreatingSupervisionPlan = ref(false)
+
+async function createSupervisionAgreement(): Promise<void> {
+  const quotation = approvedQuotation()
+  const input: CreateAgreementInput = {
+    projectId: props.projectId,
+    stream: 'Supervision',
+    currency: quotation?.currency ?? companyStore.settings?.currency ?? 'KWD',
+    agreementDate: todayIsoDate(),
+    quotationReference: quotation?.quotationNo,
+    paymentMode: 'Bank Transfer',
+  }
+  await store.createAgreement(input, 'Rajan Kumar')
+}
+
+async function handleCreateSupervisionPlan(): Promise<void> {
+  if (isCreatingSupervisionPlan.value) return
+  isCreatingSupervisionPlan.value = true
+  try {
+    await createSupervisionAgreement()
+    resultDialogStore.showSuccess(t('payment.planPanel.planCreatedTitle'), t('payment.planPanel.planCreatedDescription'))
+    activeStream.value = 'Supervision'
+  } catch (error) {
+    resultDialogStore.showError(t('payment.planPanel.couldNotSave'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  } finally {
+    isCreatingSupervisionPlan.value = false
+  }
 }
 
 function openEditAgreement(agreement: FinancialAgreement): void {
@@ -373,14 +421,47 @@ async function handleApproveAgreement(agreement: FinancialAgreement): Promise<vo
   try {
     await store.approveAgreement(agreement.id)
     await projectStore.refreshProject(props.projectId)
-    resultDialogStore.showSuccess(t('payment.planPanel.streamPlanApprovedTitle', { stream: agreementStreamLabel(agreement.stream) }), t('payment.planPanel.planApprovedDescription'))
+    const approvedTitle = t('payment.planPanel.streamPlanApprovedTitle', { stream: agreementStreamLabel(agreement.stream) })
     if (allRequiredAgreementsApproved() && !hasProjectPassedStage(props.project.currentStage, 'Contract')) {
+      resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.planApprovedDescription'))
       handleAdvanceToContract()
+    } else if (agreement.stream === 'Design' && needsSupervisionPlan()) {
+      await moveOnToSupervisionPlan(approvedTitle)
+    } else if (agreement.stream === 'Design' && visibleStreams.value.includes('Supervision')) {
+      // Its Supervision plan already exists (still a Draft, or all
+      // required plans would be approved and we'd be off to Contract
+      // above) -- just take them to it.
+      resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.planApprovedDescription'))
+      activeStream.value = 'Supervision'
+    } else {
+      resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.planApprovedDescription'))
     }
   } catch (error) {
     resultDialogStore.showError(t('payment.planPanel.couldNotApprove'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
   } finally {
     isApprovingStream.value = undefined
+  }
+}
+
+// Design and Permit is approved, and this project also bills Supervision
+// but has no plan for it yet -- create it for them and switch to its tab
+// rather than leaving them to find and click "Create Payment Plan".
+// Design's approval already went through by the time this runs, so a
+// failure here (e.g. a Supervision activity with no end date) is
+// reported as its own error, not as "Could not approve payment plan";
+// the toolbar's Create Payment Plan button is still there to retry.
+const needsSupervisionPlan = () => visibleStreams.value.includes('Supervision') && !agreementForStream('Supervision')
+
+async function moveOnToSupervisionPlan(approvedTitle: string): Promise<void> {
+  try {
+    await createSupervisionAgreement()
+    resultDialogStore.showSuccess(approvedTitle, t('payment.planPanel.supervisionPlanReadyDescription'))
+    activeStream.value = 'Supervision'
+  } catch (error) {
+    resultDialogStore.showError(
+      t('payment.planPanel.couldNotCreateSupervisionPlan'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
   }
 }
 
@@ -587,16 +668,35 @@ async function handleSendEmail(): Promise<void> {
     </div>
 
     <div v-if="hasAnyScope" class="flex flex-wrap items-center justify-between gap-2">
-      <BaseButton
-        size="sm"
-        :icon="Plus"
-        :disabled="!nextMissingStream"
-        class="no-print"
-        @click="nextMissingStream && openCreateAgreement(nextMissingStream)"
-      >
-        {{ t('payment.planPanel.createPaymentPlan') }}
-      </BaseButton>
+      <div v-if="sections.length > 1" class="no-print flex gap-1 border-b border-border-light" role="tablist">
+        <button
+          v-for="stream in sections"
+          :key="stream"
+          type="button"
+          role="tab"
+          :aria-selected="activeStream === stream"
+          class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2.5 text-sm font-medium transition-colors duration-fast"
+          :class="
+            activeStream === stream
+              ? 'border-accent-500 text-accent-700 dark:text-accent-400'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          "
+          @click="activeStream = stream"
+        >
+          {{ sectionLabel(stream) }}
+        </button>
+      </div>
+      <div v-else />
       <div class="no-print flex flex-wrap items-center gap-2">
+        <BaseButton
+          size="sm"
+          :icon="Plus"
+          :disabled="!activeStream || !!agreementForStream(activeStream)"
+          :loading="isCreatingSupervisionPlan"
+          @click="activeStream && openCreateAgreement(activeStream)"
+        >
+          {{ t('payment.planPanel.createPaymentPlan') }}
+        </BaseButton>
         <div v-if="hasDecisionOptions" ref="decisionMenuRef" class="relative">
           <BaseButton size="sm" :icon="ShieldCheck" :loading="isApprovingStream !== undefined" @click="toggleDecisionMenu">
             {{ t('payment.planPanel.decision') }}
@@ -657,28 +757,28 @@ async function handleSendEmail(): Promise<void> {
       </div>
     </div>
 
-    <template v-for="section in sections" :key="section.kind === 'stream' ? section.stream : 'permits'">
-      <div v-if="section.kind === 'stream'" class="flex flex-col gap-4">
+    <template v-for="stream in sections" :key="stream">
+      <div v-show="stream === activeStream" class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ sectionLabel(section.stream) }}</h3>
+          <h3 v-if="sections.length === 1" class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ sectionLabel(stream) }}</h3>
           <StatusBadge
-            v-if="agreementForStream(section.stream)"
-            :label="agreementStatusLabel(agreementForStream(section.stream)!.status)"
-            :variant="agreementForStream(section.stream)!.status === 'Approved' ? 'success' : 'warning'"
+            v-if="agreementForStream(stream)"
+            :label="agreementStatusLabel(agreementForStream(stream)!.status)"
+            :variant="agreementForStream(stream)!.status === 'Approved' ? 'success' : 'warning'"
           />
         </div>
 
         <EmptyState
-          v-if="!agreementForStream(section.stream)"
+          v-if="!agreementForStream(stream)"
           :icon="Wallet"
           :title="t('payment.planPanel.noPlanYetTitle')"
           :description="
-            section.stream === 'Supervision'
+            stream === 'Supervision'
               ? t('payment.planPanel.noPlanSupervisionDescription')
               : t('payment.planPanel.noPlanDesignDescription')
           "
           :action-label="t('payment.planPanel.createPaymentPlan')"
-          @action="openCreateAgreement(section.stream)"
+          @action="openCreateAgreement(stream)"
         />
 
         <template v-else>
@@ -686,29 +786,29 @@ async function handleSendEmail(): Promise<void> {
             <div class="flex flex-col gap-4">
               <div class="flex items-center justify-end gap-2 no-print">
                 <BaseButton
-                  v-if="agreementForStream(section.stream)!.status === 'Draft'"
+                  v-if="agreementForStream(stream)!.status === 'Draft'"
                   variant="secondary"
                   size="sm"
                   :icon="Pencil"
-                  @click="openEditAgreement(agreementForStream(section.stream)!)"
+                  @click="openEditAgreement(agreementForStream(stream)!)"
                 >
                   {{ t('payment.planPanel.edit') }}
                 </BaseButton>
                 <BaseButton
-                  v-if="agreementForStream(section.stream)!.status === 'Draft'"
+                  v-if="agreementForStream(stream)!.status === 'Draft'"
                   variant="ghost"
                   size="sm"
                   :icon="Trash2"
-                  @click="requestDeleteAgreement(agreementForStream(section.stream)!)"
+                  @click="requestDeleteAgreement(agreementForStream(stream)!)"
                 >
                   {{ t('payment.planPanel.delete') }}
                 </BaseButton>
                 <BaseButton
-                  v-if="agreementForStream(section.stream)!.status === 'Approved' && isAdmin"
+                  v-if="agreementForStream(stream)!.status === 'Approved' && isAdmin"
                   variant="ghost"
                   size="sm"
                   :icon="RotateCcw"
-                  @click="openReopenDialog(agreementForStream(section.stream)!)"
+                  @click="openReopenDialog(agreementForStream(stream)!)"
                 >
                   {{ t('payment.planPanel.reopenForEditing') }}
                 </BaseButton>
@@ -717,42 +817,42 @@ async function handleSendEmail(): Promise<void> {
               <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.totalAmount') }}</p>
-                  <p class="text-sm font-semibold text-text-primary">{{ formatCurrency(agreementForStream(section.stream)!.contractAmount, agreementForStream(section.stream)!.currency) }}</p>
+                  <p class="text-sm font-semibold text-text-primary">{{ formatCurrency(agreementForStream(stream)!.contractAmount, agreementForStream(stream)!.currency) }}</p>
                 </div>
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.paymentMode') }}</p>
-                  <p class="text-sm text-text-primary">{{ paymentModeLabel(agreementForStream(section.stream)!.paymentMode) }}</p>
+                  <p class="text-sm text-text-primary">{{ paymentModeLabel(agreementForStream(stream)!.paymentMode) }}</p>
                 </div>
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.agreementDate') }}</p>
-                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(section.stream)!.agreementDate) }}</p>
+                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(stream)!.agreementDate) }}</p>
                 </div>
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.startDate') }}</p>
-                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(section.stream)!.contractStartDate) }}</p>
+                  <p class="text-sm text-text-primary">{{ formatDate(agreementForStream(stream)!.contractStartDate) }}</p>
                 </div>
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.sourceQuotation') }}</p>
-                  <p class="text-sm text-text-primary">{{ agreementForStream(section.stream)!.quotationNo ?? '—' }}</p>
+                  <p class="text-sm text-text-primary">{{ agreementForStream(stream)!.quotationNo ?? '—' }}</p>
                 </div>
                 <div>
                   <p class="text-xs font-medium uppercase text-text-muted">{{ t('payment.planPanel.contractNo') }}</p>
-                  <p class="text-sm text-text-primary">{{ agreementForStream(section.stream)!.contractNo ?? '—' }}</p>
+                  <p class="text-sm text-text-primary">{{ agreementForStream(stream)!.contractNo ?? '—' }}</p>
                 </div>
               </div>
 
               <SmartTable
                 :columns="SCHEDULE_COLUMNS"
-                :rows="scheduleRows(section.stream)"
+                :rows="scheduleRows(stream)"
                 row-key="id"
                 :searchable="false"
-                @row-click="handleObligationRowClick(section.stream, $event)"
+                @row-click="handleObligationRowClick(stream, $event)"
               >
                 <template #cell-amountDue="{ value }">
-                  {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
+                  {{ formatCurrency(value as number, agreementForStream(stream)!.currency) }}
                 </template>
                 <template #cell-amountReceived="{ value }">
-                  {{ formatCurrency(value as number, agreementForStream(section.stream)!.currency) }}
+                  {{ formatCurrency(value as number, agreementForStream(stream)!.currency) }}
                 </template>
                 <template #cell-status="{ value }">
                   <StatusBadge :label="obligationStatusLabel(value as string)" :variant="getObligationStatusVariant(value as ObligationStatus)" />
@@ -761,26 +861,8 @@ async function handleSendEmail(): Promise<void> {
             </div>
           </Card>
 
-          <PaymentHistoryPanel :events="store.auditEventsByAgreement[agreementForStream(section.stream)!.id] ?? []" />
+          <PaymentHistoryPanel :events="store.auditEventsByAgreement[agreementForStream(stream)!.id] ?? []" />
         </template>
-      </div>
-
-      <div v-else class="flex flex-col gap-4">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">{{ t('payment.planPanel.permitsTitle') }}</h3>
-        <Card :padded="false">
-          <ul class="flex flex-col divide-y divide-border-light">
-            <li v-for="permit in selectedPermits" :key="permit.id" class="flex items-center justify-between gap-3 px-5 py-3">
-              <span class="text-sm text-text-secondary">{{ permit.permitName }}</span>
-              <span class="shrink-0 text-sm font-medium text-text-primary">
-                {{ permit.permitPrice != null ? formatCurrency(permit.permitPrice) : '—' }}
-              </span>
-            </li>
-            <li class="flex items-center justify-between gap-3 bg-bg-secondary px-5 py-3">
-              <span class="text-sm font-semibold text-text-primary">{{ t('payment.planPanel.totalPermitFees') }}</span>
-              <span class="shrink-0 text-sm font-semibold text-text-primary">{{ formatCurrency(permitsTotal) }}</span>
-            </li>
-          </ul>
-        </Card>
       </div>
     </template>
 

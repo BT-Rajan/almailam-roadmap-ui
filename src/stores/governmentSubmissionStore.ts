@@ -7,6 +7,7 @@ import type {
   CloseApplicationInput,
   FollowupCreateInput,
   SubmissionCreateInput,
+  SubmissionUpdateInput,
 } from '@/services/governmentSubmissionService'
 import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
@@ -145,6 +146,17 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       return submission
     },
 
+    async updateSubmission(submissionNo: string, input: SubmissionUpdateInput): Promise<GovernmentSubmission> {
+      const updated = await governmentSubmissionService.updateSubmission(submissionNo, input)
+      this._replaceSubmission(updated)
+      return updated
+    },
+
+    async deleteSubmission(submissionNo: string): Promise<void> {
+      await governmentSubmissionService.deleteSubmission(submissionNo)
+      this.submissions = this.submissions.filter((submission) => submission.submissionNo !== submissionNo)
+    },
+
     // Loads a single submission by number into the store's list, for the
     // full-screen workspace page (deep link / refresh, where the list may
     // not be populated yet).
@@ -219,19 +231,14 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       }
     },
 
-    // Logs contact with the authority (Track) or one that also carries a
-    // document (Update) -- moves the application's stage to match.
+    // Logs contact with the authority, optionally with a document. Stays
+    // in Track -- logging contact never changes the application's stage.
     async addFollowup(submissionId: string, input: FollowupCreateInput): Promise<boolean> {
       this.isMutating = true
       this.mutationError = undefined
       try {
         const followup = await governmentSubmissionService.addFollowup(submissionId, input)
         this.followups = [followup, ...this.followups]
-        // Recording contact moves the application's own stage to match
-        // (Track/Update) -- refresh so the workspace's header/stepper
-        // reflects it.
-        const updated = await governmentSubmissionService.getSubmission(submissionId)
-        this._replaceSubmission(updated)
         return true
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to record the follow-up.'

@@ -16,6 +16,7 @@ export default {
   submissions: 'طلبات التصاريح',
   submission: 'المعاملة',
   newSubmission: 'طلب تصريح جديد',
+  editSubmission: 'تعديل طلب التصريح',
   documents: 'المستندات',
   mapFields: 'ربط الحقول',
   viewer: 'العارض',

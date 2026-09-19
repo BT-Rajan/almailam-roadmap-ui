@@ -108,6 +108,11 @@ const STAGE_TAB_KEYS: Partial<Record<ProjectWorkspaceTabKey, WorkflowStage>> = {
   'handover-notes': 'Handover',
 }
 
+// Stages whose stepper step lands on that stage's Overview card rather
+// than its dedicated activities tab -- see handleStageArrival below, and
+// the ?view=overview handling in the watcher right after this.
+const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission', 'Handover']
+
 watch(
   project,
   (value, oldValue) => {
@@ -135,10 +140,16 @@ watch(
       const requestedStage =
         typeof requestedTab === 'string' ? STAGE_TAB_KEYS[requestedTab as ProjectWorkspaceTabKey] : undefined
       if (requestedStage) {
-        activeTab.value = requestedTab as ProjectWorkspaceTabKey
+        // ?view=overview asks for that stage's Overview card instead of
+        // its dedicated tab -- what a page opened from the card (e.g.
+        // New Permit Application, from Approvals & Permits) sends staff
+        // back to, so they land where they started.
+        const landOnOverview = route.query.view === 'overview' && STAGE_OVERVIEW_DEFAULT_STAGES.includes(requestedStage)
+        activeTab.value = landOnOverview ? 'overview' : (requestedTab as ProjectWorkspaceTabKey)
         stageContext.value = requestedStage
         const restQuery = { ...route.query }
         delete restQuery.tab
+        delete restQuery.view
         void router.replace({ query: restQuery })
       } else {
         activeTab.value = 'overview'
@@ -171,7 +182,6 @@ watch(
 // straight there, not loop back to the Overview it was just clicked
 // from -- so only route stepper-style "I'm arriving at this stage"
 // events through this, never ProjectOverviewTab's own navigate-tab.
-const STAGE_OVERVIEW_DEFAULT_STAGES: WorkflowStage[] = ['Design', 'Supervision', 'Government Submission', 'Handover']
 
 function handleStageArrival(tab: ProjectWorkspaceTabKey): void {
   const stage = STAGE_TAB_KEYS[tab]
@@ -186,7 +196,18 @@ function handleStageArrival(tab: ProjectWorkspaceTabKey): void {
 const TABS = computed<ProjectWorkspaceTab[]>(() => {
   switch (stageContext.value) {
     case 'Requirement':
-      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
+      // Project Paperwork (contract-documents) lives here rather than
+      // only at the Contract stage: it's a fixed, read-only summary of
+      // client ID/quotation/payment plan(s)/contract that's reachable
+      // any time via the Workflow Progress stepper's Scope step,
+      // regardless of the project's actual current stage (same as
+      // Overview) -- so it's one place to check back on as each
+      // document becomes available over the project's life, not just
+      // late in it.
+      return [
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
+      ]
     case 'Quotation':
       return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Payment Plan':
@@ -209,15 +230,11 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // project ever reaches Contract), reachable any time via the
       // Workflow Progress stepper's own Payment Plan step. Duplicating
       // that same view behind a top-tab in every later stage as well
-      // was the thing being removed. Its own 'contract-documents' key
-      // (not the generic 'documents' the other stages below share) --
-      // a curated, read-only summary of this project's paperwork
-      // (client ID, quotation, payment plan, contract), not the
-      // editable any-file documents manager.
-      return [
-        { key: 'overview', label: t('project.workspaceTabs.overview') },
-        { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
-      ]
+      // was the thing being removed. Its former 'contract-documents'
+      // tab has moved to the Scope step above (see the Requirement
+      // case) so it's reachable from the start of the project rather
+      // than only here.
+      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
     case 'Design':
       // 'design' tab key now renders ProjectDesignTab.vue (Drawing-typed
       // documents only, migration 0104/#3) rather than the generic

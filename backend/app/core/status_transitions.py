@@ -10,35 +10,32 @@ core/workflow.assert_transition_allowed / assert_reason_given.
 # src/types/Submission.ts: SubmissionStage
 #
 # Replaces the old Draft/Submitted/Under Review/Comments Received/
-# Approved/Rejected/Withdrawn status machine with the 5-stage permit
+# Approved/Rejected/Withdrawn status machine with the 4-stage permit
 # application workspace: Prepare (select the approval type, fill in the
 # forms, readiness check) -> Apply (file it, record the acknowledgement)
-# -> Track (log contact with the authority while awaiting a decision)
-# <-> Update (the authority came back asking for something -- same
-# contact-log entry as Track, plus a document) -> Close (the final
-# outcome, permit/decision document, closing notes).
+# -> Track (record follow-ups with the authority while awaiting a decision,
+# including any document they ask for -- a separate "Update" stage used
+# to cover that, merged into Track by migration 0108) -> Close (the
+# final outcome, permit/decision document, closing notes).
 #
-# Track <-> Update loops freely -- a real application can go a few
-# rounds of "checked in, they want more" before it's actually resolved,
-# same as Comments Received <-> Submitted/Under Review did in the old
-# machine. Close is reachable directly from every earlier stage --
-# Prepare/Apply included, for withdrawing an application before it's
-# even filed -- not only from Track/Update. Nothing moves backward into
-# Prepare/Apply once Apply is done, though: the acknowledgement already
-# on file is what Track/Update/Close are following up on.
+# Close is reachable directly from every earlier stage -- Prepare/Apply
+# included, for withdrawing an application before it's even filed --
+# not only from Track. Nothing moves backward into Prepare/Apply once
+# Apply is done, though: the acknowledgement already on file is what
+# Track/Close are following up on.
 #
 # No separate "reason required" set the way Quotations/the old
 # submission statuses have -- every transition here is reached through
 # its own dedicated action (confirm_readiness / record_acknowledgement /
-# add_followup / close_application, see submission_service.py) that
-# already carries its own required free-text field (closing notes, a
-# follow-up's own notes, ...), so there's no bare status dropdown left
-# that would need a second, generic reason prompted on top of it.
+# close_application, see submission_service.py) that already carries
+# its own required free-text field (closing notes, ...), so there's no
+# bare status dropdown left that would need a second, generic reason
+# prompted on top of it. Logging a follow-up (add_followup) happens
+# within Track and doesn't move the application anywhere.
 SUBMISSION_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "Prepare": {"Apply", "Close"},
     "Apply": {"Track", "Close"},
-    "Track": {"Update", "Close"},
-    "Update": {"Track", "Close"},
+    "Track": {"Close"},
     "Close": set(),
 }
 

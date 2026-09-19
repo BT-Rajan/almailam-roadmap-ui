@@ -802,17 +802,26 @@ def _resolve_payment_plan_template(db: Session, project: Project, language: str)
     return template
 
 
-def render_payment_plan_document(db: Session, project: Project, language: str | None = None) -> tuple[bytes, str]:
+def render_payment_plan_document(
+    db: Session, project: Project, language: str | None = None, stream: str | None = None,
+) -> tuple[bytes, str]:
     """Unlike Quotation/Contract, a project's payment plan isn't one
     record -- it's up to two FinancialAgreements (one per billing
     stream, see AGREEMENT_STREAMS), each with its own obligations
-    schedule. This merges whichever streams the project actually has an
-    agreement for into a single document: one summary row per stream in
-    `streams`, and every obligation across all of them (tagged with its
-    stream) in one flat `schedule` table -- a stream with no agreement
-    yet is simply absent from both, rather than rendered empty."""
+    schedule. By default this merges whichever streams the project
+    actually has an agreement for into a single document: one summary
+    row per stream in `streams`, and every obligation across all of
+    them (tagged with its stream) in one flat `schedule` table -- a
+    stream with no agreement yet is simply absent from both, rather
+    than rendered empty. Passing `stream` (one of AGREEMENT_STREAMS)
+    narrows this to that stream alone -- e.g. so a project's Documents
+    tab can offer the Design and Permit plan and the Supervision plan
+    as two separate files instead of one merged one."""
     from app.models.payment import AGREEMENT_STREAMS
     from app.services import payment_service
+
+    if stream is not None and stream not in AGREEMENT_STREAMS:
+        raise ValidationAppError(f"stream must be one of {', '.join(AGREEMENT_STREAMS)}.")
 
     language = _resolve_language(db, language)
     template = _resolve_payment_plan_template(db, project, language)
@@ -821,12 +830,12 @@ def render_payment_plan_document(db: Session, project: Project, language: str | 
 
     streams: list[dict] = []
     schedule: list[dict] = []
-    for stream in AGREEMENT_STREAMS:
-        agreement = payment_service.get_agreement_by_project(db, project.project_no, stream)
+    for candidate_stream in ((stream,) if stream else AGREEMENT_STREAMS):
+        agreement = payment_service.get_agreement_by_project(db, project.project_no, candidate_stream)
         if agreement is None:
             continue
         streams.append({
-            "stream": stream,
+            "stream": candidate_stream,
             "status": agreement.status,
             "amount": f"{float(agreement.contract_amount):.2f}",
             "currency": agreement.currency,
@@ -836,7 +845,7 @@ def render_payment_plan_document(db: Session, project: Project, language: str | 
         })
         for obligation in payment_service.get_obligations(db, agreement.id):
             schedule.append({
-                "stream": stream,
+                "stream": candidate_stream,
                 "sequence_number": str(obligation.sequence_number),
                 "description": obligation.description,
                 "amount_due": f"{float(obligation.amount_due):.2f}",
@@ -853,16 +862,19 @@ def render_payment_plan_document(db: Session, project: Project, language: str | 
         "streams": streams,
         "schedule": schedule,
     }
-    filename = f"{project.project_no}-Payment-Plan.docx"
+    suffix = f"-{stream}" if stream else ""
+    filename = f"{project.project_no}-Payment-Plan{suffix}.docx"
     return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
 
 
-def render_payment_plan_pdf(db: Session, project: Project, language: str | None = None) -> tuple[bytes, str]:
+def render_payment_plan_pdf(
+    db: Session, project: Project, language: str | None = None, stream: str | None = None,
+) -> tuple[bytes, str]:
     """PDF counterpart of render_payment_plan_document -- see
     render_quotation_pdf's docstring."""
     language = _resolve_language(db, language)
     template = _resolve_payment_plan_template(db, project, language)
-    content, filename = render_payment_plan_document(db, project, language)
+    content, filename = render_payment_plan_document(db, project, language, stream)
     return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
 
 

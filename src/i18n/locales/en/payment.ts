@@ -51,8 +51,6 @@ export default {
     createPaymentPlan: 'Create Payment Plan',
     designAndPermitSection: 'Design and Permit Plan',
     supervisionSection: 'Supervision Plan',
-    permitsTitle: 'Permits',
-    totalPermitFees: 'Total Permit Fees',
     decision: 'Decision',
     approveStreamPlan: 'Approve {stream}',
     printOrDownload: 'Print / Download',
@@ -87,6 +85,8 @@ export default {
     planUpdatedDescription: 'The installment schedule has been regenerated.',
     planCreatedTitle: 'Payment plan created',
     planCreatedDescription: 'Review the schedule, then approve it to continue.',
+    supervisionPlanReadyDescription: 'The Supervision payment plan has been created automatically — review its monthly schedule, then approve it to continue.',
+    couldNotCreateSupervisionPlan: 'Could not create the Supervision payment plan',
     couldNotSave: 'Could not save payment plan',
     planDeletedTitle: 'Payment plan deleted',
     couldNotDelete: 'Could not delete payment plan',
@@ -173,7 +173,6 @@ export default {
   },
 
   agreementFormDialog: {
-    backToPaymentPlan: 'Back to Payment Plan',
     planNotFoundTitle: 'Payment plan not found',
     planNotFoundDescription: 'This project or billing stream could not be found.',
     editTitle: 'Edit Payment Plan',
@@ -185,7 +184,6 @@ export default {
     quotationReference: 'Quotation Reference',
     quotationReferenceHint: "Auto-filled from this project's approved quotation.",
     totalAmount: 'Total Amount',
-    contractStartDate: 'Contract Start Date',
     paymentModeTitle: 'Payment Mode',
     installments: 'Installments',
     addInstallment: 'Add Installment',
@@ -203,7 +201,8 @@ export default {
     totalMustEqual100: 'Installment percentages must add up to 100% (currently {percent}%).',
     totalAmountRequired: 'Total amount must be greater than 0',
     totalAmountMustMatchQuotation: 'Total amount must match quotation {number}\'s approved amount ({amount}).',
-    contractStartDateRequired: 'Contract start date is required',
     saveChanges: 'Save Changes',
+    supervisionScheduleHint: 'One installment per month between the Supervision start and end dates, generated from the selected Supervision activities.',
+    supervisionScheduleOnCreate: 'The monthly installments (one per month between the Supervision start and end dates) are generated automatically from the selected Supervision activities when the plan is created.',
   },
 }

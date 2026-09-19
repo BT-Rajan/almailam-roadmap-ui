@@ -1,13 +1,17 @@
 import type { BadgeVariant } from '@/types/Ui'
-import type { RequiredDocumentStatus, ResponseOutcome, SubmissionStage } from '@/types/Submission'
+import type { RequiredDocumentStatus, ResponseOutcome, SubmissionStage, SubmissionWorkspaceTab } from '@/types/Submission'
 
-export const SUBMISSION_STAGES: SubmissionStage[] = ['Prepare', 'Apply', 'Track', 'Update', 'Close']
+export const SUBMISSION_STAGES: SubmissionStage[] = ['Prepare', 'Apply', 'Track', 'Close']
+
+// The workspace stepper's 5 steps: Overview first, then the 4 real
+// stages. Overview is a view, not a backend stage -- an application is
+// never "at" Overview.
+export const SUBMISSION_WORKSPACE_TABS: SubmissionWorkspaceTab[] = ['Overview', ...SUBMISSION_STAGES]
 
 const STAGE_VARIANTS: Record<SubmissionStage, BadgeVariant> = {
   Prepare: 'neutral',
   Apply: 'info',
   Track: 'warning',
-  Update: 'warning',
   Close: 'success',
 }
 

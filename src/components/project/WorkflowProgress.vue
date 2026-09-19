@@ -89,7 +89,14 @@ const currentStageRank = computed(() => {
   return LINEAR_STAGES.indexOf(props.currentStage)
 })
 
+// A Completed project is finished -- every segment reads green, none
+// blue. (Handover already did; the parallel Design/Permit/Supervision
+// tracks and the linear stages didn't when they weren't individually
+// marked done -- e.g. a track with no items selected.)
+const isProjectCompleted = computed(() => props.projectStatus === 'Completed')
+
 function linearStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upcoming' {
+  if (isProjectCompleted.value) return 'complete'
   const rank = LINEAR_STAGES.indexOf(stage)
   if (rank < currentStageRank.value) return 'complete'
   if (rank === currentStageRank.value) return 'current'
@@ -118,7 +125,7 @@ function isTrackDone(stage: WorkflowStage): boolean {
 }
 
 function parallelStepStatus(stage: WorkflowStage): 'complete' | 'current' | 'upcoming' {
-  if (isTrackDone(stage)) return 'complete'
+  if (isProjectCompleted.value || isTrackDone(stage)) return 'complete'
   if (isPastContract.value) return 'current'
   return 'upcoming'
 }
@@ -172,7 +179,7 @@ const currentStepIndex = computed(() => {
        ProjectHeader.vue inside a single shared card (see
        ProjectWorkspacePage.vue), separated only by a hairline, instead
        of each being its own bordered box with a gap between them. -->
-  <div class="border-t border-border-light p-3">
+  <div class="border-t border-border-light px-5 py-4">
     <div class="mb-2 flex items-center justify-between gap-3">
       <p class="text-sm font-medium text-text-primary">
         {{

@@ -1,7 +1,7 @@
 export default {
   // Kept for ProjectFormEntry (Approvals & Permits' filed-form records,
   // authorityFormsPanel below) -- its own status lifecycle, unrelated to
-  // the Permit Application workspace's 5-stage model (submissionStage).
+  // the Permit Application workspace's 4-stage model (submissionStage).
   submissionStatus: {
     draft: 'Draft',
     submitted: 'Submitted',
@@ -11,12 +11,12 @@ export default {
     rejected: 'Rejected',
     withdrawn: 'Withdrawn',
   },
-  // The Permit Application workspace's 5 stages.
+  // The Permit Application workspace's 4 stages.
   submissionStage: {
+    overview: 'Overview',
     prepare: 'Prepare',
     apply: 'Apply',
     track: 'Track',
-    update: 'Update',
     close: 'Close',
   },
   // Final outcome recorded when an application reaches Close.
@@ -161,6 +161,14 @@ export default {
     newSubmission: 'New Application',
     submissionCreatedTitle: 'Application created',
     failedToCreateSubmission: 'Failed to create application',
+    submissionUpdatedTitle: 'Application updated',
+    submissionUpdatedDescription: '{no} was updated.',
+    failedToUpdateSubmission: 'Failed to update application',
+    submissionDeletedTitle: 'Application deleted',
+    submissionDeletedDescription: '{no} was deleted.',
+    failedToDeleteSubmission: 'Failed to delete application',
+    editSubmission: 'Edit application {no}',
+    deleteSubmission: 'Delete application {no}',
     allAuthorities: 'All Authorities',
     noSubmissionsFound: 'No applications found',
     noSubmissionsFoundDescription: 'Try adjusting your search or filters.',
@@ -180,6 +188,17 @@ export default {
   workspacePage: {
     backToProject: 'Back to Project',
     backToSubmissions: 'Back to Permit Applications',
+    editApplication: 'Edit',
+    tabsAria: 'Permit application stages',
+    stageNotReached: 'This stage has not been reached yet. It opens up once the earlier stages are done.',
+    notFiledYet: 'This application was closed before it was filed, so there is no filing to show.',
+    neverTracked: 'This application was closed before it reached Track, so there are no follow-ups to show.',
+    closeApplicationNotice: "Record the final outcome once the authority has decided, or withdraw the application at any stage. Closing can't be undone.",
+    followUpDocumentHint: 'Attach a document if the authority asked for one, or an updated version of one already sent.',
+    deleteApplication: 'Delete',
+    deleteConfirmTitle: 'Delete {no}?',
+    deleteConfirmMessage: 'This permit application, its document checklist and its follow-ups will be removed from the project and from Permit Applications.',
+    deleteConfirmMessageFiled: 'It has already been filed with the authority. To keep the record, close it as Withdrawn instead of deleting it.',
     submissionNotFound: 'Application not found',
     submissionNotFoundDescription: 'This application may have been removed or the link is incorrect.',
     submissionDetails: 'Application Details',
@@ -224,30 +243,25 @@ export default {
     acknowledgementNumberLine: 'Acknowledgement Number: {value}',
     paymentReferenceLine: 'Payment Reference: {value}',
 
-    // Track / Update
-    followUpLog: 'Contact Log',
-    recordFollowUp: 'Log Contact',
-    noFollowUpsRecorded: 'No contact logged yet.',
+    // Track
+    followUpLog: 'Follow-ups',
+    recordFollowUp: 'Record Follow-up',
+    noFollowUpsRecorded: 'No follow-up recorded yet.',
     followUpAt: '{date} at {time}',
-    loggedBy: 'Logged by {name}',
+    loggedBy: 'Recorded by {name}',
     refresh: 'Refresh',
-    followUpDialogDescription: 'Log a call or visit made to the authority to check on {submissionNo}.',
-    entryStage: 'Type of entry',
-    entryStageTrack: 'Track (plain check-in)',
-    entryStageUpdate: 'Update (authority asked for something else)',
-    entryStageTrackHint: 'A plain check-in with the authority -- no document.',
-    entryStageUpdateHint: 'The authority asked for an additional or updated document -- attach it below.',
-    followUpDate: 'Contact date',
-    followUpTime: 'Contact time',
-    followUpContactPerson: 'Person who checked with the Government',
+    followUpDialogDescription: 'Record a call or visit made to the authority to follow up on {submissionNo}.',
+    followUpDate: 'Follow-up date',
+    followUpTime: 'Follow-up time',
+    followUpContactPerson: 'Person who followed up with the Government',
     followUpContactPersonPlaceholder: 'e.g. Eng. Yousef',
     followUpNotes: 'Notes (optional)',
     followUpNotesPlaceholder: 'What was discussed',
     followUpDocument: 'Document (optional)',
     saveFollowUp: 'Save',
-    followUpRecordedTitle: 'Contact logged',
-    followUpRecordedDescription: 'The contact log entry has been saved.',
-    unableToRecordFollowUp: 'Unable to log contact',
+    followUpRecordedTitle: 'Follow-up recorded',
+    followUpRecordedDescription: 'The follow-up has been saved.',
+    unableToRecordFollowUp: 'Unable to record follow-up',
 
     // Close
     closeApplication: 'Close Application',
@@ -256,7 +270,19 @@ export default {
     outcome: 'Outcome',
     closingNotes: 'Closing Notes',
     closingNotesPlaceholder: 'Summarize how this application was resolved',
-    permitDocument: 'Permit / decision document (optional)',
+    // The Authority's reply, uploaded when the application is closed
+    // (permit, approval letter, rejection or decision notice).
+    authorityResponse: 'Authority response',
+    authorityResponseOptional: 'Authority response (optional)',
+    authorityResponseHint: "Upload the authority's reply -- the permit, approval letter, rejection or decision notice.",
+    noAuthorityResponse: 'No authority response was uploaded.',
+    fileSelected: 'Selected: {name}',
+
+    // Uploaded files (Overview tab)
+    uploadedFilesTitle: 'Uploaded Files',
+    noFilesUploaded: 'No files have been uploaded for this application yet.',
+    acknowledgementFileLabel: 'Application acknowledgement',
+    followUpFileLabel: 'Follow-up document',
     applicationClosedTitle: 'Application closed',
     applicationClosedDescription: '{submissionNo} has been closed.',
     unableToCloseApplication: 'Unable to close the application',
@@ -305,6 +331,12 @@ export default {
     notesPlaceholder: 'Optional notes for this application',
     thisFormRequires: 'This form requires:',
     createSubmission: 'Create Application',
+    editTitle: 'Edit Permit Application',
+    backToApplication: 'Back to Application',
+    saveChanges: 'Save Changes',
+    authorityFormLockedHint: 'The authority and form can only be changed while the application is in Prepare and no required document has been uploaded.',
+    closedTitle: 'This application is closed',
+    closedDescription: 'A closed permit application is a finished record and can no longer be edited.',
   },
 
   projectFormEntryDialog: {

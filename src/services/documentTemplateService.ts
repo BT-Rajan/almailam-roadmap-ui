@@ -2,6 +2,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/services/httpClient'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType, MergeField, TemplateBlock, TemplateLayout } from '@/types/DocumentTemplate'
+import type { AgreementStream } from '@/types/Payment'
 
 async function getTemplates(documentType?: DocumentTemplateType): Promise<DocumentTemplate[]> {
   try {
@@ -217,27 +218,37 @@ async function emailContractDocument(contractNo: string, toEmail?: string, langu
   }
 }
 
-/** Downloads the merged Payment Plan document -- unlike Quotation/
- * Contract, this isn't one record's own document: the backend merges
+/** Downloads the Payment Plan document -- unlike Quotation/Contract,
+ * this isn't one record's own document: by default the backend merges
  * every billing stream's agreement + schedule the project actually has
  * into one document, so it's scoped by project rather than by
- * agreement id. See downloadQuotationDocument. */
-async function downloadPaymentPlanDocument(projectNo: string, language?: AppLanguage): Promise<Blob> {
-  const query = language ? `?language=${language}` : ''
+ * agreement id. Pass `stream` to get just that stream's own document
+ * instead (e.g. Design and Permit and Supervision as two separate
+ * files on a project's Documents tab). See downloadQuotationDocument. */
+async function downloadPaymentPlanDocument(projectNo: string, language?: AppLanguage, stream?: AgreementStream): Promise<Blob> {
+  const params = new URLSearchParams()
+  if (language) params.set('language', language)
+  if (stream) params.set('stream', stream)
+  const query = params.toString() ? `?${params.toString()}` : ''
   return _downloadBlob(`/api/projects/${projectNo}/payment-plan/document${query}`, 'Failed to generate payment plan document')
 }
 
 /** PDF counterpart of downloadPaymentPlanDocument -- see
  * getQuotationDocumentPdf. */
-async function getPaymentPlanDocumentPdf(projectNo: string, language?: AppLanguage): Promise<Blob> {
-  const query = language ? `?language=${language}` : ''
+async function getPaymentPlanDocumentPdf(projectNo: string, language?: AppLanguage, stream?: AgreementStream): Promise<Blob> {
+  const params = new URLSearchParams()
+  if (language) params.set('language', language)
+  if (stream) params.set('stream', stream)
+  const query = params.toString() ? `?${params.toString()}` : ''
   return _downloadBlob(`/api/projects/${projectNo}/payment-plan/document/pdf${query}`, 'Failed to generate payment plan PDF')
 }
 
-/** Emails the merged Payment Plan PDF -- see emailQuotationDocument. */
-async function emailPaymentPlanDocument(projectNo: string, toEmail?: string, language?: AppLanguage): Promise<void> {
+/** Emails the Payment Plan PDF -- see emailQuotationDocument. `stream`
+ * narrows it the same way as downloadPaymentPlanDocument above. */
+async function emailPaymentPlanDocument(projectNo: string, toEmail?: string, language?: AppLanguage, stream?: AgreementStream): Promise<void> {
   try {
-    await apiClient.post(`/api/projects/${projectNo}/payment-plan/document/email`, { toEmail, language })
+    const query = stream ? `?stream=${stream}` : ''
+    await apiClient.post(`/api/projects/${projectNo}/payment-plan/document/email${query}`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email payment plan for project ${projectNo}:`, error)
     throw new Error(error instanceof Error ? error.message : 'Failed to email payment plan')

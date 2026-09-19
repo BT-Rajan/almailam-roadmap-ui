@@ -350,9 +350,18 @@ export default {
   contractDocumentsTab: {
     projectPaperworkTitle: 'Project Paperwork',
     quotation: 'Quotation',
+    // Kept alongside the two stream-specific labels below for
+    // ProjectCard.vue's quick-link button, which still opens the
+    // merged (all-streams) payment plan PDF rather than either stream
+    // individually.
     paymentPlan: 'Payment Plan',
+    designPaymentPlan: 'Payment Plan (Design and Permit)',
+    supervisionPaymentPlan: 'Payment Plan (Supervision)',
     contract: 'Contract',
     notAvailable: 'Not available yet',
+    permitFilesTitle: 'Permit Application Files',
+    noPermitFiles: 'No files have been uploaded to permit applications yet.',
+    openApplication: 'Open application',
   },
 
   quotationPreview: {
@@ -379,10 +388,17 @@ export default {
     discountAmount: 'Discount Amount',
   },
 
+  contractDates: {
+    client: 'Client',
+    project: 'Project',
+    designPermitStart: 'Design & Permit Start Date',
+    designPermitEnd: 'Design & Permit End Date',
+    supervisionStart: 'Supervision Start Date',
+    supervisionEnd: 'Supervision End Date',
+  },
+
   contractPreview: {
     client: 'Client',
-    clientRepresentative: 'Client representative',
-    representedBy: 'Represented by {name}',
     signed: 'Signed: {date}',
     expiryDate: 'Expiry Date',
     expires: 'Expires: {date}',
@@ -566,17 +582,17 @@ export default {
 
   newContractDialog: {
     title: 'New Contract',
-    backToContract: 'Back to Contract',
-    prefilledFromQuotation: 'Generated from quotation {number} — currency and value must match its approved amount and are locked; scope below carries over and can still be changed.',
-    currency: 'Currency',
+    draftPreview: 'Draft preview',
+    contractNoOnCreation: 'Contract number is assigned when created',
+    issueDate: 'Issue Date',
+    prefilledFromQuotation: 'Generated from quotation {number} — client, project, dates, scope and value are filled in automatically and locked. Set the expiry date, client representative and any clauses directly in the preview below.',
     contractValue: 'Contract Value',
     contractValueMustBePositive: 'Contract value must be greater than 0.',
     contractValueMustMatchQuotation: 'Contract value must match quotation {number}\'s approved amount ({amount}).',
     expiryDate: 'Expiry Date',
-    clientRepresentative: 'Client Representative',
-    clientRepresentativePlaceholder: 'Name of the person signing for the client',
+    expiryHint: 'Must be on or after {date}, the last installment of the approved payment plan.',
+    expiryBeforeLastInstallment: 'The expiry date can\'t be before the last payment plan installment ({date}).',
     scopeSummary: 'Scope Summary',
-    scopeSummaryPlaceholder: 'Describe the scope of work covered by this contract',
     clausesOptional: 'Clauses (optional)',
     addClause: 'Add Clause',
     clauseTitlePlaceholder: 'Clause title',

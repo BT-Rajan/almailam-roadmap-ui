@@ -22,7 +22,7 @@ FORM_CATEGORIES = (
 )
 FORM_LANGUAGES = ("English", "Arabic", "English / Arabic")
 FORM_STATUSES = ("Active", "Archived")
-SUBMISSION_STAGES = ("Prepare", "Apply", "Track", "Update", "Close")
+SUBMISSION_STAGES = ("Prepare", "Apply", "Track", "Close")
 # ProjectFormEntry's own status lifecycle -- unrelated to
 # SUBMISSION_STAGES above (this is "is this one filled-in form done,"
 # not "where is this permit application"), kept as the exact vocabulary
@@ -98,14 +98,14 @@ class GovernmentForm(Base, TimestampMixin, SoftDeleteMixin):
 
 class GovernmentSubmission(Base, TimestampMixin, SoftDeleteMixin):
     """A permit application's own workspace -- one row per application,
-    walking through 5 stages (SUBMISSION_STAGES): Prepare (pick the
+    walking through 4 stages (SUBMISSION_STAGES): Prepare (pick the
     authority/form this application is for, fill the form in via
     ProjectFormEntry, get the required-documents checklist ready) ->
     Apply (file it, record the authority's acknowledgement) -> Track
-    (log contact made while it's under review) <-> Update (same as
-    Track, plus a document, for when the authority asks for something
-    else) -> Close (the final outcome, permit/decision document, and
-    closing notes). See core/status_transitions.py's
+    (record follow-ups made with the authority while it's under review --
+    including any document they asked for, which used to be its own
+    "Update" stage, merged into Track by migration 0108) -> Close (the
+    final outcome, permit/decision document, and closing notes). See core/status_transitions.py's
     SUBMISSION_ALLOWED_TRANSITIONS for the full stage graph and
     submission_service.py for the one action per transition.
 
@@ -216,17 +216,13 @@ class SubmissionDocument(Base):
 
 
 class SubmissionFollowup(Base):
-    """A log entry recording contact made with the authority while an
-    application is in Track or Update (SUBMISSION_STAGES) -- who
-    checked, when, and what came of it. Purely additive (no edit/delete
-    from the UI), same idea as audit_log: an append-only trail, not a
-    mutable field on the application itself.
-
-    Update is the same entry shape as Track, plus an optional document
-    -- the authority asking for something else (an additional document,
-    or an updated version of one already sent) rather than a plain
-    check-in. `stage` records which of the two this particular entry was
-    logged under; the document fields stay null for a plain Track entry.
+    """A log entry recording a follow-up made with the authority while an
+    application is in Track (SUBMISSION_STAGES) -- who checked, when,
+    and what came of it, plus an optional document (an additional
+    document the authority asked for, or an updated version of one
+    already sent). Purely additive (no edit/delete from the UI), same
+    idea as audit_log: an append-only trail, not a mutable field on the
+    application itself.
     """
 
     __tablename__ = "submission_followups"
@@ -235,7 +231,6 @@ class SubmissionFollowup(Base):
     submission_id: Mapped[int] = mapped_column(
         BigPK, ForeignKey("government_submissions.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    stage: Mapped[str] = mapped_column(Enum("Track", "Update", name="followup_stage"), nullable=False, default="Track")
     followup_date: Mapped[date] = mapped_column(Date, nullable=False)
     followup_time: Mapped[str] = mapped_column(String(20), nullable=False)
     contact_person: Mapped[str] = mapped_column(String(150), nullable=False)

@@ -51,8 +51,6 @@ export default {
     createPaymentPlan: 'إنشاء خطة دفع',
     designAndPermitSection: 'خطة التصميم والترخيص',
     supervisionSection: 'خطة الإشراف',
-    permitsTitle: 'التراخيص',
-    totalPermitFees: 'إجمالي رسوم التراخيص',
     decision: 'القرار',
     approveStreamPlan: 'اعتماد {stream}',
     printOrDownload: 'طباعة / تنزيل',
@@ -87,6 +85,8 @@ export default {
     planUpdatedDescription: 'تمت إعادة إنشاء جدول الأقساط.',
     planCreatedTitle: 'تم إنشاء خطة الدفع',
     planCreatedDescription: 'راجع الجدول، ثم اعتمده للمتابعة.',
+    supervisionPlanReadyDescription: 'تم إنشاء خطة دفع الإشراف تلقائياً — راجع جدولها الشهري، ثم اعتمدها للمتابعة.',
+    couldNotCreateSupervisionPlan: 'تعذّر إنشاء خطة دفع الإشراف',
     couldNotSave: 'تعذّر حفظ خطة الدفع',
     planDeletedTitle: 'تم حذف خطة الدفع',
     couldNotDelete: 'تعذّر حذف خطة الدفع',
@@ -173,7 +173,6 @@ export default {
   },
 
   agreementFormDialog: {
-    backToPaymentPlan: 'العودة إلى خطة الدفع',
     planNotFoundTitle: 'خطة الدفع غير موجودة',
     planNotFoundDescription: 'تعذّر العثور على هذا المشروع أو فئة الفوترة.',
     editTitle: 'تعديل خطة الدفع',
@@ -185,7 +184,6 @@ export default {
     quotationReference: 'مرجع عرض السعر',
     quotationReferenceHint: 'يُملأ تلقائياً من عرض السعر المعتمد لهذا المشروع.',
     totalAmount: 'المبلغ الإجمالي',
-    contractStartDate: 'تاريخ بدء العقد',
     paymentModeTitle: 'طريقة الدفع',
     installments: 'الأقساط',
     addInstallment: 'إضافة قسط',
@@ -203,7 +201,8 @@ export default {
     totalMustEqual100: 'يجب أن يكون مجموع نسب الدفعات 100% (الحالي {percent}%).',
     totalAmountRequired: 'يجب أن يكون المبلغ الإجمالي أكبر من 0',
     totalAmountMustMatchQuotation: 'يجب أن يطابق المبلغ الإجمالي المبلغ المعتمد في عرض السعر {number} ({amount}).',
-    contractStartDateRequired: 'تاريخ بدء العقد مطلوب',
     saveChanges: 'حفظ التغييرات',
+    supervisionScheduleHint: 'دفعة واحدة لكل شهر بين تاريخي بداية ونهاية الإشراف، يتم إنشاؤها من أنشطة الإشراف المختارة.',
+    supervisionScheduleOnCreate: 'يتم إنشاء الدفعات الشهرية (دفعة لكل شهر بين تاريخي بداية ونهاية الإشراف) تلقائياً من أنشطة الإشراف المختارة عند إنشاء الخطة.',
   },
 }

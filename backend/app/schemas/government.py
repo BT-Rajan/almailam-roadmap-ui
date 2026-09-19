@@ -247,7 +247,6 @@ class ProofOfFileOut(BaseModel):
 
 class FollowupOut(BaseModel):
     id: str
-    stage: str
     followupDate: date
     followupTime: str
     contactPerson: str
@@ -270,7 +269,6 @@ class FollowupOut(BaseModel):
             )
         return FollowupOut(
             id=f"FUP-{followup.id:04d}",
-            stage=followup.stage,
             followupDate=followup.followup_date,
             followupTime=followup.followup_time,
             contactPerson=followup.contact_person,
@@ -282,12 +280,10 @@ class FollowupOut(BaseModel):
 
 
 class FollowupCreate(BaseModel):
-    entryStage: str
     followupDate: date
     followupTime: str = Field(min_length=1, max_length=20)
     contactPerson: str = Field(min_length=1, max_length=150)
     notes: str | None = None
-    _check_entry_stage = field_validator("entryStage")(_enum_validator(("Track", "Update"), "entryStage"))
 
 
 class SubmissionOut(BaseModel):
@@ -390,8 +386,20 @@ class SubmissionCreate(BaseModel):
 
 
 class SubmissionUpdate(BaseModel):
+    """Only the fields present in the request are applied (see
+    submission_service.update_submission, which reads model_fields_set),
+    so an explicit null clears expectedDecisionDate/notes instead of
+    being ignored as "not provided"."""
+
     expectedDecisionDate: date | None = None
     notes: str | None = None
+    # authorityId/formId can only change while the application is still
+    # in Prepare with nothing uploaded yet -- the document checklist is
+    # derived from the form. Send both when changing the authority.
+    authorityId: str | None = None
+    formId: str | None = None
+    # The planned permit this application fulfils; "" (or null) unlinks.
+    selectedPermitId: str | None = None
 
 
 class SubmissionDocumentStatusUpdate(BaseModel):

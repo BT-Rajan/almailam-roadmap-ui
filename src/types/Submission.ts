@@ -1,14 +1,18 @@
-// A Permit Application's own workspace -- 5 stages (see
+// A Permit Application's own workspace -- 4 stages (see
 // backend/app/models/government.py's GovernmentSubmission docstring and
 // core/status_transitions.py's SUBMISSION_ALLOWED_TRANSITIONS):
 // Prepare (pick the authority/form, fill it in, get the required
 // documents ready) -> Apply (file it, record the authority's
-// acknowledgement) -> Track (log contact made while it's under review)
-// <-> Update (same as Track, plus a document, for when the authority
-// asks for something else) -> Close (final outcome, permit/decision
-// document, closing notes). Close is reachable from every stage, not
-// only Track/Update.
-export type SubmissionStage = 'Prepare' | 'Apply' | 'Track' | 'Update' | 'Close'
+// acknowledgement) -> Track (record follow-ups made while it's under review,
+// including any document the authority asks for) -> Close (final
+// outcome, permit/decision document, closing notes). Close is
+// reachable from every stage, not only Track.
+export type SubmissionStage = 'Prepare' | 'Apply' | 'Track' | 'Close'
+
+// What the workspace's stepper shows: Overview (application details --
+// a UI-only first step, not a backend stage) followed by the 4 real
+// stages above, so 5 steps in all.
+export type SubmissionWorkspaceTab = 'Overview' | SubmissionStage
 
 export type RequiredDocumentStatus = 'Pending' | 'Uploaded' | 'Verified'
 
@@ -36,11 +40,6 @@ export interface ProofOfFile {
 
 export interface SubmissionFollowup {
   id: string
-  // Which of Track/Update this particular log entry was made under --
-  // a plain check-in ('Track') or one that also carries a document
-  // ('Update', an additional document sought or an updated version of
-  // one already sent).
-  stage: 'Track' | 'Update'
   followupDate: string
   followupTime: string
   contactPerson: string
