@@ -38,7 +38,7 @@ const TABS = computed<DashboardTab[]>(() => [
 </script>
 
 <template>
-  <div class="space-y-8 pb-8">
+  <div class="flex flex-col gap-6 pb-8">
     <!-- Page Header -->
     <div>
       <h1 class="font-display text-3xl font-semibold text-text-primary">

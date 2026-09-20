@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { CheckCircle2 } from '@lucide/vue'
+import { Activity, Layers, PauseCircle } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import KPIWidget from '@/components/dashboard/KPIWidget.vue'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue'
 import PendingTasksWidget from '@/components/dashboard/PendingTasksWidget.vue'
@@ -12,7 +11,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
-import type { KPI, StatisticItem, ProjectSummary, Task, DocumentItem } from '@/types/Dashboard'
+import type { StatisticItem, ProjectSummary, Task, DocumentItem } from '@/types/Dashboard'
 import type { ProjectStatus } from '@/types/Project'
 import type { TaskPriority, TaskStatus } from '@/types/Task'
 
@@ -34,21 +33,15 @@ onMounted(() => {
 })
 
 // Real counts from the same project list the "Recent Projects" grid
-// below renders -- one source of truth, so the KPI number and what's
-// actually listed can never disagree.
-const kpis = computed<KPI[]>(() => [
-  { id: 'total', label: t('dashboard.totalProjects'), value: projectStore.projects.length },
-  { id: 'active', label: t('dashboard.activeProjects'), value: projectStore.projects.filter((p) => p.status === 'Active').length },
-])
-
+// below renders -- one source of truth, so the tile number and what's
+// actually listed can never disagree. One consistent tile (StatisticsCard)
+// for every figure here, same as DashboardFinancialsTab.vue's own -- this
+// tab previously mixed StatisticsCard with a second, differently-styled
+// KPIWidget for no functional reason.
 const statistics = computed<StatisticItem[]>(() => [
-  {
-    id: 'on-hold',
-    label: t('dashboard.onHoldProjects'),
-    value: projectStore.projects.filter((p) => p.status === 'On Hold').length,
-    icon: CheckCircle2,
-    color: 'warning',
-  },
+  { id: 'total', label: t('dashboard.totalProjects'), value: projectStore.projects.length, icon: Layers, color: 'primary' },
+  { id: 'active', label: t('dashboard.activeProjects'), value: projectStore.projects.filter((p) => p.status === 'Active').length, icon: Activity, color: 'success' },
+  { id: 'on-hold', label: t('dashboard.onHoldProjects'), value: projectStore.projects.filter((p) => p.status === 'On Hold').length, icon: PauseCircle, color: 'warning' },
 ])
 
 const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
@@ -140,12 +133,11 @@ function handleKpiClick(): void {
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-3 gap-4">
-      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick" />
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleKpiClick" />
     </div>
 
-    <div v-if="recentProjects.length > 0">
-      <h2 class="text-lg font-semibold text-text-primary mb-4">{{ t('dashboard.recentProjects') }}</h2>
+    <div v-if="recentProjects.length > 0" class="flex flex-col gap-3">
+      <h2 class="text-sm font-semibold text-text-primary">{{ t('dashboard.recentProjects') }}</h2>
       <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
         <ProjectSummaryCard v-for="project in recentProjects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
       </div>

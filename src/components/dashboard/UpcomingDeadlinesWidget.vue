@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { CalendarClock, ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Deadline } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import { useLocale } from '@/composables/useLocale'
 
 interface Props {
   deadlines: Deadline[]
@@ -18,6 +21,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+const chevronIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 defineEmits<{
   'deadline-click': [deadlineId: string]
@@ -45,13 +50,16 @@ const deadlineStatus = (days: number) => {
   return 'upcoming'
 }
 
-const statusColor = (status: string) => {
+// The icon badge's own colors -- a stronger, more "flagged" visual than
+// the text-only status label used to give on its own, same intent as
+// the colored icon badges every stat tile (StatisticsCard) already uses.
+const badgeColor = (status: string) => {
   const colors: Record<string, string> = {
-    overdue: 'bg-danger-50 border-danger-200',
-    today: 'bg-warning-50 border-warning-200',
-    urgent: 'bg-warning-50 border-warning-200',
-    soon: 'bg-info-50 border-info-200',
-    upcoming: 'bg-bg-secondary border-border-default',
+    overdue: 'bg-danger-50 text-danger-600',
+    today: 'bg-warning-50 text-warning-600',
+    urgent: 'bg-warning-50 text-warning-600',
+    soon: 'bg-info-50 text-info-600',
+    upcoming: 'bg-bg-secondary text-text-muted',
   }
   return colors[status]
 }
@@ -75,31 +83,31 @@ const statusLabel = (status: string, days: number) => {
 </script>
 
 <template>
-  <Card>
+  <Card :padded="false">
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.upcomingDeadlines') }}</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.upcomingDeadlines') }}</h3>
     </template>
 
-    <div v-if="sortedDeadlines.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">{{ emptyText ?? t('dashboard.noUpcomingDeadlines') }}</p>
-    </div>
-    <div v-else class="space-y-2">
-      <div
+    <EmptyState v-if="sortedDeadlines.length === 0" :title="emptyText ?? t('dashboard.noUpcomingDeadlines')" :bordered="false" />
+    <ul v-else class="divide-y divide-border-light">
+      <li
         v-for="deadline in sortedDeadlines"
         :key="deadline.id"
-        :class="['p-3 rounded-lg border transition-colors cursor-pointer', statusColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]"
+        class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
         @click="$emit('deadline-click', deadline.id)"
       >
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-text-primary">{{ deadline.title }}</p>
-            <p class="text-xs text-text-muted mt-1">{{ deadline.project }}</p>
-          </div>
-          <span :class="['text-xs font-medium flex-shrink-0', statusTextColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
-            {{ statusLabel(deadlineStatus(daysUntilDeadline(deadline.dueDate)), daysUntilDeadline(deadline.dueDate)) }}
-          </span>
+        <span :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-full', badgeColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
+          <CalendarClock class="h-5 w-5" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-text-primary">{{ deadline.title }}</p>
+          <p class="mt-0.5 truncate text-xs text-text-muted">{{ deadline.project }}</p>
         </div>
-      </div>
-    </div>
+        <span :class="['shrink-0 text-xs font-semibold', statusTextColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
+          {{ statusLabel(deadlineStatus(daysUntilDeadline(deadline.dueDate)), daysUntilDeadline(deadline.dueDate)) }}
+        </span>
+        <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
+      </li>
+    </ul>
   </Card>
 </template>

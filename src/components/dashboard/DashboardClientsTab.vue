@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { UserCheck, UserCog } from '@lucide/vue'
+import { Building2, UserCheck, UserCog, UserX } from '@lucide/vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import KPIWidget from '@/components/dashboard/KPIWidget.vue'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import RecentClientsWidget from '@/components/dashboard/RecentClientsWidget.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
-import type { KPI, StatisticItem, RecentClient } from '@/types/Dashboard'
+import type { StatisticItem, RecentClient } from '@/types/Dashboard'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -27,12 +26,13 @@ onMounted(() => {
 // on it, which is exactly what this card is for.
 const ONBOARDING_IN_PROGRESS = new Set(['Information Required', 'Documents Required', 'Pending Verification'])
 
-const kpis = computed<KPI[]>(() => [
-  { id: 'total', label: t('dashboard.totalClients'), value: clientStore.clients.length },
-  { id: 'active', label: t('dashboard.activeClients'), value: clientStore.clients.filter((c) => c.status === 'Active').length },
-])
-
+// One consistent tile (StatisticsCard) for every figure here, same as
+// DashboardFinancialsTab.vue's own -- this tab previously mixed
+// StatisticsCard with a second, differently-styled KPIWidget for no
+// functional reason.
 const statistics = computed<StatisticItem[]>(() => [
+  { id: 'total', label: t('dashboard.totalClients'), value: clientStore.clients.length, icon: Building2, color: 'primary' },
+  { id: 'active', label: t('dashboard.activeClients'), value: clientStore.clients.filter((c) => c.status === 'Active').length, icon: UserCheck, color: 'success' },
   {
     id: 'onboarding',
     label: t('dashboard.pendingOnboarding'),
@@ -44,7 +44,7 @@ const statistics = computed<StatisticItem[]>(() => [
     id: 'inactive',
     label: t('dashboard.inactiveClients'),
     value: clientStore.clients.filter((c) => c.status === 'Inactive').length,
-    icon: UserCheck,
+    icon: UserX,
     color: 'info',
   },
 ])
@@ -74,7 +74,6 @@ function handleClientClick(clientId: string): void {
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
-      <KPIWidget v-for="kpi in kpis" :key="kpi.id" :kpi="kpi" @click="handleKpiClick" />
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleKpiClick" />
     </div>
 
