@@ -129,7 +129,7 @@ export interface ClientDocument {
 
 export type ClientViewMode = 'grid' | 'table'
 
-export type ClientWorkspaceTabKey = 'overview' | 'details' | 'contacts' | 'identification' | 'documents'
+export type ClientWorkspaceTabKey = 'overview' | 'details'
 
 export interface ClientWorkspaceTab {
   key: ClientWorkspaceTabKey

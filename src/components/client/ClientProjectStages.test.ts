@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 
 import ClientProjectStages from '@/components/client/ClientProjectStages.vue'
+import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
 import { i18n } from '@/i18n'
 import { fixture } from '@/test-utils/mockApi'
 import type { Project } from '@/types/Project'
@@ -51,10 +52,35 @@ describe('ClientProjectStages (client overview)', () => {
     expect(tab).toBe('contract')
   })
 
-  it('pages through more projects than fit on a page', async () => {
-    const wrapper = mountStages(Array.from({ length: 7 }, (_, index) => project(index + 1)))
-    expect(wrapper.findAll('h3')).toHaveLength(5)
+  it('shows the most recent projects first, two to a page', async () => {
+    const wrapper = mountStages(Array.from({ length: 5 }, (_, index) => project(index + 1)))
+    expect(wrapper.findAll('h3').map((h) => h.text())).toEqual(['Project 5', 'Project 4'])
+    expect(wrapper.find('nav').exists()).toBe(true)
+
     await wrapper.find('button[aria-label="Go to page 2"]').trigger('click')
+    expect(wrapper.findAll('h3').map((h) => h.text())).toEqual(['Project 3', 'Project 2'])
+
+    await wrapper.find('button[aria-label="Go to page 3"]').trigger('click')
+    expect(wrapper.findAll('h3').map((h) => h.text())).toEqual(['Project 1'])
+  })
+
+  it('has no pager for two projects or fewer', () => {
+    const wrapper = mountStages([project(1), project(2)])
     expect(wrapper.findAll('h3')).toHaveLength(2)
+    expect(wrapper.find('nav').exists()).toBe(false)
+  })
+
+  it('opens the project when the card is clicked anywhere, stepper included', async () => {
+    const wrapper = mountStages([project(1, { currentStage: 'Quotation' })])
+    await wrapper.find('h3').trigger('click')
+    // The stepper's own background, not one of its stage buttons.
+    await wrapper.findComponent(WorkflowProgress).trigger('click')
+    expect(wrapper.emitted('open')).toEqual([['P-1'], ['P-1']])
+  })
+
+  it('does not also open the project a second time when a stage is clicked', async () => {
+    const wrapper = mountStages([project(1, { currentStage: 'Quotation' })])
+    await wrapper.findAll('button').find((b) => b.text().includes('Contract'))!.trigger('click')
+    expect(wrapper.emitted('open')).toHaveLength(1)
   })
 })

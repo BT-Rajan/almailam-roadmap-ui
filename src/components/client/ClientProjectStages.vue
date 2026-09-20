@@ -13,12 +13,14 @@ import { formatDate } from '@/utils/dateFormatter'
 import { getProjectStatusVariant, getWorkflowStageLabel, getWorkflowStageLabelKey } from '@/utils/projectHelpers'
 
 // The client workspace's Overview: where each of this client's projects
-// stands. One card per project -- its own workflow stepper (the same one
-// the project's pages show, so "Design" or "Handover" reads identically
-// here), plus the plain-words stage. Clicking a stage opens the project
-// at that stage. Everything else about the client (profile, contacts,
-// identification, documents) has its own tab and is deliberately not
-// repeated here.
+// stands, most recent project first, two to a page. One card per project
+// -- its own workflow stepper (the same one the project's pages show, so
+// "Design" or "Handover" reads identically here), plus the plain-words
+// stage. Clicking a stage opens the project at that stage; clicking
+// anywhere else on the card, stepper included, opens the project. The
+// Open project button is the keyboard-reachable version of that click.
+// Everything else about the client is on the Details tab and is
+// deliberately not repeated here.
 const props = defineProps<{
   projects: Project[]
 }>()
@@ -29,8 +31,17 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-// Newest project first.
-const sortedProjects = computed(() => [...props.projects].sort((a, b) => b.projectNo.localeCompare(a.projectNo)))
+// Most recent project first (project numbers run in creation order).
+const sortedProjects = computed(() =>
+  [...props.projects].sort((a, b) => b.projectNo.localeCompare(a.projectNo, undefined, { numeric: true })),
+)
+
+// A stage or the Open project button is its own click target; anything
+// else on the card opens the project itself.
+function handleCardClick(event: MouseEvent, projectId: string): void {
+  if ((event.target as HTMLElement).closest('button')) return
+  emit('open', projectId)
+}
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   Active: 'project.status.active',
@@ -49,10 +60,10 @@ function stageLabel(project: Project): string {
 </script>
 
 <template>
-  <PaginatedList :items="sortedProjects" :page-size="5">
+  <PaginatedList :items="sortedProjects" :page-size="2" :page-size-options="[2, 4, 6, 10]">
     <template #default="{ items }">
       <div class="flex flex-col gap-4">
-        <Card v-for="project in items" :key="project.id">
+        <Card v-for="project in items" :key="project.id" hoverable class="cursor-pointer" @click="handleCardClick($event, project.id)">
           <div class="flex flex-col gap-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="flex min-w-0 flex-col gap-1">
