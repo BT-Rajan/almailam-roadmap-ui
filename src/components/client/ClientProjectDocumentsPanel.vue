@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { contractService } from '@/services/contractService'
@@ -164,92 +165,96 @@ async function viewHandoverDocument(documentId: string): Promise<void> {
       :description="t('client.projectDocuments.noProjectsDescription')"
     />
 
-    <div v-else class="flex flex-col gap-5">
-      <div v-for="project in sortedProjects" :key="project.id" class="flex flex-col gap-2">
-        <!-- Project heading -- shown per project even with just one, so
-             the structure reads the same whether a client has one
-             project or several (arranged by project once there's more
-             than one, per the brief). -->
-        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
-          {{ project.projectNo }} &ndash; {{ project.projectName }}
-        </p>
+    <PaginatedList v-else :items="sortedProjects" :page-size="5">
+      <template #default="{ items }">
+        <div class="flex flex-col gap-5">
+          <div v-for="project in items" :key="project.id" class="flex flex-col gap-2">
+            <!-- Project heading -- shown per project even with just one, so
+                 the structure reads the same whether a client has one
+                 project or several (arranged by project once there's more
+                 than one, per the brief). -->
+            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
+              {{ project.projectNo }} &ndash; {{ project.projectName }}
+            </p>
 
-        <SkeletonLoader v-if="loadingIds.has(project.id)" :rows="2" />
+            <SkeletonLoader v-if="loadingIds.has(project.id)" :rows="2" />
 
-        <p v-else-if="!hasAnyDocument(availability[project.id])" class="text-sm text-text-muted">
-          {{ t('client.projectDocuments.noneAvailableYet') }}
-        </p>
+            <p v-else-if="!hasAnyDocument(availability[project.id])" class="text-sm text-text-muted">
+              {{ t('client.projectDocuments.noneAvailableYet') }}
+            </p>
 
-        <ul v-else class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
-          <li
-            v-if="availability[project.id]?.quotation"
-            class="flex items-center justify-between gap-3 px-3 py-2.5"
-          >
-            <span class="flex flex-col gap-0.5">
-              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                <FileText class="h-4 w-4 shrink-0 text-text-muted" />
-                {{ t('client.projectDocuments.signedQuotation') }}
-              </span>
-              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.quotation!.date) }}</span>
-            </span>
-            <IconButton
-              :icon="FileText"
-              :label="t('document.card.viewDocument')"
-              size="sm"
-              @click="viewQuotation(availability[project.id]!.quotation!.id)"
-            />
-          </li>
-          <li v-if="availability[project.id]?.agreement" class="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span class="flex flex-col gap-0.5">
-              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                <Wallet class="h-4 w-4 shrink-0 text-text-muted" />
-                {{ t('client.projectDocuments.approvedPaymentPlan') }}
-              </span>
-              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.agreement!.date) }}</span>
-            </span>
-            <IconButton
-              :icon="Wallet"
-              :label="t('document.card.viewDocument')"
-              size="sm"
-              @click="viewPaymentPlan(project.projectNo)"
-            />
-          </li>
-          <li v-if="availability[project.id]?.contract" class="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span class="flex flex-col gap-0.5">
-              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                <FileSignature class="h-4 w-4 shrink-0 text-text-muted" />
-                {{ t('client.projectDocuments.signedContract') }}
-              </span>
-              <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.contract!.date) }}</span>
-            </span>
-            <IconButton
-              :icon="FileSignature"
-              :label="t('document.card.viewDocument')"
-              size="sm"
-              @click="viewContract(availability[project.id]!.contract!.id)"
-            />
-          </li>
-          <li
-            v-for="handoverDocument in availability[project.id]?.handoverDocuments ?? []"
-            :key="handoverDocument.id"
-            class="flex items-center justify-between gap-3 px-3 py-2.5"
-          >
-            <span class="flex flex-col gap-0.5">
-              <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                <FolderCheck class="h-4 w-4 shrink-0 text-text-muted" />
-                {{ t('client.projectDocuments.handoverDocument') }}
-              </span>
-              <span class="pl-6 text-xs text-text-muted">{{ formatDate(handoverDocument.date) }}</span>
-            </span>
-            <IconButton
-              :icon="FolderCheck"
-              :label="t('document.card.viewDocument')"
-              size="sm"
-              @click="viewHandoverDocument(handoverDocument.id)"
-            />
-          </li>
-        </ul>
-      </div>
-    </div>
+            <ul v-else class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
+              <li
+                v-if="availability[project.id]?.quotation"
+                class="flex items-center justify-between gap-3 px-3 py-2.5"
+              >
+                <span class="flex flex-col gap-0.5">
+                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                    <FileText class="h-4 w-4 shrink-0 text-text-muted" />
+                    {{ t('client.projectDocuments.signedQuotation') }}
+                  </span>
+                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.quotation!.date) }}</span>
+                </span>
+                <IconButton
+                  :icon="FileText"
+                  :label="t('document.card.viewDocument')"
+                  size="sm"
+                  @click="viewQuotation(availability[project.id]!.quotation!.id)"
+                />
+              </li>
+              <li v-if="availability[project.id]?.agreement" class="flex items-center justify-between gap-3 px-3 py-2.5">
+                <span class="flex flex-col gap-0.5">
+                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                    <Wallet class="h-4 w-4 shrink-0 text-text-muted" />
+                    {{ t('client.projectDocuments.approvedPaymentPlan') }}
+                  </span>
+                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.agreement!.date) }}</span>
+                </span>
+                <IconButton
+                  :icon="Wallet"
+                  :label="t('document.card.viewDocument')"
+                  size="sm"
+                  @click="viewPaymentPlan(project.projectNo)"
+                />
+              </li>
+              <li v-if="availability[project.id]?.contract" class="flex items-center justify-between gap-3 px-3 py-2.5">
+                <span class="flex flex-col gap-0.5">
+                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                    <FileSignature class="h-4 w-4 shrink-0 text-text-muted" />
+                    {{ t('client.projectDocuments.signedContract') }}
+                  </span>
+                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.contract!.date) }}</span>
+                </span>
+                <IconButton
+                  :icon="FileSignature"
+                  :label="t('document.card.viewDocument')"
+                  size="sm"
+                  @click="viewContract(availability[project.id]!.contract!.id)"
+                />
+              </li>
+              <li
+                v-for="handoverDocument in availability[project.id]?.handoverDocuments ?? []"
+                :key="handoverDocument.id"
+                class="flex items-center justify-between gap-3 px-3 py-2.5"
+              >
+                <span class="flex flex-col gap-0.5">
+                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
+                    <FolderCheck class="h-4 w-4 shrink-0 text-text-muted" />
+                    {{ t('client.projectDocuments.handoverDocument') }}
+                  </span>
+                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(handoverDocument.date) }}</span>
+                </span>
+                <IconButton
+                  :icon="FolderCheck"
+                  :label="t('document.card.viewDocument')"
+                  size="sm"
+                  @click="viewHandoverDocument(handoverDocument.id)"
+                />
+              </li>
+            </ul>
+          </div>
+        </div>
+      </template>
+    </PaginatedList>
   </component>
 </template>

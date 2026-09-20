@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import PendingTasksWidget from '@/components/dashboard/PendingTasksWidget.vue'
 import RecentDocumentsWidget from '@/components/dashboard/RecentDocumentsWidget.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -55,7 +56,6 @@ const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
 // mock list -- real data, so this genuinely changes as projects are added.
 const recentProjects = computed<ProjectSummary[]>(() =>
   [...projectStore.projects]
-    .slice(-8)
     .reverse()
     .map((project) => ({
       id: project.id,
@@ -86,7 +86,6 @@ function projectNameFor(projectId: string): string {
 const pendingTasks = computed<Task[]>(() =>
   taskStore.tasks
     .filter((task) => task.status !== 'Completed')
-    .slice(0, 6)
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -101,7 +100,6 @@ const pendingTasks = computed<Task[]>(() =>
 const recentDocuments = computed<DocumentItem[]>(() =>
   [...documentStore.documents]
     .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))
-    .slice(0, 5)
     .map((document) => ({
       id: document.id,
       name: document.title,
@@ -138,9 +136,13 @@ function handleKpiClick(): void {
 
     <div v-if="recentProjects.length > 0" class="flex flex-col gap-3">
       <h2 class="text-sm font-semibold text-text-primary">{{ t('dashboard.recentProjects') }}</h2>
-      <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
-        <ProjectSummaryCard v-for="project in recentProjects" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
-      </div>
+      <PaginatedList :items="recentProjects" :page-size="8" :page-size-options="[4, 8, 12, 24]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
+            <ProjectSummaryCard v-for="project in items" :key="project.id" :project="project" @click="handleProjectClick(project.id)" />
+          </div>
+        </template>
+      </PaginatedList>
     </div>
 
     <div class="grid grid-cols-1 laptop:grid-cols-2 gap-6">

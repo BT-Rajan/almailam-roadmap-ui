@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import AddLinkDocumentDialog from '@/components/document/AddLinkDocumentDialog.vue'
@@ -115,15 +116,19 @@ onMounted(loadDocumentsData)
         :title="t('project.documentsTab.noIdentificationDocumentsTitle')"
         :description="t('project.documentsTab.noIdentificationDocumentsDescription')"
       />
-      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-        <CustomerIdDocumentCard
-          v-for="document in customerIdDocuments"
-          :key="document.id"
-          :document="document"
-          @view="viewCustomerDocument"
-          @download="downloadCustomerDocument"
-        />
-      </div>
+      <PaginatedList v-else :items="customerIdDocuments" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+            <CustomerIdDocumentCard
+              v-for="document in items"
+              :key="document.id"
+              :document="document"
+              @view="viewCustomerDocument"
+              @download="downloadCustomerDocument"
+            />
+          </div>
+        </template>
+      </PaginatedList>
     </section>
 
     <!-- 2. Property Documents -->
@@ -140,14 +145,18 @@ onMounted(loadDocumentsData)
         :title="t('project.documentsTab.noPropertyDocumentsTitle')"
         :description="t('project.documentsTab.noPropertyDocumentsDescription')"
       />
-      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-        <LinkDocumentCard
-          v-for="document in linkDocumentsFor('Property')"
-          :key="document.id"
-          :document="document"
-          @delete="requestLinkDelete"
-        />
-      </div>
+      <PaginatedList v-else :items="linkDocumentsFor('Property')" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+            <LinkDocumentCard
+              v-for="document in items"
+              :key="document.id"
+              :document="document"
+              @delete="requestLinkDelete"
+            />
+          </div>
+        </template>
+      </PaginatedList>
     </section>
 
     <!-- 3. Government Documents -->
@@ -170,14 +179,18 @@ onMounted(loadDocumentsData)
         :title="t('project.documentsTab.noGovernmentDocumentsTitle')"
         :description="t('project.documentsTab.noGovernmentDocumentsDescription')"
       />
-      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-        <LinkDocumentCard
-          v-for="document in linkDocumentsFor('Government')"
-          :key="document.id"
-          :document="document"
-          @delete="requestLinkDelete"
-        />
-      </div>
+      <PaginatedList v-else :items="linkDocumentsFor('Government')" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+            <LinkDocumentCard
+              v-for="document in items"
+              :key="document.id"
+              :document="document"
+              @delete="requestLinkDelete"
+            />
+          </div>
+        </template>
+      </PaginatedList>
     </section>
 
     <!-- 4. Others -->
@@ -194,14 +207,18 @@ onMounted(loadDocumentsData)
         :title="t('project.documentsTab.noOtherDocumentsTitle')"
         :description="t('project.documentsTab.noOtherDocumentsDescription')"
       />
-      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-        <LinkDocumentCard
-          v-for="document in linkDocumentsFor('Others')"
-          :key="document.id"
-          :document="document"
-          @delete="requestLinkDelete"
-        />
-      </div>
+      <PaginatedList v-else :items="linkDocumentsFor('Others')" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+            <LinkDocumentCard
+              v-for="document in items"
+              :key="document.id"
+              :document="document"
+              @delete="requestLinkDelete"
+            />
+          </div>
+        </template>
+      </PaginatedList>
     </section>
 
     <AddLinkDocumentDialog

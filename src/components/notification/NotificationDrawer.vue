@@ -7,8 +7,9 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import Loader from '@/components/common/Loader.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import NotificationItem from '@/components/notification/NotificationItem.vue'
-import { useNotificationStore } from '@/stores/notificationStore'
+import { groupNotifications, useNotificationStore } from '@/stores/notificationStore'
 import type { AppNotification } from '@/types/Notification'
 
 const notificationStore = useNotificationStore()
@@ -57,18 +58,22 @@ const handleSelect = async (notification: AppNotification): Promise<void> => {
       :description="t('navigation.notificationDrawer.noNotificationsYetDescription')"
     />
 
-    <div v-else class="flex flex-col gap-4">
-      <section v-for="group in notificationStore.groupedNotifications" :key="group.label">
-        <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ group.label }}</p>
-        <div class="flex flex-col divide-y divide-border-light">
-          <NotificationItem
-            v-for="notification in group.notifications"
-            :key="notification.id"
-            :notification="notification"
-            @select="handleSelect"
-          />
+    <PaginatedList v-else :items="notificationStore.notifications" :page-size="10" stacked>
+      <template #default="{ items }">
+        <div class="flex flex-col gap-4">
+          <section v-for="group in groupNotifications(items)" :key="group.label">
+            <p class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">{{ group.label }}</p>
+            <div class="flex flex-col divide-y divide-border-light">
+              <NotificationItem
+                v-for="notification in group.notifications"
+                :key="notification.id"
+                :notification="notification"
+                @select="handleSelect"
+              />
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      </template>
+    </PaginatedList>
   </BaseDrawer>
 </template>

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import TaskCard from '@/components/task/TaskCard.vue'
 import type { Project } from '@/types/Project'
 import type { Task, TaskStatus } from '@/types/Task'
@@ -52,15 +53,19 @@ function projectName(projectId: string): string {
         :description="t('task.board.noTasksDescription')"
       />
 
-      <TaskCard
-        v-for="task in tasksByStatus[column.status]"
-        :key="task.id"
-        :task="task"
-        :project-name="projectName(task.projectId)"
-        :client-name="getClientNameByProjectId(task.projectId)"
-        @open="emit('open', $event)"
-        @advance="emit('advance', $event)"
-      />
+      <PaginatedList :items="tasksByStatus[column.status]" :page-size="10" stacked pager-class="rounded-lg bg-bg-card">
+        <template #default="{ items }">
+          <TaskCard
+            v-for="task in items"
+            :key="task.id"
+            :task="task"
+            :project-name="projectName(task.projectId)"
+            :client-name="getClientNameByProjectId(task.projectId)"
+            @open="emit('open', $event)"
+            @advance="emit('advance', $event)"
+          />
+        </template>
+      </PaginatedList>
     </div>
   </div>
 </template>

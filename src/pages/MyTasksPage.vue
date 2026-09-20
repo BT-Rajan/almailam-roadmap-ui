@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskList from '@/components/task/TaskList.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -45,12 +46,15 @@ function openTask(taskId: string): void {
       <SkeletonLoader :rows="6" />
     </div>
 
-    <TaskList
-      v-else
-      :tasks="taskStore.myTasks"
-      :get-project-by-id="taskStore.getProjectById"
-      :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
-      @open="openTask"
-    />
+    <PaginatedList v-else :items="taskStore.myTasks" :page-size="10" pager-class="rounded-xl border border-border-light">
+      <template #default="{ items }">
+        <TaskList
+          :tasks="items"
+          :get-project-by-id="taskStore.getProjectById"
+          :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
+          @open="openTask"
+        />
+      </template>
+    </PaginatedList>
   </div>
 </template>

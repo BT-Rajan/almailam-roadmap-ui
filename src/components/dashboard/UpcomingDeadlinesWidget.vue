@@ -5,18 +5,19 @@ import { useI18n } from 'vue-i18n'
 import type { Deadline } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import { useLocale } from '@/composables/useLocale'
 
 interface Props {
   deadlines: Deadline[]
   title?: string
-  maxItems?: number
+  pageSize?: number
   emptyText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: undefined,
-  maxItems: 5,
+  pageSize: 5,
   emptyText: undefined,
 })
 
@@ -32,7 +33,6 @@ defineEmits<{
 const sortedDeadlines = computed(() =>
   [...props.deadlines]
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .slice(0, props.maxItems)
 )
 
 const daysUntilDeadline = (date: string) => {
@@ -89,25 +89,29 @@ const statusLabel = (status: string, days: number) => {
     </template>
 
     <EmptyState v-if="sortedDeadlines.length === 0" :title="emptyText ?? t('dashboard.noUpcomingDeadlines')" :bordered="false" />
-    <ul v-else class="divide-y divide-border-light">
-      <li
-        v-for="deadline in sortedDeadlines"
-        :key="deadline.id"
-        class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
-        @click="$emit('deadline-click', deadline.id)"
-      >
-        <span :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-full', badgeColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
-          <CalendarClock class="h-5 w-5" />
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium text-text-primary">{{ deadline.title }}</p>
-          <p class="mt-0.5 truncate text-xs text-text-muted">{{ deadline.project }}</p>
-        </div>
-        <span :class="['shrink-0 text-xs font-semibold', statusTextColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
-          {{ statusLabel(deadlineStatus(daysUntilDeadline(deadline.dueDate)), daysUntilDeadline(deadline.dueDate)) }}
-        </span>
-        <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
-      </li>
-    </ul>
+    <PaginatedList v-else :items="sortedDeadlines" :page-size="pageSize">
+      <template #default="{ items }">
+        <ul class="divide-y divide-border-light">
+          <li
+            v-for="deadline in items"
+            :key="deadline.id"
+            class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
+            @click="$emit('deadline-click', deadline.id)"
+          >
+            <span :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-full', badgeColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
+              <CalendarClock class="h-5 w-5" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-text-primary">{{ deadline.title }}</p>
+              <p class="mt-0.5 truncate text-xs text-text-muted">{{ deadline.project }}</p>
+            </div>
+            <span :class="['shrink-0 text-xs font-semibold', statusTextColor(deadlineStatus(daysUntilDeadline(deadline.dueDate)))]">
+              {{ statusLabel(deadlineStatus(daysUntilDeadline(deadline.dueDate)), daysUntilDeadline(deadline.dueDate)) }}
+            </span>
+            <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
+          </li>
+        </ul>
+      </template>
+    </PaginatedList>
   </Card>
 </template>

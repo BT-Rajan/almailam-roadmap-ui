@@ -8,6 +8,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -448,40 +449,44 @@ async function handleActivityClick(activity: ActivityRecord) {
         <EmptyState :title="t('workspace.activityCalendarPage.noActivitiesOnThisDay')" />
       </div>
 
-      <div v-else class="flex flex-col gap-3">
-        <Card
-          v-for="activity in filteredActivities"
-          :key="activity.id"
-          hoverable
-          class="cursor-pointer"
-          @click="handleActivityClick(activity)"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <p class="font-semibold text-text-primary">{{ activity.entityName }}</p>
-              <p class="text-sm text-text-muted">{{ activity.projectName }}</p>
-            </div>
-            <StatusBadge :variant="activityTypeVariants[activity.type]" :label="activity.type.toUpperCase()" />
-          </div>
+      <PaginatedList v-else :items="filteredActivities" :page-size="5" stacked>
+        <template #default="{ items }">
+          <div class="flex flex-col gap-3">
+            <Card
+              v-for="activity in items"
+              :key="activity.id"
+              hoverable
+              class="cursor-pointer"
+              @click="handleActivityClick(activity)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="font-semibold text-text-primary">{{ activity.entityName }}</p>
+                  <p class="text-sm text-text-muted">{{ activity.projectName }}</p>
+                </div>
+                <StatusBadge :variant="activityTypeVariants[activity.type]" :label="activity.type.toUpperCase()" />
+              </div>
 
-          <p class="mt-2 text-sm text-text-secondary">{{ activity.description }}</p>
+              <p class="mt-2 text-sm text-text-secondary">{{ activity.description }}</p>
 
-          <div class="mt-2 flex items-center justify-between text-xs text-text-muted">
-            <span v-if="canViewAll">{{ t('workspace.activityCalendarPage.byUser', { name: activity.userName }) }}</span>
-            <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
-          </div>
+              <div class="mt-2 flex items-center justify-between text-xs text-text-muted">
+                <span v-if="canViewAll">{{ t('workspace.activityCalendarPage.byUser', { name: activity.userName }) }}</span>
+                <span>{{ formatTime(new Date(activity.timestamp)) }}</span>
+              </div>
 
-          <div class="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary-600">
-            <template v-if="activity.entityType === EntityType.TASK">
-              {{ t('workspace.activityCalendarPage.viewTaskDetails') }}
-            </template>
-            <template v-else>
-              <ClipboardPlus class="h-3.5 w-3.5" />
-              {{ t('workspace.activityCalendarPage.createFollowUpTask') }}
-            </template>
+              <div class="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary-600">
+                <template v-if="activity.entityType === EntityType.TASK">
+                  {{ t('workspace.activityCalendarPage.viewTaskDetails') }}
+                </template>
+                <template v-else>
+                  <ClipboardPlus class="h-3.5 w-3.5" />
+                  {{ t('workspace.activityCalendarPage.createFollowUpTask') }}
+                </template>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        </template>
+      </PaginatedList>
     </BaseDrawer>
   </div>
 </template>

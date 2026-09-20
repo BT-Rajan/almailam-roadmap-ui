@@ -20,6 +20,7 @@ import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.v
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import ProjectStageStepper from '@/components/project/ProjectStageStepper.vue'
 import SubmissionFilesList from '@/components/government/SubmissionFilesList.vue'
 import SubmissionWorkflowProgress from '@/components/government/SubmissionWorkflowProgress.vue'
@@ -739,24 +740,28 @@ function goBack(): void {
           <div v-if="submissionStore.followups.length === 0" class="text-sm text-text-muted">
             {{ t('government.workspacePage.noFollowUpsRecorded') }}
           </div>
-          <ul v-else class="flex flex-col divide-y divide-border-light">
-            <li v-for="followup in submissionStore.followups" :key="followup.id" class="flex flex-col gap-1 py-3">
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-sm font-medium text-text-primary">{{ followup.contactPerson }}</span>
-                <span class="text-xs text-text-muted">{{
-                  t('government.workspacePage.followUpAt', { date: formatDate(followup.followupDate), time: followup.followupTime })
-                }}</span>
-              </div>
-              <p v-if="followup.notes" class="text-sm text-text-secondary">{{ followup.notes }}</p>
-              <div v-if="followup.document" class="flex items-center gap-2 text-xs text-text-muted">
-                <span>{{ followup.document.originalFilename }} &middot; {{ followup.document.fileSizeLabel }}</span>
-                <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="downloadFollowupDocument(followup.id, followup.document.originalFilename)">
-                  {{ t('common.download') }}
-                </button>
-              </div>
-              <p class="text-xs text-text-muted">{{ t('government.workspacePage.loggedBy', { name: followup.createdBy }) }}</p>
-            </li>
-          </ul>
+          <PaginatedList v-else :items="submissionStore.followups">
+            <template #default="{ items }">
+              <ul class="flex flex-col divide-y divide-border-light">
+                <li v-for="followup in items" :key="followup.id" class="flex flex-col gap-1 py-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="text-sm font-medium text-text-primary">{{ followup.contactPerson }}</span>
+                    <span class="text-xs text-text-muted">{{
+                      t('government.workspacePage.followUpAt', { date: formatDate(followup.followupDate), time: followup.followupTime })
+                    }}</span>
+                  </div>
+                  <p v-if="followup.notes" class="text-sm text-text-secondary">{{ followup.notes }}</p>
+                  <div v-if="followup.document" class="flex items-center gap-2 text-xs text-text-muted">
+                    <span>{{ followup.document.originalFilename }} &middot; {{ followup.document.fileSizeLabel }}</span>
+                    <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="downloadFollowupDocument(followup.id, followup.document.originalFilename)">
+                      {{ t('common.download') }}
+                    </button>
+                  </div>
+                  <p class="text-xs text-text-muted">{{ t('government.workspacePage.loggedBy', { name: followup.createdBy }) }}</p>
+                </li>
+              </ul>
+            </template>
+          </PaginatedList>
         </Card>
 
         <Card v-else>
