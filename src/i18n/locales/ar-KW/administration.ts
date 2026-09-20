@@ -576,6 +576,17 @@ export default {
     failedToLoadPrerequisites: 'فشل تحميل المتطلبات المسبقة',
     failedToAddPrerequisite: 'فشلت إضافة المتطلب المسبق',
     failedToRemovePrerequisite: 'فشلت إزالة المتطلب المسبق',
+    permitSettings: 'إعدادات التصريح',
+    setupMissing: 'غير مُعدّ',
+    applicationSetupDescription: 'تبدأ الطلبات لهذا النوع من التصاريح بالجهة والنموذج وقائمة المستندات المحددة هنا — لا يحتاج الموظفون إلى اختيار شيء.',
+    authority: 'الجهة',
+    selectAuthority: 'اختر جهة',
+    form: 'نموذج الطلب',
+    selectForm: 'اختر نموذجًا',
+    requiredDocuments: 'المستندات المطلوبة',
+    requiredDocumentsHint: 'مستند واحد في كل سطر. اتركه فارغًا لاستخدام قائمة النموذج نفسه (تظهر كنص توضيحي).',
+    saveSetup: 'حفظ الإعداد',
+    setupSaved: 'تم حفظ إعداد الطلب',
   },
 
   serviceCatalog: {

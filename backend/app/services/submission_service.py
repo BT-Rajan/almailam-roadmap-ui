@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.core.status_transitions import SUBMISSION_ALLOWED_TRANSITIONS
 from app.core.workflow import assert_transition_allowed
@@ -17,6 +17,7 @@ from app.services import (
     email_template_service,
     government_service,
     notification_service,
+    permit_catalog_service,
     project_service,
     timeline_service,
 )
@@ -114,27 +115,60 @@ def user_names(db: Session, user_ids: set[int]) -> dict[int, str]:
     return {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
 
 
+def _assert_no_open_application(db: Session, selected_permit_id: int) -> None:
+    open_application = (
+        db.query(GovernmentSubmission)
+        .filter(
+            GovernmentSubmission.project_selected_permit_id == selected_permit_id,
+            GovernmentSubmission.stage != "Close",
+            GovernmentSubmission.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if open_application is not None:
+        raise ConflictError(
+            f"Permit application {open_application.submission_no} is already open for this permit."
+        )
+
+
 def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSubmission:
-    """Starts a new Permit Application in Prepare -- picking which
-    authority/form (i.e. which type of approval) this application is
-    for. The rest of Prepare (filling the form in via ProjectFormEntry,
+    """Starts a new Permit Application in Prepare. Either the caller picks
+    the authority/form (an ad hoc application), or -- sent with only a
+    selectedPermitId -- the planned permit's own type decides the
+    authority, form and checklist, so nothing is chosen and nothing can
+    be mismatched. The rest of Prepare (filling the form in via ProjectFormEntry,
     getting the required-documents checklist ready, then
     confirm_readiness below) happens against this row afterward."""
     project = _parse_project_id_from_no(payload.projectId, db)
-    authority_id = government_service.parse_authority_id(payload.authorityId)
-    form_id = government_service.parse_form_id(payload.formId)
-    government_service.get_authority(db, authority_id)  # 404 if unknown
-    form = government_service.get_form(db, form_id)
 
-    selected_permit_id = None
+    selected_permit = None
     if getattr(payload, "selectedPermitId", None):
         if not payload.selectedPermitId.isdigit():
             raise ValidationAppError("selectedPermitId must be a valid id.")
         # Scoped to this same project -- 404s rather than silently
         # linking to another project's planned permit.
-        selected_permit_id = project_service.get_selected_permit(
-            db, project.id, int(payload.selectedPermitId)
-        ).id
+        selected_permit = project_service.get_selected_permit(db, project.id, int(payload.selectedPermitId))
+    selected_permit_id = selected_permit.id if selected_permit else None
+
+    documents_to_seed: list[str] | None = None
+    started_from_permit = payload.authorityId is None and payload.formId is None
+    if started_from_permit:
+        # Started from a planned permit: its type's setup decides
+        # everything (see permit_catalog_service.resolve_application_setup).
+        if selected_permit is None:
+            raise ValidationAppError("Choose an authority and a form, or start from a planned permit.")
+        _assert_no_open_application(db, selected_permit.id)
+        authority, form, documents_to_seed = permit_catalog_service.resolve_application_setup(
+            db, selected_permit.permit_catalog_item_id
+        )
+        authority_id, form_id = authority.id, form.id
+    elif payload.authorityId is None or payload.formId is None:
+        raise ValidationAppError("Choose both an authority and a form.")
+    else:
+        authority_id = government_service.parse_authority_id(payload.authorityId)
+        form_id = government_service.parse_form_id(payload.formId)
+        government_service.get_authority(db, authority_id)  # 404 if unknown
+        form = government_service.get_form(db, form_id)
 
     submission_no = next_number(db, "GOVERNMENT_SUBMISSION")
     submission = GovernmentSubmission(
@@ -153,8 +187,19 @@ def create_submission(db: Session, payload, user_id: int | None) -> GovernmentSu
     # required documents template -- each starts Pending until
     # uploaded/verified; this is what confirm_readiness's own check
     # waits on.
-    for document_name in form.required_documents:
+    # A permit type's own checklist, when it has one, replaces the form's.
+    for document_name in documents_to_seed if documents_to_seed is not None else form.required_documents:
         db.add(SubmissionDocument(submission_id=submission.id, name=document_name, status="Pending"))
+
+    # Starting an application from a planned permit is what "In Progress"
+    # means for it -- no separate click, and no second place to keep in step.
+    if started_from_permit and selected_permit.status in ("Planned", "Eligible"):
+        previous_status = selected_permit.status
+        selected_permit.status = "In Progress"
+        audit_service.log_event(
+            db, "PROJECT", project.id, "Permit status changed", user_id,
+            previous_value=previous_status, new_value="In Progress",
+        )
 
     audit_service.log_event(db, ENTITY_TYPE, submission.id, "Application created", user_id, new_value=submission.submission_no)
     timeline_service.create_system_event(

@@ -6,13 +6,16 @@ import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import PermitCatalogListEditor from '@/components/administration/PermitCatalogListEditor.vue'
+import { useGovernmentFormStore } from '@/stores/governmentFormStore'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
 import { useToastStore } from '@/stores/toastStore'
+import type { PermitApplicationSetupInput } from '@/types/PermitCatalog'
 import type { SelectOption } from '@/types/Ui'
 
 const permitCatalogStore = usePermitCatalogStore()
 const serviceCatalogStore = useServiceCatalogStore()
+const governmentFormStore = useGovernmentFormStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
@@ -33,11 +36,17 @@ const designActivityOptions = computed<SelectOption[]>(() =>
 function loadData(): void {
   permitCatalogStore.loadPermits()
   if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+  governmentFormStore.loadForms()
 }
 
+// Authorities and forms are re-read every time this opens, so a form
+// added or archived in Government Forms shows up in the setup pickers.
 onMounted(() => {
   if (permitCatalogStore.permits.length === 0) loadData()
-  else if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+  else {
+    if (serviceCatalogStore.services.length === 0) serviceCatalogStore.loadServices()
+    governmentFormStore.loadForms()
+  }
 })
 
 // New-permit edits and mutations save immediately as they're made (see
@@ -59,6 +68,16 @@ function handleUpdatePermit(permitId: string, name: string, fixedCost: number): 
   reportIfFailed(permitCatalogStore.renamePermit(permitId, name, fixedCost))
 }
 
+function handleSaveSetup(permitId: string, setup: PermitApplicationSetupInput): void {
+  permitCatalogStore.setApplicationSetup(permitId, setup).then(() => {
+    if (permitCatalogStore.mutationError) {
+      toastStore.show('error', t('common.changeNotSaved'), permitCatalogStore.mutationError)
+    } else {
+      toastStore.show('success', t('administration.permitCatalog.setupSaved'))
+    }
+  })
+}
+
 function handleRemovePermit(permitId: string): void {
   reportIfFailed(permitCatalogStore.removePermit(permitId))
 }
@@ -75,8 +94,11 @@ function handleRemovePermit(permitId: string): void {
     <PermitCatalogListEditor
       :permits="permitCatalogStore.permits"
       :design-activity-options="designActivityOptions"
+      :authorities="governmentFormStore.authorities"
+      :forms="governmentFormStore.forms"
       @add="handleAddPermit"
       @update="handleUpdatePermit"
+      @save-setup="handleSaveSetup"
       @remove="handleRemovePermit"
     />
   </Card>
