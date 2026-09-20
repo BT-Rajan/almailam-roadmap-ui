@@ -61,7 +61,11 @@ const inputClasses = computed(() => [
       <span v-if="required" class="text-danger-500">*</span>
     </label>
     <div class="relative">
-      <span v-if="prefix" class="pointer-events-none absolute inset-y-0 start-3 flex items-center text-sm font-medium text-text-muted" aria-hidden="true">
+      <!-- z-10: every .bg-bg-* surface (this input included) gets a
+           backdrop-filter from the glass theme in main.css, which makes it
+           paint above earlier positioned siblings -- without a z-index the
+           translucent input covered this prefix and left it barely visible. -->
+      <span v-if="prefix" class="pointer-events-none absolute inset-y-0 start-3 z-10 flex items-center text-sm font-medium text-text-muted" aria-hidden="true">
         {{ prefix }}
       </span>
       <input
