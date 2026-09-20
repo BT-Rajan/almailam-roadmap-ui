@@ -102,9 +102,63 @@ function loadAll(): void {
 onMounted(loadAll)
 watch(() => props.projects.map((p) => p.id).join(','), loadAll)
 
-function hasAnyDocument(entry: ProjectDocsAvailability | undefined): boolean {
-  if (!entry) return false
-  return Boolean(entry.quotation || entry.agreement || entry.contract || entry.handoverDocuments.length > 0)
+// The list is paged by document, not by project: a project can carry
+// several documents (any number of signed hand-over acknowledgments), so
+// paging by project would still leave one project's section unbounded.
+// Every project contributes at least one row -- a placeholder while its
+// documents load, or a "none yet" line once they have -- so it keeps its
+// heading and the panel still reads the same for a client with one
+// project as for several.
+type DocumentKind = 'quotation' | 'paymentPlan' | 'contract' | 'handover'
+
+interface DocumentRow {
+  key: string
+  project: Project
+  state: 'loading' | 'empty' | 'document'
+  kind?: DocumentKind
+  documentId?: string
+  date?: string
+}
+
+const DOCUMENT_KINDS: Record<DocumentKind, { icon: typeof FileText; labelKey: string }> = {
+  quotation: { icon: FileText, labelKey: 'client.projectDocuments.signedQuotation' },
+  paymentPlan: { icon: Wallet, labelKey: 'client.projectDocuments.approvedPaymentPlan' },
+  contract: { icon: FileSignature, labelKey: 'client.projectDocuments.signedContract' },
+  handover: { icon: FolderCheck, labelKey: 'client.projectDocuments.handoverDocument' },
+}
+
+const rows = computed<DocumentRow[]>(() =>
+  sortedProjects.value.flatMap((project): DocumentRow[] => {
+    if (loadingIds.has(project.id) || !availability[project.id]) return [{ key: `${project.id}:loading`, project, state: 'loading' }]
+    const entry = availability[project.id]!
+    const documents: DocumentRow[] = []
+    if (entry.quotation) documents.push({ key: `${project.id}:quotation`, project, state: 'document', kind: 'quotation', documentId: entry.quotation.id, date: entry.quotation.date })
+    if (entry.agreement) documents.push({ key: `${project.id}:paymentPlan`, project, state: 'document', kind: 'paymentPlan', date: entry.agreement.date })
+    if (entry.contract) documents.push({ key: `${project.id}:contract`, project, state: 'document', kind: 'contract', documentId: entry.contract.id, date: entry.contract.date })
+    for (const handover of entry.handoverDocuments) {
+      documents.push({ key: `${project.id}:handover:${handover.id}`, project, state: 'document', kind: 'handover', documentId: handover.id, date: handover.date })
+    }
+    return documents.length > 0 ? documents : [{ key: `${project.id}:empty`, project, state: 'empty' }]
+  }),
+)
+
+// One page's rows, regrouped under their project heading (a project whose
+// documents straddle two pages simply shows its heading on both).
+function groupByProject(pageRows: DocumentRow[]): { project: Project; rows: DocumentRow[] }[] {
+  const groups: { project: Project; rows: DocumentRow[] }[] = []
+  for (const row of pageRows) {
+    const last = groups[groups.length - 1]
+    if (last && last.project.id === row.project.id) last.rows.push(row)
+    else groups.push({ project: row.project, rows: [row] })
+  }
+  return groups
+}
+
+function openDocument(row: DocumentRow): void {
+  if (row.kind === 'quotation' && row.documentId) void viewQuotation(row.documentId)
+  else if (row.kind === 'paymentPlan') void viewPaymentPlan(row.project.projectNo)
+  else if (row.kind === 'contract' && row.documentId) void viewContract(row.documentId)
+  else if (row.kind === 'handover' && row.documentId) void viewHandoverDocument(row.documentId)
 }
 
 async function viewQuotation(quotationId: string): Promise<void> {
@@ -165,91 +219,34 @@ async function viewHandoverDocument(documentId: string): Promise<void> {
       :description="t('client.projectDocuments.noProjectsDescription')"
     />
 
-    <PaginatedList v-else :items="sortedProjects" :page-size="5">
+    <PaginatedList v-else :items="rows" :page-size="10" stacked>
       <template #default="{ items }">
         <div class="flex flex-col gap-5">
-          <div v-for="project in items" :key="project.id" class="flex flex-col gap-2">
+          <div v-for="group in groupByProject(items)" :key="group.project.id" class="flex flex-col gap-2">
             <!-- Project heading -- shown per project even with just one, so
                  the structure reads the same whether a client has one
                  project or several (arranged by project once there's more
                  than one, per the brief). -->
             <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
-              {{ project.projectNo }} &ndash; {{ project.projectName }}
+              {{ group.project.projectNo }} &ndash; {{ group.project.projectName }}
             </p>
 
-            <SkeletonLoader v-if="loadingIds.has(project.id)" :rows="2" />
+            <SkeletonLoader v-if="group.rows[0].state === 'loading'" :rows="2" />
 
-            <p v-else-if="!hasAnyDocument(availability[project.id])" class="text-sm text-text-muted">
+            <p v-else-if="group.rows[0].state === 'empty'" class="text-sm text-text-muted">
               {{ t('client.projectDocuments.noneAvailableYet') }}
             </p>
 
             <ul v-else class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
-              <li
-                v-if="availability[project.id]?.quotation"
-                class="flex items-center justify-between gap-3 px-3 py-2.5"
-              >
+              <li v-for="row in group.rows" :key="row.key" class="flex items-center justify-between gap-3 px-3 py-2.5">
                 <span class="flex flex-col gap-0.5">
                   <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                    <FileText class="h-4 w-4 shrink-0 text-text-muted" />
-                    {{ t('client.projectDocuments.signedQuotation') }}
+                    <component :is="DOCUMENT_KINDS[row.kind!].icon" class="h-4 w-4 shrink-0 text-text-muted" />
+                    {{ t(DOCUMENT_KINDS[row.kind!].labelKey) }}
                   </span>
-                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.quotation!.date) }}</span>
+                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(row.date!) }}</span>
                 </span>
-                <IconButton
-                  :icon="FileText"
-                  :label="t('document.card.viewDocument')"
-                  size="sm"
-                  @click="viewQuotation(availability[project.id]!.quotation!.id)"
-                />
-              </li>
-              <li v-if="availability[project.id]?.agreement" class="flex items-center justify-between gap-3 px-3 py-2.5">
-                <span class="flex flex-col gap-0.5">
-                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                    <Wallet class="h-4 w-4 shrink-0 text-text-muted" />
-                    {{ t('client.projectDocuments.approvedPaymentPlan') }}
-                  </span>
-                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.agreement!.date) }}</span>
-                </span>
-                <IconButton
-                  :icon="Wallet"
-                  :label="t('document.card.viewDocument')"
-                  size="sm"
-                  @click="viewPaymentPlan(project.projectNo)"
-                />
-              </li>
-              <li v-if="availability[project.id]?.contract" class="flex items-center justify-between gap-3 px-3 py-2.5">
-                <span class="flex flex-col gap-0.5">
-                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                    <FileSignature class="h-4 w-4 shrink-0 text-text-muted" />
-                    {{ t('client.projectDocuments.signedContract') }}
-                  </span>
-                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(availability[project.id]!.contract!.date) }}</span>
-                </span>
-                <IconButton
-                  :icon="FileSignature"
-                  :label="t('document.card.viewDocument')"
-                  size="sm"
-                  @click="viewContract(availability[project.id]!.contract!.id)"
-                />
-              </li>
-              <li
-                v-for="handoverDocument in availability[project.id]?.handoverDocuments ?? []"
-                :key="handoverDocument.id"
-                class="flex items-center justify-between gap-3 px-3 py-2.5"
-              >
-                <span class="flex flex-col gap-0.5">
-                  <span class="inline-flex items-center gap-2 text-sm text-text-primary">
-                    <FolderCheck class="h-4 w-4 shrink-0 text-text-muted" />
-                    {{ t('client.projectDocuments.handoverDocument') }}
-                  </span>
-                  <span class="pl-6 text-xs text-text-muted">{{ formatDate(handoverDocument.date) }}</span>
-                </span>
-                <IconButton
-                  :icon="FolderCheck"
-                  :label="t('document.card.viewDocument')"
-                  size="sm"
-                  @click="viewHandoverDocument(handoverDocument.id)"
-                />
+                <IconButton :icon="DOCUMENT_KINDS[row.kind!].icon" :label="t('document.card.viewDocument')" size="sm" @click="openDocument(row)" />
               </li>
             </ul>
           </div>
