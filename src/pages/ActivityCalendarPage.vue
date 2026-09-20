@@ -291,7 +291,7 @@ async function handleActivityClick(activity: ActivityRecord) {
 </script>
 
 <template>
-  <div class="min-h-screen">
+  <div class="min-h-screen p-6 laptop:p-8">
     <PageHeader
       :title="t('common.activityCalendar')"
       :subtitle="canViewAll ? t('workspace.activityCalendarPage.subtitleAll') : t('workspace.activityCalendarPage.subtitleMine')"

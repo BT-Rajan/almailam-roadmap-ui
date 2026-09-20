@@ -61,19 +61,19 @@ const initials = computed(() =>
 
 <template>
   <Card hoverable class="cursor-pointer" @click="$emit('click')">
-    <div class="flex flex-col gap-3">
-      <div class="flex items-start gap-3">
+    <div class="flex flex-col items-center gap-3 text-center">
+      <div class="flex max-w-full flex-col items-center gap-2">
         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-sm font-semibold text-accent-700">
           {{ initials }}
         </span>
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 max-w-full">
           <h3 class="truncate font-medium text-text-primary">{{ project.name }}</h3>
           <p class="truncate text-xs text-text-muted">{{ project.client }}</p>
         </div>
         <StatusBadge :label="statusLabel" :variant="statusVariant" class="shrink-0" />
       </div>
 
-      <div class="space-y-2">
+      <div class="w-full space-y-2">
         <div class="flex items-center justify-between text-xs">
           <span class="text-text-secondary">{{ t('dashboard.progress') }}</span>
           <span class="font-medium text-text-primary">{{ project.progress }}%</span>

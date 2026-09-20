@@ -53,7 +53,7 @@ function projectName(projectId: string): string {
         :description="t('task.board.noTasksDescription')"
       />
 
-      <PaginatedList :items="tasksByStatus[column.status]" :page-size="10" stacked pager-class="rounded-lg bg-bg-card">
+      <PaginatedList :items="tasksByStatus[column.status]" :page-size="10" stacked pager-class="rounded-lg bg-bg-card" pager-inset="table">
         <template #default="{ items }">
           <TaskCard
             v-for="task in items"

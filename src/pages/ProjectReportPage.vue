@@ -115,7 +115,7 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto space-y-8 pb-12">
+  <div class="max-w-6xl mx-auto space-y-8 p-6 laptop:p-8">
     <div class="flex items-center justify-between">
       <BaseButton variant="ghost" size="sm" @click="goBack"> ← {{ t('project.reportPage.back') }} </BaseButton>
     </div>

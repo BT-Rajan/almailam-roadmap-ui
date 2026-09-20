@@ -79,11 +79,11 @@ const formatDate = formatShortDate
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.pendingTasks') }}</h3>
+      <h3 class="text-center text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.pendingTasks') }}</h3>
     </template>
 
     <EmptyState v-if="displayedTasks.length === 0" :title="t('dashboard.noPendingTasks')" :bordered="false" />
-    <PaginatedList v-else :items="displayedTasks" :page-size="pageSize">
+    <PaginatedList v-else :items="displayedTasks" :page-size="pageSize" pager-inset="card">
       <template #default="{ items }">
         <ul class="divide-y divide-border-light">
           <li

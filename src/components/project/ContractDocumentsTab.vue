@@ -390,7 +390,7 @@ function viewStatusReport(report: StatusReport): void {
         :description="t('project.contractDocumentsTab.noStatusReportsDescription')"
       />
       <Card v-else :padded="false">
-        <PaginatedList :items="statusReports">
+        <PaginatedList :items="statusReports" pager-inset="card">
           <template #default="{ items }">
             <ul class="flex flex-col divide-y divide-border-light">
               <li v-for="report in items" :key="report.id" class="flex items-center justify-between gap-3 px-5 py-4">

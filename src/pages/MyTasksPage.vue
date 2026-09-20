@@ -46,7 +46,7 @@ function openTask(taskId: string): void {
       <SkeletonLoader :rows="6" />
     </div>
 
-    <PaginatedList v-else :items="taskStore.myTasks" :page-size="10" pager-class="rounded-xl border border-border-light">
+    <PaginatedList v-else :items="taskStore.myTasks" :page-size="10" pager-class="rounded-xl border border-border-light" pager-inset="table">
       <template #default="{ items }">
         <TaskList
           :tasks="items"
