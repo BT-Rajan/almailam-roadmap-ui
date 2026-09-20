@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -222,6 +223,11 @@ class SubmissionDocumentOut(BaseModel):
     fileSizeLabel: str | None = None
     uploadDate: date | None = None
     uploadedBy: str | None = None
+    # Set when the entry reuses a document already on file: what kind
+    # ("project" / "client" / "link" / "application"), and -- for a link
+    # rather than a stored file -- where it points.
+    source: str | None = None
+    externalLink: str | None = None
 
     @staticmethod
     def from_model(document, uploaded_by_name: str | None) -> "SubmissionDocumentOut":
@@ -235,7 +241,30 @@ class SubmissionDocumentOut(BaseModel):
             fileSizeLabel=format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
             uploadDate=document.upload_date,
             uploadedBy=uploaded_by_name,
+            source=document.source_type,
+            externalLink=document.external_link,
         )
+
+
+class DocumentCandidateOut(BaseModel):
+    """One document already on file that could satisfy a checklist entry."""
+
+    sourceType: Literal["project", "client", "link", "application"]
+    sourceId: int
+    title: str
+    category: str
+    filename: str | None = None
+    fileSizeLabel: str | None = None
+    externalLink: str | None = None
+    onDate: date | None = None
+    expiryDate: date | None = None
+    suggested: bool = False
+    fromApplication: str | None = None
+
+
+class DocumentAttach(BaseModel):
+    sourceType: Literal["project", "client", "link", "application"]
+    sourceId: int = Field(gt=0)
 
 
 class ProofOfFileOut(BaseModel):

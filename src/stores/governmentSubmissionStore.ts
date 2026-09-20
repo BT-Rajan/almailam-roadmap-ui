@@ -12,7 +12,7 @@ import type {
 import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
-import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
+import type { DocumentSourceType, GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
 import { describeStoreError } from '@/utils/storeError'
 
 interface GovernmentSubmissionStoreState {
@@ -183,6 +183,27 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
         return true
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to upload the document.'
+        return false
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    // Satisfies a checklist entry with a document already on file.
+    async attachDocument(
+      submissionId: string,
+      documentId: number,
+      sourceType: DocumentSourceType,
+      sourceId: number,
+    ): Promise<boolean> {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await governmentSubmissionService.attachDocument(submissionId, documentId, sourceType, sourceId)
+        this._replaceSubmission(updated)
+        return true
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to attach the document.'
         return false
       } finally {
         this.isMutating = false

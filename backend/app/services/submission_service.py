@@ -378,6 +378,11 @@ def upload_document(
     document.file_size_bytes = size_bytes
     document.uploaded_by = user_id
     document.upload_date = date.today()
+    # A direct upload replaces whatever document on file this entry was
+    # pointing at (see submission_document_source_service.attach).
+    document.source_type = None
+    document.source_id = None
+    document.external_link = None
     if document.status == "Pending":
         document.status = "Uploaded"
 

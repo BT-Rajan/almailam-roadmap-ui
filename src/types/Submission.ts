@@ -29,6 +29,28 @@ export interface SubmissionDocument {
   fileSizeLabel?: string | null
   uploadDate?: string | null
   uploadedBy?: string | null
+  // Set when the entry reuses a document already on file instead of a
+  // direct upload; externalLink when that document is a link, not a file.
+  source?: DocumentSourceType | null
+  externalLink?: string | null
+}
+
+export type DocumentSourceType = 'project' | 'client' | 'link' | 'application'
+
+// One document already on file that could satisfy a checklist entry.
+export interface DocumentCandidate {
+  sourceType: DocumentSourceType
+  sourceId: number
+  title: string
+  category: string
+  filename?: string | null
+  fileSizeLabel?: string | null
+  externalLink?: string | null
+  onDate?: string | null
+  expiryDate?: string | null
+  suggested: boolean
+  // The other application's number, for sourceType 'application'.
+  fromApplication?: string | null
 }
 
 export interface ProofOfFile {

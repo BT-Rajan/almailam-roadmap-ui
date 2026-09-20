@@ -7,6 +7,8 @@ from app.core.database import get_db
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.government import (
+    DocumentAttach,
+    DocumentCandidateOut,
     FollowupCreate,
     FollowupOut,
     SubmissionCreate,
@@ -15,7 +17,7 @@ from app.schemas.government import (
     SubmissionUpdate,
     check_response_outcome,
 )
-from app.services import submission_service
+from app.services import role_service, submission_document_source_service, submission_service
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
 
@@ -155,6 +157,45 @@ def upload_document(
     current_user: User = Depends(can_edit),
 ):
     submission_service.upload_document(db, submission_no, document_id, file, current_user.id)
+    return _to_out(db, submission_service.get_submission(db, submission_no))
+
+
+def _source_access(db: Session, user: User) -> dict[str, bool]:
+    # Reusing a document is only offered from places the caller could
+    # open anyway: project/link documents need Documents access, client
+    # documents need Clients access.
+    return {
+        "include_documents": role_service.has_permission(db, user.role, "Documents", "view"),
+        "include_client": role_service.has_permission(db, user.role, "Clients", "view"),
+    }
+
+
+@router.get("/{submission_no}/documents/{document_id}/candidates", response_model=list[DocumentCandidateOut])
+def list_document_candidates(
+    submission_no: str,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_view),
+):
+    """Documents already on file that could satisfy this checklist entry
+    (project, client, link, or another application's), likeliest first."""
+    return submission_document_source_service.list_candidates(
+        db, submission_no, document_id, **_source_access(db, current_user)
+    )
+
+
+@router.post("/{submission_no}/documents/{document_id}/attach", response_model=SubmissionOut)
+def attach_document(
+    submission_no: str,
+    document_id: int,
+    payload: DocumentAttach,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    submission_document_source_service.attach(
+        db, submission_no, document_id, payload.sourceType, payload.sourceId, current_user.id,
+        **_source_access(db, current_user),
+    )
     return _to_out(db, submission_service.get_submission(db, submission_no))
 
 
