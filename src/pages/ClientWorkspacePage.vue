@@ -11,8 +11,6 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import TablePagination from '@/components/common/TablePagination.vue'
-import { usePagination } from '@/composables/usePagination'
 import ClientAddressCard from '@/components/client/ClientAddressCard.vue'
 import ClientAddressEditDialog from '@/components/client/ClientAddressEditDialog.vue'
 import ClientContactEditDialog from '@/components/client/ClientContactEditDialog.vue'
@@ -28,7 +26,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 const ClientContactList = defineAsyncComponent(() => import('@/components/client/ClientContactList.vue'))
 const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
 const ClientProjectDocumentsPanel = defineAsyncComponent(() => import('@/components/client/ClientProjectDocumentsPanel.vue'))
-const ProjectCard = defineAsyncComponent(() => import('@/components/project/ProjectCard.vue'))
+const ClientProjectStages = defineAsyncComponent(() => import('@/components/client/ClientProjectStages.vue'))
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
@@ -41,6 +39,7 @@ import type {
   ClientWorkspaceTab,
   ClientWorkspaceTabKey,
 } from '@/types/Client'
+import type { ProjectWorkspaceTabKey } from '@/types/Project'
 import type { ClientEditForm } from '@/utils/clientValidation'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatDate } from '@/utils/dateFormatter'
@@ -86,27 +85,18 @@ const isDeleteSaving = ref(false)
 const deleteTarget = ref<{ type: DeletableRecordType; id: string; label: string } | null>(null)
 
 const TABS = computed<ClientWorkspaceTab[]>(() => [
+  // Each piece of a client lives on exactly one tab: Overview is only
+  // where the client's projects stand, everything else about the client
+  // is on its own tab below.
   { key: 'overview', label: t('client.workspaceTabs.overview') },
+  { key: 'details', label: t('client.workspaceTabs.details') },
   { key: 'contacts', label: t('client.workspaceTabs.contacts') },
   { key: 'identification', label: t('client.workspaceTabs.identification') },
-  { key: 'projects', label: t('client.workspaceTabs.projects') },
+  { key: 'documents', label: t('client.workspaceTabs.documents') },
 ])
 
 const client = computed(() => clientStore.getClientById(clientId.value))
 const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
-const {
-  currentPage: projectsPage,
-  pageSize: projectsPageSize,
-  totalItems: projectsTotalItems,
-  totalPages: projectsTotalPages,
-  startIndex: projectsStartIndex,
-  endIndex: projectsEndIndex,
-  goToPage: goToProjectsPage,
-  setPageSize: setProjectsPageSize,
-  resetPage: resetProjectsPage,
-} = usePagination(() => clientProjects.value.length)
-const pagedClientProjects = computed(() => clientProjects.value.slice(projectsStartIndex.value, projectsEndIndex.value))
-watch(clientProjects, () => resetProjectsPage())
 // Same eligibility rule NewProjectWizardPage.vue and the backend both
 // enforce (status === 'Active') -- mirrored here so this button never
 // leads to a dead end where the client silently isn't selectable on
@@ -144,8 +134,6 @@ const profileDetailItems = computed(() => {
 const contactDetailItems = computed(() => {
   if (!client.value) return []
   return [
-    { label: t('client.workspacePage.fields.contactPerson'), value: client.value.contactPerson },
-    { label: t('client.workspacePage.fields.mobile'), value: client.value.mobile },
     { label: t('client.workspacePage.fields.email'), value: client.value.email },
     { label: t('client.workspacePage.fields.city'), value: client.value.city },
     { label: t('client.workspacePage.fields.preferredChannel'), value: client.value.communicationPreference.preferredChannel },
@@ -476,8 +464,10 @@ async function handleConfirmDelete(): Promise<void> {
   }
 }
 
-function openProject(projectId: string): void {
-  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
+// From a project card's "Open project" (no tab) or a click on one of its
+// workflow stages (opens the project at that stage).
+function openProject(projectId: string, tab?: ProjectWorkspaceTabKey): void {
+  router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId }, query: tab ? { tab } : undefined })
 }
 
 function createProjectForClient(): void {
@@ -529,50 +519,61 @@ function createProjectForClient(): void {
 
       <ClientWorkspaceTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />
 
-      <template v-if="activeTab === 'overview'">
-        <div
-          id="client-tabpanel-overview"
-          role="tabpanel"
-          aria-labelledby="client-tab-overview"
-          tabindex="0"
-          class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
-        >
-          <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
-          <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
-          <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.addresses') }}</h3>
-              <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">{{ t('client.workspacePage.addAddress') }}</BaseButton>
-            </div>
-            <ClientAddressCard
-              v-for="address in clientStore.addresses"
-              :key="address.id"
-              :address="address"
-              @edit="openAddressDialog(address)"
-              @delete="requestDelete('address', address.id, `${address.addressType} address`)"
-            />
-            <EmptyState
-              v-if="clientStore.addresses.length === 0"
-              :title="t('client.workspacePage.noAddressTitle')"
-              :description="t('client.workspacePage.noAddressDescription')"
-            />
-          </div>
-          <ClientIdentificationList
-            :identifications="clientStore.identifications"
-            :documents="clientStore.documents"
-            @edit="openIdentificationDialog"
-            @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
-            @view="handleViewIdentificationDocument"
-          />
-          <!-- Full width, below the two-column grid above -- one or more
-               project's documents (signed quotation/payment plan/
-               contract/hand-over) each get their own section, arranged
-               by project once the client has more than one. -->
-          <div class="laptop:col-span-2">
-            <ClientProjectDocumentsPanel :projects="clientProjects" />
-          </div>
+      <div
+        v-if="activeTab === 'overview'"
+        id="client-tabpanel-overview"
+        role="tabpanel"
+        aria-labelledby="client-tab-overview"
+        tabindex="0"
+        class="flex flex-col gap-4"
+      >
+        <div class="flex flex-col items-end gap-1 no-print">
+          <BaseButton size="sm" :icon="Plus" :disabled="!clientEligibleForNewProject" @click="createProjectForClient">
+            {{ t('client.workspacePage.newProject') }}
+          </BaseButton>
+          <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
+            {{ t('client.workspacePage.clientMustBeActive') }}
+          </p>
         </div>
-      </template>
+        <EmptyState
+          v-if="clientProjects.length === 0"
+          :title="t('client.workspacePage.noProjectsTitle')"
+          :description="t('client.workspacePage.noProjectsDescription')"
+          :action-label="clientEligibleForNewProject ? t('client.workspacePage.newProject') : undefined"
+          @action="createProjectForClient"
+        />
+        <ClientProjectStages v-else :projects="clientProjects" @open="openProject" />
+      </div>
+
+      <div
+        v-else-if="activeTab === 'details'"
+        id="client-tabpanel-details"
+        role="tabpanel"
+        aria-labelledby="client-tab-details"
+        tabindex="0"
+        class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
+      >
+        <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
+        <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
+        <div class="flex flex-col gap-4 laptop:col-span-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.addresses') }}</h3>
+            <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">{{ t('client.workspacePage.addAddress') }}</BaseButton>
+          </div>
+          <ClientAddressCard
+            v-for="address in clientStore.addresses"
+            :key="address.id"
+            :address="address"
+            @edit="openAddressDialog(address)"
+            @delete="requestDelete('address', address.id, `${address.addressType} address`)"
+          />
+          <EmptyState
+            v-if="clientStore.addresses.length === 0"
+            :title="t('client.workspacePage.noAddressTitle')"
+            :description="t('client.workspacePage.noAddressDescription')"
+          />
+        </div>
+      </div>
 
       <div
         v-else-if="activeTab === 'contacts'"
@@ -613,61 +614,14 @@ function createProjectForClient(): void {
       </div>
 
       <div
-        v-else-if="activeTab === 'projects'"
-        id="client-tabpanel-projects"
+        v-else-if="activeTab === 'documents'"
+        id="client-tabpanel-documents"
         role="tabpanel"
-        aria-labelledby="client-tab-projects"
+        aria-labelledby="client-tab-documents"
         tabindex="0"
       >
-        <div class="mb-4 flex flex-wrap items-start justify-between gap-2 no-print">
-          <BaseButton size="sm" variant="ghost" :icon="IdCardLanyard" @click="activeTab = 'identification'">
-            {{ t('client.workspacePage.viewIdentificationDocuments') }}
-          </BaseButton>
-          <div class="flex flex-col items-end gap-1">
-            <BaseButton
-              size="sm"
-              :icon="Plus"
-              :disabled="!clientEligibleForNewProject"
-              @click="createProjectForClient"
-            >
-              {{ t('client.workspacePage.newProject') }}
-            </BaseButton>
-            <p v-if="!clientEligibleForNewProject" class="text-xs text-text-muted">
-              {{ t('client.workspacePage.clientMustBeActive') }}
-            </p>
-          </div>
-        </div>
-        <EmptyState
-          v-if="clientProjects.length === 0"
-          :title="t('client.workspacePage.noProjectsTitle')"
-          :description="t('client.workspacePage.noProjectsDescription')"
-          :action-label="clientEligibleForNewProject ? t('client.workspacePage.newProject') : undefined"
-          @action="createProjectForClient"
-        />
-        <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-          <ProjectCard
-            v-for="project in pagedClientProjects"
-            :key="project.id"
-            :project="project"
-            :client="client"
-            show-document-links
-            @open="openProject"
-          />
-        </div>
-        <TablePagination
-          v-if="clientProjects.length > 0"
-          class="mt-4 rounded-xl border border-border-light bg-bg-card"
-          :current-page="projectsPage"
-          :total-pages="projectsTotalPages"
-          :total-items="projectsTotalItems"
-          :start-index="projectsStartIndex"
-          :end-index="projectsEndIndex"
-          :page-size="projectsPageSize"
-          @page-change="goToProjectsPage"
-          @page-size-change="setProjectsPageSize"
-        />
+        <ClientProjectDocumentsPanel :projects="clientProjects" />
       </div>
-
 
       <ClientEditDialog
         v-model="isEditDialogOpen"

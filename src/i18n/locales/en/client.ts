@@ -70,6 +70,14 @@ export default {
     identification: 'Identification',
     documents: 'Documents',
     projects: 'Projects',
+    details: 'Details',
+  },
+
+  // The client workspace Overview: where each project stands.
+  projectStages: {
+    currentlyAt: 'Currently at',
+    target: 'Target {date}',
+    openProject: 'Open project',
   },
 
   duplicateAlert: {
