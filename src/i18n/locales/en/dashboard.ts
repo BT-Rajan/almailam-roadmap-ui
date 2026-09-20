@@ -1,6 +1,9 @@
 export default {
   title: 'Executive Dashboard',
   welcomeSubtitle: "Welcome back. Here's your project overview.",
+  greetingMorning: 'Good morning{name}',
+  greetingAfternoon: 'Good afternoon{name}',
+  greetingEvening: 'Good evening{name}',
   tabsAriaLabel: 'Dashboard sections',
   clientsTab: 'Clients',
   projectsTab: 'Projects',

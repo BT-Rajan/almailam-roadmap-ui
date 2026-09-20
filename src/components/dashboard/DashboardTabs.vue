@@ -66,7 +66,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
 </script>
 
 <template>
-  <div class="inline-flex w-full items-center gap-1 overflow-x-auto rounded-full bg-bg-secondary p-1 sm:w-auto" role="tablist" :aria-label="t('dashboard.tabsAriaLabel')">
+  <div class="inline-flex w-full items-center gap-1 overflow-x-auto rounded-full bg-bg-secondary p-1 shadow-glass-sm sm:w-auto" role="tablist" :aria-label="t('dashboard.tabsAriaLabel')">
     <button
       v-for="(tab, index) in tabs"
       :key="tab.key"

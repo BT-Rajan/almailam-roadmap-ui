@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRbac } from '@/composables/useRbac'
+import { useAuthStore } from '@/stores/authStore'
 import DashboardTabs from '@/components/dashboard/DashboardTabs.vue'
 import type { DashboardTab, DashboardTabKey } from '@/components/dashboard/DashboardTabs.vue'
 import DashboardClientsTab from '@/components/dashboard/DashboardClientsTab.vue'
@@ -11,6 +12,7 @@ import DashboardFinancialsTab from '@/components/dashboard/DashboardFinancialsTa
 
 const { t } = useI18n()
 const { can } = useRbac()
+const authStore = useAuthStore()
 
 // Each tab panel below owns its own store loading, guarded so a store
 // already populated (or already mid-fetch) is never fetched twice --
@@ -35,16 +37,46 @@ const TABS = computed<DashboardTab[]>(() => [
   { key: 'deadlines', label: t('dashboard.deadlinesTab') },
   ...(can('dashboard.financials') ? [{ key: 'financials' as const, label: t('dashboard.financialsTab') }] : []),
 ])
+
+// Browser-local time of day is fine for a greeting (unlike the
+// Kuwait-anchored "today" business logic elsewhere in the app -- see
+// serverTimeStore.ts -- this has no financial/reporting consequence,
+// it's purely which of three friendly phrases to show).
+const greetingKey = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'dashboard.greetingMorning'
+  if (hour < 18) return 'dashboard.greetingAfternoon'
+  return 'dashboard.greetingEvening'
+})
+
+const firstName = computed(() => authStore.user?.name.split(' ')[0] ?? '')
+// Pre-formatted so the "Good morning{name}" string works whether or not
+// a name is available yet (before the user profile has loaded) without
+// a locale needing two near-duplicate variants or risking an awkward
+// trailing ", " with nothing after it.
+const greetingName = computed(() => (firstName.value ? `, ${firstName.value}` : ''))
+const avatarInitial = computed(() => authStore.user?.name.trim().charAt(0).toUpperCase() ?? '')
 </script>
 
 <template>
   <div class="flex flex-col gap-6 pb-8">
-    <!-- Page Header -->
-    <div>
-      <h1 class="font-display text-3xl font-semibold text-text-primary">
-        <span class="text-gradient-accent">{{ t('dashboard.title') }}</span>
-      </h1>
-      <p class="text-text-muted mt-1">{{ t('dashboard.welcomeSubtitle') }}</p>
+    <!-- Hero -->
+    <div class="gradient-luxe-accent relative overflow-hidden rounded-3xl px-6 py-7 sm:px-8 sm:py-9">
+      <div class="pointer-events-none absolute -right-8 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
+      <div class="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-black/10 blur-3xl" />
+      <div class="relative flex items-center justify-between gap-4">
+        <div class="flex flex-col gap-1">
+          <p class="text-sm font-medium text-white/75">{{ t(greetingKey, { name: greetingName }) }}</p>
+          <h1 class="font-display text-3xl font-semibold text-white">{{ t('dashboard.title') }}</h1>
+          <p class="text-sm text-white/80">{{ t('dashboard.welcomeSubtitle') }}</p>
+        </div>
+        <span
+          v-if="avatarInitial"
+          class="hidden h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15 text-xl font-semibold text-white ring-1 ring-inset ring-white/30 backdrop-blur-sm sm:flex"
+        >
+          {{ avatarInitial }}
+        </span>
+      </div>
     </div>
 
     <DashboardTabs :tabs="TABS" :active-tab="activeTab" @select="activeTab = $event" />

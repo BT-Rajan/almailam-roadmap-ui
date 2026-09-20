@@ -1,6 +1,9 @@
 export default {
   title: 'لوحة التحكم التنفيذية',
   welcomeSubtitle: 'مرحباً بعودتك. إليك نظرة عامة على مشاريعك.',
+  greetingMorning: 'صباح الخير{name}',
+  greetingAfternoon: 'مساء الخير{name}',
+  greetingEvening: 'مساء الخير{name}',
   tabsAriaLabel: 'أقسام لوحة التحكم',
   clientsTab: 'العملاء',
   projectsTab: 'المشاريع',
