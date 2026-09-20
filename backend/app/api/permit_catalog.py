@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.permit_catalog import (
     PermitCatalogItemCreate,
     PermitCatalogItemOut,
+    PermitApplicationSetupUpdate,
     PermitCatalogItemUpdate,
     PermitPrerequisiteCreate,
     PermitPrerequisiteOut,
@@ -25,7 +26,8 @@ can_edit = require_permission("Administration", "edit")
 
 @router.get("/permits", response_model=list[PermitCatalogItemOut])
 def list_permits(db: Session = Depends(get_db), _=Depends(can_view)):
-    return [PermitCatalogItemOut.from_model(p) for p in permit_catalog_service.list_permits(db)]
+    valid_setup = permit_catalog_service.valid_setup_ids(db)
+    return [PermitCatalogItemOut.from_model(p, valid_setup) for p in permit_catalog_service.list_permits(db)]
 
 
 @router.post("/permits", response_model=PermitCatalogItemOut, status_code=201)
@@ -46,7 +48,20 @@ def rename_permit(
     current_user: User = Depends(can_edit),
 ):
     permit = permit_catalog_service.rename_permit(db, permit_id, payload.name, float(payload.fixedCost), current_user.id)
-    return PermitCatalogItemOut.from_model(permit)
+    return PermitCatalogItemOut.from_model(permit, permit_catalog_service.valid_setup_ids(db))
+
+
+@router.put("/permits/{permit_id}/application-setup", response_model=PermitCatalogItemOut)
+def set_permit_application_setup(
+    permit_id: str,
+    payload: PermitApplicationSetupUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(can_edit),
+):
+    permit = permit_catalog_service.set_application_setup(
+        db, permit_id, payload.authorityId, payload.formId, payload.requiredDocuments, current_user.id
+    )
+    return PermitCatalogItemOut.from_model(permit, permit_catalog_service.valid_setup_ids(db))
 
 
 @router.delete("/permits/{permit_id}", status_code=204)

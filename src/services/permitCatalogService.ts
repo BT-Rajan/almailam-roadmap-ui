@@ -1,5 +1,5 @@
 import { apiClient, asError } from '@/services/httpClient'
-import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
+import type { PermitApplicationSetupInput, PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
 
 /**
  * Fetch all permits from the backend API
@@ -35,6 +35,19 @@ async function renamePermit(permitId: string, name: string, fixedCost: number): 
   } catch (error) {
     console.error(`Failed to rename permit ${permitId}:`, error)
     throw asError(error, 'Failed to rename permit')
+  }
+}
+
+/**
+ * Set which authority, form and checklist a permit type's applications
+ * use -- replaces the whole setup; null authority/form unmaps it.
+ */
+async function setApplicationSetup(permitId: string, setup: PermitApplicationSetupInput): Promise<PermitCatalogItem> {
+  try {
+    return await apiClient.put<PermitCatalogItem>(`/api/permit-catalog/permits/${permitId}/application-setup`, setup)
+  } catch (error) {
+    console.error(`Failed to save application setup for permit ${permitId}:`, error)
+    throw asError(error, 'Failed to save the application setup')
   }
 }
 
@@ -87,6 +100,7 @@ export const permitCatalogService = {
   getPermits,
   createPermit,
   renamePermit,
+  setApplicationSetup,
   removePermit,
   getPrerequisites,
   addPrerequisite,

@@ -594,6 +594,17 @@ export default {
     failedToLoadPrerequisites: 'Failed to load prerequisites',
     failedToAddPrerequisite: 'Failed to add prerequisite',
     failedToRemovePrerequisite: 'Failed to remove prerequisite',
+    permitSettings: 'Permit settings',
+    setupMissing: 'Not set up',
+    applicationSetupDescription: 'Applications for this permit type start with the authority, form and document checklist chosen here — staff have nothing to pick.',
+    authority: 'Authority',
+    selectAuthority: 'Select an authority',
+    form: 'Application form',
+    selectForm: 'Select a form',
+    requiredDocuments: 'Required documents',
+    requiredDocumentsHint: 'One per line. Leave empty to use the form’s own list (shown as the placeholder).',
+    saveSetup: 'Save setup',
+    setupSaved: 'Application setup saved',
   },
 
   serviceCatalog: {

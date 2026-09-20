@@ -1,27 +1,33 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from '@lucide/vue'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { permitCatalogService } from '@/services/permitCatalogService'
 import { useToastStore } from '@/stores/toastStore'
 import { formatCurrency } from '@/utils/currencyFormatter'
-import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
+import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
+import type { PermitApplicationSetupInput, PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
 import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
 const toastStore = useToastStore()
 
-defineProps<{
+const props = defineProps<{
   permits: PermitCatalogItem[]
   // Every Design-branch activity, for the "eligible once these are
   // Complete" prerequisite picker -- see PermitCatalogPanel.vue.
   designActivityOptions: SelectOption[]
+  // For the application setup (authority -> form) pickers.
+  authorities: GovernmentAuthority[]
+  forms: GovernmentForm[]
 }>()
 
 // update carries both fields together (not a partial), since the
@@ -32,7 +38,88 @@ const emit = defineEmits<{
   update: [permitId: string, name: string, fixedCost: number]
   remove: [permitId: string]
   add: [name: string, fixedCost: number]
+  'save-setup': [permitId: string, setup: PermitApplicationSetupInput]
 }>()
+
+// --- Application setup ------------------------------------------------
+// One draft per permit, seeded when its row is expanded. Authority and
+// form are saved together (the backend rejects a mismatched pair); the
+// checklist is one document name per line, empty meaning "use the
+// form's own list".
+interface SetupDraft {
+  authorityId: string
+  formId: string
+  documentsText: string
+}
+const setupDrafts = reactive<Record<string, SetupDraft>>({})
+
+function isConfigured(permit: PermitCatalogItem): boolean {
+  return Boolean(permit.authorityId && permit.formId)
+}
+
+function seedSetupDraft(permit: PermitCatalogItem): void {
+  setupDrafts[permit.id] = {
+    authorityId: permit.authorityId ?? '',
+    formId: permit.formId ?? '',
+    documentsText: (permit.requiredDocuments ?? []).join('\n'),
+  }
+}
+
+const authorityOptions = computed<SelectOption[]>(() =>
+  [...props.authorities]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((authority) => ({ label: authority.name, value: authority.id })),
+)
+
+function formOptionsFor(authorityId: string): SelectOption[] {
+  return props.forms
+    .filter((form) => form.authorityId === authorityId && form.status === 'Active')
+    .map((form) => ({ label: `${form.formCode} — ${form.title}`, value: form.id }))
+}
+
+function formDefaultDocuments(formId: string): string[] {
+  return props.forms.find((form) => form.id === formId)?.requiredDocuments ?? []
+}
+
+function onSetupAuthorityChange(permitId: string, authorityId: string): void {
+  const draft = setupDrafts[permitId]
+  if (!draft || draft.authorityId === authorityId) return
+  draft.authorityId = authorityId
+  // A form belongs to exactly one authority -- never keep an orphaned pick.
+  draft.formId = ''
+}
+
+function parseDocuments(text: string): string[] {
+  return text.split('\n').map((line) => line.trim()).filter((line) => line.length > 0)
+}
+
+function isSetupDirty(permit: PermitCatalogItem): boolean {
+  const draft = setupDrafts[permit.id]
+  if (!draft) return false
+  return (
+    draft.authorityId !== (permit.authorityId ?? '') ||
+    draft.formId !== (permit.formId ?? '') ||
+    parseDocuments(draft.documentsText).join('\n') !== (permit.requiredDocuments ?? []).join('\n')
+  )
+}
+
+// Both chosen, or both cleared -- never one without the other.
+function isSetupSavable(permit: PermitCatalogItem): boolean {
+  const draft = setupDrafts[permit.id]
+  if (!draft || !isSetupDirty(permit)) return false
+  return Boolean(draft.authorityId) === Boolean(draft.formId)
+}
+
+function saveSetup(permit: PermitCatalogItem): void {
+  const draft = setupDrafts[permit.id]
+  if (!draft || !isSetupSavable(permit)) return
+  const documents = parseDocuments(draft.documentsText)
+  emit('save-setup', permit.id, {
+    authorityId: draft.authorityId || null,
+    formId: draft.formId || null,
+    requiredDocuments: draft.formId && documents.length > 0 ? documents : null,
+  })
+}
 
 // Prerequisites are fetched lazily, per permit, only once its row is
 // expanded -- most admin sessions never touch this, so there's no
@@ -49,6 +136,7 @@ async function toggleExpanded(permit: PermitCatalogItem): Promise<void> {
     return
   }
   expandedPermitId.value = permit.id
+  seedSetupDraft(permit)
   if (prerequisitesByPermit[permit.id]) return
   isLoadingPrerequisites.value = permit.id
   try {
@@ -155,13 +243,55 @@ function commitCost(permit: PermitCatalogItem, value: string): void {
             @blur="commitCost(permit, $event)"
           />
           <span class="shrink-0 text-sm font-medium text-text-muted">{{ formatCurrency(permit.fixedCost) }}</span>
+          <StatusBadge
+            v-if="!isConfigured(permit)"
+            :label="t('administration.permitCatalog.setupMissing')"
+            variant="warning"
+            size="sm"
+          />
           <IconButton
             :icon="expandedPermitId === permit.id ? ChevronUp : ChevronDown"
-            :label="t('administration.permitCatalog.prerequisites')"
+            :label="t('administration.permitCatalog.permitSettings')"
             size="sm" variant="ghost"
             @click="toggleExpanded(permit)"
           />
           <IconButton :icon="Trash2" :label="t('administration.permitCatalog.removePermit')" size="sm" variant="danger" @click="emit('remove', permit.id)" />
+        </div>
+
+        <div
+          v-if="expandedPermitId === permit.id && setupDrafts[permit.id]"
+          class="flex flex-col gap-3 rounded-lg border border-border-light bg-bg-hover p-3"
+        >
+          <p class="text-xs font-medium text-text-secondary">{{ t('administration.permitCatalog.applicationSetupDescription') }}</p>
+          <div class="grid grid-cols-1 gap-3 tablet:grid-cols-2">
+            <SelectBox
+              :model-value="setupDrafts[permit.id].authorityId"
+              :label="t('administration.permitCatalog.authority')"
+              :placeholder="t('administration.permitCatalog.selectAuthority')"
+              :options="authorityOptions"
+              @update:model-value="onSetupAuthorityChange(permit.id, $event)"
+            />
+            <SelectBox
+              v-model="setupDrafts[permit.id].formId"
+              :label="t('administration.permitCatalog.form')"
+              :placeholder="t('administration.permitCatalog.selectForm')"
+              :disabled="!setupDrafts[permit.id].authorityId"
+              :options="formOptionsFor(setupDrafts[permit.id].authorityId)"
+            />
+          </div>
+          <TextArea
+            v-model="setupDrafts[permit.id].documentsText"
+            :label="t('administration.permitCatalog.requiredDocuments')"
+            :placeholder="formDefaultDocuments(setupDrafts[permit.id].formId).join('\n')"
+            :hint="t('administration.permitCatalog.requiredDocumentsHint')"
+            :disabled="!setupDrafts[permit.id].formId"
+            :rows="5"
+          />
+          <div class="flex justify-end">
+            <BaseButton size="sm" :disabled="!isSetupSavable(permit)" @click="saveSetup(permit)">
+              {{ t('administration.permitCatalog.saveSetup') }}
+            </BaseButton>
+          </div>
         </div>
 
         <div v-if="expandedPermitId === permit.id" class="flex flex-col gap-2 rounded-lg border border-border-light bg-bg-hover p-3">

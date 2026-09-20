@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { permitCatalogService } from '@/services/permitCatalogService'
-import type { PermitCatalogItem } from '@/types/PermitCatalog'
+import type { PermitApplicationSetupInput, PermitCatalogItem } from '@/types/PermitCatalog'
 import { describeStoreError } from '@/utils/storeError'
 
 interface PermitCatalogStoreState {
@@ -57,6 +57,19 @@ export const usePermitCatalogStore = defineStore('permitCatalog', {
           .sort((a, b) => a.name.localeCompare(b.name))
       } catch (error) {
         this.mutationError = error instanceof Error ? error.message : 'Unable to rename the permit. Please try again.'
+      } finally {
+        this.isMutating = false
+      }
+    },
+
+    async setApplicationSetup(permitId: string, setup: PermitApplicationSetupInput) {
+      this.isMutating = true
+      this.mutationError = undefined
+      try {
+        const updated = await permitCatalogService.setApplicationSetup(permitId, setup)
+        this.permits = this.permits.map((permit) => (permit.id === permitId ? updated : permit))
+      } catch (error) {
+        this.mutationError = error instanceof Error ? error.message : 'Unable to save the application setup. Please try again.'
       } finally {
         this.isMutating = false
       }

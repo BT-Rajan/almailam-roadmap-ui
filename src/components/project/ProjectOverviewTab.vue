@@ -22,6 +22,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
+import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectLinkDocumentStore } from '@/stores/projectLinkDocumentStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -69,6 +70,7 @@ const paymentStore = usePaymentStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
 const governmentSubmissionStore = useGovernmentSubmissionStore()
+const permitCatalogStore = usePermitCatalogStore()
 const projectStore = useProjectStore()
 const linkDocumentStore = useProjectLinkDocumentStore()
 const taskStore = useTaskStore()
@@ -323,6 +325,7 @@ function loadStageDataIfNeeded(): void {
   if (props.stageContext === 'Government Submission') {
     if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
     if (documentStore.documents.length === 0) documentStore.loadDocuments()
+    if (permitCatalogStore.permits.length === 0) permitCatalogStore.loadPermits()
   }
 }
 onMounted(loadStageDataIfNeeded)
@@ -524,6 +527,47 @@ function lastWorkedOnDate(submission: (typeof governmentSubmissions.value)[numbe
 
 function openSubmissionWorkspace(submissionNo: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_SUBMISSION_WORKSPACE, params: { projectId: props.project.id, submissionNo } })
+}
+
+// Start Application on a planned permit: the permit type's own setup
+// (Administration > Permit Catalog) decides the authority, form and
+// checklist, so nothing is picked and the permit can't be linked wrong.
+type SelectedPermit = NonNullable<Project['selectedPermits']>[number]
+
+function isPermitSetUp(permit: SelectedPermit): boolean {
+  const catalogItem = permitCatalogStore.permits.find((item) => item.id === permit.permitId)
+  return Boolean(catalogItem?.authorityId && catalogItem.formId)
+}
+
+// The application still being worked on for this permit, if any --
+// a closed one doesn't count, so a rejected permit can be filed again.
+function openApplicationFor(permit: SelectedPermit) {
+  return governmentSubmissions.value.find(
+    (submission) => submission.selectedPermitId === permit.id && submission.stage !== 'Close',
+  )
+}
+
+const startingPermitId = ref<string>()
+
+async function startApplication(permit: SelectedPermit): Promise<void> {
+  startingPermitId.value = permit.id
+  try {
+    const submission = await governmentSubmissionStore.createSubmission({
+      projectId: props.project.id,
+      selectedPermitId: permit.id,
+    })
+    // The permit moved to In Progress server-side.
+    await projectStore.refreshProject(props.project.id)
+    openSubmissionWorkspace(submission.submissionNo)
+  } catch (error) {
+    toastStore.show(
+      'error',
+      t('project.overviewTab.failedToStartApplication'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
+  } finally {
+    startingPermitId.value = undefined
+  }
 }
 
 // Sends straight to the dedicated New Permit Application page (see
@@ -1118,10 +1162,16 @@ function verificationResultLabel(result: string): string {
                   </template>
                   <template v-else>
                     <BaseButton
-                      :disabled="permit.status === 'In Progress'"
+                      v-if="openApplicationFor(permit)"
                       variant="secondary" size="sm" class="no-print"
-                      :loading="permitActionPendingId === permit.id"
-                      @click="setPermitStatus(permit.id, 'In Progress')"
+                      @click="openSubmissionWorkspace(openApplicationFor(permit)!.submissionNo)"
+                    >{{ t('project.overviewTab.openApplication') }}</BaseButton>
+                    <BaseButton
+                      v-else
+                      variant="primary" size="sm" class="no-print"
+                      :disabled="!isPermitSetUp(permit)"
+                      :loading="startingPermitId === permit.id"
+                      @click="startApplication(permit)"
                     >{{ t('project.overviewTab.startApplication') }}</BaseButton>
                     <BaseButton
                       variant="secondary" size="sm" class="no-print"
@@ -1151,6 +1201,10 @@ function verificationResultLabel(result: string): string {
                   </template>
                 </div>
               </div>
+              <p
+                v-if="permit.status !== 'Complete' && permit.status !== 'Cancelled' && permitCatalogStore.permits.length > 0 && !openApplicationFor(permit) && !isPermitSetUp(permit)"
+                class="text-xs text-warning-700 no-print"
+              >{{ t('project.overviewTab.permitNotSetUp') }}</p>
               <button
                 v-if="permit.permitId"
                 type="button"

@@ -1198,6 +1198,16 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
     -- permit_price at selection time (see project_selected_permits
     -- below); NULL/0 rows selected before permit pricing existed.
     fixed_cost      DECIMAL(12,2) NOT NULL DEFAULT 0,
+    -- migration 0109 -- the authority, form and (optional) required-
+    -- documents checklist this permit type's applications use. NULL
+    -- required_documents means "use the form's own list".
+    authority_id    BIGINT UNSIGNED NULL,
+    form_id         BIGINT UNSIGNED NULL,
+    required_documents JSON NULL,
+    CONSTRAINT fk_permit_catalog_items_authority FOREIGN KEY (authority_id)
+        REFERENCES government_authorities(id) ON DELETE SET NULL,
+    CONSTRAINT fk_permit_catalog_items_form FOREIGN KEY (form_id)
+        REFERENCES government_forms(id) ON DELETE SET NULL,
     INDEX idx_permit_catalog_items_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -1226,6 +1236,17 @@ INSERT INTO government_forms (authority_id, form_code, title, version, language,
 ((SELECT id FROM government_authorities WHERE name = 'Kuwait Fire Service Directorate'), 'KFD-PERMIT', 'Fire Safety Approval Application', 'v1.0', 'English / Arabic', 'Fire Safety Approval',
  'Application to the Kuwait Fire Service Directorate for approval of the project''s fire and life safety systems.',
  '["Architectural Drawings","Fire System Drawings","Material Safety Data Sheets"]', '[]', 'Active');
+
+-- Map each permit type to its authority and form (migration 0109), so a
+-- planned permit can start its application with nothing to choose.
+UPDATE permit_catalog_items SET
+    form_id = (SELECT id FROM government_forms WHERE form_code = 'BALADIA-PERMIT'),
+    authority_id = (SELECT authority_id FROM government_forms WHERE form_code = 'BALADIA-PERMIT')
+WHERE name = 'Baladia Permits';
+UPDATE permit_catalog_items SET
+    form_id = (SELECT id FROM government_forms WHERE form_code = 'KFD-PERMIT'),
+    authority_id = (SELECT authority_id FROM government_forms WHERE form_code = 'KFD-PERMIT')
+WHERE name = 'KFD Permits';
 
 -- Which Design activities have to be Complete before a given permit
 -- becomes "Eligible" to apply for (migration 0089, Admin > Permit

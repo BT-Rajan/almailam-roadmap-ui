@@ -375,8 +375,12 @@ class SubmissionOut(BaseModel):
 
 class SubmissionCreate(BaseModel):
     projectId: str
-    authorityId: str
-    formId: str
+    # Both omitted when selectedPermitId is sent alone: the permit type's
+    # own setup (Administration > Permit Catalog) then decides the
+    # authority, form and checklist, so there is nothing to pick and no
+    # way to pair the wrong ones. Send both, or neither.
+    authorityId: str | None = None
+    formId: str | None = None
     expectedDecisionDate: date | None = None
     notes: str | None = None
     # Optional -- links this application to one of the project's own

@@ -30,8 +30,11 @@ async function getSubmission(submissionNo: string): Promise<GovernmentSubmission
 
 export interface SubmissionCreateInput {
   projectId: string
-  authorityId: string
-  formId: string
+  // Omit both, with a selectedPermitId, to start from a planned permit:
+  // its permit type's setup (Administration > Permit Catalog) decides the
+  // authority, form and checklist.
+  authorityId?: string
+  formId?: string
   expectedDecisionDate?: string
   notes?: string
   // Optional -- links this application to one of the project's own
