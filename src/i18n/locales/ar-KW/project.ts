@@ -578,6 +578,7 @@ export default {
     failedToCreateProject: 'فشل إنشاء المشروع',
     couldNotLoadServiceCatalog: 'تعذّر تحميل كتالوج الخدمات',
     couldNotLoadClients: 'تعذر تحميل قائمة العملاء.',
+    accountManagerNotSaved: 'تم إنشاء المشروع، لكن تعذر حفظ مدير الحساب',
     couldNotLoadEngineers: 'تعذر تحميل قائمة المهندسين.',
     pleaseFixHighlightedFields: 'يرجى تصحيح الحقول المميّزة',
     fieldsNeedAttentionUnderStep: 'بعض الحقول ضمن "{step}" تحتاج إلى مراجعة قبل المتابعة.',

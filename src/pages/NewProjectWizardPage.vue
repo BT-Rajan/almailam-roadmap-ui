@@ -16,7 +16,9 @@ import Stepper from '@/components/common/Stepper.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { usePermissions } from '@/composables/usePermissions'
 import { usePermitCatalogStore } from '@/stores/permitCatalogStore'
+import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useServiceCatalogStore } from '@/stores/serviceCatalogStore'
@@ -26,6 +28,7 @@ import type { Project, SelectedSupervisionActivity } from '@/types/Project'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
 import type { SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { SelectOption } from '@/types/Ui'
+import type { UserRole } from '@/types/User'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { addDaysIso, formatDate, todayIso } from '@/utils/dateFormatter'
 import { validators } from '@/utils/validators'
@@ -33,6 +36,8 @@ import { validators } from '@/utils/validators'
 const router = useRouter()
 const route = useRoute()
 const projectStore = useProjectStore()
+const clientStore = useClientStore()
+const { can } = usePermissions()
 const resultDialogStore = useResultDialogStore()
 const toastStore = useToastStore()
 const userStore = useUserStore()
@@ -61,6 +66,11 @@ const form = reactive({
   service: '',
   selectedActivities: [] as SelectedServiceActivity[],
   engineer: '',
+  // "" = unassigned. Pre-filled from the selected client's current account
+  // manager (see the clientId watcher below) and written back to the
+  // client on submit if changed -- the account manager is a property of
+  // the client relationship, not of an individual project.
+  accountManagerId: '',
   projectName: '',
   siteAddress: '',
   startDate: '',
@@ -212,6 +222,29 @@ async function loadClientOptions(): Promise<void> {
   }
 }
 
+// Same three roles the New Client wizard / Edit Client dialog offer, and
+// the backend's ACCOUNT_MANAGER_ROLES (client_service.py) enforces.
+const ACCOUNT_MANAGER_ROLES: UserRole[] = ['Administrator', 'Project Manager', 'Engineer']
+const accountManagerOptions = computed<SelectOption[]>(() =>
+  userStore.users
+    .filter((user) => user.status === 'Active' && ACCOUNT_MANAGER_ROLES.includes(user.role))
+    .map((user) => ({ label: `${user.name} (${user.role})`, value: user.id })),
+)
+
+// Changing the account manager updates the client record (PATCH
+// /api/clients/:id), so it needs the same permission Edit Client does.
+const canEditAccountManager = computed(() => can('Clients', 'edit'))
+
+// Selecting a client pre-fills its current account manager (or leaves
+// the field unassigned if it has none yet).
+watch(
+  () => form.clientId,
+  (clientId) => {
+    form.accountManagerId = clientStore.clients.find((client) => client.id === clientId)?.accountManagerId ?? ''
+  },
+  { immediate: true },
+)
+
 async function loadEngineerOptions(): Promise<void> {
   await userStore.loadUsers()
   engineerOptions.value = userStore.users
@@ -309,16 +342,27 @@ function selectedClientName(): string {
   return projectStore.clients.find((client) => client.id === form.clientId)?.companyName ?? 'Not selected'
 }
 
-// Read-only -- the account manager comes from the client's own record
-// (set during client onboarding / Edit Client), not chosen per project.
-// Shown so staff can see who owns the relationship while assigning a
-// Field Engineer, without implying it can be changed here.
-const selectedClientAccountManager = computed(
-  () => projectStore.clients.find((client) => client.id === form.clientId)?.accountManagerName ?? t('client.unassigned'),
+const selectedAccountManagerName = computed(
+  () => userStore.users.find((user) => user.id === form.accountManagerId)?.name ?? t('client.unassigned'),
 )
 
 function selectedEngineerName(): string {
   return userStore.users.find((user) => user.id === form.engineer)?.name ?? 'Not selected'
+}
+
+// The project itself has already been created by the time this runs, so a
+// failure here is surfaced as a warning rather than an error dialog that
+// would wrongly suggest the project wasn't created.
+async function saveAccountManagerIfChanged(): Promise<void> {
+  if (!canEditAccountManager.value) return
+  const client = clientStore.clients.find((c) => c.id === form.clientId)
+  if (!client || !form.accountManagerId || form.accountManagerId === (client.accountManagerId ?? '')) return
+  try {
+    await clientStore.updateClient(client.id, { accountManagerId: form.accountManagerId })
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? error.message : t('common.pleaseCheckFormAndTryAgain')
+    toastStore.show('warning', t('project.newWizard.accountManagerNotSaved'), detail)
+  }
 }
 
 async function submitWizard(): Promise<void> {
@@ -379,6 +423,7 @@ async function submitWizard(): Promise<void> {
 
     createdProject.value = project
     showConfirmation.value = true
+    await saveAccountManagerIfChanged()
   } catch (error) {
     // An explicit, must-acknowledge dialog rather than a toast -- same
     // reasoning as every other create-style wizard in the app (see
@@ -485,7 +530,19 @@ function goToCreatedProject(): void {
               </p>
             </div>
             <div>
-              <TextInput :model-value="selectedClientAccountManager" :label="t('project.newWizard.accountManager')" disabled />
+              <SelectBox
+                v-model="form.accountManagerId"
+                :label="t('project.newWizard.accountManager')"
+                :placeholder="t('client.unassigned')"
+                :options="accountManagerOptions"
+                :disabled="!canEditAccountManager"
+              />
+              <p v-if="userStore.error && accountManagerOptions.length === 0" class="mt-1.5 flex items-center gap-1.5 text-xs text-danger-700">
+                {{ t('client.basicInfoStep.accountManagerLoadFailed') }}
+                <button type="button" class="font-medium underline underline-offset-2" @click="userStore.loadUsers()">
+                  {{ t('client.basicInfoStep.retry') }}
+                </button>
+              </p>
             </div>
             <div>
               <SelectBox
@@ -567,7 +624,7 @@ function goToCreatedProject(): void {
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.accountManager') }}</p>
-              <p class="text-sm text-text-primary">{{ selectedClientAccountManager }}</p>
+              <p class="text-sm text-text-primary">{{ selectedAccountManagerName }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.fieldEngineer') }}</p>
