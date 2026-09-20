@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { FileText } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, FileText } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { DocumentItem } from '@/types/Dashboard'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import { useLocale } from '@/composables/useLocale'
 import { formatShortDateTime } from '@/utils/dateFormatter'
 
 interface Props {
@@ -22,6 +24,8 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+const chevronIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 const displayedDocuments = computed(() =>
   [...props.documents]
@@ -35,32 +39,32 @@ const formatDate = formatShortDateTime
 </script>
 
 <template>
-  <Card>
+  <Card :padded="false">
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.recentDocuments') }}</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.recentDocuments') }}</h3>
     </template>
 
-    <div v-if="displayedDocuments.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">{{ t('dashboard.noRecentDocuments') }}</p>
-    </div>
-    <div v-else class="space-y-2">
-      <div
+    <EmptyState v-if="displayedDocuments.length === 0" :title="t('dashboard.noRecentDocuments')" :bordered="false" />
+    <ul v-else class="divide-y divide-border-light">
+      <li
         v-for="doc in displayedDocuments"
         :key="doc.id"
-        class="p-3 rounded-lg border border-border-light hover:bg-bg-hover transition-colors cursor-pointer flex items-start gap-3"
+        class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
         @click="$emit('document-click', doc.id)"
       >
-        <FileText class="h-5 w-5 text-text-muted flex-shrink-0 mt-0.5" />
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-text-primary truncate">{{ doc.name }}</p>
-          <p class="text-xs text-text-muted mt-1">{{ doc.project }}</p>
-          <div class="flex items-center justify-between mt-2">
-            <span class="text-xs text-text-muted">{{ doc.uploadedBy }}</span>
-            <span class="text-xs text-text-muted">{{ formatSize(doc.size) }}</span>
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg-secondary">
+          <FileText class="h-5 w-5 text-text-muted" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-text-primary">{{ doc.name }}</p>
+          <p class="mt-0.5 truncate text-xs text-text-muted">{{ doc.project }}</p>
+          <div class="mt-1.5 flex items-center justify-between">
+            <span class="text-xs text-text-muted">{{ doc.uploadedBy }} · {{ formatSize(doc.size) }}</span>
+            <span class="text-xs text-text-muted">{{ formatDate(doc.uploadedAt) }}</span>
           </div>
-          <p class="text-xs text-text-muted mt-1">{{ formatDate(doc.uploadedAt) }}</p>
         </div>
-      </div>
-    </div>
+        <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
+      </li>
+    </ul>
   </Card>
 </template>

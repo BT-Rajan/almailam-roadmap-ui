@@ -66,7 +66,7 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
 </script>
 
 <template>
-  <div class="flex gap-1 overflow-x-auto border-b border-border-light" role="tablist" :aria-label="t('dashboard.tabsAriaLabel')">
+  <div class="inline-flex w-full items-center gap-1 overflow-x-auto rounded-full bg-bg-secondary p-1 sm:w-auto" role="tablist" :aria-label="t('dashboard.tabsAriaLabel')">
     <button
       v-for="(tab, index) in tabs"
       :key="tab.key"
@@ -74,11 +74,11 @@ function handleKeydown(event: KeyboardEvent, index: number): void {
       :id="`dashboard-tab-${tab.key}`"
       type="button"
       role="tab"
-      class="shrink-0 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      class="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
       :class="
         activeTab === tab.key
-          ? 'border-accent-500 text-accent-700 dark:text-accent-400'
-          : 'border-transparent text-text-muted hover:text-text-primary'
+          ? 'bg-bg-card text-text-primary shadow-glass-sm'
+          : 'text-text-muted hover:text-text-primary'
       "
       :aria-selected="activeTab === tab.key"
       :aria-controls="`dashboard-tabpanel-${tab.key}`"

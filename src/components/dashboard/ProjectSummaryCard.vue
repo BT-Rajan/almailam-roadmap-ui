@@ -49,30 +49,43 @@ const statusLabel = computed(() => {
   const key = statusLabelKeys[props.project.status]
   return key ? t(key) : props.project.status
 })
+const initials = computed(() =>
+  props.project.name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join(''),
+)
 </script>
 
 <template>
-  <Card hoverable class="cursor-pointer space-y-3" @click="$emit('click')">
-    <div class="flex items-start justify-between gap-2">
-      <div class="flex-1 min-w-0">
-        <h3 class="font-medium text-text-primary truncate">{{ project.name }}</h3>
-        <p class="text-xs text-text-muted truncate">{{ project.client }}</p>
+  <Card hoverable class="cursor-pointer" @click="$emit('click')">
+    <div class="flex flex-col gap-3">
+      <div class="flex items-start gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-sm font-semibold text-accent-700">
+          {{ initials }}
+        </span>
+        <div class="min-w-0 flex-1">
+          <h3 class="truncate font-medium text-text-primary">{{ project.name }}</h3>
+          <p class="truncate text-xs text-text-muted">{{ project.client }}</p>
+        </div>
+        <StatusBadge :label="statusLabel" :variant="statusVariant" class="shrink-0" />
       </div>
-      <StatusBadge :label="statusLabel" :variant="statusVariant" />
-    </div>
 
-    <div class="space-y-2">
-      <div class="flex items-center justify-between text-xs">
-        <span class="text-text-secondary">{{ t('dashboard.progress') }}</span>
-        <span class="font-medium text-text-primary">{{ project.progress }}%</span>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-text-secondary">{{ t('dashboard.progress') }}</span>
+          <span class="font-medium text-text-primary">{{ project.progress }}%</span>
+        </div>
+        <div class="h-2 bg-bg-secondary rounded-full overflow-hidden">
+          <div :class="['h-full transition-all duration-normal', progressColor]" :style="{ width: `${project.progress}%` }" />
+        </div>
       </div>
-      <div class="h-2 bg-bg-secondary rounded-full overflow-hidden">
-        <div :class="['h-full transition-all duration-normal', progressColor]" :style="{ width: `${project.progress}%` }" />
-      </div>
-    </div>
 
-    <div class="text-xs text-text-muted">
-      {{ t('dashboard.due', { date: formatDate(project.dueDate) }) }}
+      <div class="text-xs text-text-muted">
+        {{ t('dashboard.due', { date: formatDate(project.dueDate) }) }}
+      </div>
     </div>
   </Card>
 </template>

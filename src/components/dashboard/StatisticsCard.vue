@@ -39,15 +39,13 @@ const textColor = computed(() => {
 
 <template>
   <Card hoverable class="cursor-pointer" @click="$emit('click')">
-    <div class="flex items-start justify-between gap-4">
-      <div class="flex-1 space-y-2">
-        <p class="text-xs uppercase tracking-wide text-text-muted font-medium">
-          {{ statistic.label }}
-        </p>
-        <p class="text-2xl font-bold text-text-primary">{{ statistic.value }}</p>
-      </div>
-      <div v-if="statistic.icon" :class="['flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center', bgColor]">
+    <div class="flex flex-col gap-3">
+      <div v-if="statistic.icon" :class="['flex h-11 w-11 items-center justify-center rounded-2xl', bgColor]">
         <component :is="statistic.icon" :class="['h-5 w-5', textColor]" />
+      </div>
+      <div>
+        <p class="text-2xl font-bold leading-tight text-text-primary">{{ statistic.value }}</p>
+        <p class="mt-1 text-xs font-medium text-text-muted">{{ statistic.label }}</p>
       </div>
     </div>
   </Card>

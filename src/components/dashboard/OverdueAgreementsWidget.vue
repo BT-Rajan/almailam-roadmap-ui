@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { AlertTriangle } from '@lucide/vue'
+import { AlertTriangle, ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import { useLocale } from '@/composables/useLocale'
 import type { OverdueAgreement } from '@/types/Dashboard'
 import { formatCurrency } from '@/utils/currencyFormatter'
 
@@ -18,6 +20,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+const chevronIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 defineEmits<{
   'agreement-click': [projectId: string]
@@ -31,30 +35,31 @@ const displayedAgreements = computed(() =>
 </script>
 
 <template>
-  <Card>
+  <Card :padded="false">
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.overdueAgreements') }}</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.overdueAgreements') }}</h3>
     </template>
 
-    <div v-if="displayedAgreements.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">{{ t('dashboard.noOverdueAgreements') }}</p>
-    </div>
-    <div v-else class="space-y-2">
-      <div
+    <EmptyState v-if="displayedAgreements.length === 0" :title="t('dashboard.noOverdueAgreements')" :bordered="false" />
+    <ul v-else class="divide-y divide-border-light">
+      <li
         v-for="agreement in displayedAgreements"
         :key="agreement.id"
-        class="p-3 rounded-lg border border-border-light hover:bg-bg-hover transition-colors cursor-pointer flex items-start gap-3"
+        class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
         @click="$emit('agreement-click', agreement.projectId)"
       >
-        <AlertTriangle class="h-5 w-5 text-danger-500 flex-shrink-0 mt-0.5" />
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-text-primary truncate">{{ agreement.project }}</p>
-          <p class="text-xs text-text-muted mt-1">{{ agreement.client }}</p>
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-50">
+          <AlertTriangle class="h-5 w-5 text-danger-500" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-text-primary">{{ agreement.project }}</p>
+          <p class="mt-0.5 truncate text-xs text-text-muted">{{ agreement.client }}</p>
         </div>
-        <span class="text-sm font-medium text-danger-600 flex-shrink-0">
+        <span class="shrink-0 text-sm font-semibold text-danger-600">
           {{ formatCurrency(agreement.overdueAmount, agreement.currency) }}
         </span>
-      </div>
-    </div>
+        <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
+      </li>
+    </ul>
   </Card>
 </template>

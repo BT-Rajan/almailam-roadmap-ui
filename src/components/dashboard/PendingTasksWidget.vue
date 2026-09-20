@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useLocale } from '@/composables/useLocale'
 import { useServerTimeStore } from '@/stores/serverTimeStore'
 import type { Task } from '@/types/Dashboard'
 import type { BadgeVariant } from '@/types/Ui'
@@ -22,6 +25,11 @@ const props = withDefaults(defineProps<Props>(), {
 const serverTimeStore = useServerTimeStore()
 
 const { t } = useI18n()
+const { isRtl } = useLocale()
+// Purely decorative "this row is tappable" cue -- points the way the
+// reader moves, same convention as SupervisionStatusReportsTab.vue's
+// own month-nav chevrons.
+const chevronIcon = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
 
 const PRIORITY_LABEL_KEYS: Record<string, string> = {
   urgent: 'dashboard.priority.urgent',
@@ -69,37 +77,34 @@ const formatDate = formatShortDate
 </script>
 
 <template>
-  <Card>
+  <Card :padded="false">
     <template #header>
-      <h3 class="font-medium text-text-primary">{{ title ?? t('dashboard.pendingTasks') }}</h3>
+      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.pendingTasks') }}</h3>
     </template>
 
-    <div v-if="displayedTasks.length === 0" class="py-8 text-center text-text-muted">
-      <p class="text-sm">{{ t('dashboard.noPendingTasks') }}</p>
-    </div>
-    <div v-else class="space-y-2">
-      <div
+    <EmptyState v-if="displayedTasks.length === 0" :title="t('dashboard.noPendingTasks')" :bordered="false" />
+    <ul v-else class="divide-y divide-border-light">
+      <li
         v-for="task in displayedTasks"
         :key="task.id"
-        class="p-3 rounded-lg border border-border-light hover:bg-bg-hover transition-colors cursor-pointer"
+        class="flex cursor-pointer items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-hover"
         @click="$emit('task-click', task.id)"
       >
-        <div class="flex items-start gap-3">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start gap-2">
-              <p class="text-sm font-medium text-text-primary flex-1">{{ task.title }}</p>
-              <StatusBadge :label="priorityLabel(task.priority)" :variant="priorityColor(task.priority)" class="flex-shrink-0" />
-            </div>
-            <p class="text-xs text-text-muted mt-1">{{ task.project }}</p>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start gap-2">
+            <p class="flex-1 text-sm font-medium text-text-primary">{{ task.title }}</p>
+            <StatusBadge :label="priorityLabel(task.priority)" :variant="priorityColor(task.priority)" class="shrink-0" />
+          </div>
+          <p class="mt-0.5 truncate text-xs text-text-muted">{{ task.project }}</p>
+          <div class="mt-1.5 flex items-center justify-between">
+            <span class="text-xs text-text-muted">{{ task.assignee }}</span>
+            <span :class="['text-xs font-medium', isOverdue(task.dueDate) ? 'text-danger-500' : 'text-text-muted']">
+              {{ formatDate(task.dueDate) }}
+            </span>
           </div>
         </div>
-        <div class="flex items-center justify-between mt-2">
-          <span class="text-xs text-text-muted">{{ task.assignee }}</span>
-          <span :class="['text-xs font-medium', isOverdue(task.dueDate) ? 'text-danger-500' : 'text-text-muted']">
-            {{ formatDate(task.dueDate) }}
-          </span>
-        </div>
-      </div>
-    </div>
+        <component :is="chevronIcon" class="h-4 w-4 shrink-0 text-text-muted" />
+      </li>
+    </ul>
   </Card>
 </template>

@@ -1,19 +1,5 @@
 import type { Component } from 'vue'
 
-export type TrendDirection = 'up' | 'down' | 'stable'
-
-export interface KPI {
-  id: string
-  label: string
-  value: string | number
-  unit?: string
-  trend?: {
-    direction: TrendDirection
-    percentage: number
-    period: string
-  }
-}
-
 export interface StatisticItem {
   id: string
   label: string
