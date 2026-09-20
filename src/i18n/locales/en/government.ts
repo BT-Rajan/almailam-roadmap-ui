@@ -285,6 +285,9 @@ export default {
 
     // Close
     closeApplication: 'Close Application',
+    readyToCloseTitle: 'Ready to close this application?',
+    readyToCloseDescription: 'Once the authority has responded, record the outcome (approved, rejected, no response or withdrawn) to close the application.',
+    recordOutcomeAndClose: 'Record Outcome & Close',
     closeApplicationTitle: 'Close Application',
     closeDialogDescription: 'Record the final outcome for {submissionNo}. This is reachable from any stage.',
     outcome: 'Outcome',
