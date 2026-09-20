@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { aiConfigService } from '@/services/aiConfigService'
 import type { AIConfiguration, AIProviderId } from '@/types/AiConfig'
+import { describeStoreError } from '@/utils/storeError'
 
 interface AIConfigStoreState {
   config: AIConfiguration | undefined
@@ -28,8 +29,8 @@ export const useAIConfigStore = defineStore('aiConfig', {
       this.error = undefined
       try {
         this.config = await aiConfigService.getConfiguration()
-      } catch {
-        this.error = 'Unable to load AI configuration. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load AI configuration. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -70,8 +71,8 @@ export const useAIConfigStore = defineStore('aiConfig', {
       try {
         this.config = await aiConfigService.saveConfiguration(this.config)
         return true
-      } catch {
-        this.error = 'Unable to save AI configuration. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to save AI configuration. Please try again.', error)
         return false
       } finally {
         this.isSaving = false

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { auditService } from '@/services/auditService'
 import type { AuditLog } from '@/services/auditService'
+import { describeStoreError } from '@/utils/storeError'
 
 interface AuditLogPaginationState {
   page: number
@@ -44,8 +45,8 @@ export const useAuditLogStore = defineStore('auditLog', {
           total: result.total,
           totalPages: result.totalPages,
         }
-      } catch {
-        this.error = 'Unable to load the audit log. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the audit log. Please try again.', error)
       } finally {
         this.isLoading = false
       }

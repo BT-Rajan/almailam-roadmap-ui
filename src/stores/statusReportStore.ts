@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { statusReportService } from '@/services/statusReportService'
 import type { StatusReportAttachInput } from '@/services/statusReportService'
 import type { StatusReport } from '@/types/StatusReport'
+import { describeStoreError } from '@/utils/storeError'
 
 interface StatusReportInboxState {
   reports: StatusReport[]
@@ -42,8 +43,8 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
       this.error = undefined
       try {
         this.reports = await statusReportService.getInbox()
-      } catch {
-        this.error = 'Unable to load the status report inbox. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the status report inbox. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -54,8 +55,8 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
       this.projectError = undefined
       try {
         this.projectReports = { ...this.projectReports, [projectNo]: await statusReportService.getForProject(projectNo) }
-      } catch {
-        this.projectError = 'Unable to load status reports for this project. Please try again.'
+      } catch (error) {
+        this.projectError = describeStoreError('Unable to load status reports for this project. Please try again.', error)
       } finally {
         this.isProjectLoading = false
       }
@@ -66,8 +67,8 @@ export const useStatusReportStore = defineStore('statusReportInbox', {
       this.taskError = undefined
       try {
         this.taskReports = { ...this.taskReports, [taskNo]: await statusReportService.getForTask(taskNo) }
-      } catch {
-        this.taskError = 'Unable to load this task\'s report history. Please try again.'
+      } catch (error) {
+        this.taskError = describeStoreError('Unable to load this task\'s report history. Please try again.', error)
       } finally {
         this.isTaskLoading = false
       }

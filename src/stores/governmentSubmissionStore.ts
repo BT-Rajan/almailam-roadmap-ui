@@ -13,6 +13,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { Project } from '@/types/Project'
 import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
+import { describeStoreError } from '@/utils/storeError'
 
 interface GovernmentSubmissionStoreState {
   submissions: GovernmentSubmission[]
@@ -115,8 +116,8 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
         this.submissions = submissions
         this.authorities = authorities
         this.forms = forms
-      } catch {
-        this.error = 'Unable to load permit applications. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load permit applications. Please try again.', error)
       } finally {
         this.isLoading = false
       }

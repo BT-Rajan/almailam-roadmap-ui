@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { knowledgeService } from '@/services/knowledgeService'
 import type { KnowledgeDocument, KnowledgeQAEntry } from '@/types/Knowledge'
+import { describeStoreError } from '@/utils/storeError'
 
 interface KnowledgeStoreState {
   documents: KnowledgeDocument[]
@@ -77,8 +78,8 @@ export const useKnowledgeStore = defineStore('knowledge', {
       this.error = undefined
       try {
         this.documents = await knowledgeService.getDocuments()
-      } catch {
-        this.error = 'Unable to load knowledgebase documents. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load knowledgebase documents. Please try again.', error)
       } finally {
         this.isLoading = false
       }

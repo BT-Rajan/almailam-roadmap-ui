@@ -5,6 +5,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import type { DocumentStatus, DocumentType, DocumentVersion, DocumentViewMode, ProjectDocument } from '@/types/Document'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { describeStoreError } from '@/utils/storeError'
 
 interface DocumentPaginationState {
   page: number
@@ -83,8 +84,8 @@ export const useDocumentStore = defineStore('document', {
           }),
           projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
         ])
-      } catch {
-        this.error = 'Unable to load documents. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load documents. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -116,8 +117,8 @@ export const useDocumentStore = defineStore('document', {
           total: result.total,
           totalPages: result.totalPages,
         }
-      } catch {
-        this.error = 'Unable to load documents. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load documents. Please try again.', error)
       } finally {
         this.isPageLoading = false
       }
@@ -148,8 +149,8 @@ export const useDocumentStore = defineStore('document', {
         if (projectStore.projects.length === 0) {
           await projectStore.loadProjects()
         }
-      } catch {
-        this.error = 'Unable to load document. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load document. Please try again.', error)
       } finally {
         this.isDetailLoading = false
       }

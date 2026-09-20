@@ -4,6 +4,7 @@ import { userService } from '@/services/userService'
 import type { CreatedUser } from '@/services/userService'
 import type { RoleDefinition, RolePermission } from '@/types/Role'
 import type { AppUser, UserRole, UserStatus } from '@/types/User'
+import { describeStoreError } from '@/utils/storeError'
 
 interface UserStoreState {
   users: AppUser[]
@@ -66,8 +67,8 @@ export const useUserStore = defineStore('user', {
       this.error = undefined
       try {
         this.users = await userService.getUsers()
-      } catch {
-        this.error = 'Unable to load users. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load users. Please try again.', error)
       } finally {
         this.isLoading = false
       }

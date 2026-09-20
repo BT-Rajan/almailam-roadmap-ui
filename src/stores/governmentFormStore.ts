@@ -8,6 +8,7 @@ import type {
   GovernmentFormCategory,
   GovernmentFormViewMode,
 } from '@/types/Government'
+import { describeStoreError } from '@/utils/storeError'
 
 interface GovernmentFormGroup {
   authority: GovernmentAuthority
@@ -86,8 +87,8 @@ export const useGovernmentFormStore = defineStore('governmentForm', {
         ])
         this.forms = forms
         this.authorities = authorities
-      } catch {
-        this.error = 'Unable to load government forms. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load government forms. Please try again.', error)
       } finally {
         this.isLoading = false
       }

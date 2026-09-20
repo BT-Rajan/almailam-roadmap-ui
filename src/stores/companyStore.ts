@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { companyService } from '@/services/companyService'
 import { applyBrandColor } from '@/utils/colorScale'
 import type { CompanyBranding, CompanySettings } from '@/types/CompanySettings'
+import { describeStoreError } from '@/utils/storeError'
 
 interface CompanyStoreState {
   settings: CompanySettings | undefined
@@ -27,8 +28,8 @@ export const useCompanyStore = defineStore('company', {
       this.error = undefined
       try {
         this.settings = await companyService.getCompanySettings()
-      } catch {
-        this.error = 'Unable to load company settings. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load company settings. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -50,8 +51,8 @@ export const useCompanyStore = defineStore('company', {
         this.branding = { companyName: this.settings.companyName, brandColor: this.settings.brandColor, hasLogo: this.settings.hasLogo }
         applyBrandColor(this.settings.brandColor)
         return true
-      } catch {
-        this.error = 'Unable to save company settings. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to save company settings. Please try again.', error)
         return false
       } finally {
         this.isSaving = false

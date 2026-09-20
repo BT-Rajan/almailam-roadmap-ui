@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { permitCatalogService } from '@/services/permitCatalogService'
 import type { PermitCatalogItem } from '@/types/PermitCatalog'
+import { describeStoreError } from '@/utils/storeError'
 
 interface PermitCatalogStoreState {
   permits: PermitCatalogItem[]
@@ -26,8 +27,8 @@ export const usePermitCatalogStore = defineStore('permitCatalog', {
       this.error = undefined
       try {
         this.permits = await permitCatalogService.getPermits()
-      } catch {
-        this.error = 'Unable to load the permit catalog. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the permit catalog. Please try again.', error)
       } finally {
         this.isLoading = false
       }

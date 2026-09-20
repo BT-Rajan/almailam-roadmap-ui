@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { notificationService } from '@/services/notificationService'
 import type { AppNotification, NotificationGroup, NotificationGroupLabel } from '@/types/Notification'
+import { describeStoreError } from '@/utils/storeError'
 
 interface NotificationStoreState {
   notifications: AppNotification[]
@@ -60,8 +61,8 @@ export const useNotificationStore = defineStore('notification', {
       this.error = undefined
       try {
         this.notifications = await notificationService.getNotifications()
-      } catch {
-        this.error = 'Unable to load notifications. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load notifications. Please try again.', error)
       } finally {
         this.isLoading = false
       }
