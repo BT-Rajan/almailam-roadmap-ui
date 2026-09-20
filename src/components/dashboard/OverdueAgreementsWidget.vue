@@ -38,11 +38,11 @@ const displayedAgreements = computed(() =>
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.overdueAgreements') }}</h3>
+      <h3 class="text-center text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.overdueAgreements') }}</h3>
     </template>
 
     <EmptyState v-if="displayedAgreements.length === 0" :title="t('dashboard.noOverdueAgreements')" :bordered="false" />
-    <PaginatedList v-else :items="displayedAgreements" :page-size="pageSize">
+    <PaginatedList v-else :items="displayedAgreements" :page-size="pageSize" pager-inset="card">
       <template #default="{ items }">
         <ul class="divide-y divide-border-light">
           <li

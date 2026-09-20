@@ -42,7 +42,7 @@ const iconBadge = computed(() => ICON_BADGE[props.statistic.color || 'primary'])
 
 <template>
   <div
-    :class="['flex cursor-pointer flex-col gap-4 rounded-3xl p-5 shadow-glass-sm ring-1 ring-inset ring-white/40 transition-all duration-normal hover:-translate-y-0.5 hover:shadow-glass dark:ring-white/5', tileBackground]"
+    :class="['flex cursor-pointer flex-col items-center gap-4 rounded-3xl p-5 text-center shadow-glass-sm ring-1 ring-inset ring-white/40 transition-all duration-normal hover:-translate-y-0.5 hover:shadow-glass dark:ring-white/5', tileBackground]"
     @click="$emit('click')"
   >
     <span v-if="statistic.icon" :class="['flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm', iconBadge]">

@@ -25,12 +25,19 @@ interface Props {
   // Stack the range label above the controls at every width, for a
   // narrow container (a drawer) where the one-row layout would overflow.
   stacked?: boolean
+  // Horizontal inset of the bar, so it lines up with what is above it:
+  // 'table' (px-4) under a SmartTable or a bordered box of its own,
+  // 'card' (px-5) under rows of an edge-to-edge Card (rows are px-5),
+  // 'none' when the bar sits inside a padded container that already
+  // insets its content.
+  inset?: 'table' | 'card' | 'none'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSizeOptions: () => [5, 10, 25, 50],
   setSize: 5,
   stacked: false,
+  inset: 'table',
 })
 
 const emit = defineEmits<{
@@ -57,6 +64,8 @@ const pageSizeOptionList = computed<SelectOption[]>(() =>
   props.pageSizeOptions.map((size) => ({ label: t('common.perPage', { size }), value: String(size) })),
 )
 
+const INSET_CLASSES = { table: 'px-4', card: 'px-5', none: 'px-0' } as const
+
 const isFirstPage = computed(() => props.currentPage <= 1)
 const isLastPage = computed(() => props.currentPage >= props.totalPages)
 
@@ -75,8 +84,8 @@ function handlePageSizeChange(value: string): void {
 
 <template>
   <div
-    class="flex flex-col gap-3 border-t border-border-light px-4 py-3"
-    :class="stacked ? undefined : 'tablet:flex-row tablet:items-center tablet:justify-between'"
+    class="flex flex-col gap-3 border-t border-border-light py-3"
+    :class="[INSET_CLASSES[inset], stacked ? undefined : 'tablet:flex-row tablet:items-center tablet:justify-between']"
   >
     <p class="text-sm text-text-muted">{{ rangeLabel }}</p>
     <div class="flex flex-wrap items-center gap-3">

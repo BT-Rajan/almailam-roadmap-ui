@@ -40,11 +40,11 @@ const statusVariant = (status: string): BadgeVariant => (status === 'Active' ? '
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.recentClients') }}</h3>
+      <h3 class="text-center text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.recentClients') }}</h3>
     </template>
 
     <EmptyState v-if="displayedClients.length === 0" :title="t('dashboard.noRecentClients')" :bordered="false" />
-    <PaginatedList v-else :items="displayedClients" :page-size="pageSize">
+    <PaginatedList v-else :items="displayedClients" :page-size="pageSize" pager-inset="card">
       <template #default="{ items }">
         <ul class="divide-y divide-border-light">
           <li

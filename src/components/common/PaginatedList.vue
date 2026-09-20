@@ -13,11 +13,13 @@ import { DEFAULT_PAGE_SIZE } from '@/utils/paginationHelpers'
 // slicing and the pager. Client-side: for a list a server already pages
 // (clientStore, documentStore, ...) drive TablePagination from the
 // store's own page/total instead.
-const props = withDefaults(defineProps<{ items: T[]; pageSize?: number; pageSizeOptions?: number[]; stacked?: boolean; pagerClass?: string }>(), {
+const props = withDefaults(defineProps<{ items: T[]; pageSize?: number; pageSizeOptions?: number[]; stacked?: boolean; pagerClass?: string; pagerInset?: 'table' | 'card' | 'none' }>(), {
   pageSize: DEFAULT_PAGE_SIZE,
   pageSizeOptions: () => [5, 10, 25, 50],
   stacked: false,
   pagerClass: undefined,
+  // Lists live inside padded containers unless told otherwise.
+  pagerInset: 'none',
 })
 
 defineSlots<{
@@ -54,6 +56,7 @@ const showPagination = computed(() => totalItems.value > Math.min(...props.pageS
     :page-size="pageSize"
     :page-size-options="pageSizeOptions"
     :stacked="stacked"
+    :inset="pagerInset"
     :class="pagerClass"
     @page-change="goToPage"
     @page-size-change="setPageSize"

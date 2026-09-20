@@ -59,7 +59,7 @@ const avatarInitial = computed(() => authStore.user?.name.trim().charAt(0).toUpp
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 pb-8">
+  <div class="flex flex-col gap-6 p-6 laptop:p-8">
     <!-- Hero -->
     <div class="gradient-luxe-accent relative overflow-hidden rounded-3xl px-6 py-7 sm:px-8 sm:py-9">
       <div class="pointer-events-none absolute -right-8 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />

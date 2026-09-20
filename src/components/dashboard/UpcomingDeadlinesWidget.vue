@@ -85,11 +85,11 @@ const statusLabel = (status: string, days: number) => {
 <template>
   <Card :padded="false">
     <template #header>
-      <h3 class="text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.upcomingDeadlines') }}</h3>
+      <h3 class="text-center text-sm font-semibold text-text-primary">{{ title ?? t('dashboard.upcomingDeadlines') }}</h3>
     </template>
 
     <EmptyState v-if="sortedDeadlines.length === 0" :title="emptyText ?? t('dashboard.noUpcomingDeadlines')" :bordered="false" />
-    <PaginatedList v-else :items="sortedDeadlines" :page-size="pageSize">
+    <PaginatedList v-else :items="sortedDeadlines" :page-size="pageSize" pager-inset="card">
       <template #default="{ items }">
         <ul class="divide-y divide-border-light">
           <li

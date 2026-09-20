@@ -147,7 +147,7 @@ const reports = computed(() => [
 </script>
 
 <template>
-  <div class="space-y-8 pb-12">
+  <div class="space-y-8 p-6 laptop:p-8">
     <!-- Page Header -->
     <div>
       <h1 class="text-4xl font-bold text-text-primary">{{ t('report.listPage.pageTitle') }}</h1>
