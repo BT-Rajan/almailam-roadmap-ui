@@ -39,6 +39,26 @@ export default {
     uploaded: 'رُفع في {date}',
     notUploadedYet: 'لم يُرفع بعد',
     replace: 'استبدال',
+    pickOnFile: 'اختيار من الملفات المتوفرة',
+    openLink: 'فتح الرابط',
+  },
+
+  attachDocumentDialog: {
+    title: 'استخدام مستند متوفر لـ {name}',
+    listLabel: 'المستندات المتوفرة',
+    suggested: 'مقترح',
+    expired: 'منتهي الصلاحية',
+    link: 'رابط',
+    sourceProject: 'مستند المشروع',
+    sourceClient: 'مستند العميل',
+    sourceLink: 'رابط المشروع',
+    sourceApplication: 'طلب آخر',
+    emptyTitle: 'لا توجد مستندات متوفرة',
+    emptyDescription: 'لا توجد مستندات مشروع أو عميل أو طلبات أخرى يمكن إعادة استخدامها. ارفع الملف مباشرة بدلًا من ذلك.',
+    attach: 'استخدام هذا المستند',
+    attachedTitle: 'تم إرفاق المستند',
+    attachedDescription: 'أصبح {name} يستخدم المستند المتوفر.',
+    failedToAttach: 'تعذر إرفاق المستند',
   },
 
   formDetailDrawer: {
@@ -276,6 +296,7 @@ export default {
     responseOutcome: 'النتيجة: {outcome}',
     outcomeBadge: 'النتيجة: {outcome}',
 
+    unsupportedLink: 'لا يمكن فتح هذا الرابط من هنا. انسخه من المستند بدلًا من ذلك.',
     documentUploadedTitle: 'تم رفع المستند',
     documentUploadedDescription: 'تم إرفاق المستند المطلوب.',
   },

@@ -44,6 +44,26 @@ export default {
     uploaded: 'uploaded {date}',
     notUploadedYet: 'Not uploaded yet',
     replace: 'Replace',
+    pickOnFile: 'Pick from files on record',
+    openLink: 'Open link',
+  },
+
+  attachDocumentDialog: {
+    title: 'Use a document on file for {name}',
+    listLabel: 'Documents on file',
+    suggested: 'Suggested',
+    expired: 'Expired',
+    link: 'Link',
+    sourceProject: 'Project document',
+    sourceClient: 'Client document',
+    sourceLink: 'Project link',
+    sourceApplication: 'Other application',
+    emptyTitle: 'Nothing on file yet',
+    emptyDescription: 'No project, client or application documents can be reused here. Upload the file directly instead.',
+    attach: 'Use this document',
+    attachedTitle: 'Document attached',
+    attachedDescription: '{name} now uses the document on file.',
+    failedToAttach: 'Could not attach the document',
   },
 
   formDetailDrawer: {
@@ -290,6 +310,7 @@ export default {
     responseOutcome: 'Outcome: {outcome}',
     outcomeBadge: 'Outcome: {outcome}',
 
+    unsupportedLink: 'This link can’t be opened from here. Copy it from the document instead.',
     documentUploadedTitle: 'Document uploaded',
     documentUploadedDescription: 'The required document has been attached.',
   },

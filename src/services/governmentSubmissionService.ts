@@ -1,6 +1,12 @@
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient, asError } from '@/services/httpClient'
-import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
+import type {
+  DocumentCandidate,
+  DocumentSourceType,
+  GovernmentSubmission,
+  SubmissionFollowup,
+  SubmissionStage,
+} from '@/types/Submission'
 
 /**
  * Fetch government submissions (Permit Applications) from backend API,
@@ -158,6 +164,40 @@ async function uploadDocument(submissionId: string, documentId: number, file: Fi
   }
 }
 
+/**
+ * Documents already on file (project, client, link, or another
+ * application's) that could satisfy one checklist entry, likeliest first.
+ */
+async function getDocumentCandidates(submissionId: string, documentId: number): Promise<DocumentCandidate[]> {
+  try {
+    return await apiClient.get<DocumentCandidate[]>(`/api/submissions/${submissionId}/documents/${documentId}/candidates`)
+  } catch (error) {
+    console.error(`Failed to fetch documents on file for submission ${submissionId}:`, error)
+    throw asError(error, 'Failed to load documents on file')
+  }
+}
+
+/**
+ * Satisfies a checklist entry with a document already on file -- the same
+ * stored file (or link) is reused, nothing is uploaded again.
+ */
+async function attachDocument(
+  submissionId: string,
+  documentId: number,
+  sourceType: DocumentSourceType,
+  sourceId: number,
+): Promise<GovernmentSubmission> {
+  try {
+    return await apiClient.post<GovernmentSubmission>(`/api/submissions/${submissionId}/documents/${documentId}/attach`, {
+      sourceType,
+      sourceId,
+    })
+  } catch (error) {
+    console.error(`Failed to attach document ${documentId} for submission ${submissionId}:`, error)
+    throw asError(error, 'Failed to attach the document')
+  }
+}
+
 async function downloadDocument(submissionId: string, documentId: number): Promise<Blob> {
   return downloadFile(`/api/submissions/${submissionId}/documents/${documentId}/download`)
 }
@@ -278,6 +318,8 @@ export const governmentSubmissionService = {
   updateSubmission,
   deleteSubmission,
   uploadDocument,
+  getDocumentCandidates,
+  attachDocument,
   downloadDocument,
   confirmReadiness,
   recordAcknowledgement,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Clock, Download, FileCheck2, Loader2, Upload } from '@lucide/vue'
+import { Check, Clock, Download, ExternalLink, FileCheck2, FolderOpen, Loader2, Upload } from '@lucide/vue'
 import type { Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -23,9 +23,20 @@ defineProps<Props>()
 const emit = defineEmits<{
   upload: [documentId: number, file: File]
   download: [documentId: number]
+  // Open the entry's link (when it reuses a link on file).
+  'open-link': [documentId: number]
+  // Pick a document already on file instead of uploading one.
+  pick: [documentId: number]
 }>()
 
 const { t } = useI18n()
+
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  project: 'government.attachDocumentDialog.sourceProject',
+  client: 'government.attachDocumentDialog.sourceClient',
+  link: 'government.attachDocumentDialog.sourceLink',
+  application: 'government.attachDocumentDialog.sourceApplication',
+}
 
 const STATUS_ICONS: Record<RequiredDocumentStatus, Component> = {
   Pending: Clock,
@@ -59,8 +70,9 @@ function handleFileChange(documentId: number, event: Event): void {
       </div>
 
       <div class="flex items-center justify-between gap-3 ps-6">
-        <span v-if="document.originalFilename" class="truncate text-xs text-text-muted">
-          {{ document.originalFilename }}
+        <span v-if="document.originalFilename || document.externalLink" class="truncate text-xs text-text-muted">
+          <template v-if="document.source">{{ t(SOURCE_LABEL_KEYS[document.source]) }} &middot; </template>
+          {{ document.originalFilename ?? document.externalLink }}
           <template v-if="document.fileSizeLabel"> &middot; {{ document.fileSizeLabel }}</template>
           <template v-if="document.uploadDate"> &middot; {{ t('government.requiredDocumentChecklist.uploaded', { date: document.uploadDate }) }}</template>
         </span>
@@ -68,7 +80,16 @@ function handleFileChange(documentId: number, event: Event): void {
 
         <div class="flex shrink-0 items-center gap-2">
           <button
-            v-if="document.originalFilename"
+            v-if="document.externalLink"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-md border border-border-default px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-secondary"
+            @click="emit('open-link', document.id)"
+          >
+            <ExternalLink class="h-3.5 w-3.5" />
+            {{ t('government.requiredDocumentChecklist.openLink') }}
+          </button>
+          <button
+            v-else-if="document.originalFilename"
             type="button"
             class="inline-flex items-center gap-1 rounded-md border border-border-default px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-secondary"
             @click="emit('download', document.id)"
@@ -77,13 +98,23 @@ function handleFileChange(documentId: number, event: Event): void {
             {{ t('common.download') }}
           </button>
 
+          <button
+            v-if="canUpload"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-md border border-border-default px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-500"
+            @click="emit('pick', document.id)"
+          >
+            <FolderOpen class="h-3.5 w-3.5" />
+            {{ t('government.requiredDocumentChecklist.pickOnFile') }}
+          </button>
+
           <label
             v-if="canUpload"
             class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary-300 bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100"
           >
             <Loader2 v-if="uploadingDocumentId === document.id" class="h-3.5 w-3.5 animate-spin" />
             <Upload v-else class="h-3.5 w-3.5" />
-            {{ document.originalFilename ? t('government.requiredDocumentChecklist.replace') : t('common.upload') }}
+            {{ document.originalFilename || document.externalLink ? t('government.requiredDocumentChecklist.replace') : t('common.upload') }}
             <input
               type="file"
               class="hidden"

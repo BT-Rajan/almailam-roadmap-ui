@@ -61,7 +61,7 @@ function metaLine(file: SubmissionFile): string {
       </div>
       <div class="flex shrink-0 items-center gap-1 no-print">
         <IconButton :icon="Eye" :label="t('document.card.viewDocument')" size="sm" @click="handleView(file)" />
-        <IconButton :icon="Download" :label="t('common.download')" size="sm" @click="handleDownload(file)" />
+        <IconButton v-if="!file.externalLink" :icon="Download" :label="t('common.download')" size="sm" @click="handleDownload(file)" />
       </div>
     </li>
   </ul>

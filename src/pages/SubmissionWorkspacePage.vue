@@ -17,6 +17,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import TimePicker from '@/components/common/TimePicker.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
+import AttachDocumentOnFileDialog from '@/components/government/AttachDocumentOnFileDialog.vue'
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
 import RequiredDocumentChecklist from '@/components/government/RequiredDocumentChecklist.vue'
 import InlineConfirmPanel from '@/components/common/InlineConfirmPanel.vue'
@@ -33,7 +34,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { ResponseOutcome, SubmissionWorkspaceTab } from '@/types/Submission'
 import type { SelectOption } from '@/types/Ui'
-import { triggerBlobDownload } from '@/utils/fileDownload'
+import { openExternalLink, triggerBlobDownload } from '@/utils/fileDownload'
 import { formatDate } from '@/utils/dateFormatter'
 import { buildSubmissionFiles } from '@/utils/submissionFiles'
 import { SUBMISSION_WORKSPACE_TABS, getSubmissionOutcomeVariant, getSubmissionStageVariant } from '@/utils/submissionHelpers'
@@ -241,6 +242,25 @@ async function handleDocumentDownload(documentId: number): Promise<void> {
     toastStore.show('error', t('common.downloadFailed'), t('common.pleaseTryAgain'))
   }
 }
+
+// A checklist entry that reuses a link on file opens that link.
+function handleDocumentOpenLink(documentId: number): void {
+  const link = submission.value?.documents.find((d) => d.id === documentId)?.externalLink
+  if (!link || !openExternalLink(link)) {
+    toastStore.show('error', t('project.documentsTab.failedToOpenDocument'), t('government.workspacePage.unsupportedLink'))
+  }
+}
+
+// "Pick from documents on file" -- reuse a document the project or client
+// already holds instead of uploading it again.
+const pickDocumentId = ref<number>()
+const isPickDialogOpen = computed({
+  get: () => pickDocumentId.value !== undefined,
+  set: (open: boolean) => {
+    if (!open) pickDocumentId.value = undefined
+  },
+})
+const pickDocument = computed(() => submission.value?.documents.find((d) => d.id === pickDocumentId.value))
 
 // -- Confirm readiness (Prepare -> Apply) -----------------------------------
 
@@ -589,6 +609,13 @@ function goBack(): void {
               :uploading-document-id="uploadingDocumentId"
               @upload="handleDocumentUpload"
               @download="handleDocumentDownload"
+              @open-link="handleDocumentOpenLink"
+              @pick="pickDocumentId = $event"
+            />
+            <AttachDocumentOnFileDialog
+              v-model="isPickDialogOpen"
+              :submission-no="submissionNo"
+              :document="pickDocument"
             />
 
             <template v-if="submission.stage === 'Prepare'">

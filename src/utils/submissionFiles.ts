@@ -1,6 +1,6 @@
 import { governmentSubmissionService } from '@/services/governmentSubmissionService'
 import type { GovernmentSubmission, SubmissionFollowup } from '@/types/Submission'
-import { openBlobInWindow, triggerBlobDownload } from '@/utils/fileDownload'
+import { openBlobInWindow, openExternalLink, triggerBlobDownload } from '@/utils/fileDownload'
 
 // Every file uploaded against a permit application -- the required
 // documents checklist, the acknowledgement uploaded when it was filed,
@@ -27,6 +27,9 @@ export interface SubmissionFile {
   sizeLabel?: string | null
   uploadDate?: string | null
   uploadedBy?: string | null
+  // A required document that reuses a link on file rather than a stored
+  // file: viewing opens the link, and there is nothing to download.
+  externalLink?: string | null
 }
 
 export interface SubmissionFileLabels {
@@ -44,16 +47,17 @@ export function buildSubmissionFiles(
   const { submissionNo } = submission
 
   for (const document of submission.documents) {
-    if (!document.originalFilename) continue
+    if (!document.originalFilename && !document.externalLink) continue
     files.push({
       key: `${submissionNo}:required:${document.id}`,
       submissionNo,
       source: { kind: 'required', documentId: document.id },
       label: document.name,
-      filename: document.originalFilename,
+      filename: document.originalFilename ?? document.externalLink ?? '',
       sizeLabel: document.fileSizeLabel,
       uploadDate: document.uploadDate,
       uploadedBy: document.uploadedBy,
+      externalLink: document.externalLink,
     })
   }
 
@@ -119,6 +123,10 @@ function fetchSubmissionFileBlob(file: SubmissionFile): Promise<Blob> {
 // Opens the file in a browser tab. The blank tab is opened synchronously,
 // before the fetch -- see openBlobInWindow's docstring for why.
 export async function viewSubmissionFile(file: SubmissionFile): Promise<void> {
+  if (file.externalLink) {
+    if (!openExternalLink(file.externalLink)) throw new Error('Unsupported link')
+    return
+  }
   const viewWindow = window.open('', '_blank')
   try {
     openBlobInWindow(await fetchSubmissionFileBlob(file), viewWindow)

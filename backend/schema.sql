@@ -517,6 +517,11 @@ CREATE TABLE IF NOT EXISTS submission_documents (
     file_size_bytes    BIGINT UNSIGNED NULL,
     uploaded_by         BIGINT UNSIGNED NULL,
     upload_date          DATE NULL,
+    -- migration 0110 -- set when the entry reuses a document already on
+    -- file instead of a direct upload (see SUBMISSION_DOCUMENT_SOURCES).
+    source_type     ENUM('project','client','link','application') NULL,
+    source_id       BIGINT UNSIGNED NULL,
+    external_link   VARCHAR(1000) NULL,
     CONSTRAINT fk_submission_documents_submission FOREIGN KEY (submission_id) REFERENCES government_submissions(id) ON DELETE CASCADE,
     CONSTRAINT fk_submission_documents_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     INDEX idx_submission_documents_submission (submission_id)

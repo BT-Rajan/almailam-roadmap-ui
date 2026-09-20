@@ -37,3 +37,21 @@ export function openBlobInWindow(blob: Blob, targetWindow: Window | null): void 
   // of the blob: URL and leave it blank.
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
+
+/**
+ * Opens a document that lives at a link (a shared drive, a portal ...) in
+ * a new tab. Only http(s) links are opened -- a stored link is free text
+ * entered by staff, so anything else (javascript:, file paths) is
+ * refused rather than handed to the browser. Returns false when refused.
+ */
+export function openExternalLink(link: string): boolean {
+  let url: URL
+  try {
+    url = new URL(link.trim())
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false
+  window.open(url.href, '_blank', 'noopener,noreferrer')
+  return true
+}

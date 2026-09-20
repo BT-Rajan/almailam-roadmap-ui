@@ -31,6 +31,10 @@ SUBMISSION_STAGES = ("Prepare", "Apply", "Track", "Close")
 # Application rework and nothing about its own lifecycle changed.
 PROJECT_FORM_ENTRY_STATUSES = ("Draft", "Submitted", "Under Review", "Comments Received", "Approved", "Rejected", "Withdrawn")
 REQUIRED_DOCUMENT_STATUSES = ("Pending", "Uploaded", "Verified")
+# Where a checklist entry's file came from when it reuses a document
+# already on file (migration 0110): a project document, a client
+# document, a project link document, or another application's entry.
+SUBMISSION_DOCUMENT_SOURCES = ("project", "client", "link", "application")
 # Outcome recorded when an application reaches Close -- kept as its own
 # field (rather than inferred from the stage alone) since Close is a
 # single terminal stage but needs to say *how* it ended. "No Response"
@@ -213,6 +217,16 @@ class SubmissionDocument(Base):
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     uploaded_by: Mapped[int | None] = mapped_column(BigPK, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     upload_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Set when this entry reuses a document already on file rather than a
+    # direct upload. The file (storage_key) or link (external_link) is
+    # snapshotted here, so the entry stays valid if the source is later
+    # replaced or removed; source_id is deliberately not a FK (it points
+    # at one of four tables).
+    source_type: Mapped[str | None] = mapped_column(
+        Enum(*SUBMISSION_DOCUMENT_SOURCES, name="submission_document_source"), nullable=True
+    )
+    source_id: Mapped[int | None] = mapped_column(BigPK, nullable=True)
+    external_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
 
 class SubmissionFollowup(Base):
