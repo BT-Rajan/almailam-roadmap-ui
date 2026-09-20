@@ -70,6 +70,14 @@ export default {
     identification: 'الهوية',
     documents: 'المستندات',
     projects: 'المشاريع',
+    details: 'التفاصيل',
+  },
+
+  // نظرة عامة على مساحة عمل العميل: أين وصل كل مشروع.
+  projectStages: {
+    currentlyAt: 'المرحلة الحالية:',
+    target: 'الموعد المستهدف {date}',
+    openProject: 'فتح المشروع',
   },
 
   duplicateAlert: {
