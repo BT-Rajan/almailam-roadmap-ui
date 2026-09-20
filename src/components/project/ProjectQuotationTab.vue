@@ -532,17 +532,25 @@ async function handleRevertToDraft(): Promise<void> {
     @confirm="handleConfirmExpire"
   />
 
-  <div class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
+  <!-- Full-width empty state, outside the 2/3 + 1/3 grid below -- same
+       structure as ProjectContractTab.vue. Inside the grid it only filled
+       two of three columns and left the revision-history column as a
+       large blank area beside it. -->
+  <EmptyState
+    v-if="!quotationStore.selectedQuotation"
+    :title="t('project.quotationTab.noQuotationSelectedTitle')"
+    :description="
+      quotationStore.quotations.length === 0
+        ? t('project.quotationTab.createFirstQuotation')
+        : t('project.quotationTab.noQuotationSelectedDescription')
+    "
+    :action-label="quotationStore.quotations.length === 0 ? t('project.quotationTab.newQuotation') : undefined"
+    @action="goToCreateQuotation"
+  />
+
+  <div v-else class="grid grid-cols-1 gap-6 laptop:grid-cols-3">
     <div class="laptop:col-span-2 print:col-span-3">
-      <EmptyState
-        v-if="!quotationStore.selectedQuotation"
-        :title="t('project.quotationTab.noQuotationSelectedTitle')"
-        :description="t('project.quotationTab.noQuotationSelectedDescription')"
-        :action-label="t('project.quotationTab.newQuotation')"
-        @action="goToCreateQuotation"
-      />
       <QuotationPreview
-        v-else
         :quotation="quotationStore.selectedQuotation"
         :project="project"
         :client="client"
@@ -552,7 +560,6 @@ async function handleRevertToDraft(): Promise<void> {
 
     <div class="no-print flex flex-col gap-6">
       <QuotationRevisionHistory
-        v-if="quotationStore.selectedQuotation"
         :revisions="quotationStore.selectedQuotation.revisions"
         :events="quotationStore.selectedQuotationAuditEvents"
       />
