@@ -85,14 +85,11 @@ const isDeleteSaving = ref(false)
 const deleteTarget = ref<{ type: DeletableRecordType; id: string; label: string } | null>(null)
 
 const TABS = computed<ClientWorkspaceTab[]>(() => [
-  // Each piece of a client lives on exactly one tab: Overview is only
+  // Each piece of a client lives in exactly one place: Overview is only
   // where the client's projects stand, everything else about the client
-  // is on its own tab below.
+  // is on Details.
   { key: 'overview', label: t('client.workspaceTabs.overview') },
   { key: 'details', label: t('client.workspaceTabs.details') },
-  { key: 'contacts', label: t('client.workspaceTabs.contacts') },
-  { key: 'identification', label: t('client.workspaceTabs.identification') },
-  { key: 'documents', label: t('client.workspaceTabs.documents') },
 ])
 
 const client = computed(() => clientStore.getClientById(clientId.value))
@@ -551,11 +548,14 @@ function createProjectForClient(): void {
         role="tabpanel"
         aria-labelledby="client-tab-details"
         tabindex="0"
-        class="grid grid-cols-1 gap-6 laptop:grid-cols-2"
+        class="flex flex-col gap-6"
       >
-        <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
-        <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
-        <div class="flex flex-col gap-4 laptop:col-span-2">
+        <div class="grid grid-cols-1 gap-6 laptop:grid-cols-2">
+          <DetailPanel :title="t('client.workspacePage.profileInformation')" :items="profileDetailItems" />
+          <DetailPanel :title="t('client.workspacePage.contactDetails')" :items="contactDetailItems" />
+        </div>
+
+        <section class="flex flex-col gap-4">
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold text-text-primary">{{ t('client.workspacePage.addresses') }}</h3>
             <BaseButton variant="secondary" size="sm" :icon="MapPinPlus" @click="openAddressDialog()">{{ t('client.workspacePage.addAddress') }}</BaseButton>
@@ -572,54 +572,32 @@ function createProjectForClient(): void {
             :title="t('client.workspacePage.noAddressTitle')"
             :description="t('client.workspacePage.noAddressDescription')"
           />
-        </div>
-      </div>
+        </section>
 
-      <div
-        v-else-if="activeTab === 'contacts'"
-        id="client-tabpanel-contacts"
-        role="tabpanel"
-        aria-labelledby="client-tab-contacts"
-        tabindex="0"
-        class="flex flex-col gap-6"
-      >
-        <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">{{ t('client.workspacePage.addContact') }}</BaseButton>
-        </div>
-        <ClientContactList
-          :contacts="clientStore.contacts"
-          @edit="openContactDialog"
-          @delete="(contact) => requestDelete('contact', contact.id, contact.name)"
-        />
-      </div>
+        <section class="flex flex-col gap-3">
+          <div class="flex items-center justify-end">
+            <BaseButton size="sm" :icon="UserPlus" @click="openContactDialog()">{{ t('client.workspacePage.addContact') }}</BaseButton>
+          </div>
+          <ClientContactList
+            :contacts="clientStore.contacts"
+            @edit="openContactDialog"
+            @delete="(contact) => requestDelete('contact', contact.id, contact.name)"
+          />
+        </section>
 
-      <div
-        v-else-if="activeTab === 'identification'"
-        id="client-tabpanel-identification"
-        role="tabpanel"
-        aria-labelledby="client-tab-identification"
-        tabindex="0"
-        class="flex flex-col gap-6"
-      >
-        <div class="flex items-center justify-end">
-          <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">{{ t('client.workspacePage.addIdentification') }}</BaseButton>
-        </div>
-        <ClientIdentificationList
-          :identifications="clientStore.identifications"
-          :documents="clientStore.documents"
-          @edit="openIdentificationDialog"
-          @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
-          @view="handleViewIdentificationDocument"
-        />
-      </div>
+        <section class="flex flex-col gap-3">
+          <div class="flex items-center justify-end">
+            <BaseButton size="sm" :icon="IdCardLanyard" @click="openIdentificationDialog()">{{ t('client.workspacePage.addIdentification') }}</BaseButton>
+          </div>
+          <ClientIdentificationList
+            :identifications="clientStore.identifications"
+            :documents="clientStore.documents"
+            @edit="openIdentificationDialog"
+            @delete="(identification) => requestDelete('identification', identification.id, identification.documentType)"
+            @view="handleViewIdentificationDocument"
+          />
+        </section>
 
-      <div
-        v-else-if="activeTab === 'documents'"
-        id="client-tabpanel-documents"
-        role="tabpanel"
-        aria-labelledby="client-tab-documents"
-        tabindex="0"
-      >
         <ClientProjectDocumentsPanel :projects="clientProjects" />
       </div>
 

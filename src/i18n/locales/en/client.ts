@@ -66,10 +66,6 @@ export default {
   workspaceTabs: {
     sectionsAria: 'Client workspace sections',
     overview: 'Overview',
-    contacts: 'Contacts',
-    identification: 'Identification',
-    documents: 'Documents',
-    projects: 'Projects',
     details: 'Details',
   },
 

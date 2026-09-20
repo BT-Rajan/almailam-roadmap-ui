@@ -66,10 +66,6 @@ export default {
   workspaceTabs: {
     sectionsAria: 'أقسام مساحة عمل العميل',
     overview: 'نظرة عامة',
-    contacts: 'جهات الاتصال',
-    identification: 'الهوية',
-    documents: 'المستندات',
-    projects: 'المشاريع',
     details: 'التفاصيل',
   },
 
