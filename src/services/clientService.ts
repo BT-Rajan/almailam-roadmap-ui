@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type {
   Client,
@@ -53,7 +53,7 @@ async function getClientsPage(
     return await apiClient.get<PagedResponse<Client>>(`/api/clients${query}`)
   } catch (error) {
     console.error('Failed to fetch clients:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch clients')
+    throw asError(error, 'Failed to fetch clients')
   }
 }
 
@@ -76,7 +76,7 @@ async function getClientById(clientId: string): Promise<Client | undefined> {
     return await apiClient.get<Client>(`/api/clients/${clientId}`)
   } catch (error) {
     console.error(`Failed to fetch client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch client')
+    throw asError(error, 'Failed to fetch client')
   }
 }
 
@@ -88,7 +88,7 @@ async function getContactsForClient(clientId: string): Promise<ClientContact[]> 
     return await apiClient.get<ClientContact[]>(`/api/clients/${clientId}/contacts`)
   } catch (error) {
     console.error(`Failed to fetch contacts for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contacts')
+    throw asError(error, 'Failed to fetch contacts')
   }
 }
 
@@ -102,7 +102,7 @@ async function createContact(clientId: string, input: ClientContactInput): Promi
     return await apiClient.post<ClientContact>(`/api/clients/${clientId}/contacts`, input)
   } catch (error) {
     console.error(`Failed to record contact for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record contact')
+    throw asError(error, 'Failed to record contact')
   }
 }
 
@@ -116,7 +116,7 @@ async function updateContact(clientId: string, contactId: string, input: ClientC
     return await apiClient.patch<ClientContact>(`/api/clients/${clientId}/contacts/${contactId}`, input)
   } catch (error) {
     console.error(`Failed to update contact ${contactId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update contact')
+    throw asError(error, 'Failed to update contact')
   }
 }
 
@@ -128,7 +128,7 @@ async function deleteContact(clientId: string, contactId: string): Promise<void>
     await apiClient.delete(`/api/clients/${clientId}/contacts/${contactId}`)
   } catch (error) {
     console.error(`Failed to delete contact ${contactId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete contact')
+    throw asError(error, 'Failed to delete contact')
   }
 }
 
@@ -140,7 +140,7 @@ async function getAddressesForClient(clientId: string): Promise<ClientAddress[]>
     return await apiClient.get<ClientAddress[]>(`/api/clients/${clientId}/addresses`)
   } catch (error) {
     console.error(`Failed to fetch addresses for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch addresses')
+    throw asError(error, 'Failed to fetch addresses')
   }
 }
 
@@ -154,7 +154,7 @@ async function createAddress(clientId: string, input: ClientAddressInput): Promi
     return await apiClient.post<ClientAddress>(`/api/clients/${clientId}/addresses`, input)
   } catch (error) {
     console.error(`Failed to record address for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record address')
+    throw asError(error, 'Failed to record address')
   }
 }
 
@@ -168,7 +168,7 @@ async function updateAddress(clientId: string, addressId: string, input: ClientA
     return await apiClient.patch<ClientAddress>(`/api/clients/${clientId}/addresses/${addressId}`, input)
   } catch (error) {
     console.error(`Failed to update address ${addressId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update address')
+    throw asError(error, 'Failed to update address')
   }
 }
 
@@ -180,7 +180,7 @@ async function deleteAddress(clientId: string, addressId: string): Promise<void>
     await apiClient.delete(`/api/clients/${clientId}/addresses/${addressId}`)
   } catch (error) {
     console.error(`Failed to delete address ${addressId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete address')
+    throw asError(error, 'Failed to delete address')
   }
 }
 
@@ -192,7 +192,7 @@ async function getIdentificationsForClient(clientId: string): Promise<ClientIden
     return await apiClient.get<ClientIdentification[]>(`/api/clients/${clientId}/identifications`)
   } catch (error) {
     console.error(`Failed to fetch identifications for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch identifications')
+    throw asError(error, 'Failed to fetch identifications')
   }
 }
 
@@ -209,7 +209,7 @@ async function createIdentification(
     return await apiClient.post<ClientIdentification>(`/api/clients/${clientId}/identifications`, input)
   } catch (error) {
     console.error(`Failed to record identification for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record identification')
+    throw asError(error, 'Failed to record identification')
   }
 }
 
@@ -227,7 +227,7 @@ async function updateIdentification(
     return await apiClient.patch<ClientIdentification>(`/api/clients/${clientId}/identifications/${identificationId}`, input)
   } catch (error) {
     console.error(`Failed to update identification ${identificationId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update identification')
+    throw asError(error, 'Failed to update identification')
   }
 }
 
@@ -239,7 +239,7 @@ async function deleteIdentification(clientId: string, identificationId: string):
     await apiClient.delete(`/api/clients/${clientId}/identifications/${identificationId}`)
   } catch (error) {
     console.error(`Failed to delete identification ${identificationId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete identification')
+    throw asError(error, 'Failed to delete identification')
   }
 }
 
@@ -251,7 +251,7 @@ async function getDocumentsForClient(clientId: string): Promise<ClientDocument[]
     return await apiClient.get<ClientDocument[]>(`/api/clients/${clientId}/documents`)
   } catch (error) {
     console.error(`Failed to fetch documents for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+    throw asError(error, 'Failed to fetch documents')
   }
 }
 
@@ -274,7 +274,7 @@ async function downloadDocument(clientId: string, documentId: string): Promise<B
     return await response.blob()
   } catch (error) {
     console.error(`Failed to download document ${documentId} for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to download document')
+    throw asError(error, 'Failed to download document')
   }
 }
 
@@ -297,7 +297,7 @@ async function findPossibleDuplicates(
     })
   } catch (error) {
     console.error('Failed to check for duplicate clients:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')
+    throw asError(error, 'Failed to check for duplicates')
   }
 }
 
@@ -313,7 +313,7 @@ async function findIdentificationDuplicates(clientId: string): Promise<ClientDup
     return await apiClient.get<ClientDuplicateMatch[]>(`/api/clients/${clientId}/duplicate-identifications`)
   } catch (error) {
     console.error(`Failed to check for identification duplicates for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to check for duplicates')
+    throw asError(error, 'Failed to check for duplicates')
   }
 }
 
@@ -327,7 +327,7 @@ async function mergeClients(targetClientId: string, sourceClientId: string): Pro
     return await apiClient.post<Client>(`/api/clients/${targetClientId}/merge`, { sourceClientId })
   } catch (error) {
     console.error(`Failed to merge client ${sourceClientId} into ${targetClientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to merge clients')
+    throw asError(error, 'Failed to merge clients')
   }
 }
 
@@ -339,7 +339,7 @@ async function createClient(clientData: Partial<Client>): Promise<Client> {
     return await apiClient.post<Client>('/api/clients', clientData)
   } catch (error) {
     console.error('Failed to create client:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create client')
+    throw asError(error, 'Failed to create client')
   }
 }
 
@@ -373,7 +373,7 @@ async function createClientFull(
     return await apiClient.postForm<Client>('/api/clients/full', formData)
   } catch (error) {
     console.error('Failed to create client:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create client')
+    throw asError(error, 'Failed to create client')
   }
 }
 
@@ -385,7 +385,7 @@ async function setStatus(clientId: string, status: Client['status']): Promise<Cl
     return await apiClient.patch<Client>(`/api/clients/${clientId}/status`, { status })
   } catch (error) {
     console.error(`Failed to update status for client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update client status')
+    throw asError(error, 'Failed to update client status')
   }
 }
 
@@ -415,7 +415,7 @@ async function updateClient(clientId: string, clientData: ClientUpdateInput): Pr
     return await apiClient.patch<Client>(`/api/clients/${clientId}`, clientData)
   } catch (error) {
     console.error(`Failed to update client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update client')
+    throw asError(error, 'Failed to update client')
   }
 }
 
@@ -428,7 +428,7 @@ async function deleteClient(clientId: string): Promise<void> {
     await apiClient.delete(`/api/clients/${clientId}`)
   } catch (error) {
     console.error(`Failed to delete client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete client')
+    throw asError(error, 'Failed to delete client')
   }
 }
 
@@ -440,7 +440,7 @@ async function restoreClient(clientId: string): Promise<Client> {
     return await apiClient.post<Client>(`/api/clients/${clientId}/restore`, {})
   } catch (error) {
     console.error(`Failed to restore client ${clientId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to restore client')
+    throw asError(error, 'Failed to restore client')
   }
 }
 

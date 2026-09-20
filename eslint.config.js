@@ -20,4 +20,23 @@ export default [
       'vue/multi-word-component-names': 'off',
     },
   },
+  {
+    // `throw new Error(error instanceof Error ? error.message : '...')` turns
+    // an ApiError into a bare Error and discards its HTTP status, so nothing
+    // downstream can tell a 429 from a 403 or a 500 (that is how the Handover
+    // remount loop hid behind a generic "Unable to load contracts").
+    name: 'app/services-keep-api-errors',
+    files: ['src/services/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ThrowStatement > NewExpression[callee.name='Error'] > ConditionalExpression[test.operator='instanceof'][test.right.name='Error']",
+          message:
+            "Don't rebuild the error by hand -- it drops an ApiError's HTTP status. Use `throw asError(error, 'fallback message')` from '@/services/httpClient'.",
+        },
+      ],
+    },
+  },
 ]

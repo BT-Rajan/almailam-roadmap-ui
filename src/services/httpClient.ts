@@ -22,6 +22,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * For a service's catch block. Keeps an ApiError intact -- HTTP status and
+ * all -- so whoever catches it can tell a 429 from a 403, a 500 or a dropped
+ * connection (see utils/storeError). Anything else becomes a plain Error
+ * with its own message, or `fallbackMessage` if it isn't an Error at all.
+ *
+ * Services used to do `throw new Error(error instanceof Error ? error.message
+ * : '...')` everywhere, which quietly turned every ApiError into a bare Error
+ * and threw the status away; eslint now forbids that shape in src/services.
+ */
+export function asError(error: unknown, fallbackMessage: string): Error {
+  if (error instanceof ApiError) return error
+  return new Error(error instanceof Error ? error.message : fallbackMessage)
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown

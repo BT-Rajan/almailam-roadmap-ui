@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { CompanyBranding, CompanySettings } from '@/types/CompanySettings'
 
@@ -10,7 +10,7 @@ async function getCompanySettings(): Promise<CompanySettings> {
     return await apiClient.get<CompanySettings>('/api/company/settings')
   } catch (error) {
     console.error('Failed to fetch company settings:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch settings')
+    throw asError(error, 'Failed to fetch settings')
   }
 }
 
@@ -24,7 +24,7 @@ async function getBranding(): Promise<CompanyBranding> {
     return await apiClient.get<CompanyBranding>('/api/company/branding')
   } catch (error) {
     console.error('Failed to fetch company branding:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch branding')
+    throw asError(error, 'Failed to fetch branding')
   }
 }
 
@@ -36,7 +36,7 @@ async function saveCompanySettings(settings: CompanySettings): Promise<CompanySe
     return await apiClient.post<CompanySettings>('/api/company/settings', settings)
   } catch (error) {
     console.error('Failed to save company settings:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save settings')
+    throw asError(error, 'Failed to save settings')
   }
 }
 
@@ -71,7 +71,7 @@ async function uploadLogo(file: File): Promise<CompanySettings> {
     return await response.json()
   } catch (error) {
     console.error('Failed to upload company logo:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload company logo')
+    throw asError(error, 'Failed to upload company logo')
   }
 }
 
@@ -80,7 +80,7 @@ async function deleteLogo(): Promise<CompanySettings> {
     return await apiClient.delete<CompanySettings>('/api/company/logo')
   } catch (error) {
     console.error('Failed to remove company logo:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove company logo')
+    throw asError(error, 'Failed to remove company logo')
   }
 }
 

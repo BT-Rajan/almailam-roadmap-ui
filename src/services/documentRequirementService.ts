@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { ChecklistItem, DocumentRequirement, DocumentRequirementLink, DocumentRequirementTargetType } from '@/types/DocumentRequirement'
 
 async function getRequirements(): Promise<DocumentRequirement[]> {
@@ -6,7 +6,7 @@ async function getRequirements(): Promise<DocumentRequirement[]> {
     return await apiClient.get<DocumentRequirement[]>('/api/document-requirements')
   } catch (error) {
     console.error('Failed to fetch document requirements:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document requirements')
+    throw asError(error, 'Failed to fetch document requirements')
   }
 }
 
@@ -15,7 +15,7 @@ async function createRequirement(name: string, description?: string): Promise<Do
     return await apiClient.post<DocumentRequirement>('/api/document-requirements', { name, description })
   } catch (error) {
     console.error('Failed to add document requirement:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add document requirement')
+    throw asError(error, 'Failed to add document requirement')
   }
 }
 
@@ -26,7 +26,7 @@ async function updateRequirement(
     return await apiClient.patch<DocumentRequirement>(`/api/document-requirements/${requirementId}`, fields)
   } catch (error) {
     console.error(`Failed to update document requirement ${requirementId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update document requirement')
+    throw asError(error, 'Failed to update document requirement')
   }
 }
 
@@ -35,7 +35,7 @@ async function removeRequirement(requirementId: string): Promise<void> {
     await apiClient.delete(`/api/document-requirements/${requirementId}`)
   } catch (error) {
     console.error(`Failed to remove document requirement ${requirementId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove document requirement')
+    throw asError(error, 'Failed to remove document requirement')
   }
 }
 
@@ -48,7 +48,7 @@ async function getLinksForTarget(
     return await apiClient.get<DocumentRequirementLink[]>(`/api/document-requirements/links?${query}`)
   } catch (error) {
     console.error(`Failed to fetch document requirement links for ${targetType} ${targetCatalogId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document requirements')
+    throw asError(error, 'Failed to fetch document requirements')
   }
 }
 
@@ -58,7 +58,7 @@ async function getLinksForRequirement(requirementId: string): Promise<DocumentRe
     return await apiClient.get<DocumentRequirementLink[]>(`/api/document-requirements/${requirementId}/links`)
   } catch (error) {
     console.error(`Failed to fetch links for document requirement ${requirementId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document requirement links')
+    throw asError(error, 'Failed to fetch document requirement links')
   }
 }
 
@@ -71,7 +71,7 @@ async function addLink(
     })
   } catch (error) {
     console.error('Failed to link document requirement:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to link document requirement')
+    throw asError(error, 'Failed to link document requirement')
   }
 }
 
@@ -80,7 +80,7 @@ async function removeLink(linkId: string): Promise<void> {
     await apiClient.delete(`/api/document-requirements/links/${linkId}`)
   } catch (error) {
     console.error(`Failed to remove document requirement link ${linkId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove document requirement link')
+    throw asError(error, 'Failed to remove document requirement link')
   }
 }
 
@@ -93,7 +93,7 @@ async function getDesignChecklist(projectNo: string, activityId: string): Promis
     return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/design-activities/${activityId}/checklist`)
   } catch (error) {
     console.error(`Failed to fetch design checklist for activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch design checklist')
+    throw asError(error, 'Failed to fetch design checklist')
   }
 }
 
@@ -106,7 +106,7 @@ async function setDesignChecklistItem(
     )
   } catch (error) {
     console.error(`Failed to update design checklist item ${linkId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update design checklist item')
+    throw asError(error, 'Failed to update design checklist item')
   }
 }
 
@@ -115,7 +115,7 @@ async function getPermitChecklist(projectNo: string, permitId: string): Promise<
     return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/permits/${permitId}/checklist`)
   } catch (error) {
     console.error(`Failed to fetch permit checklist for permit ${permitId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch permit checklist')
+    throw asError(error, 'Failed to fetch permit checklist')
   }
 }
 
@@ -128,7 +128,7 @@ async function setPermitChecklistItem(
     )
   } catch (error) {
     console.error(`Failed to update permit checklist item ${linkId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update permit checklist item')
+    throw asError(error, 'Failed to update permit checklist item')
   }
 }
 
@@ -137,7 +137,7 @@ async function getSupervisionChecklist(projectNo: string, activityId: string): P
     return await apiClient.get<ChecklistItem[]>(`/api/projects/${projectNo}/supervision-activities/${activityId}/checklist`)
   } catch (error) {
     console.error(`Failed to fetch supervision checklist for activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch supervision checklist')
+    throw asError(error, 'Failed to fetch supervision checklist')
   }
 }
 
@@ -150,7 +150,7 @@ async function setSupervisionChecklistItem(
     )
   } catch (error) {
     console.error(`Failed to update supervision checklist item ${linkId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update supervision checklist item')
+    throw asError(error, 'Failed to update supervision checklist item')
   }
 }
 

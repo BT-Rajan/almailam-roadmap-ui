@@ -1,4 +1,4 @@
-import { apiClient, ApiError } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { Quotation, QuotationAuditEvent } from '@/types/Quotation'
 
 /**
@@ -9,8 +9,7 @@ async function getQuotationsByProject(projectId: string): Promise<Quotation[]> {
     return await apiClient.get<Quotation[]>(`/api/quotations?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch quotations for project ${projectId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotations')
+    throw asError(error, 'Failed to fetch quotations')
   }
 }
 
@@ -22,8 +21,7 @@ async function getQuotationById(quotationId: string): Promise<Quotation | undefi
     return await apiClient.get<Quotation>(`/api/quotations/${quotationId}`)
   } catch (error) {
     console.error(`Failed to fetch quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotation')
+    throw asError(error, 'Failed to fetch quotation')
   }
 }
 
@@ -35,8 +33,7 @@ async function getQuotations(): Promise<Quotation[]> {
     return await apiClient.get<Quotation[]>('/api/quotations')
   } catch (error) {
     console.error('Failed to fetch quotations:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotations')
+    throw asError(error, 'Failed to fetch quotations')
   }
 }
 
@@ -62,8 +59,7 @@ async function createQuotation(quotationData: QuotationCreateInput): Promise<Quo
     return await apiClient.post<Quotation>('/api/quotations', quotationData)
   } catch (error) {
     console.error('Failed to create quotation:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to create quotation')
+    throw asError(error, 'Failed to create quotation')
   }
 }
 
@@ -75,8 +71,7 @@ async function updateQuotation(quotationId: string, quotationData: Partial<Quota
     return await apiClient.patch<Quotation>(`/api/quotations/${quotationId}`, quotationData)
   } catch (error) {
     console.error(`Failed to update quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to update quotation')
+    throw asError(error, 'Failed to update quotation')
   }
 }
 
@@ -90,8 +85,7 @@ async function setQuotationStatus(quotationId: string, status: string, reason?: 
     return await apiClient.patch<Quotation>(`/api/quotations/${quotationId}`, { status, reason })
   } catch (error) {
     console.error(`Failed to change status for quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to change quotation status')
+    throw asError(error, 'Failed to change quotation status')
   }
 }
 
@@ -103,8 +97,7 @@ async function deleteQuotation(quotationId: string): Promise<void> {
     await apiClient.delete(`/api/quotations/${quotationId}`)
   } catch (error) {
     console.error(`Failed to delete quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete quotation')
+    throw asError(error, 'Failed to delete quotation')
   }
 }
 
@@ -116,8 +109,7 @@ async function finalizeQuotation(quotationId: string): Promise<Quotation> {
     return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/finalize`, {})
   } catch (error) {
     console.error(`Failed to finalize quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to finalize quotation')
+    throw asError(error, 'Failed to finalize quotation')
   }
 }
 
@@ -129,8 +121,7 @@ async function reopenQuotation(quotationId: string): Promise<Quotation> {
     return await apiClient.post<Quotation>(`/api/quotations/${quotationId}/reopen`, {})
   } catch (error) {
     console.error(`Failed to reopen quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to reopen quotation')
+    throw asError(error, 'Failed to reopen quotation')
   }
 }
 
@@ -148,8 +139,7 @@ async function confirmQuotationApproval(quotationId: string, file: File): Promis
     return await apiClient.postForm<Quotation>(`/api/quotations/${quotationId}/confirm-approval`, formData)
   } catch (error) {
     console.error(`Failed to confirm approval for quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm approval')
+    throw asError(error, 'Failed to confirm approval')
   }
 }
 
@@ -163,8 +153,7 @@ async function getAuditEvents(quotationId: string): Promise<QuotationAuditEvent[
     return await apiClient.get<QuotationAuditEvent[]>(`/api/quotations/${quotationId}/audit-events`)
   } catch (error) {
     console.error(`Failed to fetch audit events for quotation ${quotationId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch quotation audit events')
+    throw asError(error, 'Failed to fetch quotation audit events')
   }
 }
 

@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 
 /**
@@ -85,7 +85,7 @@ async function getDayActivity(date: string): Promise<DailySummary> {
     return await apiClient.get<DailySummary>(`/api/admin/activity/day/${date}`)
   } catch (error) {
     console.error(`Failed to fetch day activity for ${date}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch day activity')
+    throw asError(error, 'Failed to fetch day activity')
   }
 }
 
@@ -99,7 +99,7 @@ async function getMonthActivity(month: string): Promise<DailySummary[]> {
     return await apiClient.get<DailySummary[]>(`/api/admin/activity/month/${month}`)
   } catch (error) {
     console.error(`Failed to fetch month activity for ${month}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch month activity')
+    throw asError(error, 'Failed to fetch month activity')
   }
 }
 
@@ -113,7 +113,7 @@ async function getMyDayActivity(date: string): Promise<DailySummary> {
     return await apiClient.get<DailySummary>(`/api/activity/day/${date}`)
   } catch (error) {
     console.error(`Failed to fetch own day activity for ${date}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch day activity')
+    throw asError(error, 'Failed to fetch day activity')
   }
 }
 
@@ -125,7 +125,7 @@ async function getMyMonthActivity(month: string): Promise<DailySummary[]> {
     return await apiClient.get<DailySummary[]>(`/api/activity/month/${month}`)
   } catch (error) {
     console.error(`Failed to fetch own month activity for ${month}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch month activity')
+    throw asError(error, 'Failed to fetch month activity')
   }
 }
 
@@ -144,7 +144,7 @@ async function getFilteredActivities(filter: ActivityFilter): Promise<ActivityRe
     return await apiClient.get<ActivityRecord[]>(`/api/admin/activity/filtered?${params.toString()}`)
   } catch (error) {
     console.error('Failed to fetch filtered activities:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch activities')
+    throw asError(error, 'Failed to fetch activities')
   }
 }
 
@@ -156,7 +156,7 @@ async function getProjectsForFiltering(): Promise<Array<{ id: string; name: stri
     return await apiClient.get<Array<{ id: string; name: string }>>('/api/admin/activity/projects')
   } catch (error) {
     console.error('Failed to fetch projects:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch projects')
+    throw asError(error, 'Failed to fetch projects')
   }
 }
 
@@ -168,7 +168,7 @@ async function getUsersForFiltering(): Promise<Array<{ id: string; name: string 
     return await apiClient.get<Array<{ id: string; name: string }>>('/api/admin/activity/users')
   } catch (error) {
     console.error('Failed to fetch users:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch users')
+    throw asError(error, 'Failed to fetch users')
   }
 }
 
@@ -197,7 +197,7 @@ async function exportActivitiesCSV(filter: ActivityFilter): Promise<Blob> {
     return await response.blob()
   } catch (error) {
     console.error('Failed to export activities:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to export activities')
+    throw asError(error, 'Failed to export activities')
   }
 }
 

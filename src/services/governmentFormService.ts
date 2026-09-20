@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/authStore'
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { GovernmentAuthority, GovernmentForm } from '@/types/Government'
 import type { ProjectDocument } from '@/types/Document'
 
@@ -22,7 +22,7 @@ async function getForms(): Promise<GovernmentForm[]> {
     return await apiClient.get<GovernmentForm[]>('/api/government/forms')
   } catch (error) {
     console.error('Failed to fetch government forms:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch forms')
+    throw asError(error, 'Failed to fetch forms')
   }
 }
 
@@ -34,7 +34,7 @@ async function getAuthorities(): Promise<GovernmentAuthority[]> {
     return await apiClient.get<GovernmentAuthority[]>('/api/government/authorities')
   } catch (error) {
     console.error('Failed to fetch government authorities:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch authorities')
+    throw asError(error, 'Failed to fetch authorities')
   }
 }
 
@@ -46,7 +46,7 @@ async function createForm(input: FormInput): Promise<GovernmentForm> {
     return await apiClient.post<GovernmentForm>('/api/government/forms', input)
   } catch (error) {
     console.error('Failed to create form:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create form')
+    throw asError(error, 'Failed to create form')
   }
 }
 
@@ -58,7 +58,7 @@ async function updateForm(formId: string, input: FormInput): Promise<GovernmentF
     return await apiClient.patch<GovernmentForm>(`/api/government/forms/${formId}`, input)
   } catch (error) {
     console.error(`Failed to update form ${formId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update form')
+    throw asError(error, 'Failed to update form')
   }
 }
 
@@ -70,7 +70,7 @@ async function deleteForm(formId: string): Promise<void> {
     await apiClient.delete(`/api/government/forms/${formId}`)
   } catch (error) {
     console.error(`Failed to delete form ${formId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete form')
+    throw asError(error, 'Failed to delete form')
   }
 }
 
@@ -85,7 +85,7 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
     return await apiClient.post<ProjectDocument>(`/api/government/forms/${formId}/fill`, input)
   } catch (error) {
     console.error(`Failed to fill form ${formId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fill and save the form')
+    throw asError(error, 'Failed to fill and save the form')
   }
 }
 
@@ -126,7 +126,7 @@ async function renderPdf(formId: string, input: { context: Record<string, string
     return await response.blob()
   } catch (error) {
     console.error(`Failed to render PDF for form ${formId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to generate PDF')
+    throw asError(error, 'Failed to generate PDF')
   }
 }
 
@@ -163,7 +163,7 @@ async function uploadSampleFile(formId: string, file: File): Promise<GovernmentF
     return (await response.json()) as GovernmentForm
   } catch (error) {
     console.error(`Failed to upload sample file for form ${formId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload sample file')
+    throw asError(error, 'Failed to upload sample file')
   }
 }
 
@@ -175,7 +175,7 @@ async function setFormStatus(formId: string, status: GovernmentForm['status']): 
     return await apiClient.patch<GovernmentForm>(`/api/government/forms/${formId}/status`, { status })
   } catch (error) {
     console.error(`Failed to update form status:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update status')
+    throw asError(error, 'Failed to update status')
   }
 }
 
@@ -187,7 +187,7 @@ async function createAuthority(input: AuthorityInput): Promise<GovernmentAuthori
     return await apiClient.post<GovernmentAuthority>('/api/government/authorities', input)
   } catch (error) {
     console.error('Failed to create authority:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create authority')
+    throw asError(error, 'Failed to create authority')
   }
 }
 
@@ -199,7 +199,7 @@ async function updateAuthority(authorityId: string, input: AuthorityInput): Prom
     return await apiClient.patch<GovernmentAuthority>(`/api/government/authorities/${authorityId}`, input)
   } catch (error) {
     console.error(`Failed to update authority ${authorityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update authority')
+    throw asError(error, 'Failed to update authority')
   }
 }
 
@@ -211,7 +211,7 @@ async function deleteAuthority(authorityId: string): Promise<void> {
     await apiClient.delete(`/api/government/authorities/${authorityId}`)
   } catch (error) {
     console.error(`Failed to delete authority ${authorityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete authority')
+    throw asError(error, 'Failed to delete authority')
   }
 }
 

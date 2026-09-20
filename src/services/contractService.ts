@@ -1,4 +1,4 @@
-import { ApiError, apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { Contract, ContractAuditEvent } from '@/types/Contract'
 
 /**
@@ -9,8 +9,7 @@ async function getContractsByProject(projectId: string): Promise<Contract[]> {
     return await apiClient.get<Contract[]>(`/api/contracts?projectId=${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch contracts for project ${projectId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
+    throw asError(error, 'Failed to fetch contracts')
   }
 }
 
@@ -22,7 +21,7 @@ async function getContractById(contractId: string): Promise<Contract | undefined
     return await apiClient.get<Contract>(`/api/contracts/${contractId}`)
   } catch (error) {
     console.error(`Failed to fetch contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contract')
+    throw asError(error, 'Failed to fetch contract')
   }
 }
 
@@ -34,7 +33,7 @@ async function getContracts(): Promise<Contract[]> {
     return await apiClient.get<Contract[]>('/api/contracts')
   } catch (error) {
     console.error('Failed to fetch contracts:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch contracts')
+    throw asError(error, 'Failed to fetch contracts')
   }
 }
 
@@ -63,7 +62,7 @@ async function createContract(contractData: ContractCreateInput): Promise<Contra
     return await apiClient.post<Contract>('/api/contracts', contractData)
   } catch (error) {
     console.error('Failed to create contract:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create contract')
+    throw asError(error, 'Failed to create contract')
   }
 }
 
@@ -75,7 +74,7 @@ async function updateContract(contractId: string, contractData: Partial<Contract
     return await apiClient.patch<Contract>(`/api/contracts/${contractId}`, contractData)
   } catch (error) {
     console.error(`Failed to update contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update contract')
+    throw asError(error, 'Failed to update contract')
   }
 }
 
@@ -90,7 +89,7 @@ async function setContractStatus(contractId: string, status: string, reason?: st
     return await apiClient.patch<Contract>(`/api/contracts/${contractId}`, { status, reason })
   } catch (error) {
     console.error(`Failed to change status for contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to change contract status')
+    throw asError(error, 'Failed to change contract status')
   }
 }
 
@@ -102,7 +101,7 @@ async function deleteContract(contractId: string): Promise<void> {
     await apiClient.delete(`/api/contracts/${contractId}`)
   } catch (error) {
     console.error(`Failed to delete contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete contract')
+    throw asError(error, 'Failed to delete contract')
   }
 }
 
@@ -114,7 +113,7 @@ async function finalizeContract(contractId: string): Promise<Contract> {
     return await apiClient.post<Contract>(`/api/contracts/${contractId}/finalize`, {})
   } catch (error) {
     console.error(`Failed to finalize contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to finalize contract')
+    throw asError(error, 'Failed to finalize contract')
   }
 }
 
@@ -126,7 +125,7 @@ async function reopenContract(contractId: string): Promise<Contract> {
     return await apiClient.post<Contract>(`/api/contracts/${contractId}/reopen`, {})
   } catch (error) {
     console.error(`Failed to reopen contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to reopen contract')
+    throw asError(error, 'Failed to reopen contract')
   }
 }
 
@@ -144,7 +143,7 @@ async function confirmContractSigning(contractId: string, file: File): Promise<C
     return await apiClient.postForm<Contract>(`/api/contracts/${contractId}/confirm-signing`, formData)
   } catch (error) {
     console.error(`Failed to confirm signing for contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm signing')
+    throw asError(error, 'Failed to confirm signing')
   }
 }
 
@@ -158,7 +157,7 @@ async function getAuditEvents(contractId: string): Promise<ContractAuditEvent[]>
     return await apiClient.get<ContractAuditEvent[]>(`/api/contracts/${contractId}/audit-events`)
   } catch (error) {
     console.error(`Failed to fetch audit events for contract ${contractId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
+    throw asError(error, 'Failed to fetch audit events')
   }
 }
 

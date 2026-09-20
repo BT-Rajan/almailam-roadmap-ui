@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
 
 /**
@@ -12,7 +12,7 @@ async function getLinkDocumentsForProject(projectId: string): Promise<ProjectLin
     return await apiClient.get<ProjectLinkDocument[]>(`/api/projects/${projectId}/link-documents`)
   } catch (error) {
     console.error(`Failed to fetch link documents for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+    throw asError(error, 'Failed to fetch documents')
   }
 }
 
@@ -30,7 +30,7 @@ async function createLinkDocument(
     })
   } catch (error) {
     console.error(`Failed to add link document for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add document')
+    throw asError(error, 'Failed to add document')
   }
 }
 
@@ -39,7 +39,7 @@ async function deleteLinkDocument(projectId: string, linkDocumentId: string): Pr
     await apiClient.delete(`/api/projects/${projectId}/link-documents/${linkDocumentId}`)
   } catch (error) {
     console.error(`Failed to delete link document ${linkDocumentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
+    throw asError(error, 'Failed to delete document')
   }
 }
 

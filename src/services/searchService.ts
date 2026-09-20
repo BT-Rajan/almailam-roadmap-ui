@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { SearchResult } from '@/types/Search'
 
 /** Shared implementation behind every searchX() below -- each just supplies its own
@@ -14,7 +14,7 @@ async function runSearch(path: string, query: string, entityLabel = ''): Promise
   } catch (error) {
     const suffix = entityLabel ? ` ${entityLabel}` : ''
     console.error(`Failed to search${suffix}:`, error)
-    throw new Error(error instanceof Error ? error.message : entityLabel ? `Failed to search ${entityLabel}` : 'Failed to perform search')
+    throw asError(error, entityLabel ? `Failed to search ${entityLabel}` : 'Failed to perform search')
   }
 }
 

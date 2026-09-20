@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { EmailProviderId, EmailProviderPreset, EmailSettings, EmailSettingsTestResult } from '@/types/EmailSettings'
 
 /**
@@ -10,7 +10,7 @@ async function getProviderPresets(): Promise<Record<EmailProviderId, EmailProvid
     return await apiClient.get<Record<EmailProviderId, EmailProviderPreset>>('/api/email/providers')
   } catch (error) {
     console.error('Failed to fetch email provider presets:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch provider presets')
+    throw asError(error, 'Failed to fetch provider presets')
   }
 }
 
@@ -22,7 +22,7 @@ async function getSettings(): Promise<EmailSettings> {
     return await apiClient.get<EmailSettings>('/api/email/settings')
   } catch (error) {
     console.error('Failed to fetch email settings:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch settings')
+    throw asError(error, 'Failed to fetch settings')
   }
 }
 
@@ -34,7 +34,7 @@ async function saveSettings(settings: EmailSettings): Promise<EmailSettings> {
     return await apiClient.post<EmailSettings>('/api/email/settings', settings)
   } catch (error) {
     console.error('Failed to save email settings:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save settings')
+    throw asError(error, 'Failed to save settings')
   }
 }
 
@@ -46,7 +46,7 @@ async function testConnection(): Promise<EmailSettingsTestResult> {
     return await apiClient.post<EmailSettingsTestResult>('/api/email/settings/test-connection', {})
   } catch (error) {
     console.error('Failed to test email connection:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to test connection')
+    throw asError(error, 'Failed to test connection')
   }
 }
 

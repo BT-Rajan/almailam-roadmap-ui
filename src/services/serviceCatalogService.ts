@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { ServiceCatalogActivity, ServiceCatalogBranch, ServiceCatalogItem, SupervisionPrerequisite } from '@/types/ServiceCatalog'
 
 /**
@@ -9,7 +9,7 @@ async function getServices(): Promise<ServiceCatalogItem[]> {
     return await apiClient.get<ServiceCatalogItem[]>('/api/service-catalog/services')
   } catch (error) {
     console.error('Failed to fetch service catalog:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch services')
+    throw asError(error, 'Failed to fetch services')
   }
 }
 
@@ -22,7 +22,7 @@ async function createService(name: string, branch: ServiceCatalogBranch): Promis
     return await apiClient.post<ServiceCatalogItem>('/api/service-catalog/services', { name, branch })
   } catch (error) {
     console.error('Failed to add service:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add service')
+    throw asError(error, 'Failed to add service')
   }
 }
 
@@ -34,7 +34,7 @@ async function renameService(serviceId: string, name: string): Promise<ServiceCa
     return await apiClient.patch<ServiceCatalogItem>(`/api/service-catalog/services/${serviceId}`, { name })
   } catch (error) {
     console.error(`Failed to rename service ${serviceId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to rename service')
+    throw asError(error, 'Failed to rename service')
   }
 }
 
@@ -46,7 +46,7 @@ async function removeService(serviceId: string): Promise<void> {
     await apiClient.delete(`/api/service-catalog/services/${serviceId}`)
   } catch (error) {
     console.error(`Failed to remove service ${serviceId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove service')
+    throw asError(error, 'Failed to remove service')
   }
 }
 
@@ -61,7 +61,7 @@ async function addActivity(serviceId: string, name: string, fixedCost: number): 
     })
   } catch (error) {
     console.error('Failed to add activity:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add activity')
+    throw asError(error, 'Failed to add activity')
   }
 }
 
@@ -76,7 +76,7 @@ async function updateActivity(
     return await apiClient.patch<ServiceCatalogActivity>(`/api/service-catalog/activities/${activityId}`, fields)
   } catch (error) {
     console.error(`Failed to update activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update activity')
+    throw asError(error, 'Failed to update activity')
   }
 }
 
@@ -88,7 +88,7 @@ async function removeActivity(activityId: string): Promise<void> {
     await apiClient.delete(`/api/service-catalog/activities/${activityId}`)
   } catch (error) {
     console.error(`Failed to remove activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove activity')
+    throw asError(error, 'Failed to remove activity')
   }
 }
 
@@ -104,7 +104,7 @@ async function getSupervisionPrerequisites(activityId: string): Promise<Supervis
     )
   } catch (error) {
     console.error(`Failed to fetch prerequisites for supervision activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch supervision prerequisites')
+    throw asError(error, 'Failed to fetch supervision prerequisites')
   }
 }
 
@@ -117,7 +117,7 @@ async function addSupervisionPrerequisite(
     )
   } catch (error) {
     console.error(`Failed to add prerequisite to supervision activity ${activityId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add supervision prerequisite')
+    throw asError(error, 'Failed to add supervision prerequisite')
   }
 }
 
@@ -126,7 +126,7 @@ async function removeSupervisionPrerequisite(prerequisiteId: string): Promise<vo
     await apiClient.delete(`/api/service-catalog/supervision-prerequisites/${prerequisiteId}`)
   } catch (error) {
     console.error(`Failed to remove prerequisite ${prerequisiteId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove supervision prerequisite')
+    throw asError(error, 'Failed to remove supervision prerequisite')
   }
 }
 

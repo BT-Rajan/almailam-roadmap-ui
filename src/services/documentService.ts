@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { DocumentStatus, DocumentType, DocumentVersion, ProjectDocument } from '@/types/Document'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import { fetchAllPages } from '@/utils/fetchAllPages'
@@ -34,7 +34,7 @@ async function getDocumentsPage(
     return await apiClient.get<PagedResponse<ProjectDocument>>(`/api/documents${query}`)
   } catch (error) {
     console.error('Failed to fetch documents:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+    throw asError(error, 'Failed to fetch documents')
   }
 }
 
@@ -56,7 +56,7 @@ async function getDocumentById(documentId: string): Promise<ProjectDocument | un
     return await apiClient.get<ProjectDocument>(`/api/documents/${documentId}`)
   } catch (error) {
     console.error(`Failed to fetch document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document')
+    throw asError(error, 'Failed to fetch document')
   }
 }
 
@@ -75,7 +75,7 @@ async function getDocumentVersions(documentId: string): Promise<DocumentVersion[
     return await apiClient.get<DocumentVersion[]>(`/api/documents/${documentId}/versions`)
   } catch (error) {
     console.error(`Failed to fetch versions for document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document versions')
+    throw asError(error, 'Failed to fetch document versions')
   }
 }
 
@@ -103,7 +103,7 @@ async function uploadDocument(
     return await apiClient.postForm<ProjectDocument>('/api/documents', formData)
   } catch (error) {
     console.error('Failed to upload document:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload document')
+    throw asError(error, 'Failed to upload document')
   }
 }
 
@@ -129,7 +129,7 @@ async function updateDocument(
     })
   } catch (error) {
     console.error(`Failed to update document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update document')
+    throw asError(error, 'Failed to update document')
   }
 }
 
@@ -141,7 +141,7 @@ async function deleteDocument(documentId: string): Promise<void> {
     await apiClient.delete(`/api/documents/${documentId}`)
   } catch (error) {
     console.error(`Failed to delete document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
+    throw asError(error, 'Failed to delete document')
   }
 }
 
@@ -155,7 +155,7 @@ async function setDocumentStatus(documentId: string, status: DocumentStatus, rea
     return await apiClient.patch<ProjectDocument>(`/api/documents/${documentId}/status`, { status, reason })
   } catch (error) {
     console.error(`Failed to change status for document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to change document status')
+    throw asError(error, 'Failed to change document status')
   }
 }
 
@@ -173,7 +173,7 @@ async function addVersion(documentId: string, file: File, notes?: string): Promi
     return await apiClient.postForm<DocumentVersion>(`/api/documents/${documentId}/versions`, formData)
   } catch (error) {
     console.error(`Failed to add a new version for document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add new version')
+    throw asError(error, 'Failed to add new version')
   }
 }
 
@@ -185,7 +185,7 @@ async function downloadDocument(documentId: string): Promise<Blob> {
     return await apiClient.getBlob(`/api/documents/${documentId}/download`)
   } catch (error) {
     console.error(`Failed to download document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to download document')
+    throw asError(error, 'Failed to download document')
   }
 }
 
@@ -199,7 +199,7 @@ async function downloadVersion(documentId: string, versionId: string): Promise<B
     return await apiClient.getBlob(`/api/documents/${documentId}/versions/${versionId}/download`)
   } catch (error) {
     console.error(`Failed to download version ${versionId} of document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to download document version')
+    throw asError(error, 'Failed to download document version')
   }
 }
 

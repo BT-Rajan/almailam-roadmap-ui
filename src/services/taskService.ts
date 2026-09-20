@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { Task, TaskAuditEvent } from '@/types/Task'
 import { fetchAllPages } from '@/utils/fetchAllPages'
@@ -37,7 +37,7 @@ async function getTasksPage(
     return await apiClient.get<PagedResponse<Task>>(`/api/tasks${query}`)
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch tasks')
+    throw asError(error, 'Failed to fetch tasks')
   }
 }
 
@@ -74,7 +74,7 @@ async function getTaskById(taskId: string): Promise<Task | undefined> {
     return await apiClient.get<Task>(`/api/tasks/${taskId}`)
   } catch (error) {
     console.error(`Failed to fetch task ${taskId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch task')
+    throw asError(error, 'Failed to fetch task')
   }
 }
 
@@ -86,7 +86,7 @@ async function createTask(input: TaskInput): Promise<Task> {
     return await apiClient.post<Task>('/api/tasks', input)
   } catch (error) {
     console.error('Failed to create task:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create task')
+    throw asError(error, 'Failed to create task')
   }
 }
 
@@ -100,7 +100,7 @@ async function updateTask(taskId: string, input: TaskUpdateInput): Promise<Task>
     return await apiClient.patch<Task>(`/api/tasks/${taskId}`, input)
   } catch (error) {
     console.error(`Failed to update task ${taskId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update task')
+    throw asError(error, 'Failed to update task')
   }
 }
 
@@ -112,7 +112,7 @@ async function deleteTask(taskId: string): Promise<void> {
     await apiClient.delete(`/api/tasks/${taskId}`)
   } catch (error) {
     console.error(`Failed to delete task ${taskId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete task')
+    throw asError(error, 'Failed to delete task')
   }
 }
 
@@ -128,7 +128,7 @@ async function getAuditEvents(taskId: string): Promise<TaskAuditEvent[]> {
     return await apiClient.get<TaskAuditEvent[]>(`/api/tasks/${taskId}/audit-events`)
   } catch (error) {
     console.error(`Failed to fetch history for task ${taskId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch task history')
+    throw asError(error, 'Failed to fetch task history')
   }
 }
 
@@ -142,7 +142,7 @@ async function addNote(taskId: string, note: string): Promise<TaskAuditEvent[]> 
     return await apiClient.post<TaskAuditEvent[]>(`/api/tasks/${taskId}/notes`, { note })
   } catch (error) {
     console.error(`Failed to add note to task ${taskId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add note')
+    throw asError(error, 'Failed to add note')
   }
 }
 
