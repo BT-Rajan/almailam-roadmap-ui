@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { EmailMergeField, EmailTemplate, EmailTemplateKey } from '@/types/EmailTemplate'
 
 async function getTemplates(): Promise<EmailTemplate[]> {
@@ -6,7 +6,7 @@ async function getTemplates(): Promise<EmailTemplate[]> {
     return await apiClient.get<EmailTemplate[]>('/api/email-templates')
   } catch (error) {
     console.error('Failed to fetch email templates:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch email templates')
+    throw asError(error, 'Failed to fetch email templates')
   }
 }
 
@@ -20,7 +20,7 @@ async function updateTemplate(key: EmailTemplateKey, subject: string, body: stri
     return await apiClient.patch<EmailTemplate>(`/api/email-templates/${key}`, { subject, body })
   } catch (error) {
     console.error(`Failed to update email template ${key}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update email template')
+    throw asError(error, 'Failed to update email template')
   }
 }
 

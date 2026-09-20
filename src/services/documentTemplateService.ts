@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/authStore'
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType, MergeField, TemplateBlock, TemplateLayout } from '@/types/DocumentTemplate'
 import type { AgreementStream } from '@/types/Payment'
@@ -10,7 +10,7 @@ async function getTemplates(documentType?: DocumentTemplateType): Promise<Docume
     return await apiClient.get<DocumentTemplate[]>(`/api/document-templates${query}`)
   } catch (error) {
     console.error('Failed to fetch document templates:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch document templates')
+    throw asError(error, 'Failed to fetch document templates')
   }
 }
 
@@ -47,7 +47,7 @@ async function uploadTemplate(documentType: DocumentTemplateType, language: AppL
     return await response.json()
   } catch (error) {
     console.error('Failed to upload document template:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload document template')
+    throw asError(error, 'Failed to upload document template')
   }
 }
 
@@ -87,7 +87,7 @@ async function uploadBackground(templateId: string, file: File): Promise<Documen
     return await response.json()
   } catch (error) {
     console.error('Failed to upload template background:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload template background')
+    throw asError(error, 'Failed to upload template background')
   }
 }
 
@@ -96,7 +96,7 @@ async function removeBackground(templateId: string): Promise<DocumentTemplate> {
     return await apiClient.delete<DocumentTemplate>(`/api/document-templates/${templateId}/background`)
   } catch (error) {
     console.error('Failed to remove template background:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove template background')
+    throw asError(error, 'Failed to remove template background')
   }
 }
 
@@ -110,7 +110,7 @@ async function updateLayout(
     return await apiClient.patch<DocumentTemplate>(`/api/document-templates/${templateId}/layout`, settings)
   } catch (error) {
     console.error('Failed to update template layout:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update template layout')
+    throw asError(error, 'Failed to update template layout')
   }
 }
 
@@ -129,7 +129,7 @@ async function setDefaultTemplate(templateId: string): Promise<DocumentTemplate>
     return await apiClient.patch<DocumentTemplate>(`/api/document-templates/${templateId}/default`)
   } catch (error) {
     console.error('Failed to set default document template:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to set default document template')
+    throw asError(error, 'Failed to set default document template')
   }
 }
 
@@ -138,7 +138,7 @@ async function deleteTemplate(templateId: string): Promise<void> {
     await apiClient.delete(`/api/document-templates/${templateId}`)
   } catch (error) {
     console.error('Failed to delete document template:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete document template')
+    throw asError(error, 'Failed to delete document template')
   }
 }
 
@@ -204,7 +204,7 @@ async function emailQuotationDocument(quotationNo: string, toEmail?: string, lan
     await apiClient.post(`/api/quotations/${quotationNo}/document/email`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email quotation ${quotationNo}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to email quotation')
+    throw asError(error, 'Failed to email quotation')
   }
 }
 
@@ -214,7 +214,7 @@ async function emailContractDocument(contractNo: string, toEmail?: string, langu
     await apiClient.post(`/api/contracts/${contractNo}/document/email`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email contract ${contractNo}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to email contract')
+    throw asError(error, 'Failed to email contract')
   }
 }
 
@@ -251,7 +251,7 @@ async function emailPaymentPlanDocument(projectNo: string, toEmail?: string, lan
     await apiClient.post(`/api/projects/${projectNo}/payment-plan/document/email${query}`, { toEmail, language })
   } catch (error) {
     console.error(`Failed to email payment plan for project ${projectNo}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to email payment plan')
+    throw asError(error, 'Failed to email payment plan')
   }
 }
 

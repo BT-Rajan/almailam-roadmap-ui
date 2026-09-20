@@ -1,4 +1,4 @@
-import { ApiError, apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse, PageParams } from '@/types/Pagination'
 import type { AddServicesInput, HandoverStatus, Project, ScopeOfWork, SelectedPermit, SelectedSupervisionActivity, StageEligibility } from '@/types/Project'
@@ -44,8 +44,7 @@ async function getProjectsPage(
     return await apiClient.get<PagedResponse<Project>>(`/api/projects${query}`)
   } catch (error) {
     console.error('Failed to fetch projects:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch projects')
+    throw asError(error, 'Failed to fetch projects')
   }
 }
 
@@ -68,7 +67,7 @@ async function getProjectById(projectId: string): Promise<Project | undefined> {
     return await apiClient.get<Project>(`/api/projects/${projectId}`)
   } catch (error) {
     console.error(`Failed to fetch project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch project')
+    throw asError(error, 'Failed to fetch project')
   }
 }
 
@@ -114,7 +113,7 @@ async function createProject(projectData: ProjectCreateInput): Promise<Project> 
     return await apiClient.post<Project>('/api/projects', projectData)
   } catch (error) {
     console.error('Failed to create project:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create project')
+    throw asError(error, 'Failed to create project')
   }
 }
 
@@ -140,7 +139,7 @@ async function updateProject(projectId: string, projectData: ProjectUpdateInput)
     return await apiClient.patch<Project>(`/api/projects/${projectId}`, projectData)
   } catch (error) {
     console.error(`Failed to update project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update project')
+    throw asError(error, 'Failed to update project')
   }
 }
 
@@ -155,7 +154,7 @@ async function setStage(projectId: string, currentStage: string, reason?: string
     return await apiClient.patch<Project>(`/api/projects/${projectId}/stage`, { currentStage, reason })
   } catch (error) {
     console.error(`Failed to change stage for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to change project stage')
+    throw asError(error, 'Failed to change project stage')
   }
 }
 
@@ -170,7 +169,7 @@ async function addServices(projectId: string, input: AddServicesInput): Promise<
     return await apiClient.post<Project>(`/api/projects/${projectId}/services`, input)
   } catch (error) {
     console.error(`Failed to add services to project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add services')
+    throw asError(error, 'Failed to add services')
   }
 }
 
@@ -186,7 +185,7 @@ async function getStageEligibility(projectId: string): Promise<StageEligibility[
     return await apiClient.get<StageEligibility[]>(`/api/projects/${projectId}/stage-eligibility`)
   } catch (error) {
     console.error(`Failed to fetch stage eligibility for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch stage eligibility')
+    throw asError(error, 'Failed to fetch stage eligibility')
   }
 }
 
@@ -205,7 +204,7 @@ async function closeDesignActivity(
     )
   } catch (error) {
     console.error(`Failed to close design activity ${activityId} on project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to close design activity')
+    throw asError(error, 'Failed to close design activity')
   }
 }
 
@@ -217,7 +216,7 @@ async function reopenDesignActivity(projectId: string, activityId: string): Prom
     )
   } catch (error) {
     console.error(`Failed to reopen design activity ${activityId} on project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to reopen design activity')
+    throw asError(error, 'Failed to reopen design activity')
   }
 }
 
@@ -236,7 +235,7 @@ async function setPermitStatus(
     )
   } catch (error) {
     console.error(`Failed to set status for permit ${permitId} on project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update permit status')
+    throw asError(error, 'Failed to update permit status')
   }
 }
 
@@ -254,7 +253,7 @@ async function setSupervisionStatus(
     )
   } catch (error) {
     console.error(`Failed to set status for supervision activity ${activityId} on project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update supervision activity status')
+    throw asError(error, 'Failed to update supervision activity status')
   }
 }
 
@@ -268,7 +267,7 @@ async function setStatus(projectId: string, status: string, reason?: string): Pr
     return await apiClient.patch<Project>(`/api/projects/${projectId}/status`, { status, reason })
   } catch (error) {
     console.error(`Failed to change status for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to change project status')
+    throw asError(error, 'Failed to change project status')
   }
 }
 
@@ -281,7 +280,7 @@ async function deleteProject(projectId: string): Promise<void> {
     await apiClient.delete(`/api/projects/${projectId}`)
   } catch (error) {
     console.error(`Failed to delete project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete project')
+    throw asError(error, 'Failed to delete project')
   }
 }
 
@@ -293,7 +292,7 @@ async function restoreProject(projectId: string): Promise<Project> {
     return await apiClient.post<Project>(`/api/projects/${projectId}/restore`, {})
   } catch (error) {
     console.error(`Failed to restore project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to restore project')
+    throw asError(error, 'Failed to restore project')
   }
 }
 
@@ -343,7 +342,7 @@ async function saveScopeOfWork(
     return await uploadMultipart<ScopeOfWork>(`/api/projects/${projectId}/scope-of-work`, formData)
   } catch (error) {
     console.error(`Failed to save scope of work for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save scope of work')
+    throw asError(error, 'Failed to save scope of work')
   }
 }
 
@@ -359,7 +358,7 @@ async function confirmRequirementScope(projectId: string): Promise<ScopeOfWork> 
     return await apiClient.post<ScopeOfWork>(`/api/projects/${projectId}/requirement/confirm-scope`, {})
   } catch (error) {
     console.error(`Failed to confirm scope of work for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm scope of work')
+    throw asError(error, 'Failed to confirm scope of work')
   }
 }
 
@@ -374,7 +373,7 @@ async function getHandoverStatus(projectId: string): Promise<HandoverStatus> {
     return await apiClient.get<HandoverStatus>(`/api/projects/${projectId}/handover`)
   } catch (error) {
     console.error(`Failed to load hand-over status for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to load hand-over status')
+    throw asError(error, 'Failed to load hand-over status')
   }
 }
 
@@ -389,7 +388,7 @@ async function notifyHandoverReady(projectId: string): Promise<HandoverStatus> {
     return await apiClient.post<HandoverStatus>(`/api/projects/${projectId}/handover/notify-ready`, {})
   } catch (error) {
     console.error(`Failed to notify hand-over readiness for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to notify hand-over readiness')
+    throw asError(error, 'Failed to notify hand-over readiness')
   }
 }
 
@@ -406,7 +405,7 @@ async function confirmProjectHandover(projectId: string, file: File): Promise<Pr
     return await apiClient.postForm<Project>(`/api/projects/${projectId}/handover/confirm`, formData)
   } catch (error) {
     console.error(`Failed to confirm hand-over for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm hand-over')
+    throw asError(error, 'Failed to confirm hand-over')
   }
 }
 
@@ -423,7 +422,7 @@ async function confirmHandoverPayment(projectId: string): Promise<Project> {
     return await apiClient.post<Project>(`/api/projects/${projectId}/handover/confirm-payment`, {})
   } catch (error) {
     console.error(`Failed to confirm hand-over payment for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm hand-over payment')
+    throw asError(error, 'Failed to confirm hand-over payment')
   }
 }
 
@@ -433,7 +432,7 @@ async function unconfirmHandoverPayment(projectId: string): Promise<Project> {
     return await apiClient.post<Project>(`/api/projects/${projectId}/handover/unconfirm-payment`, {})
   } catch (error) {
     console.error(`Failed to undo hand-over payment confirmation for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to undo hand-over payment confirmation')
+    throw asError(error, 'Failed to undo hand-over payment confirmation')
   }
 }
 
@@ -447,7 +446,7 @@ async function updateHandoverNotes(projectId: string, notes: string): Promise<Pr
     return await apiClient.patch<Project>(`/api/projects/${projectId}/handover/notes`, { notes })
   } catch (error) {
     console.error(`Failed to save hand-over notes for project ${projectId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save hand-over notes')
+    throw asError(error, 'Failed to save hand-over notes')
   }
 }
 

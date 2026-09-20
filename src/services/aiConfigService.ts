@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { AIConfiguration, AIProviderId, ProviderTestResult } from '@/types/AiConfig'
 
 /**
@@ -9,7 +9,7 @@ async function getConfiguration(): Promise<AIConfiguration> {
     return await apiClient.get<AIConfiguration>('/api/ai/configuration')
   } catch (error) {
     console.error('Failed to fetch AI configuration:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch configuration')
+    throw asError(error, 'Failed to fetch configuration')
   }
 }
 
@@ -21,7 +21,7 @@ async function saveConfiguration(config: AIConfiguration): Promise<AIConfigurati
     return await apiClient.post<AIConfiguration>('/api/ai/configuration', config)
   } catch (error) {
     console.error('Failed to save AI configuration:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to save configuration')
+    throw asError(error, 'Failed to save configuration')
   }
 }
 
@@ -33,7 +33,7 @@ async function testProviderConnection(providerId: AIProviderId): Promise<Provide
     return await apiClient.post<ProviderTestResult>(`/api/ai/providers/${providerId}/test-connection`, {})
   } catch (error) {
     console.error(`Failed to test provider connection:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to test connection')
+    throw asError(error, 'Failed to test connection')
   }
 }
 

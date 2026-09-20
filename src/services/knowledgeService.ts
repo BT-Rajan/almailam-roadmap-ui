@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { KnowledgeAskResult, KnowledgeDocument, KnowledgeStatus } from '@/types/Knowledge'
 
@@ -12,7 +12,7 @@ async function getStatus(): Promise<KnowledgeStatus> {
     return await apiClient.get<KnowledgeStatus>('/api/knowledge/status')
   } catch (error) {
     console.error('Failed to fetch knowledgebase status:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch status')
+    throw asError(error, 'Failed to fetch status')
   }
 }
 
@@ -24,7 +24,7 @@ async function getDocuments(): Promise<KnowledgeDocument[]> {
     return await apiClient.get<KnowledgeDocument[]>('/api/knowledge/documents')
   } catch (error) {
     console.error('Failed to fetch knowledgebase documents:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch documents')
+    throw asError(error, 'Failed to fetch documents')
   }
 }
 
@@ -65,7 +65,7 @@ async function uploadDocument(file: File, title: string): Promise<KnowledgeDocum
     return (await response.json()) as KnowledgeDocument
   } catch (error) {
     console.error('Failed to upload knowledgebase document:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload document')
+    throw asError(error, 'Failed to upload document')
   }
 }
 
@@ -77,7 +77,7 @@ async function setActive(documentId: string, isActive: boolean): Promise<Knowled
     return await apiClient.patch<KnowledgeDocument>(`/api/knowledge/documents/${documentId}`, { isActive })
   } catch (error) {
     console.error(`Failed to update knowledgebase document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update document')
+    throw asError(error, 'Failed to update document')
   }
 }
 
@@ -89,7 +89,7 @@ async function deleteDocument(documentId: string): Promise<void> {
     await apiClient.delete(`/api/knowledge/documents/${documentId}`)
   } catch (error) {
     console.error(`Failed to delete knowledgebase document ${documentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete document')
+    throw asError(error, 'Failed to delete document')
   }
 }
 
@@ -113,7 +113,7 @@ async function ask(question: string, documentId?: string): Promise<KnowledgeAskR
     )
   } catch (error) {
     console.error('Failed to ask knowledgebase question:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to get an answer')
+    throw asError(error, 'Failed to get an answer')
   }
 }
 

@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { PermitCatalogItem, PermitPrerequisite } from '@/types/PermitCatalog'
 
 /**
@@ -9,7 +9,7 @@ async function getPermits(): Promise<PermitCatalogItem[]> {
     return await apiClient.get<PermitCatalogItem[]>('/api/permit-catalog/permits')
   } catch (error) {
     console.error('Failed to fetch permit catalog:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch permits')
+    throw asError(error, 'Failed to fetch permits')
   }
 }
 
@@ -22,7 +22,7 @@ async function createPermit(name: string, fixedCost: number): Promise<PermitCata
     return await apiClient.post<PermitCatalogItem>('/api/permit-catalog/permits', { name, fixedCost })
   } catch (error) {
     console.error('Failed to add permit:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add permit')
+    throw asError(error, 'Failed to add permit')
   }
 }
 
@@ -34,7 +34,7 @@ async function renamePermit(permitId: string, name: string, fixedCost: number): 
     return await apiClient.patch<PermitCatalogItem>(`/api/permit-catalog/permits/${permitId}`, { name, fixedCost })
   } catch (error) {
     console.error(`Failed to rename permit ${permitId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to rename permit')
+    throw asError(error, 'Failed to rename permit')
   }
 }
 
@@ -46,7 +46,7 @@ async function removePermit(permitId: string): Promise<void> {
     await apiClient.delete(`/api/permit-catalog/permits/${permitId}`)
   } catch (error) {
     console.error(`Failed to remove permit ${permitId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove permit')
+    throw asError(error, 'Failed to remove permit')
   }
 }
 
@@ -59,7 +59,7 @@ async function getPrerequisites(permitId: string): Promise<PermitPrerequisite[]>
     return await apiClient.get<PermitPrerequisite[]>(`/api/permit-catalog/permits/${permitId}/prerequisites`)
   } catch (error) {
     console.error(`Failed to fetch prerequisites for permit ${permitId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch permit prerequisites')
+    throw asError(error, 'Failed to fetch permit prerequisites')
   }
 }
 
@@ -70,7 +70,7 @@ async function addPrerequisite(permitId: string, designActivityId: string): Prom
     })
   } catch (error) {
     console.error(`Failed to add prerequisite to permit ${permitId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to add permit prerequisite')
+    throw asError(error, 'Failed to add permit prerequisite')
   }
 }
 
@@ -79,7 +79,7 @@ async function removePrerequisite(prerequisiteId: string): Promise<void> {
     await apiClient.delete(`/api/permit-catalog/prerequisites/${prerequisiteId}`)
   } catch (error) {
     console.error(`Failed to remove prerequisite ${prerequisiteId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to remove permit prerequisite')
+    throw asError(error, 'Failed to remove permit prerequisite')
   }
 }
 

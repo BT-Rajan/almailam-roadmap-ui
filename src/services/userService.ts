@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { RoleDefinition, RolePermission } from '@/types/Role'
 import type { AppUser } from '@/types/User'
 
@@ -11,7 +11,7 @@ async function getUsers(): Promise<AppUser[]> {
     return response || []
   } catch (error) {
     console.error('Failed to fetch users:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch users')
+    throw asError(error, 'Failed to fetch users')
   }
 }
 
@@ -24,7 +24,7 @@ async function getRoleDefinitions(): Promise<RoleDefinition[]> {
     return response || []
   } catch (error) {
     console.error('Failed to fetch roles:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch roles')
+    throw asError(error, 'Failed to fetch roles')
   }
 }
 
@@ -58,7 +58,7 @@ async function createUser(user: Partial<AppUser>): Promise<CreatedUser> {
     return { ...created, temporaryPassword: temporary_password }
   } catch (error) {
     console.error('Failed to create user:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create user')
+    throw asError(error, 'Failed to create user')
   }
 }
 
@@ -88,7 +88,7 @@ async function updateUser(user: AppUser): Promise<AppUser> {
     return response
   } catch (error) {
     console.error('Failed to update user:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update user')
+    throw asError(error, 'Failed to update user')
   }
 }
 
@@ -104,7 +104,7 @@ async function setUserStatus(userId: string, status: AppUser['status']): Promise
     await apiClient.patch(`/api/users/${userId}/status`, { status })
   } catch (error) {
     console.error('Failed to set user status:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to set user status')
+    throw asError(error, 'Failed to set user status')
   }
 }
 
@@ -121,7 +121,7 @@ async function resetPassword(userId: string): Promise<string> {
     return response.temporary_password
   } catch (error) {
     console.error('Failed to reset password:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to reset password')
+    throw asError(error, 'Failed to reset password')
   }
 }
 
@@ -133,7 +133,7 @@ async function deleteUser(userId: string): Promise<void> {
     await apiClient.delete(`/api/users/${userId}`)
   } catch (error) {
     console.error('Failed to delete user:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete user')
+    throw asError(error, 'Failed to delete user')
   }
 }
 
@@ -150,7 +150,7 @@ async function updateRoleDefinition(role: string, permissions: RolePermission[])
     return response
   } catch (error) {
     console.error('Failed to update role permissions:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update role permissions')
+    throw asError(error, 'Failed to update role permissions')
   }
 }
 

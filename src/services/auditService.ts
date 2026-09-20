@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
 import type { PagedResponse } from '@/types/Pagination'
 
@@ -49,7 +49,7 @@ class AuditService {
       return await apiClient.get<PagedResponse<AuditLog>>(`/api/audit-logs${buildQuery(query)}`)
     } catch (error) {
       console.error('Failed to fetch audit logs:', error)
-      throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit logs')
+      throw asError(error, 'Failed to fetch audit logs')
     }
   }
 
@@ -102,7 +102,7 @@ class AuditService {
       return await response.blob()
     } catch (error) {
       console.error('Failed to export audit logs:', error)
-      throw new Error(error instanceof Error ? error.message : 'Failed to export audit logs')
+      throw asError(error, 'Failed to export audit logs')
     }
   }
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { serviceCatalogService } from '@/services/serviceCatalogService'
 import type { ServiceCatalogBranch, ServiceCatalogItem } from '@/types/ServiceCatalog'
+import { describeStoreError } from '@/utils/storeError'
 
 interface ServiceCatalogStoreState {
   services: ServiceCatalogItem[]
@@ -37,8 +38,8 @@ export const useServiceCatalogStore = defineStore('serviceCatalog', {
         if (!this.selectedServiceId && this.services.length > 0) {
           this.selectedServiceId = this.services[0]!.id
         }
-      } catch {
-        this.error = 'Unable to load the service catalog. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the service catalog. Please try again.', error)
       } finally {
         this.isLoading = false
       }

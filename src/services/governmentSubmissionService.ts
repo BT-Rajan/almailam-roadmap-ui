@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/authStore'
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { GovernmentSubmission, SubmissionFollowup, SubmissionStage } from '@/types/Submission'
 
 /**
@@ -15,7 +15,7 @@ async function getSubmissions(projectId?: string, stage?: SubmissionStage): Prom
     return await apiClient.get<GovernmentSubmission[]>(`/api/submissions${query ? `?${query}` : ''}`)
   } catch (error) {
     console.error('Failed to fetch submissions:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch submissions')
+    throw asError(error, 'Failed to fetch submissions')
   }
 }
 
@@ -24,7 +24,7 @@ async function getSubmission(submissionNo: string): Promise<GovernmentSubmission
     return await apiClient.get<GovernmentSubmission>(`/api/submissions/${submissionNo}`)
   } catch (error) {
     console.error(`Failed to fetch submission ${submissionNo}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch submission')
+    throw asError(error, 'Failed to fetch submission')
   }
 }
 
@@ -48,7 +48,7 @@ async function createSubmission(submissionData: SubmissionCreateInput): Promise<
     return await apiClient.post<GovernmentSubmission>('/api/submissions', submissionData)
   } catch (error) {
     console.error('Failed to create submission:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to create submission')
+    throw asError(error, 'Failed to create submission')
   }
 }
 
@@ -74,7 +74,7 @@ async function updateSubmission(submissionId: string, submissionData: Submission
     return await apiClient.patch<GovernmentSubmission>(`/api/submissions/${submissionId}`, submissionData)
   } catch (error) {
     console.error(`Failed to update submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to update submission')
+    throw asError(error, 'Failed to update submission')
   }
 }
 
@@ -86,7 +86,7 @@ async function deleteSubmission(submissionId: string): Promise<void> {
     await apiClient.delete(`/api/submissions/${submissionId}`)
   } catch (error) {
     console.error(`Failed to delete submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete submission')
+    throw asError(error, 'Failed to delete submission')
   }
 }
 
@@ -151,7 +151,7 @@ async function uploadDocument(submissionId: string, documentId: number, file: Fi
     )
   } catch (error) {
     console.error(`Failed to upload document ${documentId} for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to upload document')
+    throw asError(error, 'Failed to upload document')
   }
 }
 
@@ -168,7 +168,7 @@ async function confirmReadiness(submissionId: string): Promise<GovernmentSubmiss
     return await apiClient.post<GovernmentSubmission>(`/api/submissions/${submissionId}/confirm-readiness`, {})
   } catch (error) {
     console.error(`Failed to confirm readiness for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to confirm readiness')
+    throw asError(error, 'Failed to confirm readiness')
   }
 }
 
@@ -197,7 +197,7 @@ async function recordAcknowledgement(
     return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/acknowledgement`, formData)
   } catch (error) {
     console.error(`Failed to record acknowledgement for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record acknowledgement')
+    throw asError(error, 'Failed to record acknowledgement')
   }
 }
 
@@ -224,7 +224,7 @@ async function closeApplication(submissionId: string, input: CloseApplicationInp
     return await uploadMultipart<GovernmentSubmission>(`/api/submissions/${submissionId}/close`, formData)
   } catch (error) {
     console.error(`Failed to close submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to close the application')
+    throw asError(error, 'Failed to close the application')
   }
 }
 
@@ -237,7 +237,7 @@ async function getFollowups(submissionId: string): Promise<SubmissionFollowup[]>
     return await apiClient.get<SubmissionFollowup[]>(`/api/submissions/${submissionId}/followups`)
   } catch (error) {
     console.error(`Failed to fetch follow-ups for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch follow-ups')
+    throw asError(error, 'Failed to fetch follow-ups')
   }
 }
 
@@ -260,7 +260,7 @@ async function addFollowup(submissionId: string, input: FollowupCreateInput): Pr
     return await uploadMultipart<SubmissionFollowup>(`/api/submissions/${submissionId}/followups`, formData)
   } catch (error) {
     console.error(`Failed to record follow-up for submission ${submissionId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to record follow-up')
+    throw asError(error, 'Failed to record follow-up')
   }
 }
 

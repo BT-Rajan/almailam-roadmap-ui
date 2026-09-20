@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { sitePortalService } from '@/services/sitePortalService'
 import type { StatusReportFileInput } from '@/services/sitePortalService'
 import type { EngineerProjectOption, StatusReport } from '@/types/StatusReport'
+import { describeStoreError } from '@/utils/storeError'
 
 interface SitePortalState {
   projects: EngineerProjectOption[]
@@ -62,8 +63,8 @@ export const useSitePortalStore = defineStore('sitePortal', {
       this.error = undefined
       try {
         this.calendarReports = await sitePortalService.getMyReports(start, end)
-      } catch {
-        this.error = 'Unable to load your report history. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load your report history. Please try again.', error)
       } finally {
         this.isLoading = false
       }

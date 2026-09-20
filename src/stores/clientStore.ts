@@ -23,6 +23,7 @@ import type {
   ClientType,
   ClientViewMode,
 } from '@/types/Client'
+import { describeStoreError } from '@/utils/storeError'
 
 interface ClientPaginationState {
   page: number
@@ -106,8 +107,8 @@ export const useClientStore = defineStore('client', {
       this.error = undefined
       try {
         this.clients = await clientService.getClients()
-      } catch {
-        this.error = 'Unable to load clients. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load clients. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -137,8 +138,8 @@ export const useClientStore = defineStore('client', {
           total: result.total,
           totalPages: result.totalPages,
         }
-      } catch {
-        this.error = 'Unable to load clients. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load clients. Please try again.', error)
       } finally {
         this.isPageLoading = false
       }
@@ -169,8 +170,8 @@ export const useClientStore = defineStore('client', {
         this.addresses = addresses
         this.identifications = identifications
         this.documents = documents
-      } catch {
-        this.detailError = 'Unable to load the client profile. Please try again.'
+      } catch (error) {
+        this.detailError = describeStoreError('Unable to load the client profile. Please try again.', error)
       } finally {
         this.isDetailLoading = false
       }

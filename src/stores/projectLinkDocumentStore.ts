@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { projectLinkDocumentService } from '@/services/projectLinkDocumentService'
 import type { ProjectLinkDocument, ProjectLinkDocumentCategory } from '@/types/Document'
+import { describeStoreError } from '@/utils/storeError'
 
 interface ProjectLinkDocumentStoreState {
   // Keyed by projectId so switching between projects' Documents tabs
@@ -35,8 +36,8 @@ export const useProjectLinkDocumentStore = defineStore('projectLinkDocument', {
       this.error = undefined
       try {
         this.byProject[projectId] = await projectLinkDocumentService.getLinkDocumentsForProject(projectId)
-      } catch {
-        this.error = 'Unable to load documents. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load documents. Please try again.', error)
       } finally {
         this.isLoading = false
       }

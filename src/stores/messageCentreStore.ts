@@ -7,6 +7,7 @@ import type { Client } from '@/types/Client'
 import type { MessageChannel, MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { describeStoreError } from '@/utils/storeError'
 
 interface MessageCentreStoreState {
   templates: MessageTemplate[]
@@ -103,8 +104,8 @@ export const useMessageCentreStore = defineStore('messageCentre', {
         ])
         this.templates = templates
         this.log = log
-      } catch {
-        this.error = 'Unable to load the Message Centre. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the Message Centre. Please try again.', error)
       } finally {
         this.isLoading = false
       }

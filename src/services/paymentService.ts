@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/authStore'
-import { apiClient, ApiError } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type {
   Adjustment,
   AdjustmentType,
@@ -23,8 +23,7 @@ async function getFinancialAgreements(): Promise<FinancialAgreement[]> {
     return await apiClient.get<FinancialAgreement[]>('/api/financial-agreements')
   } catch (error) {
     console.error('Failed to fetch agreements:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch agreements')
+    throw asError(error, 'Failed to fetch agreements')
   }
 }
 
@@ -43,8 +42,7 @@ async function getAgreementByProject(projectId: string, stream?: AgreementStream
     return agreement ?? undefined
   } catch (error) {
     console.error(`Failed to fetch agreement for project ${projectId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch agreement')
+    throw asError(error, 'Failed to fetch agreement')
   }
 }
 
@@ -56,8 +54,7 @@ async function getObligations(agreementId: string): Promise<PaymentObligation[]>
     return await apiClient.get<PaymentObligation[]>(`/api/financial-agreements/${agreementId}/obligations`)
   } catch (error) {
     console.error('Failed to fetch obligations:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch obligations')
+    throw asError(error, 'Failed to fetch obligations')
   }
 }
 
@@ -69,8 +66,7 @@ async function getAllObligations(): Promise<PaymentObligation[]> {
     return await apiClient.get<PaymentObligation[]>('/api/obligations')
   } catch (error) {
     console.error('Failed to fetch all obligations:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch obligations')
+    throw asError(error, 'Failed to fetch obligations')
   }
 }
 
@@ -82,8 +78,7 @@ async function getPayments(agreementId: string): Promise<Payment[]> {
     return await apiClient.get<Payment[]>(`/api/financial-agreements/${agreementId}/payments`)
   } catch (error) {
     console.error('Failed to fetch payments:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch payments')
+    throw asError(error, 'Failed to fetch payments')
   }
 }
 
@@ -95,8 +90,7 @@ async function getAllocationsForPayment(paymentId: string): Promise<PaymentAlloc
     return await apiClient.get<PaymentAllocation[]>(`/api/payments/${paymentId}/allocations`)
   } catch (error) {
     console.error('Failed to fetch allocations:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch allocations')
+    throw asError(error, 'Failed to fetch allocations')
   }
 }
 
@@ -108,8 +102,7 @@ async function getAuditEvents(agreementId: string): Promise<FinancialAuditEvent[
     return await apiClient.get<FinancialAuditEvent[]>(`/api/financial-agreements/${agreementId}/audit-events`)
   } catch (error) {
     console.error('Failed to fetch audit events:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch audit events')
+    throw asError(error, 'Failed to fetch audit events')
   }
 }
 
@@ -121,8 +114,7 @@ async function getRefunds(agreementId: string): Promise<Refund[]> {
     return await apiClient.get<Refund[]>(`/api/financial-agreements/${agreementId}/refunds`)
   } catch (error) {
     console.error('Failed to fetch refunds:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch refunds')
+    throw asError(error, 'Failed to fetch refunds')
   }
 }
 
@@ -134,8 +126,7 @@ async function getAdjustments(agreementId: string): Promise<Adjustment[]> {
     return await apiClient.get<Adjustment[]>(`/api/financial-agreements/${agreementId}/adjustments`)
   } catch (error) {
     console.error('Failed to fetch adjustments:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch adjustments')
+    throw asError(error, 'Failed to fetch adjustments')
   }
 }
 
@@ -150,8 +141,7 @@ async function createAgreement(input: CreateAgreementInput, _createdBy: string):
     return await apiClient.post<FinancialAgreement>('/api/financial-agreements', input)
   } catch (error) {
     console.error('Failed to create agreement:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to create agreement')
+    throw asError(error, 'Failed to create agreement')
   }
 }
 
@@ -163,8 +153,7 @@ async function approveAgreement(agreementId: string): Promise<FinancialAgreement
     return await apiClient.post<FinancialAgreement>(`/api/financial-agreements/${agreementId}/approve`)
   } catch (error) {
     console.error('Failed to approve agreement:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to approve agreement')
+    throw asError(error, 'Failed to approve agreement')
   }
 }
 
@@ -181,8 +170,7 @@ async function reopenAgreement(agreementId: string, reason: string): Promise<Fin
     return await apiClient.post<FinancialAgreement>(`/api/financial-agreements/${agreementId}/reopen`, { reason })
   } catch (error) {
     console.error('Failed to reopen agreement:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to reopen agreement')
+    throw asError(error, 'Failed to reopen agreement')
   }
 }
 
@@ -197,8 +185,7 @@ async function updateAgreement(agreementId: string, input: UpdateAgreementInput)
     return await apiClient.patch<FinancialAgreement>(`/api/financial-agreements/${agreementId}`, input)
   } catch (error) {
     console.error('Failed to update agreement:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to update agreement')
+    throw asError(error, 'Failed to update agreement')
   }
 }
 
@@ -211,8 +198,7 @@ async function deleteAgreement(agreementId: string): Promise<void> {
     await apiClient.delete(`/api/financial-agreements/${agreementId}`)
   } catch (error) {
     console.error('Failed to delete agreement:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete agreement')
+    throw asError(error, 'Failed to delete agreement')
   }
 }
 
@@ -227,8 +213,7 @@ async function recordPayment(input: RecordPaymentInput, _createdBy: string): Pro
     return await apiClient.post<Payment>('/api/payments', input)
   } catch (error) {
     console.error('Failed to record payment:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to record payment')
+    throw asError(error, 'Failed to record payment')
   }
 }
 
@@ -267,8 +252,7 @@ async function attachPaymentProof(paymentId: string, file: File): Promise<Paymen
     return (await response.json()) as Payment
   } catch (error) {
     console.error(`Failed to attach proof to payment ${paymentId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to attach payment proof')
+    throw asError(error, 'Failed to attach payment proof')
   }
 }
 
@@ -302,8 +286,7 @@ async function downloadPaymentProof(paymentId: string): Promise<Blob> {
     return await response.blob()
   } catch (error) {
     console.error(`Failed to download proof for payment ${paymentId}:`, error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to download payment proof')
+    throw asError(error, 'Failed to download payment proof')
   }
 }
 
@@ -331,8 +314,7 @@ async function createRefund(input: CreateRefundInput): Promise<Refund> {
     })
   } catch (error) {
     console.error('Failed to create refund:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to create refund')
+    throw asError(error, 'Failed to create refund')
   }
 }
 
@@ -358,8 +340,7 @@ async function createAdjustment(input: CreateAdjustmentInput): Promise<Adjustmen
     })
   } catch (error) {
     console.error('Failed to create adjustment:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to create adjustment')
+    throw asError(error, 'Failed to create adjustment')
   }
 }
 
@@ -377,8 +358,7 @@ async function cancelObligation(obligationId: string, reason: string, _user: str
     })
   } catch (error) {
     console.error('Failed to cancel obligation:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to cancel obligation')
+    throw asError(error, 'Failed to cancel obligation')
   }
 }
 
@@ -396,8 +376,7 @@ async function waiveObligation(obligationId: string, reason: string, _user: stri
     })
   } catch (error) {
     console.error('Failed to waive obligation:', error)
-    if (error instanceof ApiError) throw error
-    throw new Error(error instanceof Error ? error.message : 'Failed to waive obligation')
+    throw asError(error, 'Failed to waive obligation')
   }
 }
 

@@ -4,6 +4,7 @@ import { documentTemplateService } from '@/services/documentTemplateService'
 import type { AppLanguage } from '@/types/CompanySettings'
 import type { DocumentTemplate, DocumentTemplateType } from '@/types/DocumentTemplate'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { describeStoreError } from '@/utils/storeError'
 
 interface DocumentTemplateStoreState {
   templates: DocumentTemplate[]
@@ -35,8 +36,8 @@ export const useDocumentTemplateStore = defineStore('documentTemplate', {
       this.error = undefined
       try {
         this.templates = await documentTemplateService.getTemplates()
-      } catch {
-        this.error = 'Unable to load document templates. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load document templates. Please try again.', error)
       } finally {
         this.isLoading = false
       }

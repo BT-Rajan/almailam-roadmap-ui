@@ -7,6 +7,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Project } from '@/types/Project'
 import type { Task, TaskAuditEvent, TaskStatus } from '@/types/Task'
+import { describeStoreError } from '@/utils/storeError'
 
 interface TaskStoreState {
   tasks: Task[]
@@ -117,8 +118,8 @@ export const useTaskStore = defineStore('task', {
           projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
           clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
         ])
-      } catch {
-        this.error = 'Unable to load tasks. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load tasks. Please try again.', error)
       } finally {
         this.isLoading = false
       }
@@ -184,8 +185,8 @@ export const useTaskStore = defineStore('task', {
       this.historyError = undefined
       try {
         this.auditEventsByTask = { ...this.auditEventsByTask, [taskId]: await taskService.getAuditEvents(taskId) }
-      } catch {
-        this.historyError = "Unable to load this task's history. Please try again."
+      } catch (error) {
+        this.historyError = describeStoreError("Unable to load this task's history. Please try again.", error)
       } finally {
         this.isHistoryLoading = false
       }

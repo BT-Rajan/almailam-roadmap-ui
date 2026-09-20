@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
 
 /**
@@ -9,7 +9,7 @@ async function getTemplates(): Promise<MessageTemplate[]> {
     return await apiClient.get<MessageTemplate[]>('/api/messages/templates')
   } catch (error) {
     console.error('Failed to fetch message templates:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch templates')
+    throw asError(error, 'Failed to fetch templates')
   }
 }
 
@@ -21,7 +21,7 @@ async function getMessageLog(): Promise<MessageLogEntry[]> {
     return await apiClient.get<MessageLogEntry[]>('/api/messages/log')
   } catch (error) {
     console.error('Failed to fetch message log:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch log')
+    throw asError(error, 'Failed to fetch log')
   }
 }
 
@@ -33,7 +33,7 @@ async function sendMessage(payload: SendMessagePayload): Promise<MessageLogEntry
     return await apiClient.post<MessageLogEntry>('/api/messages/send', payload)
   } catch (error) {
     console.error('Failed to send message:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send message')
+    throw asError(error, 'Failed to send message')
   }
 }
 
@@ -55,7 +55,7 @@ async function sendEmail(payload: SendEmailPayload): Promise<MessageLogEntry> {
     return await apiClient.postForm<MessageLogEntry>('/api/messages/send-email', formData)
   } catch (error) {
     console.error('Failed to send email:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to send email')
+    throw asError(error, 'Failed to send email')
   }
 }
 
@@ -68,7 +68,7 @@ async function downloadAttachment(messageId: string, attachmentId: string): Prom
     return await apiClient.getBlob(`/api/messages/log/${messageId}/attachments/${attachmentId}/download`)
   } catch (error) {
     console.error(`Failed to download attachment ${attachmentId}:`, error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to download attachment')
+    throw asError(error, 'Failed to download attachment')
   }
 }
 

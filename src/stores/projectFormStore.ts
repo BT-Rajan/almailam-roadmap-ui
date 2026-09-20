@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { projectFormService } from '@/services/projectFormService'
 import type { ProjectFormEntry, ProjectFormEntryStatus } from '@/types/Government'
+import { describeStoreError } from '@/utils/storeError'
 
 interface ProjectFormState {
   entries: ProjectFormEntry[]
@@ -31,8 +32,8 @@ export const useProjectFormStore = defineStore('projectForm', {
       this.error = undefined
       try {
         this.entries = await projectFormService.getEntries(projectId)
-      } catch {
-        this.error = 'Unable to load filed forms. Please try again.'
+      } catch (error) {
+        this.error = describeStoreError('Unable to load filed forms. Please try again.', error)
       } finally {
         this.isLoading = false
       }

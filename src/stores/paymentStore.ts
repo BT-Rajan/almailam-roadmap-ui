@@ -21,7 +21,7 @@ import type {
 } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
-import { describeLoadError } from '@/utils/loadError'
+import { describeStoreError } from '@/utils/storeError'
 import { getFinancialSummary } from '@/utils/paymentHelpers'
 
 interface PaymentAgreementRow {
@@ -175,7 +175,7 @@ export const usePaymentStore = defineStore('payment', {
         // useIdleLogout treats a real auth failure as distinct from an
         // ordinary network/server error.
         if (error instanceof ApiError && error.status === 401) throw error
-        this.error = describeLoadError('Unable to load payment information. Please try again.', error)
+        this.error = describeStoreError('Unable to load payment information. Please try again.', error)
       } finally {
         this.isLoading = false
       }

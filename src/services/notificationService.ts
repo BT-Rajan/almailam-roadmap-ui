@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/httpClient'
+import { apiClient, asError } from '@/services/httpClient'
 import type { AppNotification } from '@/types/Notification'
 
 /**
@@ -9,7 +9,7 @@ async function getNotifications(): Promise<AppNotification[]> {
     return await apiClient.get<AppNotification[]>('/api/notifications')
   } catch (error) {
     console.error('Failed to fetch notifications:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch notifications')
+    throw asError(error, 'Failed to fetch notifications')
   }
 }
 
@@ -21,7 +21,7 @@ async function getUnreadNotifications(): Promise<AppNotification[]> {
     return await apiClient.get<AppNotification[]>('/api/notifications?filter=unread')
   } catch (error) {
     console.error('Failed to fetch unread notifications:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to fetch notifications')
+    throw asError(error, 'Failed to fetch notifications')
   }
 }
 
@@ -33,7 +33,7 @@ async function markAsRead(notificationId: string): Promise<void> {
     await apiClient.patch(`/api/notifications/${notificationId}/read`)
   } catch (error) {
     console.error('Failed to mark notification as read:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to mark as read')
+    throw asError(error, 'Failed to mark as read')
   }
 }
 
@@ -45,7 +45,7 @@ async function markAllAsRead(): Promise<void> {
     await apiClient.patch('/api/notifications/read-all')
   } catch (error) {
     console.error('Failed to mark all notifications as read:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to mark all as read')
+    throw asError(error, 'Failed to mark all as read')
   }
 }
 
@@ -57,7 +57,7 @@ async function deleteNotification(notificationId: string): Promise<void> {
     await apiClient.delete(`/api/notifications/${notificationId}`)
   } catch (error) {
     console.error('Failed to delete notification:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete notification')
+    throw asError(error, 'Failed to delete notification')
   }
 }
 
@@ -69,7 +69,7 @@ async function clearAllNotifications(): Promise<void> {
     await apiClient.delete('/api/notifications/clear-all')
   } catch (error) {
     console.error('Failed to clear all notifications:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to clear notifications')
+    throw asError(error, 'Failed to clear notifications')
   }
 }
 
