@@ -8,6 +8,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -250,15 +251,19 @@ function viewStatusReport(report: StatusReport): void {
         :title="t('project.documentsTab.noIdentificationDocumentsTitle')"
         :description="t('project.documentsTab.noIdentificationDocumentsDescription')"
       />
-      <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-        <CustomerIdDocumentCard
-          v-for="document in identityDocuments"
-          :key="document.id"
-          :document="document"
-          @view="viewClientDocument"
-          @download="viewClientDocument"
-        />
-      </div>
+      <PaginatedList v-else :items="identityDocuments" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+        <template #default="{ items }">
+          <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+            <CustomerIdDocumentCard
+              v-for="document in items"
+              :key="document.id"
+              :document="document"
+              @view="viewClientDocument"
+              @download="viewClientDocument"
+            />
+          </div>
+        </template>
+      </PaginatedList>
     </div>
 
     <div class="flex flex-col gap-3">
@@ -355,22 +360,26 @@ function viewStatusReport(report: StatusReport): void {
         <SkeletonLoader :rows="2" />
       </div>
       <EmptyState v-else-if="permitApplications.length === 0" :title="t('project.contractDocumentsTab.noPermitFiles')" />
-      <template v-else>
-        <Card v-for="group in permitApplications" :key="group.submission.submissionNo" :padded="false">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-2">
-                <p class="truncate text-sm font-semibold text-text-primary">{{ permitApplicationTitle(group.submission) }}</p>
-                <StatusBadge :label="t(`government.submissionStage.${group.submission.stage.toLowerCase()}`)" :variant="getSubmissionStageVariant(group.submission.stage)" />
-              </div>
-              <BaseButton size="sm" variant="ghost" :icon="ArrowRight" class="shrink-0 no-print" @click="openPermitApplication(group.submission.submissionNo)">
-                {{ t('project.contractDocumentsTab.openApplication') }}
-              </BaseButton>
-            </div>
-          </template>
-          <SubmissionFilesList :files="group.files" />
-        </Card>
-      </template>
+      <PaginatedList v-else :items="permitApplications" :page-size="5">
+        <template #default="{ items }">
+          <div class="flex flex-col gap-3">
+            <Card v-for="group in items" :key="group.submission.submissionNo" :padded="false">
+              <template #header>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <p class="truncate text-sm font-semibold text-text-primary">{{ permitApplicationTitle(group.submission) }}</p>
+                    <StatusBadge :label="t(`government.submissionStage.${group.submission.stage.toLowerCase()}`)" :variant="getSubmissionStageVariant(group.submission.stage)" />
+                  </div>
+                  <BaseButton size="sm" variant="ghost" :icon="ArrowRight" class="shrink-0 no-print" @click="openPermitApplication(group.submission.submissionNo)">
+                    {{ t('project.contractDocumentsTab.openApplication') }}
+                  </BaseButton>
+                </div>
+              </template>
+              <SubmissionFilesList :files="group.files" />
+            </Card>
+          </div>
+        </template>
+      </PaginatedList>
     </div>
 
     <div v-if="project.includesSupervision" class="flex flex-col gap-3">
@@ -381,23 +390,27 @@ function viewStatusReport(report: StatusReport): void {
         :description="t('project.contractDocumentsTab.noStatusReportsDescription')"
       />
       <Card v-else :padded="false">
-        <ul class="flex flex-col divide-y divide-border-light">
-          <li v-for="report in statusReports" :key="report.id" class="flex items-center justify-between gap-3 px-5 py-4">
-            <div class="flex items-center gap-3">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                <FileText class="h-5 w-5" />
-              </span>
-              <div>
-                <p class="text-sm font-semibold text-text-primary">{{ formatDate(report.reportDate) }}</p>
-                <p class="text-xs text-text-muted">{{ report.engineerName }} · {{ report.reportNo }}</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <StatusBadge :label="reportStatusLabel(report.status)" :variant="reportStatusVariant(report.status)" />
-              <IconButton :icon="Eye" :label="t('project.contractDocumentsTab.viewReport')" size="sm" @click="viewStatusReport(report)" />
-            </div>
-          </li>
-        </ul>
+        <PaginatedList :items="statusReports">
+          <template #default="{ items }">
+            <ul class="flex flex-col divide-y divide-border-light">
+              <li v-for="report in items" :key="report.id" class="flex items-center justify-between gap-3 px-5 py-4">
+                <div class="flex items-center gap-3">
+                  <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                    <FileText class="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p class="text-sm font-semibold text-text-primary">{{ formatDate(report.reportDate) }}</p>
+                    <p class="text-xs text-text-muted">{{ report.engineerName }} · {{ report.reportNo }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <StatusBadge :label="reportStatusLabel(report.status)" :variant="reportStatusVariant(report.status)" />
+                  <IconButton :icon="Eye" :label="t('project.contractDocumentsTab.viewReport')" size="sm" @click="viewStatusReport(report)" />
+                </div>
+              </li>
+            </ul>
+          </template>
+        </PaginatedList>
       </Card>
     </div>
 

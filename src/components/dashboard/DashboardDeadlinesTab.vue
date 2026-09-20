@@ -118,7 +118,6 @@ const upcomingDeadlines = computed<Deadline[]>(() => {
       return due >= now && due <= twoWeeksFromNow
     })
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .slice(0, 15)
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -168,7 +167,7 @@ function handleContractRenewalClick(projectId: string): void {
     <UpcomingDeadlinesWidget
       :title="t('dashboard.upcomingDeadlines')"
       :deadlines="upcomingDeadlines"
-      :max-items="15"
+      :page-size="10"
       @deadline-click="handleDeadlineClick"
     />
 
@@ -176,7 +175,7 @@ function handleContractRenewalClick(projectId: string): void {
       ref="contractRenewalsWidget"
       :title="t('dashboard.contractRenewals')"
       :deadlines="contractRenewalItems"
-      :max-items="15"
+      :page-size="10"
       :empty-text="t('dashboard.noContractRenewals')"
       @deadline-click="handleContractRenewalClick"
     />

@@ -10,6 +10,7 @@ import Card from '@/components/common/Card.vue'
 import DetailPanel from '@/components/common/DetailPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
@@ -939,16 +940,20 @@ function verificationResultLabel(result: string): string {
           <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noPermitsSelectedYet') }}</p>
         </div>
 
-        <div v-if="designDocuments.length > 0" class="flex flex-col gap-2">
-          <div
-            v-for="document in designDocuments"
-            :key="document.id"
-            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
-          >
-            <span class="truncate text-sm text-text-secondary">{{ document.title }}</span>
-            <StatusBadge :label="documentStatusLabel(document.status)" :variant="getDocumentStatusVariant(document.status)" />
-          </div>
-        </div>
+        <PaginatedList v-if="designDocuments.length > 0" :items="designDocuments">
+          <template #default="{ items }">
+            <div class="flex flex-col gap-2">
+              <div
+                v-for="document in items"
+                :key="document.id"
+                class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
+              >
+                <span class="truncate text-sm text-text-secondary">{{ document.title }}</span>
+                <StatusBadge :label="documentStatusLabel(document.status)" :variant="getDocumentStatusVariant(document.status)" />
+              </div>
+            </div>
+          </template>
+        </PaginatedList>
         <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignDocumentsYet') }}</p>
       </div>
     </Card>
@@ -1166,26 +1171,30 @@ function verificationResultLabel(result: string): string {
           <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noPermitsSelectedYet') }}</p>
         </div>
 
-        <div v-if="governmentSubmissions.length > 0" class="flex flex-col gap-2">
-          <button
-            v-for="submission in governmentSubmissions"
-            :key="submission.id"
-            type="button"
-            class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3 text-start hover:bg-bg-secondary"
-            @click="openSubmissionWorkspace(submission.submissionNo)"
-          >
-            <div class="flex flex-col gap-0.5 truncate">
-              <span class="truncate text-sm text-text-secondary">
-                {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? submission.submissionNo }}
-              </span>
-              <span class="text-xs text-text-muted">
-                {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? '—' }}
-                &middot; {{ t('project.overviewTab.lastWorkedOn', { date: lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }) }}
-              </span>
+        <PaginatedList v-if="governmentSubmissions.length > 0" :items="governmentSubmissions">
+          <template #default="{ items }">
+            <div class="flex flex-col gap-2">
+              <button
+                v-for="submission in items"
+                :key="submission.id"
+                type="button"
+                class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3 text-start hover:bg-bg-secondary"
+                @click="openSubmissionWorkspace(submission.submissionNo)"
+              >
+                <div class="flex flex-col gap-0.5 truncate">
+                  <span class="truncate text-sm text-text-secondary">
+                    {{ governmentSubmissionStore.getFormById(submission.formId)?.title ?? submission.submissionNo }}
+                  </span>
+                  <span class="text-xs text-text-muted">
+                    {{ governmentSubmissionStore.getAuthorityById(submission.authorityId)?.name ?? '—' }}
+                    &middot; {{ t('project.overviewTab.lastWorkedOn', { date: lastWorkedOnDate(submission) ? formatDate(lastWorkedOnDate(submission)!) : '—' }) }}
+                  </span>
+                </div>
+                <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
+              </button>
             </div>
-            <StatusBadge :label="submissionStageLabel(submission.stage)" :variant="getSubmissionStageVariant(submission.stage)" />
-          </button>
-        </div>
+          </template>
+        </PaginatedList>
         <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noApprovalsFiledYet') }}</p>
       </div>
     </Card>

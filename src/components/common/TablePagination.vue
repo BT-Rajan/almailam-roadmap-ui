@@ -22,11 +22,15 @@ interface Props {
   // component is shared by SmartTable and every server-paginated list
   // page) gets the same 5-per-set behaviour unless it opts out.
   setSize?: number
+  // Stack the range label above the controls at every width, for a
+  // narrow container (a drawer) where the one-row layout would overflow.
+  stacked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSizeOptions: () => [5, 10, 25, 50],
   setSize: 5,
+  stacked: false,
 })
 
 const emit = defineEmits<{
@@ -70,9 +74,12 @@ function handlePageSizeChange(value: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 border-t border-border-light px-4 py-3 tablet:flex-row tablet:items-center tablet:justify-between">
+  <div
+    class="flex flex-col gap-3 border-t border-border-light px-4 py-3"
+    :class="stacked ? undefined : 'tablet:flex-row tablet:items-center tablet:justify-between'"
+  >
     <p class="text-sm text-text-muted">{{ rangeLabel }}</p>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <div class="w-32">
         <SelectBox
           :model-value="String(pageSize)"

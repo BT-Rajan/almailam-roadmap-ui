@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -60,15 +61,19 @@ function loadData(): void {
     @action="emit('add')"
   />
 
-  <div v-else class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
-    <AuthorityCard
-      v-for="authority in store.authorities"
-      :key="authority.id"
-      :authority="authority"
-      :form-count="authorityFormCounts[authority.id] ?? 0"
-      @open="emit('open', authority)"
-      @edit="emit('edit', authority)"
-      @delete="emit('delete', authority)"
-    />
-  </div>
+  <PaginatedList v-else :items="store.authorities" :page-size="6" :page-size-options="[6, 12, 24, 48]">
+    <template #default="{ items }">
+      <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-3">
+        <AuthorityCard
+          v-for="authority in items"
+          :key="authority.id"
+          :authority="authority"
+          :form-count="authorityFormCounts[authority.id] ?? 0"
+          @open="emit('open', authority)"
+          @edit="emit('edit', authority)"
+          @delete="emit('delete', authority)"
+        />
+      </div>
+    </template>
+  </PaginatedList>
 </template>

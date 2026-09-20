@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -102,48 +103,52 @@ function documentTitle(documentId: string): string {
           :description="t('workspace.knowledgeBasePage.noDocumentsYetDescription')"
         />
 
-        <div v-else class="flex flex-col gap-3">
-          <div
-            v-for="document in knowledgeStore.documents"
-            :key="document.id"
-            class="flex flex-col gap-3 rounded-xl border border-border-light bg-bg-card p-4"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-text-primary">{{ document.title }}</p>
-                <p class="truncate text-xs text-text-muted">{{ document.originalFilename }} &middot; {{ document.fileSize }}</p>
+        <PaginatedList v-else :items="knowledgeStore.documents" :page-size="5" stacked>
+          <template #default="{ items }">
+            <div class="flex flex-col gap-3">
+              <div
+                v-for="document in items"
+                :key="document.id"
+                class="flex flex-col gap-3 rounded-xl border border-border-light bg-bg-card p-4"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-text-primary">{{ document.title }}</p>
+                    <p class="truncate text-xs text-text-muted">{{ document.originalFilename }} &middot; {{ document.fileSize }}</p>
+                  </div>
+                  <IconButton
+                    v-if="can('knowledgebase.delete')"
+                    :icon="Trash2"
+                    :label="t('workspace.knowledgeBasePage.deleteDocument')"
+                    size="sm"
+                    variant="danger"
+                    @click="removeDocument(document.id, document.title)"
+                  />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge
+                    :label="document.extractionOk ? (document.isActive ? t('workspace.knowledgeBasePage.active') : t('workspace.knowledgeBasePage.inactive')) : t('workspace.knowledgeBasePage.extractionFailed')"
+                    :variant="document.extractionOk ? (document.isActive ? 'success' : 'neutral') : 'danger'"
+                    show-dot
+                  />
+                  <StatusBadge v-if="document.truncated" :label="t('workspace.knowledgeBasePage.truncated')" variant="warning" />
+                </div>
+
+                <p v-if="!document.extractionOk" class="text-xs text-danger-500">{{ document.extractionError }}</p>
+                <p v-else class="text-xs text-text-muted">{{ t('workspace.knowledgeBasePage.charactersExtracted', { count: document.charCount.toLocaleString() }) }}</p>
+
+                <ToggleSwitch
+                  v-if="can('knowledgebase.upload')"
+                  :model-value="document.isActive"
+                  :disabled="!document.extractionOk"
+                  :label="t('workspace.knowledgeBasePage.includeInAnswers')"
+                  @update:model-value="toggleActive(document.id, $event)"
+                />
               </div>
-              <IconButton
-                v-if="can('knowledgebase.delete')"
-                :icon="Trash2"
-                :label="t('workspace.knowledgeBasePage.deleteDocument')"
-                size="sm"
-                variant="danger"
-                @click="removeDocument(document.id, document.title)"
-              />
             </div>
-
-            <div class="flex flex-wrap items-center gap-1.5">
-              <StatusBadge
-                :label="document.extractionOk ? (document.isActive ? t('workspace.knowledgeBasePage.active') : t('workspace.knowledgeBasePage.inactive')) : t('workspace.knowledgeBasePage.extractionFailed')"
-                :variant="document.extractionOk ? (document.isActive ? 'success' : 'neutral') : 'danger'"
-                show-dot
-              />
-              <StatusBadge v-if="document.truncated" :label="t('workspace.knowledgeBasePage.truncated')" variant="warning" />
-            </div>
-
-            <p v-if="!document.extractionOk" class="text-xs text-danger-500">{{ document.extractionError }}</p>
-            <p v-else class="text-xs text-text-muted">{{ t('workspace.knowledgeBasePage.charactersExtracted', { count: document.charCount.toLocaleString() }) }}</p>
-
-            <ToggleSwitch
-              v-if="can('knowledgebase.upload')"
-              :model-value="document.isActive"
-              :disabled="!document.extractionOk"
-              :label="t('workspace.knowledgeBasePage.includeInAnswers')"
-              @update:model-value="toggleActive(document.id, $event)"
-            />
-          </div>
-        </div>
+          </template>
+        </PaginatedList>
       </div>
 
       <div class="flex flex-col gap-4 rounded-xl border border-border-light bg-bg-card p-5 laptop:col-span-2">

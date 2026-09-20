@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import ClientProjectDocumentsPanel from '@/components/client/ClientProjectDocumentsPanel.vue'
@@ -160,15 +161,19 @@ function openMember(name: string): void {
 
       <section class="flex flex-col gap-3">
         <h3 class="text-sm font-semibold text-text-primary">{{ t('project.summaryDialog.tasksTitle') }}</h3>
-        <ul v-if="projectTasks.length > 0" class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
-          <li v-for="task in projectTasks" :key="task.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span class="flex flex-col gap-0.5">
-              <span class="text-sm text-text-primary">{{ task.title }}</span>
-              <span class="text-xs text-text-muted">{{ withSalutationByName(task.assignedTo, userStore.users) }}</span>
-            </span>
-            <span class="shrink-0"><TaskStatusBadge :status="task.status" /></span>
-          </li>
-        </ul>
+        <PaginatedList v-if="projectTasks.length > 0" :items="projectTasks" stacked>
+          <template #default="{ items }">
+            <ul class="flex flex-col divide-y divide-border-light rounded-lg border border-border-light">
+              <li v-for="task in items" :key="task.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-sm text-text-primary">{{ task.title }}</span>
+                  <span class="text-xs text-text-muted">{{ withSalutationByName(task.assignedTo, userStore.users) }}</span>
+                </span>
+                <span class="shrink-0"><TaskStatusBadge :status="task.status" /></span>
+              </li>
+            </ul>
+          </template>
+        </PaginatedList>
         <p v-else class="text-sm text-text-muted">{{ t('project.summaryDialog.noTasks') }}</p>
       </section>
 

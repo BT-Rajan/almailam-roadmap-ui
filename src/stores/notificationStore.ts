@@ -27,6 +27,19 @@ function groupLabelFor(isoDate: string): NotificationGroupLabel {
   return 'Earlier'
 }
 
+// Groups an already newest-first list under Today / Yesterday / Earlier
+// (empty groups dropped). Exported so the drawer can group just the
+// page it is showing rather than the whole list.
+export function groupNotifications(notifications: AppNotification[]): NotificationGroup[] {
+  const order: NotificationGroupLabel[] = ['Today', 'Yesterday', 'Earlier']
+  return order
+    .map((label) => ({
+      label,
+      notifications: notifications.filter((notification) => groupLabelFor(notification.date) === label),
+    }))
+    .filter((group) => group.notifications.length > 0)
+}
+
 export const useNotificationStore = defineStore('notification', {
   state: (): NotificationStoreState => ({
     notifications: [],
@@ -45,13 +58,7 @@ export const useNotificationStore = defineStore('notification', {
     },
 
     groupedNotifications(state): NotificationGroup[] {
-      const order: NotificationGroupLabel[] = ['Today', 'Yesterday', 'Earlier']
-      return order
-        .map((label) => ({
-          label,
-          notifications: state.notifications.filter((notification) => groupLabelFor(notification.date) === label),
-        }))
-        .filter((group) => group.notifications.length > 0)
+      return groupNotifications(state.notifications)
     },
   },
 

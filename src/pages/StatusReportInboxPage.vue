@@ -7,6 +7,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import PaginatedList from '@/components/common/PaginatedList.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
@@ -108,28 +109,32 @@ async function handleAttach(): Promise<void> {
       :description="t('report.inboxPage.inboxEmptyDescription')"
     />
 
-    <div v-else class="flex flex-col gap-3">
-      <Card v-for="report in statusReportStore.reports" :key="report.id">
-        <div class="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="text-sm font-semibold text-text-primary">{{ report.reportNo }}</p>
-              <StatusBadge :label="t('report.inboxPage.pending')" variant="warning" size="sm" />
+    <PaginatedList v-else :items="statusReportStore.reports">
+      <template #default="{ items }">
+        <div class="flex flex-col gap-3">
+          <Card v-for="report in items" :key="report.id">
+            <div class="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-sm font-semibold text-text-primary">{{ report.reportNo }}</p>
+                  <StatusBadge :label="t('report.inboxPage.pending')" variant="warning" size="sm" />
+                </div>
+                <p class="mt-0.5 text-sm text-text-secondary">{{ report.projectName }}</p>
+                <p class="text-xs text-text-muted">
+                  {{ report.engineerName }} · {{ formatDate(report.reportDate) }}
+                  <span v-if="report.receiptType"> · {{ report.receiptType }}</span>
+                </p>
+                <p class="mt-2 whitespace-pre-wrap text-sm text-text-secondary" dir="auto">{{ report.notes }}</p>
+                <ReportPhotoThumbnails v-if="report.images.length > 0" class="mt-2" :report-id="report.id" :images="report.images" />
+              </div>
+              <BaseButton size="sm" :icon="Paperclip" class="shrink-0" @click="openAttachDialog(report)">
+                {{ t('report.inboxPage.attach') }}
+              </BaseButton>
             </div>
-            <p class="mt-0.5 text-sm text-text-secondary">{{ report.projectName }}</p>
-            <p class="text-xs text-text-muted">
-              {{ report.engineerName }} · {{ formatDate(report.reportDate) }}
-              <span v-if="report.receiptType"> · {{ report.receiptType }}</span>
-            </p>
-            <p class="mt-2 whitespace-pre-wrap text-sm text-text-secondary" dir="auto">{{ report.notes }}</p>
-            <ReportPhotoThumbnails v-if="report.images.length > 0" class="mt-2" :report-id="report.id" :images="report.images" />
-          </div>
-          <BaseButton size="sm" :icon="Paperclip" class="shrink-0" @click="openAttachDialog(report)">
-            {{ t('report.inboxPage.attach') }}
-          </BaseButton>
+          </Card>
         </div>
-      </Card>
-    </div>
+      </template>
+    </PaginatedList>
 
     <BaseDialog v-model="isAttachDialogOpen" :title="t('report.inboxPage.attachToProject')" size="md">
       <div v-if="selectedReport" class="flex flex-col gap-4">
