@@ -582,6 +582,7 @@ export default {
     failedToCreateProject: 'Failed to create project',
     couldNotLoadServiceCatalog: 'Could not load the service catalog',
     couldNotLoadClients: 'Unable to load clients.',
+    accountManagerNotSaved: 'Project created, but the account manager could not be saved',
     couldNotLoadEngineers: 'Unable to load engineers.',
     pleaseFixHighlightedFields: 'Please fix the highlighted fields',
     fieldsNeedAttentionUnderStep: 'Some fields under "{step}" need attention before continuing.',
