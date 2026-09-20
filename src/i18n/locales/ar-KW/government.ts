@@ -274,6 +274,9 @@ export default {
     unableToRecordFollowUp: 'تعذّر تسجيل المتابعة',
 
     closeApplication: 'إغلاق الطلب',
+    readyToCloseTitle: 'هل أنت جاهز لإغلاق هذا الطلب؟',
+    readyToCloseDescription: 'بعد أن تردّ الجهة، سجّل النتيجة (موافقة أو رفض أو لا رد أو سحب) لإغلاق الطلب.',
+    recordOutcomeAndClose: 'تسجيل النتيجة والإغلاق',
     closeApplicationTitle: 'إغلاق الطلب',
     closeDialogDescription: 'سجّل النتيجة النهائية لـ {submissionNo}. يمكن الوصول لهذا من أي مرحلة.',
     outcome: 'النتيجة',

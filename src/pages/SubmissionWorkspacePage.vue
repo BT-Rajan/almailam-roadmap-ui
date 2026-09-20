@@ -449,6 +449,15 @@ function openCloseForm(): void {
   isCloseFormOpen.value = true
 }
 
+// The Track tab's "Record Outcome & Close" button -- jumps to the Close
+// tab (where the outcome form lives) with the form already open, so the
+// way forward from Track is visible on Track itself instead of only being
+// discoverable by clicking the last step in the stepper.
+function goToCloseForm(): void {
+  selectTab('Close')
+  openCloseForm()
+}
+
 function handleCloseFileSelect(file: File | undefined): void {
   closeFile.value = file
 }
@@ -795,6 +804,22 @@ function goBack(): void {
           <p class="text-sm text-text-muted">
             {{ submission.stage === 'Close' ? t('government.workspacePage.neverTracked') : t('government.workspacePage.stageNotReached') }}
           </p>
+        </Card>
+
+        <!-- Track's own "next step", like Prepare's Confirm Readiness and
+             Apply's Record Acknowledgement -- without it the only way on
+             from Track was to notice that the Close step in the stepper
+             holds the outcome form. -->
+        <Card v-if="submission.stage === 'Track'" class="no-print">
+          <template #header>
+            <h3 class="text-sm font-semibold text-text-primary">{{ t('government.workspacePage.readyToCloseTitle') }}</h3>
+          </template>
+          <div class="flex flex-col gap-4">
+            <p class="text-sm text-text-secondary">{{ t('government.workspacePage.readyToCloseDescription') }}</p>
+            <BaseButton :icon="CircleCheck" class="self-start" @click="goToCloseForm">
+              {{ t('government.workspacePage.recordOutcomeAndClose') }}
+            </BaseButton>
+          </div>
         </Card>
       </div>
 
