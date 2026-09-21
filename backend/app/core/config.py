@@ -101,6 +101,22 @@ class Settings(BaseSettings):
     # so that also means the API must be served over HTTPS.
     COOKIE_SAMESITE: str = "lax"
 
+    # How many reverse proxies (nginx, an ALB, ...) sit in front of this
+    # app in the actual deployment. 0 (the default) means none -- this
+    # process is hit directly, matching the single-process deployment
+    # documented at the top of this file, so the per-IP login lockout
+    # (auth_service.py) and the global rate limiter (core/middleware.py)
+    # key off the raw TCP peer address as normal. X-Forwarded-For is
+    # never trusted at 0: it's just a request header, so any client could
+    # set it to anything, and blindly trusting it would let one attacker
+    # either dodge both of those per-IP defenses (claim a fresh IP on
+    # every request) or frame another IP for their own attempts. Set this
+    # to the real hop count (usually 1) only when this app genuinely sits
+    # behind that many trusted proxies -- see core/client_ip.py, the only
+    # code that reads it, for exactly how the header is then parsed
+    # (from the trusted end, never the client-supplied end).
+    TRUSTED_PROXY_COUNT: int = 0
+
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
