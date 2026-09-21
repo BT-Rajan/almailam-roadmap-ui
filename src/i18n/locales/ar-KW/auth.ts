@@ -23,6 +23,13 @@ export default {
     idPlaceholder: 'أدخل رقم المستخدم',
   },
 
+  idleLogoutReason: 'تم تسجيل خروجك بعد 5 دقائق من عدم النشاط.',
+
+  logoutCountdown: {
+    title: 'تم تسجيل خروجك',
+    description: 'تم تسجيل خروجك بعد 5 دقائق من عدم النشاط. سيتم نقلك إلى شاشة تسجيل الدخول...',
+  },
+
   authLayout: {
     heroTitlePart1: 'الدقة',
     heroTitlePart2: 'في كل مشروع.',
@@ -37,6 +44,7 @@ export default {
     currentPasswordPlaceholder: 'أدخل كلمة المرور الحالية',
     newPassword: 'كلمة المرور الجديدة',
     newPasswordPlaceholder: '8 أحرف على الأقل',
+    newPasswordHint: '8 أحرف على الأقل، مع مزج الحروف بالأرقام أو الرموز.',
     confirmNewPassword: 'تأكيد كلمة المرور الجديدة',
     confirmNewPasswordPlaceholder: 'أعد إدخال كلمة المرور الجديدة',
     passwordChangedTitle: 'تم تغيير كلمة المرور',

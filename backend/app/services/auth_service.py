@@ -32,7 +32,16 @@ _login_ip_lockout = LockoutTracker(max_attempts=20, lockout_seconds=15 * 60)
 
 
 def _issue_tokens(db: Session, user: User) -> dict:
-    access_token = create_access_token(str(user.id), {"role": user.role})
+    # No role claim here -- authorization (has_permission, via
+    # get_current_user) always re-fetches the caller's role fresh from the
+    # DB on every request rather than trusting anything baked into the
+    # token, which is exactly what makes a role change or deactivation
+    # take effect immediately instead of only after the access token
+    # expires. A role claim would sit in the token unread today, but it's
+    # an attractive nuisance: a future shortcut that started trusting it
+    # instead of hitting the DB would silently reintroduce that stale-
+    # privilege window. Nothing reads it, so nothing issues it.
+    access_token = create_access_token(str(user.id))
     refresh_token, jti, expires_at = create_refresh_token(str(user.id))
     now = datetime.now(timezone.utc)
 
@@ -139,7 +148,18 @@ def refresh(db: Session, refresh_token: str) -> dict:
         raise AuthError("Invalid token type.")
 
     jti = payload.get("jti")
-    record = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+    # with_for_update() (same pattern as scheduled_report_service._fire)
+    # locks this row for the duration of the transaction, so a second,
+    # near-simultaneous refresh() call for the same jti blocks here
+    # instead of reading the row before this call's `revoked = True`
+    # commits below. Without it, both calls could pass this check before
+    # either commits, letting one refresh token mint two valid token
+    # pairs -- defeating the single-use rotation this function exists to
+    # enforce. Once unblocked, the second call's locking read sees the
+    # latest committed row (not a stale snapshot), so it correctly finds
+    # revoked == True and falls into the same rejection below as a
+    # genuinely-already-used token.
+    record = db.query(RefreshToken).filter(RefreshToken.jti == jti).with_for_update().first()
     if record is None or record.revoked:
         raise AuthError("This session has been revoked. Please log in again.")
 
@@ -154,8 +174,8 @@ def refresh(db: Session, refresh_token: str) -> dict:
         last_used_at = last_used_at.replace(tzinfo=timezone.utc)
     idle_cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.INACTIVITY_TIMEOUT_MINUTES)
     if last_used_at < idle_cutoff:
-        # Backstop for the 30-minute idle logout (see useIdleLogout.ts on
-        # the frontend): this token was minted long enough ago, with no
+        # Backstop for the frontend's inactivity idle logout (see
+        # useIdleLogout.ts): this token was minted long enough ago, with no
         # activity in between to redeem it sooner, that the session counts
         # as abandoned even though the token itself hasn't technically
         # expired yet. Revoke it so it can't be redeemed later either.

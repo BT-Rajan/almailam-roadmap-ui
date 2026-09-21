@@ -6,6 +6,14 @@ from app.models.notification import Notification
 from app.models.user import User
 from app.services.number_series_service import next_number
 
+# The bell drawer is a bounded dropdown, not a browse table -- there's no
+# UI for paging through older notifications, and the unread badge itself
+# already collapses anything past 9 to "9+" (see TopNavigation.vue), so a
+# user with more unread than this cap would see the same "9+" either way.
+# Without this, list_for_user() below returned an ever-growing, unpruned
+# table in full on every load with no LIMIT at all.
+MAX_NOTIFICATIONS = 200
+
 
 def create_notification(
     db: Session,
@@ -66,7 +74,7 @@ def list_for_user(db: Session, user_id: int, unread_only: bool = False) -> list[
     query = db.query(Notification).filter(Notification.user_id == user_id)
     if unread_only:
         query = query.filter(Notification.read.is_(False))
-    return query.order_by(Notification.created_at.desc()).all()
+    return query.order_by(Notification.created_at.desc()).limit(MAX_NOTIFICATIONS).all()
 
 
 def mark_as_read(db: Session, user_id: int, notification_no: str) -> None:

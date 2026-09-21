@@ -27,8 +27,8 @@ const ClientContactList = defineAsyncComponent(() => import('@/components/client
 const ClientIdentificationList = defineAsyncComponent(() => import('@/components/client/ClientIdentificationList.vue'))
 const ClientProjectDocumentsPanel = defineAsyncComponent(() => import('@/components/client/ClientProjectDocumentsPanel.vue'))
 const ClientProjectStages = defineAsyncComponent(() => import('@/components/client/ClientProjectStages.vue'))
+import { projectService } from '@/services/projectService'
 import { useClientStore } from '@/stores/clientStore'
-import { useProjectStore } from '@/stores/projectStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type {
   ClientAddress,
@@ -39,7 +39,7 @@ import type {
   ClientWorkspaceTab,
   ClientWorkspaceTabKey,
 } from '@/types/Client'
-import type { ProjectWorkspaceTabKey } from '@/types/Project'
+import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { ClientEditForm } from '@/utils/clientValidation'
 import { getClientDisplayName } from '@/utils/clientHelpers'
 import { formatDate } from '@/utils/dateFormatter'
@@ -47,7 +47,6 @@ import { formatDate } from '@/utils/dateFormatter'
 const route = useRoute()
 const router = useRouter()
 const clientStore = useClientStore()
-const projectStore = useProjectStore()
 const resultDialogStore = useResultDialogStore()
 const { t } = useI18n()
 
@@ -93,7 +92,9 @@ const TABS = computed<ClientWorkspaceTab[]>(() => [
 ])
 
 const client = computed(() => clientStore.getClientById(clientId.value))
-const clientProjects = computed(() => projectStore.projects.filter((project) => project.clientId === clientId.value))
+// Fetched directly, scoped to this client (see loadData) -- not filtered
+// from a store holding every project in the system.
+const clientProjects = ref<Project[]>([])
 // Same eligibility rule NewProjectWizardPage.vue and the backend both
 // enforce (status === 'Active') -- mirrored here so this button never
 // leads to a dead end where the client silently isn't selectable on
@@ -147,8 +148,10 @@ async function loadData(): Promise<void> {
   // A project's stage/status can change elsewhere in the app (or from
   // another session) between visits, and the Projects tab here should
   // show the current state, not whatever was cached from an earlier,
-  // unrelated page's fetch.
-  await projectStore.loadProjects()
+  // unrelated page's fetch. Scoped server-side to this one client
+  // (getProjectsForClient), not a walk of every project in the system
+  // just to filter down to this client's afterwards.
+  clientProjects.value = await projectService.getProjectsForClient(clientId.value)
   // Cheap, targeted check (only scans this client's own identification
   // numbers against others), unlike the free-text onboarding-wizard
   // duplicate check -- safe to run automatically on every workspace visit.

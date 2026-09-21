@@ -15,7 +15,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import KnowledgeUploadDialog from '@/components/knowledge/KnowledgeUploadDialog.vue'
-import { useRbac } from '@/composables/useRbac'
+import { usePermissions } from '@/composables/usePermissions'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { SelectOption } from '@/types/Ui'
@@ -23,7 +23,7 @@ import type { SelectOption } from '@/types/Ui'
 const { t } = useI18n()
 const knowledgeStore = useKnowledgeStore()
 const toastStore = useToastStore()
-const { can } = useRbac()
+const { can } = usePermissions()
 
 const isUploadDialogOpen = ref(false)
 const question = ref('')
@@ -80,7 +80,7 @@ function documentTitle(documentId: string): string {
       :subtitle="t('workspace.knowledgeBasePage.pageSubtitle')"
     >
       <template #actions>
-        <BaseButton v-if="can('knowledgebase.upload')" :icon="Upload" @click="isUploadDialogOpen = true">
+        <BaseButton v-if="can('Knowledgebase', 'edit')" :icon="Upload" @click="isUploadDialogOpen = true">
           {{ t('workspace.knowledgeBasePage.uploadDocument') }}
         </BaseButton>
       </template>
@@ -117,7 +117,7 @@ function documentTitle(documentId: string): string {
                     <p class="truncate text-xs text-text-muted">{{ document.originalFilename }} &middot; {{ document.fileSize }}</p>
                   </div>
                   <IconButton
-                    v-if="can('knowledgebase.delete')"
+                    v-if="can('Knowledgebase', 'delete')"
                     :icon="Trash2"
                     :label="t('workspace.knowledgeBasePage.deleteDocument')"
                     size="sm"
@@ -139,7 +139,7 @@ function documentTitle(documentId: string): string {
                 <p v-else class="text-xs text-text-muted">{{ t('workspace.knowledgeBasePage.charactersExtracted', { count: document.charCount.toLocaleString() }) }}</p>
 
                 <ToggleSwitch
-                  v-if="can('knowledgebase.upload')"
+                  v-if="can('Knowledgebase', 'edit')"
                   :model-value="document.isActive"
                   :disabled="!document.extractionOk"
                   :label="t('workspace.knowledgeBasePage.includeInAnswers')"

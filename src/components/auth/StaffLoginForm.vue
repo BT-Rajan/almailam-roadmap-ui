@@ -22,7 +22,7 @@ interface Props {
   // baked into the shared form.
   showForgotPassword?: boolean
   showClear?: boolean
-  // Shown once, on mount -- e.g. "You were signed out after 30 minutes of
+  // Shown once, on mount -- e.g. "You were signed out after 5 minutes of
   // inactivity." after useIdleLogout redirects here. Not a validation
   // error, so it defaults to the neutral 'info' styling rather than
   // reusing the red sign-in-failure alert below.

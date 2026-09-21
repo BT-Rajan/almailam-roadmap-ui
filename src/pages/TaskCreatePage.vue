@@ -48,6 +48,14 @@ const queryProjectId = computed(() => {
   return typeof value === 'string' ? value : undefined
 })
 const isProjectLocked = computed(() => route.query.locked === '1')
+// Which of that project's Design/Supervision/Government Submission
+// Tasks tabs this was opened from (see ProjectTasksTab.vue's own
+// ?stage=), echoed back on Cancel so it restores that exact tab instead
+// of landing on Overview.
+const queryStage = computed(() => {
+  const value = route.query.stage
+  return typeof value === 'string' ? value : undefined
+})
 const queryTitle = computed(() => {
   const value = route.query.title
   return typeof value === 'string' ? value : undefined
@@ -142,7 +150,11 @@ const assigneeOptions = computed<SelectOption[]>(() =>
 
 function goBack(): void {
   if (isProjectLocked.value && queryProjectId.value) {
-    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: queryProjectId.value } })
+    router.push({
+      name: ROUTE_NAMES.PROJECT_WORKSPACE,
+      params: { projectId: queryProjectId.value },
+      query: queryStage.value ? { tab: 'tasks', stage: queryStage.value } : undefined,
+    })
     return
   }
   router.push({ name: ROUTE_NAMES.TASKS })
@@ -166,7 +178,16 @@ async function submitTask(): Promise<void> {
       selectedActivityId: form.selectedActivityId || undefined,
     })
     toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
-    router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: task.id } })
+    // Carry the project (and, when known, which Tasks tab) forward the
+    // same way goBack() above does -- the task always belongs to
+    // form.projectId regardless of whether this page was opened locked
+    // to one project or with the field left open, so "Back to Project"
+    // should be offered either way instead of only for the locked flow.
+    router.push({
+      name: ROUTE_NAMES.TASK_WORKSPACE,
+      params: { taskId: task.id },
+      query: queryStage.value ? { projectId: task.projectId, stage: queryStage.value } : { projectId: task.projectId },
+    })
   } catch (error) {
     const detail = error instanceof Error && error.message ? error.message : t('common.pleaseTryAgain')
     toastStore.show('error', t('task.taskActions.failedToCreateTask'), detail)

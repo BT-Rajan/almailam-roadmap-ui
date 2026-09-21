@@ -12,7 +12,7 @@ import PaginatedList from '@/components/common/PaginatedList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { useRbac } from '@/composables/useRbac'
+import { usePermissions } from '@/composables/usePermissions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { formatTime } from '@/utils/dateFormatter'
 import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType, EntityType } from '@/services/activityCalendarService'
@@ -27,14 +27,18 @@ const router = useRouter()
 const { t } = useI18n()
 const toastStore = useToastStore()
 const taskStore = useTaskStore()
-const { can } = useRbac()
+const { can } = usePermissions()
 
-// Only Administrators may browse other users' activity. Everyone else only
-// ever sees their own -- this flag decides which endpoints/filters are used
-// below, but the actual enforcement has to live on the backend too: the
-// /api/admin/activity/* endpoints this calls in admin mode must reject
-// non-Administrator callers regardless of what this page sends.
-const canViewAll = computed(() => can('activity.viewAll'))
+// Team activity across every project is Administration-level visibility
+// (see backend/app/api/activity.py's can_view), same as the Audit Log
+// it's derived from -- whichever role(s) an admin has granted
+// Administration:view to may browse other users' activity here; everyone
+// else only ever sees their own. This flag decides which endpoints/
+// filters are used below, but the actual enforcement has to live on the
+// backend too: the /api/admin/activity/* endpoints this calls in admin
+// mode must reject callers without that permission regardless of what
+// this page sends.
+const canViewAll = computed(() => can('Administration', 'view'))
 
 // This page also needs a month/year title and yyyy-MM-dd date keys that
 // the shared formatters (src/utils/dateFormatter.ts) don't support -- they

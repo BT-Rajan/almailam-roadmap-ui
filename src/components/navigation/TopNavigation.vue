@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import UserMenu from '@/components/navigation/UserMenu.vue'
 import { useLocale } from '@/composables/useLocale'
-import { useRbac } from '@/composables/useRbac'
+import { usePermissions } from '@/composables/usePermissions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { useNavigationStore } from '@/stores/navigationStore'
@@ -21,7 +21,7 @@ const navigationStore = useNavigationStore()
 const notificationStore = useNotificationStore()
 const searchStore = useSearchStore()
 const knowledgeStore = useKnowledgeStore()
-const { can } = useRbac()
+const { can } = usePermissions()
 
 // The separator points the way the breadcrumb trail reads, which
 // reverses with reading direction.
@@ -61,7 +61,7 @@ onMounted(() => {
 
       <div class="ms-auto flex items-center gap-2">
         <button
-          v-if="can('knowledgebase.view') && knowledgeStore.isEnabled !== false"
+          v-if="can('Knowledgebase', 'view') && knowledgeStore.isEnabled !== false"
           type="button"
           class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
           :aria-label="t('common.knowledgeAssistant')"
@@ -70,8 +70,12 @@ onMounted(() => {
           <Sparkles :size="18" />
         </button>
 
+        <!-- No permission gate here -- every authenticated role can see
+             their own activity calendar (the backend's /api/activity/*
+             "my activity" routes require nothing beyond being logged in;
+             only the cross-user "view all" mode on the calendar page
+             itself is Administration-gated). -->
         <button
-          v-if="can('activity.view')"
           type="button"
           class="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-fast hover:bg-[var(--color-bg-hover)]"
           :aria-label="t('common.activityCalendar')"

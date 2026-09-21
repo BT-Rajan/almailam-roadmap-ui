@@ -2,11 +2,24 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The only environment names this app knows about -- see get_settings()'s
+# own check below for why this is enforced rather than left as free text.
+KNOWN_ENVIRONMENTS = frozenset({"development", "production", "test", "staging"})
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     APP_NAME: str = "ServiceOS"
+    # is_production below is an exact `ENV.lower() == "production"` match,
+    # and that flag alone gates real safety checks (JWT_SECRET_KEY
+    # strength, the refresh cookie's default Secure attribute) -- so a
+    # value get_settings() doesn't recognize (KNOWN_ENVIRONMENTS above)
+    # fails loudly at startup instead of silently falling through to
+    # is_production=False. Without that, a plausible shorthand like
+    # ENV=prod on an actually-production box would quietly run with a
+    # weak/empty JWT secret allowed and a non-Secure cookie, with nothing
+    # anywhere saying so.
     ENV: str = "development"
     DEBUG: bool = False
 
@@ -37,24 +50,26 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    # Server-side backstop for the 30-minute idle logout: independent of
-    # the client-side activity timer (see useIdleLogout.ts), a refresh
-    # token that hasn't actually been used to mint a new access token in
-    # this long is treated as an abandoned session, not a live one, even
-    # though it isn't outright expired yet. This measures time since the
-    # refresh token was last *redeemed* (login or previous refresh), not
-    # moment-to-moment activity -- a continuously-active session's first
-    # refresh naturally happens right around ACCESS_TOKEN_EXPIRE_MINUTES
-    # (that's what forces it), so this has to stay comfortably above that
-    # value or every ordinary session gets misread as abandoned on its
-    # very first silent refresh (this is what was happening: a long-lived
-    # form like the client wizard, with no API calls in between while
-    # someone types, would 401 on submit, refresh, and immediately get
-    # "Session expired due to inactivity" even though the client-side
-    # timer -- the actual real-activity check -- never came close to
-    # firing). The frontend's own 30-minute genuine-inactivity timer is
-    # what actually enforces "idle" in the real sense; this just has to
-    # not fire before that one already would have.
+    # Server-side backstop for the frontend's inactivity idle logout
+    # (currently 5 minutes -- see useIdleLogout.ts): independent of the
+    # client-side activity timer, a refresh token that hasn't actually
+    # been used to mint a new access token in this long is treated as an
+    # abandoned session, not a live one, even though it isn't outright
+    # expired yet. This measures time since the refresh token was last
+    # *redeemed* (login or previous refresh), not moment-to-moment
+    # activity -- a continuously-active session's first refresh naturally
+    # happens right around ACCESS_TOKEN_EXPIRE_MINUTES (that's what forces
+    # it), so this has to stay comfortably above that value or every
+    # ordinary session gets misread as abandoned on its very first silent
+    # refresh (this is what was happening: a long-lived form like the
+    # client wizard, with no API calls in between while someone types,
+    # would 401 on submit, refresh, and immediately get "Session expired
+    # due to inactivity" even though the client-side timer -- the actual
+    # real-activity check -- never came close to firing). The frontend's
+    # own idle-activity timer is what actually enforces "idle" in the real
+    # sense; this backstop only has to not fire before that one already
+    # would have, which is why it stays well above ACCESS_TOKEN_EXPIRE_MINUTES
+    # rather than tracking the frontend's timeout value directly.
     INACTIVITY_TIMEOUT_MINUTES: int = 45
 
     # Controls the `Secure` attribute on the refresh-token cookie. Left
@@ -85,6 +100,22 @@ class Settings(BaseSettings):
     # -- browsers require Secure whenever SameSite=None (enforced below),
     # so that also means the API must be served over HTTPS.
     COOKIE_SAMESITE: str = "lax"
+
+    # How many reverse proxies (nginx, an ALB, ...) sit in front of this
+    # app in the actual deployment. 0 (the default) means none -- this
+    # process is hit directly, matching the single-process deployment
+    # documented at the top of this file, so the per-IP login lockout
+    # (auth_service.py) and the global rate limiter (core/middleware.py)
+    # key off the raw TCP peer address as normal. X-Forwarded-For is
+    # never trusted at 0: it's just a request header, so any client could
+    # set it to anything, and blindly trusting it would let one attacker
+    # either dodge both of those per-IP defenses (claim a fresh IP on
+    # every request) or frame another IP for their own attempts. Set this
+    # to the real hop count (usually 1) only when this app genuinely sits
+    # behind that many trusted proxies -- see core/client_ip.py, the only
+    # code that reads it, for exactly how the header is then parsed
+    # (from the trusted end, never the client-supplied end).
+    TRUSTED_PROXY_COUNT: int = 0
 
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
@@ -170,10 +201,31 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    # Fails loudly on an unrecognized ENV rather than letting is_production
+    # silently resolve to False for anything that isn't an exact match on
+    # "production" -- see ENV's own doc comment above for the deployment
+    # risk this closes (e.g. ENV=prod on a real production box).
+    if settings.ENV.lower() not in KNOWN_ENVIRONMENTS:
+        raise RuntimeError(
+            f"ENV={settings.ENV!r} is not a recognized environment. "
+            f"Use one of: {', '.join(sorted(KNOWN_ENVIRONMENTS))}."
+        )
     if settings.is_production and len(settings.JWT_SECRET_KEY) < 32:
         raise RuntimeError(
             "JWT_SECRET_KEY must be set to a random value of at least 32 characters in production."
         )
+    # DEBUG=true (the .env.example default, meant for local dev) makes
+    # FastAPI/Starlette render a full HTML traceback -- source snippets,
+    # local variables -- for any exception that occurs outside this app's
+    # own registered exception handlers (e.g. one raised inside middleware,
+    # before routing even happens). Left on by mistake in production
+    # (ENV=production set correctly, DEBUG just never flipped back to
+    # false), that's a real information-disclosure surface exposed to the
+    # internet, with nothing anywhere flagging it -- so this fails loudly
+    # at startup the same way the JWT secret check above does, rather than
+    # silently booting in a mode meant only for a developer's own machine.
+    if settings.is_production and settings.DEBUG:
+        raise RuntimeError("DEBUG must be false in production -- set DEBUG=false.")
     # Browsers reject/strip a SameSite=None cookie outright unless it's
     # also Secure -- so a cross-site deploy that sets COOKIE_SAMESITE=none
     # without also getting Secure=true (either via COOKIE_SECURE=true or

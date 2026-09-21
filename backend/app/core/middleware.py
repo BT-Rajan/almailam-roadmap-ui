@@ -4,6 +4,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.client_ip import get_client_ip
 from app.core.exceptions import RateLimitError
 from app.core.rate_limit import rate_limiter
 
@@ -62,7 +63,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS" or request.url.path in _RATE_LIMIT_EXEMPT_PATHS:
             return await call_next(request)
 
-        client_key = request.client.host if request.client else "unknown"
+        client_key = get_client_ip(request)
         try:
             rate_limiter.check(client_key)
         except RateLimitError as exc:

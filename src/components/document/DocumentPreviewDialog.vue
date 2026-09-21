@@ -62,7 +62,7 @@ async function handleDownload(): Promise<void> {
 
 <template>
   <BaseDialog :model-value="modelValue" :title="document?.title ?? t('document.viewerPage.documentViewer')" size="lg" @update:model-value="closeDialog">
-    <ErrorState v-if="documentStore.error" :description="documentStore.error" />
+    <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="documentId && documentStore.loadDocumentDetail(documentId)" />
     <SkeletonLoader v-else-if="documentStore.isDetailLoading || !document" :rows="8" />
     <PDFViewer v-else :document="document" />
 

@@ -252,11 +252,14 @@ if _frontend_dist.is_dir():
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str) -> FileResponse:
         candidate = (_frontend_dist / full_path).resolve()
-        if (
-            full_path
-            and candidate.is_file()
-            and str(candidate).startswith(str(_frontend_dist))
-        ):
+        # is_relative_to, not a str.startswith prefix check -- a bare
+        # string prefix has no path-separator boundary, so a sibling
+        # directory whose name merely extends "dist" as text (e.g. a
+        # leftover "dist-backup" or "dist.old" from a previous deploy)
+        # would satisfy "...dist-backup".startswith("...dist") and let a
+        # crafted ../ path serve files from outside the real frontend
+        # build. is_relative_to compares actual path segments instead.
+        if full_path and candidate.is_file() and candidate.is_relative_to(_frontend_dist):
             return FileResponse(candidate)
         # This route only matches because it's a catch-all -- FastAPI
         # falls through to it for any path that didn't hit one of the

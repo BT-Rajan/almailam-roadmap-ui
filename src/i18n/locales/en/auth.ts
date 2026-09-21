@@ -24,6 +24,13 @@ export default {
     idPlaceholder: 'Enter your user ID',
   },
 
+  idleLogoutReason: 'You were signed out after 5 minutes of inactivity.',
+
+  logoutCountdown: {
+    title: "You've been signed out",
+    description: 'You were signed out after 5 minutes of inactivity. Returning you to the sign-in screen...',
+  },
+
   authLayout: {
     heroTitlePart1: 'Precision in',
     heroTitlePart2: 'every project.',
@@ -38,6 +45,7 @@ export default {
     currentPasswordPlaceholder: 'Enter current password',
     newPassword: 'New Password',
     newPasswordPlaceholder: 'At least 8 characters',
+    newPasswordHint: 'At least 8 characters, mixing letters with numbers or symbols.',
     confirmNewPassword: 'Confirm New Password',
     confirmNewPasswordPlaceholder: 'Re-enter new password',
     passwordChangedTitle: 'Password changed',
