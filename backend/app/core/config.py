@@ -2,11 +2,24 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The only environment names this app knows about -- see get_settings()'s
+# own check below for why this is enforced rather than left as free text.
+KNOWN_ENVIRONMENTS = frozenset({"development", "production", "test", "staging"})
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     APP_NAME: str = "ServiceOS"
+    # is_production below is an exact `ENV.lower() == "production"` match,
+    # and that flag alone gates real safety checks (JWT_SECRET_KEY
+    # strength, the refresh cookie's default Secure attribute) -- so a
+    # value get_settings() doesn't recognize (KNOWN_ENVIRONMENTS above)
+    # fails loudly at startup instead of silently falling through to
+    # is_production=False. Without that, a plausible shorthand like
+    # ENV=prod on an actually-production box would quietly run with a
+    # weak/empty JWT secret allowed and a non-Secure cookie, with nothing
+    # anywhere saying so.
     ENV: str = "development"
     DEBUG: bool = False
 
@@ -172,6 +185,15 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    # Fails loudly on an unrecognized ENV rather than letting is_production
+    # silently resolve to False for anything that isn't an exact match on
+    # "production" -- see ENV's own doc comment above for the deployment
+    # risk this closes (e.g. ENV=prod on a real production box).
+    if settings.ENV.lower() not in KNOWN_ENVIRONMENTS:
+        raise RuntimeError(
+            f"ENV={settings.ENV!r} is not a recognized environment. "
+            f"Use one of: {', '.join(sorted(KNOWN_ENVIRONMENTS))}."
+        )
     if settings.is_production and len(settings.JWT_SECRET_KEY) < 32:
         raise RuntimeError(
             "JWT_SECRET_KEY must be set to a random value of at least 32 characters in production."
