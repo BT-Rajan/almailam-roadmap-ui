@@ -29,35 +29,57 @@ status with a 100% Project Performance report.
 
 ## Bugs found during this walkthrough
 
-Two real, reproducible frontend bugs were found and are **not yet fixed**:
+**Correction:** an earlier revision of this README claimed two additional
+"confirmed" bugs here (a stale Scope panel on fresh page load of a project
+past the Scope stage, and a New Project Wizard Supervision-activity date gap
+causing a raw 422). Both were re-tested directly against the current code
+(fresh `/projects/:id` loads at every stage; repeatedly checking a
+Supervision activity in `ServicePickerDialog` with no dates set) and neither
+reproduces — the workspace's Overview tab already renders the correct
+stage-specific content on a fresh load, and `ServicePickerDialog`'s "Save
+Selections" button is correctly disabled until every checked Supervision
+activity has both a start and end date. The original observations were most
+likely artifacts of the driver script's own rapid, scripted navigation
+(e.g. a safety click the script made unconditionally, on an already-correct
+tab) rather than real product bugs. Leaving this note rather than silently
+deleting the claim.
 
-1. **Stale Scope panel on fresh page load.** Navigating directly to a project
-   workspace that's already past the Scope stage renders the stale
-   Scope-of-Work panel (disabled "Save & Proceed") under the "Overview" tab,
-   even though the stage banner above it correctly shows the current stage.
-   Clicking the current stage's own label in the stepper forces the correct
-   panel to render. Likely the stage-panel component isn't syncing its
-   initial active-tab state to the freshly-loaded `project.currentStage`.
-   Screenshots named `*-project-workspace-scope.png` throughout this set are
-   the repro (and the test script's workaround, `gotoWorkspace()`, is
-   documented in `drive.mjs`).
+What a second pass (static code review + live exploration of Admin, RBAC,
+search, notifications, and form validation) did find and fix, on this branch:
 
-2. **New Project Wizard: Supervision activities missing date fields.**
-   Selecting a Supervision catalog item (e.g. "Weekly Site Visits") lets the
-   user complete the wizard and click "Create Project", but the request
-   fails with a raw 422 (`Input should be a valid date or datetime, input is
-   too short`) because `selectedSupervisionActivities[].startDate`/`endDate`
-   are sent as empty strings — the wizard UI never collects them. Worked
-   around in this walkthrough by not selecting a Supervision item for
-   project `2600003`.
-
-Also fixed during this pass (separate commits on this branch):
 - 4 vue-i18n message-compile crashes (bare `@`/`{{...}}` in placeholder
   strings in `administration.ts` locale files).
 - A `watch(..., { immediate: true })` TDZ bug (self-referencing stop
   handle before its `const` finished initializing) in
   `ProjectQuotationTab.vue`, `PaymentPlanPanel.vue`, and
   `ProjectContractTab.vue`.
+- Two dead "Try Again" buttons: `ErrorState`'s retry button always renders
+  regardless of whether a `@retry` handler is bound, and
+  `DocumentPreviewDialog.vue` / `ProjectDocumentsTab.vue` rendered it with
+  none — clicking it silently did nothing. Both now retry the load that
+  actually failed.
+- A stale "(optional)" label on `ServicePickerDialog`'s per-activity
+  Supervision end date field, which the code has required (with a red
+  asterisk) since a past fix closed exactly this gap — the label just never
+  caught up.
+- A latent race in `projectStore`/`documentStore`/`clientStore`'s
+  `load*Page()` actions: firing two overlapping requests (e.g. typing
+  quickly in a filter) could let a slower, earlier response resolve after a
+  faster later one and silently overwrite the list with stale, filter-
+  mismatched results. Fixed with the same request-id guard `searchStore.ts`
+  already used for its own search-as-you-type race.
+
+Findings looked at and **not** changed (recommendations, not bugs, or
+already handled elsewhere in the codebase): several disabled buttons across
+the app (e.g. "New Contract", "Edit Scope", "Start Application") give no
+on-hover explanation of *why* they're disabled — the codebase has no
+tooltip primitive to hang that off yet, so fixing this well means adding
+one, a small design decision rather than a bug fix. Also noted: most of the
+Service Catalog's default services (Civil Engineering, Fire & Safety
+Engineering, MEP Design, Structural Engineering) ship with zero priced
+activities, so selecting them on a real project reproduces the same
+KWD 0.00 quotation block project `2600002` demonstrates — a catalog/seed-
+data gap, not a code bug.
 
 ## Regenerating
 

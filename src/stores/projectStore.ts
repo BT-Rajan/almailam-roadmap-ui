@@ -35,6 +35,11 @@ interface ProjectStoreState {
   pageItems: Project[]
   pagination: ProjectPaginationState
   isPageLoading: boolean
+  // Bumped on every loadProjectsPage() call so a slower, earlier request
+  // (e.g. from a filter that's since changed again) can tell it's stale
+  // once it resolves and skip overwriting the page with outdated results
+  // (see setQuery's identical guard in searchStore.ts).
+  pageRequestId: number
 }
 
 export const useProjectStore = defineStore('project', {
@@ -51,6 +56,7 @@ export const useProjectStore = defineStore('project', {
     pageItems: [],
     pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
     isPageLoading: false,
+    pageRequestId: 0,
   }),
 
   getters: {
@@ -106,6 +112,8 @@ export const useProjectStore = defineStore('project', {
     // as opposed to loadProjects() above which still loads everything
     // (safely, in bounded pages) for cross-reference lookups.
     async loadProjectsPage() {
+      this.pageRequestId += 1
+      const currentRequest = this.pageRequestId
       this.isPageLoading = true
       this.error = undefined
       try {
@@ -123,6 +131,7 @@ export const useProjectStore = defineStore('project', {
           engineerId: this.myProjectsOnly ? authStore.user?.id : undefined,
           deleted: this.showDeleted,
         })
+        if (currentRequest !== this.pageRequestId) return
         this.pageItems = result.items
         this.pagination = {
           page: result.page,
@@ -131,9 +140,12 @@ export const useProjectStore = defineStore('project', {
           totalPages: result.totalPages,
         }
       } catch (error) {
+        if (currentRequest !== this.pageRequestId) return
         this.error = describeStoreError('Unable to load projects. Please try again.', error)
       } finally {
-        this.isPageLoading = false
+        if (currentRequest === this.pageRequestId) {
+          this.isPageLoading = false
+        }
       }
     },
 

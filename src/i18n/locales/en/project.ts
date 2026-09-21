@@ -680,8 +680,13 @@ export default {
     supervisionPeriodStart: 'Supervision Period Start',
     supervisionPeriodEnd: 'Supervision Period End (optional)',
     startDate: 'Start Date',
-    endDate: 'End Date (optional)',
-    supervisionDatesMissing: 'Every checked Supervision activity needs its own start date.',
+    // Not actually optional -- see ServicePickerDialog.vue's
+    // supervisionDatesMissing/canConfirm: every checked Supervision
+    // activity's own end date is required before Save Selections enables
+    // (a Supervision activity with no end date used to be able to reach
+    // Payment Plan with no way to actually create its Financial Agreement).
+    endDate: 'End Date',
+    supervisionDatesMissing: 'Every checked Supervision activity needs its own start and end date.',
     supervisionProrationNote: "Charged monthly and prorated by day for partial months — e.g. starting on the 11th only charges for the rest of that calendar month.",
     nothingSelected: 'Nothing selected',
     designServicesCount: 'no design services | {count} design service | {count} design services',

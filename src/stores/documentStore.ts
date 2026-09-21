@@ -31,6 +31,10 @@ interface DocumentStoreState {
   pageItems: ProjectDocument[]
   pagination: DocumentPaginationState
   isPageLoading: boolean
+  // Bumped on every loadDocumentsPage() call so a slower, earlier request
+  // can tell it's stale once it resolves and skip overwriting the page
+  // with outdated results (see setQuery's identical guard in searchStore.ts).
+  pageRequestId: number
 }
 
 export const useDocumentStore = defineStore('document', {
@@ -48,6 +52,7 @@ export const useDocumentStore = defineStore('document', {
     pageItems: [],
     pagination: { page: 1, pageSize: 9, total: 0, totalPages: 1 },
     isPageLoading: false,
+    pageRequestId: 0,
   }),
 
   getters: {
@@ -96,6 +101,8 @@ export const useDocumentStore = defineStore('document', {
     // as opposed to loadDocuments() above which still loads everything
     // (safely, in bounded pages) for cross-reference lookups.
     async loadDocumentsPage() {
+      this.pageRequestId += 1
+      const currentRequest = this.pageRequestId
       this.isPageLoading = true
       this.error = undefined
       try {
@@ -110,6 +117,7 @@ export const useDocumentStore = defineStore('document', {
           type: this.typeFilter !== 'All' ? this.typeFilter : undefined,
           status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
         })
+        if (currentRequest !== this.pageRequestId) return
         this.pageItems = result.items
         this.pagination = {
           page: result.page,
@@ -118,9 +126,12 @@ export const useDocumentStore = defineStore('document', {
           totalPages: result.totalPages,
         }
       } catch (error) {
+        if (currentRequest !== this.pageRequestId) return
         this.error = describeStoreError('Unable to load documents. Please try again.', error)
       } finally {
-        this.isPageLoading = false
+        if (currentRequest === this.pageRequestId) {
+          this.isPageLoading = false
+        }
       }
     },
 
