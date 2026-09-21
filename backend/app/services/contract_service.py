@@ -159,11 +159,6 @@ def _link_agreements_to_contract(db: Session, project_id: int, contract_id: int)
     ).update({"contract_id": contract_id})
 
 
-def _user_name(db: Session, user_id: int) -> str:
-    user = db.query(User).filter(User.id == user_id).first()
-    return user.full_name if user else "Unknown"
-
-
 def _next_revision_label(current: str) -> str:
     # Revision labels are 'R0', 'R1', 'R2', ... -- bump the numeric suffix.
     if current.startswith("R") and current[1:].isdigit():

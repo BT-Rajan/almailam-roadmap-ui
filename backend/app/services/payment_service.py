@@ -971,39 +971,6 @@ def get_financial_summary(db: Session, agreement_id: int) -> dict:
     return summary
 
 
-def get_project_payment_status(db: Session, project: Project) -> dict:
-    """Aggregates every FinancialAgreement a project has (Design and/or
-    Supervision) against their *current* contract_amount -- not the
-    amount at contract-signing time, so a later change order/added
-    activity is reflected immediately ("it is about the current
-    project value at the time of closure"). Shown as the auto-computed
-    reference status on the Handover stage's Payment Confirmation tab,
-    alongside (not gating) project_service.confirm_handover_payment's
-    manual attestation. A project with no financial agreement at all
-    reports fully_paid False rather than vacuously True (shouldn't
-    normally happen once Payment Plan has been passed, but this should
-    never misread "nothing to pay" as "fully paid")."""
-    agreements = db.query(FinancialAgreement).filter(FinancialAgreement.project_id == project.id).all()
-    if not agreements:
-        return {"totalContractAmount": Decimal("0"), "totalReceived": Decimal("0"), "fullyPaid": False}
-
-    total_contract_amount = Decimal("0")
-    total_received = Decimal("0")
-    for agreement in agreements:
-        obligations = get_obligations(db, agreement.id)
-        payments = get_payments(db, agreement.id)
-        refunds = get_refunds(db, agreement.id)
-        summary = calc.get_financial_summary(agreement, obligations, payments, refunds)
-        total_contract_amount += Decimal(str(agreement.contract_amount))
-        total_received += summary["totalReceived"]
-
-    return {
-        "totalContractAmount": total_contract_amount,
-        "totalReceived": total_received,
-        "fullyPaid": total_contract_amount > 0 and total_received >= total_contract_amount,
-    }
-
-
 def get_audit_events(db: Session, agreement_id: int) -> list[dict]:
     get_agreement(db, agreement_id)
     return audit_service.get_history(db, ENTITY_TYPE, agreement_id)

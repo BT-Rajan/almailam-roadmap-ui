@@ -1,4 +1,3 @@
-import logging
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import BackgroundTasks, UploadFile
@@ -18,7 +17,7 @@ from app.core.status_transitions import (
 from app.core.workflow import assert_reason_given, assert_transition_allowed
 from app.models.client import Client, ClientIdentification
 from app.models.contract import Contract
-from app.models.document import ProjectDocument, ProjectLinkDocument
+from app.models.document import ProjectLinkDocument
 from app.models.handover_checklist import HandoverChecklistItem
 from app.models.payment import FinancialAgreement, Payment
 from app.models.permit_selection import ProjectSelectedPermit
@@ -41,7 +40,6 @@ from app.services.project_service._shared import ENTITY_TYPE, logger
 # keeps working unchanged now that these have moved to queries.py -- see
 # that module's own docstring for why this group was extracted first.
 from app.services.project_service.queries import (  # noqa: F401
-    PROJECT_SORTABLE_FIELDS,
     engineer_name,
     engineer_names,
     get_audit_events,
@@ -2051,9 +2049,9 @@ def notify_handover_ready(db: Session, project_no: str, user_id: int | None) -> 
 def confirm_handover_payment(db: Session, project_no: str, user_id: int | None) -> Project:
     """Manual attestation, from the Handover stage's Payment Confirmation
     tab, that this project's payment has been received in full --
-    independent of (and not required to match) the automatic
-    payment_service.get_project_payment_status() reading the same tab
-    shows alongside it as reference: staff can confirm by hand even if
+    independent of (and not required to match) the automatic fully-paid
+    reading the same tab computes client-side as reference: staff can
+    confirm by hand even if
     obligation tracking is incomplete (e.g. a payment collected outside
     the system). Required before confirm_project_handover will accept
     the signed hand-over acknowledgment below.

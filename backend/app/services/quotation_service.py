@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import UploadFile
@@ -51,11 +51,6 @@ def _assert_valid_client(db: Session, project: Project) -> None:
             "This project's client record is missing or has been removed. "
             "A quotation cannot be created without a valid client."
         )
-
-
-def _user_name(db: Session, user_id: int) -> str:
-    user = db.query(User).filter(User.id == user_id).first()
-    return user.full_name if user else "Unknown"
 
 
 def _next_revision_label(current: str) -> str:

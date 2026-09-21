@@ -54,10 +54,6 @@ def max_days_from_today_validator(label: str, days: int):
     return _check
 
 
-class ErrorResponse(BaseModel):
-    error: str
-
-
 class PagedResponse(BaseModel, Generic[T]):
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,11 +62,3 @@ class PagedResponse(BaseModel, Generic[T]):
     page: int
     pageSize: int
     totalPages: int
-
-
-class ListParams(BaseModel):
-    page: int = 1
-    page_size: int = 25
-    search: str | None = None
-    status: str | None = None
-    sort: str | None = None
