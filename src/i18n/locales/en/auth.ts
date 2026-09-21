@@ -45,6 +45,7 @@ export default {
     currentPasswordPlaceholder: 'Enter current password',
     newPassword: 'New Password',
     newPasswordPlaceholder: 'At least 8 characters',
+    newPasswordHint: 'At least 8 characters, mixing letters with numbers or symbols.',
     confirmNewPassword: 'Confirm New Password',
     confirmNewPasswordPlaceholder: 'Re-enter new password',
     passwordChangedTitle: 'Password changed',
