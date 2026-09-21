@@ -139,6 +139,29 @@ watch(
       const requestedTab = route.query.tab
       const requestedStage =
         typeof requestedTab === 'string' ? STAGE_TAB_KEYS[requestedTab as ProjectWorkspaceTabKey] : undefined
+      // Tasks has no single stage behind it the way STAGE_TAB_KEYS' other
+      // entries do -- it's a real tab on every stage's TABS below (a
+      // plain, unlinked task can exist regardless of where the project
+      // actually is), so restoring it needs the specific stage the tab
+      // was left from, carried separately as ?stage= (set by
+      // ProjectTasksTab.vue's own links, echoed back by
+      // TaskWorkspacePage.vue/TaskCreatePage.vue's "back"). An
+      // unrecognized/missing stage falls through to the plain "else"
+      // below rather than guessing, same as any other invalid deep link.
+      const ALL_WORKFLOW_STAGES: readonly WorkflowStage[] = [
+        'Requirement',
+        'Quotation',
+        'Payment Plan',
+        'Contract',
+        'Design',
+        'Supervision',
+        'Government Submission',
+        'Handover',
+      ]
+      const requestedTaskStage =
+        requestedTab === 'tasks' && typeof route.query.stage === 'string'
+          ? ALL_WORKFLOW_STAGES.find((stage) => stage === route.query.stage)
+          : undefined
       if (requestedStage) {
         // ?view=overview asks for that stage's Overview card instead of
         // its dedicated tab -- what a page opened from the card (e.g.
@@ -150,6 +173,13 @@ watch(
         const restQuery = { ...route.query }
         delete restQuery.tab
         delete restQuery.view
+        void router.replace({ query: restQuery })
+      } else if (requestedTaskStage) {
+        activeTab.value = 'tasks'
+        stageContext.value = requestedTaskStage
+        const restQuery = { ...route.query }
+        delete restQuery.tab
+        delete restQuery.stage
         void router.replace({ query: restQuery })
       } else {
         activeTab.value = 'overview'
@@ -207,9 +237,18 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'contract-documents', label: t('project.workspaceTabs.documents') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Quotation':
-      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
+      // Tasks stays reachable here too -- a plain, unlinked task (not
+      // tied to any Design/Permit/Supervision activity) can be created
+      // and worked on regardless of the project's current stage, so
+      // hiding this tab on stages before Design made any such task
+      // unreachable through the UI at all until the project caught up.
+      return [
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
+      ]
     case 'Payment Plan':
       // No 'payment-plan' entry in this top-bar list -- same as
       // Contract/Design/Government Submission/Supervision below, the
@@ -223,6 +262,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'payment-status', label: t('project.workspaceTabs.paymentStatus') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Contract':
       // No Payments tab here -- Payment Plan is its own stage now (the
@@ -234,7 +274,10 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       // tab has moved to the Scope step above (see the Requirement
       // case) so it's reachable from the start of the project rather
       // than only here.
-      return [{ key: 'overview', label: t('project.workspaceTabs.overview') }]
+      return [
+        { key: 'overview', label: t('project.workspaceTabs.overview') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
+      ]
     case 'Design':
       // 'design' tab key now renders ProjectDesignTab.vue (Drawing-typed
       // documents only, migration 0104/#3) rather than the generic
@@ -282,6 +325,7 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'handover-payment', label: t('project.workspaceTabs.paymentConfirmation') },
         { key: 'handover-notes', label: t('project.workspaceTabs.notesAndReport') },
+        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     default:
       return [

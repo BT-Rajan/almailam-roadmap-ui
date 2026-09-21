@@ -65,8 +65,16 @@ const clientName = computed(() => clientStore.getClientById(props.project.client
 // Opens the shared task-create page (see TaskCreatePage.vue) with the
 // project locked -- a task added from inside this project's own Tasks
 // tab shouldn't quietly end up filed under a different project.
+// ?stage carries which of Design/Supervision/Government Submission this
+// tab is currently scoped to (see stageContext prop above) so "back"
+// from the task/create page can restore this exact Tasks tab instead of
+// falling back to Overview -- see ProjectWorkspacePage.vue's
+// requestedTaskStage handling.
 function createTask(): void {
-  router.push({ name: ROUTE_NAMES.TASK_CREATE, query: { projectId: props.project.id, locked: '1' } })
+  router.push({
+    name: ROUTE_NAMES.TASK_CREATE,
+    query: { projectId: props.project.id, locked: '1', stage: props.stageContext },
+  })
 }
 
 // Opens the shared task workspace (see TaskWorkspacePage.vue) rather
@@ -76,7 +84,11 @@ function createTask(): void {
 // Permit/Supervision activity), and to send "back" here instead of the
 // global Task Board.
 function openTask(taskId: string): void {
-  router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId }, query: { projectId: props.project.id } })
+  router.push({
+    name: ROUTE_NAMES.TASK_WORKSPACE,
+    params: { taskId },
+    query: { projectId: props.project.id, stage: props.stageContext },
+  })
 }
 </script>
 
