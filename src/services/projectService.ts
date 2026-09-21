@@ -60,6 +60,18 @@ async function getProjects(): Promise<Project[]> {
 }
 
 /**
+ * Every project belonging to one client, as a flat array. Prefer this over
+ * getProjects() for anything scoped to a single client (e.g. the Client
+ * Workspace's Projects tab) -- filtering the clientId server-side means
+ * this is a single request for that client's own (typically small) project
+ * count, not a walk of every page of the entire projects table just to
+ * throw away everyone else's rows client-side afterwards.
+ */
+async function getProjectsForClient(clientId: string): Promise<Project[]> {
+  return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
+}
+
+/**
  * Fetch a specific project by ID from backend API
  */
 async function getProjectById(projectId: string): Promise<Project | undefined> {
@@ -452,6 +464,7 @@ async function updateHandoverNotes(projectId: string, notes: string): Promise<Pr
 
 export const projectService = {
   getProjects,
+  getProjectsForClient,
   getProjectsPage,
   getProjectById,
   createProject,
