@@ -10,7 +10,6 @@ from app.schemas.report import (
     ClientWithProjects,
     EmployeePerformance,
     FinancialPeriodSummary,
-    LineChartDataPoint,
     PaymentLedgerEntry,
     PaymentProjections,
     PaymentsReceivedByMonth,

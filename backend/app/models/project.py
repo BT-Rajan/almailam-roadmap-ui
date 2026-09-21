@@ -212,9 +212,9 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     handover_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Manual payment attestation from the Handover stage's Payment
     # Confirmation tab (migration 0089) -- independent of the automatic
-    # payment_service.get_project_payment_status() reading shown
-    # alongside it as reference; required before confirm_project_
-    # handover accepts the signed acknowledgment (see
+    # fully-paid reading the tab computes client-side as reference;
+    # required before confirm_project_handover accepts the signed
+    # acknowledgment (see
     # project_service.confirm_handover_payment/unconfirm_handover_payment).
     handover_payment_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     handover_payment_confirmed_by: Mapped[int | None] = mapped_column(

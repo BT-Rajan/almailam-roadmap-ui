@@ -1,4 +1,3 @@
-import { i18n } from '@/i18n'
 import { useServerTimeStore } from '@/stores/serverTimeStore'
 
 /** Today's date as YYYY-MM-DD, for DatePicker's `min`/`max` props, past/future-date
@@ -88,23 +87,6 @@ export function formatShortDateTime(isoDateTime: string): string {
 /** 24-hour "14:30", from an already-parsed Date (e.g. a calendar grid cell). */
 export function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-GB', TIME_FORMAT)
-}
-
-/** "Today" / "Yesterday" / "N days ago" for a date-only ISO string,
- * falling back to a plain short date for anything further back OR in
- * the future. Deliberately does NOT extend the relative phrasing to
- * future dates ("in 3 days") for the *_ago_ cases -- the bug this
- * exists to fix was exactly that: an upcoming (future-dated) item's
- * age comes out negative and rendered verbatim as "-35 days ago". */
-export function formatRelativeDate(isoDate: string): string {
-  const date = new Date(isoDate)
-  if (Number.isNaN(date.getTime())) return isoDate
-  const todayUTC = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())
-  const diffDays = Math.floor((todayUTC - date.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return i18n.global.t('common.today')
-  if (diffDays === 1) return i18n.global.t('common.yesterday')
-  if (diffDays > 1 && diffDays < 7) return i18n.global.t('common.daysAgo', { count: diffDays })
-  return formatShortDate(isoDate)
 }
 
 /** Whether a date-only ISO string ("YYYY-MM-DD") is strictly before

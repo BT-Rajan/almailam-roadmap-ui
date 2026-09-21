@@ -53,19 +53,6 @@ def _verify_signature(extension: str, contents: bytes) -> None:
         )
 
 
-def matches_signature(extension: str, contents: bytes) -> bool:
-    """Public, boolean-returning sibling of _verify_signature -- for
-    callers (e.g. the identification-document upload check in
-    api/clients.py) that need to ask "does this look right?" and decide
-    what to do themselves, rather than have a ValidationAppError raised
-    for them. Backed by the same _SIGNATURES table, not a second copy
-    of the magic-byte definitions."""
-    signatures = _SIGNATURES.get(extension)
-    if signatures is None:
-        return True
-    return any(contents.startswith(sig) for sig in signatures)
-
-
 def assert_pdf_upload(file: UploadFile) -> None:
     """Business-rule check (not a security one -- save_upload's own
     magic-byte check on '.pdf' already covers that) for the six "client
