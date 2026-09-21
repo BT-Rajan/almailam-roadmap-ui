@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.security import hash_password
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.user import ProfileUpdate, UserCreate, UserUpdate
 from app.services import audit_service
@@ -153,6 +154,16 @@ def reset_user_password(db: Session, user_id: int, actor_id: int) -> tuple[User,
     # locked out with a new password they still can't use.
     user.failed_login_attempts = 0
     user.locked_until = None
+    # Same as self-service change_password (auth_service.py): revoke every
+    # refresh token this user currently holds. An admin-initiated reset is
+    # frequently a response to a suspected-compromised account, and
+    # without this, whoever already has a live refresh token (the
+    # compromise itself) keeps refreshing straight through the reset --
+    # the new password would only stop a *future* login, not an
+    # already-established session.
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False)
+    ).update({"revoked": True})
 
     audit_service.log_event(db, ENTITY_TYPE, user.id, "Password reset", actor_id)
     db.commit()
