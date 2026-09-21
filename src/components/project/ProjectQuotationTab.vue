@@ -62,18 +62,28 @@ const documentLanguage = ref<AppLanguage>(companyStore.settings?.defaultLanguage
 onMounted(() => {
   if (companyStore.settings === undefined) companyStore.loadSettings()
 })
-const stopSeedingDocumentLanguage = watch(
-  () => companyStore.settings,
-  (settings) => {
-    // Only a one-time seed, whether settings were already loaded (fires
-    // immediately) or load later (fires on that change) -- once applied,
-    // this stops so it never overwrites a language the user picked here.
-    if (!settings) return
-    documentLanguage.value = settings.defaultLanguage
-    stopSeedingDocumentLanguage()
-  },
-  { immediate: true },
-)
+// One-time seed, whether settings were already loaded elsewhere before
+// this component ever mounted, or load later. Deliberately NOT a single
+// `watch(..., { immediate: true })` that stops itself from inside its own
+// callback -- when settings are already loaded, that callback runs
+// synchronously during the watch() call itself, before the `const`
+// holding its own stop handle has finished initializing, throwing
+// "Cannot access '...' before initialization" (confirmed crashing this
+// tab whenever another page had already triggered companyStore
+// .loadSettings() first). Handling the already-loaded case up front
+// avoids ever creating a self-referencing immediate watcher.
+if (companyStore.settings) {
+  documentLanguage.value = companyStore.settings.defaultLanguage
+} else {
+  const stopSeedingDocumentLanguage = watch(
+    () => companyStore.settings,
+    (settings) => {
+      if (!settings) return
+      documentLanguage.value = settings.defaultLanguage
+      stopSeedingDocumentLanguage()
+    },
+  )
+}
 
 const isFinalizing = ref(false)
 

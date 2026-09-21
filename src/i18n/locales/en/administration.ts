@@ -336,7 +336,13 @@ export default {
     designation: 'Designation',
     designationPlaceholder: 'e.g. Document Controller',
     email: 'Email',
-    emailPlaceholder: 'name@almailam.ae',
+    // A literal, unescaped "@" makes vue-i18n try to parse the rest of
+    // the string as a linked-message reference (its `@:key` syntax) and
+    // throw "Invalid linked format" at render time -- {'@'} is vue-i18n's
+    // own escape for a literal "@" in message content, not Vue template
+    // syntax. This crashed the whole Add/Edit User form (UserFormPage.vue)
+    // on mount, stuck on its skeleton loader forever.
+    emailPlaceholder: "name{'@'}almailam.ae",
     mobile: 'Mobile',
     mobilePlaceholder: '+965 5XXX XXXX',
     role: 'Role',
@@ -408,7 +414,14 @@ export default {
     },
     addField: 'Add Field',
     removeField: 'Remove field',
-    fieldTokenPlaceholder: 'token (matches {{token}})',
+    // A raw {{...}} reads to vue-i18n as a nested interpolation (its
+    // syntax is single-brace {token}) and fails to compile ("Not allowed
+    // nest placeholder"), crashing the New/Edit Government Form page on
+    // mount. {'{'}/{'}'} are vue-i18n's own escapes for literal brace
+    // characters, so this still displays as "token (matches {{token}})"
+    // -- the real double-brace token syntax shown elsewhere on this page
+    // (see the <code v-pre>{{plotArea}}</code> example above it).
+    fieldTokenPlaceholder: "token (matches {'{'}{'{'}token{'}'}{'}'})",
     fieldLabelPlaceholder: 'Field label',
     fieldOptionsPlaceholder: 'One option per line',
     sampleFormTitle: 'Sample Form',
@@ -765,7 +778,9 @@ export default {
 
     sectionRecipients: 'Recipients',
     recipientsHint: 'One email address per line, or separated by commas.',
-    recipientsPlaceholder: 'name@company.com',
+    // See emailPlaceholder's comment above -- same vue-i18n "@" escape,
+    // same crash-on-mount bug, this time on ScheduledReportFormPage.vue.
+    recipientsPlaceholder: "name{'@'}company.com",
     subject: 'Email Subject',
     subjectPlaceholder: 'Leave blank to use the report title',
     messageBody: 'Message',
