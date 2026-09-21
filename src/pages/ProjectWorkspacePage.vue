@@ -33,7 +33,6 @@ const ProjectHandoverNotesTab = defineAsyncComponent(() => import('@/components/
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useContractStore } from '@/stores/contractStore'
 import { useDocumentStore } from '@/stores/documentStore'
-import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
@@ -49,7 +48,6 @@ const projectStore = useProjectStore()
 const quotationStore = useQuotationStore()
 const contractStore = useContractStore()
 const documentStore = useDocumentStore()
-const governmentSubmissionStore = useGovernmentSubmissionStore()
 const paymentStore = usePaymentStore()
 const taskStore = useTaskStore()
 const serviceCatalogStore = useServiceCatalogStore()
@@ -310,14 +308,15 @@ const client = computed(() => (project.value ? projectStore.getClientById(projec
 const isLoading = computed(() => projectStore.isLoading || quotationStore.isLoading || contractStore.isLoading)
 const error = computed(() => projectStore.error ?? quotationStore.error ?? contractStore.error)
 
+// Everything the workspace needs to render is independent of the rest, so it
+// all loads at once -- the wait is the slowest request, not their sum. Only
+// this project's own payments are fetched (not every agreement and
+// obligation in the company), and the tabs below load just this project's
+// tasks/documents/submissions the same way.
 async function loadData(): Promise<void> {
-  if (projectStore.projects.length === 0) {
-    await projectStore.loadProjects()
-  }
-  if (paymentStore.agreements.length === 0) {
-    await paymentStore.loadAll()
-  }
   await Promise.all([
+    projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+    paymentStore.loadForProject(projectId.value),
     quotationStore.loadQuotationsForProject(projectId.value),
     contractStore.loadContractsForProject(projectId.value),
   ])
@@ -326,17 +325,18 @@ async function loadData(): Promise<void> {
 onMounted(loadData)
 watch(projectId, loadData)
 
+// Loads only this project's records for whichever tab is showing. (The
+// Government tab loads its own submissions when it mounts, so it isn't
+// repeated here.) Watches the project too: the workspace is reused, not
+// remounted, when navigating from one project straight to another.
 watch(
-  activeTab,
-  (tab) => {
-    if ((tab === 'documents' || tab === 'design' || tab === 'supervision') && documentStore.documents.length === 0) {
-      documentStore.loadDocuments()
+  [activeTab, projectId],
+  ([tab, id]) => {
+    if (tab === 'documents' || tab === 'design' || tab === 'supervision') {
+      void documentStore.loadDocumentsForProject(id)
     }
-    if (tab === 'government' && governmentSubmissionStore.submissions.length === 0) {
-      governmentSubmissionStore.loadSubmissions()
-    }
-    if (tab === 'tasks' && taskStore.tasks.length === 0) {
-      taskStore.loadTasks()
+    if (tab === 'tasks') {
+      void taskStore.loadTasksForProject(id)
     }
   },
   { immediate: true },
@@ -355,12 +355,14 @@ watch(
 // (which would re-fetch the whole task list on every ordinary tab
 // click). previousStage !== undefined skips the initial transition
 // from "not loaded yet" to the project's real stage on first mount --
-// only a genuine change after that counts.
+// only a genuine change after that counts. Only this project's tasks can
+// have changed, so only they are refetched (forced, so it also applies when
+// the full task list happens to be loaded already).
 watch(
   () => project.value?.currentStage,
   (stage, previousStage) => {
     if (previousStage !== undefined && stage !== previousStage) {
-      taskStore.loadTasks()
+      void taskStore.loadTasksForProject(projectId.value, { force: true })
     }
   },
 )

@@ -108,8 +108,10 @@ def _payment_out(db: Session, payment) -> PaymentOut:
 
 
 @router.get("/financial-agreements", response_model=list[FinancialAgreementOut])
-def list_agreements(db: Session = Depends(get_db), _=Depends(can_view)):
-    return _agreements_out_batch(db, payment_service.list_agreements(db))
+def list_agreements(
+    projectId: str | None = Query(default=None), db: Session = Depends(get_db), _=Depends(can_view)
+):
+    return _agreements_out_batch(db, payment_service.list_agreements(db, projectId))
 
 
 @router.get("/financial-agreements/by-project/{project_no}", response_model=FinancialAgreementOut | None)
@@ -260,8 +262,10 @@ def _obligation_display_id(db: Session, obligation_id: int) -> str:
 
 
 @router.get("/obligations", response_model=list[ObligationOut])
-def list_all_obligations(db: Session = Depends(get_db), _=Depends(can_view)):
-    return [_obligation_out(o) for o in payment_service.list_all_obligations(db)]
+def list_all_obligations(
+    projectId: str | None = Query(default=None), db: Session = Depends(get_db), _=Depends(can_view)
+):
+    return [_obligation_out(o) for o in payment_service.list_all_obligations(db, projectId)]
 
 
 @router.patch("/obligations/{obligation_id}/override", response_model=ObligationOut)

@@ -39,7 +39,9 @@ watch(
 )
 
 function loadData(): void {
-  governmentSubmissionStore.loadSubmissions()
+  // Always refetched when the tab opens (as before) -- but only this
+  // project's submissions, not every submission in the company.
+  void governmentSubmissionStore.loadSubmissionsForProject(props.projectId, { force: true })
   projectFormStore.load(props.projectId)
 }
 

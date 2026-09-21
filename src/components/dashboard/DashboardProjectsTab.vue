@@ -29,8 +29,8 @@ const documentStore = useDocumentStore()
 // re-issues a request the first mount already made or has in flight.
 onMounted(() => {
   if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
-  if (taskStore.tasks.length === 0 && !taskStore.isLoading) void taskStore.loadTasks()
-  if (documentStore.documents.length === 0 && !documentStore.isLoading) void documentStore.loadDocuments()
+  if (taskStore.needsFullLoad) void taskStore.loadTasks()
+  if (documentStore.needsFullLoad) void documentStore.loadDocuments()
 })
 
 // Real counts from the same project list the "Recent Projects" grid

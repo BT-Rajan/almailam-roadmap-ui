@@ -7,10 +7,18 @@ import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Project } from '@/types/Project'
 import type { Task, TaskAuditEvent, TaskStatus } from '@/types/Task'
+import { CACHE_TTL_MS, getLoadGate } from '@/utils/loadGate'
+import { replaceScope } from '@/utils/scopedCollection'
 import { describeStoreError } from '@/utils/storeError'
 
 interface TaskStoreState {
   tasks: Task[]
+  // True only once loadTasks() has fetched EVERY task. `tasks` can also hold
+  // just some projects' rows (see loadTasksForProject), so `tasks.length`
+  // says nothing about completeness -- anything that needs the whole list
+  // must check this flag (via needsFullLoad), not the array length.
+  isFullyLoaded: boolean
+  isFullLoading: boolean
   isLoading: boolean
   error: string | undefined
   searchTerm: string
@@ -27,6 +35,8 @@ interface TaskStoreState {
 export const useTaskStore = defineStore('task', {
   state: (): TaskStoreState => ({
     tasks: [],
+    isFullyLoaded: false,
+    isFullLoading: false,
     isLoading: false,
     error: undefined,
     searchTerm: '',
@@ -38,6 +48,12 @@ export const useTaskStore = defineStore('task', {
   }),
 
   getters: {
+    // Whether a caller that needs every task should start a full load: not
+    // already loaded, and not already being loaded.
+    needsFullLoad(state): boolean {
+      return !state.isFullyLoaded && !state.isFullLoading
+    },
+
     // projectStore is the single, canonical place the full project list
     // lives -- delegating shares one fetch and O(1) lookup with every
     // other store that needs the same data.
@@ -107,6 +123,7 @@ export const useTaskStore = defineStore('task', {
   actions: {
     async loadTasks() {
       this.isLoading = true
+      this.isFullLoading = true
       this.error = undefined
       try {
         const projectStore = useProjectStore()
@@ -114,6 +131,7 @@ export const useTaskStore = defineStore('task', {
         await Promise.all([
           taskService.getTasks().then((tasks) => {
             this.tasks = tasks
+            this.isFullyLoaded = true
           }),
           projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
           clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
@@ -122,7 +140,35 @@ export const useTaskStore = defineStore('task', {
         this.error = describeStoreError('Unable to load tasks. Please try again.', error)
       } finally {
         this.isLoading = false
+        this.isFullLoading = false
       }
+    },
+
+    // Loads just one project's tasks, merging them into `tasks` in place of
+    // that project's old rows -- for views scoped to a single project (its
+    // workspace), which shouldn't download every task in the company just to
+    // show its own. Does NOT mark the list fully loaded. A no-op when every
+    // task is already here, unless `force` (use it after something changes
+    // this project's tasks server-side, e.g. a stage change auto-creating
+    // service tasks).
+    async loadTasksForProject(projectId: string, options: { force?: boolean } = {}) {
+      if (this.isFullyLoaded && !options.force) return
+      await getLoadGate(this, `project:${projectId}`, CACHE_TTL_MS).run(async (isCurrent) => {
+        this.isLoading = true
+        this.error = undefined
+        try {
+          const projectTasks = await taskService.getTasksForProject(projectId)
+          if (isCurrent()) {
+            this.tasks = replaceScope(this.tasks, projectTasks, (task) => task.projectId === projectId)
+          }
+          return true
+        } catch (error) {
+          if (isCurrent()) this.error = describeStoreError('Unable to load tasks. Please try again.', error)
+          return false
+        } finally {
+          if (isCurrent()) this.isLoading = false
+        }
+      }, options)
     },
 
     // Previously all four of these (status/priority/severity/assignee)

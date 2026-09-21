@@ -55,7 +55,10 @@ const isLoading = ref(true)
 const loadError = ref<string | undefined>(undefined)
 
 async function loadData(): Promise<void> {
-  if (taskStore.tasks.length > 0) {
+  // Skip the fetch when every task is already here, or when at least this one
+  // is (opened from its own project's Tasks tab, which loads only that
+  // project's tasks -- so a non-empty list alone doesn't mean this task is in it).
+  if (taskStore.isFullyLoaded || taskStore.tasks.some((item) => item.id === taskId.value)) {
     isLoading.value = false
     return
   }

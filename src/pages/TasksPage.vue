@@ -45,7 +45,7 @@ function loadData(): void {
 }
 
 onMounted(() => {
-  if (taskStore.tasks.length === 0) loadData()
+  if (taskStore.needsFullLoad) loadData()
 })
 
 function openTask(taskId: string): void {

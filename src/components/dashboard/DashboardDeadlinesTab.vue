@@ -23,7 +23,7 @@ const contractRenewalsWidget = ref<InstanceType<typeof UpcomingDeadlinesWidget> 
 // Deadlines are derived from task due dates, and each task's project name
 // needs projectStore -- guarded the same way as the other tabs.
 onMounted(() => {
-  if (taskStore.tasks.length === 0 && !taskStore.isLoading) void taskStore.loadTasks()
+  if (taskStore.needsFullLoad) void taskStore.loadTasks()
   if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
 })
 

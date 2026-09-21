@@ -120,9 +120,13 @@ function setOverride(kind: CompletionKind, id: string, checked: boolean): void {
   overrides[overrideKey(kind, id)] = checked
 }
 
-onMounted(() => {
-  if (taskStore.tasks.length === 0) taskStore.loadTasks()
-})
+// This project's own tasks only -- not every task in the company. Re-runs if
+// the workspace switches to another project without remounting this tab.
+function loadProjectTasks(): void {
+  void taskStore.loadTasksForProject(props.project.id)
+}
+onMounted(loadProjectTasks)
+watch(() => props.project.id, loadProjectTasks)
 
 const isAddClosureDocDialogOpen = ref(false)
 function openAddClosureDocDialog(): void {
@@ -319,17 +323,17 @@ function loadStageDataIfNeeded(): void {
   if ((props.stageContext === 'Requirement' || props.stageContext === 'Quotation') && props.client) {
     clientStore.loadClientDetail(props.client.id)
   }
-  if (props.stageContext === 'Design' && documentStore.documents.length === 0) {
-    documentStore.loadDocuments()
+  if (props.stageContext === 'Design') {
+    void documentStore.loadDocumentsForProject(props.project.id)
   }
   if (props.stageContext === 'Government Submission') {
-    if (governmentSubmissionStore.submissions.length === 0) governmentSubmissionStore.loadSubmissions()
-    if (documentStore.documents.length === 0) documentStore.loadDocuments()
+    void governmentSubmissionStore.loadSubmissionsForProject(props.project.id)
+    void documentStore.loadDocumentsForProject(props.project.id)
     if (permitCatalogStore.permits.length === 0) permitCatalogStore.loadPermits()
   }
 }
 onMounted(loadStageDataIfNeeded)
-watch(() => [props.stageContext, props.client?.id], loadStageDataIfNeeded)
+watch(() => [props.stageContext, props.client?.id, props.project.id], loadStageDataIfNeeded)
 
 // Civil ID is filed under the 'Identity Document' category regardless of
 // the client's actual document-type label -- see

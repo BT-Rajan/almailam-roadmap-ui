@@ -244,10 +244,37 @@ def health_check() -> dict:
 # is skipped and only the API is served.
 _frontend_dist = (Path(__file__).resolve().parent.parent / settings.FRONTEND_DIST_DIR).resolve()
 
+# Caching policy for the built frontend.
+#
+# Vite content-hashes every file it writes into /assets (index-Bc_cXs8I.js),
+# so a given URL never changes: a browser can keep it forever and never ask
+# again. Without this the browser has only ETag/Last-Modified to go on and
+# revalidates each of the ~190 chunks on every visit.
+#
+# index.html is the opposite: it is the one file whose URL is fixed while its
+# content changes on every deploy (it names the new hashed files), so it must
+# always be revalidated. "no-cache" means "ask the server before reusing",
+# not "don't store". (The catch-all route below returns a plain FileResponse,
+# which re-sends the file rather than answering 304 -- fine for a ~1 KB
+# index.html, and the reason this must never be applied to /assets.)
+_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable"
+_REVALIDATE_CACHE_CONTROL = "no-cache"
+
+
+class _HashedAssetFiles(StaticFiles):
+    """StaticFiles that marks every response (including 304s) as immutable.
+    Only mount this on a directory whose filenames are content-hashed."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
+        return response
+
+
 if _frontend_dist.is_dir():
     _assets_dir = _frontend_dist / "assets"
     if _assets_dir.is_dir():
-        app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend-assets")
+        app.mount("/assets", _HashedAssetFiles(directory=_assets_dir), name="frontend-assets")
 
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str) -> FileResponse:
@@ -257,7 +284,9 @@ if _frontend_dist.is_dir():
             and candidate.is_file()
             and str(candidate).startswith(str(_frontend_dist))
         ):
-            return FileResponse(candidate)
+            # Unhashed files served from the dist root (favicon, static
+            # pages): revalidate rather than assume they never change.
+            return FileResponse(candidate, headers={"Cache-Control": _REVALIDATE_CACHE_CONTROL})
         # This route only matches because it's a catch-all -- FastAPI
         # falls through to it for any path that didn't hit one of the
         # real /api/* routes registered above, INCLUDING a genuinely
@@ -271,4 +300,4 @@ if _frontend_dist.is_dir():
         # token '<'" console error instead of a clean handled 404.
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found.")
-        return FileResponse(_frontend_dist / "index.html")
+        return FileResponse(_frontend_dist / "index.html", headers={"Cache-Control": _REVALIDATE_CACHE_CONTROL})
