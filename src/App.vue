@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router'
 import ToastContainer from '@/components/common/ToastContainer.vue'
 import ResultDialog from '@/components/common/ResultDialog.vue'
 import MobileBlockScreen from '@/components/common/MobileBlockScreen.vue'
+import LogoutCountdownOverlay from '@/components/common/LogoutCountdownOverlay.vue'
 import KnowledgeChatDrawer from '@/components/knowledge/KnowledgeChatDrawer.vue'
 import NotificationDrawer from '@/components/notification/NotificationDrawer.vue'
 import CommandPalette from '@/components/search/CommandPalette.vue'
@@ -53,4 +54,8 @@ const layout = computed(() => {
     <CommandPalette />
     <KnowledgeChatDrawer />
   </template>
+  <!-- Outside both branches (z-index above MobileBlockScreen too) -- the
+       inactivity countdown has to be visible however the shell is
+       currently rendering, not just in the normal desktop layout. -->
+  <LogoutCountdownOverlay />
 </template>

@@ -23,6 +23,13 @@ export default {
     idPlaceholder: 'أدخل رقم المستخدم',
   },
 
+  idleLogoutReason: 'تم تسجيل خروجك بعد 5 دقائق من عدم النشاط.',
+
+  logoutCountdown: {
+    title: 'تم تسجيل خروجك',
+    description: 'تم تسجيل خروجك بعد 5 دقائق من عدم النشاط. سيتم نقلك إلى شاشة تسجيل الدخول...',
+  },
+
   authLayout: {
     heroTitlePart1: 'الدقة',
     heroTitlePart2: 'في كل مشروع.',

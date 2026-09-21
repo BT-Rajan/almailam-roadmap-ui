@@ -26,7 +26,7 @@ interface AuthState {
   hasHydrated: boolean
   /**
    * One-shot message for the login page to show after a forced logout
-   * (e.g. "You were signed out after 30 minutes of inactivity" -- see
+   * (e.g. "You were signed out after 5 minutes of inactivity" -- see
    * useIdleLogout). Carried in memory rather than a ?reason= query
    * param, since the login route always stays the bare /login. Read
    * once by LoginPage.vue and cleared, the same "nothing survives a
@@ -59,8 +59,13 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         await authService.logout()
-      } catch {
+      } catch (error) {
         // Best-effort server-side revoke; clear local state regardless.
+        // Logged rather than swallowed outright -- a revoke that silently
+        // fails to reach the backend leaves that refresh token live there
+        // even though the browser has moved on, so it's worth knowing
+        // about even though it can't block the local logout.
+        console.error('Failed to revoke session server-side during logout:', error)
       }
       this._clearToken()
     },

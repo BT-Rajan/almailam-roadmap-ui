@@ -24,6 +24,13 @@ export default {
     idPlaceholder: 'Enter your user ID',
   },
 
+  idleLogoutReason: 'You were signed out after 5 minutes of inactivity.',
+
+  logoutCountdown: {
+    title: "You've been signed out",
+    description: 'You were signed out after 5 minutes of inactivity. Returning you to the sign-in screen...',
+  },
+
   authLayout: {
     heroTitlePart1: 'Precision in',
     heroTitlePart2: 'every project.',

@@ -37,24 +37,26 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    # Server-side backstop for the 30-minute idle logout: independent of
-    # the client-side activity timer (see useIdleLogout.ts), a refresh
-    # token that hasn't actually been used to mint a new access token in
-    # this long is treated as an abandoned session, not a live one, even
-    # though it isn't outright expired yet. This measures time since the
-    # refresh token was last *redeemed* (login or previous refresh), not
-    # moment-to-moment activity -- a continuously-active session's first
-    # refresh naturally happens right around ACCESS_TOKEN_EXPIRE_MINUTES
-    # (that's what forces it), so this has to stay comfortably above that
-    # value or every ordinary session gets misread as abandoned on its
-    # very first silent refresh (this is what was happening: a long-lived
-    # form like the client wizard, with no API calls in between while
-    # someone types, would 401 on submit, refresh, and immediately get
-    # "Session expired due to inactivity" even though the client-side
-    # timer -- the actual real-activity check -- never came close to
-    # firing). The frontend's own 30-minute genuine-inactivity timer is
-    # what actually enforces "idle" in the real sense; this just has to
-    # not fire before that one already would have.
+    # Server-side backstop for the frontend's inactivity idle logout
+    # (currently 5 minutes -- see useIdleLogout.ts): independent of the
+    # client-side activity timer, a refresh token that hasn't actually
+    # been used to mint a new access token in this long is treated as an
+    # abandoned session, not a live one, even though it isn't outright
+    # expired yet. This measures time since the refresh token was last
+    # *redeemed* (login or previous refresh), not moment-to-moment
+    # activity -- a continuously-active session's first refresh naturally
+    # happens right around ACCESS_TOKEN_EXPIRE_MINUTES (that's what forces
+    # it), so this has to stay comfortably above that value or every
+    # ordinary session gets misread as abandoned on its very first silent
+    # refresh (this is what was happening: a long-lived form like the
+    # client wizard, with no API calls in between while someone types,
+    # would 401 on submit, refresh, and immediately get "Session expired
+    # due to inactivity" even though the client-side timer -- the actual
+    # real-activity check -- never came close to firing). The frontend's
+    # own idle-activity timer is what actually enforces "idle" in the real
+    # sense; this backstop only has to not fire before that one already
+    # would have, which is why it stays well above ACCESS_TOKEN_EXPIRE_MINUTES
+    # rather than tracking the frontend's timeout value directly.
     INACTIVITY_TIMEOUT_MINUTES: int = 45
 
     # Controls the `Secure` attribute on the refresh-token cookie. Left

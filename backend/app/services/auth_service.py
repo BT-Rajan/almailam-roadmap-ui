@@ -154,8 +154,8 @@ def refresh(db: Session, refresh_token: str) -> dict:
         last_used_at = last_used_at.replace(tzinfo=timezone.utc)
     idle_cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.INACTIVITY_TIMEOUT_MINUTES)
     if last_used_at < idle_cutoff:
-        # Backstop for the 30-minute idle logout (see useIdleLogout.ts on
-        # the frontend): this token was minted long enough ago, with no
+        # Backstop for the frontend's inactivity idle logout (see
+        # useIdleLogout.ts): this token was minted long enough ago, with no
         # activity in between to redeem it sooner, that the session counts
         # as abandoned even though the token itself hasn't technically
         # expired yet. Revoke it so it can't be redeemed later either.
