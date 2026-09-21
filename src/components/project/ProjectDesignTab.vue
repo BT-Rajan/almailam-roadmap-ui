@@ -183,7 +183,7 @@ function openDocument(documentId: string): void {
 }
 
 function loadDesignData(): void {
-  if (documentStore.documents.length === 0) documentStore.loadDocuments()
+  void documentStore.loadDocumentsForProject(props.project.id)
 }
 
 onMounted(loadDesignData)

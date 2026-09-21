@@ -21,6 +21,8 @@ import type {
 } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { CACHE_TTL_MS, getLoadGate } from '@/utils/loadGate'
+import { replaceScope } from '@/utils/scopedCollection'
 import { describeStoreError } from '@/utils/storeError'
 import { getFinancialSummary } from '@/utils/paymentHelpers'
 
@@ -34,6 +36,12 @@ interface PaymentAgreementRow {
 interface PaymentStoreState {
   agreements: FinancialAgreement[]
   obligations: PaymentObligation[]
+  // True only once loadAll() has fetched EVERY agreement and obligation --
+  // the two arrays may also hold just some projects' rows (see
+  // loadForProject), so their length says nothing about completeness. See
+  // needsFullLoad.
+  isFullyLoaded: boolean
+  isFullLoading: boolean
   // Per-agreement detail, loaded lazily when a workspace/detail view opens
   // rather than eagerly for every agreement up front.
   paymentsByAgreement: Record<string, Payment[]>
@@ -51,6 +59,8 @@ export const usePaymentStore = defineStore('payment', {
   state: (): PaymentStoreState => ({
     agreements: [],
     obligations: [],
+    isFullyLoaded: false,
+    isFullLoading: false,
     paymentsByAgreement: {},
     auditEventsByAgreement: {},
     refundsByAgreement: {},
@@ -63,6 +73,12 @@ export const usePaymentStore = defineStore('payment', {
   }),
 
   getters: {
+    // Whether a caller that needs every agreement should start a full load:
+    // not already loaded, and not already being loaded.
+    needsFullLoad(state): boolean {
+      return !state.isFullyLoaded && !state.isFullLoading
+    },
+
     // projectStore/clientStore are the single, canonical places these
     // full lists live -- delegating gives an O(1) Map lookup.
     getProjectById(): (projectId: string) => Project | undefined {
@@ -153,6 +169,7 @@ export const usePaymentStore = defineStore('payment', {
 
     async loadAll() {
       this.isLoading = true
+      this.isFullLoading = true
       this.error = undefined
       try {
         const projectStore = useProjectStore()
@@ -165,6 +182,7 @@ export const usePaymentStore = defineStore('payment', {
         ])
         this.agreements = agreements
         this.obligations = obligations
+        this.isFullyLoaded = true
       } catch (error) {
         // A genuine 401 here means httpClient's own refresh-and-retry
         // already failed (session cookie expired/rotated) and it has
@@ -178,7 +196,53 @@ export const usePaymentStore = defineStore('payment', {
         this.error = describeStoreError('Unable to load payment information. Please try again.', error)
       } finally {
         this.isLoading = false
+        this.isFullLoading = false
       }
+    },
+
+    // Loads just one project's agreements (up to one per billing stream) and
+    // their obligations, merging them into the shared arrays in place of that
+    // project's old rows -- for views scoped to one project, which shouldn't
+    // download every agreement and obligation in the company. Does NOT mark
+    // the store fully loaded. A no-op when everything is already here, unless
+    // `force`. Unlike loadAll it doesn't load the project/client lists; the
+    // callers (project workspace, contract/payment-plan pages) already do.
+    async loadForProject(projectId: string, options: { force?: boolean } = {}) {
+      if (this.isFullyLoaded && !options.force) return
+      await getLoadGate(this, `project:${projectId}`, CACHE_TTL_MS).run(async (isCurrent) => {
+        this.isLoading = true
+        this.error = undefined
+        try {
+          const [agreements, obligations] = await Promise.all([
+            paymentService.getFinancialAgreements(projectId),
+            paymentService.getAllObligations(projectId),
+          ])
+          if (isCurrent()) {
+            // Obligations reference their agreement, not the project, so the
+            // rows to replace are those of any agreement this project had
+            // before or has now.
+            const agreementIds = new Set(
+              this.agreements.filter((agreement) => agreement.projectId === projectId).map((agreement) => agreement.id),
+            )
+            agreements.forEach((agreement) => agreementIds.add(agreement.id))
+            this.agreements = replaceScope(this.agreements, agreements, (agreement) => agreement.projectId === projectId)
+            this.obligations = replaceScope(this.obligations, obligations, (obligation) =>
+              agreementIds.has(obligation.agreementId),
+            )
+          }
+          return true
+        } catch (error) {
+          if (isCurrent()) {
+            // A genuine 401 means httpClient's own refresh-and-retry already
+            // failed and logged the user out -- same handling as loadAll.
+            if (error instanceof ApiError && error.status === 401) throw error
+            this.error = describeStoreError('Unable to load payment information. Please try again.', error)
+          }
+          return false
+        } finally {
+          if (isCurrent()) this.isLoading = false
+        }
+      }, options)
     },
 
     async loadAgreementDetail(agreementId: string) {

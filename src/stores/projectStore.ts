@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
 import type { Client } from '@/types/Client'
 import type { AddServicesInput, Project, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
+import { getLoadGate, CACHE_TTL_MS } from '@/utils/loadGate'
 import { describeStoreError } from '@/utils/storeError'
 
 interface ProjectPaginationState {
@@ -88,17 +89,29 @@ export const useProjectStore = defineStore('project', {
   },
 
   actions: {
-    async loadProjects() {
-      this.isLoading = true
-      this.error = undefined
-      try {
-        const [projects] = await Promise.all([projectService.getProjects(), useClientStore().loadClients()])
-        this.projects = projects
-      } catch (error) {
-        this.error = describeStoreError('Unable to load projects. Please try again.', error)
-      } finally {
-        this.isLoading = false
-      }
+    // Loads every project plus every client, for cross-reference lookups.
+    // Concurrent callers share one request and a recent successful load is
+    // reused (see loadGate.ts). Pass `{ force: true }` wherever the caller
+    // must see changes made since the last load -- e.g. the New Project
+    // wizard, whose eligible-client list can't come from a stale cache.
+    async loadProjects(options: { force?: boolean } = {}) {
+      await getLoadGate(this, 'projects', CACHE_TTL_MS).run(async (isCurrent) => {
+        this.isLoading = true
+        this.error = undefined
+        const clientStore = useClientStore()
+        try {
+          const [projects] = await Promise.all([projectService.getProjects(), clientStore.loadClients(options)])
+          if (isCurrent()) this.projects = projects
+          // The client half swallows its own errors into clientStore.error, so
+          // don't call the pair "fresh" if it failed -- the next caller retries.
+          return clientStore.error === undefined
+        } catch (error) {
+          if (isCurrent()) this.error = describeStoreError('Unable to load projects. Please try again.', error)
+          return false
+        } finally {
+          if (isCurrent()) this.isLoading = false
+        }
+      }, options)
     },
 
     // Fetches just the current page/filter/sort combination from the

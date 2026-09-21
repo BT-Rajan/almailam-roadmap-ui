@@ -201,7 +201,7 @@ async function loadClientOptions(): Promise<void> {
   // immediately try to create a project for them" that this page exists
   // for. Eligibility is a correctness question; it can't be served from
   // a cache that might be from before the thing being checked changed.
-  await projectStore.loadProjects()
+  await projectStore.loadProjects({ force: true })
 
   // Only Active clients can have a project created for them -- a project
   // needs a real, currently active client relationship behind it, not

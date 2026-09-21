@@ -42,8 +42,13 @@ async function loadData(): Promise<void> {
   if (!props.projectId) return
   isLoading.value = true
   try {
-    const [allTasks] = await Promise.all([taskService.getTasks(), projectStore.loadProjects(), userStore.users.length === 0 ? userStore.loadUsers() : Promise.resolve()])
-    projectTasks.value = allTasks.filter((task) => task.projectId === props.projectId)
+    // Just this project's tasks, not every task in the company.
+    const [tasksForProject] = await Promise.all([
+      taskService.getTasksForProject(props.projectId),
+      projectStore.loadProjects(),
+      userStore.users.length === 0 ? userStore.loadUsers() : Promise.resolve(),
+    ])
+    projectTasks.value = tasksForProject
   } finally {
     isLoading.value = false
   }

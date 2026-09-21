@@ -16,11 +16,13 @@ import type {
 } from '@/types/Payment'
 
 /**
- * Fetch all financial agreements via the backend API
+ * Fetch financial agreements via the backend API -- every agreement, or only
+ * one project's (up to one per billing stream) when `projectId` is given.
  */
-async function getFinancialAgreements(): Promise<FinancialAgreement[]> {
+async function getFinancialAgreements(projectId?: string): Promise<FinancialAgreement[]> {
   try {
-    return await apiClient.get<FinancialAgreement[]>('/api/financial-agreements')
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''
+    return await apiClient.get<FinancialAgreement[]>(`/api/financial-agreements${query}`)
   } catch (error) {
     console.error('Failed to fetch agreements:', error)
     throw asError(error, 'Failed to fetch agreements')
@@ -59,11 +61,13 @@ async function getObligations(agreementId: string): Promise<PaymentObligation[]>
 }
 
 /**
- * Get every payment obligation across all agreements via the backend API
+ * Get payment obligations via the backend API -- across every agreement, or
+ * only those of one project's agreements when `projectId` is given.
  */
-async function getAllObligations(): Promise<PaymentObligation[]> {
+async function getAllObligations(projectId?: string): Promise<PaymentObligation[]> {
   try {
-    return await apiClient.get<PaymentObligation[]>('/api/obligations')
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''
+    return await apiClient.get<PaymentObligation[]>(`/api/obligations${query}`)
   } catch (error) {
     console.error('Failed to fetch all obligations:', error)
     throw asError(error, 'Failed to fetch obligations')

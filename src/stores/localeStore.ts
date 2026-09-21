@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, RTL_LOCALES } from '@/constants/locale'
-import { i18n } from '@/i18n'
+import { ensureLocaleMessages, i18n } from '@/i18n'
 import type { Locale } from '@/types/Locale'
 
 function readStoredLocale(): Locale {
@@ -28,18 +28,38 @@ export const useLocaleStore = defineStore('locale', {
   },
 
   actions: {
-    setLocale(locale: Locale) {
+    // Loads the locale's messages (Arabic downloads on demand) BEFORE
+    // switching, so the UI never flashes English while they arrive. If the
+    // download fails the current locale stays in place, nothing is saved, and
+    // the user can simply try again.
+    async setLocale(locale: Locale) {
+      try {
+        await ensureLocaleMessages(locale)
+      } catch (error) {
+        console.error(`Failed to load ${locale} messages:`, error)
+        return
+      }
       this.locale = locale
       localStorage.setItem(LOCALE_STORAGE_KEY, locale)
       applyLocaleToDocument(locale)
       applyLocaleToI18n(locale)
     },
 
-    toggleLocale() {
-      this.setLocale(this.locale === 'en' ? 'ar-KW' : 'en')
+    async toggleLocale() {
+      await this.setLocale(this.locale === 'en' ? 'ar-KW' : 'en')
     },
 
-    initializeLocale() {
+    // Runs once at startup and must finish before the app mounts (see
+    // main.ts), or a returning Arabic user would see English first. If their
+    // saved language can't be loaded the app starts in English instead of not
+    // starting; the saved preference is left alone so the next visit retries.
+    async initializeLocale() {
+      try {
+        await ensureLocaleMessages(this.locale)
+      } catch (error) {
+        console.error(`Failed to load ${this.locale} messages, starting in ${DEFAULT_LOCALE}:`, error)
+        this.locale = DEFAULT_LOCALE
+      }
       applyLocaleToDocument(this.locale)
       applyLocaleToI18n(this.locale)
     },

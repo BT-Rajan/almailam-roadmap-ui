@@ -45,7 +45,7 @@ const primaryCurrencyEntry = computed(() => {
 // tab is actually opened, since it's the heaviest of the four loads and
 // most dashboard visits won't need it.
 onMounted(async () => {
-  if (paymentStore.agreements.length === 0 && !paymentStore.isLoading) void paymentStore.loadAll()
+  if (paymentStore.needsFullLoad) void paymentStore.loadAll()
   isLoadingMonthSummary.value = true
   try {
     const { start, end } = currentMonthRange()

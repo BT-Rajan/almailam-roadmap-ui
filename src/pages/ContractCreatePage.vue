@@ -70,7 +70,7 @@ async function loadData(): Promise<void> {
     contractStore.loadContractsForProject(projectId.value),
     // The approved payment plan(s) come first in the workflow and the
     // contract has to fit them -- see lastInstallmentDate below.
-    paymentStore.agreements.length === 0 ? paymentStore.loadAll() : Promise.resolve(),
+    paymentStore.loadForProject(projectId.value),
   ])
   isLoading.value = false
 }

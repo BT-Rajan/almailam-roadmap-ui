@@ -13,6 +13,7 @@ import type {
 } from '@/services/clientService'
 import { useAuthStore } from '@/stores/authStore'
 import { triggerBlobDownload } from '@/utils/fileDownload'
+import { getLoadGate, CACHE_TTL_MS } from '@/utils/loadGate'
 import type {
   Client,
   ClientAddress,
@@ -102,16 +103,25 @@ export const useClientStore = defineStore('client', {
   },
 
   actions: {
-    async loadClients() {
-      this.isLoading = true
-      this.error = undefined
-      try {
-        this.clients = await clientService.getClients()
-      } catch (error) {
-        this.error = describeStoreError('Unable to load clients. Please try again.', error)
-      } finally {
-        this.isLoading = false
-      }
+    // Loads the full client list used for cross-reference lookups. Concurrent
+    // callers share one request, and a recent successful load is reused (see
+    // loadGate.ts) -- pass `{ force: true }` where the caller must see changes
+    // made since the last load.
+    async loadClients(options: { force?: boolean } = {}) {
+      await getLoadGate(this, 'clients', CACHE_TTL_MS).run(async (isCurrent) => {
+        this.isLoading = true
+        this.error = undefined
+        try {
+          const clients = await clientService.getClients()
+          if (isCurrent()) this.clients = clients
+          return true
+        } catch (error) {
+          if (isCurrent()) this.error = describeStoreError('Unable to load clients. Please try again.', error)
+          return false
+        } finally {
+          if (isCurrent()) this.isLoading = false
+        }
+      }, options)
     },
 
     // Fetches just the current page/filter/sort combination from the

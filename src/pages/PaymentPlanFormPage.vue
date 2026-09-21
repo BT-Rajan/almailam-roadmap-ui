@@ -55,7 +55,7 @@ const isLoading = ref(true)
 async function loadData(): Promise<void> {
   isLoading.value = true
   if (projectStore.projects.length === 0) await projectStore.loadProjects()
-  if (paymentStore.agreements.length === 0) await paymentStore.loadAll()
+  await paymentStore.loadForProject(projectId.value)
   await quotationStore.loadQuotationsForProject(projectId.value)
   isLoading.value = false
 }

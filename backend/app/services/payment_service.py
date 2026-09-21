@@ -96,8 +96,25 @@ def _project_by_no(db: Session, project_no: str) -> Project:
 # --- agreements --------------------------------------------------------
 
 
-def list_agreements(db: Session) -> list[FinancialAgreement]:
-    return db.query(FinancialAgreement).order_by(FinancialAgreement.id.asc()).all()
+def _project_id_for_filter(db: Session, project_no: str) -> int:
+    """Resolves a caller-supplied project number to its id for list
+    filtering. An unknown number resolves to -1 (matches no row), the same
+    convention task_service.list_tasks uses, so a stale/mistyped filter
+    returns an empty list rather than silently falling back to every
+    project's rows."""
+    project = db.query(Project).filter(Project.project_no == project_no).first()
+    return project.id if project else -1
+
+
+def list_agreements(db: Session, project_no: str | None = None) -> list[FinancialAgreement]:
+    """Every agreement, or -- when project_no is given -- just that
+    project's (up to one per billing stream). The project workspace passes
+    it so opening one project doesn't download every other project's
+    agreements."""
+    query = db.query(FinancialAgreement)
+    if project_no:
+        query = query.filter(FinancialAgreement.project_id == _project_id_for_filter(db, project_no))
+    return query.order_by(FinancialAgreement.id.asc()).all()
 
 
 def get_agreement(db: Session, agreement_id: int) -> FinancialAgreement:
@@ -541,12 +558,15 @@ def get_obligations(db: Session, agreement_id: int) -> list[PaymentObligation]:
     )
 
 
-def list_all_obligations(db: Session) -> list[PaymentObligation]:
-    return (
-        db.query(PaymentObligation)
-        .order_by(PaymentObligation.agreement_id.asc(), PaymentObligation.sequence_number.asc())
-        .all()
-    )
+def list_all_obligations(db: Session, project_no: str | None = None) -> list[PaymentObligation]:
+    """Every obligation, or -- when project_no is given -- only those
+    belonging to that project's agreements (see list_agreements)."""
+    query = db.query(PaymentObligation)
+    if project_no:
+        query = query.join(FinancialAgreement, FinancialAgreement.id == PaymentObligation.agreement_id).filter(
+            FinancialAgreement.project_id == _project_id_for_filter(db, project_no)
+        )
+    return query.order_by(PaymentObligation.agreement_id.asc(), PaymentObligation.sequence_number.asc()).all()
 
 
 def get_obligation_by_display_id(db: Session, raw_id: str) -> PaymentObligation:
