@@ -32,7 +32,16 @@ _login_ip_lockout = LockoutTracker(max_attempts=20, lockout_seconds=15 * 60)
 
 
 def _issue_tokens(db: Session, user: User) -> dict:
-    access_token = create_access_token(str(user.id), {"role": user.role})
+    # No role claim here -- authorization (has_permission, via
+    # get_current_user) always re-fetches the caller's role fresh from the
+    # DB on every request rather than trusting anything baked into the
+    # token, which is exactly what makes a role change or deactivation
+    # take effect immediately instead of only after the access token
+    # expires. A role claim would sit in the token unread today, but it's
+    # an attractive nuisance: a future shortcut that started trusting it
+    # instead of hitting the DB would silently reintroduce that stale-
+    # privilege window. Nothing reads it, so nothing issues it.
+    access_token = create_access_token(str(user.id))
     refresh_token, jti, expires_at = create_refresh_token(str(user.id))
     now = datetime.now(timezone.utc)
 

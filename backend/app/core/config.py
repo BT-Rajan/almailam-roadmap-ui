@@ -198,6 +198,18 @@ def get_settings() -> Settings:
         raise RuntimeError(
             "JWT_SECRET_KEY must be set to a random value of at least 32 characters in production."
         )
+    # DEBUG=true (the .env.example default, meant for local dev) makes
+    # FastAPI/Starlette render a full HTML traceback -- source snippets,
+    # local variables -- for any exception that occurs outside this app's
+    # own registered exception handlers (e.g. one raised inside middleware,
+    # before routing even happens). Left on by mistake in production
+    # (ENV=production set correctly, DEBUG just never flipped back to
+    # false), that's a real information-disclosure surface exposed to the
+    # internet, with nothing anywhere flagging it -- so this fails loudly
+    # at startup the same way the JWT secret check above does, rather than
+    # silently booting in a mode meant only for a developer's own machine.
+    if settings.is_production and settings.DEBUG:
+        raise RuntimeError("DEBUG must be false in production -- set DEBUG=false.")
     # Browsers reject/strip a SameSite=None cookie outright unless it's
     # also Secure -- so a cross-site deploy that sets COOKIE_SAMESITE=none
     # without also getting Secure=true (either via COOKIE_SECURE=true or
