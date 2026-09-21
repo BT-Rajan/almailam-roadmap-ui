@@ -23,6 +23,21 @@ export class ApiError extends Error {
 }
 
 /**
+ * Thrown when a request is cancelled via its caller-supplied `signal` (e.g.
+ * search-as-you-type aborting a now-superseded request) -- distinct from a
+ * timeout or a real network failure, both of which also abort the
+ * underlying fetch but mean something a user should be told about. A caller
+ * that passes `signal` should catch this and treat it as "ignore, a newer
+ * request is already in flight", not as a failure to report.
+ */
+export class RequestCancelledError extends Error {
+  constructor() {
+    super('Request cancelled')
+    this.name = 'RequestCancelledError'
+  }
+}
+
+/**
  * For a service's catch block. Keeps an ApiError intact -- HTTP status and
  * all -- so whoever catches it can tell a 429 from a 403, a 500 or a dropped
  * connection (see utils/storeError). Anything else becomes a plain Error
@@ -50,6 +65,11 @@ interface RequestOptions {
    * Configuration) can already exceed 20s well within its own normal,
    * successful operation. */
   timeoutMs?: number
+  /** Lets the caller cancel the request early (e.g. a newer search
+   * supersedes this one). Firing it rejects with RequestCancelledError
+   * rather than the generic "unable to reach the server" message a real
+   * network failure gets. */
+  signal?: AbortSignal
 }
 
 async function extractErrorMessage(response: Response): Promise<string> {
@@ -80,18 +100,39 @@ async function extractErrorMessage(response: Response): Promise<string> {
 // actionable message instead of fetch's own browser-internal string
 // (e.g. "Failed to fetch", "The user aborted a request") reaching
 // someone mid-form.
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  externalSignal?: AbortSignal,
+): Promise<Response> {
+  // A caller-supplied signal and the timeout both need to be able to abort
+  // the same fetch, and we need to tell them apart afterwards (a cancelled
+  // request isn't a failure; a timeout is) -- so this always aborts through
+  // its own controller, forwarding the external signal into it rather than
+  // passing the external signal to fetch() directly.
+  if (externalSignal?.aborted) throw new RequestCancelledError()
+
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  let timedOut = false
+  const timeoutId = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  const onExternalAbort = (): void => controller.abort()
+  externalSignal?.addEventListener('abort', onExternalAbort)
+
   try {
     return await fetch(url, { ...init, signal: controller.signal })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
+      if (!timedOut) throw new RequestCancelledError()
       throw new ApiError(0, 'This is taking longer than expected. Please check your connection and try again.')
     }
     throw new ApiError(0, 'Unable to reach the server. Please check your connection and try again.')
   } finally {
     clearTimeout(timeoutId)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -159,6 +200,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     },
     options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    options.signal,
   )
 
   if (response.status === 401 && !options.skipAuth && !options._retried) {

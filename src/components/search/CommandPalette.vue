@@ -119,6 +119,10 @@ watch(
         <div class="flex-1 overflow-y-auto p-2">
           <Loader v-if="searchStore.isLoading" :label="t('search.searching')" />
 
+          <p v-else-if="searchStore.needsMoreCharacters" class="px-3 py-8 text-center text-sm text-text-muted">
+            {{ t('search.keepTyping') }}
+          </p>
+
           <p
             v-else-if="searchStore.hasQuery && searchStore.groupedResults.length === 0"
             class="px-3 py-8 text-center text-sm text-text-muted"
