@@ -139,7 +139,18 @@ def refresh(db: Session, refresh_token: str) -> dict:
         raise AuthError("Invalid token type.")
 
     jti = payload.get("jti")
-    record = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+    # with_for_update() (same pattern as scheduled_report_service._fire)
+    # locks this row for the duration of the transaction, so a second,
+    # near-simultaneous refresh() call for the same jti blocks here
+    # instead of reading the row before this call's `revoked = True`
+    # commits below. Without it, both calls could pass this check before
+    # either commits, letting one refresh token mint two valid token
+    # pairs -- defeating the single-use rotation this function exists to
+    # enforce. Once unblocked, the second call's locking read sees the
+    # latest committed row (not a stale snapshot), so it correctly finds
+    # revoked == True and falls into the same rejection below as a
+    # genuinely-already-used token.
+    record = db.query(RefreshToken).filter(RefreshToken.jti == jti).with_for_update().first()
     if record is None or record.revoked:
         raise AuthError("This session has been revoked. Please log in again.")
 
