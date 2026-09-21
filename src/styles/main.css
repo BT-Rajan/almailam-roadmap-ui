@@ -1,3 +1,31 @@
+/* Self-hosted fonts (previously loaded from fonts.googleapis.com/fonts.gstatic.com
+   -- see index.html's git history). Each @fontsource package ships the exact same
+   files Google's own CDN serves (OFL-1.1 licensed), split per weight and per
+   Unicode subset (latin, arabic, cyrillic, etc.) via `unicode-range`, so the
+   browser still only downloads the specific subset files a page actually renders
+   -- importing every subset here doesn't cost anything upfront, it just makes them
+   available. Weights match exactly what index.html used to request, so this is a
+   delivery change only, not a design change:
+   - Inter (body text): 400/500/600/700 -- see tailwind.config.js's `sans`
+   - Noto Naskh Arabic (RTL body text, see main.css's `html[dir='rtl'] body`
+     rule below): 400/500/600/700
+   - Playfair Display (headings, `font-display` in tailwind.config.js): 500/600/700
+     (400 was never requested from Google Fonts either -- the few unweighted
+     `font-display` headings already render at the nearest loaded weight, 500,
+     under the normal CSS font-matching algorithm; self-hosting preserves that
+     exact behavior rather than "fixing" it as a side effect of this change). */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/noto-naskh-arabic/400.css';
+@import '@fontsource/noto-naskh-arabic/500.css';
+@import '@fontsource/noto-naskh-arabic/600.css';
+@import '@fontsource/noto-naskh-arabic/700.css';
+@import '@fontsource/playfair-display/500.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/playfair-display/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
