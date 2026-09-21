@@ -1,17 +1,21 @@
-import { apiClient, asError } from '@/services/httpClient'
+import { apiClient, asError, RequestCancelledError } from '@/services/httpClient'
 import type { SearchResult } from '@/types/Search'
 
 /** Shared implementation behind every searchX() below -- each just supplies its own
  * endpoint path and the entity label used in log/error messages. An empty label keeps
- * search()'s original wording ("Failed to search:" / "Failed to perform search"). */
-async function runSearch(path: string, query: string, entityLabel = ''): Promise<SearchResult[]> {
+ * search()'s original wording ("Failed to search:" / "Failed to perform search"). `signal`
+ * lets a caller cancel an in-flight search (e.g. search-as-you-type superseded by a newer
+ * keystroke) -- a cancellation propagates as-is (RequestCancelledError), not wrapped into
+ * the same "search failed" error a real failure gets, so callers can tell them apart. */
+async function runSearch(path: string, query: string, entityLabel = '', signal?: AbortSignal): Promise<SearchResult[]> {
   try {
     if (!query.trim()) {
       return []
     }
 
-    return await apiClient.get<SearchResult[]>(`${path}?q=${encodeURIComponent(query)}`)
+    return await apiClient.get<SearchResult[]>(`${path}?q=${encodeURIComponent(query)}`, { signal })
   } catch (error) {
+    if (error instanceof RequestCancelledError) throw error
     const suffix = entityLabel ? ` ${entityLabel}` : ''
     console.error(`Failed to search${suffix}:`, error)
     throw asError(error, entityLabel ? `Failed to search ${entityLabel}` : 'Failed to perform search')
@@ -22,8 +26,8 @@ async function runSearch(path: string, query: string, entityLabel = ''): Promise
  * Search across all entities via the backend API.
  * Returns results from projects, documents, forms, tasks, and users.
  */
-async function search(query: string): Promise<SearchResult[]> {
-  return runSearch('/api/search', query)
+async function search(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
+  return runSearch('/api/search', query, '', signal)
 }
 
 /**

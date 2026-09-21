@@ -15,6 +15,15 @@ from app.schemas.search import SearchResult
 
 RESULTS_PER_CATEGORY = 8
 
+# Below this, a term is too unselective to be worth ten ILIKE '%term%' table
+# scans -- neither index can help a leading-wildcard match, so a short term
+# forces each query to read further before its own LIMIT is satisfied. The
+# frontend already withholds a request below this length (see
+# MIN_QUERY_LENGTH in searchStore.ts); this is the server-side floor for any
+# other caller of global_search, e.g. a future non-debounced client or a
+# direct API call.
+MIN_TERM_LENGTH = 2
+
 
 def _term(raw: str) -> str:
     # Escape SQL LIKE wildcards in the user-supplied term so a search for
@@ -351,7 +360,7 @@ _CATEGORY_SEARCHERS = (
 
 def global_search(db: Session, term: str, user_role: str) -> list[SearchResult]:
     term = term.strip()
-    if not term:
+    if len(term) < MIN_TERM_LENGTH:
         return []
 
     results: list[SearchResult] = []

@@ -2,6 +2,7 @@ export default {
   placeholder: 'Search clients, projects, documents, contracts, quotations, payments, forms, submissions, tasks, users...',
   searching: 'Searching...',
   noResultsFor: 'No results for "{query}"',
+  keepTyping: 'Keep typing to search...',
   emptyPrompt: 'Search across projects, documents, forms, tasks, and users.',
   navigate: 'Navigate',
   select: 'Select',
