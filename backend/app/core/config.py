@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     # session refresh) started failing with 429 until people logged out
     # and waited. Anonymous requests (login, refresh, public pages) still
     # fall back to the client IP.
-    RATE_LIMIT_PER_USER: int = 600
+    RATE_LIMIT_PER_USER: int = 1200
     RATE_LIMIT_PER_IP: int = 300
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     # Comma-separated peer addresses allowed to set X-Forwarded-For (the

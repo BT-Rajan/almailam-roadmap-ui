@@ -329,7 +329,7 @@ export default {
     designation: 'المسمى الوظيفي',
     designationPlaceholder: 'مثال: مراقب مستندات',
     email: 'البريد الإلكتروني',
-    emailPlaceholder: 'name@almailam.ae',
+    emailPlaceholder: "name{'@'}almailam.ae",
     mobile: 'الجوال',
     mobilePlaceholder: '+965 5XXX XXXX',
     role: 'الدور',
@@ -744,7 +744,7 @@ export default {
 
     sectionRecipients: 'المستلمون',
     recipientsHint: 'عنوان بريد إلكتروني واحد في كل سطر، أو مفصولة بفواصل.',
-    recipientsPlaceholder: 'name@company.com',
+    recipientsPlaceholder: "name{'@'}company.com",
     subject: 'عنوان البريد الإلكتروني',
     subjectPlaceholder: 'اتركه فارغًا لاستخدام عنوان التقرير',
     messageBody: 'الرسالة',

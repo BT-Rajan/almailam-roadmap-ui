@@ -336,7 +336,7 @@ export default {
     designation: 'Designation',
     designationPlaceholder: 'e.g. Document Controller',
     email: 'Email',
-    emailPlaceholder: 'name@almailam.ae',
+    emailPlaceholder: "name{'@'}almailam.ae",
     mobile: 'Mobile',
     mobilePlaceholder: '+965 5XXX XXXX',
     role: 'Role',
@@ -765,7 +765,7 @@ export default {
 
     sectionRecipients: 'Recipients',
     recipientsHint: 'One email address per line, or separated by commas.',
-    recipientsPlaceholder: 'name@company.com',
+    recipientsPlaceholder: "name{'@'}company.com",
     subject: 'Email Subject',
     subjectPlaceholder: 'Leave blank to use the report title',
     messageBody: 'Message',

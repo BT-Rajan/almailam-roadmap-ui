@@ -59,6 +59,15 @@ function resetForm(): void {
   formError.value = undefined
 }
 
+// Declared before the watch below: it runs immediately and reads this,
+// so declaring it afterwards crashed the page on load (TDZ error).
+const isDirty = computed(
+  () =>
+    form.name !== (user.value?.name ?? '') ||
+    form.designation !== (user.value?.designation ?? '') ||
+    form.mobile !== (user.value?.mobile ?? ''),
+)
+
 // Seed the form as soon as the user is available, and re-seed if the
 // store's copy changes underneath us (e.g. a save from elsewhere) --
 // but not while the person still has unsaved edits of their own.
@@ -68,13 +77,6 @@ watch(
     if (!isDirty.value) resetForm()
   },
   { immediate: true },
-)
-
-const isDirty = computed(
-  () =>
-    form.name !== (user.value?.name ?? '') ||
-    form.designation !== (user.value?.designation ?? '') ||
-    form.mobile !== (user.value?.mobile ?? ''),
 )
 
 const canSubmit = computed(() => isDirty.value && form.name.trim().length > 0)

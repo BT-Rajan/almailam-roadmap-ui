@@ -3,6 +3,7 @@ import { computed, onMounted, watch } from 'vue'
 import { usePaymentStore } from '@/stores/paymentStore'
 import { useServerTimeStore } from '@/stores/serverTimeStore'
 import { computeObligationStatus } from '@/utils/paymentHelpers'
+import { describeStoreError } from '@/utils/storeError'
 import type { AgreementStream, FinancialAgreement, FinancialSummary, PaymentObligation } from '@/types/Payment'
 import type { Project } from '@/types/Project'
 
@@ -165,8 +166,16 @@ export function usePaymentAgreements(getProjectId: () => string, getProject: () 
     }
   })
 
+  // Runs from onMounted/watch below, where nothing awaits it -- a failed
+  // load (throttled, offline, server error) used to surface as an
+  // unhandled error in the mounted hook. Reported via the store's error
+  // instead; the panels still render from the agreement/obligation data.
   async function loadDetailIfNeeded(): Promise<void> {
-    await Promise.all(agreementIds.value.map((agreementId) => store.loadAgreementDetail(agreementId)))
+    try {
+      await Promise.all(agreementIds.value.map((agreementId) => store.loadAgreementDetail(agreementId)))
+    } catch (error) {
+      store.error = describeStoreError('Unable to load payment details. Please try again.', error)
+    }
   }
 
   onMounted(loadDetailIfNeeded)
