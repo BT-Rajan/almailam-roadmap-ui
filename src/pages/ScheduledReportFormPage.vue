@@ -138,16 +138,20 @@ setRules({
   startDate: [() => !isRecurring.value || Boolean(form.value.startDate) || t('administration.scheduledReportsPage.startDateRequired')],
 })
 
-// `errors` is populated live, not only after a failed submit, so
-// Name/Recipients/Send Time/Start Date are flagged red as soon as the
-// page opens (once seeded below) if left empty.
+// Re-validates on every edit so errors clear as soon as a field is
+// fixed. `reveal: false`: a field only shows its error once it has been
+// changed or a save was attempted (see useFormValidation), so a blank
+// form doesn't open covered in red.
 function revalidate(): void {
-  validateAll({
-    name: form.value.name,
-    recipients: form.value.recipients,
-    sendTime: form.value.sendTime,
-    startDate: form.value.startDate,
-  })
+  validateAll(
+    {
+      name: form.value.name,
+      recipients: form.value.recipients,
+      sendTime: form.value.sendTime,
+      startDate: form.value.startDate,
+    },
+    { reveal: false },
+  )
 }
 watch(form, revalidate, { deep: true })
 

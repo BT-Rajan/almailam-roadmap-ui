@@ -7,6 +7,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
+import { useRevealedErrors } from '@/composables/useRevealedErrors'
 import { AUTHORITY_CATEGORY_OPTIONS } from '@/constants/governmentFormOptions'
 import type { AuthorityInput } from '@/services/governmentFormService'
 import type { AuthorityCategory, GovernmentAuthority } from '@/types/Government'
@@ -35,6 +36,9 @@ function emptyForm(): AuthorityInput {
 
 const form = ref<AuthorityInput>(emptyForm())
 const errors = ref<Record<string, string>>({})
+// What the dialog displays: red once a field is edited or Save was
+// attempted, not the moment it opens (see useRevealedErrors).
+const shown = useRevealedErrors(() => errors.value)
 
 watch(
   () => [props.modelValue, props.authority] as const,
@@ -44,6 +48,7 @@ watch(
       ? { name: authority.name, category: authority.category, website: authority.website, description: authority.description }
       : emptyForm()
     validate()
+    shown.reset()
   },
   { immediate: true },
 )
@@ -56,15 +61,12 @@ function validate(): boolean {
   return Object.keys(errors.value).length === 0
 }
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue (see the comment there) -- validate() was
-// previously only run from handleSave, so Authority Name/Website/
-// Description looked like ordinary optional fields until the first
-// failed Save click. The modelValue watch above now also calls it as
-// soon as the dialog opens; this keeps it live on every edit too.
+// Validated live on every edit (and when the dialog opens, above), so
+// errors clear as soon as a field is fixed.
 watch(form, validate, { deep: true })
 
 function handleSave(): void {
+  shown.reveal()
   if (!validate()) return
   emit('save', { ...form.value, category: form.value.category as AuthorityCategory })
 }
@@ -82,7 +84,7 @@ function handleSave(): void {
         v-model="form.name"
         :label="t('administration.authorityFormDialog.authorityName')"
         :placeholder="t('administration.authorityFormDialog.authorityNamePlaceholder')"
-        :error="errors.name"
+        :error="shown.errors.value.name"
         required
       />
       <SelectBox v-model="form.category" :label="t('administration.authorityFormDialog.category')" :options="AUTHORITY_CATEGORY_OPTIONS" required />
@@ -90,10 +92,10 @@ function handleSave(): void {
         v-model="form.website"
         :label="t('administration.authorityFormDialog.website')"
         :placeholder="t('administration.authorityFormDialog.websitePlaceholder')"
-        :error="errors.website"
+        :error="shown.errors.value.website"
         required
       />
-      <TextArea v-model="form.description" :label="t('administration.authorityFormDialog.description')" :rows="3" :error="errors.description" required />
+      <TextArea v-model="form.description" :label="t('administration.authorityFormDialog.description')" :rows="3" :error="shown.errors.value.description" required />
     </div>
 
     <template #footer>

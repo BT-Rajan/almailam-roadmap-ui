@@ -98,11 +98,12 @@ setRules({
   role: [validators.required(t('administration.userDialog.roleRequired'))],
 })
 
-// `errors` is populated live, not only after a failed submit, so
-// Name/Email/Role are flagged red as soon as the page opens (once
-// seeded below) if left empty.
+// Re-validates on every edit so errors clear as soon as a field is
+// fixed. `reveal: false`: a field only shows its error once it has been
+// changed or a save was attempted (see useFormValidation), so a blank
+// form doesn't open covered in red.
 function revalidate(): void {
-  validateAll(form)
+  validateAll(form, { reveal: false })
 }
 watch(form, revalidate, { deep: true })
 

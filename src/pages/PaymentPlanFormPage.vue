@@ -14,6 +14,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
+import { useRevealedRowErrors } from '@/composables/useRevealedErrors'
 import { usePaymentAgreements } from '@/composables/usePaymentAgreements'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { ROUTE_NAMES } from '@/constants/routeNames'
@@ -213,20 +214,25 @@ function seedForm(): void {
   isFormSeeded.value = true
 }
 
-// Mandatory fields are flagged red from the moment the form is shown,
-// not only after a failed submit.
+// Re-validates on every edit so errors clear as soon as a field is
+// fixed. `reveal: false`: a field only shows its error once it has been
+// changed or a save was attempted (see useFormValidation), so a blank
+// form doesn't open covered in red.
 function revalidate(): void {
-  validateAll({
-    agreementDate: agreementDate.value,
-    contractAmount: contractAmount.value,
-  })
+  validateAll(
+    {
+      agreementDate: agreementDate.value,
+      contractAmount: contractAmount.value,
+    },
+    { reveal: false },
+  )
   revalidateMilestones()
 }
 
-// Same immediate-highlight treatment for the installment rows'
-// mandatory fields (Description/%/Due Date) as the top-level fields
-// above, including a blank Due Date -- the one field
-// buildDefaultMilestones() doesn't pre-fill.
+// Same live checking for the installment rows' mandatory fields
+// (Description/%/Due Date) as the top-level fields above. What each row
+// displays follows the same rule: red once that row is edited, or after
+// a save attempt (see shownMilestoneErrors).
 function revalidateMilestones(): void {
   if (!isMilestonePlan.value) return
   milestoneErrors.value = milestones.value.map((m) => {
@@ -253,6 +259,10 @@ watch(
 )
 watch([agreementDate, contractAmount], revalidate)
 watch(milestones, revalidateMilestones, { deep: true })
+const shownMilestoneErrors = useRevealedRowErrors(
+  () => milestones.value,
+  () => milestoneErrors.value,
+)
 
 function addMilestone(): void {
   if (milestones.value.length >= MAX_MILESTONES) return
@@ -283,6 +293,7 @@ async function handleSubmit(): Promise<void> {
   let rowsValid = true
   if (isMilestonePlan.value) {
     revalidateMilestones()
+    shownMilestoneErrors.reveal()
     totalError.value = milestoneTotalValid.value ? '' : t('payment.agreementFormDialog.totalMustEqual100', { percent: milestoneTotal.value })
     rowsValid = milestoneErrors.value.every((rowError) => Object.keys(rowError).length === 0) && milestoneTotalValid.value
   }
@@ -433,7 +444,7 @@ async function handleSubmit(): Promise<void> {
                     <span class="inline-block pt-2 text-sm text-text-primary">{{ milestone.description }}</span>
                   </td>
                   <td v-else class="px-3 py-2 align-top">
-                    <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="milestoneErrors[index]?.description" />
+                    <TextInput v-model="milestone.description" :placeholder="t('payment.agreementFormDialog.installmentPlaceholder')" :error="shownMilestoneErrors.errors.value[index]?.description" />
                   </td>
                   <td v-if="isSupervision" class="px-3 py-2 text-end align-top">
                     <span class="inline-block pt-2 text-sm text-text-primary">{{ milestone.percentage }}%</span>
@@ -444,7 +455,7 @@ async function handleSubmit(): Promise<void> {
                       :min="0"
                       :max="100"
                       step="0.01"
-                      :error="milestoneErrors[index]?.percentage"
+                      :error="shownMilestoneErrors.errors.value[index]?.percentage"
                       @update:model-value="milestone.percentage = Number($event)"
                     />
                   </td>
@@ -452,7 +463,7 @@ async function handleSubmit(): Promise<void> {
                     <span class="inline-block pt-2 text-sm text-text-primary">{{ formatDate(milestone.dueDate) }}</span>
                   </td>
                   <td v-else class="px-3 py-2 align-top">
-                    <DatePicker v-model="milestone.dueDate" :error="milestoneErrors[index]?.dueDate" />
+                    <DatePicker v-model="milestone.dueDate" :error="shownMilestoneErrors.errors.value[index]?.dueDate" />
                   </td>
                   <td class="px-3 py-2 text-end align-top">
                     <span class="inline-block pt-2 text-sm font-medium text-text-primary">{{ formatCurrency(milestoneAmount(milestone), currency) }}</span>
