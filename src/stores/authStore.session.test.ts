@@ -1,0 +1,112 @@
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { authService } from '@/services/authService'
+import { ApiError } from '@/services/httpClient'
+import { useAuthStore } from '@/stores/authStore'
+import { broadcastLogout, withRefreshLock } from '@/utils/sessionSync'
+
+vi.mock('@/services/authService', () => ({
+  authService: { refresh: vi.fn(), logout: vi.fn(), me: vi.fn() },
+}))
+vi.mock('@/utils/sessionSync', () => ({
+  broadcastLogout: vi.fn(),
+  withRefreshLock: vi.fn((fn: () => Promise<unknown>) => fn()),
+}))
+
+const refreshMock = vi.mocked(authService.refresh)
+
+/** An unsigned JWT-shaped token valid for `ms`, issued at `issuedAt` (seconds). */
+function tokenExpiringIn(ms: number, issuedAt = 1_700_000_000): string {
+  const payload = btoa(JSON.stringify({ iat: issuedAt, exp: issuedAt + ms / 1000 }))
+  return `header.${payload.replace(/=+$/, '')}.signature`
+}
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  vi.useFakeTimers()
+  vi.clearAllMocks()
+})
+
+afterEach(() => {
+  useAuthStore()._clearToken()
+  vi.useRealTimers()
+})
+
+describe('authStore: proactive refresh', () => {
+  it('renews the access token shortly before it expires, without waiting for a 401', async () => {
+    const store = useAuthStore()
+    const next = tokenExpiringIn(30 * 60_000)
+    refreshMock.mockResolvedValue({ access_token: next, token_type: 'bearer' })
+
+    store._setToken(tokenExpiringIn(30 * 60_000))
+    await vi.advanceTimersByTimeAsync(28 * 60_000)
+    expect(refreshMock).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(withRefreshLock).toHaveBeenCalledTimes(1)
+    expect(store.accessToken).toBe(next)
+  })
+
+  it('retries after a transient failure instead of letting the token lapse', async () => {
+    const store = useAuthStore()
+    refreshMock.mockRejectedValueOnce(new ApiError(503, 'busy'))
+    refreshMock.mockResolvedValueOnce({ access_token: tokenExpiringIn(30 * 60_000), token_type: 'bearer' })
+
+    store._setToken(tokenExpiringIn(2 * 60_000))
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(store.accessToken).not.toBeNull()
+
+    await vi.advanceTimersByTimeAsync(40_000)
+    expect(refreshMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops renewing once the session is cleared', async () => {
+    const store = useAuthStore()
+    store._setToken(tokenExpiringIn(2 * 60_000))
+    store._clearToken()
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(refreshMock).not.toHaveBeenCalled()
+  })
+
+  it('is unaffected by a wrong clock on this computer', async () => {
+    const store = useAuthStore()
+    refreshMock.mockResolvedValue({ access_token: tokenExpiringIn(30 * 60_000, 1), token_type: 'bearer' })
+    // Issued "in 1970" as far as this machine's clock is concerned.
+    store._setToken(tokenExpiringIn(30 * 60_000, 1))
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(refreshMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores a token whose expiry cannot be read', async () => {
+    const store = useAuthStore()
+    store._setToken('not-a-jwt')
+    await vi.advanceTimersByTimeAsync(60 * 60_000)
+    expect(refreshMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('authStore: cross-tab logout', () => {
+  it('tells other tabs when a signed-in tab logs out', async () => {
+    const store = useAuthStore()
+    store._setToken('token')
+    await store.logout()
+    expect(broadcastLogout).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not speak for other tabs when this tab was already signed out', async () => {
+    await useAuthStore().logout()
+    expect(broadcastLogout).not.toHaveBeenCalled()
+  })
+
+  it('ends the session locally, without a server call, when another tab logged out', () => {
+    const store = useAuthStore()
+    store._setToken('token')
+    store.endSessionFromOtherTab()
+    expect(store.accessToken).toBeNull()
+    expect(authService.logout).not.toHaveBeenCalled()
+    expect(broadcastLogout).not.toHaveBeenCalled()
+  })
+})

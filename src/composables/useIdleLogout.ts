@@ -1,8 +1,9 @@
-import { watch } from 'vue'
+import { onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { lastSharedActivity, onRemoteLogout, recordActivity } from '@/utils/sessionSync'
 
 // 30 minutes of no mouse/keyboard/touch/scroll activity signs the user out,
 // even though the access token itself would otherwise keep silently
@@ -38,12 +39,21 @@ export function useIdleLogout(): void {
 
   async function handleIdleTimeout(): Promise<void> {
     clear()
+    if (!authStore.isAuthenticated) {
+      stopListening()
+      return
+    }
+
+    // The person may be working in another tab of the same session. Logging
+    // out here would revoke the refresh cookie that tab depends on, so only
+    // give up once every tab has been idle for the full timeout.
+    const idleFor = Date.now() - lastSharedActivity()
+    if (idleFor < IDLE_TIMEOUT_MS) {
+      timeoutId = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS - idleFor)
+      return
+    }
+
     stopListening()
-    if (!authStore.isAuthenticated) return
-
-    const currentRoute = router.currentRoute.value
-    const loginRoute = currentRoute.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
-
     await authStore.logout()
     // Carried via authStore.logoutReason (in-memory), not a ?reason=
     // query param -- see that field's own doc comment for why: a query
@@ -52,10 +62,28 @@ export function useIdleLogout(): void {
     // submit until they manually stripped it. The login route now
     // always stays the bare path.
     authStore.logoutReason = 'You were signed out after 30 minutes of inactivity.'
-    await router.push({ name: loginRoute })
+    await goToLogin()
   }
 
+  function goToLogin(): Promise<unknown> {
+    const currentRoute = router.currentRoute.value
+    const loginRoute = currentRoute.meta.layout === 'site-portal' ? ROUTE_NAMES.SITE_PORTAL_LOGIN : ROUTE_NAMES.LOGIN
+    return router.push({ name: loginRoute })
+  }
+
+  // Another tab logged out (by hand, idle timeout or password change). The
+  // refresh cookie is already gone, so without this the tab would carry on
+  // looking signed in and fail at some random later request instead.
+  const stopRemoteLogout = onRemoteLogout(() => {
+    if (!authStore.isAuthenticated) return
+    authStore.endSessionFromOtherTab()
+    authStore.logoutReason = 'You were signed out in another tab.'
+    void goToLogin()
+  })
+  onScopeDispose(stopRemoteLogout)
+
   function reset(): void {
+    recordActivity()
     clear()
     timeoutId = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS)
   }
