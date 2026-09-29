@@ -29,6 +29,7 @@ export default {
   recentProjects: 'أحدث المشاريع',
   progress: 'التقدم',
   due: 'الاستحقاق {date}',
+  noSiteAddress: 'لا يوجد عنوان للموقع',
   addedOn: 'أُضيف في {date}',
   pendingTasks: 'المهام المعلَّقة',
   noPendingTasks: 'لا توجد مهام معلَّقة',

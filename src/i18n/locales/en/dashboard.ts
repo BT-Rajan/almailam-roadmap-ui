@@ -29,6 +29,7 @@ export default {
   recentProjects: 'Recent Projects',
   progress: 'Progress',
   due: 'Due {date}',
+  noSiteAddress: 'No site address',
   addedOn: 'Added {date}',
   pendingTasks: 'Pending Tasks',
   noPendingTasks: 'No pending tasks',

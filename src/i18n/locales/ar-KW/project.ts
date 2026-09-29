@@ -561,7 +561,6 @@ export default {
     projectName: 'اسم المشروع',
     scopeOfWork: 'نطاق العمل',
     siteAddress: 'عنوان المشروع/الموقع',
-    siteAddressHint: 'يملأ حقل العنوان في قالب مستند عرض السعر/العقد، إن كان القالب المرفوع يحتوي عليه.',
     startDate: 'تاريخ البدء',
     targetDate: 'تاريخ الإنجاز المستهدف',
     reviewTitle: 'المراجعة والتأكيد',

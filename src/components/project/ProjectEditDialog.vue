@@ -78,6 +78,7 @@ const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
+  siteAddress: [(value) => (String(value ?? '').trim() ? true : 'Project/Site Address is required')],
   service: [validators.required('Please select a service')],
   engineerId: [validators.required('Please assign an engineer')],
   targetDate: [validators.required('Target date is required')],
@@ -131,7 +132,7 @@ function handleConfirm(): void {
   emit('confirm', {
     projectName: form.projectName,
     description: form.description,
-    siteAddress: form.siteAddress,
+    siteAddress: form.siteAddress.trim(),
     service: form.service,
     targetDate: form.targetDate,
     engineerId: form.engineerId,
@@ -144,7 +145,13 @@ function handleConfirm(): void {
     <div class="flex flex-col gap-4">
       <TextInput v-model="form.projectName" :label="t('project.editDialog.projectName')" required :error="errors.projectName" />
       <TextArea v-model="form.description" :label="t('project.editDialog.scopeOfWork')" :placeholder="t('project.editDialog.scopeOfWorkPlaceholder')" :rows="3" />
-      <TextInput v-model="form.siteAddress" :label="t('project.editDialog.siteAddress')" :placeholder="t('project.editDialog.siteAddressPlaceholder')" />
+      <TextInput
+        v-model="form.siteAddress"
+        :label="t('project.editDialog.siteAddress')"
+        :placeholder="t('project.editDialog.siteAddressPlaceholder')"
+        required
+        :error="errors.siteAddress"
+      />
 
       <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
         <SelectBox v-model="form.service" :label="t('project.editDialog.service')" :options="serviceOptions" required :error="errors.service" />

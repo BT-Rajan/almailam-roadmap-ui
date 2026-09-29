@@ -149,6 +149,7 @@ setRules({
   ],
   engineer: [validators.required('Please assign an engineer')],
   projectName: [validators.required('Project name is required'), validators.minLength(5)],
+  siteAddress: [(value) => (String(value ?? '').trim() ? true : 'Project/Site Address is required')],
   // Project Start Date: can't be in the past, and can't be more than
   // 180 days out either -- keeps this an actual near-term start, not a
   // placeholder date for a project that isn't really starting yet.
@@ -283,7 +284,7 @@ onMounted(async () => {
 
 const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
   0: ['clientId', 'selectedActivities', 'engineer'],
-  1: ['projectName', 'startDate', 'targetDate'],
+  1: ['projectName', 'siteAddress', 'startDate', 'targetDate'],
 }
 
 function validateStep(step: number): boolean {
@@ -400,7 +401,7 @@ async function submitWizard(): Promise<void> {
     const project = await projectStore.createProject({
       projectName: form.projectName,
       description: scopeText.value || undefined,
-      siteAddress: form.siteAddress || undefined,
+      siteAddress: form.siteAddress.trim(),
       clientId: form.clientId,
       service: form.service,
       selectedActivities: form.selectedActivities,
@@ -579,7 +580,8 @@ function goToCreatedProject(): void {
             v-model="form.siteAddress"
             :label="t('project.newWizard.siteAddress')"
             placeholder="e.g. Plot 572, Parcel 4, Second Suburb, Al Mutlaa"
-            :hint="t('project.newWizard.siteAddressHint')"
+            required
+            :error="errors.siteAddress"
           />
           <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
             <DatePicker
@@ -609,6 +611,10 @@ function goToCreatedProject(): void {
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.projectName') }}</p>
               <p class="text-sm text-text-primary">{{ form.projectName || t('project.newWizard.notEntered') }}</p>
+            </div>
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.siteAddress') }}</p>
+              <p class="text-sm text-text-primary">{{ form.siteAddress || t('project.newWizard.notEntered') }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newWizard.startDate') }}</p>

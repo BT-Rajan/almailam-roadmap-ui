@@ -565,7 +565,6 @@ export default {
     projectName: 'Project Name',
     scopeOfWork: 'Scope of Work',
     siteAddress: 'Project/Site Address',
-    siteAddressHint: 'Fills the address placeholder on a Quotation/Contract document template, if the uploaded one has one.',
     startDate: 'Start Date',
     targetDate: 'Target Completion Date',
     reviewTitle: 'Review & Confirm',
