@@ -93,6 +93,21 @@ async function extractErrorMessage(response: Response): Promise<string> {
   }
 }
 
+/**
+ * After a 401 whose token refresh didn't succeed. authStore.tryRefresh()
+ * only clears the session when the server actually rejected the refresh
+ * cookie; if it's still set, the refresh failed for a transient reason
+ * (throttled, server error, offline) and the person should get a
+ * retryable error rather than be signed out mid-task.
+ */
+async function sessionRefreshFailed(authStore: ReturnType<typeof useAuthStore>): Promise<ApiError> {
+  if (authStore.accessToken) {
+    return new ApiError(503, 'The server is busy right now. Please try again in a moment.')
+  }
+  await authStore.logout()
+  return new ApiError(401, 'Session expired. Please log in again.')
+}
+
 // Wraps every fetch() call in this file with a timeout and normalizes
 // the two ways a request can fail before a response ever comes back:
 // aborted-for-timeout, and a genuine network failure (offline, DNS,
@@ -169,8 +184,7 @@ async function requestForm<T>(
     if (refreshed) {
       return requestForm<T>(path, formData, { _retried: true })
     }
-    authStore.logout()
-    throw new ApiError(401, 'Session expired. Please log in again.')
+    throw await sessionRefreshFailed(authStore)
   }
 
   if (!response.ok) {
@@ -208,8 +222,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (refreshed) {
       return request<T>(path, { ...options, _retried: true })
     }
-    authStore.logout()
-    throw new ApiError(401, 'Session expired. Please log in again.')
+    throw await sessionRefreshFailed(authStore)
   }
 
   if (!response.ok) {
@@ -250,8 +263,7 @@ async function requestBlob(path: string, options: { method?: 'GET' | 'POST'; _re
     if (refreshed) {
       return requestBlob(path, { ...options, _retried: true })
     }
-    authStore.logout()
-    throw new ApiError(401, 'Session expired. Please log in again.')
+    throw await sessionRefreshFailed(authStore)
   }
 
   if (!response.ok) {

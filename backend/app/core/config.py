@@ -86,6 +86,24 @@ class Settings(BaseSettings):
     # so that also means the API must be served over HTTPS.
     COOKIE_SAMESITE: str = "lax"
 
+    # Global API throttle (see core/middleware.py RateLimitMiddleware).
+    # Signed-in requests are counted per user, not per IP: in an office
+    # every staff member reaches the server from the same NAT address, and
+    # behind the Vite dev proxy / a reverse proxy every request arrives
+    # from 127.0.0.1 -- a single per-IP bucket was being shared by the
+    # whole company, so once it filled every screen (including the silent
+    # session refresh) started failing with 429 until people logged out
+    # and waited. Anonymous requests (login, refresh, public pages) still
+    # fall back to the client IP.
+    RATE_LIMIT_PER_USER: int = 600
+    RATE_LIMIT_PER_IP: int = 300
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    # Comma-separated peer addresses allowed to set X-Forwarded-For (the
+    # Vite dev proxy / nginx on the same host). The real client IP is only
+    # read from that header when the direct peer is one of these, so an
+    # outside caller can't spoof it to dodge the per-IP limit.
+    TRUSTED_PROXY_IPS: str = "127.0.0.1,::1"
+
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
@@ -123,6 +141,10 @@ class Settings(BaseSettings):
     # when left unset, so most setups only need to set this once.
     SMTP_FROM_ADDRESS: str = ""
     SMTP_USE_TLS: bool = True
+
+    @property
+    def trusted_proxy_ips(self) -> frozenset[str]:
+        return frozenset(ip.strip() for ip in self.TRUSTED_PROXY_IPS.split(",") if ip.strip())
 
     @property
     def smtp_from_address(self) -> str:

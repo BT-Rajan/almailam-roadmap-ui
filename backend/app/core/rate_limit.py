@@ -44,6 +44,18 @@ class SlidingWindowRateLimiter:
             if len(hits) >= self.limit:
                 raise RateLimitError()
             hits.append(now)
+            self._maybe_sweep(cutoff)
+
+    def _maybe_sweep(self, cutoff: float) -> None:
+        # Keys are only ever added, so without this every distinct IP/user
+        # ever seen would keep an (empty) deque forever. Sweeping is O(keys),
+        # so only do it once the table has grown well past a normal working
+        # set. Caller holds self._lock.
+        if len(self._hits) < 10_000:
+            return
+        stale = [k for k, hits in self._hits.items() if not hits or hits[-1] < cutoff]
+        for k in stale:
+            del self._hits[k]
 
 
 rate_limiter = SlidingWindowRateLimiter()

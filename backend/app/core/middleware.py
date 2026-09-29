@@ -4,8 +4,12 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import get_settings
 from app.core.exceptions import RateLimitError
-from app.core.rate_limit import rate_limiter
+from app.core.rate_limit import SlidingWindowRateLimiter
+from app.core.security import decode_token
+
+_settings = get_settings()
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -48,28 +52,65 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 _RATE_LIMIT_EXEMPT_PATHS = {"/api/health"}
 
 
+_user_rate_limiter = SlidingWindowRateLimiter(_settings.RATE_LIMIT_PER_USER, _settings.RATE_LIMIT_WINDOW_SECONDS)
+_ip_rate_limiter = SlidingWindowRateLimiter(_settings.RATE_LIMIT_PER_IP, _settings.RATE_LIMIT_WINDOW_SECONDS)
+
+
+def client_ip(request: Request) -> str:
+    """The caller's real IP. X-Forwarded-For is only honoured when the
+    direct peer is a trusted proxy on this host (the Vite dev proxy, or
+    nginx) -- otherwise anyone could send a fresh fake value per request.
+    The rightmost entry is the one our own proxy appended, so it can't be
+    forged by the client either."""
+    peer = request.client.host if request.client else "unknown"
+    if peer in _settings.trusted_proxy_ips:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            last = forwarded.rsplit(",", 1)[-1].strip()
+            if last:
+                return last
+    return peer
+
+
+def _rate_limit_bucket(request: Request) -> tuple[SlidingWindowRateLimiter, str]:
+    auth = request.headers.get("authorization", "")
+    if auth[:7].lower() == "bearer ":
+        try:
+            payload = decode_token(auth[7:].strip())
+        except ValueError:
+            payload = None
+        # Only a validly signed access token earns a per-user bucket; a
+        # garbage/expired token falls back to the IP bucket so it can't
+        # be used to mint unlimited fresh buckets.
+        if payload and payload.get("type") == "access":
+            return _user_rate_limiter, f"user:{payload['sub']}"
+    return _ip_rate_limiter, f"ip:{client_ip(request)}"
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Per-client-IP sliding-window throttle across the whole API. Runs
-    ahead of routing, so it applies uniformly without touching any
-    individual route. Raised here (rather than via the app's normal
-    AppError exception handler) because middleware added through
-    add_middleware sits outside Starlette's built-in ExceptionMiddleware
-    -- an exception raised here wouldn't reach that handler."""
+    """Sliding-window throttle across the whole API: per signed-in user,
+    or per client IP for anonymous calls (see RATE_LIMIT_PER_USER in
+    config.py for why not per IP alone). Runs ahead of routing, so it
+    applies uniformly without touching any individual route. Raised here
+    (rather than via the app's normal AppError exception handler) because
+    middleware added through add_middleware sits outside Starlette's
+    built-in ExceptionMiddleware -- an exception raised here wouldn't
+    reach that handler."""
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.method == "OPTIONS" or request.url.path in _RATE_LIMIT_EXEMPT_PATHS:
+        if request.method == "OPTIONS" or not request.url.path.startswith("/api/") or request.url.path in _RATE_LIMIT_EXEMPT_PATHS:
             return await call_next(request)
 
-        client_key = request.client.host if request.client else "unknown"
+        limiter, key = _rate_limit_bucket(request)
         try:
-            rate_limiter.check(client_key)
+            limiter.check(key)
         except RateLimitError as exc:
             return JSONResponse(
                 status_code=exc.status_code,
                 content={"error": exc.message},
-                headers={"Retry-After": str(rate_limiter.window_seconds)},
+                headers={"Retry-After": str(limiter.window_seconds)},
             )
 
         return await call_next(request)

@@ -44,7 +44,10 @@ def list_documents(db: Session = Depends(get_db), _=Depends(can_view)):
 
 
 @router.post("/documents", response_model=KnowledgeDocumentOut, status_code=201)
-async def upload_document(
+# Plain `def` so PDF/DOCX text extraction runs in the threadpool instead
+# of blocking the event loop for every other request (see site_portal.py
+# upload_report_image).
+def upload_document(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
     db: Session = Depends(get_db),

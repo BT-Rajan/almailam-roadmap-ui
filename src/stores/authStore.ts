@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { authService, type CurrentUser, type ProfileUpdatePayload } from '@/services/authService'
+import { ApiError } from '@/services/httpClient'
 
 interface AuthState {
   accessToken: string | null
@@ -107,8 +108,17 @@ export const useAuthStore = defineStore('auth', {
           const tokens = await authService.refresh()
           this._setToken(tokens.access_token)
           return true
-        } catch {
-          this._clearToken()
+        } catch (error) {
+          // Only a definite "no" from the server (401/403: cookie missing,
+          // revoked, expired, idle) ends the session. A busy server (429),
+          // a 5xx or a dropped connection says nothing about the session
+          // itself -- clearing it here is what used to throw the whole
+          // office back to the login page whenever the API was briefly
+          // throttled. Keep the token so the caller can surface a normal,
+          // retryable error instead.
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            this._clearToken()
+          }
           return false
         } finally {
           this.refreshPromise = null
