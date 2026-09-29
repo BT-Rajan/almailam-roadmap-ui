@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, FileSignature, Pencil, Plus, Trash2, X } from '@lucide/vue'
+import { Check, FileSignature, Pencil, X } from '@lucide/vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -7,13 +7,10 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
-import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
-import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import TextInput from '@/components/common/TextInput.vue'
 import type { Client } from '@/types/Client'
-import type { Contract, ContractClause } from '@/types/Contract'
+import type { Contract } from '@/types/Contract'
 import type { Project } from '@/types/Project'
 import { getClientFormalName } from '@/utils/clientHelpers'
 import { getContractStatusVariant, getDesignPermitPeriod, getSupervisionPeriod } from '@/utils/contractHelpers'
@@ -52,17 +49,10 @@ function displayDate(value: string | null | undefined): string {
 // same as QuotationPreview -- there's no separate "Save as Final" here.
 const isEditing = ref(false)
 
-interface DraftClause {
-  id: string
-  title: string
-  content: string
-}
-
 function draftFromContract(contract: Contract) {
   return {
     contractValue: contract.contractValue,
     expiryDate: contract.expiryDate,
-    clauses: contract.clauses.map((clause) => ({ ...clause })) as DraftClause[],
   }
 }
 
@@ -87,25 +77,14 @@ function cancelEditing(): void {
   isEditing.value = false
 }
 
-function addClause(): void {
-  draft.clauses.push({ id: `new-${draft.clauses.length}-${Date.now()}`, title: '', content: '' })
-}
-
-function removeClause(index: number): void {
-  draft.clauses.splice(index, 1)
-}
-
 function buildPatch(): Partial<Contract> {
   // Currency and Scope Summary are locked once a contract exists (they
   // carry over from the source quotation), so neither is part of an edit.
   return {
     contractValue: draft.contractValue,
     expiryDate: draft.expiryDate,
-    clauses: draft.clauses.map((clause) => ({
-      id: clause.id,
-      title: clause.title.trim(),
-      content: clause.content.trim(),
-    })) as ContractClause[],
+    // Clauses aren't authored any more (the contract document is the cost
+    // workout); leaving them out of the patch keeps any existing ones.
   }
 }
 
@@ -233,33 +212,18 @@ const CONTRACT_STATUS_KEYS: Record<Contract['status'], string> = {
         </span>
       </div>
 
-      <div class="flex flex-col gap-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractPreview.clauses') }}</p>
-          <BaseButton v-if="isEditing" variant="ghost" size="sm" :icon="Plus" @click="addClause">{{ t('project.contractPreview.addClause') }}</BaseButton>
+      <!-- Read-only: only contracts created before clause framing was
+           removed have any. -->
+      <div v-if="contract.clauses.length > 0" class="flex flex-col gap-4">
+        <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.contractPreview.clauses') }}</p>
+        <div
+          v-for="(clause, index) in contract.clauses"
+          :key="clause.id"
+          class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
+        >
+          <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
+          <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(clause.content)" />
         </div>
-
-        <template v-if="!isEditing">
-          <div
-            v-for="(clause, index) in contract.clauses"
-            :key="clause.id"
-            class="flex flex-col gap-1 border-b border-border-light pb-4 last:border-0 last:pb-0"
-          >
-            <p class="text-sm font-semibold text-text-primary">{{ index + 1 }}. {{ clause.title }}</p>
-            <div class="rich-text-content text-sm text-text-secondary" v-html="sanitizeHtml(clause.content)" />
-          </div>
-        </template>
-        <template v-else>
-          <div v-for="(clause, index) in draft.clauses" :key="clause.id" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
-            <div class="flex items-start gap-2">
-              <div class="flex-1">
-                <TextInput v-model="clause.title" :placeholder="t('project.contractPreview.clauseTitle')" />
-              </div>
-              <IconButton :icon="Trash2" :label="t('project.contractPreview.removeClause', { index: index + 1 })" size="sm" @click="removeClause(index)" />
-            </div>
-            <RichTextEditor v-model="clause.content" :placeholder="t('project.contractPreview.clauseContent')" />
-          </div>
-        </template>
       </div>
 
       <p class="no-print text-center text-xs text-text-muted">
