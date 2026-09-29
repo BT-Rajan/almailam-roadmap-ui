@@ -10,7 +10,7 @@ import AmbientBackground from '@/components/common/AmbientBackground.vue'
   <div class="flex h-screen overflow-hidden print:h-auto print:overflow-visible">
     <AmbientBackground class="no-print" />
     <Sidebar class="no-print" />
-    <MobileSidebar class="no-print" />
+    <MobileSidebar />
 
     <div class="flex min-w-0 flex-1 flex-col print:overflow-visible">
       <TopNavigation class="no-print" />

@@ -24,7 +24,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
   <Transition name="fade">
     <div
       v-if="navigationStore.isMobileSidebarOpen"
-      class="fixed inset-0 z-drawer bg-neutral-900/40 lg:hidden"
+      class="no-print fixed inset-0 z-drawer bg-neutral-900/40 lg:hidden"
       @click="navigationStore.closeMobileSidebar"
     />
   </Transition>
@@ -32,7 +32,7 @@ const visibleNavItems = computed(() => PRIMARY_NAV_ITEMS.filter((item) => !item.
   <Transition :name="isRtl ? 'slide-from-right' : 'slide-from-left'">
     <aside
       v-if="navigationStore.isMobileSidebarOpen"
-      class="fixed inset-y-0 start-0 z-drawer flex w-70 flex-col bg-bg-sidebar shadow-glass lg:hidden"
+      class="no-print fixed inset-y-0 start-0 z-drawer flex w-70 flex-col bg-bg-sidebar shadow-glass lg:hidden"
     >
       <div class="flex h-16 items-center justify-between border-b border-[var(--color-border-default)] px-4">
         <div class="flex items-center gap-2">
