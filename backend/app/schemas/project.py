@@ -338,6 +338,13 @@ class HandoverStatusOut(BaseModel):
         )
 
 
+def _require_site_address(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("Project/Site Address is required")
+    return value
+
+
 class ProjectCreate(BaseModel):
     projectName: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
@@ -366,7 +373,14 @@ class ProjectCreate(BaseModel):
     # via the unified ServicePickerDialog) -- becomes the Permit track's
     # own trackable ProjectSelectedPermit rows.
     selectedPermits: list[SelectedPermitIn] | None = None
-    siteAddress: str | None = Field(default=None, max_length=300)
+    # Mandatory: shown on every project card and filled into the
+    # quotation/contract documents, so a project can't be created without it.
+    siteAddress: str = Field(min_length=1, max_length=300)
+
+    @field_validator("siteAddress")
+    @classmethod
+    def site_address_not_blank(cls, value: str) -> str:
+        return _require_site_address(value)
 
     # Same near-term-only reasoning as every other startDate/scheduling
     # field in this app (see not_past_validator/max_days_from_today_validator
@@ -397,6 +411,13 @@ class ProjectUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     siteAddress: str | None = Field(default=None, max_length=300)
     service: str | None = Field(default=None, min_length=1, max_length=2000)
+
+    # Optional to send (a partial update can leave it out), but it can't be
+    # cleared once set -- same rule as ProjectCreate.siteAddress.
+    @field_validator("siteAddress")
+    @classmethod
+    def site_address_not_blank(cls, value: str | None) -> str | None:
+        return None if value is None else _require_site_address(value)
     engineerId: str | None = None
     # progress is deliberately not here -- it's computed from
     # current_stage (project_service.recompute_progress), not settable

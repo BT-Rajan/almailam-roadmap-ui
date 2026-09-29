@@ -38,17 +38,9 @@ const LANGUAGE_OPTIONS: SelectOption[] = LANGUAGES.map((language) => ({
   labelKey: language === 'English' ? 'governmentFormOptions.language.english' : 'governmentFormOptions.language.arabic',
 }))
 
+// Quotation and Contract documents are the generated cost workout now
+// (backend cost_workout_service) -- no uploaded template to manage.
 const SECTIONS = computed<{ type: DocumentTemplateType; title: string; description: string }[]>(() => [
-  {
-    type: 'Quotation',
-    title: t('administration.documentTemplates.quotationTitle'),
-    description: t('administration.documentTemplates.quotationDescription'),
-  },
-  {
-    type: 'Contract',
-    title: t('administration.documentTemplates.contractTitle'),
-    description: t('administration.documentTemplates.contractDescription'),
-  },
   {
     type: 'Payment Plan',
     title: t('administration.documentTemplates.paymentPlanTitle'),

@@ -613,170 +613,37 @@ def _resolve_language(db: Session, language: str | None) -> str:
     return company_service.get_settings(db).default_language
 
 
-def _resolve_quotation_template(db: Session, quotation: Quotation, language: str) -> DocumentTemplate:
-    """The template this quotation should render against: its own
-    pinned document_template_id if one is set AND it matches the
-    requested language, otherwise the type's current default -- same
-    lookup render_quotation_document always used before pinning existed.
-    A pin only ever covers the one language it was set for; requesting
-    the *other* language later (a real but rare case) simply falls
-    through to that language's own default rather than the quotation
-    carrying two pins.
-
-    The pin itself is set here, once: the first time this quotation is
-    rendered *after* being finalized (finalized_at is set), so a later
-    template edit/re-upload can never change how an already-final
-    quotation prints if reopened and reprinted. Left unset while still
-    an editable Draft -- there's nothing "final" yet to lock to, and an
-    admin actively iterating on a template mid-project should keep
-    seeing their latest upload."""
-    if quotation.document_template_id is not None:
-        pinned = db.query(DocumentTemplate).filter(DocumentTemplate.id == quotation.document_template_id).first()
-        if pinned is not None and pinned.language == language:
-            return pinned
-
-    template = get_default(db, "Quotation", language)
-    if template is None:
-        raise ValidationAppError(
-            f"No default {language} Quotation template is configured. Upload one in Administration > Documents."
-        )
-    if quotation.finalized_at is not None and quotation.document_template_id is None:
-        quotation.document_template_id = template.id
-        db.commit()
-    return template
-
-
 def render_quotation_document(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
-    from app.services import quotation_service
+    """The quotation's cost workout as .docx -- generated directly (see
+    cost_workout_service), no admin-uploaded template involved."""
+    from app.services import cost_workout_service
 
-    language = _resolve_language(db, language)
-    template = _resolve_quotation_template(db, quotation, language)
-
-    project = db.query(Project).filter(Project.id == quotation.project_id).first()
-    client = (
-        db.query(Client).filter(Client.id == project.client_id).first()
-        if project is not None
-        else None
-    )
-    line_items = quotation_service.get_line_items(db, quotation.id)
-    subtotal = sum((Decimal(str(i.quantity)) * Decimal(str(i.unit_price)) for i in line_items), Decimal("0"))
-
-    context = {
-        "quotation_no": quotation.quotation_no,
-        "revision": quotation.revision,
-        "issue_date": quotation.issue_date.strftime("%d %B %Y"),
-        "validity": quotation.validity.strftime("%d %B %Y"),
-        "status": quotation.status,
-        "currency": quotation.currency,
-        "prepared_by": _user_name(db, quotation.prepared_by),
-        "client_name": _client_display_name(client),
-        "project_name": project.project_name if project else "",
-        "project_no": project.project_no if project else "",
-        "project_address": (project.site_address or "") if project else "",
-        "amount_in_words": amount_to_words(Decimal(str(quotation.amount)), quotation.currency),
-        "line_items": [
-            {
-                "description": item.description,
-                "quantity": f"{float(item.quantity):g}",
-                "unit_price": f"{float(item.unit_price):.2f}",
-                "amount": f"{float(item.quantity) * float(item.unit_price):.2f}",
-            }
-            for item in line_items
-        ],
-        "subtotal": f"{subtotal:.2f}",
-        "discount_amount": f"{float(quotation.discount_amount):.2f}",
-        "amount": f"{float(quotation.amount):.2f}",
-        # notes/terms_and_conditions/scope_phases/payment_terms were
-        # dropped from the Quotation model (migration 0102) -- these
-        # per-quotation free-text fields turned out to be redundant and
-        # were removed from the create/edit UI. Kept here as static
-        # empty defaults, not removed outright, so a document template
-        # some admin already mapped one of these tokens into (see
-        # MERGE_FIELD_CATALOG below, where they're no longer offered
-        # for *new* mappings) still renders instead of raising an
-        # undefined-variable error at merge time.
-        "notes": "",
-        "terms_and_conditions": [],
-        "scope_phases": [],
-        "payment_terms": [],
-    }
-    filename = f"{quotation.quotation_no}.docx"
-    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
+    workout = cost_workout_service.build_quotation_workout(db, quotation, language)
+    return cost_workout_service.render_docx(workout), f"{quotation.quotation_no}.docx"
 
 
 def render_quotation_pdf(db: Session, quotation: Quotation, language: str | None = None) -> tuple[bytes, str]:
-    """Same merged document as render_quotation_document, converted to
-    PDF -- what Print and Email actually use, so both show the admin's
-    real uploaded template rather than a separate hardcoded preview."""
-    language = _resolve_language(db, language)
-    template = _resolve_quotation_template(db, quotation, language)
-    content, filename = render_quotation_document(db, quotation, language)
-    return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
+    """PDF of the same cost workout -- what Print and Email use."""
+    from app.services import cost_workout_service
 
-
-def _resolve_contract_template(db: Session, contract: Contract, language: str) -> DocumentTemplate:
-    """See _resolve_quotation_template's docstring -- identical rule,
-    applied to Contract's own pin field."""
-    if contract.document_template_id is not None:
-        pinned = db.query(DocumentTemplate).filter(DocumentTemplate.id == contract.document_template_id).first()
-        if pinned is not None and pinned.language == language:
-            return pinned
-
-    template = get_default(db, "Contract", language)
-    if template is None:
-        raise ValidationAppError(
-            f"No default {language} Contract template is configured. Upload one in Administration > Documents."
-        )
-    if contract.finalized_at is not None and contract.document_template_id is None:
-        contract.document_template_id = template.id
-        db.commit()
-    return template
+    workout = cost_workout_service.build_quotation_workout(db, quotation, language)
+    return cost_workout_service.render_pdf(workout), f"{quotation.quotation_no}.pdf"
 
 
 def render_contract_document(db: Session, contract: Contract, language: str | None = None) -> tuple[bytes, str]:
-    from app.services import contract_service
+    """The contract's cost workout as .docx -- see render_quotation_document."""
+    from app.services import cost_workout_service
 
-    language = _resolve_language(db, language)
-    template = _resolve_contract_template(db, contract, language)
-
-    project = db.query(Project).filter(Project.id == contract.project_id).first()
-    client = (
-        db.query(Client).filter(Client.id == project.client_id).first()
-        if project is not None
-        else None
-    )
-    clauses = contract_service.get_clauses(db, contract.id)
-
-    context = {
-        "contract_no": contract.contract_no,
-        "revision": contract.revision,
-        "currency": contract.currency,
-        "contract_value": f"{float(contract.contract_value):.2f}",
-        "issue_date": contract.issue_date.strftime("%d %B %Y"),
-        "signed_date": contract.signed_date.strftime("%d %B %Y") if contract.signed_date else "",
-        "expiry_date": contract.expiry_date.strftime("%d %B %Y"),
-        "status": contract.status,
-        "prepared_by": _user_name(db, contract.prepared_by),
-        "client_representative": contract.client_representative,
-        "client_name": _client_display_name(client),
-        "project_name": project.project_name if project else "",
-        "project_no": project.project_no if project else "",
-        "project_address": (project.site_address or "") if project else "",
-        "amount_in_words": amount_to_words(Decimal(str(contract.contract_value)), contract.currency),
-        "scope_summary": _plain_text(contract.scope_summary),
-        "clauses": [{"title": c.title, "content": _plain_text(c.content)} for c in clauses],
-    }
-    filename = f"{contract.contract_no}.docx"
-    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
+    workout = cost_workout_service.build_contract_workout(db, contract, language)
+    return cost_workout_service.render_docx(workout), f"{contract.contract_no}.docx"
 
 
 def render_contract_pdf(db: Session, contract: Contract, language: str | None = None) -> tuple[bytes, str]:
-    """PDF counterpart of render_contract_document -- see
-    render_quotation_pdf's docstring."""
-    language = _resolve_language(db, language)
-    template = _resolve_contract_template(db, contract, language)
-    content, filename = render_contract_document(db, contract, language)
-    return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
+    """PDF counterpart of render_contract_document."""
+    from app.services import cost_workout_service
+
+    workout = cost_workout_service.build_contract_workout(db, contract, language)
+    return cost_workout_service.render_pdf(workout), f"{contract.contract_no}.pdf"
 
 
 def _resolve_payment_plan_template(db: Session, project: Project, language: str) -> DocumentTemplate:

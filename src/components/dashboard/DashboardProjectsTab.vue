@@ -64,6 +64,7 @@ const recentProjects = computed<ProjectSummary[]>(() =>
       status: PROJECT_STATUS_MAP[project.status],
       progress: project.progress,
       dueDate: project.targetDate,
+      siteAddress: project.siteAddress,
     })),
 )
 

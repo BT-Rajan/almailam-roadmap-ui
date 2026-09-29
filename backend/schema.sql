@@ -1219,7 +1219,13 @@ CREATE TABLE IF NOT EXISTS permit_catalog_items (
 -- Almailam only ever files for these two Kuwait authorities -- seeded
 -- here rather than left for an admin to type in by hand on day one.
 -- Still fully admin-editable afterward from Admin > Permit Catalog.
-INSERT INTO permit_catalog_items (name) VALUES ('Baladia Permits'), ('KFD Permits');
+-- Guarded like migration 0040 so loading this file onto a database that
+-- already has them can't create a second copy of each permit.
+INSERT INTO permit_catalog_items (name)
+SELECT seed.name FROM (SELECT 'Baladia Permits' AS name UNION ALL SELECT 'KFD Permits') AS seed
+WHERE NOT EXISTS (
+    SELECT 1 FROM permit_catalog_items p WHERE p.name = seed.name AND p.deleted_at IS NULL
+);
 
 -- The authority + starting permit application form behind each of those
 -- two permit types (migration 0107), so New Permit Application has an

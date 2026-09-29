@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MapPin } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Card from '@/components/common/Card.vue'
@@ -69,6 +70,13 @@ const initials = computed(() =>
         <div class="min-w-0 max-w-full">
           <h3 class="truncate font-medium text-text-primary">{{ project.name }}</h3>
           <p class="truncate text-xs text-text-muted">{{ project.client }}</p>
+          <p
+            class="mt-1 flex items-center justify-center gap-1 text-xs text-text-secondary"
+            :title="project.siteAddress || undefined"
+          >
+            <MapPin class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span class="truncate">{{ project.siteAddress || t('dashboard.noSiteAddress') }}</span>
+          </p>
         </div>
         <StatusBadge :label="statusLabel" :variant="statusVariant" class="shrink-0" />
       </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileSignature, Plus, Trash2 } from '@lucide/vue'
+import { FileSignature } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -9,9 +9,7 @@ import Card from '@/components/common/Card.vue'
 import DatePicker from '@/components/common/DatePicker.vue'
 import Divider from '@/components/common/Divider.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import IconButton from '@/components/common/IconButton.vue'
 import NumberInput from '@/components/common/NumberInput.vue'
-import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import WorkflowProgress from '@/components/project/WorkflowProgress.vue'
@@ -22,11 +20,10 @@ import { usePaymentStore } from '@/stores/paymentStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuotationStore } from '@/stores/quotationStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
-import type { ContractClauseInput } from '@/services/contractService'
 import type { Project, ProjectWorkspaceTabKey } from '@/types/Project'
 import type { Quotation } from '@/types/Quotation'
 import { getClientFormalName } from '@/utils/clientHelpers'
-import { getDesignPermitPeriod, getSupervisionPeriod, isRichTextBlank, scopeSummaryToHtml } from '@/utils/contractHelpers'
+import { getDesignPermitPeriod, getSupervisionPeriod, scopeSummaryToHtml } from '@/utils/contractHelpers'
 import { formatDate, todayIso } from '@/utils/dateFormatter'
 import { sanitizeHtml } from '@/utils/sanitizeHtml'
 import { validators } from '@/utils/validators'
@@ -37,7 +34,7 @@ import { validators } from '@/utils/validators'
 //
 // Laid out as the contract document itself (same shape as
 // ContractPreview.vue) with only the fields staff actually decide --
-// Expiry Date and Clauses -- editable in place.
+// Expiry Date -- editable in place.
 // Everything else (client, project, Design & Permit / Supervision
 // dates, scope, value) is filled in automatically and locked.
 
@@ -138,17 +135,12 @@ function displayDate(value: string | null | undefined): string {
   return value ? formatDate(value) : '—'
 }
 
-function emptyClause(): ContractClauseInput {
-  return { title: '', content: '' }
-}
-
 function emptyForm() {
   return {
     currency: 'KWD',
     contractValue: 0,
     expiryDate: '',
     scopeSummary: '',
-    clauses: [] as ContractClauseInput[],
   }
 }
 
@@ -178,11 +170,6 @@ function scopeSummaryFromQuotation(quotation: Quotation, project: Project | unde
 }
 
 const form = reactive(emptyForm())
-interface ClauseError {
-  title?: string
-  content?: string
-}
-const clauseErrors = reactive<ClauseError[]>([])
 const { errors, setRules, validateAll } = useFormValidation()
 
 setRules({
@@ -236,14 +223,6 @@ watch(
   { immediate: true },
 )
 
-function addClause(): void {
-  form.clauses.push(emptyClause())
-}
-
-function removeClause(index: number): void {
-  form.clauses.splice(index, 1)
-}
-
 function revalidate(): void {
   validateAll(form)
 }
@@ -255,17 +234,9 @@ async function handleSubmit(): Promise<void> {
   const quotation = eligibleQuotation.value
   if (!quotation) return
 
-  const itemErrors: ClauseError[] = form.clauses.map((clause) => {
-    const rowError: ClauseError = {}
-    if (!clause.title.trim()) rowError.title = t('project.newContractDialog.clauseTitleRequired')
-    if (isRichTextBlank(clause.content)) rowError.content = t('project.newContractDialog.clauseContentRequired')
-    return rowError
-  })
-  clauseErrors.splice(0, clauseErrors.length, ...itemErrors)
-  const clausesValid = itemErrors.every((rowError) => Object.keys(rowError).length === 0)
-
-  const formValid = validateAll(form)
-  if (!formValid || !clausesValid) return
+  // No clause framing any more -- the contract document is the cost
+  // workout (see backend cost_workout_service), so nothing to write here.
+  if (!validateAll(form)) return
 
   isSubmitting.value = true
   try {
@@ -276,7 +247,7 @@ async function handleSubmit(): Promise<void> {
       contractValue: form.contractValue,
       expiryDate: form.expiryDate,
       scopeSummary: form.scopeSummary.trim(),
-      clauses: form.clauses.map((clause) => ({ title: clause.title.trim(), content: clause.content.trim() })),
+      clauses: [],
     })
     // A contract's mere existence is one of the things "Quotation" ->
     // "Contract" waits on (project_service._assert_stage_exit_criteria).
@@ -410,23 +381,6 @@ async function handleSubmit(): Promise<void> {
             />
           </div>
           <p v-if="errors.contractValue" class="text-end text-xs text-danger-500">{{ errors.contractValue }}</p>
-        </div>
-
-        <div class="flex flex-col gap-3">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ t('project.newContractDialog.clausesOptional') }}</p>
-            <BaseButton variant="ghost" size="sm" :icon="Plus" @click="addClause">{{ t('project.newContractDialog.addClause') }}</BaseButton>
-          </div>
-
-          <div v-for="(clause, index) in form.clauses" :key="index" class="flex flex-col gap-2 rounded-lg border border-border-light p-3">
-            <div class="flex items-start gap-2">
-              <div class="flex-1">
-                <TextInput v-model="clause.title" :placeholder="t('project.newContractDialog.clauseTitlePlaceholder')" :error="clauseErrors[index]?.title" />
-              </div>
-              <IconButton :icon="Trash2" :label="t('project.newContractDialog.removeClause', { number: index + 1 })" size="sm" @click="removeClause(index)" />
-            </div>
-            <RichTextEditor v-model="clause.content" :placeholder="t('project.newContractDialog.clauseContentPlaceholder')" :error="clauseErrors[index]?.content" />
-          </div>
         </div>
       </div>
 

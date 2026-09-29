@@ -83,7 +83,11 @@ def list_my_reports(
 
 
 @router.post("/reports/{report_id}/images", response_model=StatusReportOut)
-async def upload_report_image(
+# Plain `def`, not `async def`: stamping and re-encoding a multi-MB phone
+# photo (Pillow) plus the synchronous DB calls would otherwise run on the
+# event loop itself and freeze every other user's request until it
+# finished. FastAPI runs sync endpoints in its worker threadpool.
+def upload_report_image(
     report_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),

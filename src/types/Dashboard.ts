@@ -15,6 +15,7 @@ export interface ProjectSummary {
   status: 'draft' | 'active' | 'pending' | 'completed' | 'on-hold'
   progress: number
   dueDate: string
+  siteAddress?: string
 }
 
 export interface Task {

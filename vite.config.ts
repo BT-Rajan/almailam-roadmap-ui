@@ -20,6 +20,11 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
+        // Appends the browser's real IP as X-Forwarded-For. Without it the
+        // backend sees every user as 127.0.0.1 and throttles/locks out the
+        // whole office as one client (see RATE_LIMIT_PER_IP in
+        // backend/app/core/config.py).
+        xfwd: true,
       },
     },
   },
