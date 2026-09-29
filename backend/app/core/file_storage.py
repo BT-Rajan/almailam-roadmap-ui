@@ -62,9 +62,24 @@ def assert_pdf_upload(file: UploadFile) -> None:
     old email-OTP gate, and the one thing they all require is that
     what's uploaded is actually a PDF, not any of the other types
     ALLOWED_EXTENSIONS otherwise permits for ordinary document uploads."""
+    assert_signed_upload(file, (".pdf",))
+
+
+# Quotation approval also accepts a photo of the signed copy -- staff often
+# only have a phone camera on hand when the client signs.
+SIGNED_PDF_OR_IMAGE_EXTENSIONS = (".pdf", ".jpg", ".jpeg")
+
+
+def assert_signed_upload(file: UploadFile, allowed_extensions: tuple[str, ...]) -> None:
+    """Same business rule as assert_pdf_upload, for a flow that accepts more
+    than PDF. The magic-byte check in save_upload still verifies the file
+    really is what its extension says."""
     extension = Path(file.filename or "").suffix.lower()
-    if extension != ".pdf":
-        raise ValidationAppError("Please upload the signed document as a PDF file.")
+    if extension not in allowed_extensions:
+        if allowed_extensions == (".pdf",):
+            raise ValidationAppError("Please upload the signed document as a PDF file.")
+        names = ", ".join(ext.lstrip(".").upper() for ext in allowed_extensions)
+        raise ValidationAppError(f"Please upload the signed document as one of: {names}.")
 
 
 def save_upload(file: UploadFile, subdirectory: str) -> tuple[str, str, int]:

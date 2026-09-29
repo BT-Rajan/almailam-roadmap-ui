@@ -499,6 +499,8 @@ async function handleRevertToDraft(): Promise<void> {
     :loading="isApprovalSaving"
     :title="t('project.quotationTab.approvalDialog.title')"
     :description="t('project.quotationTab.approvalDialog.description')"
+    :allowed-extensions="['.pdf', '.jpg', '.jpeg']"
+    :hint="t('project.quotationTab.approvalDialog.uploadHint')"
     @confirm="handleConfirmApproval"
   />
 

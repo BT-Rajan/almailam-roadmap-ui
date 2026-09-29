@@ -5,7 +5,7 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
-from app.core.file_storage import assert_pdf_upload
+from app.core.file_storage import SIGNED_PDF_OR_IMAGE_EXTENSIONS, assert_signed_upload
 from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     QUOTATION_ALLOWED_TRANSITIONS,
@@ -472,7 +472,7 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     quotation = get_quotation(db, quotation_no)
     if quotation.status != "Draft" or quotation.finalized_at is None:
         raise ValidationAppError("This quotation isn't awaiting approval.")
-    assert_pdf_upload(file)
+    assert_signed_upload(file, SIGNED_PDF_OR_IMAGE_EXTENSIONS)
 
     project = db.query(Project).filter(Project.id == quotation.project_id).first()
     if project is None:

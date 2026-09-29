@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -21,6 +21,10 @@ const props = defineProps<{
   // "Confirm Hand-over" instead of a generic title).
   title?: string
   description?: string
+  // Defaults to PDF only; quotation approval also takes a JPG/JPEG photo
+  // of the signed copy (must match the backend's per-flow check).
+  allowedExtensions?: string[]
+  hint?: string
 }>()
 
 const emit = defineEmits<{
@@ -29,6 +33,9 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const extensions = computed(() => props.allowedExtensions ?? ['.pdf'])
+const acceptAttr = computed(() => extensions.value.join(','))
 
 const selectedFile = ref<File>()
 const error = ref('')
@@ -76,9 +83,9 @@ function handleConfirm(): void {
         {{ description ?? t('common.signedDocumentUploadDialog.description') }}
       </p>
       <FileUploader
-        accept=".pdf"
-        :allowed-extensions="['.pdf']"
-        :hint="t('common.signedDocumentUploadDialog.hint')"
+        :accept="acceptAttr"
+        :allowed-extensions="extensions"
+        :hint="hint ?? t('common.signedDocumentUploadDialog.hint')"
         @select="handleSelect"
         @error="handleFileError"
       />
