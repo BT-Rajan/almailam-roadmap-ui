@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.catalog_names import name_key, words
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.models.service_catalog import ServiceCatalogActivity, ServiceCatalogItem
 from app.services import audit_service
@@ -156,25 +156,39 @@ def get_activity(db: Session, raw_id: str) -> ServiceCatalogActivity:
 
 
 def _assert_name_available(db: Session, name: str, exclude_id: int | None = None) -> None:
-    # Case-insensitive: "MEP Design" and "mep design" are the same
-    # service to an admin typing it into the list, even though MySQL's
-    # default collation would already treat these VARCHAR columns as
-    # case-insensitive -- this makes that intent explicit rather than
-    # relying on the column collation.
-    query = db.query(ServiceCatalogItem).filter(
-        ServiceCatalogItem.deleted_at.is_(None),
-        func.lower(ServiceCatalogItem.name) == name.strip().lower(),
-    )
-    if exclude_id is not None:
-        query = query.filter(ServiceCatalogItem.id != exclude_id)
-    if query.first() is not None:
-        raise ConflictError(f'A service named "{name.strip()}" already exists.')
+    # Compared by catalog_names.name_key, not just case-insensitively: an
+    # exact match let "Permit" in next to "Permits". The catalog is a
+    # short admin list, so comparing in Python is cheap.
+    key = name_key(name)
+    rows = db.query(ServiceCatalogItem.id, ServiceCatalogItem.name).filter(ServiceCatalogItem.deleted_at.is_(None))
+    for row_id, row_name in rows:
+        if row_id != exclude_id and name_key(row_name) == key:
+            raise ConflictError(f'"{name.strip()}" is too similar to the existing service "{row_name}".')
+
+
+# Permits and Supervision have their own sections in the Service Picker
+# (the Permit Catalog, and the single Supervision-branch service billed
+# monthly). A Design service with one of these words in its name showed
+# up as a second, one-time-fee copy of them.
+_DESIGN_RESERVED_WORDS = {"permit": "Permit Catalog", "supervision": "Supervision service"}
+
+
+def _assert_design_name_allowed(name: str, branch: str) -> None:
+    if branch != "Design":
+        return
+    for word in words(name):
+        if word in _DESIGN_RESERVED_WORDS:
+            raise ValidationAppError(
+                f'"{name.strip()}" can\'t be a Design service -- add it to the '
+                f"{_DESIGN_RESERVED_WORDS[word]} instead."
+            )
 
 
 def create_service(db: Session, name: str, branch: str, user_id: int) -> ServiceCatalogItem:
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Service name is required.")
+    _assert_design_name_allowed(clean_name, branch)
     _assert_name_available(db, clean_name)
     if branch == "Supervision":
         _assert_no_existing_supervision_service(db)
@@ -216,6 +230,7 @@ def rename_service(db: Session, service_raw_id: str, name: str, user_id: int) ->
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Service name is required.")
+    _assert_design_name_allowed(clean_name, service.branch)
     _assert_name_available(db, clean_name, exclude_id=service.id)
     previous_name = service.name
     service.name = clean_name
