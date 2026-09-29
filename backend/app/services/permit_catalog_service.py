@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.catalog_names import name_key
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.models.government import GovernmentAuthority, GovernmentForm
 from app.models.permit_catalog import PermitCatalogItem
@@ -33,18 +33,19 @@ def get_permit(db: Session, raw_id: str) -> PermitCatalogItem:
     return permit
 
 
+# Every entry here is a permit, so the word itself doesn't distinguish
+# two of them: "Baladia" and "Baladia Permits" are the same permit type.
+_PERMIT_NOISE_WORDS = frozenset({"permit"})
+
+
 def _assert_name_available(db: Session, name: str, exclude_id: int | None = None) -> None:
-    # Case-insensitive, same rationale as service_catalog_service: "Building
-    # Permit" and "building permit" are the same catalog entry to an admin
-    # typing it into the list.
-    query = db.query(PermitCatalogItem).filter(
-        PermitCatalogItem.deleted_at.is_(None),
-        func.lower(PermitCatalogItem.name) == name.strip().lower(),
-    )
-    if exclude_id is not None:
-        query = query.filter(PermitCatalogItem.id != exclude_id)
-    if query.first() is not None:
-        raise ConflictError(f'A permit named "{name.strip()}" already exists.')
+    # Compared by catalog_names.name_key (case/plural/"permit"-insensitive),
+    # same rationale as service_catalog_service._assert_name_available.
+    key = name_key(name, _PERMIT_NOISE_WORDS)
+    rows = db.query(PermitCatalogItem.id, PermitCatalogItem.name).filter(PermitCatalogItem.deleted_at.is_(None))
+    for row_id, row_name in rows:
+        if row_id != exclude_id and name_key(row_name, _PERMIT_NOISE_WORDS) == key:
+            raise ConflictError(f'"{name.strip()}" is too similar to the existing permit "{row_name}".')
 
 
 def create_permit(db: Session, name: str, fixed_cost: float, user_id: int) -> PermitCatalogItem:
