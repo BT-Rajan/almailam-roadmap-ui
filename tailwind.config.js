@@ -9,42 +9,46 @@ export default {
         // Used by the lettered quotation/contract templates for their
         // Arabic blocks (see src/components/project/letters/).
         arabic: ['"Noto Naskh Arabic"', '"Segoe UI"', 'Tahoma', 'sans-serif'],
-        // Editorial display serif for page headings and hero text -- gives
-        // headings a premium, less "default SaaS" feel than Inter alone.
-        display: ['"Playfair Display"', 'ui-serif', 'Georgia', 'serif'],
+        // Page headings, hero text and big numbers. A geometric sans with a
+        // little more character than Inter: modern and confident without
+        // the editorial serif look, which read as dated in an enterprise app.
+        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // Rich graphite/charcoal — the "Uber-black" premium action colour
+        // Deep navy -- the enterprise "ink" colour for strong chrome
+        // (logo mark, progress, emphasis text). Replaces the old graphite
+        // ramp, which read as black-and-grey next to the brand blue.
         primary: {
-          50: '#f4f4f5',
-          100: '#e7e7ea',
-          200: '#d3d3d8',
-          300: '#b0b0ba',
-          400: '#85858f',
-          500: '#5c5c68',
-          600: '#2e2e38',
-          700: '#1c1c24',
-          800: '#131319',
-          900: '#0a0a0c',
+          50: '#f1f4f9',
+          100: '#e2e8f2',
+          200: '#c5d0e3',
+          300: '#9aabc9',
+          400: '#6a80a8',
+          500: '#475d85',
+          600: '#2c3e63',
+          700: '#1c2b4a',
+          800: '#131e36',
+          900: '#0b1224',
         },
-        // Warm luxury grey scale used for the glass surfaces + chrome
+        // Cool slate greys: crisp against white and the brand blue, where
+        // the previous warm greys made the light theme look muddy.
         neutral: {
           0: '#ffffff',
-          50: '#f7f7f8',
-          100: '#eeeef1',
-          200: '#e1e1e6',
-          300: '#c9c9d1',
-          400: '#a3a3ad',
-          500: '#797983',
-          600: '#5c5c66',
-          700: '#44444d',
-          800: '#292930',
-          900: '#17171a',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
         },
         // Brand accent -- admin-configurable (Administration > Company >
         // Branding), not a fixed hue. Each shade resolves through a CSS
         // custom property (--color-accent-N, defined in src/styles/
-        // main.css's :root with a #3995be default and overridden at
+        // main.css's :root with a #2563eb default and overridden at
         // runtime by src/utils/colorScale.ts's applyBrandColor) rather
         // than a static hex, so the whole 50-900 ramp -- and everywhere
         // it's used, buttons/badges/links/focus rings included -- follows
@@ -86,12 +90,14 @@ export default {
           600: '#dc2626',
           700: '#b91c1c',
         },
+        // Sky rather than cyan: stays clearly "informational" while sitting
+        // comfortably next to the corporate blue instead of clashing with it.
         info: {
-          50: '#ecfeff',
-          100: '#cffafe',
-          500: '#06b6d4',
-          600: '#0891b2',
-          700: '#0e7490',
+          50: '#f0f9ff',
+          100: '#e0f2fe',
+          500: '#0ea5e9',
+          600: '#0284c7',
+          700: '#0369a1',
         },
         ai: {
           50: '#f5f3ff',

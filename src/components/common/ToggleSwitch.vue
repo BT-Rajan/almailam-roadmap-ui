@@ -26,7 +26,7 @@ const { isRtl } = useLocale()
 const toggleClasses = computed(() => [
   'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast',
   'peer-focus-visible:ring-2 peer-focus-visible:ring-accent-500/30 peer-focus-visible:ring-offset-2',
-  props.modelValue ? 'bg-primary-500' : 'bg-neutral-300',
+  props.modelValue ? 'bg-accent-500' : 'bg-neutral-300',
   props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
 ])
 

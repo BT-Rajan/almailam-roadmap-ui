@@ -12,45 +12,42 @@ defineEmits<{
   click: []
 }>()
 
-// A bold, color-washed tile instead of a plain white card with a small
-// icon chip -- each stat gets its own tinted gradient background and a
-// solid-color icon badge, so the grid reads as a set of distinct,
-// colorful widgets (the native-app "health app tile" look) rather than
-// a report table's worth of identical white boxes. 'primary' rides on
-// the admin-configurable brand accent color (see tailwind.config.js's
-// accent scale) rather than a fixed hue, same as everywhere else in
-// the app that uses it.
-const TILE_BACKGROUND: Record<string, string> = {
-  primary: 'bg-gradient-to-br from-accent-50 to-accent-100/60 dark:from-accent-500/15 dark:to-accent-500/5',
-  success: 'bg-gradient-to-br from-success-50 to-success-100/60 dark:from-success-500/15 dark:to-success-500/5',
-  warning: 'bg-gradient-to-br from-warning-50 to-warning-100/60 dark:from-warning-500/15 dark:to-warning-500/5',
-  danger: 'bg-gradient-to-br from-danger-50 to-danger-100/60 dark:from-danger-500/15 dark:to-danger-500/5',
-  info: 'bg-gradient-to-br from-info-50 to-info-100/60 dark:from-info-500/15 dark:to-info-500/5',
+// A clean white tile with a colored top edge and a tinted icon chip: the
+// color says which stat it is at a glance, while the card itself stays
+// crisp and enterprise-looking. Dark mode keeps a tinted wash, which
+// reads better than white-on-black. 'primary' rides on the
+// admin-configurable brand accent (see tailwind.config.js's accent scale).
+const TILE_ACCENT: Record<string, string> = {
+  primary: 'border-t-accent-500 dark:bg-accent-500/10',
+  success: 'border-t-success-500 dark:bg-success-500/10',
+  warning: 'border-t-warning-500 dark:bg-warning-500/10',
+  danger: 'border-t-danger-500 dark:bg-danger-500/10',
+  info: 'border-t-info-500 dark:bg-info-500/10',
 }
 
 const ICON_BADGE: Record<string, string> = {
-  primary: 'bg-accent-500 text-white',
-  success: 'bg-success-500 text-white',
-  warning: 'bg-warning-500 text-white',
-  danger: 'bg-danger-500 text-white',
-  info: 'bg-info-500 text-white',
+  primary: 'bg-accent-50 text-accent-600 dark:bg-accent-500 dark:text-white',
+  success: 'bg-success-50 text-success-600 dark:bg-success-500 dark:text-white',
+  warning: 'bg-warning-50 text-warning-600 dark:bg-warning-500 dark:text-white',
+  danger: 'bg-danger-50 text-danger-600 dark:bg-danger-500 dark:text-white',
+  info: 'bg-info-50 text-info-600 dark:bg-info-500 dark:text-white',
 }
 
-const tileBackground = computed(() => TILE_BACKGROUND[props.statistic.color || 'primary'])
+const tileAccent = computed(() => TILE_ACCENT[props.statistic.color || 'primary'])
 const iconBadge = computed(() => ICON_BADGE[props.statistic.color || 'primary'])
 </script>
 
 <template>
   <div
-    :class="['flex cursor-pointer flex-col items-center gap-4 rounded-3xl p-5 text-center shadow-glass-sm ring-1 ring-inset ring-white/40 transition-all duration-normal hover:-translate-y-0.5 hover:shadow-glass dark:ring-white/5', tileBackground]"
+    :class="['flex cursor-pointer items-center gap-4 rounded-2xl border border-t-[3px] border-border-light bg-bg-card p-5 shadow-glass-sm transition-all duration-normal hover:-translate-y-0.5 hover:shadow-glass', tileAccent]"
     @click="$emit('click')"
   >
-    <span v-if="statistic.icon" :class="['flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm', iconBadge]">
-      <component :is="statistic.icon" class="h-5 w-5" />
+    <span v-if="statistic.icon" :class="['flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', iconBadge]">
+      <component :is="statistic.icon" class="h-6 w-6" />
     </span>
-    <div>
-      <p class="text-3xl font-bold leading-none text-text-primary">{{ statistic.value }}</p>
-      <p class="mt-2 text-xs font-semibold text-text-secondary">{{ statistic.label }}</p>
+    <div class="min-w-0">
+      <p class="font-display text-3xl font-bold leading-none tracking-tight text-text-primary">{{ statistic.value }}</p>
+      <p class="mt-1.5 text-sm font-medium text-text-secondary">{{ statistic.label }}</p>
     </div>
   </div>
 </template>

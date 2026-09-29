@@ -28,7 +28,7 @@ from app.models.project import Project
 from app.models.scheduled_report import ScheduledReport
 from app.services import company_service, report_service
 
-DEFAULT_BRAND_COLOR = "#3995BE"
+DEFAULT_BRAND_COLOR = "#1D4ED8"
 _HEX_COLOR_RE = re.compile(r"#[0-9A-Fa-f]{3}\Z|#[0-9A-Fa-f]{6}\Z")
 
 

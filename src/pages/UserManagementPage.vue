@@ -190,7 +190,7 @@ async function handleDeleteUser(): Promise<void> {
       <button
         type="button"
         class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-fast"
-        :class="activeTab === 'users' ? 'bg-primary-600 text-neutral-0' : 'text-text-secondary hover:bg-bg-hover'"
+        :class="activeTab === 'users' ? 'bg-accent-500 text-neutral-0' : 'text-text-secondary hover:bg-bg-hover'"
         @click="activeTab = 'users'"
       >
         <UsersIcon :size="15" />
@@ -199,7 +199,7 @@ async function handleDeleteUser(): Promise<void> {
       <button
         type="button"
         class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-fast"
-        :class="activeTab === 'roles' ? 'bg-primary-600 text-neutral-0' : 'text-text-secondary hover:bg-bg-hover'"
+        :class="activeTab === 'roles' ? 'bg-accent-500 text-neutral-0' : 'text-text-secondary hover:bg-bg-hover'"
         @click="activeTab = 'roles'"
       >
         <ListChecks :size="15" />

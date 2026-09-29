@@ -194,7 +194,7 @@ function documentTitle(documentId: string): string {
 
         <div v-else class="flex flex-col gap-4">
           <div v-for="entry in knowledgeStore.history" :key="entry.id" class="flex flex-col gap-2">
-            <p class="self-end max-w-[85%] rounded-xl rounded-se-sm bg-primary-500 px-4 py-2 text-sm text-white">
+            <p class="self-end max-w-[85%] rounded-xl rounded-se-sm bg-accent-500 px-4 py-2 text-sm text-white">
               {{ entry.question }}
             </p>
             <div class="max-w-[85%] rounded-xl rounded-ss-sm border border-border-light bg-bg-secondary px-4 py-3">
