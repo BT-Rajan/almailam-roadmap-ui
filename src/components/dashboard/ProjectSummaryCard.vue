@@ -22,7 +22,7 @@ defineEmits<{
 
 const progressColor = computed(() => {
   if (props.project.progress >= 75) return 'bg-success-500'
-  if (props.project.progress >= 50) return 'bg-info-500'
+  if (props.project.progress >= 50) return 'bg-accent-500'
   if (props.project.progress >= 25) return 'bg-warning-500'
   return 'bg-danger-500'
 })

@@ -17,3 +17,18 @@ export const STATUS_CHART_COLORS = {
   warning: 'var(--chart-warning)',
   success: 'var(--chart-success)',
 } as const
+
+// Semantic names the backend sends for status series (see report_service.
+// _status_color). Used as a raw SVG fill, a name like "success" isn't a
+// valid color, so the browser painted those bars black.
+const SEMANTIC_CHART_COLORS: Record<string, string> = {
+  primary: 'var(--chart-primary)',
+  info: 'var(--chart-info)',
+  ...STATUS_CHART_COLORS,
+}
+
+/** A chart color from a data point: a semantic name, a CSS color, or the default. */
+export function resolveChartColor(color: string | undefined): string {
+  if (!color) return DEFAULT_CHART_COLOR
+  return SEMANTIC_CHART_COLORS[color] ?? color
+}

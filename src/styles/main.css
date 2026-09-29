@@ -107,7 +107,9 @@
     /* Categorical chart palette (reports). A single source of truth so
        every chart component/page reads the same series colors instead of
        each hardcoding its own hex literals -- see src/constants/chartColors.ts. */
-    --chart-blue: #3b82f6;
+    --chart-primary: rgb(var(--color-accent-500));
+    --chart-info: theme('colors.info.500');
+    --chart-blue: rgb(var(--color-accent-500));
     --chart-purple: #8b5cf6;
     --chart-cyan: #06b6d4;
     --chart-amber: #f59e0b;
@@ -165,10 +167,13 @@
     @apply antialiased;
   }
 
-  /* Display headings read tighter and more confident with slightly
-     negative tracking. */
+  /* Display headings read tighter and more confident with a touch of
+     negative tracking -- kept small, or word spaces visibly collapse. */
   .font-display {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+    /* This face's word space is narrow; without this, multi-word headings
+       read as one word ("Government FormsLibrary"). */
+    word-spacing: 0.08em;
   }
 
   /* Arabic (Kuwait) locale: Inter has no Arabic glyphs, so switch the body

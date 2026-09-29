@@ -54,7 +54,7 @@ function segmentClasses(status: StepStatus): string[] {
   return [
     'h-1.5 w-full rounded-full transition-colors duration-fast',
     status === 'complete' ? 'bg-success-500' : '',
-    status === 'current' ? 'bg-info-500' : '',
+    status === 'current' ? 'bg-accent-500' : '',
     status === 'upcoming' ? 'bg-border-default' : '',
   ]
 }
@@ -63,7 +63,7 @@ function labelClasses(status: StepStatus, rank: number): string[] {
   // The final step of a finished task keeps the "you are here"
   // emphasis, in green to match its bar.
   if (isFinished.value && rank === currentRank.value) return ['truncate text-xs text-center font-semibold text-success-600']
-  return ['truncate text-xs text-center', status === 'current' ? 'font-semibold text-info-600' : 'text-text-muted']
+  return ['truncate text-xs text-center', status === 'current' ? 'font-semibold text-accent-600' : 'text-text-muted']
 }
 </script>
 

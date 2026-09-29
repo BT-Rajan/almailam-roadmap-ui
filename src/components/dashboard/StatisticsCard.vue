@@ -46,7 +46,7 @@ const iconBadge = computed(() => ICON_BADGE[props.statistic.color || 'primary'])
       <component :is="statistic.icon" class="h-6 w-6" />
     </span>
     <div class="min-w-0">
-      <p class="font-display text-3xl font-bold leading-none tracking-tight text-text-primary">{{ statistic.value }}</p>
+      <p class="font-display text-3xl font-bold leading-none text-text-primary">{{ statistic.value }}</p>
       <p class="mt-1.5 text-sm font-medium text-text-secondary">{{ statistic.label }}</p>
     </div>
   </div>

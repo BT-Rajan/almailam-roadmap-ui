@@ -16,7 +16,7 @@ const { t } = useI18n()
 // with more reports (warning/danger accents included) is now just adding
 // a key here instead of a fourth ternary branch in every template spot.
 const COLOR_CLASSES: Record<string, { bg: string; icon: string; dot: string; link: string }> = {
-  primary: { bg: 'bg-primary-50', icon: 'text-primary-600', dot: 'bg-primary-300', link: 'text-primary-600 hover:text-primary-700' },
+  primary: { bg: 'bg-accent-50', icon: 'text-accent-600', dot: 'bg-accent-300', link: 'text-accent-600 hover:text-accent-700' },
   info: { bg: 'bg-info-50', icon: 'text-info-600', dot: 'bg-info-300', link: 'text-info-600 hover:text-info-700' },
   success: { bg: 'bg-success-50', icon: 'text-success-600', dot: 'bg-success-300', link: 'text-success-600 hover:text-success-700' },
   warning: { bg: 'bg-warning-50', icon: 'text-warning-600', dot: 'bg-warning-300', link: 'text-warning-600 hover:text-warning-700' },

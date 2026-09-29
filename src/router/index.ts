@@ -850,8 +850,7 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       name: ROUTE_NAMES.NOT_FOUND,
-      component: () => import('@/pages/PlaceholderPage.vue'),
-      props: { titleKey: 'placeholder.pageNotFound' },
+      component: () => import('@/pages/NotFoundPage.vue'),
       meta: { layout: 'auth' },
     },
   ],
