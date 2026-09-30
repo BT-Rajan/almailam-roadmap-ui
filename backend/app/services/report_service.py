@@ -324,51 +324,6 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
     }
 
 
-def employee_performance(db: Session, year: int, month: int) -> list[dict]:
-    """Assigned-vs-completed task counts per employee for one calendar
-    month -- "assigned" is every non-deleted task due that month
-    currently assigned to them (their workload for the month, regardless
-    of when it was created or who it's since been reassigned to/from),
-    "completed" is the subset of those specific tasks that are actually
-    Completed. Only employees with at least one task due in the month
-    appear -- there's nothing to report for someone with zero workload
-    that month."""
-    start = date(year, month, 1)
-    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    rows = (
-        db.query(Task.assigned_to, Task.status, func.count(Task.id))
-        .filter(Task.deleted_at.is_(None), Task.due_date >= start, Task.due_date < end)
-        .group_by(Task.assigned_to, Task.status)
-        .all()
-    )
-
-    by_user: dict[int, dict[str, int]] = {}
-    for assigned_to, status, count in rows:
-        entry = by_user.setdefault(assigned_to, {"assigned": 0, "completed": 0})
-        entry["assigned"] += count
-        if status == "Completed":
-            entry["completed"] += count
-
-    user_ids = list(by_user.keys())
-    names = (
-        {u.id: u.full_name for u in db.query(User.id, User.full_name).filter(User.id.in_(user_ids)).all()}
-        if user_ids
-        else {}
-    )
-
-    results = [
-        {
-            "userId": str(user_id),
-            "employeeName": names.get(user_id, "Unknown"),
-            "assigned": data["assigned"],
-            "completed": data["completed"],
-            "completionRate": round(data["completed"] * 100 / data["assigned"]) if data["assigned"] else 0,
-        }
-        for user_id, data in by_user.items()
-    ]
-    return sorted(results, key=lambda entry: entry["employeeName"])
-
-
 def financial_period_summary(db: Session, start_date: date, end_date: date) -> dict:
     """One period's financial snapshot -- total received (payments
     recorded in the period), total due (obligations that fell due in the

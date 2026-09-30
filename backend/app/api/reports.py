@@ -7,7 +7,6 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.schemas.report import (
     ChartDataPoint,
-    EmployeePerformance,
     FinancialPeriodSummary,
     PaymentLedgerEntry,
     PaymentProjections,
@@ -18,6 +17,7 @@ from app.schemas.report import (
 from app.schemas.report_period import (
     ClientPortfolioOut,
     EmployeeActivityOut,
+    EmployeePerformanceOut,
     ExecutiveSummaryOut,
     ProjectPerformanceOut,
     TeamWorkloadOut,
@@ -27,6 +27,7 @@ from app.services import (
     client_report_service,
     client_service,
     executive_report_service,
+    performance_report_service,
     project_report_service,
     project_service,
     report_service,
@@ -138,9 +139,9 @@ def payment_projections(
     return report_service.payment_projections(db, projectNo, resolved_client_id)
 
 
-@router.get("/employee-performance", response_model=list[EmployeePerformance])
-def employee_performance(year: int, month: int, db: Session = Depends(get_db), _=Depends(can_view)):
-    return report_service.employee_performance(db, year, month)
+@router.get("/employee-performance", response_model=EmployeePerformanceOut)
+def employee_performance(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
+    return performance_report_service.employee_performance(db, period)
 
 
 @router.get("/employee-activity", response_model=EmployeeActivityOut)

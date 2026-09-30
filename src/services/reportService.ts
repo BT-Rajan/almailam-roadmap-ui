@@ -2,7 +2,7 @@ import { apiClient } from '@/services/httpClient'
 import type {
   ChartDataPoint,
   ClientPortfolio,
-  EmployeePerformance,
+  EmployeePerformanceReport,
   EmployeeActivityReport,
   ExecutiveSummary,
   ProjectPerformance,
@@ -76,8 +76,8 @@ async function getPaymentProjections(filter: Pick<PaymentLedgerFilter, 'projectN
   return apiClient.get<PaymentProjections>(`/api/reports/payment-projections${buildLedgerQuery(filter)}`)
 }
 
-async function getEmployeePerformance(year: number, month: number): Promise<EmployeePerformance[]> {
-  return apiClient.get<EmployeePerformance[]>(`/api/reports/employee-performance?year=${year}&month=${month}`)
+async function getEmployeePerformance(range: DateRange): Promise<EmployeePerformanceReport> {
+  return apiClient.get<EmployeePerformanceReport>(`/api/reports/employee-performance?${periodQuery(range)}`)
 }
 
 async function getFinancialSummary(startDate: string, endDate: string): Promise<FinancialPeriodSummary> {

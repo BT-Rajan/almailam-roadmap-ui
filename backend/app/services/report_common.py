@@ -13,17 +13,20 @@ def money(value) -> float:
     return float(Decimal(str(value or 0)).quantize(Decimal("0.01")))
 
 
-def completions(db: Session, entity_type: str, period: Period, entity_ids: set[int] | None = None) -> dict[int, datetime]:
+def completions(db: Session, entity_type: str, period: Period | None, entity_ids: set[int] | None = None) -> dict[int, datetime]:
     """entity id -> its latest completion time (naive UTC) within the
-    period, from the audit log -- every path that completes a task or a
-    project writes a row whose new_value is 'Completed'. Callers still
-    check the entity is Completed *now* (a reopened one doesn't count)."""
+    period (or ever, with period=None), from the audit log -- every path
+    that completes a task or a project writes a row whose new_value is
+    'Completed'. Callers still check the entity is Completed *now* (a
+    reopened one doesn't count)."""
     sql = (
         "SELECT entity_id, MAX(changed_at) AS completed_at FROM audit_log "
-        "WHERE entity_type = :entity_type AND new_value = 'Completed' "
-        "AND changed_at >= :start AND changed_at < :end"
+        "WHERE entity_type = :entity_type AND new_value = 'Completed'"
     )
-    params: dict = {"entity_type": entity_type, "start": period.utc_start, "end": period.utc_end_exclusive}
+    params: dict = {"entity_type": entity_type}
+    if period is not None:
+        sql += " AND changed_at >= :start AND changed_at < :end"
+        params.update({"start": period.utc_start, "end": period.utc_end_exclusive})
     if entity_ids is not None:
         if not entity_ids:
             return {}

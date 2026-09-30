@@ -255,6 +255,39 @@ class ClientPortfolioOut(BaseModel):
     clients: list[ClientRowOut]
 
 
+class PerformanceMemberOut(BaseModel):
+    userId: str
+    employeeName: str
+    dueInPeriod: int
+    dueSoFar: int
+    completedOnTime: int
+    completedLate: int
+    overdueOpen: int
+    notYetDue: int
+    completionRate: float | None
+    onTimeRate: float | None
+    averageDaysLate: float | None
+    completedInPeriod: int
+
+
+class PerformanceTotalsOut(BaseModel):
+    dueInPeriod: int
+    dueSoFar: int
+    completedOnTime: int
+    completedLate: int
+    overdueOpen: int
+    notYetDue: int
+    completionRate: float | None
+    onTimeRate: float | None
+    completedInPeriod: int
+
+
+class EmployeePerformanceOut(BaseModel):
+    period: PeriodOut
+    totals: PerformanceTotalsOut
+    members: list[PerformanceMemberOut]
+
+
 class ExecutiveSummaryOut(BaseModel):
     period: PeriodOut
     bucket: Literal["day", "week", "month", "year"]

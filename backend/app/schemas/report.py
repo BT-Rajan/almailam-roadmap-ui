@@ -78,14 +78,6 @@ class PaymentProjections(BaseModel):
     byService: list[ProjectionByService]
 
 
-class EmployeePerformance(BaseModel):
-    userId: str
-    employeeName: str
-    assigned: int
-    completed: int
-    completionRate: int
-
-
 class FinancialCurrencyBreakdown(BaseModel):
     currency: str
     totalReceived: float

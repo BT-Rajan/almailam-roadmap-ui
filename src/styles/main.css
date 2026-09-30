@@ -123,6 +123,8 @@
     --chart-series-3: #06b6d4;
     --chart-series-4: #8b5cf6;
     --chart-grid: theme('colors.neutral.200');
+    /* "Not yet / no outcome" segments: a quiet neutral, not a status. */
+    --chart-neutral: theme('colors.neutral.400');
   }
 
   .dark {
@@ -131,6 +133,7 @@
     --chart-series-3: #0891b2;
     --chart-series-4: #8b5cf6;
     --chart-grid: rgb(255 255 255 / 0.08);
+    --chart-neutral: theme('colors.neutral.500');
     --glass-border: rgb(255 255 255 / 0.1);
     --glass-highlight: rgb(255 255 255 / 0.07);
     --glass-sheen: linear-gradient(135deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%);

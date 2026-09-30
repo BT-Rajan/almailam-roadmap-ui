@@ -260,12 +260,35 @@ export interface PaymentProjections {
   byService: ProjectionByService[]
 }
 
-export interface EmployeePerformance {
+export interface PerformanceMember {
   userId: string
   employeeName: string
-  assigned: number
-  completed: number
-  completionRate: number
+  dueInPeriod: number
+  dueSoFar: number
+  completedOnTime: number
+  completedLate: number
+  overdueOpen: number
+  notYetDue: number
+  completionRate: number | null
+  onTimeRate: number | null
+  averageDaysLate: number | null
+  completedInPeriod: number
+}
+
+export interface EmployeePerformanceReport {
+  period: ReportPeriod
+  totals: {
+    dueInPeriod: number
+    dueSoFar: number
+    completedOnTime: number
+    completedLate: number
+    overdueOpen: number
+    notYetDue: number
+    completionRate: number | null
+    onTimeRate: number | null
+    completedInPeriod: number
+  }
+  members: PerformanceMember[]
 }
 
 export interface FinancialCurrencyBreakdown {
