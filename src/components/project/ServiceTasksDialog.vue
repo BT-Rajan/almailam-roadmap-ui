@@ -26,7 +26,7 @@ import type { Task, TaskStatus } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
 import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant } from '@/utils/projectHelpers'
 import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
-import { serviceLinkFields, taskBelongsTo, type ServiceRef } from '@/utils/serviceTaskLinks'
+import { isServiceClosed, serviceLinkFields, taskBelongsTo, type ServiceRef } from '@/utils/serviceTaskLinks'
 
 // Every task for one project service (a Design activity, Permit or
 // Supervision activity) -- or, with `service` null, the project's
@@ -42,13 +42,16 @@ import { serviceLinkFields, taskBelongsTo, type ServiceRef } from '@/utils/servi
 // (TaskDetails -- the same component TaskWorkspacePage.vue uses), with
 // a back link between them.
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   project: Project
   service: ServiceRef | null
   // Opens straight into this task's editor instead of the list.
   initialTaskId?: string
-}>()
+  // False hides quick-add (e.g. general tasks once the stage's phase is
+  // complete). A closed service hides it on its own -- see canAddTasks.
+  canAdd?: boolean
+}>(), { initialTaskId: undefined, canAdd: true })
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -84,6 +87,8 @@ const serviceStatusVariant = computed(() => {
     ? getSelectedActivityStatusVariant(props.service.status as Parameters<typeof getSelectedActivityStatusVariant>[0])
     : getSelectedPermitStatusVariant(props.service.status as Parameters<typeof getSelectedPermitStatusVariant>[0])
 })
+
+const canAddTasks = computed(() => props.canAdd && !isServiceClosed(props.service))
 
 const dialogTitle = computed(() => props.service?.name ?? t('project.serviceTasks.generalTitle'))
 const kindLabel = computed(() => (props.service ? t(KIND_LABEL_KEYS[props.service.kind]) : t('project.serviceTasks.generalSubtitle')))
@@ -384,8 +389,11 @@ watch(
           </li>
         </ul>
 
+        <p v-if="!canAddTasks" class="rounded-xl border border-border-light px-3 py-2.5 text-xs text-text-muted">
+          {{ service ? t('project.tasksTab.serviceClosedNoTasks') : t('project.tasksTab.phaseCompleteNoTasks') }}
+        </p>
         <!-- Quick add: linked to this same service, so it lands right here. -->
-        <form class="flex flex-col gap-3 rounded-xl border border-border-light bg-bg-card p-3" @submit.prevent="addTask">
+        <form v-else class="flex flex-col gap-3 rounded-xl border border-border-light bg-bg-card p-3" @submit.prevent="addTask">
           <TextInput
             ref="titleInputRef"
             v-model="quickAdd.title"

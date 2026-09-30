@@ -107,3 +107,34 @@ describe('ProjectOverviewTab -- Design activity with its own auto-created task',
     expect(w.text()).toContain('Complete all tasks linked to this activity')
   })
 })
+
+describe('ProjectOverviewTab -- completed Design phase', () => {
+  it('disables Add task on a closed activity, and New Task once every activity is closed', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().$patch({ accessToken: 'token', user: testUser('Administrator'), hasHydrated: true })
+    const project = {
+      ...fixture.project,
+      selectedActivities: [
+        { id: '11', activityId: 'A1', activityName: 'Architectural Design', status: 'Complete' },
+        { id: '12', activityId: 'A2', activityName: 'Sanitary', status: 'In Progress' },
+      ],
+    } as Project
+    vi.spyOn(useTaskStore(), 'loadTasksForProject').mockResolvedValue()
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
+    const w = mount(ProjectOverviewTab, {
+      props: { project, client: undefined, stageContext: 'Design' },
+      global: { plugins: [pinia, i18n, router], stubs: { teleport: true } },
+    })
+    await settleFor(60)
+    const buttons = (label: string) => w.findAll('button').filter((b) => b.text() === label)
+    const [closedAdd, openAdd] = buttons('Add task')
+    expect(closedAdd.attributes('disabled')).toBeDefined()
+    expect(openAdd.attributes('disabled')).toBeUndefined()
+    expect(buttons('New Task')[0].attributes('disabled')).toBeUndefined()
+
+    await w.setProps({ project: { ...project, selectedActivities: project.selectedActivities!.map((a) => ({ ...a, status: 'Complete' })) } })
+    expect(buttons('New Task')[0].attributes('disabled')).toBeDefined()
+    expect(buttons('Add task').every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+  })
+})

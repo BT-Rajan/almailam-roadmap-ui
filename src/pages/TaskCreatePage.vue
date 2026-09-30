@@ -19,7 +19,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
-import { projectServices, serviceKey, serviceLinkFields, type ServiceKind } from '@/utils/serviceTaskLinks'
+import { isServiceClosed, projectServices, serviceKey, serviceLinkFields, type ServiceKind } from '@/utils/serviceTaskLinks'
 import { validators } from '@/utils/validators'
 
 // Dedicated route (/tasks/new) for creating a task, used from TasksPage,
@@ -124,7 +124,10 @@ const SERVICE_KIND_LABEL_KEYS: Record<ServiceKind, string> = {
   permit: 'project.serviceTasks.kind.permit',
   supervision: 'project.serviceTasks.kind.supervision',
 }
-const projectServiceRefs = computed(() => (selectedProject.value ? projectServices(selectedProject.value) : []))
+// Closed (Complete/Cancelled) services take no new tasks -- see isServiceClosed.
+const projectServiceRefs = computed(() =>
+  (selectedProject.value ? projectServices(selectedProject.value) : []).filter((service) => !isServiceClosed(service)),
+)
 const serviceOptions = computed<SelectOption[]>(() =>
   projectServiceRefs.value.map((service) => ({
     label: `${service.name} (${t(SERVICE_KIND_LABEL_KEYS[service.kind])})`,

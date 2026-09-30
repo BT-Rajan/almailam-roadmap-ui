@@ -69,7 +69,13 @@ def _resolve_service_link(db: Session, project_id: int, payload) -> tuple[str | 
     stage_type, raw_id, getter = given[0]
     if not str(raw_id).isdigit():
         raise ValidationAppError("The linked service id must be a valid id.")
-    return stage_type, getter(db, project_id, int(raw_id)).id
+    service = getter(db, project_id, int(raw_id))
+    if service.status in ("Complete", "Cancelled"):
+        # A closed service takes no new work -- reopen it first. (Adding
+        # an open task here would also silently contradict its closed
+        # status: the "all linked tasks done" auto-close already ran.)
+        raise ValidationAppError(f"This service is {service.status.lower()} -- reopen it before adding tasks.")
+    return stage_type, service.id
 
 
 TASK_SORTABLE_FIELDS = {
