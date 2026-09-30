@@ -16,6 +16,8 @@ import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import HandoverCard from '@/components/project/HandoverCard.vue'
+import ServiceTaskLink from '@/components/project/ServiceTaskLink.vue'
+import ServiceTasksDialog from '@/components/project/ServiceTasksDialog.vue'
 import { usePagination } from '@/composables/usePagination'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
@@ -43,6 +45,7 @@ import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStageVariant } from '@/utils/submissionHelpers'
+import { projectServices, serviceKey, taskProgressByService, type ServiceKind, type ServiceRef } from '@/utils/serviceTaskLinks'
 import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
 
 const props = defineProps<{
@@ -127,6 +130,25 @@ function loadProjectTasks(): void {
 }
 onMounted(loadProjectTasks)
 watch(() => props.project.id, loadProjectTasks)
+
+// Clicking a service's name opens its tasks in a modal over this tab
+// (ServiceTasksDialog.vue) -- system-created and hand-added tasks in
+// one list -- instead of sending staff off to the Tasks tab / task page
+// and back. The ServiceRef is re-resolved from the live project so its
+// status badge follows along as tasks close it out.
+const serviceTaskProgress = computed(() => taskProgressByService(taskStore.tasksByProject(props.project.id)))
+const isServiceTasksOpen = ref(false)
+const activeServiceKey = ref<string>()
+const activeService = computed<ServiceRef | null>(
+  () => projectServices(props.project).find((service) => serviceKey(service.kind, service.id) === activeServiceKey.value) ?? null,
+)
+function openServiceTasks(kind: ServiceKind, id: string): void {
+  activeServiceKey.value = serviceKey(kind, id)
+  isServiceTasksOpen.value = true
+}
+async function handleServiceTasksChanged(): Promise<void> {
+  await handoverCardRef.value?.reload()
+}
 
 const isAddClosureDocDialogOpen = ref(false)
 function openAddClosureDocDialog(): void {
@@ -839,7 +861,13 @@ function verificationResultLabel(result: string): string {
               class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+                <ServiceTaskLink
+                  v-if="activity.id"
+                  :name="activity.activityName"
+                  :progress="serviceTaskProgress[serviceKey('design', activity.id)]"
+                  @open="openServiceTasks('design', activity.id)"
+                />
+                <span v-else class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
                 <div class="flex items-center gap-2">
                   <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
                   <template v-if="activity.id">
@@ -862,9 +890,14 @@ function verificationResultLabel(result: string): string {
                         :disabled="!canMarkComplete('design', activity.id)"
                         @click="closeDesignActivity(activity.id, 'Complete')"
                       >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                      <p v-if="!designActivityTasksComplete(activity.id)" class="text-xs text-text-muted no-print">
+                      <button
+                        v-if="!designActivityTasksComplete(activity.id)"
+                        type="button"
+                        class="text-start text-xs text-text-muted underline-offset-2 no-print hover:text-primary-600 hover:underline"
+                        @click="openServiceTasks('design', activity.id)"
+                      >
                         {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
-                      </p>
+                      </button>
                       <div v-else-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
                         <label class="inline-flex items-center gap-1.5 text-text-muted">
                           <input
@@ -923,7 +956,11 @@ function verificationResultLabel(result: string): string {
               class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
+                <ServiceTaskLink
+                  :name="permit.permitName"
+                  :progress="serviceTaskProgress[serviceKey('permit', permit.id)]"
+                  @open="openServiceTasks('permit', permit.id)"
+                />
                 <div class="flex items-center gap-2">
                   <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
                   <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
@@ -1027,7 +1064,13 @@ function verificationResultLabel(result: string): string {
           >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="flex flex-col gap-0.5 truncate">
-                <span class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
+                <ServiceTaskLink
+                  v-if="activity.id"
+                  :name="activity.activityName"
+                  :progress="serviceTaskProgress[serviceKey('supervision', activity.id)]"
+                  @open="openServiceTasks('supervision', activity.id)"
+                />
+                <span v-else class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
                 <span class="text-xs text-text-muted">
                   {{ formatDate(activity.startDate) }} – {{ formatDate(activity.endDate) }}
                 </span>
@@ -1154,7 +1197,11 @@ function verificationResultLabel(result: string): string {
               class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <span class="truncate text-sm text-text-secondary">{{ permit.permitName }}</span>
+                <ServiceTaskLink
+                  :name="permit.permitName"
+                  :progress="serviceTaskProgress[serviceKey('permit', permit.id)]"
+                  @open="openServiceTasks('permit', permit.id)"
+                />
                 <div class="flex items-center gap-2">
                   <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
                   <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
@@ -1289,6 +1336,13 @@ function verificationResultLabel(result: string): string {
       :forms="fillDialogForm ? [fillDialogForm] : []"
     />
     <DocumentPreviewDialog v-model="isPreviewOpen" :document-id="previewDocumentId" />
+    <ServiceTasksDialog
+      v-model="isServiceTasksOpen"
+      :project="project"
+      :service="activeService"
+      @changed="handleServiceTasksChanged"
+    />
+
     <AddLinkDocumentDialog
       v-model="isAddClosureDocDialogOpen"
       :project-id="project.id"
