@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -11,7 +11,8 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { ApiError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
-import { usePaymentStore } from '@/stores/paymentStore'
+import { paymentService, type AgreementsOverview } from '@/services/paymentService'
+import { describeStoreError } from '@/utils/storeError'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getObligationStatusVariant } from '@/utils/paymentHelpers'
@@ -19,7 +20,14 @@ import type { AgreementStream, ObligationStatus } from '@/types/Payment'
 import type { SmartTableColumn } from '@/types/Table'
 
 const router = useRouter()
-const store = usePaymentStore()
+// Rows and totals come ready-computed from the server (one request) --
+// not every agreement, instalment, project and client downloaded and
+// added up here.
+const overview = ref<AgreementsOverview>()
+const isLoading = ref(false)
+const loadError = ref<string>()
+const totals = computed(() => overview.value?.totals ?? { contractAmount: 0, totalReceived: 0, totalPending: 0, totalOverdue: 0 })
+const currencyById = computed(() => new Map((overview.value?.rows ?? []).map((row) => [row.id, row.currency])))
 const authStore = useAuthStore()
 const { t } = useI18n()
 
@@ -53,26 +61,29 @@ const COLUMNS = computed<SmartTableColumn<AgreementTableRow>[]>(() => [
 ])
 
 const rows = computed<AgreementTableRow[]>(() =>
-  store.filteredAgreementRows.map(({ agreement, project, client, summary }) => {
-    const nextPaymentStatus: ObligationStatus = !summary.nextPaymentObligation ? 'Paid' : summary.nextPaymentIsOverdue ? 'Overdue' : 'Scheduled'
+  (overview.value?.rows ?? []).map((row) => {
+    const hasNext = row.nextPaymentDueDate !== null
+    const nextPaymentStatus: ObligationStatus = !hasNext ? 'Paid' : row.nextPaymentIsOverdue ? 'Overdue' : 'Scheduled'
     return {
-      id: agreement.id,
-      projectId: agreement.projectId,
-      projectName: project?.projectName ?? t('project.unknownProject'),
-      stream: agreement.stream,
-      clientName: client?.companyName ?? t('project.unknownClient'),
-      contractAmount: summary.contractAmount,
-      totalReceived: summary.totalReceived,
-      totalPending: summary.totalPending,
-      totalOverdue: summary.totalOverdue,
-      nextPaymentAmount: summary.nextPaymentObligation
-        ? formatCurrency(summary.nextPaymentObligation.amountDue - summary.nextPaymentObligation.amountReceived, agreement.currency)
-        : '—',
-      nextPaymentDate: summary.nextPaymentObligation ? formatDate(summary.nextPaymentObligation.dueDate) : '—',
+      id: row.id,
+      projectId: row.projectId,
+      projectName: row.projectName || t('project.unknownProject'),
+      stream: row.stream,
+      clientName: row.clientName || t('project.unknownClient'),
+      contractAmount: row.contractAmount,
+      totalReceived: row.totalReceived,
+      totalPending: row.totalPending,
+      totalOverdue: row.totalOverdue,
+      nextPaymentAmount: hasNext ? formatCurrency(row.nextPaymentAmount ?? 0, row.currency) : '—',
+      nextPaymentDate: row.nextPaymentDueDate ? formatDate(row.nextPaymentDueDate) : '—',
       nextPaymentStatus,
     }
   }),
 )
+
+function currencyOf(row: AgreementTableRow): string {
+  return currencyById.value.get(row.id) ?? 'KWD'
+}
 
 function goToProjectPayments(row: AgreementTableRow): void {
   // Opening a project always lands on Workflow Progress Stage 1
@@ -82,9 +93,12 @@ function goToProjectPayments(row: AgreementTableRow): void {
 }
 
 async function loadData(): Promise<void> {
+  isLoading.value = true
+  loadError.value = undefined
   try {
-    await store.loadAll()
+    overview.value = await paymentService.getAgreementsOverview()
   } catch (error) {
+    loadError.value = describeStoreError('Unable to load payments. Please try again.', error)
     // Mirrors useIdleLogout: httpClient already retried and logged
     // authStore out by the time a 401 gets here, so
     // this is a real expired session, not a transient failure -- bounce
@@ -94,6 +108,8 @@ async function loadData(): Promise<void> {
       authStore.logoutReason = 'Your session has expired. Please sign in again.'
       await router.push({ name: ROUTE_NAMES.LOGIN })
     }
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -127,20 +143,20 @@ onMounted(loadData)
     <PageHeader :title="t('payment.paymentsPage.title')" :subtitle="t('payment.paymentsPage.subtitle')" />
 
     <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
-      <InfoPanel :label="t('payment.paymentsPage.totalContractValue')" :value="formatCurrency(store.portfolioSummary.contractAmount, 'KWD')" color="primary" />
-      <InfoPanel :label="t('payment.paymentsPage.totalReceived')" :value="formatCurrency(store.portfolioSummary.totalReceived, 'KWD')" color="success" />
-      <InfoPanel :label="t('payment.paymentsPage.totalPending')" :value="formatCurrency(store.portfolioSummary.totalPending, 'KWD')" color="warning" />
-      <InfoPanel :label="t('payment.paymentsPage.totalOverdue')" :value="formatCurrency(store.portfolioSummary.totalOverdue, 'KWD')" :color="store.portfolioSummary.totalOverdue > 0 ? 'danger' : 'neutral'" />
+      <InfoPanel :label="t('payment.paymentsPage.totalContractValue')" :value="formatCurrency(totals.contractAmount, 'KWD')" color="primary" />
+      <InfoPanel :label="t('payment.paymentsPage.totalReceived')" :value="formatCurrency(totals.totalReceived, 'KWD')" color="success" />
+      <InfoPanel :label="t('payment.paymentsPage.totalPending')" :value="formatCurrency(totals.totalPending, 'KWD')" color="warning" />
+      <InfoPanel :label="t('payment.paymentsPage.totalOverdue')" :value="formatCurrency(totals.totalOverdue, 'KWD')" :color="totals.totalOverdue > 0 ? 'danger' : 'neutral'" />
     </div>
 
-    <ErrorState v-if="store.error" :description="store.error" @retry="loadData" />
+    <ErrorState v-if="loadError" :description="loadError" @retry="loadData" />
 
     <SmartTable
       v-else
       :columns="COLUMNS"
       :rows="rows"
       row-key="id"
-      :loading="store.isLoading"
+      :loading="isLoading"
       :searchable="false"
       :empty-title="t('payment.paymentsPage.emptyTitle')"
       :empty-description="t('payment.paymentsPage.emptyDescription')"
@@ -150,17 +166,17 @@ onMounted(loadData)
         <StatusBadge :label="streamLabel(value as string)" :variant="(value as string) === 'Supervision' ? 'info' : 'neutral'" />
       </template>
       <template #cell-contractAmount="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, currencyOf(row as AgreementTableRow)) }}
       </template>
       <template #cell-totalReceived="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, currencyOf(row as AgreementTableRow)) }}
       </template>
       <template #cell-totalPending="{ row, value }">
-        {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
+        {{ formatCurrency(value as number, currencyOf(row as AgreementTableRow)) }}
       </template>
       <template #cell-totalOverdue="{ row, value }">
         <span :class="(value as number) > 0 ? 'font-semibold text-danger-600' : ''">
-          {{ formatCurrency(value as number, store.getAgreementByProject((row as AgreementTableRow).projectId, (row as AgreementTableRow).stream)?.currency ?? 'KWD') }}
+          {{ formatCurrency(value as number, currencyOf(row as AgreementTableRow)) }}
         </span>
       </template>
       <template #cell-nextPaymentAmount="{ row }">

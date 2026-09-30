@@ -384,7 +384,43 @@ async function waiveObligation(obligationId: string, reason: string, _user: stri
   }
 }
 
+export interface AgreementOverviewRow {
+  id: string
+  projectId: string
+  projectName: string
+  clientName: string
+  stream: AgreementStream
+  currency: string
+  contractAmount: number
+  totalReceived: number
+  totalPending: number
+  totalOverdue: number
+  nextPaymentAmount: number | null
+  nextPaymentDueDate: string | null
+  nextPaymentIsOverdue: boolean
+}
+
+export interface AgreementsOverview {
+  totals: { contractAmount: number; totalReceived: number; totalPending: number; totalOverdue: number }
+  rows: AgreementOverviewRow[]
+}
+
+/**
+ * Every agreement with its balances computed by the server, plus the
+ * portfolio totals (backend payment_service.agreements_overview) -- the
+ * Payments page no longer downloads every instalment, project and client
+ * to add these up itself.
+ */
+async function getAgreementsOverview(): Promise<AgreementsOverview> {
+  try {
+    return await apiClient.get<AgreementsOverview>('/api/financial-agreements/overview')
+  } catch (error) {
+    throw asError(error, 'Failed to fetch payments')
+  }
+}
+
 export const paymentService = {
+  getAgreementsOverview,
   getFinancialAgreements,
   getAgreementByProject,
   getObligations,

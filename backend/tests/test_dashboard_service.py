@@ -160,6 +160,21 @@ class DashboardServiceTest(unittest.TestCase):
         row = result["overdueAgreements"][0]
         self.assertEqual((row["projectId"], row["client"], row["overdueAmount"]), ("P1", "Acme", 200.0))
 
+    def test_payments_overview(self):
+        from app.services import payment_service
+
+        result = payment_service.agreements_overview(self.db)
+        self.assertEqual(result["totals"]["totalPending"], 400.0)
+        self.assertEqual(result["totals"]["totalOverdue"], 200.0)
+        self.assertEqual(result["totals"]["totalReceived"], 100.0)
+        self.assertEqual(result["totals"]["contractAmount"], 1000.0)
+        (row,) = result["rows"]
+        self.assertEqual((row["projectId"], row["projectName"], row["clientName"]), ("P1", "Project P1", "Acme"))
+        # Next payment = earliest unsettled, non-waived instalment: #1, 200 left, past due.
+        self.assertEqual(row["nextPaymentAmount"], 200.0)
+        self.assertEqual(row["nextPaymentDueDate"], (TODAY - timedelta(days=10)).isoformat())
+        self.assertTrue(row["nextPaymentIsOverdue"])
+
     def test_queries_do_not_grow_with_rows(self):
         """Each tab is a fixed number of queries -- nothing per row."""
         from sqlalchemy import event
