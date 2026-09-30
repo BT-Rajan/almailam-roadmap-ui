@@ -17,8 +17,14 @@ from app.schemas.report import (
     ReportSection,
     TeamWorkload,
 )
-from app.schemas.report_period import ExecutiveSummaryOut
-from app.services import client_service, executive_report_service, project_service, report_service
+from app.schemas.report_period import ExecutiveSummaryOut, ProjectPerformanceOut
+from app.services import (
+    client_service,
+    executive_report_service,
+    project_report_service,
+    project_service,
+    report_service,
+)
 from app.services.report_period import Period, make_period
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -34,6 +40,24 @@ def period_query(startDate: date, endDate: date) -> Period:
 @router.get("/executive", response_model=ExecutiveSummaryOut)
 def executive(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
     return executive_report_service.executive_summary(db, period)
+
+
+@router.get("/project-performance/{project_no}", response_model=ProjectPerformanceOut)
+def project_performance(
+    project_no: str,
+    period: Period = Depends(period_query),
+    db: Session = Depends(get_db),
+    current_user=Depends(can_view),
+):
+    project = project_service.get_project(db, project_no)
+    # Same freshening as GET /api/projects/{project_no}: this report is
+    # often opened for a project whose stage/progress hasn't been
+    # recomputed since it last changed.
+    project_service.try_auto_advance_stage(db, project, current_user.id)
+    project_service.recompute_progress(db, project)
+    db.commit()
+    db.refresh(project)
+    return project_report_service.project_performance(db, project, period)
 
 
 @router.get("/summary", response_model=list[ReportMetric])

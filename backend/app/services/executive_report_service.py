@@ -10,7 +10,7 @@ minus amount received; cancelled/waived obligations excluded).
 
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Integer, case, column, func, text
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.kuwait_time import kuwait_today
@@ -20,29 +20,12 @@ from app.models.payment import FinancialAgreement, Payment, PaymentObligation, R
 from app.models.project import Project
 from app.models.task import Task
 from app.services import company_service
+from app.services.report_common import completions as _completions
+from app.services.report_common import money as _money
 from app.services.report_period import Period, bucketer, buckets, granularity, kuwait_date
 
 TOP_CLIENTS_LIMIT = 10
 SIGNED_CONTRACT_STATUSES = ("Signed", "Active", "Expired", "Terminated")
-
-
-def _money(value) -> float:
-    return float(Decimal(str(value or 0)).quantize(Decimal("0.01")))
-
-
-def _completions(db: Session, entity_type: str, period: Period) -> dict[int, object]:
-    """entity id -> its latest completion time within the period, from the
-    audit log (every path that completes a task or project writes a row
-    whose new_value is 'Completed')."""
-    rows = db.execute(
-        text(
-            "SELECT entity_id, MAX(changed_at) AS completed_at FROM audit_log "
-            "WHERE entity_type = :entity_type AND new_value = 'Completed' "
-            "AND changed_at >= :start AND changed_at < :end GROUP BY entity_id"
-        ).columns(column("entity_id", Integer), column("completed_at", DateTime)),
-        {"entity_type": entity_type, "start": period.utc_start, "end": period.utc_end_exclusive},
-    ).all()
-    return {entity_id: completed_at for entity_id, completed_at in rows}
 
 
 def executive_summary(db: Session, period: Period) -> dict:

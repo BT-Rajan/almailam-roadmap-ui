@@ -4,12 +4,12 @@ import type {
   ClientWithProjects,
   EmployeePerformance,
   ExecutiveSummary,
+  ProjectPerformance,
   FinancialPeriodSummary,
   PaymentLedgerEntry,
   PaymentProjections,
   PaymentsReceivedByMonth,
   ReportMetric,
-  ReportSection,
   TeamWorkload,
 } from '@/types/Report'
 import type { DateRange } from '@/utils/reportRange'
@@ -57,10 +57,6 @@ async function getPaymentsReceivedByMonth(months = 6): Promise<PaymentsReceivedB
   return apiClient.get<PaymentsReceivedByMonth>(`/api/reports/payments-received-by-month?months=${months}`)
 }
 
-async function getProjectReport(projectNo: string): Promise<ReportSection[]> {
-  return apiClient.get<ReportSection[]>(`/api/reports/projects/${projectNo}`)
-}
-
 async function getClientsWithProjects(): Promise<ClientWithProjects[]> {
   return apiClient.get<ClientWithProjects[]>('/api/reports/clients-projects')
 }
@@ -103,6 +99,10 @@ async function getExecutiveSummary(range: DateRange): Promise<ExecutiveSummary> 
   return apiClient.get<ExecutiveSummary>(`/api/reports/executive?${periodQuery(range)}`)
 }
 
+async function getProjectPerformance(projectNo: string, range: DateRange): Promise<ProjectPerformance> {
+  return apiClient.get<ProjectPerformance>(`/api/reports/project-performance/${encodeURIComponent(projectNo)}?${periodQuery(range)}`)
+}
+
 export const reportService = {
   getSummary,
   getProjectsByStatus,
@@ -113,7 +113,6 @@ export const reportService = {
   getContractsByStatus,
   getDocumentsByStatus,
   getPaymentsReceivedByMonth,
-  getProjectReport,
   getClientsWithProjects,
   getPaymentLedger,
   getPaymentProjections,
@@ -121,4 +120,5 @@ export const reportService = {
   getFinancialSummary,
   getTeamWorkload,
   getExecutiveSummary,
+  getProjectPerformance,
 }

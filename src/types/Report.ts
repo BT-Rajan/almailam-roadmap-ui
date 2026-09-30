@@ -48,6 +48,49 @@ export interface ExecutiveSummary {
   topClients: { clientName: string; received: number; payments: number }[]
 }
 
+export type ScheduleHealth = 'on-track' | 'at-risk' | 'late' | 'completed' | 'cancelled' | 'on-hold'
+
+export interface ProjectPerformance {
+  period: ReportPeriod
+  bucket: ReportBucket
+  project: { projectNo: string; projectName: string; clientName: string; engineer: string; status: string; currentStage: string }
+  schedule: {
+    startDate: string
+    targetDate: string
+    totalDays: number
+    timeElapsedPercent: number
+    progressPercent: number
+    daysToTarget: number
+    health: ScheduleHealth
+  }
+  tasks: {
+    byStatus: { label: string; value: number }[]
+    total: number
+    open: number
+    overdue: number
+    completedInPeriod: number
+    onTimeRate: number | null
+    overdueList: { taskNo: string; title: string; assignee: string; dueDate: string; daysLate: number }[]
+  }
+  money: {
+    streams: {
+      stream: string
+      currency: string
+      contractAmount: number
+      received: number
+      outstanding: number
+      overdue: number
+      receivedInPeriod: number
+      billedInPeriod: number
+    }[]
+    chartCurrency: string | null
+    cashFlow: { categories: string[]; received: number[]; billed: number[] }
+    upcoming: { stream: string; description: string; dueDate: string; amountDue: number; outstanding: number; currency: string; overdue: boolean }[]
+  }
+  documents: { label: string; value: number }[]
+  submissions: { label: string; value: number }[]
+}
+
 export interface PaymentsReceivedByMonth {
   currency: string
   series: LineChartData[]

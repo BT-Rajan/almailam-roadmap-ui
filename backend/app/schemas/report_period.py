@@ -55,6 +55,82 @@ class TopClientOut(BaseModel):
     payments: int
 
 
+class ProjectInfoOut(BaseModel):
+    projectNo: str
+    projectName: str
+    clientName: str
+    engineer: str
+    status: str
+    currentStage: str
+
+
+class ScheduleOut(BaseModel):
+    startDate: str
+    targetDate: str
+    totalDays: int
+    timeElapsedPercent: float
+    progressPercent: int
+    daysToTarget: int
+    health: Literal["on-track", "at-risk", "late", "completed", "cancelled", "on-hold"]
+
+
+class OverdueTaskOut(BaseModel):
+    taskNo: str
+    title: str
+    assignee: str
+    dueDate: str
+    daysLate: int
+
+
+class ProjectTasksOut(BaseModel):
+    byStatus: list[LabelValueOut]
+    total: int
+    open: int
+    overdue: int
+    completedInPeriod: int
+    onTimeRate: float | None
+    overdueList: list[OverdueTaskOut]
+
+
+class StreamMoneyOut(BaseModel):
+    stream: str
+    currency: str
+    contractAmount: float
+    received: float
+    outstanding: float
+    overdue: float
+    receivedInPeriod: float
+    billedInPeriod: float
+
+
+class UpcomingInstalmentOut(BaseModel):
+    stream: str
+    description: str
+    dueDate: str
+    amountDue: float
+    outstanding: float
+    currency: str
+    overdue: bool
+
+
+class ProjectMoneyOut(BaseModel):
+    streams: list[StreamMoneyOut]
+    chartCurrency: str | None
+    cashFlow: CashFlowOut
+    upcoming: list[UpcomingInstalmentOut]
+
+
+class ProjectPerformanceOut(BaseModel):
+    period: PeriodOut
+    bucket: Literal["week", "month", "year"]
+    project: ProjectInfoOut
+    schedule: ScheduleOut
+    tasks: ProjectTasksOut
+    money: ProjectMoneyOut
+    documents: list[LabelValueOut]
+    submissions: list[LabelValueOut]
+
+
 class ExecutiveSummaryOut(BaseModel):
     period: PeriodOut
     bucket: Literal["week", "month", "year"]
