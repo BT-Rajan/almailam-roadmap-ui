@@ -3,8 +3,10 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
@@ -42,6 +44,7 @@ from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
 from app.core.config import get_settings
+from app.core.database import engine
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 
@@ -109,7 +112,14 @@ app.include_router(status_reports_router)
 
 
 @app.get("/api/health")
-def health_check() -> dict:
+def health_check():
+    """Up AND able to reach the database -- install.sh fails a deploy on
+    anything else. 503 (not 500) so it reads as "not ready"."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content={"status": "database unavailable", "env": settings.ENV})
     return {"status": "ok", "env": settings.ENV}
 
 
