@@ -22,7 +22,7 @@ const { t } = useI18n()
 // Counts, the newest projects, the soonest-due open tasks and the latest
 // documents all come ready-made from one server request -- this tab no
 // longer downloads every project, task and document to count them.
-const { data, error, reload } = useDashboardData(dashboardService.getProjects)
+const { data, error, isStale, reload } = useDashboardData('projects', dashboardService.getProjects)
 
 const statistics = computed<StatisticItem[]>(() => [
   { id: 'total', label: t('dashboard.totalProjects'), value: data.value?.total ?? 0, icon: Layers, color: 'primary' },
@@ -98,6 +98,10 @@ function handleKpiClick(): void {
 <template>
   <ErrorState v-if="error" :description="error" @retry="reload" />
   <div v-else class="space-y-6">
+    <p v-if="isStale" class="flex flex-wrap items-center gap-2 text-xs text-text-muted" role="status">
+      {{ t('dashboard.staleNotice') }}
+      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="reload">{{ t('dashboard.retry') }}</button>
+    </p>
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-3 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleKpiClick" />
     </div>

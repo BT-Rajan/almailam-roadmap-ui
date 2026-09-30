@@ -6,6 +6,8 @@ export default {
   greetingEvening: 'Good evening{name}',
   tabsAriaLabel: 'Dashboard sections',
   clientsTab: 'Clients',
+  staleNotice: "Couldn't refresh -- showing figures from your last visit.",
+  retry: 'Retry',
   projectsTab: 'Projects',
   deadlinesTab: 'Deadlines',
   financialsTab: 'Financials',

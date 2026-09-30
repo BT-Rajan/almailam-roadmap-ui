@@ -4,6 +4,18 @@ import Sidebar from '@/components/navigation/Sidebar.vue'
 import TopNavigation from '@/components/navigation/TopNavigation.vue'
 import PageFooter from '@/components/common/PageFooter.vue'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
+import { onMounted } from 'vue'
+
+// The Dashboard is where everyone lands and returns to, but its page code
+// is loaded on demand (router) to keep first loads small. Fetch it in the
+// background once any signed-in page is up, so opening the Dashboard later
+// doesn't wait on a download. Same module the router imports -- this only
+// warms it.
+onMounted(() => {
+  const warm = () => void import('@/pages/DashboardPage.vue').catch(() => undefined)
+  if ('requestIdleCallback' in window) window.requestIdleCallback(warm, { timeout: 2000 })
+  else setTimeout(warm, 500)
+})
 </script>
 
 <template>

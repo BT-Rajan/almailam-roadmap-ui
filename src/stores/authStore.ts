@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { authService, type CurrentUser, type ProfileUpdatePayload } from '@/services/authService'
 import { ApiError } from '@/services/httpClient'
+import { clearDashboardCache } from '@/utils/dashboardCache'
 import { broadcastLogout, withRefreshLock } from '@/utils/sessionSync'
 
 // Renew the access token this long before it expires rather than waiting
@@ -220,6 +221,9 @@ export const useAuthStore = defineStore('auth', {
       cancelProactiveRefresh()
       this.accessToken = null
       this.user = null
+      // Every way a session ends lands here -- saved Dashboard figures
+      // (incl. Financials) must not outlive it.
+      clearDashboardCache()
     },
 
     _scheduleProactiveRefresh(accessToken: string) {
