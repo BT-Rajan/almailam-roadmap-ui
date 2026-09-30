@@ -9,7 +9,7 @@ from app.models.client import Client
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.payment import FinancialAgreement, Payment, PaymentObligation
+from app.models.payment import FinancialAgreement, Payment, PaymentObligation, Refund
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
@@ -202,8 +202,9 @@ def payment_ledger(
         {c.id: c.company_name for c in db.query(Client).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
     )
 
-    return [
+    entries = [
         {
+            "entryType": "Payment",
             "paymentNo": f"PMT-{payment.id:03d}",
             "date": payment.payment_date.isoformat(),
             "projectNo": project.project_no,
@@ -218,6 +219,42 @@ def payment_ledger(
         }
         for payment, project, agreement in rows
     ]
+
+    # Money paid back is part of the record too: each refund is a negative
+    # row, so the ledger's total is what was actually kept.
+    refund_query = (
+        db.query(Refund, Project, FinancialAgreement)
+        .join(FinancialAgreement, Refund.agreement_id == FinancialAgreement.id)
+        .join(Project, FinancialAgreement.project_id == Project.id)
+    )
+    refund_query = _ledger_project_client_filter(refund_query, project_no, client_id)
+    if start_date:
+        refund_query = refund_query.filter(Refund.refund_date >= start_date)
+    if end_date:
+        refund_query = refund_query.filter(Refund.refund_date <= end_date)
+    refund_rows = refund_query.all()
+    missing_clients = {project.client_id for _, project, _ in refund_rows} - client_names.keys()
+    if missing_clients:
+        client_names.update({c.id: c.company_name for c in db.query(Client).filter(Client.id.in_(missing_clients))})
+    entries.extend(
+        {
+            "entryType": "Refund",
+            "paymentNo": f"RFD-{refund.id:03d}",
+            "date": refund.refund_date.isoformat(),
+            "projectNo": project.project_no,
+            "projectName": project.project_name,
+            "clientName": client_names.get(project.client_id, ""),
+            "service": agreement.stream,
+            "amount": -float(refund.refund_amount),
+            "currency": agreement.currency,
+            "mode": "Refund",
+            "reference": refund.reference or refund.reason,
+            "payer": "",
+        }
+        for refund, project, agreement in refund_rows
+    )
+    entries.sort(key=lambda entry: (entry["date"], entry["paymentNo"]), reverse=True)
+    return entries
 
 
 def _outstanding_obligations_query(db: Session, project_no: str | None, client_id: int | None):
@@ -250,7 +287,9 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
     work, would silently add incompatible amounts together."""
     rows = _outstanding_obligations_query(db, project_no, client_id).all()
 
+    today = kuwait_today()
     by_month: dict[tuple[str, str], float] = {}
+    overdue_by_month: dict[tuple[str, str], float] = {}
     by_project: dict[tuple[str, str], dict] = {}
     by_service: dict[tuple[str, str], float] = {}
 
@@ -259,6 +298,8 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
         currency = agreement.currency
         month_key = obligation.due_date.strftime("%Y-%m")
         by_month[(month_key, currency)] = by_month.get((month_key, currency), 0.0) + outstanding
+        if obligation.due_date < today:
+            overdue_by_month[(month_key, currency)] = overdue_by_month.get((month_key, currency), 0.0) + outstanding
 
         project_key = (project.project_no, currency)
         project_entry = by_project.setdefault(
@@ -272,7 +313,7 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
 
     return {
         "byMonth": [
-            {"month": month, "currency": currency, "amount": amount}
+            {"month": month, "currency": currency, "amount": amount, "overdue": overdue_by_month.get((month, currency), 0.0)}
             for (month, currency), amount in sorted(by_month.items())
         ],
         "byProject": sorted(by_project.values(), key=lambda entry: (entry["projectNo"], entry["currency"])),

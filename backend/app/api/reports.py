@@ -122,6 +122,8 @@ def payment_ledger(
     _=Depends(can_view),
 ):
     resolved_client_id = client_service.parse_client_id(clientId) if clientId else None
+    if startDate and endDate:
+        make_period(startDate, endDate)  # same validation as every other period
     return report_service.payment_ledger(db, projectNo, resolved_client_id, startDate, endDate)
 
 

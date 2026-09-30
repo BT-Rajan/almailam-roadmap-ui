@@ -38,6 +38,7 @@ class ReportSection(BaseModel):
 
 
 class PaymentLedgerEntry(BaseModel):
+    entryType: str = "Payment"
     paymentNo: str
     date: str
     projectNo: str
@@ -55,6 +56,7 @@ class ProjectionByMonth(BaseModel):
     month: str
     currency: str
     amount: float
+    overdue: float = 0
 
 
 class ProjectionByProject(BaseModel):

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
+from app.models.client import Client
 from app.core.file_storage import format_file_size
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.user import User
@@ -84,6 +85,15 @@ def find_duplicates(payload: ClientDuplicateCheckRequest, db: Session = Depends(
         ClientDuplicateMatchOut(client=_client_out(m["client"], names), matchedOn=m["matchedOn"])
         for m in matches
     ]
+
+
+@router.get("/options")
+def list_client_options(db: Session = Depends(get_db), _=Depends(can_view)) -> list[dict]:
+    """Just id + name of every live client, for report filters -- instead
+    of downloading every full client record to fill one dropdown. Declared
+    before /{client_id} so "options" isn't taken as a client id."""
+    rows = db.query(Client.id, Client.company_name).filter(Client.deleted_at.is_(None)).order_by(Client.company_name.asc()).all()
+    return [{"id": f"CLT-{client_id:03d}", "name": name} for client_id, name in rows]
 
 
 @router.get("/{client_id}/duplicate-identifications", response_model=list[ClientDuplicateMatchOut])

@@ -220,6 +220,7 @@ export interface ReportSection {
 }
 
 export interface PaymentLedgerEntry {
+  entryType: 'Payment' | 'Refund'
   paymentNo: string
   date: string
   projectNo: string
@@ -237,6 +238,7 @@ export interface ProjectionByMonth {
   month: string
   currency: string
   amount: number
+  overdue: number
 }
 
 export interface ProjectionByProject {
