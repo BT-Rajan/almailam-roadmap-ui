@@ -65,6 +65,16 @@ class ListNamesTest(unittest.TestCase):
         row = result["items"][0]
         self.assertEqual((row.projectName, row.clientName, row.assignedTo), ("Villa Salmiya", "Acme", "Ahmed Rashid"))
 
+    def test_projects_carry_client_name(self):
+        from app.api.projects import _project_out, list_projects
+
+        result = list_projects(
+            clientId=None, status=None, stage=None, engineerId=None, search=None, sort=None, deleted=False,
+            page=1, pageSize=25, db=self.db, _=None,
+        )
+        self.assertEqual(result["items"][0].clientName, "Acme")
+        self.assertEqual(_project_out(self.db, self.project, "Ahmed Rashid").clientName, "Acme")
+
     def test_project_options(self):
         from app.api.projects import list_project_options
 

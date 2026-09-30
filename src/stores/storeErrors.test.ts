@@ -65,6 +65,7 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['documentTemplateStore.loadTemplates', async () => { const s = useDocumentTemplateStore(); await s.loadTemplates(); return s.error }],
   ['governmentFormStore.loadForms', async () => { const s = useGovernmentFormStore(); await s.loadForms(); return s.error }],
   ['governmentSubmissionStore.loadSubmissions', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissions(); return s.error }],
+  ['governmentSubmissionStore.loadCatalogs', async () => { const s = useGovernmentSubmissionStore(); await s.loadCatalogs(); return s.error }],
   ['governmentSubmissionStore.loadSubmissionByNo', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissionByNo('SUB-1'); return s.error }],
   ['projectStore.loadProjectsForClient', async () => { const s = useProjectStore(); await s.loadProjectsForClient('CL-1'); return s.error }],
   ['governmentSubmissionStore.loadSubmissionsForProject', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissionsForProject('P-1'); return s.error }],

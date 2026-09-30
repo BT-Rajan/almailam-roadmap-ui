@@ -15,6 +15,7 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { projectService } from '@/services/projectService'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
@@ -58,11 +59,14 @@ const queryTitle = computed(() => {
 
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
-  // Locked to one project (opened from inside it): fetch just that one.
-  // Otherwise the Project picker needs the list -- but only the list,
-  // not every task in the company as this used to load for it.
-  if (isProjectLocked.value && queryProjectId.value) void projectStore.ensureProject(queryProjectId.value)
-  else if (!projectStore.isFullyLoaded) void projectStore.loadProjects()
+  // The Project picker needs names only (not every full project record);
+  // the chosen project itself is fetched on its own (watch below) for its
+  // services and client. Locked to one project: just that one.
+  if (isProjectLocked.value && queryProjectId.value) {
+    projectChoices.value = []
+  } else {
+    void projectService.getProjectOptions().then((options) => { projectChoices.value = options }).catch(() => undefined)
+  }
   form.title = queryTitle.value ?? ''
   form.projectId = queryProjectId.value ?? ''
   form.assignedTo = authStore.user?.id ?? ''
@@ -111,18 +115,23 @@ function revalidate(): void {
 }
 watch(form, revalidate, { deep: true, immediate: true })
 
-const availableProjects = computed(() => {
-  if (isProjectLocked.value) {
-    return taskStore.projects.filter((project) => project.id === queryProjectId.value)
-  }
-  return taskStore.projects
-})
-
-const projectOptions = computed<SelectOption[]>(() =>
-  availableProjects.value.map((project) => ({ label: project.projectName, value: project.id })),
+const projectChoices = ref<{ id: string; name: string }[]>([])
+watch(
+  () => form.projectId,
+  (projectId) => {
+    if (projectId) void projectStore.ensureProject(projectId)
+  },
 )
 
-const selectedProject = computed(() => taskStore.projects.find((project) => project.id === form.projectId))
+const projectOptions = computed<SelectOption[]>(() => {
+  if (isProjectLocked.value) {
+    const locked = projectStore.getProjectById(queryProjectId.value ?? '')
+    return locked ? [{ label: locked.projectName, value: locked.id }] : []
+  }
+  return projectChoices.value.map((project) => ({ label: project.name, value: project.id }))
+})
+
+const selectedProject = computed(() => projectStore.getProjectById(form.projectId))
 
 const SERVICE_KIND_LABEL_KEYS: Record<ServiceKind, string> = {
   design: 'project.serviceTasks.kind.design',
@@ -148,7 +157,7 @@ watch(() => form.projectId, () => {
 // as a project is picked makes that tagging visible to whoever is
 // creating the task, rather than leaving the client implicit.
 const selectedClientName = computed<string | undefined>(() => {
-  const project = taskStore.projects.find((item) => item.id === form.projectId)
+  const project = projectStore.getProjectById(form.projectId)
   if (!project) return undefined
   return clientStore.getClientById(project.clientId)?.companyName ?? t('task.formDialog.unknownClient')
 })

@@ -76,3 +76,18 @@ describe('list pages label rows from server-sent names, not the full project lis
     expect(countCalls(LIST.projects), 'downloaded every project').toBe(0)
   })
 })
+
+describe('Projects page', () => {
+  beforeEach(() => {
+    resetMockApi()
+    setActivePinia(createPinia())
+  })
+
+  it('labels projects from the server-sent client name, without downloading every client', async () => {
+    overrideMockApi(/^\/api\/projects\?/, () => page([{ ...fixture.project, clientName: 'Acme Trading' }]))
+    const store = useProjectStore()
+    await store.loadProjectsPage()
+    expect(countCalls(LIST.clients), 'downloaded every client').toBe(0)
+    expect(store.pageItems[0].clientName).toBe('Acme Trading')
+  })
+})

@@ -8,12 +8,14 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TaskStatusBadge from '@/components/task/TaskStatusBadge.vue'
 import ProjectSummaryDialog from '@/components/project/ProjectSummaryDialog.vue'
+import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/dateFormatter'
 import { getWorkflowStageLabelKey } from '@/utils/projectHelpers'
 import { withSalutationByName } from '@/utils/userHelpers'
+import type { Project } from '@/types/Project'
 import type { Task } from '@/types/Task'
 
 const props = defineProps<{
@@ -31,6 +33,7 @@ const userStore = useUserStore()
 
 const isLoading = ref(false)
 const memberTasks = ref<Task[]>([])
+const memberProjects = ref<Project[]>([])
 const selectedProjectId = ref<string>()
 const isProjectDialogOpen = ref(false)
 
@@ -39,15 +42,31 @@ const isProjectDialogOpen = ref(false)
 // else a plain name string gets this treatment (see withSalutationByName).
 const dialogTitle = computed(() => (props.memberName ? withSalutationByName(props.memberName, userStore.users) : undefined))
 
+// Just this person's tasks and projects (server-side filters) -- not every
+// task and project in the company filtered down here.
 async function loadData(): Promise<void> {
   isLoading.value = true
   try {
-    const [allTasks] = await Promise.all([
-      taskService.getTasks(),
-      projectStore.loadProjects(),
-      userStore.users.length === 0 ? userStore.loadUsers() : Promise.resolve(),
+    if (userStore.users.length === 0) await userStore.loadUsers()
+    const member = userStore.users.find((user) => user.name === props.memberName)
+    if (!member) {
+      memberTasks.value = []
+      memberProjects.value = []
+      return
+    }
+    const [tasks, engineerOf] = await Promise.all([
+      taskService.getTasksAssignedTo(member.id),
+      projectService.getProjectsForEngineer(member.id),
     ])
-    memberTasks.value = allTasks.filter((task) => task.assignedTo === props.memberName)
+    memberTasks.value = tasks
+    // Projects they hold tasks in but aren't the engineer of: fetch just those.
+    const known = new Set(engineerOf.map((project) => project.id))
+    const others = await Promise.all(
+      [...new Set(tasks.map((task) => task.projectId))]
+        .filter((projectId) => !known.has(projectId))
+        .map((projectId) => projectStore.ensureProject(projectId)),
+    )
+    memberProjects.value = [...engineerOf, ...others.filter((project): project is Project => Boolean(project))]
   } finally {
     isLoading.value = false
   }
@@ -66,10 +85,7 @@ watch(
 // have no tasks on yet still shows up.
 const involvedProjects = computed(() => {
   if (!props.memberName) return []
-  const taskProjectIds = new Set(memberTasks.value.map((task) => task.projectId))
-  return projectStore.projects
-    .filter((project) => project.engineer === props.memberName || taskProjectIds.has(project.id))
-    .sort((a, b) => a.projectNo.localeCompare(b.projectNo))
+  return [...memberProjects.value].sort((a, b) => a.projectNo.localeCompare(b.projectNo))
 })
 
 function taskCountForProject(projectId: string, status: Task['status']): number {

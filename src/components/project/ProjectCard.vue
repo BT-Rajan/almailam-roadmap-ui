@@ -41,7 +41,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const resultDialogStore = useResultDialogStore()
 
-const clientName = computed(() => props.client?.companyName ?? t('project.unknownClient'))
+const clientName = computed(() => props.project.clientName || props.client?.companyName || t('project.unknownClient'))
 
 function open(): void {
   emit('open', props.project.id)

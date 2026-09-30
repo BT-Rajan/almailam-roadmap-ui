@@ -126,6 +126,8 @@ export interface Project {
   id: string
   projectNo: string
   projectName: string
+  // Sent by the server, so project lists/cards needn't download every client.
+  clientName?: string
   description?: string
   // The project/plot address -- fills a Quotation/Contract document
   // template's address placeholder (see document_template_service.

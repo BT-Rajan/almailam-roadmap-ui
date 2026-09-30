@@ -67,6 +67,11 @@ async function getProjectOptions(): Promise<{ id: string; name: string }[]> {
   }
 }
 
+/** Every project a user is the engineer of (server-side filter), all pages. */
+async function getProjectsForEngineer(engineerId: string): Promise<Project[]> {
+  return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ engineerId, page, pageSize }))
+}
+
 /** Every project of one client (server-side filter), all pages. */
 async function getProjectsForClient(clientId: string): Promise<Project[]> {
   return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
@@ -469,6 +474,7 @@ async function updateHandoverNotes(projectId: string, notes: string): Promise<Pr
 
 export const projectService = {
   getProjectsForClient,
+  getProjectsForEngineer,
   getProjectOptions,
   getProjects,
   getProjectsPage,

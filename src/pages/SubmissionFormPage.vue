@@ -93,10 +93,8 @@ async function loadData(): Promise<void> {
   if (isEditMode.value && editSubmissionNo.value) {
     await submissionStore.loadSubmissionByNo(editSubmissionNo.value)
   } else if (submissionStore.authorities.length === 0 || submissionStore.forms.length === 0) {
-    // Opened from a project: its own applications bring the authorities/
-    // forms catalogs too, without downloading every application.
-    if (isProjectLocked.value && queryProjectId.value) await submissionStore.loadSubmissionsForProject(queryProjectId.value)
-    else await submissionStore.loadSubmissions()
+    // Just the authorities/forms catalogues -- never every application.
+    await submissionStore.loadCatalogs()
   }
   isLoading.value = false
 }

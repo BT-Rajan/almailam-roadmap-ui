@@ -214,6 +214,19 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     // Loads a single submission by number into the store's list, for the
     // full-screen workspace page (deep link / refresh, where the list may
     // not be populated yet).
+    // Just the (small) authorities and forms catalogues -- what a new
+    // application form needs -- without downloading every application.
+    async loadCatalogs() {
+      this.error = undefined
+      try {
+        const [authorities, forms] = await Promise.all([governmentFormService.getAuthorities(), governmentFormService.getForms()])
+        this.authorities = authorities
+        this.forms = forms
+      } catch (error) {
+        this.error = describeStoreError('Unable to load authorities and forms. Please try again.', error)
+      }
+    },
+
     // Fetches just this one application (plus the small authorities/forms
     // catalogues if missing) -- never every application in the company.
     async loadSubmissionByNo(submissionNo: string): Promise<GovernmentSubmission | undefined> {
