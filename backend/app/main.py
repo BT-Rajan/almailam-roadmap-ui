@@ -14,6 +14,7 @@ from app.api.audit_logs import router as audit_logs_router
 from app.api.clients import router as clients_router
 from app.api.company import router as company_router
 from app.api.contracts import router as contracts_router
+from app.api.dashboard import router as dashboard_router
 from app.api.document_templates import router as document_templates_router
 from app.api.documents import router as documents_router
 from app.api.email import router as email_router
@@ -81,6 +82,7 @@ app.include_router(permit_catalog_router)
 app.include_router(document_requirements_router)
 app.include_router(roles_router)
 app.include_router(clients_router)
+app.include_router(dashboard_router)
 app.include_router(company_router)
 app.include_router(projects_router)
 app.include_router(government_router)
