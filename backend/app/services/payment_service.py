@@ -1175,52 +1175,88 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
 def agreements_overview(db: Session) -> dict:
     """Every agreement with its balances already worked out, plus the
     portfolio totals -- what the Payments page and the dashboard's
-    Financials tab show. Uses the same per-agreement rule as everywhere
-    else (payment_calculations.get_financial_summary, obligations-based
-    received), from three queries in total, so the browser never has to
-    download every instalment, project and client to add them up."""
-    from collections import defaultdict
+    Financials tab show.
 
-    agreements = db.query(FinancialAgreement).order_by(FinancialAgreement.id.asc()).all()
-    obligations_by_agreement: dict[int, list] = defaultdict(list)
-    for obligation in db.query(PaymentObligation).all():
-        obligations_by_agreement[obligation.agreement_id].append(obligation)
-    project_rows = (
-        db.query(Project.id, Project.project_no, Project.project_name, Client.company_name)
-        .outerjoin(Client, Client.id == Project.client_id)
-        .filter(Project.id.in_({a.project_id for a in agreements}))
-        .all()
-        if agreements
-        else []
+    Computed in the database: one grouped query for received / pending /
+    overdue per agreement, one for each agreement's next payment, one for
+    names -- instead of loading every instalment into Python (which took
+    ~0.6 s at 15k instalments). The rules are exactly those of
+    payment_calculations.get_financial_summary (obligations-based
+    received): an instalment's unpaid balance (never negative) counts as
+    overdue once its due date is before today (Kuwait-local) and as
+    pending otherwise; waived/cancelled instalments count as neither;
+    received sums every instalment. The next payment is the lowest
+    sequence number not yet settled and not waived/cancelled.
+    tests/test_payment_overview_sql.py checks this against the Python
+    rules on randomised data."""
+    from sqlalchemy import and_, case, func
+
+    today = kuwait_today()
+    obligation = PaymentObligation
+    live = obligation.manual_status.is_(None)
+    unpaid = case(
+        (obligation.amount_due > obligation.amount_received, obligation.amount_due - obligation.amount_received),
+        else_=0,
     )
-    projects = {row[0]: (row[1], row[2], row[3] or "") for row in project_rows}
+    balances = {
+        row[0]: (row[1] or Decimal("0"), row[2] or Decimal("0"), row[3] or Decimal("0"))
+        for row in db.query(
+            obligation.agreement_id,
+            func.sum(obligation.amount_received),
+            func.sum(case((and_(live, obligation.due_date >= today), unpaid), else_=0)),
+            func.sum(case((and_(live, obligation.due_date < today), unpaid), else_=0)),
+        ).group_by(obligation.agreement_id)
+    }
+
+    next_seq = (
+        db.query(obligation.agreement_id.label("agreement_id"), func.min(obligation.sequence_number).label("seq"))
+        .filter(live, obligation.amount_received < obligation.amount_due)
+        .group_by(obligation.agreement_id)
+        .subquery()
+    )
+    next_payment: dict[int, tuple] = {}
+    for agreement_id, amount_due, amount_received, due_date in (
+        db.query(obligation.agreement_id, obligation.amount_due, obligation.amount_received, obligation.due_date)
+        .join(next_seq, and_(obligation.agreement_id == next_seq.c.agreement_id, obligation.sequence_number == next_seq.c.seq))
+        .order_by(obligation.id.asc())
+    ):
+        next_payment.setdefault(agreement_id, (Decimal(str(amount_due)) - Decimal(str(amount_received)), due_date))
+
+    agreements = (
+        db.query(
+            FinancialAgreement.id, FinancialAgreement.project_id, FinancialAgreement.stream,
+            FinancialAgreement.currency, FinancialAgreement.contract_amount,
+            Project.project_no, Project.project_name, Client.company_name,
+        )
+        .outerjoin(Project, Project.id == FinancialAgreement.project_id)
+        .outerjoin(Client, Client.id == Project.client_id)
+        .order_by(FinancialAgreement.id.asc())
+        .all()
+    )
 
     totals = {key: Decimal("0") for key in ("contractAmount", "totalReceived", "totalPending", "totalOverdue")}
     rows = []
-    for agreement in agreements:
-        summary = calc.get_financial_summary(agreement, obligations_by_agreement.get(agreement.id, []))
-        for key in totals:
-            totals[key] += Decimal(str(summary[key]))
-        next_obligation = summary["nextPaymentObligation"]
-        project_no, project_name, client_name = projects.get(agreement.project_id, ("", "", ""))
+    for agreement_id, _project_id, stream, currency, contract_amount, project_no, project_name, client_name in agreements:
+        received, pending, overdue = balances.get(agreement_id, (Decimal("0"), Decimal("0"), Decimal("0")))
+        contract = Decimal(str(contract_amount))
+        totals["contractAmount"] += contract
+        totals["totalReceived"] += Decimal(str(received))
+        totals["totalPending"] += Decimal(str(pending))
+        totals["totalOverdue"] += Decimal(str(overdue))
+        upcoming = next_payment.get(agreement_id)
         rows.append({
-            "id": str(agreement.id),
-            "projectId": project_no,
-            "projectName": project_name,
-            "clientName": client_name,
-            "stream": agreement.stream,
-            "currency": agreement.currency,
-            "contractAmount": float(summary["contractAmount"]),
-            "totalReceived": float(summary["totalReceived"]),
-            "totalPending": float(summary["totalPending"]),
-            "totalOverdue": float(summary["totalOverdue"]),
-            "nextPaymentAmount": (
-                float(Decimal(str(next_obligation.amount_due)) - Decimal(str(next_obligation.amount_received)))
-                if next_obligation is not None
-                else None
-            ),
-            "nextPaymentDueDate": next_obligation.due_date.isoformat() if next_obligation is not None else None,
-            "nextPaymentIsOverdue": bool(summary["nextPaymentIsOverdue"]),
+            "id": str(agreement_id),
+            "projectId": project_no or "",
+            "projectName": project_name or "",
+            "clientName": client_name or "",
+            "stream": stream,
+            "currency": currency,
+            "contractAmount": float(contract),
+            "totalReceived": float(received),
+            "totalPending": float(pending),
+            "totalOverdue": float(overdue),
+            "nextPaymentAmount": float(upcoming[0]) if upcoming else None,
+            "nextPaymentDueDate": upcoming[1].isoformat() if upcoming else None,
+            "nextPaymentIsOverdue": bool(upcoming and upcoming[1] < today),
         })
     return {"totals": {key: float(value) for key, value in totals.items()}, "rows": rows}
-

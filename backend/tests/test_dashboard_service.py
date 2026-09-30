@@ -67,7 +67,11 @@ class DashboardServiceTest(unittest.TestCase):
         Base.metadata.create_all(engine)
         self.db = Session(engine)
         self.addCleanup(self.db.close)
-        for target in ("app.services.dashboard_service.kuwait_today", "app.core.payment_calculations.kuwait_today"):
+        for target in (
+            "app.services.dashboard_service.kuwait_today",
+            "app.core.payment_calculations.kuwait_today",
+            "app.services.payment_service.kuwait_today",
+        ):
             patcher = mock.patch(target, return_value=TODAY)
             patcher.start()
             self.addCleanup(patcher.stop)
