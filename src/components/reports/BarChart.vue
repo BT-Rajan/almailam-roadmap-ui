@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChartFrame from '@/components/reports/ChartFrame.vue'
 import {
@@ -26,6 +27,8 @@ interface Props {
   /** Name of the single `data` series (legend-less; used in the tooltip and table). */
   seriesName?: string
   horizontal?: boolean
+  /** Stack the series into one bar per category (part-to-whole) instead of grouping them. */
+  stacked?: boolean
   /** Plot height for vertical bars; horizontal bars size to their rows. */
   height?: number
   format?: ChartValueFormat
@@ -42,6 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
   series: undefined,
   seriesName: 'Value',
   horizontal: false,
+  stacked: false,
   height: 280,
   format: 'number',
   currency: undefined,
@@ -50,6 +54,8 @@ const props = withDefaults(defineProps<Props>(), {
   showLabel: true,
   showValue: true,
 })
+
+const { t } = useI18n()
 
 const model = computed<ChartModel>(() =>
   props.series && props.categories ? { categories: props.categories, series: props.series } : modelFromPoints(props.data ?? [], props.seriesName),
@@ -61,12 +67,20 @@ const width = useElementWidth(container)
 const BAR_MAX = 24
 const GAP = 2
 const seriesCount = computed(() => Math.max(model.value.series.length, 1))
-const maxValue = computed(() => Math.max(0, ...model.value.series.flatMap((series) => series.values)))
+// Bars side by side within a category: one per series, or one when stacked.
+const lanes = computed(() => (props.stacked ? 1 : seriesCount.value))
+const categoryTotals = computed(() =>
+  model.value.categories.map((_, index) => model.value.series.reduce((sum, series) => sum + Math.max(series.values[index] ?? 0, 0), 0)),
+)
+const maxValue = computed(() =>
+  props.stacked ? Math.max(0, ...categoryTotals.value) : Math.max(0, ...model.value.series.flatMap((series) => series.values)),
+)
 const integerValues = computed(() => props.format === 'number' && model.value.series.every((series) => series.values.every(Number.isInteger)))
 const ticks = computed(() => niceTicks(maxValue.value, 4, integerValues.value))
 const scaleMax = computed(() => ticks.value[ticks.value.length - 1] || 1)
-// A value at every bar end only while it stays readable: one series, not too many bars.
-const labelValues = computed(() => props.showValue && seriesCount.value === 1 && model.value.categories.length <= 16)
+// A value at every bar end only while it stays readable: one bar per
+// category (a single series, or the total of a stack), not too many bars.
+const labelValues = computed(() => props.showValue && lanes.value === 1 && model.value.categories.length <= 16)
 
 function color(seriesIndex: number, categoryIndex: number): string {
   const pointColor = model.value.pointColors?.[categoryIndex]
@@ -85,7 +99,7 @@ const pad = computed(() =>
     ? { top: 8, right: labelValues.value ? 72 : 16, bottom: 24, left: labelWidth.value }
     : { top: labelValues.value ? 22 : 10, right: 12, bottom: 28, left: 48 },
 )
-const rowHeight = computed(() => Math.max(28, seriesCount.value * (Math.min(BAR_MAX, 18) + GAP) + 12))
+const rowHeight = computed(() => Math.max(28, lanes.value * (Math.min(BAR_MAX, 18) + GAP) + 12))
 const svgHeight = computed(() =>
   props.horizontal ? pad.value.top + pad.value.bottom + model.value.categories.length * rowHeight.value : props.height,
 )
@@ -93,10 +107,10 @@ const plotWidth = computed(() => Math.max(width.value - pad.value.left - pad.val
 const plotHeight = computed(() => Math.max(svgHeight.value - pad.value.top - pad.value.bottom, 10))
 const band = computed(() => (props.horizontal ? rowHeight.value : plotWidth.value / Math.max(model.value.categories.length, 1)))
 const barThickness = computed(() => {
-  const available = (band.value * 0.72 - GAP * (seriesCount.value - 1)) / seriesCount.value
+  const available = (band.value * 0.72 - GAP * (lanes.value - 1)) / lanes.value
   return Math.max(3, Math.min(BAR_MAX, available))
 })
-const groupSize = computed(() => barThickness.value * seriesCount.value + GAP * (seriesCount.value - 1))
+const groupSize = computed(() => barThickness.value * lanes.value + GAP * (lanes.value - 1))
 
 function valueLength(value: number): number {
   return ((props.horizontal ? plotWidth.value : plotHeight.value) * Math.max(value, 0)) / scaleMax.value
@@ -111,10 +125,48 @@ interface BarMark {
   label: string
 }
 
+function rect(start: number, length: number, offset: number): [number, number, number, number] {
+  return props.horizontal
+    ? [pad.value.left + start, offset, length, barThickness.value]
+    : [offset, pad.value.top + plotHeight.value - start - length, barThickness.value, length]
+}
+
 const bars = computed<BarMark[]>(() => {
   const marks: BarMark[] = []
   model.value.categories.forEach((_, categoryIndex) => {
     const bandStart = (props.horizontal ? pad.value.top : pad.value.left) + categoryIndex * band.value + (band.value - groupSize.value) / 2
+    if (props.stacked) {
+      // Segments laid end to end; a 2px surface gap between them, and only
+      // the outermost segment gets the rounded data end.
+      const segments = model.value.series
+        .map((series, seriesIndex) => ({ seriesIndex, length: valueLength(series.values[categoryIndex] ?? 0) }))
+        .filter((segment) => segment.length > 0)
+      let start = 0
+      segments.forEach((segment, position) => {
+        const last = position === segments.length - 1
+        const drawn = last ? segment.length : Math.max(segment.length - GAP, 0.5)
+        const [x, y, w, h] = rect(start, drawn, bandStart)
+        marks.push({
+          key: `${categoryIndex}-${segment.seriesIndex}`,
+          path: last ? barPath(x, y, w, h, props.horizontal) : `M${x},${y}h${w}v${h}h${-w}Z`,
+          fill: color(segment.seriesIndex, categoryIndex),
+          labelX: 0,
+          labelY: 0,
+          label: '',
+        })
+        start += segment.length
+      })
+      const [x, y, w, h] = rect(0, start, bandStart)
+      marks.push({
+        key: `${categoryIndex}-total`,
+        path: '',
+        fill: 'none',
+        labelX: props.horizontal ? x + w + 6 : x + w / 2,
+        labelY: props.horizontal ? y + h / 2 + 4 : y - 6,
+        label: formatValue(categoryTotals.value[categoryIndex], props.format, props.currency),
+      })
+      return
+    }
     model.value.series.forEach((series, seriesIndex) => {
       const value = series.values[categoryIndex] ?? 0
       const length = valueLength(value)
@@ -176,7 +228,7 @@ const tooltipStyle = computed(() => {
 </script>
 
 <template>
-  <ChartFrame :model="model" :format="format" :currency="currency" :category-label="categoryLabel" :show-total="showTotal">
+  <ChartFrame :model="model" :format="format" :currency="currency" :category-label="categoryLabel" :show-total="showTotal" :row-totals="stacked">
     <div ref="container" class="relative w-full" @pointerleave="active = null">
       <svg :width="width" :height="svgHeight" class="block" role="img" :aria-label="seriesName">
         <!-- Value gridlines -->
@@ -219,11 +271,11 @@ const tooltipStyle = computed(() => {
         <rect v-if="active !== null" v-bind="hitRect(active)" class="fill-text-primary" opacity="0.04" />
 
         <!-- Bars: 2px gaps between a group's bars, rounded at the data end -->
-        <path v-for="bar in bars" :key="bar.key" :d="bar.path" :fill="bar.fill" />
+        <path v-for="bar in bars.filter((b) => b.path)" :key="bar.key" :d="bar.path" :fill="bar.fill" />
 
-        <!-- Values at the bar ends (single series only) -->
+        <!-- Values at the bar ends (one bar per category: single series or stack total) -->
         <g v-if="labelValues" class="fill-text-secondary text-[11px] font-medium tabular-nums">
-          <text v-for="bar in bars" :key="`v-${bar.key}`" :x="bar.labelX" :y="bar.labelY" :text-anchor="horizontal ? 'start' : 'middle'">
+          <text v-for="bar in bars.filter((b) => b.label)" :key="`v-${bar.key}`" :x="bar.labelX" :y="bar.labelY" :text-anchor="horizontal ? 'start' : 'middle'">
             {{ bar.label }}
           </text>
         </g>
@@ -279,6 +331,10 @@ const tooltipStyle = computed(() => {
             {{ series.name }}
           </span>
           <span class="font-semibold tabular-nums text-text-primary">{{ formatValue(series.values[active] ?? 0, format, currency) }}</span>
+        </p>
+        <p v-if="stacked && model.series.length > 1" class="mt-1 flex justify-between gap-3 border-t border-border-light pt-1">
+          <span class="text-text-muted">{{ t('report.chart.total') }}</span>
+          <span class="font-semibold tabular-nums text-text-primary">{{ formatValue(categoryTotals[active], format, currency) }}</span>
         </p>
       </div>
     </div>

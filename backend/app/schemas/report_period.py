@@ -131,6 +131,42 @@ class ProjectPerformanceOut(BaseModel):
     submissions: list[LabelValueOut]
 
 
+class WorkloadMemberOut(BaseModel):
+    userId: str
+    name: str
+    role: str
+    inactive: bool
+    activeProjects: int
+    openTasks: int
+    overdueTasks: int
+    dueSoonTasks: int
+    laterTasks: int
+    notStartedTasks: int
+    oldestOverdueDays: int | None
+    completedInPeriod: int
+    onTimeRate: float | None
+
+
+class WorkloadTotalsOut(BaseModel):
+    people: int
+    peopleWithOpenWork: int
+    peopleWithOverdue: int
+    openTasks: int
+    overdueTasks: int
+    overdueShare: float | None
+    dueSoonTasks: int
+    completedInPeriod: int
+    onTimeRate: float | None
+    strandedTasks: int
+
+
+class TeamWorkloadOut(BaseModel):
+    period: PeriodOut
+    dueSoonDays: int
+    totals: WorkloadTotalsOut
+    members: list[WorkloadMemberOut]
+
+
 class ExecutiveSummaryOut(BaseModel):
     period: PeriodOut
     bucket: Literal["week", "month", "year"]

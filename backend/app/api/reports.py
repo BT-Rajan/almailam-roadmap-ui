@@ -15,15 +15,15 @@ from app.schemas.report import (
     PaymentsReceivedByMonth,
     ReportMetric,
     ReportSection,
-    TeamWorkload,
 )
-from app.schemas.report_period import ExecutiveSummaryOut, ProjectPerformanceOut
+from app.schemas.report_period import ExecutiveSummaryOut, ProjectPerformanceOut, TeamWorkloadOut
 from app.services import (
     client_service,
     executive_report_service,
     project_report_service,
     project_service,
     report_service,
+    workload_report_service,
 )
 from app.services.report_period import Period, make_period
 
@@ -139,9 +139,9 @@ def employee_performance(year: int, month: int, db: Session = Depends(get_db), _
     return report_service.employee_performance(db, year, month)
 
 
-@router.get("/team-workload", response_model=TeamWorkload)
-def team_workload(db: Session = Depends(get_db), _=Depends(can_view)):
-    return report_service.team_workload(db)
+@router.get("/team-workload", response_model=TeamWorkloadOut)
+def team_workload(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
+    return workload_report_service.team_workload(db, period)
 
 
 @router.get("/financial-summary", response_model=FinancialPeriodSummary)

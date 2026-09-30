@@ -91,6 +91,40 @@ export interface ProjectPerformance {
   submissions: { label: string; value: number }[]
 }
 
+export interface WorkloadMember {
+  userId: string
+  name: string
+  role: string
+  inactive: boolean
+  activeProjects: number
+  openTasks: number
+  overdueTasks: number
+  dueSoonTasks: number
+  laterTasks: number
+  notStartedTasks: number
+  oldestOverdueDays: number | null
+  completedInPeriod: number
+  onTimeRate: number | null
+}
+
+export interface TeamWorkloadReport {
+  period: ReportPeriod
+  dueSoonDays: number
+  totals: {
+    people: number
+    peopleWithOpenWork: number
+    peopleWithOverdue: number
+    openTasks: number
+    overdueTasks: number
+    overdueShare: number | null
+    dueSoonTasks: number
+    completedInPeriod: number
+    onTimeRate: number | null
+    strandedTasks: number
+  }
+  members: WorkloadMember[]
+}
+
 export interface PaymentsReceivedByMonth {
   currency: string
   series: LineChartData[]
@@ -173,25 +207,6 @@ export interface EmployeePerformance {
   assigned: number
   completed: number
   completionRate: number
-}
-
-export interface TeamWorkloadMember {
-  userId: string
-  name: string
-  role: string
-  activeProjects: number
-  activeTasks: number
-  overdueTasks: number
-  allocationPercent: number
-  overallocated: boolean
-}
-
-export interface TeamWorkload {
-  members: TeamWorkloadMember[]
-  totalMembers: number
-  averageUtilization: number
-  overallocatedCount: number
-  capacityAvailable: number
 }
 
 export interface FinancialCurrencyBreakdown {

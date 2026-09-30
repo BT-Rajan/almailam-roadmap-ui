@@ -10,7 +10,7 @@ import type {
   PaymentProjections,
   PaymentsReceivedByMonth,
   ReportMetric,
-  TeamWorkload,
+  TeamWorkloadReport,
 } from '@/types/Report'
 import type { DateRange } from '@/utils/reportRange'
 
@@ -87,8 +87,8 @@ async function getFinancialSummary(startDate: string, endDate: string): Promise<
   return apiClient.get<FinancialPeriodSummary>(`/api/reports/financial-summary?startDate=${startDate}&endDate=${endDate}`)
 }
 
-async function getTeamWorkload(): Promise<TeamWorkload> {
-  return apiClient.get<TeamWorkload>('/api/reports/team-workload')
+async function getTeamWorkload(range: DateRange): Promise<TeamWorkloadReport> {
+  return apiClient.get<TeamWorkloadReport>(`/api/reports/team-workload?${periodQuery(range)}`)
 }
 
 function periodQuery(range: DateRange): string {

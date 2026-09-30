@@ -16,10 +16,12 @@ const props = withDefaults(
     categoryLabel?: string
     /** Adds a Total row to the table view (only for additive figures). */
     showTotal?: boolean
+    /** Adds a Total column (each category's series summed) -- for stacked bars. */
+    rowTotals?: boolean
     /** 'line' keys the legend with a stroke instead of a swatch. */
     legendShape?: 'rect' | 'line'
   }>(),
-  { format: 'number', currency: undefined, categoryLabel: '', showTotal: false, legendShape: 'rect' },
+  { format: 'number', currency: undefined, categoryLabel: '', showTotal: false, rowTotals: false, legendShape: 'rect' },
 )
 
 const { t } = useI18n()
@@ -27,6 +29,8 @@ const asTable = ref(false)
 
 const isEmpty = computed(() => props.model.categories.length === 0 || props.model.series.every((series) => series.values.every((value) => !value)))
 const totals = computed(() => props.model.series.map((series) => series.values.reduce((sum, value) => sum + value, 0)))
+const rowTotal = (row: number) => props.model.series.reduce((sum, series) => sum + (series.values[row] ?? 0), 0)
+const grandTotal = computed(() => totals.value.reduce((sum, value) => sum + value, 0))
 </script>
 
 <template>
@@ -58,6 +62,7 @@ const totals = computed(() => props.model.series.map((series) => series.values.r
           <tr class="border-b border-border-light text-left text-xs uppercase tracking-wide text-text-muted">
             <th class="py-2 pe-4 font-medium">{{ categoryLabel }}</th>
             <th v-for="series in model.series" :key="series.name" class="py-2 ps-4 text-end font-medium">{{ series.name }}</th>
+            <th v-if="rowTotals" class="py-2 ps-4 text-end font-medium">{{ t('report.chart.total') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -66,12 +71,14 @@ const totals = computed(() => props.model.series.map((series) => series.values.r
             <td v-for="series in model.series" :key="series.name" class="py-2 ps-4 text-end tabular-nums text-text-primary">
               {{ formatValue(series.values[row] ?? 0, format, currency) }}
             </td>
+            <td v-if="rowTotals" class="py-2 ps-4 text-end font-semibold tabular-nums text-text-primary">{{ formatValue(rowTotal(row), format, currency) }}</td>
           </tr>
         </tbody>
         <tfoot v-if="showTotal">
           <tr class="font-semibold text-text-primary">
             <td class="py-2 pe-4">{{ t('report.chart.total') }}</td>
             <td v-for="(total, index) in totals" :key="index" class="py-2 ps-4 text-end tabular-nums">{{ formatValue(total, format, currency) }}</td>
+            <td v-if="rowTotals" class="py-2 ps-4 text-end tabular-nums">{{ formatValue(grandTotal, format, currency) }}</td>
           </tr>
         </tfoot>
       </table>
