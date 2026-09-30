@@ -96,7 +96,7 @@ export const useAuthStore = defineStore('auth', {
     async login(username: string, password: string) {
       const tokens = await authService.login(username, password)
       this._setToken(tokens.access_token)
-      this.user = await authService.me()
+      this.user = tokens.user ?? (await authService.me())
     },
 
     async logout() {
@@ -162,6 +162,10 @@ export const useAuthStore = defineStore('auth', {
         try {
           const tokens = await withRefreshLock(() => authService.refresh())
           this._setToken(tokens.access_token)
+          // The server sends the user with the token: on a fresh page load
+          // that is the profile hydrate() needs, with no separate /me call,
+          // and mid-session it keeps name and permissions current.
+          if (tokens.user) this.user = tokens.user
           return true
         } catch (error) {
           // Only a definite "no" from the server (401/403: cookie missing,
@@ -189,16 +193,16 @@ export const useAuthStore = defineStore('auth', {
      * the cookie is already designed to be safely redeemable this way (rotated, revocable,
      * capped by both absolute expiry and the idle-timeout backstop), so this only changes
      * *when* it gets redeemed, not what it's trusted to do.
-     * tryRefresh() only returns a new access token, not the profile, so a successful
-     * hydration also fetches /me; if that fails (e.g. the account was deactivated in the
-     * meantime) the session is dropped the same as any other failed refresh. */
+     * The refresh response carries the profile too (tryRefresh stores it), so a resumed
+     * session is one round trip; only an older server without it needs the /me fallback,
+     * and if that fails the session is dropped the same as any other failed refresh. */
     async hydrate(): Promise<void> {
       if (this.hasHydrated) return
       if (this.hydrationPromise) return this.hydrationPromise
 
       this.hydrationPromise = (async () => {
         const refreshed = await this.tryRefresh()
-        if (refreshed) {
+        if (refreshed && !this.user) {
           try {
             this.user = await authService.me()
           } catch {

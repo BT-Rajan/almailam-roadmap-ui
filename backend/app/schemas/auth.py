@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.user import CurrentUserOut
+
 
 class LoginRequest(BaseModel):
     # Resolved against username OR employee_id (see auth_service.login)
@@ -13,6 +15,9 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # The signed-in user (same shape as GET /api/auth/me), so starting or
+    # resuming a session is one round trip instead of two.
+    user: CurrentUserOut | None = None
 
 
 class ChangePasswordRequest(BaseModel):

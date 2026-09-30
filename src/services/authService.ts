@@ -3,6 +3,9 @@ import { apiClient } from '@/services/httpClient'
 interface TokenResponse {
   access_token: string
   token_type: string
+  /** The signed-in user, same as /api/auth/me -- saves a second round trip.
+   * Optional so a server that predates it still works (falls back to me()). */
+  user?: CurrentUser
 }
 
 export type PermissionAction = 'view' | 'edit' | 'delete'
