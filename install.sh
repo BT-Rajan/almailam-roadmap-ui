@@ -355,6 +355,29 @@ fi
 
 log "Backend port: $BACKEND_PORT (from $ENV_FILE)"
 
+# API worker processes. One process handles one request at a time per
+# thread pool slot, so a slow request (a report, a big upload, a PDF)
+# used to hold up everyone else behind it. Several workers share the port
+# and take requests side by side. WORKERS in backend/.env overrides;
+# otherwise the main instance uses one per CPU core, between 2 and 4, and
+# the test instance 2. Each worker keeps its own database connection pool
+# (DB_POOL_SIZE + DB_MAX_OVERFLOW), so more workers means more MariaDB
+# connections at peak -- keep workers x (pool + overflow), summed over
+# both instances, under the server's max_connections (151 by default).
+# Background jobs are not affected: they run once per instance under
+# systemd (section 11b), never inside the API workers.
+CPU_CORES="$(nproc 2>/dev/null || echo 2)"
+if [[ "$PM2_MODE" == "single" ]]; then
+    DEFAULT_WORKERS=$(( CPU_CORES < 2 ? 2 : (CPU_CORES > 4 ? 4 : CPU_CORES) ))
+else
+    DEFAULT_WORKERS=2
+fi
+BACKEND_WORKERS="$(get_env WORKERS "$DEFAULT_WORKERS")"
+if ! [[ "$BACKEND_WORKERS" =~ ^[1-9][0-9]*$ ]]; then
+    die "WORKERS in $ENV_FILE must be a whole number of 1 or more (got '$BACKEND_WORKERS')."
+fi
+log "API workers: $BACKEND_WORKERS"
+
 # ----------------------------------------------------------------------------
 # 5. MariaDB / MySQL
 # ----------------------------------------------------------------------------
@@ -558,13 +581,16 @@ module.exports = {
             name: "serviceos",
             cwd: "${BACKEND_DIR}",
             script: "${BACKEND_DIR}/venv/bin/uvicorn",
-            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT} --workers ${BACKEND_WORKERS}",
             interpreter: "none",
 
             env: {
                 PORT: "${BACKEND_PORT}"
             },
 
+            // Let uvicorn stop its workers cleanly (requests in flight
+            // finish) before pm2 force-kills the process on restart.
+            kill_timeout: 30000,
             autorestart: true,
             max_restarts: 10,
             restart_delay: 3000
@@ -594,8 +620,9 @@ module.exports = {
             name: "${PM2_BACKEND_NAME}",
             cwd: "${BACKEND_DIR}",
             script: "${BACKEND_DIR}/venv/bin/uvicorn",
-            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT} --workers ${BACKEND_WORKERS}",
             interpreter: "none",
+            kill_timeout: 30000,
             autorestart: true,
             max_restarts: 10,
             restart_delay: 3000
