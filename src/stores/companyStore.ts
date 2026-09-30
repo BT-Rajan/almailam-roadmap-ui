@@ -67,13 +67,22 @@ export const useCompanyStore = defineStore('company', {
      */
     async loadBranding(): Promise<void> {
       try {
-        this.branding = await companyService.getBranding()
-        applyBrandColor(this.branding.brandColor)
+        this.applyBranding(await companyService.getBranding())
       } catch {
         // Keep whatever's already applied (the #1d4ed8 CSS default, or a
         // previously-loaded branding) -- a failed fetch here shouldn't
         // block the rest of the app from working.
       }
+    },
+
+    /** Branding that arrived some other way (with the sign-in response --
+     * see authStore._applySession). Only re-applies the color when it
+     * changed, so a token refresh never resets an admin's unsaved
+     * color preview. */
+    applyBranding(branding: CompanyBranding) {
+      const colorChanged = this.branding?.brandColor !== branding.brandColor
+      this.branding = branding
+      if (colorChanged) applyBrandColor(branding.brandColor)
     },
 
     async uploadLogo(file: File): Promise<void> {

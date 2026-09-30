@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authService } from '@/services/authService'
 import { ApiError } from '@/services/httpClient'
 import { useAuthStore } from '@/stores/authStore'
+import { useCompanyStore } from '@/stores/companyStore'
+import { useKnowledgeStore } from '@/stores/knowledgeStore'
+import { useServerTimeStore } from '@/stores/serverTimeStore'
+import { installSessionBootstrap } from '@/stores/sessionBootstrap'
 import { broadcastLogout, withRefreshLock } from '@/utils/sessionSync'
 
 vi.mock('@/services/authService', () => ({
@@ -132,5 +136,35 @@ describe('authStore: session restore in one round trip', () => {
     await store.hydrate()
     expect(authService.me).toHaveBeenCalledTimes(1)
     expect(store.user).toEqual(user)
+  })
+})
+
+// The server date, branding and knowledgebase switch come with the token,
+// so starting the app doesn't need three more requests after sign-in.
+describe('authStore: session bootstrap', () => {
+  const session = {
+    serverTime: { date: '2026-09-30', datetime: '2026-09-30T10:00:00+03:00', timezone: 'Asia/Kuwait' },
+    branding: { companyName: 'Al Mailam', brandColor: '#123456', hasLogo: true },
+    knowledgeEnabled: true,
+  }
+
+  it('fills the server date, branding and knowledgebase switch from the refresh response', async () => {
+    installSessionBootstrap()
+    refreshMock.mockResolvedValue({ access_token: 'token', token_type: 'bearer', session })
+    vi.mocked(authService.me).mockResolvedValue({ id: 'USR-1', name: 'A', designation: null, email: 'a@example.com', mobile: null, role: 'Viewer', avatar: 'A', status: 'Active' })
+    await useAuthStore().hydrate()
+    expect(useServerTimeStore().todayIso).toBe('2026-09-30')
+    expect(useCompanyStore().branding).toEqual(session.branding)
+    expect(useKnowledgeStore().isEnabled).toBe(true)
+  })
+
+  it('leaves them to load on their own when the server sends none', async () => {
+    installSessionBootstrap()
+    refreshMock.mockResolvedValue({ access_token: 'token', token_type: 'bearer' })
+    vi.mocked(authService.me).mockResolvedValue({ id: 'USR-1', name: 'A', designation: null, email: 'a@example.com', mobile: null, role: 'Viewer', avatar: 'A', status: 'Active' })
+    await useAuthStore().hydrate()
+    expect(useServerTimeStore().todayIso).toBeNull()
+    expect(useCompanyStore().branding).toBeUndefined()
+    expect(useKnowledgeStore().isEnabled).toBeUndefined()
   })
 })

@@ -1,4 +1,6 @@
 import { apiClient } from '@/services/httpClient'
+import type { CompanyBranding } from '@/types/CompanySettings'
+import type { ServerTime } from '@/types/ServerTime'
 
 interface TokenResponse {
   access_token: string
@@ -6,6 +8,15 @@ interface TokenResponse {
   /** The signed-in user, same as /api/auth/me -- saves a second round trip.
    * Optional so a server that predates it still works (falls back to me()). */
   user?: CurrentUser
+  /** What the app needs to start, so it doesn't ask separately (see authStore._applySession). */
+  session?: SessionBootstrap
+}
+
+export interface SessionBootstrap {
+  serverTime: ServerTime
+  branding: CompanyBranding
+  /** Knowledgebase assistant on -- false when this user can't use it. */
+  knowledgeEnabled: boolean
 }
 
 export type PermissionAction = 'view' | 'edit' | 'delete'

@@ -1,5 +1,6 @@
-"""Signing in and resuming a session return the user with the token, so
-the app needs one round trip instead of two (token, then /me).
+"""Signing in and resuming a session return the user -- and what the app
+needs to start (server date, branding, knowledgebase switch) -- with the
+token, so starting the app is one round trip.
 
 Standard library only. Run from the backend directory:
     python -m unittest discover -s tests
@@ -58,8 +59,25 @@ class TokenCarriesUserTest(unittest.TestCase):
         # Same user shape GET /me sends.
         me = auth_api.me(self.user, self.db)
         self.assertEqual(refreshed.user.model_dump(), me.model_dump())
+        # What the app needs to start comes along too.
+        self.assertRegex(refreshed.session.serverTime.date, r"^\d{4}-\d{2}-\d{2}$")
+        self.assertTrue(refreshed.session.branding.brandColor)
+        self.assertIsInstance(refreshed.session.knowledgeEnabled, bool)
         # And the refresh token is never in the body.
         self.assertNotIn("refresh_token", refreshed.model_dump())
+
+
+    def test_knowledge_switch_is_false_without_access(self):
+        from unittest import mock
+
+        from app.services import ai_config_service
+
+        config = mock.Mock(is_enabled=True)
+        with mock.patch.object(ai_config_service, "get_configuration", return_value=(config, [])), \
+                mock.patch("app.services.role_service.has_permission", side_effect=lambda db, role, module, action: role == "Administrator"):
+            self.assertTrue(auth_api._session_bootstrap(self.db, self.user).knowledgeEnabled)
+            self.user.role = "Viewer"
+            self.assertFalse(auth_api._session_bootstrap(self.db, self.user).knowledgeEnabled)
 
 
 if __name__ == "__main__":
