@@ -116,9 +116,21 @@
     --chart-danger: theme('colors.danger.500');
     --chart-warning: theme('colors.warning.500');
     --chart-success: theme('colors.success.500');
+    /* Series slots, in fixed order (brand blue first). Checked for
+       colour-blind separation against the card surface in both themes. */
+    --chart-series-1: #1d4ed8;
+    --chart-series-2: #f59e0b;
+    --chart-series-3: #06b6d4;
+    --chart-series-4: #8b5cf6;
+    --chart-grid: theme('colors.neutral.200');
   }
 
   .dark {
+    --chart-series-1: #3b82f6;
+    --chart-series-2: #d97706;
+    --chart-series-3: #0891b2;
+    --chart-series-4: #8b5cf6;
+    --chart-grid: rgb(255 255 255 / 0.08);
     --glass-border: rgb(255 255 255 / 0.1);
     --glass-highlight: rgb(255 255 255 / 0.07);
     --glass-sheen: linear-gradient(135deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%);

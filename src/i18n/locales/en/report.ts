@@ -1,8 +1,33 @@
 export default {
   header: {
     generatedLabel: 'Generated: {date}',
+    periodLabel: 'Period: {range}',
     print: 'Print',
-    export: 'Export',
+    export: 'Export CSV',
+  },
+
+  range: {
+    label: 'Period',
+    from: 'From',
+    to: 'To',
+    apply: 'Apply',
+    presets: {
+      'this-month': 'This month',
+      'last-month': 'Last month',
+      'this-quarter': 'This quarter',
+      'last-quarter': 'Last quarter',
+      'this-year': 'This year',
+      'last-year': 'Last year',
+      'last-12-months': 'Last 12 months',
+      custom: 'Custom range',
+    },
+  },
+
+  chart: {
+    showTable: 'Show as table',
+    showChart: 'Show as chart',
+    noData: 'No data for this period.',
+    total: 'Total',
   },
 
   metricCard: {
@@ -17,20 +42,21 @@ export default {
     executiveTitle: 'Executive Summary Report',
     executiveDescription:
       'High-level KPIs, project status distribution, delivery trends, and resource allocation overview.',
-    executiveMetric1: '{count} Active Projects',
-    executiveMetric2: '{percent}% Completion Rate',
-    executiveMetric3: '{percent}% Team Utilization',
+    executiveMetric1: 'Key figures for any period',
+    executiveMetric2: 'Cash received vs. billed, month by month',
+    executiveMetric3: 'Projects started vs. completed',
     projectTitle: 'Project Performance Report',
     projectDescription:
       'Detailed analysis of a specific project including progress, budget tracking, task status, and risk assessment.',
-    projectMetric2: '{percent}% Complete',
-    projectMetric3: 'On Schedule',
+    projectMetric1: 'Pick any project',
+    projectMetric2: 'Progress, tasks and payments',
+    projectMetric3: 'Activity within the chosen period',
     workloadTitle: 'Team Workload Summary',
     workloadDescription:
       'Team capacity analysis, member allocation details, department utilization, and rebalancing recommendations.',
-    workloadMetric1: '{count} Team Members',
-    workloadMetric2: '{percent}% Avg Utilization',
-    workloadMetric3: '{percent}% Capacity Free',
+    workloadMetric1: 'Open tasks per team member',
+    workloadMetric2: 'Overdue and due-soon load',
+    workloadMetric3: 'Who can take more work',
     employeeActivityTitle: 'Employee Activity Report',
     employeeActivityDescription: 'What each employee worked on, today, over a week, a month, or a custom range.',
     employeeActivityMetric1: 'Employeewise breakdown',
