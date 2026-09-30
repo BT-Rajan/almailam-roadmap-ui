@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -28,6 +29,8 @@ from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.user import User
 from app.services import audit_service, email_service, email_template_service, notification_service
+
+logger = logging.getLogger(__name__)
 
 ENTITY_TYPE = "FINANCIAL_AGREEMENT"
 
@@ -1005,47 +1008,33 @@ _REMINDER_POINTS = (
 )
 
 
-def _send_payment_reminder_email(
-    db: Session, agreement: FinancialAgreement, project: Project, obligation: PaymentObligation
-) -> bool:
+def _send_payment_reminder_email(db: Session, client_email: str, project_no: str, template_values: dict) -> None:
     """The client-facing counterpart to the -2-day point in
     check_and_notify_payment_reminders' engineer-facing loop below --
     applies uniformly to every obligation regardless of stream, since
     due_date already encodes the right schedule for both (Design's
     one-time/milestone dates and Supervision's 1st-of-the-month dates
-    from generate_prorated_monthly_schedule). Same consent gate and
-    post-send try/except-then-notify-Administrators shape as
-    _send_payment_received_email. Returns whether an attempt was made
-    (i.e. there was a consenting client to email), not whether delivery
-    actually succeeded -- the caller only uses this to count attempts."""
-    client = db.query(Client).filter(Client.id == project.client_id).first()
-    if client is None or not client.email_consent:
-        return False
+    from generate_prorated_monthly_schedule). Same post-send
+    try/except-then-notify-Administrators shape as
+    _send_payment_received_email; the caller has already applied the
+    consent gate.
 
+    Takes plain values, not ORM rows: it runs after the reminder loop
+    has committed, outside that transaction, so a slow mail server
+    never holds the loop's row locks (the NOTIFICATION number series,
+    the obligations) while other users wait on them."""
     try:
-        subject, body = email_template_service.render(
-            db, "payment_reminder",
-            {
-                "contact_person": client.contact_person,
-                "project_name": project.project_name,
-                "project_no": project.project_no,
-                "description": obligation.description,
-                "amount": f"{obligation.amount_due:.2f}",
-                "currency": agreement.currency,
-                "due_date": obligation.due_date.isoformat(),
-            },
-        )
-        email_service.send_email(client.email, subject, body, db=db)
+        subject, body = email_template_service.render(db, "payment_reminder", template_values)
+        email_service.send_email(client_email, subject, body, db=db)
     except ValidationAppError as error:
         notification_service.notify_role(
             db, "Administrator",
             "Payment reminder email not sent",
-            f"A payment reminder for {project.project_no} could not be emailed to the client: {error}",
+            f"A payment reminder for {project_no} could not be emailed to the client: {error}",
             "System",
-            link_route_name="project-workspace", link_params={"projectId": project.project_no},
+            link_route_name="project-workspace", link_params={"projectId": project_no},
             link_query={"tab": "payment-status"},
         )
-    return True
 
 
 def check_and_notify_payment_reminders(db: Session, today: date | None = None) -> int:
@@ -1071,32 +1060,52 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
 
     Returns how many reminders were newly sent in this run.
     """
-    today = today or datetime.now(timezone.utc).date()
+    # Kuwait-local: the job runs at 00:15 Kuwait, when the UTC date is
+    # still yesterday.
+    today = today or kuwait_today()
 
+    # Only obligations due on one of the reminder dates can match, so
+    # filter on those in SQL rather than loading every unpaid obligation.
+    reminder_dates = {today - timedelta(days=offset_days) for offset_days, *_ in _REMINDER_POINTS}
     candidates = (
         db.query(PaymentObligation)
-        .filter(PaymentObligation.date_paid.is_(None), PaymentObligation.manual_status.is_(None))
+        .filter(
+            PaymentObligation.date_paid.is_(None),
+            PaymentObligation.manual_status.is_(None),
+            PaymentObligation.due_date.in_(reminder_dates),
+        )
         .all()
+    )
+    # The candidates' agreements and live projects (a soft-deleted
+    # project's obligations get no reminders -- see delete_project) and
+    # their clients, in three queries instead of three per obligation.
+    agreements = (
+        {a.id: a for a in db.query(FinancialAgreement).filter(FinancialAgreement.id.in_({o.agreement_id for o in candidates}))}
+        if candidates else {}
+    )
+    projects = (
+        {
+            p.id: p
+            for p in db.query(Project).filter(
+                Project.id.in_({a.project_id for a in agreements.values()}), Project.deleted_at.is_(None)
+            )
+        }
+        if agreements else {}
+    )
+    clients = (
+        {c.id: c for c in db.query(Client).filter(Client.id.in_({p.client_id for p in projects.values()}))}
+        if projects else {}
     )
 
     notified_count = 0
+    pending_emails: list[tuple[str, str, dict]] = []
     for obligation in candidates:
         for offset_days, guard_column, title, tense in _REMINDER_POINTS:
             if obligation.due_date != today - timedelta(days=offset_days):
                 continue
 
-            agreement = get_agreement(db, obligation.agreement_id)
-            # Excludes a soft-deleted project's own obligations -- see
-            # project_service.delete_project's docstring. A deleted
-            # project's financial agreements/obligations are left alone
-            # on disk, but reminders (client emails and engineer
-            # notifications alike) are exactly the kind of ongoing
-            # tracking a deleted project should no longer generate.
-            project = (
-                db.query(Project)
-                .filter(Project.id == agreement.project_id, Project.deleted_at.is_(None))
-                .first()
-            )
+            agreement = agreements.get(obligation.agreement_id)
+            project = projects.get(agreement.project_id) if agreement else None
             if project is None:
                 continue
 
@@ -1126,12 +1135,40 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
             # before the payment schedule date"), guarded by its own
             # column so it fires on schedule regardless of whether this
             # project even has an Engineer assigned.
-            if offset_days == -2 and project is not None and obligation.client_reminder_sent_at is None:
-                if _send_payment_reminder_email(db, agreement, project, obligation):
+            #
+            # Only queued here; sent after the commit below. The guard is
+            # stamped now either way (as it always was, even when the send
+            # failed), so a crash mid-send can't email a client twice.
+            if offset_days == -2 and obligation.client_reminder_sent_at is None:
+                client = clients.get(project.client_id)
+                if client is not None and client.email_consent:
+                    pending_emails.append((
+                        client.email,
+                        project.project_no,
+                        {
+                            "contact_person": client.contact_person,
+                            "project_name": project.project_name,
+                            "project_no": project.project_no,
+                            "description": obligation.description,
+                            "amount": f"{obligation.amount_due:.2f}",
+                            "currency": agreement.currency,
+                            "due_date": obligation.due_date.isoformat(),
+                        },
+                    ))
                     notified_count += 1
                 obligation.client_reminder_sent_at = datetime.now(timezone.utc)
 
     db.commit()
+
+    # One short transaction per email; one that fails unexpectedly is
+    # logged and skipped rather than stopping the rest.
+    for client_email, project_no, template_values in pending_emails:
+        try:
+            _send_payment_reminder_email(db, client_email, project_no, template_values)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Payment reminder email for %s failed.", project_no)
     return notified_count
 
 

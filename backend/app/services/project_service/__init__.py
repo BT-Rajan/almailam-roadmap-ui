@@ -849,7 +849,7 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
         # check_and_notify_overdue_projects only re-notifies once this
         # is cleared, the same "cleared the moment the underlying
         # condition stops being true" rule stale_notified_at follows.
-        if project.overdue_notified_at is not None and payload.targetDate >= date.today():
+        if project.overdue_notified_at is not None and payload.targetDate >= kuwait_today():
             project.overdue_notified_at = None
     # progress is deliberately not settable here -- it's computed from
     # current_stage (see recompute_progress), not typed in by hand. See
@@ -1372,7 +1372,7 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
         db.flush()
         notification_service.create_notification(
             db, project.engineer_id, "New task assigned", f"You've been assigned: {title}", "Task",
-            link_route_name="tasks",
+            link_route_name="task-workspace", link_params={"taskId": task.task_no},
         )
 
     created_count = 0
@@ -1885,14 +1885,17 @@ def check_and_notify_stale_projects(db: Session) -> int:
         .all()
     )
 
+    # One grouped query for every candidate's last stage change, not one
+    # query per project.
+    last_stage_times = timeline_service.last_stage_event_times(db, {p.id for p in candidates})
+
     notified_count = 0
     for project in candidates:
-        last_stage_event = timeline_service.get_last_stage_event(db, project.id)
         # A project that has never advanced past its initial stage has
         # no "stage" timeline event yet -- fall back to when the project
         # itself was created, since that's genuinely when its current
         # (first) stage started.
-        reference_time = last_stage_event.created_at if last_stage_event else project.created_at
+        reference_time = last_stage_times.get(project.id, project.created_at)
 
         if reference_time <= cutoff:
             notification_service.create_notification(
@@ -2183,7 +2186,7 @@ def check_and_notify_overdue_projects(db: Session) -> int:
     (update_project) or the project stops being Active, the moment the
     condition that caused the alert stops being true. Same shape as
     check_and_notify_stale_projects above."""
-    today = date.today()
+    today = kuwait_today()
     candidates = (
         db.query(Project)
         .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.target_date < today)

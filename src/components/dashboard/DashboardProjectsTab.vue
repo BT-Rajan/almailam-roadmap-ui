@@ -81,8 +81,9 @@ function handleProjectClick(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
 }
 
-function handleTaskClick(): void {
-  router.push({ name: ROUTE_NAMES.MY_TASKS })
+// Opens that task, the same way every other task list does.
+function handleTaskClick(taskId: string): void {
+  router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId } })
 }
 
 function handleDocumentClick(): void {

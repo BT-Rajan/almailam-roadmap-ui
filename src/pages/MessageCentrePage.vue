@@ -13,6 +13,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useToast } from '@/composables/useToast'
@@ -321,6 +322,7 @@ onMounted(() => {
         :rows="logRows"
         row-key="id"
         :searchable="false"
+        :paginated="false"
         :empty-title="t('workspace.messageCentrePage.noMessagesSentYet')"
         :empty-description="t('workspace.messageCentrePage.noMessagesSentYetDescription')"
       >
@@ -338,6 +340,19 @@ onMounted(() => {
           <StatusBadge :label="value as string" :variant="value === 'Sent' ? 'success' : 'danger'" />
         </template>
       </SmartTable>
+      <div v-if="store.logPagination.total > 0" class="mt-3 rounded-xl border border-border-light bg-bg-card">
+        <TablePagination
+          :current-page="store.logPagination.page"
+          :total-pages="store.logPagination.totalPages"
+          :total-items="store.logPagination.total"
+          :start-index="(store.logPagination.page - 1) * store.logPagination.pageSize"
+          :end-index="Math.min(store.logPagination.page * store.logPagination.pageSize, store.logPagination.total)"
+          :page-size="store.logPagination.pageSize"
+          :page-size-options="[25, 50, 100]"
+          @page-change="(page: number) => store.loadLogPage(page)"
+          @page-size-change="(size: number) => store.loadLogPage(1, size)"
+        />
+      </div>
     </div>
 
     <BaseDrawer v-model="store.isComposeOpen" :title="isEmail ? t('workspace.messageCentrePage.composeEmailTitle') : t('workspace.messageCentrePage.composeMessage')" width="lg" @close="closeCompose">

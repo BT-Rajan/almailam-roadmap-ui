@@ -195,7 +195,7 @@ def _transfer_open_tasks_to_new_manager(
         f"{len(open_tasks)} open task(s) on {client.company_name} were transferred to you "
         f"after you became the account manager.",
         "Task",
-        link_route_name="tasks",
+        link_route_name="my-tasks",
     )
 
 
@@ -696,19 +696,11 @@ def find_possible_duplicates(
             candidates[client.id] = client
 
     if len(mobile_digits) >= 7:
-        # Mobile numbers may be stored with inconsistent formatting
-        # (spaces, dashes) depending on how they were typed, so an exact
-        # SQL substring match on the raw column isn't reliable enough to
-        # replace the digit-normalized comparison below -- but scanning
-        # just (id, mobile) instead of full rows keeps this cheap even as
-        # the client list grows, rather than hydrating every column of
-        # every client just to check one field.
-        mobile_rows = db.query(Client.id, Client.mobile).filter(Client.deleted_at.is_(None)).all()
-        matching_ids = {client_id for client_id, stored_mobile in mobile_rows if _digits(stored_mobile) == mobile_digits}
-        missing_ids = matching_ids - candidates.keys()
-        if missing_ids:
-            for client in db.query(Client).filter(Client.id.in_(missing_ids)).all():
-                candidates[client.id] = client
+        # Mobiles are stored however they were typed (spaces, dashes,
+        # +965), so compare the digits-only copy the Client model keeps
+        # in step -- an indexed lookup instead of scanning every client.
+        for client in db.query(Client).filter(Client.deleted_at.is_(None), Client.mobile_digits == mobile_digits):
+            candidates.setdefault(client.id, client)
 
     matches: list[dict] = []
     for client in candidates.values():

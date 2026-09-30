@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS clients (
     company_name                    VARCHAR(200) NOT NULL,
     contact_person                  VARCHAR(120) NOT NULL,
     mobile                          VARCHAR(30)  NOT NULL,
+    -- mobile with non-digits removed; kept in step by the Client model
+    -- (app/models/client.py), used by the duplicate check.
+    mobile_digits                   VARCHAR(30)  NOT NULL DEFAULT '',
     email                           VARCHAR(120) NOT NULL,
     city                            VARCHAR(80)  NOT NULL,
     status                          ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
@@ -146,7 +149,8 @@ CREATE TABLE IF NOT EXISTS clients (
     INDEX idx_clients_onboarding_state (onboarding_state),
     INDEX idx_clients_deleted_at (deleted_at),
     INDEX idx_clients_account_manager (account_manager_id),
-    INDEX idx_clients_deleted_status (deleted_at, status)
+    INDEX idx_clients_deleted_status (deleted_at, status),
+    INDEX idx_clients_mobile_digits (mobile_digits)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS client_contacts (
@@ -1144,7 +1148,7 @@ CREATE TABLE IF NOT EXISTS message_log (
     CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_message_log_template FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE SET NULL,
     CONSTRAINT fk_message_log_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-    INDEX idx_message_log_client (client_id),
+    INDEX idx_message_log_client (client_id, sent_at),
     INDEX idx_message_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -1438,7 +1442,9 @@ CREATE TABLE IF NOT EXISTS project_timeline_events (
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_project_timeline_events_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_timeline_events_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_project_timeline_events_project (project_id, event_date)
+    INDEX idx_project_timeline_events_project (project_id, event_date),
+    -- Latest stage change per project (timeline_service.last_stage_event_times).
+    INDEX idx_project_timeline_events_stage (project_id, type, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- One row per completed (not Cancelled -- nothing to hand over on a

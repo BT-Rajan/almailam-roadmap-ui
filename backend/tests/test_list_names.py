@@ -55,7 +55,8 @@ class ListNamesTest(unittest.TestCase):
     def test_message_log(self):
         from app.api.messages import list_log
 
-        (row,) = list_log(None, None, db=self.db, _=None)
+        result = list_log(None, None, 1, 25, db=self.db, _=None)
+        (row,) = result["items"]
         self.assertEqual(row.projectName, "Villa Salmiya")
 
     def test_tasks(self):

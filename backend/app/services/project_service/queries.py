@@ -12,7 +12,7 @@ here was moved verbatim; nothing about their behavior changed as part
 of this split.
 """
 
-from sqlalchemy import or_
+from sqlalchemy import event, or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
@@ -98,13 +98,39 @@ def get_project(db: Session, project_no: str) -> Project:
     return project
 
 
+# A project's three selection lists are read several times while
+# handling one request (the stage-advance check, exit criteria, the
+# handover checklist and readiness each read all three). They are
+# remembered on the session until it writes anything -- any flush,
+# commit, rollback or bulk UPDATE/DELETE forgets them -- so a repeat read
+# returns exactly what a new query would (the session has autoflush off).
+_SELECTION_CACHE_KEY = "project_selection_lists"
+
+
+def _cached_selection(db: Session, model, project_id: int) -> list:
+    cache = db.info.setdefault(_SELECTION_CACHE_KEY, {})
+    key = (model, project_id)
+    if key not in cache:
+        cache[key] = db.query(model).filter(model.project_id == project_id).order_by(model.id.asc()).all()
+    return list(cache[key])  # a copy: callers may append/sort their own list
+
+
+def _forget_selections(session: Session, *_args) -> None:
+    session.info.pop(_SELECTION_CACHE_KEY, None)
+
+
+for _session_event in ("after_flush", "after_commit", "after_rollback", "after_soft_rollback"):
+    event.listen(Session, _session_event, _forget_selections)
+
+
+@event.listens_for(Session, "do_orm_execute")
+def _forget_selections_on_bulk_write(orm_execute_state) -> None:
+    if orm_execute_state.is_update or orm_execute_state.is_delete or orm_execute_state.is_insert:
+        _forget_selections(orm_execute_state.session)
+
+
 def get_selected_activities(db: Session, project_id: int) -> list[ProjectSelectedActivity]:
-    return (
-        db.query(ProjectSelectedActivity)
-        .filter(ProjectSelectedActivity.project_id == project_id)
-        .order_by(ProjectSelectedActivity.id.asc())
-        .all()
-    )
+    return _cached_selection(db, ProjectSelectedActivity, project_id)
 
 
 def get_selected_activities_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedActivity]]:
@@ -126,12 +152,7 @@ def get_selected_activities_batch(db: Session, project_ids: set[int]) -> dict[in
 
 
 def get_selected_supervision_activities(db: Session, project_id: int) -> list[ProjectSelectedSupervisionActivity]:
-    return (
-        db.query(ProjectSelectedSupervisionActivity)
-        .filter(ProjectSelectedSupervisionActivity.project_id == project_id)
-        .order_by(ProjectSelectedSupervisionActivity.id.asc())
-        .all()
-    )
+    return _cached_selection(db, ProjectSelectedSupervisionActivity, project_id)
 
 
 def get_selected_supervision_activities_batch(
@@ -154,12 +175,7 @@ def get_selected_supervision_activities_batch(
 
 
 def get_selected_permits(db: Session, project_id: int) -> list[ProjectSelectedPermit]:
-    return (
-        db.query(ProjectSelectedPermit)
-        .filter(ProjectSelectedPermit.project_id == project_id)
-        .order_by(ProjectSelectedPermit.id.asc())
-        .all()
-    )
+    return _cached_selection(db, ProjectSelectedPermit, project_id)
 
 
 def get_selected_permits_batch(db: Session, project_ids: set[int]) -> dict[int, list[ProjectSelectedPermit]]:

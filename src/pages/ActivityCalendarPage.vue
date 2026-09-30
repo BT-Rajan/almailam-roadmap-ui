@@ -17,7 +17,6 @@ import { ROUTE_NAMES } from '@/constants/routeNames'
 import { formatTime } from '@/utils/dateFormatter'
 import { activityCalendarService, type ActivityRecord, type DailySummary, ActivityType, EntityType } from '@/services/activityCalendarService'
 import { projectService } from '@/services/projectService'
-import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { BadgeVariant } from '@/types/Ui'
 import type { SelectOption } from '@/types/Ui'
@@ -25,7 +24,6 @@ import type { SelectOption } from '@/types/Ui'
 const router = useRouter()
 const { t } = useI18n()
 const toastStore = useToastStore()
-const taskStore = useTaskStore()
 const { can } = useRbac()
 
 // Only Administrators may browse other users' activity. Everyone else only
@@ -261,17 +259,16 @@ function closeDetailsPanel() {
 // editing status or creating a task behaves identically
 // wherever it's opened from.
 
-async function handleActivityClick(activity: ActivityRecord) {
+function handleActivityClick(activity: ActivityRecord) {
   if (activity.entityType === EntityType.TASK) {
-    // Just this one task -- not every task in the company.
-    const task = await taskStore.ensureTask(activity.entityId).catch(() => undefined)
-    if (task) {
-      router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: activity.entityId } })
-      return
-    }
+    // Open it the same way the Task Board does. The task page loads it
+    // itself and shows "Task not found" if it was deleted -- a task click
+    // never turns into creating a new task.
+    router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: activity.entityId } })
+    return
   }
-  // Not a task, or the task couldn't be found (e.g. deleted) -- offer to
-  // spin up a follow-up task from this activity instead. Unlike
+  // Not a task -- the card offers to spin up a follow-up task from this
+  // activity instead ("Create follow-up task"). Unlike
   // ProjectTasksTab.vue's "Add Task" button, this doesn't lock the
   // Project field -- it's only a starting-point suggestion here, not a
   // context the user is already working inside.
