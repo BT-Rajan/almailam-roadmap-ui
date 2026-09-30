@@ -19,13 +19,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 const taskStore = useTaskStore()
 
+// Only this user's tasks -- not every task, project and client in the
+// company (each task comes with its project/client names).
 function loadData(): void {
-  taskStore.loadTasks()
+  void taskStore.loadMyTasks()
 }
 
-onMounted(() => {
-  if (taskStore.needsFullLoad) loadData()
-})
+onMounted(loadData)
 
 function openTask(taskId: string): void {
   router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId } })

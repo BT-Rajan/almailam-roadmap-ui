@@ -61,7 +61,8 @@ const isLoading = ref(true)
 
 async function loadData(): Promise<void> {
   isLoading.value = true
-  if (projectStore.projects.length === 0) await projectStore.loadProjects()
+  // Just this project and its client -- not every project in the company.
+  await projectStore.ensureProject(projectId.value)
   await Promise.all([
     quotationStore.loadQuotationsForProject(projectId.value),
     contractStore.loadContractsForProject(projectId.value),

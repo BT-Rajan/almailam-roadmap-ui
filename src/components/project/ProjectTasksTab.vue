@@ -18,6 +18,7 @@ import type { Project, WorkflowStage } from '@/types/Project'
 import type { Task } from '@/types/Task'
 import { formatTaskDueDateTime, isTaskOverdue } from '@/utils/taskHelpers'
 import {
+  isServiceClosed,
   projectServices,
   serviceKey,
   taskServiceKey,
@@ -56,7 +57,7 @@ const clientStore = useClientStore()
 const { t } = useI18n()
 const { isRtl } = useLocale()
 onMounted(() => {
-  if (clientStore.clients.length === 0) clientStore.loadClients()
+  void clientStore.ensureClient(props.project.clientId)
 })
 
 const rowChevron = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))
@@ -150,6 +151,13 @@ function openGroup(group: TaskGroup, taskId?: string): void {
   isDialogOpen.value = true
 }
 
+// The stage's phase is done once every service in it is closed: no new
+// tasks from here then, general ones included.
+const isPhaseComplete = computed(() => {
+  const services = groups.value.filter((group) => group.service).map((group) => group.service)
+  return services.length > 0 && services.every((service) => isServiceClosed(service))
+})
+
 function openGeneral(): void {
   dialogServiceKey.value = 'general'
   dialogTaskId.value = undefined
@@ -159,7 +167,13 @@ function openGeneral(): void {
 
 <template>
   <div class="flex items-center justify-end no-print">
-    <BaseButton size="sm" :icon="Plus" @click="openGeneral">{{ t('project.tasksTab.newTask') }}</BaseButton>
+    <BaseButton
+      size="sm"
+      :icon="Plus"
+      :disabled="isPhaseComplete"
+      :title="isPhaseComplete ? t('project.tasksTab.phaseCompleteNoTasks') : undefined"
+      @click="openGeneral"
+    >{{ t('project.tasksTab.newTask') }}</BaseButton>
   </div>
 
   <div v-if="taskStore.isLoading && taskStore.tasksByProject(project.id).length === 0" class="rounded-xl border border-border-light bg-bg-card p-5">
@@ -208,7 +222,15 @@ function openGeneral(): void {
               </span>
               <ProgressBar :value="Math.round((group.done / group.tasks.length) * 100)" />
             </div>
-            <BaseButton variant="secondary" size="sm" :icon="Plus" class="no-print" @click="openGroup(group)">
+            <BaseButton
+              variant="secondary"
+              size="sm"
+              :icon="Plus"
+              class="no-print"
+              :disabled="isServiceClosed(group.service) || (!group.service && isPhaseComplete)"
+              :title="isServiceClosed(group.service) ? t('project.tasksTab.serviceClosedNoTasks') : undefined"
+              @click="openGroup(group)"
+            >
               {{ t('project.tasksTab.addTask') }}
             </BaseButton>
           </div>
@@ -253,6 +275,7 @@ function openGeneral(): void {
     :project="project"
     :service="dialogService"
     :initial-task-id="dialogTaskId"
+    :can-add="!(dialogService === null && isPhaseComplete)"
     @changed="emit('changed')"
   />
 </template>

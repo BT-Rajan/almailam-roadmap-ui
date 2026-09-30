@@ -295,18 +295,30 @@
   /*
    * Blanket glassmorphism hook (dark theme only -- light is solid) — these are the generated Tailwind class
    * names for the bg.card / bg.secondary / bg.sidebar / bg.header tokens.
-   * Every component that already uses e.g. `bg-bg-card` (52+ across the
-   * app) automatically becomes a frosted glass surface, so we get a
-   * consistent theme without having to touch every file.
+   * Every component that already uses e.g. `bg-bg-card` automatically
+   * gets the glass sheen, so we get a consistent theme without having to
+   * touch every file.
+   *
+   * Only the app chrome (sidebar/header) gets a real backdrop blur.
+   * Cards and rows used to as well -- 200+ surfaces, routinely nested
+   * card-in-card-in-row -- and every one of them re-blurred everything
+   * behind it on each scroll/repaint, which made dark mode noticeably
+   * sluggish. Behind a card there is only the ambient background, which
+   * is already a 110px blur, so blurring it again was invisible anyway;
+   * the translucent card colour + sheen keep the same glass look.
+   * (Dialogs keep their blur via .glass-panel -- one at a time.)
    */
   .dark .bg-bg-card,
   .dark .bg-bg-secondary,
   .dark .bg-bg-sidebar,
   .dark .bg-bg-header {
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     background-image: var(--glass-sheen);
     background-blend-mode: overlay;
+  }
+  .dark .bg-bg-sidebar,
+  .dark .bg-bg-header {
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
   }
 
   a,
@@ -506,6 +518,8 @@
   border-radius: 9999px;
   filter: blur(110px);
   opacity: 0.22;
+  /* Own compositor layer: rasterised once, not re-blurred on every repaint. */
+  will-change: transform;
 }
 
 .dark .ambient-background {

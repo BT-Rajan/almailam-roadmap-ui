@@ -133,14 +133,34 @@ export const useTaskStore = defineStore('task', {
             this.tasks = tasks
             this.isFullyLoaded = true
           }),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
-          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
+          !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
         ])
       } catch (error) {
         this.error = describeStoreError('Unable to load tasks. Please try again.', error)
       } finally {
         this.isLoading = false
         this.isFullLoading = false
+      }
+    },
+
+    // Just the signed-in user's own tasks (server-side assignee filter) --
+    // what My Tasks shows. Each task carries its project/client names, so
+    // no project or client list is needed either. Merged into `tasks` in
+    // place of this user's old rows; does NOT mark the list fully loaded.
+    async loadMyTasks() {
+      const authStore = useAuthStore()
+      const me = authStore.user
+      if (!me) return
+      this.isLoading = true
+      this.error = undefined
+      try {
+        const mine = await taskService.getTasksAssignedTo(me.id)
+        this.tasks = replaceScope(this.tasks, mine, (task) => task.assignedTo === me.name)
+      } catch (error) {
+        this.error = describeStoreError('Unable to load tasks. Please try again.', error)
+      } finally {
+        this.isLoading = false
       }
     },
 
@@ -180,6 +200,16 @@ export const useTaskStore = defineStore('task', {
     // longer editable from the UI at all -- see updateTaskPriority/
     // updateTaskSeverity removal -- but the fields themselves still
     // exist on Task, defaulted server-side.)
+    // One task by id, fetching just it when not cached -- for the task
+    // page opened from a link, instead of downloading every task.
+    async ensureTask(taskId: string): Promise<Task | undefined> {
+      const cached = this.tasks.find((task) => task.id === taskId)
+      if (cached) return cached
+      const task = await taskService.getTaskById(taskId)
+      if (task && !this.tasks.some((item) => item.id === taskId)) this.tasks = [...this.tasks, task]
+      return task
+    },
+
     async updateTaskTitle(taskId: string, title: string) {
       const updated = await taskService.updateTask(taskId, { title })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))

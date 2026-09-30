@@ -18,6 +18,12 @@ export interface ServiceRef {
   status?: string
 }
 
+// A Complete/Cancelled service takes no new tasks (the backend rejects
+// them too -- task_service._resolve_service_link); reopen it first.
+export function isServiceClosed(service: ServiceRef | null | undefined): boolean {
+  return service?.status === 'Complete' || service?.status === 'Cancelled'
+}
+
 export function serviceKey(kind: ServiceKind, id: string): string {
   return `${kind}:${id}`
 }

@@ -177,8 +177,8 @@ export const usePaymentStore = defineStore('payment', {
         const [agreements, obligations] = await Promise.all([
           paymentService.getFinancialAgreements(),
           paymentService.getAllObligations(),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
-          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
+          !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
         ])
         this.agreements = agreements
         this.obligations = obligations

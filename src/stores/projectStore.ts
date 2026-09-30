@@ -7,6 +7,7 @@ import { useClientStore } from '@/stores/clientStore'
 import type { Client } from '@/types/Client'
 import type { AddServicesInput, Project, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 import { getLoadGate, CACHE_TTL_MS } from '@/utils/loadGate'
+import { replaceScope } from '@/utils/scopedCollection'
 import { describeStoreError } from '@/utils/storeError'
 
 interface ProjectPaginationState {
@@ -17,7 +18,13 @@ interface ProjectPaginationState {
 }
 
 interface ProjectStoreState {
+  // A cache, NOT necessarily the full list: pages scoped to one project
+  // (its workspace, create quotation/contract, payment plan, ...) put
+  // just that project here via ensureProject. Only loadProjects() fills
+  // every project -- check isFullyLoaded, never `projects.length`, to
+  // know whether this is the whole list.
   projects: Project[]
+  isFullyLoaded: boolean
   isLoading: boolean
   error: string | undefined
   searchTerm: string
@@ -41,6 +48,7 @@ interface ProjectStoreState {
 export const useProjectStore = defineStore('project', {
   state: (): ProjectStoreState => ({
     projects: [],
+    isFullyLoaded: false,
     isLoading: false,
     error: undefined,
     searchTerm: '',
@@ -101,7 +109,10 @@ export const useProjectStore = defineStore('project', {
         const clientStore = useClientStore()
         try {
           const [projects] = await Promise.all([projectService.getProjects(), clientStore.loadClients(options)])
-          if (isCurrent()) this.projects = projects
+          if (isCurrent()) {
+            this.projects = projects
+            this.isFullyLoaded = true
+          }
           // The client half swallows its own errors into clientStore.error, so
           // don't call the pair "fresh" if it failed -- the next caller retries.
           return clientStore.error === undefined
@@ -123,7 +134,7 @@ export const useProjectStore = defineStore('project', {
       this.error = undefined
       try {
         const clientStore = useClientStore()
-        if (clientStore.clients.length === 0) {
+        if (!clientStore.isFullyLoaded) {
           await clientStore.loadClients()
         }
         const authStore = useAuthStore()
@@ -239,6 +250,51 @@ export const useProjectStore = defineStore('project', {
       const updated = await projectService.setStatus(projectId, status, reason)
       this.patchProjectInCache(projectId, updated)
       return updated
+    },
+
+    // Makes sure this one project (and its client) is in the cache,
+    // fetching just that record -- what every project-scoped page uses
+    // instead of downloading every project in the company. Returns the
+    // project, or undefined if it doesn't exist / couldn't be loaded
+    // (error set).
+    async ensureProject(projectId: string, options: { force?: boolean } = {}): Promise<Project | undefined> {
+      const cached = options.force ? undefined : this.getProjectById(projectId)
+      if (cached) {
+        await useClientStore().ensureClient(cached.clientId)
+        return cached
+      }
+      this.isLoading = true
+      this.error = undefined
+      try {
+        const project = await projectService.getProjectById(projectId)
+        if (!project) return undefined
+        this.projects = this.getProjectById(projectId)
+          ? this.projects.map((p) => (p.id === projectId ? project : p))
+          : [...this.projects, project]
+        await useClientStore().ensureClient(project.clientId)
+        return project
+      } catch (error) {
+        this.error = describeStoreError('Unable to load this project. Please try again.', error)
+        return undefined
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    // Always-fresh list of one client's projects (their stage/status can
+    // change elsewhere), merged into the cache in place of that client's
+    // old rows -- for a client's own pages, instead of every project.
+    async loadProjectsForClient(clientId: string): Promise<void> {
+      this.isLoading = true
+      this.error = undefined
+      try {
+        const fresh = await projectService.getProjectsForClient(clientId)
+        this.projects = replaceScope(this.projects, fresh, (project) => project.clientId === clientId)
+      } catch (error) {
+        this.error = describeStoreError('Unable to load projects. Please try again.', error)
+      } finally {
+        this.isLoading = false
+      }
     },
 
     // Re-fetches one project and patches the local cache -- same shape

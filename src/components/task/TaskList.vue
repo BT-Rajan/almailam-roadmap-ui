@@ -21,8 +21,13 @@ defineEmits<{
 
 const { t } = useI18n()
 
-function projectName(projectId: string): string {
-  return props.getProjectById(projectId)?.projectName ?? t('task.unknownProject')
+// Prefer the names the server sends with each task; the lookups are only a
+// fallback for tasks created locally before a refetch.
+function projectName(task: Task): string {
+  return task.projectName || props.getProjectById(task.projectId)?.projectName || t('task.unknownProject')
+}
+function clientName(task: Task): string {
+  return task.clientName || props.getClientNameByProjectId(task.projectId)
 }
 </script>
 
@@ -46,7 +51,7 @@ function projectName(projectId: string): string {
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold text-text-primary">{{ task.title }}</p>
             <p class="truncate text-xs text-text-muted">
-              {{ projectName(task.projectId) }} &middot; {{ getClientNameByProjectId(task.projectId) }}
+              {{ projectName(task) }} &middot; {{ clientName(task) }}
             </p>
           </div>
 

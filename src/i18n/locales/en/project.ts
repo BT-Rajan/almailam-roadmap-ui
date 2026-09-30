@@ -471,6 +471,8 @@ export default {
     addTask: 'Add task',
     due: 'Due {date}',
     mainTask: 'Main task',
+    serviceClosedNoTasks: 'This activity is closed. Reopen it to add tasks.',
+    phaseCompleteNoTasks: 'Every activity in this phase is closed, so no new tasks can be added.',
     noServiceTasksYet: 'No tasks yet',
     emptyTitle: 'No services or tasks yet',
     emptyDescription: 'Services selected for this project appear here with their tasks. Use New Task to add a general task.',

@@ -139,16 +139,15 @@ const contactDetailItems = computed(() => {
 })
 
 async function loadData(): Promise<void> {
-  if (clientStore.clients.length === 0) {
-    await clientStore.loadClients()
-  }
-  await clientStore.loadClientDetail(clientId.value)
-  // Always fetch fresh -- not guarded by a `.length === 0` cache check.
-  // A project's stage/status can change elsewhere in the app (or from
-  // another session) between visits, and the Projects tab here should
-  // show the current state, not whatever was cached from an earlier,
-  // unrelated page's fetch.
-  await projectStore.loadProjects({ force: true })
+  // Just this client and its own projects -- not every client and project
+  // in the company. The projects are always fetched fresh: a project's
+  // stage/status can change elsewhere (or in another session) between
+  // visits, and the Projects tab here should show the current state.
+  await Promise.all([
+    clientStore.ensureClient(clientId.value),
+    clientStore.loadClientDetail(clientId.value),
+    projectStore.loadProjectsForClient(clientId.value),
+  ])
   // Cheap, targeted check (only scans this client's own identification
   // numbers against others), unlike the free-text onboarding-wizard
   // duplicate check -- safe to run automatically on every workspace visit.

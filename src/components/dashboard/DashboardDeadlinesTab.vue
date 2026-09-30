@@ -1,145 +1,75 @@
 <script setup lang="ts">
 import { Clock, FileWarning } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
 import UpcomingDeadlinesWidget from '@/components/dashboard/UpcomingDeadlinesWidget.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
+import { useDashboardData } from '@/composables/useDashboardData'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { contractService } from '@/services/contractService'
-import { useProjectStore } from '@/stores/projectStore'
-import { useServerTimeStore } from '@/stores/serverTimeStore'
-import { useTaskStore } from '@/stores/taskStore'
-import type { Contract } from '@/types/Contract'
+import { dashboardService, type DashboardContractRow } from '@/services/dashboardService'
 import type { Deadline, StatisticItem } from '@/types/Dashboard'
+import type { TaskPriority } from '@/types/Task'
 
 const router = useRouter()
 const { t } = useI18n()
-const projectStore = useProjectStore()
-const taskStore = useTaskStore()
-const serverTimeStore = useServerTimeStore()
 const contractRenewalsWidget = ref<InstanceType<typeof UpcomingDeadlinesWidget> | null>(null)
 
-// Deadlines are derived from task due dates, and each task's project name
-// needs projectStore -- guarded the same way as the other tabs.
-onMounted(() => {
-  if (taskStore.needsFullLoad) void taskStore.loadTasks()
-  if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
-})
-
-function projectNameFor(projectId: string): string {
-  return projectStore.projects.find((project) => project.id === projectId)?.projectName ?? 'Unknown Project'
-}
-
-// The server's Kuwait-local "today" (see serverTimeStore.ts), not the
-// browser's own clock -- a contract's expiry/renewal status needs the
-// same server-anchored "today" as every payment-overdue decision does
-// (see utils/paymentHelpers.ts). Falls back to the browser's local
-// date only for the brief window before the app's first server-time
-// fetch resolves.
-const today = computed(() => serverTimeStore.todayTimestamp ?? new Date().setHours(0, 0, 0, 0))
-
-// Contract renewals -- not from any per-project store (contractStore is
-// scoped to whichever single project a workspace tab has open), fetched
-// directly and held locally, same reasoning as taskStore/projectStore
-// above but without a shared store to reuse.
-const allContracts = ref<Contract[]>([])
-const isLoadingContracts = ref(false)
-onMounted(async () => {
-  if (allContracts.value.length > 0 || isLoadingContracts.value) return
-  isLoadingContracts.value = true
-  try {
-    allContracts.value = await contractService.getContracts()
-  } finally {
-    isLoadingContracts.value = false
-  }
-})
-
-// Business policy: a contract can't expire before it's even signed --
-// a Draft's expiryDate is provisional and not yet in force, and
-// Expired/Terminated are already resolved. Only Signed/Active
-// contracts are actually counted down against their expiry date.
-const renewalEligibleContracts = computed(() => allContracts.value.filter((contract) => contract.status === 'Signed' || contract.status === 'Active'))
-
-const daysUntil = (isoDate: string) => Math.ceil((new Date(isoDate).getTime() - today.value) / (1000 * 60 * 60 * 24))
-
-const contractsExpiringSoon = computed(() => renewalEligibleContracts.value.filter((contract) => {
-  const days = daysUntil(contract.expiryDate)
-  return days >= 0 && days <= 7
-}))
-
-// "Not renewed" -- expiry date has already passed but nobody has moved
-// the contract to Expired/Terminated *and* the project it belongs to
-// isn't Completed, so the work is presumably still ongoing without a
-// contract actually covering it. This is deliberately a dashboard
-// callout for staff to act on rather than an automatic status change
-// (no scheduled job flips these to Expired on its own).
-const contractsNotRenewed = computed(() => renewalEligibleContracts.value.filter((contract) => {
-  if (daysUntil(contract.expiryDate) >= 0) return false
-  const project = projectStore.projects.find((p) => p.id === contract.projectId)
-  return project ? project.status !== 'Completed' : false
-}))
+// Overdue count, the next two weeks' task deadlines and the contract
+// renewal callouts all come from one server request, computed against the
+// server's Kuwait-local "today" -- this tab no longer downloads every
+// task, project and contract.
+//
+// Contract rules (unchanged, now server-side): only Signed/Active
+// contracts count down; "expiring soon" = expires within 7 days; "not
+// renewed" = already past expiry while its project isn't Completed -- a
+// callout for staff to act on, not an automatic status change.
+const { data, error, reload } = useDashboardData(dashboardService.getDeadlines)
 
 const statistics = computed<StatisticItem[]>(() => [
-  {
-    id: 'overdue',
-    label: t('dashboard.overdueTasks'),
-    value: taskStore.tasks.filter((task) => task.status !== 'Completed' && new Date(task.dueDate).getTime() < today.value).length,
-    icon: Clock,
-    color: 'danger',
-  },
+  { id: 'overdue', label: t('dashboard.overdueTasks'), value: data.value?.overdueTasks ?? 0, icon: Clock, color: 'danger' },
   {
     id: 'contracts-expiring-soon',
     label: t('dashboard.contractsExpiringSoon'),
-    value: contractsExpiringSoon.value.length,
+    value: data.value?.contractsExpiringSoon.length ?? 0,
     icon: FileWarning,
     color: 'warning',
   },
   {
     id: 'contracts-not-renewed',
     label: t('dashboard.contractsNotRenewed'),
-    value: contractsNotRenewed.value.length,
+    value: data.value?.contractsNotRenewed.length ?? 0,
     icon: FileWarning,
     color: 'danger',
   },
 ])
 
-// There is no separate "deadlines" concept in the backend -- this reuses
-// real task due dates, same convention as the old dashboard, just with
-// more room to show them now that it has a whole tab instead of a
-// sidebar slot.
-const upcomingDeadlines = computed<Deadline[]>(() => {
-  const now = today.value
-  const twoWeeksFromNow = now + 14 * 24 * 60 * 60 * 1000
-  return taskStore.tasks
-    .filter((task) => task.status !== 'Completed')
-    .filter((task) => {
-      const due = new Date(task.dueDate).getTime()
-      return due >= now && due <= twoWeeksFromNow
-    })
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      project: projectNameFor(task.projectId),
-      dueDate: task.dueDate,
-      priority: task.priority === 'High' ? ('high' as const) : task.priority === 'Medium' ? ('medium' as const) : ('low' as const),
-      type: 'review' as const,
-    }))
-})
+const PRIORITY: Record<TaskPriority, Deadline['priority']> = { High: 'high', Medium: 'medium', Low: 'low' }
 
-// Both buckets in one widget, sorted oldest-expiry-first -- an already
-// lapsed contract (negative days) is always more urgent than one still
-// counting down, and the widget's own overdue/urgent/soon styling
-// already reads correctly for both at once.
-const contractRenewalItems = computed<Deadline[]>(() => [...contractsNotRenewed.value, ...contractsExpiringSoon.value].map((contract) => ({
-  id: contract.projectId,
-  title: contract.contractNo,
-  project: projectNameFor(contract.projectId),
-  dueDate: contract.expiryDate,
-  priority: 'high' as const,
-  type: 'contract-expiry' as const,
-})))
+const upcomingDeadlines = computed<Deadline[]>(() =>
+  (data.value?.upcomingDeadlines ?? []).map((task) => ({
+    id: task.id,
+    title: task.title,
+    project: task.project,
+    dueDate: task.dueDate,
+    priority: PRIORITY[task.priority],
+    type: 'review' as const,
+  })),
+)
+
+// Both buckets in one widget, already-lapsed first -- a lapsed contract is
+// always more urgent than one still counting down.
+const contractRenewalItems = computed<Deadline[]>(() =>
+  [...(data.value?.contractsNotRenewed ?? []), ...(data.value?.contractsExpiringSoon ?? [])].map((contract: DashboardContractRow) => ({
+    id: contract.projectId,
+    title: contract.contractNo,
+    project: contract.project,
+    dueDate: contract.expiryDate,
+    priority: 'high' as const,
+    type: 'contract-expiry' as const,
+  })),
+)
 
 function handleStatisticClick(statisticId: string): void {
   if (statisticId === 'contracts-expiring-soon' || statisticId === 'contracts-not-renewed') {
@@ -159,7 +89,8 @@ function handleContractRenewalClick(projectId: string): void {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <ErrorState v-if="error" :description="error" @retry="reload" />
+  <div v-else class="space-y-6">
     <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick(stat.id)" />
     </div>

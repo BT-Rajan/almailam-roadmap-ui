@@ -99,8 +99,8 @@ export const useMessageCentreStore = defineStore('messageCentre', {
         const [templates, log] = await Promise.all([
           messageService.getTemplates(),
           messageService.getMessageLog(),
-          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+          !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
         ])
         this.templates = templates
         this.log = log

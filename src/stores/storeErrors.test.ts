@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/services/httpClient'
 import { useAIConfigStore } from '@/stores/aiConfigStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useAuditLogStore } from '@/stores/auditLogStore'
 import { useClientStore } from '@/stores/clientStore'
 import { useCompanyStore } from '@/stores/companyStore'
@@ -25,7 +26,7 @@ import { useSitePortalStore } from '@/stores/sitePortalStore'
 import { useStatusReportStore } from '@/stores/statusReportStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUserStore } from '@/stores/userStore'
-import { overrideMockApi, resetMockApi } from '@/test-utils/mockApi'
+import { overrideMockApi, resetMockApi, testUser } from '@/test-utils/mockApi'
 
 vi.mock('@/services/httpClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/httpClient')>()
@@ -64,6 +65,8 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['documentTemplateStore.loadTemplates', async () => { const s = useDocumentTemplateStore(); await s.loadTemplates(); return s.error }],
   ['governmentFormStore.loadForms', async () => { const s = useGovernmentFormStore(); await s.loadForms(); return s.error }],
   ['governmentSubmissionStore.loadSubmissions', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissions(); return s.error }],
+  ['governmentSubmissionStore.loadSubmissionByNo', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissionByNo('SUB-1'); return s.error }],
+  ['projectStore.loadProjectsForClient', async () => { const s = useProjectStore(); await s.loadProjectsForClient('CL-1'); return s.error }],
   ['governmentSubmissionStore.loadSubmissionsForProject', async () => { const s = useGovernmentSubmissionStore(); await s.loadSubmissionsForProject('P-1'); return s.error }],
   ['knowledgeStore.loadDocuments', async () => { const s = useKnowledgeStore(); await s.loadDocuments(); return s.error }],
   ['messageCentreStore.loadAll', async () => { const s = useMessageCentreStore(); await s.loadAll(); return s.error }],
@@ -74,6 +77,7 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['projectFormStore.load', async () => { const s = useProjectFormStore(); await s.load('P-1'); return s.error }],
   ['projectLinkDocumentStore.loadForProject', async () => { const s = useProjectLinkDocumentStore(); await s.loadForProject('P-1'); return s.error }],
   ['projectStore.loadProjects', async () => { const s = useProjectStore(); await s.loadProjects(); return s.error }],
+  ['projectStore.ensureProject', async () => { const s = useProjectStore(); await s.ensureProject('P-1'); return s.error }],
   ['projectStore.loadProjectsPage', async () => { const s = useProjectStore(); await s.loadProjectsPage(); return s.error }],
   ['quotationStore.loadQuotationsForProject', async () => { const s = useQuotationStore(); await s.loadQuotationsForProject('P-1'); return s.error }],
   ['serviceCatalogStore.loadServices', async () => { const s = useServiceCatalogStore(); await s.loadServices(); return s.error }],
@@ -82,6 +86,8 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['statusReportStore.loadForProject', async () => { const s = useStatusReportStore(); await s.loadForProject('P-1'); return s.projectError }],
   ['statusReportStore.loadForTask', async () => { const s = useStatusReportStore(); await s.loadForTask('T-1'); return s.taskError }],
   ['taskStore.loadTasks', async () => { const s = useTaskStore(); await s.loadTasks(); return s.error }],
+  // Returns early with no signed-in user, so seed one.
+  ['taskStore.loadMyTasks', async () => { useAuthStore().$patch({ user: testUser('Engineer') }); const s = useTaskStore(); await s.loadMyTasks(); return s.error }],
   ['taskStore.loadTasksForProject', async () => { const s = useTaskStore(); await s.loadTasksForProject('P-1'); return s.error }],
   ['taskStore.loadAuditEvents', async () => { const s = useTaskStore(); await s.loadAuditEvents('T-1'); return s.historyError }],
   ['userStore.loadUsers', async () => { const s = useUserStore(); await s.loadUsers(); return s.error }],

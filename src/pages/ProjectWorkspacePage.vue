@@ -314,7 +314,8 @@ const error = computed(() => projectStore.error ?? quotationStore.error ?? contr
 // tasks/documents/submissions the same way.
 async function loadData(): Promise<void> {
   await Promise.all([
-    projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+    // Only this project and its client -- never the whole project list.
+    projectStore.ensureProject(projectId.value),
     paymentStore.loadForProject(projectId.value),
     quotationStore.loadQuotationsForProject(projectId.value),
     contractStore.loadContractsForProject(projectId.value),

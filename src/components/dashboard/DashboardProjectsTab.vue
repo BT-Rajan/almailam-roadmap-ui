@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Activity, Layers, PauseCircle } from '@lucide/vue'
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import StatisticsCard from '@/components/dashboard/StatisticsCard.vue'
@@ -8,41 +8,26 @@ import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue'
 import PaginatedList from '@/components/common/PaginatedList.vue'
 import PendingTasksWidget from '@/components/dashboard/PendingTasksWidget.vue'
 import RecentDocumentsWidget from '@/components/dashboard/RecentDocumentsWidget.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
+import { useDashboardData } from '@/composables/useDashboardData'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { useDocumentStore } from '@/stores/documentStore'
-import { useProjectStore } from '@/stores/projectStore'
-import { useTaskStore } from '@/stores/taskStore'
+import { dashboardService } from '@/services/dashboardService'
 import type { StatisticItem, ProjectSummary, Task, DocumentItem } from '@/types/Dashboard'
 import type { ProjectStatus } from '@/types/Project'
 import type { TaskPriority, TaskStatus } from '@/types/Task'
 
 const router = useRouter()
 const { t } = useI18n()
-const projectStore = useProjectStore()
-const taskStore = useTaskStore()
-const documentStore = useDocumentStore()
 
-// Guarded the same way loadAll()/loadData() elsewhere in the app already
-// are: only fetch a store that isn't already populated and isn't already
-// mid-fetch, so switching back to this tab after visiting another one
-// (which unmounts and remounts this panel -- see DashboardPage.vue) never
-// re-issues a request the first mount already made or has in flight.
-onMounted(() => {
-  if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
-  if (taskStore.needsFullLoad) void taskStore.loadTasks()
-  if (documentStore.needsFullLoad) void documentStore.loadDocuments()
-})
+// Counts, the newest projects, the soonest-due open tasks and the latest
+// documents all come ready-made from one server request -- this tab no
+// longer downloads every project, task and document to count them.
+const { data, error, reload } = useDashboardData(dashboardService.getProjects)
 
-// Real counts from the same project list the "Recent Projects" grid
-// below renders -- one source of truth, so the tile number and what's
-// actually listed can never disagree. One consistent tile (StatisticsCard)
-// for every figure here, same as DashboardFinancialsTab.vue's own -- this
-// tab previously mixed StatisticsCard with a second, differently-styled
-// KPIWidget for no functional reason.
 const statistics = computed<StatisticItem[]>(() => [
-  { id: 'total', label: t('dashboard.totalProjects'), value: projectStore.projects.length, icon: Layers, color: 'primary' },
-  { id: 'active', label: t('dashboard.activeProjects'), value: projectStore.projects.filter((p) => p.status === 'Active').length, icon: Activity, color: 'success' },
-  { id: 'on-hold', label: t('dashboard.onHoldProjects'), value: projectStore.projects.filter((p) => p.status === 'On Hold').length, icon: PauseCircle, color: 'warning' },
+  { id: 'total', label: t('dashboard.totalProjects'), value: data.value?.total ?? 0, icon: Layers, color: 'primary' },
+  { id: 'active', label: t('dashboard.activeProjects'), value: data.value?.active ?? 0, icon: Activity, color: 'success' },
+  { id: 'on-hold', label: t('dashboard.onHoldProjects'), value: data.value?.onHold ?? 0, icon: PauseCircle, color: 'warning' },
 ])
 
 const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
@@ -52,20 +37,17 @@ const PROJECT_STATUS_MAP: Record<ProjectStatus, ProjectSummary['status']> = {
   Completed: 'completed',
 }
 
-// Most recently created projects (higher id = created later), not a fixed
-// mock list -- real data, so this genuinely changes as projects are added.
+// Newest projects first.
 const recentProjects = computed<ProjectSummary[]>(() =>
-  [...projectStore.projects]
-    .reverse()
-    .map((project) => ({
-      id: project.id,
-      name: project.projectName,
-      client: projectStore.getClientById(project.clientId)?.companyName ?? 'Unknown Client',
-      status: PROJECT_STATUS_MAP[project.status],
-      progress: project.progress,
-      dueDate: project.targetDate,
-      siteAddress: project.siteAddress,
-    })),
+  (data.value?.recentProjects ?? []).map((project) => ({
+    id: project.id,
+    name: project.name,
+    client: project.client || t('project.unknownClient'),
+    status: PROJECT_STATUS_MAP[project.status],
+    progress: project.progress,
+    dueDate: project.dueDate,
+    siteAddress: project.siteAddress ?? undefined,
+  })),
 )
 
 const TASK_STATUS_MAP: Record<TaskStatus, Task['status']> = {
@@ -80,37 +62,20 @@ const TASK_PRIORITY_MAP: Record<TaskPriority, Task['priority']> = {
   Low: 'low',
 }
 
-function projectNameFor(projectId: string): string {
-  return projectStore.projects.find((project) => project.id === projectId)?.projectName ?? 'Unknown Project'
-}
-
+// Soonest-due open tasks (the full list is on My Tasks / Tasks).
 const pendingTasks = computed<Task[]>(() =>
-  taskStore.tasks
-    .filter((task) => task.status !== 'Completed')
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      project: projectNameFor(task.projectId),
-      priority: TASK_PRIORITY_MAP[task.priority],
-      assignee: task.assignedTo,
-      dueDate: task.dueDate,
-      status: TASK_STATUS_MAP[task.status],
-    })),
+  (data.value?.pendingTasks ?? []).map((task) => ({
+    id: task.id,
+    title: task.title,
+    project: task.project,
+    priority: TASK_PRIORITY_MAP[task.priority],
+    assignee: task.assignee,
+    dueDate: task.dueDate,
+    status: TASK_STATUS_MAP[task.status],
+  })),
 )
 
-const recentDocuments = computed<DocumentItem[]>(() =>
-  [...documentStore.documents]
-    .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))
-    .map((document) => ({
-      id: document.id,
-      name: document.title,
-      project: projectNameFor(document.projectId),
-      type: document.type,
-      uploadedAt: document.uploadDate,
-      uploadedBy: document.uploadedBy,
-      size: document.fileSize,
-    })),
-)
+const recentDocuments = computed<DocumentItem[]>(() => data.value?.recentDocuments ?? [])
 
 function handleProjectClick(projectId: string): void {
   router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId } })
@@ -130,7 +95,8 @@ function handleKpiClick(): void {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <ErrorState v-if="error" :description="error" @retry="reload" />
+  <div v-else class="space-y-6">
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-3 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleKpiClick" />
     </div>

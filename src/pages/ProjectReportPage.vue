@@ -38,12 +38,13 @@ async function loadReport(): Promise<void> {
   isLoading.value = true
   error.value = undefined
   try {
-    if (projectStore.projects.length === 0) {
-      await projectStore.loadProjects()
-    }
     const requestedId = route.params.projectId as string | undefined
+    // A specific project's report needs just that project; only the
+    // "pick one for me" fallback needs the list.
+    if (requestedId) await projectStore.ensureProject(requestedId)
+    else if (!projectStore.isFullyLoaded) await projectStore.loadProjects()
     const resolved = requestedId
-      ? projectStore.projects.find((item) => item.id === requestedId)
+      ? projectStore.getProjectById(requestedId)
       : (projectStore.projects.find((item) => item.status === 'Active') ?? projectStore.projects[0])
 
     if (!resolved) {
