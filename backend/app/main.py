@@ -1,8 +1,5 @@
-import logging
-from contextlib import asynccontextmanager
 from pathlib import Path
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -44,139 +41,21 @@ from app.api.submissions import router as submissions_router
 from app.api.tasks import router as tasks_router
 from app.api.users import router as users_router
 from app.core.config import get_settings
-from app.core.database import SessionLocal
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
-from app.services.client_service import check_and_notify_stale_onboarding
-from app.services.payment_service import check_and_notify_payment_reminders
-from app.services.project_service import (
-    check_and_notify_overdue_projects,
-    check_and_notify_stale_projects,
-    check_and_notify_unpaid_completed_projects,
-    check_and_start_supervision_tasks,
-)
-from app.services.quotation_service import check_and_expire_quotations
-from app.services.scheduled_report_service import run_due_schedules
 
 settings = get_settings()
-logger = logging.getLogger("app.scheduler")
 
-
-def _run_staleness_checks() -> None:
-    # One scheduled job running both related staleness checks, not two
-    # nearly-identical jobs each with their own trigger/session
-    # boilerplate. A fresh session per run, not a request-scoped one --
-    # this runs on a timer, independent of any HTTP request, so there's
-    # no `get_db()` dependency to piggyback on. Each check gets its own
-    # try/except so a failure in one doesn't prevent the other from
-    # running.
-    db = SessionLocal()
-    try:
-        notified = check_and_notify_stale_projects(db)
-        if notified:
-            logger.info("Stale-project check: notified %d project(s).", notified)
-    except Exception:
-        logger.exception("Stale-project check failed.")
-        db.rollback()
-
-    try:
-        notified = check_and_notify_stale_onboarding(db)
-        if notified:
-            logger.info("Stale-onboarding check: notified %d client(s).", notified)
-    except Exception:
-        logger.exception("Stale-onboarding check failed.")
-        db.rollback()
-
-    try:
-        notified = check_and_notify_payment_reminders(db)
-        if notified:
-            logger.info("Payment-reminder check: sent %d reminder(s).", notified)
-    except Exception:
-        logger.exception("Payment-reminder check failed.")
-        db.rollback()
-
-    try:
-        notified = check_and_notify_unpaid_completed_projects(db)
-        if notified:
-            logger.info("Unpaid-completed-project check: notified %d project(s).", notified)
-    except Exception:
-        logger.exception("Unpaid-completed-project check failed.")
-        db.rollback()
-
-    try:
-        notified = check_and_notify_overdue_projects(db)
-        if notified:
-            logger.info("Overdue-project check: notified %d project(s).", notified)
-    except Exception:
-        logger.exception("Overdue-project check failed.")
-        db.rollback()
-
-    try:
-        expired = check_and_expire_quotations(db)
-        if expired:
-            logger.info("Quotation-expiry check: expired %d quotation(s).", expired)
-    except Exception:
-        logger.exception("Quotation-expiry check failed.")
-        db.rollback()
-
-    try:
-        started = check_and_start_supervision_tasks(db)
-        if started:
-            logger.info("Supervision-task-start check: started %d task(s).", started)
-    except Exception:
-        logger.exception("Supervision-task-start check failed.")
-        db.rollback()
-    finally:
-        db.close()
-
-
-def _run_scheduled_reports() -> None:
-    # Administration > Scheduled Reports (the "auto email report
-    # sender") -- every 5 minutes is deliberately coarse: schedules are
-    # admin-configured to the minute (send_time is HH:MM, not
-    # HH:MM:SS), so anything finer than a minute buys nothing, and a
-    # single indexed "is_active AND next_run_at <= now" query every 5
-    # minutes is negligible load even with many schedules configured
-    # (see scheduled_report_service.run_due_schedules's own comment).
-    # Also run once at startup, same reasoning as the staleness checks
-    # below: a schedule due while the process was down/restarting still
-    # fires promptly instead of waiting up to 5 more minutes.
-    db = SessionLocal()
-    try:
-        sent = run_due_schedules(db)
-        if sent:
-            logger.info("Scheduled reports: sent %d report(s).", sent)
-    except Exception:
-        logger.exception("Scheduled report run failed.")
-        db.rollback()
-    finally:
-        db.close()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    scheduler = AsyncIOScheduler()
-    # Once a day is deliberately coarse for thresholds measured in
-    # days, not hours -- and the interval trigger below doesn't fire
-    # immediately, so also run once right away rather than only after
-    # the first full day, in case the process was down when yesterday's
-    # run would have fired.
-    scheduler.add_job(_run_staleness_checks, "interval", days=1, id="staleness_checks")
-    _run_staleness_checks()
-    scheduler.add_job(_run_scheduled_reports, "interval", minutes=5, id="scheduled_reports")
-    _run_scheduled_reports()
-    scheduler.start()
-    yield
-    scheduler.shutdown(wait=False)
-
-
+# Background jobs (daily staleness checks, scheduled reports) are not run
+# here -- they are separate processes started by systemd, so the API owns
+# no scheduler no matter how many workers it runs. See app/jobs/ and
+# deploy/systemd/.
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
-    lifespan=lifespan,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1024)

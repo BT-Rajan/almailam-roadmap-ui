@@ -1,6 +1,7 @@
 """Administration > Scheduled Reports -- CRUD for ScheduledReport rows,
 next_run_at scheduling math, and the actual "render + email" run step
-that main.py's scheduler tick (_run_scheduled_reports) calls.
+that the scheduled-report worker (app/jobs/scheduled_reports_worker.py)
+calls.
 
 Scheduling design, in one place since it's the part that isn't obvious
 from the model alone:
@@ -338,8 +339,8 @@ def _fire(db: Session, schedule_id: int, now_utc: datetime, tz: ZoneInfo) -> boo
 
 
 def run_due_schedules(db: Session) -> int:
-    """Called by main.py's scheduler tick. Coarse polling interval
-    (see main.py's own comment on the job) plus this being a single
+    """Called by the scheduled-report worker's polling loop
+    (app/jobs/scheduled_reports_worker.py). Coarse polling plus this being a single
     cheap indexed query is the whole reason this doesn't add meaningful
     load: on a tick with nothing due (the overwhelmingly common case),
     this is one SELECT that returns zero rows.

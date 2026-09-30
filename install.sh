@@ -27,6 +27,8 @@ set -Eeuo pipefail
 #     schema_migrations -- additive only, never drops/recreates the
 #     database or touches existing rows
 #   - reinstalls dependencies and (re)starts the instance under pm2
+#   - installs/restarts the instance's background jobs under systemd
+#     (daily staleness-checks timer + scheduled-report worker)
 #
 # Usage:
 #   ./install.sh                   interactive: asks "dev" or "test"
@@ -754,6 +756,39 @@ EOF
 fi
 
 pm2 save
+
+# ----------------------------------------------------------------------------
+# 11b. Background jobs (systemd)
+# ----------------------------------------------------------------------------
+# The daily staleness checks (timer) and the scheduled-report worker run as
+# their own processes, one set per instance -- never inside the API, so the
+# number of API workers doesn't multiply them (see backend/app/jobs/ and
+# deploy/systemd/). They run as the owner of the instance directory. The
+# worker is restarted on every deploy so it runs the code just pulled.
+
+JOB_UNITS_DIR="/etc/systemd/system"
+STALENESS_TIMER="serviceos-staleness-checks@${INSTANCE_NAME}.timer"
+REPORTS_WORKER="serviceos-scheduled-reports@${INSTANCE_NAME}.service"
+
+if ! require_cmd systemctl || [[ ! -d /run/systemd/system ]]; then
+    warn "systemd not available -- background jobs NOT installed. Scheduled reports and daily reminders will not run until ${STALENESS_TIMER} and ${REPORTS_WORKER} are set up (see deploy/systemd/)."
+elif [[ $EUID -ne 0 ]]; then
+    warn "Not running as root -- background jobs NOT installed/restarted. Re-run with sudo, or install deploy/systemd/* into ${JOB_UNITS_DIR} and enable ${STALENESS_TIMER} and ${REPORTS_WORKER} by hand."
+else
+    log "Installing background jobs for ${INSTANCE_NAME}"
+    install -m 0644 "$INSTANCE_DIR"/deploy/systemd/serviceos-* "$JOB_UNITS_DIR"/
+
+    RUN_AS="$(stat -c %U "$INSTANCE_DIR")"
+    for unit in "serviceos-staleness-checks@${INSTANCE_NAME}.service" "$REPORTS_WORKER"; do
+        mkdir -p "$JOB_UNITS_DIR/${unit}.d"
+        printf '[Service]\nUser=%s\n' "$RUN_AS" > "$JOB_UNITS_DIR/${unit}.d/user.conf"
+    done
+
+    systemctl daemon-reload
+    systemctl enable --now "$STALENESS_TIMER"
+    systemctl enable "$REPORTS_WORKER"
+    systemctl restart "$REPORTS_WORKER"
+fi
 
 # ----------------------------------------------------------------------------
 # 12. Health check(s)

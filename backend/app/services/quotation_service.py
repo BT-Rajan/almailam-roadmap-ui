@@ -610,7 +610,7 @@ def check_and_expire_quotations(db: Session) -> int:
     begin with, and a plain edit fixes the date whenever someone gets
     back to it.
 
-    Called daily by the background scheduler (see main.py's lifespan),
+    Called daily by the staleness-checks job (app/jobs/staleness_checks.py),
     same shape as the other check_and_notify_* functions elsewhere in
     the codebase. Returns how many quotations were expired in this run.
     """

@@ -1,0 +1,13 @@
+# Daily staleness/reminder checks for one ServiceOS instance (%i = the
+# directory under /apps). One-shot: started by the matching .timer, exits
+# when done. systemd won't start it again while a run is still going.
+[Unit]
+Description=ServiceOS daily staleness checks (%i)
+Wants=network-online.target
+After=network-online.target mariadb.service mysql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/apps/%i/backend
+ExecStart=/apps/%i/backend/venv/bin/python -m app.jobs.staleness_checks
+Environment=PYTHONUNBUFFERED=1

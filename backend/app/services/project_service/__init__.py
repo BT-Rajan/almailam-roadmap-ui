@@ -1869,8 +1869,8 @@ def check_and_notify_stale_projects(db: Session) -> int:
     staleness period starts from scratch rather than staying
     permanently silenced after one alert.
 
-    Called periodically by the background scheduler (see main.py's
-    lifespan), but is itself a plain, directly-callable function --
+    Called daily by the staleness-checks job (see
+    app/jobs/staleness_checks.py), but is itself a plain, directly-callable function --
     deliberately not scheduling logic of its own, so the actual
     staleness decision can be tested without waiting on a real clock.
 
@@ -2230,7 +2230,7 @@ def check_and_start_supervision_tasks(db: Session) -> int:
     manual decision same as every other task; a task left open past its
     due_date simply shows as overdue like any other.
 
-    Called daily by the background scheduler (see main.py's lifespan),
+    Called daily by the staleness-checks job (app/jobs/staleness_checks.py),
     same shape as the other check_and_notify_*/check_and_expire_*
     functions elsewhere in the codebase. Returns how many tasks were
     started in this run."""
