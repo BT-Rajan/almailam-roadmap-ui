@@ -1,118 +1,342 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import ChartFrame from '@/components/reports/ChartFrame.vue'
+import {
+  barPath,
+  formatTick,
+  formatValue,
+  modelFromPoints,
+  niceTicks,
+  seriesColor,
+  useElementWidth,
+  type ChartModel,
+  type ChartSeries,
+  type ChartValueFormat,
+} from '@/components/reports/chartUtils'
 import { resolveChartColor } from '@/constants/chartColors'
 import type { ChartDataPoint } from '@/types/Report'
 
 interface Props {
-  data: ChartDataPoint[]
+  /** Single series as label/value points (per-point color optional). */
+  data?: ChartDataPoint[]
+  /** Or: categories plus one or more series (grouped bars). */
+  categories?: string[]
+  series?: ChartSeries[]
+  /** Name of the single `data` series (legend-less; used in the tooltip and table). */
+  seriesName?: string
+  horizontal?: boolean
+  /** Stack the series into one bar per category (part-to-whole) instead of grouping them. */
+  stacked?: boolean
+  /** Plot height for vertical bars; horizontal bars size to their rows. */
   height?: number
+  format?: ChartValueFormat
+  currency?: string
+  categoryLabel?: string
+  showTotal?: boolean
   showLabel?: boolean
   showValue?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  height: 300,
+  data: undefined,
+  categories: undefined,
+  series: undefined,
+  seriesName: 'Value',
+  horizontal: false,
+  stacked: false,
+  height: 280,
+  format: 'number',
+  currency: undefined,
+  categoryLabel: '',
+  showTotal: false,
   showLabel: true,
   showValue: true,
 })
 
-const maxValue = computed(() => Math.max(...props.data.map(d => d.value), 1))
-const padding = { top: 20, right: 20, bottom: 40, left: 50 }
-const chartWidth = computed(() => 800 - padding.left - padding.right)
-const chartHeight = computed(() => props.height - padding.top - padding.bottom)
-const barWidth = computed(() => chartWidth.value / props.data.length * 0.7)
-const barSpacing = computed(() => chartWidth.value / props.data.length)
+const { t } = useI18n()
 
-const getBarHeight = (value: number) => (value / maxValue.value) * chartHeight.value
+const model = computed<ChartModel>(() =>
+  props.series && props.categories ? { categories: props.categories, series: props.series } : modelFromPoints(props.data ?? [], props.seriesName),
+)
 
-const getBarX = (index: number) => padding.left + index * barSpacing.value + (barSpacing.value - barWidth.value) / 2
+const container = ref<HTMLElement | null>(null)
+const width = useElementWidth(container)
 
-const getBarY = (value: number) => padding.top + chartHeight.value - getBarHeight(value)
+const BAR_MAX = 24
+const GAP = 2
+const seriesCount = computed(() => Math.max(model.value.series.length, 1))
+// Bars side by side within a category: one per series, or one when stacked.
+const lanes = computed(() => (props.stacked ? 1 : seriesCount.value))
+const categoryTotals = computed(() =>
+  model.value.categories.map((_, index) => model.value.series.reduce((sum, series) => sum + Math.max(series.values[index] ?? 0, 0), 0)),
+)
+const maxValue = computed(() =>
+  props.stacked ? Math.max(0, ...categoryTotals.value) : Math.max(0, ...model.value.series.flatMap((series) => series.values)),
+)
+const integerValues = computed(() => props.format === 'number' && model.value.series.every((series) => series.values.every(Number.isInteger)))
+const ticks = computed(() => niceTicks(maxValue.value, 4, integerValues.value))
+const scaleMax = computed(() => ticks.value[ticks.value.length - 1] || 1)
+// A value at every bar end only while it stays readable: one bar per
+// category (a single series, or the total of a stack), not too many bars.
+const labelValues = computed(() => props.showValue && lanes.value === 1 && model.value.categories.length <= 16)
 
-const yAxisTicks = computed(() => {
-  const ticks = []
-  for (let i = 0; i <= 5; i++) {
-    ticks.push((maxValue.value / 5) * i)
-  }
-  return ticks
+function color(seriesIndex: number, categoryIndex: number): string {
+  const pointColor = model.value.pointColors?.[categoryIndex]
+  if (seriesCount.value === 1 && pointColor) return resolveChartColor(pointColor)
+  return seriesColor(model.value.series[seriesIndex], seriesIndex)
+}
+
+// ---- Layout -----------------------------------------------------------------
+const labelWidth = computed(() => {
+  if (!props.horizontal) return 0
+  const longest = Math.max(0, ...model.value.categories.map((category) => category.length))
+  return Math.min(Math.max(longest * 7 + 12, 60), Math.max(width.value * 0.38, 90), 220)
+})
+const pad = computed(() =>
+  props.horizontal
+    ? { top: 8, right: labelValues.value ? 72 : 16, bottom: 24, left: labelWidth.value }
+    : { top: labelValues.value ? 22 : 10, right: 12, bottom: 28, left: 48 },
+)
+const rowHeight = computed(() => Math.max(28, lanes.value * (Math.min(BAR_MAX, 18) + GAP) + 12))
+const svgHeight = computed(() =>
+  props.horizontal ? pad.value.top + pad.value.bottom + model.value.categories.length * rowHeight.value : props.height,
+)
+const plotWidth = computed(() => Math.max(width.value - pad.value.left - pad.value.right, 10))
+const plotHeight = computed(() => Math.max(svgHeight.value - pad.value.top - pad.value.bottom, 10))
+const band = computed(() => (props.horizontal ? rowHeight.value : plotWidth.value / Math.max(model.value.categories.length, 1)))
+const barThickness = computed(() => {
+  const available = (band.value * 0.72 - GAP * (lanes.value - 1)) / lanes.value
+  return Math.max(3, Math.min(BAR_MAX, available))
+})
+const groupSize = computed(() => barThickness.value * lanes.value + GAP * (lanes.value - 1))
+
+function valueLength(value: number): number {
+  return ((props.horizontal ? plotWidth.value : plotHeight.value) * Math.max(value, 0)) / scaleMax.value
+}
+
+interface BarMark {
+  key: string
+  path: string
+  fill: string
+  labelX: number
+  labelY: number
+  label: string
+}
+
+function rect(start: number, length: number, offset: number): [number, number, number, number] {
+  return props.horizontal
+    ? [pad.value.left + start, offset, length, barThickness.value]
+    : [offset, pad.value.top + plotHeight.value - start - length, barThickness.value, length]
+}
+
+const bars = computed<BarMark[]>(() => {
+  const marks: BarMark[] = []
+  model.value.categories.forEach((_, categoryIndex) => {
+    const bandStart = (props.horizontal ? pad.value.top : pad.value.left) + categoryIndex * band.value + (band.value - groupSize.value) / 2
+    if (props.stacked) {
+      // Segments laid end to end; a 2px surface gap between them, and only
+      // the outermost segment gets the rounded data end.
+      const segments = model.value.series
+        .map((series, seriesIndex) => ({ seriesIndex, length: valueLength(series.values[categoryIndex] ?? 0) }))
+        .filter((segment) => segment.length > 0)
+      let start = 0
+      segments.forEach((segment, position) => {
+        const last = position === segments.length - 1
+        const drawn = last ? segment.length : Math.max(segment.length - GAP, 0.5)
+        const [x, y, w, h] = rect(start, drawn, bandStart)
+        marks.push({
+          key: `${categoryIndex}-${segment.seriesIndex}`,
+          path: last ? barPath(x, y, w, h, props.horizontal) : `M${x},${y}h${w}v${h}h${-w}Z`,
+          fill: color(segment.seriesIndex, categoryIndex),
+          labelX: 0,
+          labelY: 0,
+          label: '',
+        })
+        start += segment.length
+      })
+      const [x, y, w, h] = rect(0, start, bandStart)
+      marks.push({
+        key: `${categoryIndex}-total`,
+        path: '',
+        fill: 'none',
+        labelX: props.horizontal ? x + w + 6 : x + w / 2,
+        labelY: props.horizontal ? y + h / 2 + 4 : y - 6,
+        label: formatValue(categoryTotals.value[categoryIndex], props.format, props.currency),
+      })
+      return
+    }
+    model.value.series.forEach((series, seriesIndex) => {
+      const value = series.values[categoryIndex] ?? 0
+      const length = valueLength(value)
+      const offset = bandStart + seriesIndex * (barThickness.value + GAP)
+      const [x, y, w, h] = props.horizontal
+        ? [pad.value.left, offset, length, barThickness.value]
+        : [offset, pad.value.top + plotHeight.value - length, barThickness.value, length]
+      marks.push({
+        key: `${categoryIndex}-${seriesIndex}`,
+        path: barPath(x, y, w, h, props.horizontal),
+        fill: color(seriesIndex, categoryIndex),
+        labelX: props.horizontal ? x + w + 6 : x + w / 2,
+        labelY: props.horizontal ? y + h / 2 + 4 : y - 6,
+        label: formatValue(value, props.format, props.currency),
+      })
+    })
+  })
+  return marks
 })
 
-const getYPosition = (value: number) => padding.top + chartHeight.value - (value / maxValue.value) * chartHeight.value
+// Vertical category labels: skip every nth one when they would collide.
+const labelStep = computed(() => {
+  if (props.horizontal) return 1
+  const longest = Math.max(1, ...model.value.categories.map((category) => category.length))
+  return Math.max(1, Math.ceil((longest * 6.5 + 8) / band.value))
+})
+
+function truncate(text: string, maxWidth: number): string {
+  const maxChars = Math.max(3, Math.floor(maxWidth / 7))
+  return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text
+}
+
+// ---- Hover / focus readout ----------------------------------------------------
+const active = ref<number | null>(null)
+const pointer = ref({ x: 0, y: 0 })
+
+function hitRect(categoryIndex: number) {
+  return props.horizontal
+    ? { x: 0, y: pad.value.top + categoryIndex * band.value, width: width.value, height: band.value }
+    : { x: pad.value.left + categoryIndex * band.value, y: pad.value.top, width: band.value, height: plotHeight.value }
+}
+
+function onPointer(event: PointerEvent, categoryIndex: number): void {
+  const box = container.value?.getBoundingClientRect()
+  if (box) pointer.value = { x: event.clientX - box.left, y: event.clientY - box.top }
+  active.value = categoryIndex
+}
+
+function onFocus(categoryIndex: number): void {
+  const rect = hitRect(categoryIndex)
+  pointer.value = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  active.value = categoryIndex
+}
+
+const tooltipStyle = computed(() => {
+  const left = Math.min(Math.max(pointer.value.x + 12, 0), Math.max(width.value - 200, 0))
+  return { left: `${left}px`, top: `${Math.max(pointer.value.y - 12, 0)}px` }
+})
 </script>
 
 <template>
-  <div class="w-full overflow-x-auto">
-    <svg :width="800" :height="height" class="mx-auto">
-      <!-- Y Axis Grid -->
-      <g class="stroke-neutral-200 stroke-[0.5]">
-        <line
-          v-for="tick in yAxisTicks"
-          :key="`tick-${tick}`"
-          :x1="padding.left"
-          :y1="getYPosition(tick)"
-          :x2="800 - padding.right"
-          :y2="getYPosition(tick)"
-        />
-      </g>
+  <ChartFrame :model="model" :format="format" :currency="currency" :category-label="categoryLabel" :show-total="showTotal" :row-totals="stacked">
+    <div ref="container" class="relative w-full" @pointerleave="active = null">
+      <svg :width="width" :height="svgHeight" class="block" role="img" :aria-label="seriesName">
+        <!-- Value gridlines -->
+        <g>
+          <template v-for="tick in ticks" :key="`grid-${tick}`">
+            <line
+              v-if="horizontal"
+              :x1="pad.left + (plotWidth * tick) / scaleMax"
+              :x2="pad.left + (plotWidth * tick) / scaleMax"
+              :y1="pad.top"
+              :y2="pad.top + plotHeight"
+              stroke="var(--chart-grid)"
+              stroke-width="1"
+            />
+            <line
+              v-else
+              :x1="pad.left"
+              :x2="pad.left + plotWidth"
+              :y1="pad.top + plotHeight - (plotHeight * tick) / scaleMax"
+              :y2="pad.top + plotHeight - (plotHeight * tick) / scaleMax"
+              stroke="var(--chart-grid)"
+              stroke-width="1"
+            />
+          </template>
+        </g>
 
-      <!-- Y Axis Labels -->
-      <g class="text-xs fill-neutral-500">
-        <text
-          v-for="tick in yAxisTicks"
-          :key="`label-${tick}`"
-          :x="padding.left - 10"
-          :y="getYPosition(tick) + 4"
-          text-anchor="end"
-        >
-          {{ Math.round(tick) }}
-        </text>
-      </g>
+        <!-- Value axis ticks -->
+        <g class="fill-text-muted text-[11px] tabular-nums">
+          <template v-for="tick in ticks" :key="`tick-${tick}`">
+            <text v-if="horizontal" :x="pad.left + (plotWidth * tick) / scaleMax" :y="svgHeight - 6" text-anchor="middle">
+              {{ formatTick(tick, format) }}
+            </text>
+            <text v-else :x="pad.left - 8" :y="pad.top + plotHeight - (plotHeight * tick) / scaleMax + 4" text-anchor="end">
+              {{ formatTick(tick, format) }}
+            </text>
+          </template>
+        </g>
 
-      <!-- Y Axis -->
-      <line :x1="padding.left" :y1="padding.top" :x2="padding.left" :y2="padding.top + chartHeight" class="stroke-neutral-400 stroke-[1]" />
+        <!-- Hover band behind the bars -->
+        <rect v-if="active !== null" v-bind="hitRect(active)" class="fill-text-primary" opacity="0.04" />
 
-      <!-- X Axis -->
-      <line :x1="padding.left" :y1="padding.top + chartHeight" :x2="800 - padding.right" :y2="padding.top + chartHeight" class="stroke-neutral-400 stroke-[1]" />
+        <!-- Bars: 2px gaps between a group's bars, rounded at the data end -->
+        <path v-for="bar in bars.filter((b) => b.path)" :key="bar.key" :d="bar.path" :fill="bar.fill" />
 
-      <!-- Bars -->
-      <g>
+        <!-- Values at the bar ends (one bar per category: single series or stack total) -->
+        <g v-if="labelValues" class="fill-text-secondary text-[11px] font-medium tabular-nums">
+          <text v-for="bar in bars.filter((b) => b.label)" :key="`v-${bar.key}`" :x="bar.labelX" :y="bar.labelY" :text-anchor="horizontal ? 'start' : 'middle'">
+            {{ bar.label }}
+          </text>
+        </g>
+
+        <!-- Category labels -->
+        <g v-if="showLabel" class="fill-text-secondary text-[11px]">
+          <template v-for="(category, index) in model.categories" :key="`c-${index}`">
+            <text
+              v-if="horizontal"
+              :x="pad.left - 8"
+              :y="pad.top + index * band + band / 2 + 4"
+              text-anchor="end"
+            >
+              <title>{{ category }}</title>
+              {{ truncate(category, labelWidth - 12) }}
+            </text>
+            <text
+              v-else-if="index % labelStep === 0"
+              :x="pad.left + index * band + band / 2"
+              :y="pad.top + plotHeight + 18"
+              text-anchor="middle"
+            >
+              <title>{{ category }}</title>
+              {{ truncate(category, band * labelStep - 4) }}
+            </text>
+          </template>
+        </g>
+
+        <!-- Hit targets: the whole category band, keyboard-focusable -->
         <rect
-          v-for="(point, index) in data"
-          :key="`bar-${index}`"
-          :x="getBarX(index)"
-          :y="getBarY(point.value)"
-          :width="barWidth"
-          :height="getBarHeight(point.value)"
-          :fill="resolveChartColor(point.color)"
-          class="hover:opacity-80 transition-opacity"
+          v-for="(category, index) in model.categories"
+          :key="`hit-${index}`"
+          v-bind="hitRect(index)"
+          fill="transparent"
+          tabindex="0"
+          :aria-label="`${category}: ${model.series.map((s) => `${s.name} ${formatValue(s.values[index] ?? 0, format, currency)}`).join(', ')}`"
+          class="cursor-default outline-none"
+          @pointermove="onPointer($event, index)"
+          @focus="onFocus(index)"
+          @blur="active = null"
         />
-      </g>
+      </svg>
 
-      <!-- Values on bars -->
-      <g v-if="showValue" class="text-xs font-medium fill-neutral-800">
-        <text
-          v-for="(point, index) in data"
-          :key="`value-${index}`"
-          :x="getBarX(index) + barWidth / 2"
-          :y="getBarY(point.value) - 8"
-          text-anchor="middle"
-        >
-          {{ point.value }}
-        </text>
-      </g>
-
-      <!-- X Axis Labels -->
-      <g v-if="showLabel" class="text-xs fill-neutral-600">
-        <text
-          v-for="(point, index) in data"
-          :key="`label-${index}`"
-          :x="getBarX(index) + barWidth / 2"
-          :y="padding.top + chartHeight + 20"
-          text-anchor="middle"
-        >
-          {{ point.label }}
-        </text>
-      </g>
-    </svg>
-  </div>
+      <div
+        v-if="active !== null"
+        class="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-border-light bg-bg-card px-3 py-2 text-xs shadow-medium"
+        :style="tooltipStyle"
+      >
+        <p class="mb-1 font-medium text-text-secondary">{{ model.categories[active] }}</p>
+        <p v-for="(series, index) in model.series" :key="series.name" class="flex items-center justify-between gap-3">
+          <span class="flex items-center gap-1.5 text-text-muted">
+            <span class="inline-block h-0.5 w-3 rounded-full" :style="{ background: color(index, active) }" />
+            {{ series.name }}
+          </span>
+          <span class="font-semibold tabular-nums text-text-primary">{{ formatValue(series.values[active] ?? 0, format, currency) }}</span>
+        </p>
+        <p v-if="stacked && model.series.length > 1" class="mt-1 flex justify-between gap-3 border-t border-border-light pt-1">
+          <span class="text-text-muted">{{ t('report.chart.total') }}</span>
+          <span class="font-semibold tabular-nums text-text-primary">{{ formatValue(categoryTotals[active], format, currency) }}</span>
+        </p>
+      </div>
+    </div>
+  </ChartFrame>
 </template>

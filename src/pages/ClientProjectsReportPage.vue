@@ -1,142 +1,242 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import BarChart from '@/components/reports/BarChart.vue'
+import ReportDateRange from '@/components/reports/ReportDateRange.vue'
+import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
+import ReportSection from '@/components/reports/ReportSection.vue'
+import { formatValue } from '@/components/reports/chartUtils'
+import { STATUS_CHART_COLORS } from '@/constants/chartColors'
+import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useReportRange } from '@/composables/useReportRange'
 import { reportService } from '@/services/reportService'
-import { getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
-import type { ClientProjectSummary, ClientWithProjects } from '@/types/Report'
 import type { ProjectStatus, WorkflowStage } from '@/types/Project'
+import type { ClientPortfolio, ClientPortfolioProject, ClientPortfolioRow } from '@/types/Report'
 import type { SmartTableColumn } from '@/types/Table'
+import { downloadCsv } from '@/utils/csvExport'
+import { formatDateTime } from '@/utils/dateFormatter'
+import { getProjectStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { useEnumLabel } from '@/utils/reportLabels'
+import { formatRange } from '@/utils/reportRange'
 
+const router = useRouter()
 const { t } = useI18n()
+const enumLabel = useEnumLabel()
+const c = (key: string, values?: Record<string, unknown>) => t(`report.clientProjectsPage.${key}`, values ?? {})
 
-const clients = ref<ClientWithProjects[]>([])
+const rangeState = useReportRange('this-year')
+const periodLabel = computed(() => formatRange(rangeState.range.value))
+
+const report = ref<ClientPortfolio>()
 const isLoading = ref(false)
-const loadError = ref('')
+const error = ref<string>()
+const generatedAt = ref('')
+let requestId = 0
 
 async function load(): Promise<void> {
+  const current = ++requestId
   isLoading.value = true
-  loadError.value = ''
+  error.value = undefined
   try {
-    clients.value = await reportService.getClientsWithProjects()
-  } catch (error) {
-    loadError.value = error instanceof Error ? error.message : t('report.clientProjectsPage.loadFailed')
+    const result = await reportService.getClientPortfolio(rangeState.range.value)
+    if (current !== requestId) return
+    report.value = result
+    generatedAt.value = formatDateTime(new Date().toISOString())
+  } catch (loadError) {
+    if (current === requestId) error.value = loadError instanceof Error ? loadError.message : c('loadFailed')
   } finally {
-    isLoading.value = false
+    if (current === requestId) isLoading.value = false
   }
 }
 
-onMounted(load)
+watch(() => rangeState.range.value, load, { immediate: true })
 
-interface ClientRow {
-  [key: string]: unknown
-  clientId: string
-  clientName: string
-  clientStatus: string
-  totalProjects: number
-  activeProjects: number
-  onHoldProjects: number
-  completedProjects: number
-  cancelledProjects: number
-}
+const currency = computed(() => report.value?.currency ?? '')
+const money = (value: number) => formatValue(value, 'currency')
+const totals = computed(() => report.value?.totals)
 
-const clientRows = computed<ClientRow[]>(() =>
-  clients.value.map((client) => ({
-    clientId: client.clientId,
-    clientName: client.clientName,
-    clientStatus: client.clientStatus,
-    totalProjects: client.projects.length,
-    activeProjects: client.projects.filter((p) => p.status === 'Active').length,
-    onHoldProjects: client.projects.filter((p) => p.status === 'On Hold').length,
-    completedProjects: client.projects.filter((p) => p.status === 'Completed').length,
-    cancelledProjects: client.projects.filter((p) => p.status === 'Cancelled').length,
-  })),
-)
+type ClientRow = ClientPortfolioRow & Record<string, unknown>
+const rows = computed<ClientRow[]>(() => (report.value?.clients ?? []) as ClientRow[])
 
 const clientColumns = computed<SmartTableColumn<ClientRow>[]>(() => [
-  { key: 'clientName', label: t('report.clientProjectsPage.columnClient'), sortable: true },
-  { key: 'clientStatus', label: t('report.clientProjectsPage.columnClientStatus') },
-  { key: 'totalProjects', label: t('report.clientProjectsPage.columnTotalProjects'), align: 'right', sortable: true },
-  { key: 'activeProjects', label: t('report.clientProjectsPage.columnActive'), align: 'right' },
-  { key: 'onHoldProjects', label: t('report.clientProjectsPage.columnOnHold'), align: 'right' },
-  { key: 'completedProjects', label: t('report.clientProjectsPage.columnCompleted'), align: 'right' },
-  { key: 'cancelledProjects', label: t('report.clientProjectsPage.columnCancelled'), align: 'right' },
+  { key: 'clientName', label: c('columnClient'), sortable: true },
+  { key: 'clientStatus', label: c('columnClientStatus') },
+  { key: 'totalProjects', label: c('columnTotalProjects'), align: 'right', sortable: true },
+  { key: 'activeProjects', label: c('columnActive'), align: 'right', sortable: true },
+  { key: 'onHoldProjects', label: c('columnOnHold'), align: 'right', sortable: true },
+  { key: 'completedProjects', label: c('columnCompleted'), align: 'right', sortable: true },
+  { key: 'newProjectsInPeriod', label: c('columnNew'), align: 'right', sortable: true },
+  { key: 'receivedInPeriod', label: `${c('columnReceived')} (${currency.value})`, align: 'right', sortable: true },
+  { key: 'outstanding', label: `${c('columnOutstanding')} (${currency.value})`, align: 'right', sortable: true },
+  { key: 'overdue', label: `${c('columnOverdue')} (${currency.value})`, align: 'right', sortable: true },
 ])
 
-type ProjectRow = ClientProjectSummary & Record<string, unknown>
+// The ten biggest balances, split overdue / not yet due (urgency colours).
+const topOwed = computed(() => [...rows.value].filter((row) => row.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding).slice(0, 10))
+const owedSeries = computed(() => [
+  { name: c('seriesOverdue'), values: topOwed.value.map((row) => row.overdue), color: STATUS_CHART_COLORS.danger },
+  { name: c('seriesNotYetDue'), values: topOwed.value.map((row) => Math.max(row.outstanding - row.overdue, 0)), color: 'var(--chart-series-1)' },
+])
 
+// ---- Drill-down --------------------------------------------------------------
+type ProjectRow = ClientPortfolioProject & Record<string, unknown>
 const projectColumns = computed<SmartTableColumn<ProjectRow>[]>(() => [
-  { key: 'projectNo', label: t('report.clientProjectsPage.columnProjectNo') },
-  { key: 'projectName', label: t('report.clientProjectsPage.columnProjectName') },
-  { key: 'status', label: t('report.clientProjectsPage.columnProjectStatus') },
-  { key: 'currentStage', label: t('report.clientProjectsPage.columnStage') },
-  { key: 'progress', label: t('report.clientProjectsPage.columnProgress'), align: 'right' },
+  { key: 'projectName', label: c('columnProjectName'), sortable: true },
+  { key: 'status', label: c('columnProjectStatus') },
+  { key: 'currentStage', label: c('columnStage') },
+  { key: 'progress', label: c('columnProgress'), align: 'right', sortable: true },
+  { key: 'receivedInPeriod', label: c('columnReceived'), align: 'right', sortable: true },
+  { key: 'outstanding', label: c('columnOutstanding'), align: 'right', sortable: true },
+  { key: 'overdue', label: c('columnOverdue'), align: 'right', sortable: true },
 ])
-
-const isDrawerOpen = ref(false)
-const drawerClientName = ref('')
-const drawerProjects = ref<ProjectRow[]>([])
-
+const drawerClient = ref<ClientPortfolioRow>()
+const drawerOpen = ref(false)
 function openClient(row: ClientRow): void {
-  const client = clients.value.find((c) => c.clientId === row.clientId)
-  drawerClientName.value = row.clientName
-  drawerProjects.value = client?.projects ?? []
-  isDrawerOpen.value = true
+  drawerClient.value = row
+  drawerOpen.value = true
+}
+function openProjectReport(projectNo: string): void {
+  void router.push({ name: ROUTE_NAMES.REPORT_PROJECT, params: { projectId: projectNo }, query: { ...rangeState.urlQuery() } })
 }
 
-const totalClients = computed(() => clients.value.length)
-const clientsWithNoProjects = computed(() => clients.value.filter((c) => c.projects.length === 0).length)
-const totalProjects = computed(() => clients.value.reduce((sum, c) => sum + c.projects.length, 0))
+function exportCsv(): void {
+  const data = report.value
+  if (!data) return
+  const money3 = `(${data.currency})`
+  downloadCsv(`client-projects-${data.period.startDate}-to-${data.period.endDate}.csv`, [
+    {
+      title: `${c('pageTitle')} -- ${periodLabel.value}`,
+      headers: [
+        c('columnClient'), c('columnClientStatus'), c('columnTotalProjects'), c('columnActive'), c('columnOnHold'), c('columnCompleted'),
+        c('columnCancelled'), c('columnNew'), `${c('columnReceived')} ${money3}`, `${c('columnOutstanding')} ${money3}`, `${c('columnOverdue')} ${money3}`,
+      ],
+      rows: data.clients.map((r) => [
+        r.clientName, r.clientStatus, r.totalProjects, r.activeProjects, r.onHoldProjects, r.completedProjects, r.cancelledProjects,
+        r.newProjectsInPeriod, r.receivedInPeriod, r.outstanding, r.overdue,
+      ]),
+    },
+    {
+      title: c('columnProjectName'),
+      headers: [
+        c('columnClient'), c('columnProjectNo'), c('columnProjectName'), c('columnProjectStatus'), c('columnStage'), `${c('columnProgress')} (%)`,
+        c('columnNew'), `${c('columnReceived')} ${money3}`, `${c('columnOutstanding')} ${money3}`, `${c('columnOverdue')} ${money3}`,
+      ],
+      rows: data.clients.flatMap((r) =>
+        r.projects.map((p) => [r.clientName, p.projectNo, p.projectName, p.status, p.currentStage, p.progress, p.newInPeriod ? 'Yes' : 'No', p.receivedInPeriod, p.outstanding, p.overdue]),
+      ),
+    },
+  ])
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader :title="t('report.clientProjectsPage.pageTitle')" :subtitle="t('report.clientProjectsPage.pageSubtitle')" />
+  <div class="mx-auto max-w-6xl space-y-8 p-6 laptop:p-8">
+    <BaseButton variant="ghost" size="sm" class="print:hidden" @click="router.back()">← {{ t('report.back') }}</BaseButton>
 
-    <ErrorState v-if="loadError" :description="loadError" @retry="load" />
+    <ReportHeader
+      :title="c('pageTitle')"
+      :subtitle="c('pageSubtitle')"
+      :period="periodLabel"
+      :generated-date="generatedAt"
+      :exportable="Boolean(report)"
+      @download="exportCsv"
+    />
 
-    <template v-else>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <ReportMetricCard :label="t('report.clientProjectsPage.metricClients')" :value="totalClients" color="primary" />
-        <ReportMetricCard :label="t('report.clientProjectsPage.metricProjects')" :value="totalProjects" color="info" />
-        <ReportMetricCard :label="t('report.clientProjectsPage.metricNoProjects')" :value="clientsWithNoProjects" color="neutral" />
+    <ReportDateRange :state="rangeState" />
+
+    <ErrorState v-if="error" :description="error" @retry="load" />
+
+    <div v-else-if="!report" class="rounded-xl border border-border-light bg-bg-card p-5">
+      <SkeletonLoader :rows="6" />
+    </div>
+
+    <div v-else-if="totals" class="space-y-8 transition-opacity" :class="isLoading ? 'opacity-50' : ''">
+      <p class="text-xs text-text-muted">{{ c('moneyNote', { currency }) }}</p>
+      <div class="grid grid-cols-2 gap-4 laptop:grid-cols-5">
+        <ReportMetricCard
+          :label="c('metricClients')"
+          :value="totals.clients"
+          :hint="c('metricClientsHint', { active: totals.clientsWithActiveWork, none: totals.clientsWithoutProjects })"
+          color="primary"
+        />
+        <ReportMetricCard :label="c('metricNewClients')" :value="totals.newClients" color="info" />
+        <ReportMetricCard :label="c('metricProjects')" :value="formatValue(totals.projects, 'number')" :hint="c('metricProjectsHint', { count: totals.newProjects })" color="info" />
+        <ReportMetricCard :label="c('metricReceived')" :value="money(totals.receivedInPeriod)" :unit="currency" color="success" />
+        <ReportMetricCard
+          :label="c('metricOutstanding')"
+          :value="money(totals.outstanding)"
+          :unit="currency"
+          :hint="c('metricOutstandingHint', { overdue: `${money(totals.overdue)} ${currency}`, clients: totals.clientsWithOverdue })"
+          :color="totals.overdue > 0 ? 'danger' : 'warning'"
+        />
       </div>
 
-      <SmartTable
-        :columns="clientColumns"
-        :rows="clientRows"
-        row-key="clientId"
-        :loading="isLoading"
-        :searchable="true"
-        :search-placeholder="t('report.clientProjectsPage.searchClient')"
-        :empty-title="t('report.clientProjectsPage.noClients')"
-        @row-click="openClient"
-      >
-        <template #cell-clientStatus="{ value }">
-          <StatusBadge :label="value as string" :variant="value === 'Active' ? 'success' : value === 'On Hold' ? 'warning' : 'danger'" />
-        </template>
-      </SmartTable>
-    </template>
+      <ReportSection v-if="topOwed.length" :title="c('owedTitle')" :description="c('owedDescription')" full-width>
+        <Card>
+          <BarChart :categories="topOwed.map((row) => row.clientName)" :series="owedSeries" horizontal stacked format="currency" :category-label="c('columnClient')" show-total />
+        </Card>
+      </ReportSection>
 
-    <BaseDrawer v-model="isDrawerOpen" :title="drawerClientName" width="lg">
+      <ReportSection :title="c('metricClients')" :description="c('openHint')" full-width>
+        <SmartTable
+          :columns="clientColumns"
+          :rows="rows"
+          row-key="clientId"
+          :searchable="true"
+          :search-placeholder="c('searchClient')"
+          :empty-title="c('noClients')"
+          @row-click="openClient"
+        >
+          <template #cell-clientName="{ row }">
+            <span class="font-medium text-accent-600">{{ (row as ClientRow).clientName }}</span>
+            <StatusBadge v-if="(row as ClientRow).newClient" :label="c('newBadge')" variant="info" size="sm" class="ms-2" />
+          </template>
+          <template #cell-clientStatus="{ value }">
+            <StatusBadge :label="value as string" :variant="value === 'Active' ? 'success' : value === 'On Hold' ? 'warning' : 'neutral'" />
+          </template>
+          <template #cell-receivedInPeriod="{ value }"><span class="tabular-nums">{{ money(value as number) }}</span></template>
+          <template #cell-outstanding="{ value }"><span class="tabular-nums">{{ money(value as number) }}</span></template>
+          <template #cell-overdue="{ value }">
+            <span class="tabular-nums" :class="(value as number) > 0 ? 'font-semibold text-danger-600' : ''">{{ money(value as number) }}</span>
+          </template>
+        </SmartTable>
+      </ReportSection>
+    </div>
+
+    <BaseDrawer v-model="drawerOpen" :title="drawerClient?.clientName ?? ''" width="lg">
       <SmartTable
+        v-if="drawerClient"
         :columns="projectColumns"
-        :rows="drawerProjects"
+        :rows="drawerClient.projects as ProjectRow[]"
         row-key="projectNo"
         :searchable="false"
-        :empty-title="t('report.clientProjectsPage.noProjectsForClient')"
+        :empty-title="c('noProjectsForClient')"
+        @row-click="(row) => openProjectReport((row as ProjectRow).projectNo)"
       >
+        <template #cell-projectName="{ row }">
+          <span class="text-accent-600">{{ (row as ProjectRow).projectNo }} · {{ (row as ProjectRow).projectName }}</span>
+          <StatusBadge v-if="(row as ProjectRow).newInPeriod" :label="c('newBadge')" variant="info" size="sm" class="ms-2" />
+        </template>
         <template #cell-status="{ value }">
-          <StatusBadge :label="value as string" :variant="getProjectStatusVariant(value as ProjectStatus)" />
+          <StatusBadge :label="enumLabel('project.status', value as string)" :variant="getProjectStatusVariant(value as ProjectStatus)" />
         </template>
         <template #cell-currentStage="{ value }">{{ getWorkflowStageLabel(value as WorkflowStage) }}</template>
         <template #cell-progress="{ value }">{{ value }}%</template>
+        <template #cell-receivedInPeriod="{ value }"><span class="tabular-nums">{{ money(value as number) }}</span></template>
+        <template #cell-outstanding="{ value }"><span class="tabular-nums">{{ money(value as number) }}</span></template>
+        <template #cell-overdue="{ value }">
+          <span class="tabular-nums" :class="(value as number) > 0 ? 'font-semibold text-danger-600' : ''">{{ money(value as number) }}</span>
+        </template>
       </SmartTable>
     </BaseDrawer>
   </div>

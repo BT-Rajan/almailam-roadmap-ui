@@ -35,7 +35,7 @@ export default {
   clientProjects: 'مشاريع العملاء',
   paymentLedger: 'سجل المدفوعات',
   employeePerformance: 'أداء الموظفين',
-  monthlyFinancials: 'الماليات الشهرية',
+  monthlyFinancials: 'المالية: مقارنة الفترات',
   administration: 'الإدارة',
   users: 'المستخدمون',
   user: 'المستخدم',

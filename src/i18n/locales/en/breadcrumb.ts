@@ -35,7 +35,7 @@ export default {
   clientProjects: 'Client Projects',
   paymentLedger: 'Payment Ledger',
   employeePerformance: 'Employee Performance',
-  monthlyFinancials: 'Monthly Financials',
+  monthlyFinancials: 'Financials: Period Comparison',
   administration: 'Administration',
   users: 'Users',
   user: 'User',

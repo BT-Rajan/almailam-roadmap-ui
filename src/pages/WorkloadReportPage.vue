@@ -1,259 +1,221 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import ReportHeader from '@/components/reports/ReportHeader.vue'
-import ReportSection from '@/components/reports/ReportSection.vue'
-import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
-import BarChart from '@/components/reports/BarChart.vue'
-import ProgressChart from '@/components/reports/ProgressChart.vue'
-import Card from '@/components/common/Card.vue'
+
 import BaseButton from '@/components/common/BaseButton.vue'
-import ErrorState from '@/components/common/ErrorState.vue'
+import Card from '@/components/common/Card.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
-import { DEFAULT_CHART_COLOR, STATUS_CHART_COLORS } from '@/constants/chartColors'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import BarChart from '@/components/reports/BarChart.vue'
+import ReportDateRange from '@/components/reports/ReportDateRange.vue'
+import ReportHeader from '@/components/reports/ReportHeader.vue'
+import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
+import ReportSection from '@/components/reports/ReportSection.vue'
+import { formatValue } from '@/components/reports/chartUtils'
+import { STATUS_CHART_COLORS } from '@/constants/chartColors'
+import { useReportRange } from '@/composables/useReportRange'
 import { reportService } from '@/services/reportService'
+import type { TeamWorkloadReport, WorkloadMember } from '@/types/Report'
+import { downloadCsv } from '@/utils/csvExport'
 import { formatDateTime } from '@/utils/dateFormatter'
-import type { ChartDataPoint, TeamWorkload, TeamWorkloadMember } from '@/types/Report'
+import { formatRange } from '@/utils/reportRange'
 
 const router = useRouter()
 const { t } = useI18n()
+const w = (key: string, values?: Record<string, unknown>) => t(`report.workloadPage.${key}`, values ?? {})
 
-// Matches report_service.TASKS_AT_FULL_CAPACITY on the backend -- the
-// number of open tasks treated as "fully loaded" for allocation-percent
-// purposes, since no real capacity/hours field exists anywhere in the
-// schema. Kept in sync manually; if the backend constant changes, update
-// this too (see that constant's own comment for why it exists at all).
-const TASKS_AT_FULL_CAPACITY = 8
+const rangeState = useReportRange('this-month')
+const periodLabel = computed(() => formatRange(rangeState.range.value))
 
-const reportDate = formatDateTime(new Date().toISOString())
-
+const report = ref<TeamWorkloadReport>()
 const isLoading = ref(false)
-const loadError = ref('')
-const workload = ref<TeamWorkload | null>(null)
+const error = ref<string>()
+const generatedAt = ref('')
+let requestId = 0
 
 async function load(): Promise<void> {
+  const current = ++requestId
   isLoading.value = true
-  loadError.value = ''
+  error.value = undefined
   try {
-    workload.value = await reportService.getTeamWorkload()
-  } catch (error) {
-    loadError.value = error instanceof Error ? error.message : t('report.workloadPage.loadFailed')
-    workload.value = null
+    const result = await reportService.getTeamWorkload(rangeState.range.value)
+    if (current !== requestId) return
+    report.value = result
+    generatedAt.value = formatDateTime(new Date().toISOString())
+  } catch (loadError) {
+    if (current === requestId) error.value = loadError instanceof Error ? loadError.message : w('loadFailed')
   } finally {
-    isLoading.value = false
+    if (current === requestId) isLoading.value = false
   }
 }
 
-onMounted(load)
+watch(() => rangeState.range.value, load, { immediate: true })
 
-const members = computed<TeamWorkloadMember[]>(() => workload.value?.members ?? [])
+const members = computed<WorkloadMember[]>(() => report.value?.members ?? [])
+const totals = computed(() => report.value?.totals)
+const dueSoonDays = computed(() => report.value?.dueSoonDays ?? 7)
+const count = (value: number) => formatValue(value, 'number')
+const percent = (value: number | null | undefined) => (value === null || value === undefined ? '—' : `${value}%`)
+const displayName = (member: WorkloadMember) => (member.inactive ? `${member.name} (${w('inactiveBadge')})` : member.name)
 
-const teamMetrics = computed(() => [
-  {
-    label: t('report.workloadPage.totalTeamMembers'),
-    value: workload.value?.totalMembers ?? 0,
-    color: 'primary',
-  },
-  {
-    label: t('report.workloadPage.averageUtilization'),
-    value: `${workload.value?.averageUtilization ?? 0}%`,
-    color: 'info',
-  },
-  {
-    label: t('report.workloadPage.overallocatedStaff'),
-    value: workload.value?.overallocatedCount ?? 0,
-    unit: t('report.workloadPage.personsUnit'),
-    color: 'warning',
-  },
-  {
-    label: t('report.workloadPage.capacityAvailable'),
-    value: `${workload.value?.capacityAvailable ?? 0}%`,
-    color: 'neutral',
-  },
+// Only people who actually hold open work get a bar; idle people are
+// listed in the table and the "has room" note instead.
+const withOpenWork = computed(() => members.value.filter((member) => member.openTasks > 0))
+// Urgency colours mean something here (late / soon / fine), so status
+// tokens rather than categorical slots.
+const openWorkSeries = computed(() => [
+  { name: w('seriesOverdue'), values: withOpenWork.value.map((m) => m.overdueTasks), color: STATUS_CHART_COLORS.danger },
+  { name: w('seriesDueSoon', { days: dueSoonDays.value }), values: withOpenWork.value.map((m) => m.dueSoonTasks), color: STATUS_CHART_COLORS.warning },
+  { name: w('seriesLater'), values: withOpenWork.value.map((m) => m.laterTasks), color: 'var(--chart-series-1)' },
 ])
-
-function allocationColor(allocationPercent: number): string {
-  if (allocationPercent > 100) return STATUS_CHART_COLORS.danger
-  if (allocationPercent >= 90) return STATUS_CHART_COLORS.warning
-  return STATUS_CHART_COLORS.success
-}
-
-const activeTasksChart = computed<ChartDataPoint[]>(() =>
-  members.value.map((member) => ({ label: member.name, value: member.activeTasks, color: DEFAULT_CHART_COLOR })),
+const throughput = computed(() =>
+  members.value
+    .filter((member) => member.completedInPeriod > 0)
+    .sort((a, b) => b.completedInPeriod - a.completedInPeriod)
+    .map((member) => ({ label: displayName(member), value: member.completedInPeriod })),
 )
 
-const allocationChart = computed<ChartDataPoint[]>(() =>
-  members.value.map((member) => ({ label: member.name, value: member.allocationPercent, color: allocationColor(member.allocationPercent) })),
-)
+const behind = computed(() => members.value.filter((member) => member.overdueTasks > 0 && !member.inactive))
+const withRoom = computed(() => members.value.filter((member) => member.openTasks === 0 && !member.inactive))
+const stranded = computed(() => members.value.filter((member) => member.inactive && member.openTasks > 0))
+const names = (list: WorkloadMember[]) => list.map((member) => member.name).join(', ')
 
-const overallocatedMembers = computed(() => members.value.filter((member) => member.overallocated))
-const overdueMembers = computed(() => members.value.filter((member) => member.overdueTasks > 0))
-
-function namesList(list: TeamWorkloadMember[]): string {
-  return list.map((member) => member.name).join(', ')
-}
-
-// See ProjectReportPage.vue's identical handler for why this uses
-// window.print() rather than a separate backend-rendered PDF.
-const handleExport = () => {
-  window.print()
-}
-
-const goBack = () => {
-  router.back()
-}
-
-function getRowColor(member: TeamWorkloadMember): string {
-  if (member.overallocated) return 'bg-danger-50 border-danger-200'
-  if (member.allocationPercent >= 90) return 'bg-warning-50 border-warning-200'
-  return 'bg-bg-secondary'
+function exportCsv(): void {
+  const data = report.value
+  if (!data) return
+  downloadCsv(`team-workload-${data.period.startDate}-to-${data.period.endDate}.csv`, [
+    {
+      title: `${w('pageTitle')} -- ${periodLabel.value}`,
+      headers: [
+        w('columnPerson'), 'Role', w('inactiveBadge'), w('columnProjects'), w('columnOpen'), w('columnOverdue'),
+        `${w('columnOldest')} (days)`, w('columnDueSoon'), w('seriesLater'), w('columnNotStarted'), w('columnCompleted'), `${w('columnOnTime')} (%)`,
+      ],
+      rows: data.members.map((m) => [
+        m.name, m.role, m.inactive ? 'Yes' : 'No', m.activeProjects, m.openTasks, m.overdueTasks,
+        m.oldestOverdueDays, m.dueSoonTasks, m.laterTasks, m.notStartedTasks, m.completedInPeriod, m.onTimeRate,
+      ]),
+    },
+  ])
 }
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto space-y-8 p-6 laptop:p-8">
-    <div class="flex items-center justify-between">
-      <BaseButton variant="ghost" size="sm" @click="goBack"> ← {{ t('report.back') }} </BaseButton>
-    </div>
+  <div class="mx-auto max-w-6xl space-y-8 p-6 laptop:p-8">
+    <BaseButton variant="ghost" size="sm" class="print:hidden" @click="router.back()">← {{ t('report.back') }}</BaseButton>
 
-    <ReportHeader :title="t('report.workloadPage.pageTitle')" :subtitle="t('report.workloadPage.pageSubtitle')" :generated-date="reportDate" @download="handleExport" />
-
-    <ErrorState v-if="loadError" :description="loadError" @retry="load" />
-
-    <SkeletonLoader v-else-if="isLoading" :rows="6" />
-
-    <EmptyState
-      v-else-if="members.length === 0"
-      :title="t('report.workloadPage.noDataTitle')"
-      :description="t('report.workloadPage.noDataDescription')"
+    <ReportHeader
+      :title="w('pageTitle')"
+      :subtitle="w('pageSubtitle')"
+      :period="periodLabel"
+      :generated-date="generatedAt"
+      :exportable="Boolean(report)"
+      @download="exportCsv"
     />
 
-    <template v-else>
-      <!-- Team Overview Metrics -->
-      <ReportSection :title="t('report.workloadPage.teamOverviewTitle')" :description="t('report.workloadPage.teamOverviewDescription')">
-        <ReportMetricCard v-for="(metric, index) in teamMetrics" :key="index" :label="metric.label" :value="metric.value" :unit="metric.unit" :color="metric.color" />
-      </ReportSection>
+    <ReportDateRange :state="rangeState" />
 
-      <!-- Overall Team Health -->
-      <ReportSection :title="t('report.workloadPage.teamCapacityStatusTitle')" fullWidth>
-        <div class="grid grid-cols-1 tablet:grid-cols-2 gap-8 justify-items-center">
-          <ProgressChart :value="workload?.averageUtilization ?? 0" :label="t('report.workloadPage.averageUtilization')" :color="DEFAULT_CHART_COLOR" size="md" />
-          <ProgressChart :value="workload?.capacityAvailable ?? 0" :label="t('report.workloadPage.capacityAvailable')" :color="STATUS_CHART_COLORS.success" size="md" />
+    <ErrorState v-if="error" :description="error" @retry="load" />
+
+    <div v-else-if="!report" class="rounded-xl border border-border-light bg-bg-card p-5">
+      <SkeletonLoader :rows="6" />
+    </div>
+
+    <EmptyState v-else-if="members.length === 0" :title="w('noDataTitle')" :description="w('noDataDescription')" />
+
+    <div v-else-if="totals" class="space-y-8 transition-opacity" :class="isLoading ? 'opacity-50' : ''">
+      <ReportSection :title="w('overviewTitle')" :description="w('overviewDescription')" full-width>
+        <div class="grid grid-cols-2 gap-4 laptop:grid-cols-5">
+          <ReportMetricCard :label="w('openTasks')" :value="count(totals.openTasks)" :hint="w('openTasksHint', { people: totals.peopleWithOpenWork })" color="primary" />
+          <ReportMetricCard
+            :label="w('overdueTasks')"
+            :value="count(totals.overdueTasks)"
+            :hint="w('overdueHint', { share: percent(totals.overdueShare), people: totals.peopleWithOverdue })"
+            :color="totals.overdueTasks > 0 ? 'danger' : 'neutral'"
+          />
+          <ReportMetricCard :label="w('dueSoon', { days: dueSoonDays })" :value="count(totals.dueSoonTasks)" color="warning" />
+          <ReportMetricCard :label="w('completed')" :value="count(totals.completedInPeriod)" :hint="w('completedHint', { rate: percent(totals.onTimeRate) })" color="success" />
+          <ReportMetricCard :label="w('stranded')" :value="count(totals.strandedTasks)" :hint="w('strandedHint')" :color="totals.strandedTasks > 0 ? 'danger' : 'neutral'" />
         </div>
       </ReportSection>
 
-      <!-- Active Tasks by Team Member -->
-      <ReportSection :title="t('report.workloadPage.activeTasksChartTitle')" :description="t('report.workloadPage.activeTasksChartDescription')" fullWidth>
+      <div class="grid grid-cols-1 gap-4 laptop:grid-cols-2">
         <Card>
-          <BarChart :data="activeTasksChart" :height="350" />
+          <h3 class="text-sm font-semibold text-text-primary">{{ w('openWorkTitle') }}</h3>
+          <p class="mb-3 text-xs text-text-muted">{{ w('openWorkDescription') }}</p>
+          <BarChart
+            :categories="withOpenWork.map(displayName)"
+            :series="openWorkSeries"
+            horizontal
+            stacked
+            :category-label="w('columnPerson')"
+            show-total
+          />
         </Card>
-      </ReportSection>
-
-      <!-- Allocation by Team Member -->
-      <ReportSection
-        :title="t('report.workloadPage.allocationChartTitle')"
-        :description="t('report.workloadPage.allocationChartDescription', { capacity: TASKS_AT_FULL_CAPACITY })"
-        fullWidth
-      >
         <Card>
-          <BarChart :data="allocationChart" :height="350" />
+          <h3 class="text-sm font-semibold text-text-primary">{{ w('throughputTitle') }}</h3>
+          <p class="mb-3 text-xs text-text-muted">{{ w('throughputDescription') }}</p>
+          <BarChart :data="throughput" horizontal :series-name="w('seriesCompleted')" :category-label="w('columnPerson')" show-total />
         </Card>
-      </ReportSection>
-
-      <!-- Individual Team Member Details -->
-      <ReportSection :title="t('report.workloadPage.teamMemberDetailsTitle')" fullWidth>
-        <div class="space-y-3">
-          <div
-            v-for="member in members"
-            :key="member.userId"
-            :class="['p-4 rounded-lg border transition-all', getRowColor(member)]"
-          >
-            <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
-              <div>
-                <p class="text-sm font-semibold text-text-primary">{{ member.name }}</p>
-                <p class="text-xs text-text-secondary mt-1">{{ member.role }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-text-secondary uppercase font-medium mb-2">{{ t('report.workloadPage.allocation') }}</p>
-                <div class="space-y-1">
-                  <div class="h-2 bg-border-default rounded-full overflow-hidden">
-                    <div :style="{ width: `${Math.min(member.allocationPercent, 120)}%`, backgroundColor: allocationColor(member.allocationPercent) }" class="h-full rounded-full transition-all" />
-                  </div>
-                  <div class="flex items-center justify-between text-xs">
-                    <span :class="member.allocationPercent > 100 ? 'text-danger-600 font-semibold' : 'text-text-secondary'">
-                      {{ member.allocationPercent }}%
-                    </span>
-                    <span v-if="member.overallocated" class="text-danger-600 font-medium">⚠ {{ t('report.workloadPage.overallocatedBadge') }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="flex items-center gap-4">
-                <div>
-                  <p class="text-xs text-text-secondary uppercase font-medium">{{ t('report.workloadPage.projects') }}</p>
-                  <p class="text-lg font-bold text-text-primary mt-1">{{ member.activeProjects }}</p>
-                </div>
-                <div>
-                  <p class="text-xs text-text-secondary uppercase font-medium">{{ t('report.workloadPage.activeTasks') }}</p>
-                  <p class="text-lg font-bold text-text-primary mt-1">{{ member.activeTasks }}</p>
-                </div>
-                <div>
-                  <p class="text-xs text-text-secondary uppercase font-medium">{{ t('report.workloadPage.overdueTasks') }}</p>
-                  <p :class="['text-lg font-bold mt-1', member.overdueTasks > 0 ? 'text-danger-600' : 'text-text-primary']">{{ member.overdueTasks }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </ReportSection>
-
-      <!-- Recommendations -->
-      <ReportSection :title="t('report.workloadPage.recommendationsTitle')" fullWidth>
-        <div class="space-y-3">
-          <Card v-if="overallocatedMembers.length === 0" class="bg-success-50 border border-success-200">
-            <div class="space-y-2">
-              <h3 class="font-semibold text-success-900">✓ {{ t('report.workloadPage.noOverallocationTitle') }}</h3>
-              <p class="text-sm text-success-800">{{ t('report.workloadPage.noOverallocationText', { capacity: TASKS_AT_FULL_CAPACITY }) }}</p>
-            </div>
-          </Card>
-          <Card v-else class="bg-danger-50 border border-danger-200">
-            <div class="space-y-2">
-              <h3 class="font-semibold text-danger-900">⚠ {{ t('report.workloadPage.overallocatedWarningTitle') }}</h3>
-              <p class="text-sm text-danger-800">{{ t('report.workloadPage.overallocatedWarningText', { names: namesList(overallocatedMembers), capacity: TASKS_AT_FULL_CAPACITY }) }}</p>
-            </div>
-          </Card>
-          <Card v-if="overdueMembers.length > 0" class="bg-warning-50 border border-warning-200">
-            <div class="space-y-2">
-              <h3 class="font-semibold text-warning-900">⚠ {{ t('report.workloadPage.overdueWarningTitle') }}</h3>
-              <p class="text-sm text-warning-800">{{ t('report.workloadPage.overdueWarningText', { names: namesList(overdueMembers) }) }}</p>
-            </div>
-          </Card>
-        </div>
-      </ReportSection>
-
-      <!-- Report Footer -->
-      <div class="border-t border-border-light pt-6 text-center text-xs text-text-muted">
-        <p>{{ t('report.workloadPage.footerTitle') }}</p>
-        <p class="mt-1">{{ t('report.workloadPage.footerGenerated', { date: reportDate }) }}</p>
-        <p class="mt-1">{{ t('report.workloadPage.footerBasedOn') }}</p>
       </div>
-    </template>
+
+      <ReportSection :title="w('tableTitle')" :description="w('tableDescription')" full-width>
+        <Card>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border-light text-left text-xs uppercase tracking-wide text-text-muted">
+                  <th class="py-2 pe-3 font-medium">{{ w('columnPerson') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnProjects') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnOpen') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnOverdue') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnOldest') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnDueSoon') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnNotStarted') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnCompleted') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ w('columnOnTime') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="member in members" :key="member.userId" class="border-b border-border-light/60 last:border-0">
+                  <td class="py-2 pe-3">
+                    <p class="font-medium text-text-primary">{{ member.name }}</p>
+                    <p class="text-xs text-text-muted">
+                      {{ member.role }}
+                      <StatusBadge v-if="member.inactive" :label="w('inactiveBadge')" variant="danger" class="ms-1" />
+                    </p>
+                  </td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.activeProjects }}</td>
+                  <td class="py-2 ps-3 text-end font-semibold tabular-nums">{{ member.openTasks }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums" :class="member.overdueTasks > 0 ? 'font-semibold text-danger-600' : ''">{{ member.overdueTasks }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums text-text-secondary">{{ member.oldestOverdueDays === null ? '—' : w('days', { count: member.oldestOverdueDays }) }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.dueSoonTasks }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.notStartedTasks }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.completedInPeriod }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ percent(member.onTimeRate) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </ReportSection>
+
+      <ReportSection :title="w('attentionTitle')" full-width>
+        <Card>
+          <ul class="space-y-2 text-sm">
+            <li v-if="stranded.length" class="text-danger-700 dark:text-danger-400">
+              {{ w('strandedText', { count: totals.strandedTasks, names: names(stranded) }) }}
+            </li>
+            <li v-if="behind.length" class="text-text-primary">{{ w('behindText', { names: names(behind) }) }}</li>
+            <li v-if="withRoom.length" class="text-text-primary">{{ w('roomText', { names: names(withRoom) }) }}</li>
+            <li v-if="!stranded.length && !behind.length" class="text-success-700 dark:text-success-400">{{ w('allClear') }}</li>
+          </ul>
+        </Card>
+      </ReportSection>
+
+      <p class="border-t border-border-light pt-6 text-center text-xs text-text-muted">{{ w('footerBasedOn') }}</p>
+    </div>
   </div>
 </template>
-
-<style scoped>
-@media print {
-  :deep(.print\:hidden) {
-    display: none;
-  }
-
-  :deep(button) {
-    display: none;
-  }
-
-  :deep(.max-w-6xl) {
-    max-width: 100%;
-  }
-}
-</style>

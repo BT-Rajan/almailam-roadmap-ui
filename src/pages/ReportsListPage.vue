@@ -32,11 +32,7 @@ const reports = computed(() => [
     description: t('report.listPage.executiveDescription'),
     icon: TrendingUp,
     color: 'primary',
-    metrics: [
-      t('report.listPage.executiveMetric1', { count: 5 }),
-      t('report.listPage.executiveMetric2', { percent: 87 }),
-      t('report.listPage.executiveMetric3', { percent: 82 }),
-    ],
+    metrics: [t('report.listPage.executiveMetric1'), t('report.listPage.executiveMetric2'), t('report.listPage.executiveMetric3')],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_EXECUTIVE }),
   },
   {
@@ -45,11 +41,7 @@ const reports = computed(() => [
     description: t('report.listPage.projectDescription'),
     icon: BarChart3,
     color: 'info',
-    metrics: [
-      'Marina Bay Hotel Renovation',
-      t('report.listPage.projectMetric2', { percent: 42 }),
-      t('report.listPage.projectMetric3'),
-    ],
+    metrics: [t('report.listPage.projectMetric1'), t('report.listPage.projectMetric2'), t('report.listPage.projectMetric3')],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_PROJECT }),
   },
   {
@@ -58,11 +50,7 @@ const reports = computed(() => [
     description: t('report.listPage.workloadDescription'),
     icon: Users,
     color: 'success',
-    metrics: [
-      t('report.listPage.workloadMetric1', { count: 3 }),
-      t('report.listPage.workloadMetric2', { percent: 82 }),
-      t('report.listPage.workloadMetric3', { percent: 18 }),
-    ],
+    metrics: [t('report.listPage.workloadMetric1'), t('report.listPage.workloadMetric2'), t('report.listPage.workloadMetric3')],
     action: () => router.push({ name: ROUTE_NAMES.REPORT_WORKLOAD }),
   },
   {

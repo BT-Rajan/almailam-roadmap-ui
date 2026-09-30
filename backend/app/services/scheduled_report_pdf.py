@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from weasyprint import HTML
 
 from app.core.exceptions import ValidationAppError
+from app.core.kuwait_time import kuwait_today
 from app.models.project import Project
 from app.models.scheduled_report import ScheduledReport
 from app.services import company_service, report_service
@@ -118,7 +119,7 @@ def _business_summary_sections(db: Session) -> tuple[str, list[dict]]:
 
 def _financial_summary_sections(db: Session, period: str | None) -> tuple[str, list[dict]]:
     period = period or "last_30_days"
-    start_date, end_date = _period_bounds(period, date.today())
+    start_date, end_date = _period_bounds(period, kuwait_today())
     summary = report_service.financial_period_summary(db, start_date, end_date)
     multi_currency = len(summary["byCurrency"]) > 1
     rows = [("Period", f"{summary['startDate']} to {summary['endDate']}")]

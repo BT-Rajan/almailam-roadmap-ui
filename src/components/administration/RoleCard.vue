@@ -9,7 +9,7 @@ import ConfirmationDialog from '@/components/common/ConfirmationDialog.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import PermissionMatrix from '@/components/administration/PermissionMatrix.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { useRbac } from '@/composables/useRbac'
+import { usePermissions } from '@/composables/usePermissions'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { RoleDefinition, RolePermission } from '@/types/Role'
@@ -22,7 +22,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const { t } = useI18n()
-const { can } = useRbac()
+const { can } = usePermissions()
 const userStore = useUserStore()
 const toastStore = useToastStore()
 
@@ -84,7 +84,7 @@ async function confirmSave(): Promise<void> {
             variant="neutral"
           />
           <IconButton
-            v-if="can('roles.edit') && !isEditing"
+            v-if="can('Administration', 'edit') && !isEditing"
             :icon="Pencil"
             :label="t('administration.roleCard.editPermissions')"
             size="sm"

@@ -8,12 +8,13 @@ import type { PermissionModule } from '@/types/Role'
  * Whether the signed-in user may do `action` in `module`, according to the
  * server's own role matrix (delivered on /api/auth/me).
  *
- * Prefer this over useRbac() for anything that mirrors a backend
- * require_permission(...) check. useRbac() is a hardcoded table in the
- * frontend and has already drifted from the database-driven, admin-editable
- * matrix (e.g. it says Engineers can't edit projects; the API says they can),
- * so gating on it hides buttons from people the server would allow, or shows
- * them to people it would refuse.
+ * This is the only permission check in the app now -- it replaced a
+ * composable (useRbac.ts, since removed) that hardcoded its own
+ * role->permission table in the frontend. That table drifted from the
+ * database-driven, admin-editable matrix almost immediately (e.g. it said
+ * Engineers couldn't edit projects; the API said they could), so gating on
+ * it hid buttons from people the server would allow, or showed them to
+ * people it would refuse. Always gate on the server's own matrix instead.
  *
  * Fails closed: no user, or a module the server didn't report, means no
  * access. The server still enforces every request; this only decides what

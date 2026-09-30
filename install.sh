@@ -430,7 +430,8 @@ log "Database connection successful"
 # ----------------------------------------------------------------------------
 # backend/schema.sql is the complete definition of the database; there are
 # no migration patches. It is loaded only into an EMPTY database (first
-# deployment). A database that already has tables is never modified here.
+# deployment). A database that already has tables only gets the idempotent
+# additions in backend/schema_upgrade.sql.
 # To rebuild an existing database to the current schema.sql -- which
 # destroys its data -- run ./reset_db_from_schema.sh --instance=<dev|test>.
 
@@ -476,8 +477,18 @@ if [[ "$TABLE_COUNT" == "0" ]]; then
     SCHEMA_SUMMARY="loaded from schema.sql ($LOADED_TABLES tables)"
     log "Schema loaded ($LOADED_TABLES tables)"
 else
-    SCHEMA_SUMMARY="existing database left unchanged ($TABLE_COUNT tables)"
-    log "Database already has $TABLE_COUNT tables -- schema not touched"
+    # schema_upgrade.sql adds whatever columns/indexes schema.sql gained
+    # since this database was created. Every statement in it is idempotent,
+    # so on an up-to-date database it changes nothing.
+    UPGRADE_FILE="$BACKEND_DIR/schema_upgrade.sql"
+    if [[ -f "$UPGRADE_FILE" ]]; then
+        log "Applying schema_upgrade.sql to the existing database"
+        if ! db_run < "$UPGRADE_FILE"; then
+            die "schema_upgrade.sql failed (see the database error above). The running version was NOT restarted."
+        fi
+    fi
+    SCHEMA_SUMMARY="existing database upgraded in place ($TABLE_COUNT tables)"
+    log "Database already has $TABLE_COUNT tables -- brought up to date"
 
     # A database built by the old per-change migration scripts carries a
     # schema_migrations table and may not match schema.sql exactly.

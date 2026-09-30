@@ -12,8 +12,10 @@ export function todayIso(): string {
 /** `fromIso` (YYYY-MM-DD) shifted by `days` (negative to go back), returned as YYYY-MM-DD.
  * For DatePicker `min`/`max` bounds and range checks -- e.g. `addDaysIso(todayIso(), 180)`. */
 export function addDaysIso(fromIso: string, days: number): string {
-  const date = new Date(`${fromIso}T00:00:00`)
-  date.setDate(date.getDate() + days)
+  // UTC on both ends: a local-midnight Date read back with toISOString()
+  // lands on the previous day anywhere east of UTC (Kuwait is UTC+3).
+  const date = new Date(`${fromIso}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
 

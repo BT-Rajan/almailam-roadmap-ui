@@ -10,6 +10,14 @@ export const CHART_COLORS = {
 
 export const DEFAULT_CHART_COLOR = CHART_COLORS.blue
 
+/** Series colors in fixed order -- series N always gets slot N, never by rank. */
+export const SERIES_COLORS = [
+  'var(--chart-series-1)',
+  'var(--chart-series-2)',
+  'var(--chart-series-3)',
+  'var(--chart-series-4)',
+] as const
+
 // Status-driven chart colors, matching the app's own danger/warning/success
 // token scale (see tailwind.config.js) rather than an unrelated stock hue.
 export const STATUS_CHART_COLORS = {

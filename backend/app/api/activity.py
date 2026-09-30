@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.activity import ActivityRecordOut, DailySummaryOut, FilterOptionOut
 from app.services import activity_service
+from app.services.report_period import KUWAIT_UTC_OFFSET
 
 router = APIRouter(prefix="/api/admin/activity", tags=["activity"])
 
@@ -41,8 +42,8 @@ def get_month_activity(month: str, db: Session = Depends(get_db), _=Depends(can_
 
 @router.get("/filtered", response_model=list[ActivityRecordOut])
 def get_filtered_activities(
-    startDate: str,
-    endDate: str,
+    startDate: date,
+    endDate: date,
     projectId: str | None = None,
     userId: str | None = None,
     type: str | None = None,
@@ -67,8 +68,8 @@ def get_users_for_filtering(db: Session = Depends(get_db), _=Depends(can_view)):
 
 @router.get("/export/csv")
 def export_activities_csv(
-    startDate: str,
-    endDate: str,
+    startDate: date,
+    endDate: date,
     projectId: str | None = None,
     userId: str | None = None,
     type: str | None = None,
@@ -80,7 +81,7 @@ def export_activities_csv(
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Type", "Entity Type", "Entity Name", "Project", "User", "Description", "Timestamp"])
+    writer.writerow(["Type", "Entity Type", "Entity Name", "Project", "User", "Description", "Time (Kuwait)"])
     for activity in activities:
         writer.writerow(
             [
@@ -90,7 +91,8 @@ def export_activities_csv(
                 activity["projectName"] or "",
                 activity["userName"],
                 activity["description"],
-                activity["timestamp"],
+                # Kuwait local time, as the people reading the export expect.
+                (datetime.fromisoformat(activity["timestamp"].rstrip("Z")) + KUWAIT_UTC_OFFSET).strftime("%Y-%m-%d %H:%M"),
             ]
         )
     buffer.seek(0)

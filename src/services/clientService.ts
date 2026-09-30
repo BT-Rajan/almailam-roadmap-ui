@@ -68,6 +68,11 @@ async function getClients(): Promise<Client[]> {
   return fetchAllPages<Client>((page, pageSize) => getClientsPage({ page, pageSize }))
 }
 
+/** Just id + name of every live client, for report filters. */
+async function getClientOptions(): Promise<{ id: string; name: string }[]> {
+  return apiClient.get<{ id: string; name: string }[]>('/api/clients/options')
+}
+
 /**
  * Fetch a specific client by ID from backend API
  */
@@ -446,6 +451,7 @@ async function restoreClient(clientId: string): Promise<Client> {
 
 export const clientService = {
   getClients,
+  getClientOptions,
   getClientsPage,
   getClientById,
   getContactsForClient,

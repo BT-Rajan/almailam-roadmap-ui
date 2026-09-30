@@ -10,6 +10,193 @@ export interface LineChartData {
   color?: string
 }
 
+export interface ReportPeriod {
+  startDate: string
+  endDate: string
+}
+
+export type ReportBucket = 'day' | 'week' | 'month' | 'year'
+
+export interface ExecutiveSummary {
+  period: ReportPeriod
+  bucket: ReportBucket
+  currency: string
+  kpis: {
+    newProjects: number
+    projectsCompleted: number
+    activeProjectsNow: number
+    onHoldProjectsNow: number
+    newClients: number
+    contractsSigned: number
+    contractsSignedValue: number
+    cashReceived: number
+    refunded: number
+    netCash: number
+    billed: number
+    collectedOfBilled: number
+    collectionRate: number | null
+    outstandingNow: number
+    overdueNow: number
+    tasksCompleted: number
+    tasksOnTimeRate: number | null
+    openTasksNow: number
+    overdueTasksNow: number
+  }
+  cashFlow: { categories: string[]; received: number[]; billed: number[] }
+  projectFlow: { categories: string[]; started: number[]; completed: number[] }
+  projectStatusNow: { label: string; value: number }[]
+  topClients: { clientName: string; received: number; payments: number }[]
+}
+
+export type ScheduleHealth = 'on-track' | 'at-risk' | 'late' | 'completed' | 'cancelled' | 'on-hold'
+
+export interface ProjectPerformance {
+  period: ReportPeriod
+  bucket: ReportBucket
+  project: { projectNo: string; projectName: string; clientName: string; engineer: string; status: string; currentStage: string }
+  schedule: {
+    startDate: string
+    targetDate: string
+    totalDays: number
+    timeElapsedPercent: number
+    progressPercent: number
+    daysToTarget: number
+    health: ScheduleHealth
+  }
+  tasks: {
+    byStatus: { label: string; value: number }[]
+    total: number
+    open: number
+    overdue: number
+    completedInPeriod: number
+    onTimeRate: number | null
+    overdueList: { taskNo: string; title: string; assignee: string; dueDate: string; daysLate: number }[]
+  }
+  money: {
+    streams: {
+      stream: string
+      currency: string
+      contractAmount: number
+      received: number
+      outstanding: number
+      overdue: number
+      receivedInPeriod: number
+      billedInPeriod: number
+    }[]
+    chartCurrency: string | null
+    cashFlow: { categories: string[]; received: number[]; billed: number[] }
+    upcoming: { stream: string; description: string; dueDate: string; amountDue: number; outstanding: number; currency: string; overdue: boolean }[]
+  }
+  documents: { label: string; value: number }[]
+  submissions: { label: string; value: number }[]
+}
+
+export interface ClientPortfolioProject {
+  projectNo: string
+  projectName: string
+  status: string
+  currentStage: string
+  progress: number
+  newInPeriod: boolean
+  receivedInPeriod: number
+  outstanding: number
+  overdue: number
+}
+
+export interface ClientPortfolioRow {
+  clientId: string
+  clientName: string
+  clientStatus: string
+  newClient: boolean
+  totalProjects: number
+  activeProjects: number
+  onHoldProjects: number
+  completedProjects: number
+  cancelledProjects: number
+  newProjectsInPeriod: number
+  receivedInPeriod: number
+  outstanding: number
+  overdue: number
+  projects: ClientPortfolioProject[]
+}
+
+export interface ClientPortfolio {
+  period: ReportPeriod
+  currency: string
+  totals: {
+    clients: number
+    clientsWithActiveWork: number
+    newClients: number
+    clientsWithoutProjects: number
+    projects: number
+    newProjects: number
+    receivedInPeriod: number
+    outstanding: number
+    overdue: number
+    clientsWithOverdue: number
+  }
+  clients: ClientPortfolioRow[]
+}
+
+export interface ActivityMember {
+  userId: string
+  name: string
+  system: boolean
+  actions: number
+  activeDays: number
+  projectsTouched: number
+  created: number
+  updated: number
+  completed: number
+  rejected: number
+  deleted: number
+  byArea: Record<string, number>
+  lastActivity: string
+}
+
+export interface EmployeeActivityReport {
+  period: ReportPeriod
+  bucket: ReportBucket
+  totals: { actions: number; systemActions: number; peopleActive: number; created: number; completed: number; deleted: number }
+  series: { categories: string[]; actions: number[] }
+  areas: { label: string; value: number }[]
+  members: ActivityMember[]
+}
+
+export interface WorkloadMember {
+  userId: string
+  name: string
+  role: string
+  inactive: boolean
+  activeProjects: number
+  openTasks: number
+  overdueTasks: number
+  dueSoonTasks: number
+  laterTasks: number
+  notStartedTasks: number
+  oldestOverdueDays: number | null
+  completedInPeriod: number
+  onTimeRate: number | null
+}
+
+export interface TeamWorkloadReport {
+  period: ReportPeriod
+  dueSoonDays: number
+  totals: {
+    people: number
+    peopleWithOpenWork: number
+    peopleWithOverdue: number
+    openTasks: number
+    overdueTasks: number
+    overdueShare: number | null
+    dueSoonTasks: number
+    completedInPeriod: number
+    onTimeRate: number | null
+    strandedTasks: number
+  }
+  members: WorkloadMember[]
+}
+
 export interface PaymentsReceivedByMonth {
   currency: string
   series: LineChartData[]
@@ -32,22 +219,8 @@ export interface ReportSection {
   metrics?: ReportMetric[]
 }
 
-export interface ClientProjectSummary {
-  projectNo: string
-  projectName: string
-  status: string
-  currentStage: string
-  progress: number
-}
-
-export interface ClientWithProjects {
-  clientId: string
-  clientName: string
-  clientStatus: string
-  projects: ClientProjectSummary[]
-}
-
 export interface PaymentLedgerEntry {
+  entryType: 'Payment' | 'Refund'
   paymentNo: string
   date: string
   projectNo: string
@@ -65,6 +238,7 @@ export interface ProjectionByMonth {
   month: string
   currency: string
   amount: number
+  overdue: number
 }
 
 export interface ProjectionByProject {
@@ -86,37 +260,44 @@ export interface PaymentProjections {
   byService: ProjectionByService[]
 }
 
-export interface EmployeePerformance {
+export interface PerformanceMember {
   userId: string
   employeeName: string
-  assigned: number
-  completed: number
-  completionRate: number
+  dueInPeriod: number
+  dueSoFar: number
+  completedOnTime: number
+  completedLate: number
+  overdueOpen: number
+  notYetDue: number
+  completionRate: number | null
+  onTimeRate: number | null
+  averageDaysLate: number | null
+  completedInPeriod: number
 }
 
-export interface TeamWorkloadMember {
-  userId: string
-  name: string
-  role: string
-  activeProjects: number
-  activeTasks: number
-  overdueTasks: number
-  allocationPercent: number
-  overallocated: boolean
-}
-
-export interface TeamWorkload {
-  members: TeamWorkloadMember[]
-  totalMembers: number
-  averageUtilization: number
-  overallocatedCount: number
-  capacityAvailable: number
+export interface EmployeePerformanceReport {
+  period: ReportPeriod
+  totals: {
+    dueInPeriod: number
+    dueSoFar: number
+    completedOnTime: number
+    completedLate: number
+    overdueOpen: number
+    notYetDue: number
+    completionRate: number | null
+    onTimeRate: number | null
+    completedInPeriod: number
+  }
+  members: PerformanceMember[]
 }
 
 export interface FinancialCurrencyBreakdown {
   currency: string
   totalReceived: number
+  totalRefunded: number
+  netReceived: number
   totalDue: number
+  totalCollected: number
   totalOutstanding: number
   totalOverdue: number
 }

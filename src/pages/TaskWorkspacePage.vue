@@ -51,6 +51,15 @@ const originProjectId = computed(() => {
   return typeof value === 'string' ? value : undefined
 })
 
+// Which of that project's Design/Supervision/Government Submission
+// Tasks tabs this task was opened from (see ProjectTasksTab.vue's own
+// ?stage=), echoed back on the way out so "Back to Project" restores
+// that exact tab instead of landing on Overview.
+const originStage = computed(() => {
+  const value = route.query.stage
+  return typeof value === 'string' ? value : undefined
+})
+
 const isLoading = ref(true)
 const loadError = ref<string | undefined>(undefined)
 
@@ -83,7 +92,11 @@ const clientName = computed(() => taskStore.getClientNameByProjectId(task.value?
 
 function goBack(): void {
   if (originProjectId.value) {
-    router.push({ name: ROUTE_NAMES.PROJECT_WORKSPACE, params: { projectId: originProjectId.value } })
+    router.push({
+      name: ROUTE_NAMES.PROJECT_WORKSPACE,
+      params: { projectId: originProjectId.value },
+      query: originStage.value ? { tab: 'tasks', stage: originStage.value } : undefined,
+    })
     return
   }
   router.push({ name: ROUTE_NAMES.TASKS })

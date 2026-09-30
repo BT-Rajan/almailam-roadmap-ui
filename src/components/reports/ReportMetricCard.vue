@@ -13,19 +13,25 @@ interface Props {
   change?: {
     direction: 'up' | 'down'
     percentage: number
+    /** Whether this move is good news (more cash) or bad (more overdue); defaults to up = good. */
+    good?: boolean
   }
   color?: string
+  /** One short line saying what the figure counts, e.g. "of 2,000 billed". */
+  hint?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   unit: undefined,
   change: undefined,
   color: 'neutral',
+  hint: undefined,
 })
 
 const changeColor = computed(() => {
   if (!props.change) return ''
-  return props.change.direction === 'up' ? 'text-success-500' : 'text-danger-500'
+  const good = props.change.good ?? props.change.direction === 'up'
+  return good ? 'text-success-600' : 'text-danger-600'
 })
 
 // Same treatment as the dashboard's StatisticsCard: a white card with a
@@ -51,6 +57,7 @@ const accentClasses = computed(() => {
         <span class="font-display text-2xl font-bold text-text-primary">{{ value }}</span>
         <span v-if="unit" class="text-sm text-text-muted">{{ unit }}</span>
       </div>
+      <p v-if="hint" class="text-xs text-text-muted">{{ hint }}</p>
       <div v-if="change" class="flex items-center gap-1 pt-1">
         <component :is="change.direction === 'up' ? TrendingUp : TrendingDown" :class="['h-4 w-4', changeColor]" />
         <span :class="['text-sm font-medium', changeColor]">{{ t('report.metricCard.vsLastPeriod', { percentage: change.percentage }) }}</span>

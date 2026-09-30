@@ -18,13 +18,19 @@ interface Props {
   title: string
   subtitle?: string
   generatedDate?: string
+  /** The period the report covers, e.g. "1 Sep 2026 – 30 Sep 2026" -- printed too. */
+  period?: string
   showActions?: boolean
+  /** Shows "Export CSV" (emits `download`); off for reports with nothing tabular. */
+  exportable?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   subtitle: undefined,
   generatedDate: undefined,
+  period: undefined,
   showActions: true,
+  exportable: true,
 })
 
 defineEmits<{
@@ -51,15 +57,16 @@ const handlePrint = () => {
         <div>
           <h1 class="font-display text-3xl font-semibold text-text-primary">{{ title }}</h1>
           <p v-if="subtitle" class="text-text-secondary mt-1">{{ subtitle }}</p>
-          <p v-if="generatedDate" class="text-xs text-text-muted mt-2">{{ t('report.header.generatedLabel', { date: generatedDate }) }}</p>
+          <p v-if="period" class="text-sm font-medium text-text-primary mt-2">{{ t('report.header.periodLabel', { range: period }) }}</p>
+          <p v-if="generatedDate" class="text-xs text-text-muted mt-1">{{ t('report.header.generatedLabel', { date: generatedDate }) }}</p>
         </div>
       </div>
-      <div v-if="showActions" class="flex gap-2 print:hidden">
+      <div v-if="showActions" class="flex shrink-0 gap-2 whitespace-nowrap print:hidden">
         <BaseButton variant="ghost" size="sm" @click="handlePrint">
           <Printer class="h-4 w-4" />
           {{ t('report.header.print') }}
         </BaseButton>
-        <BaseButton variant="ghost" size="sm" @click="$emit('download')">
+        <BaseButton v-if="exportable" variant="ghost" size="sm" @click="$emit('download')">
           <Download class="h-4 w-4" />
           {{ t('report.header.export') }}
         </BaseButton>

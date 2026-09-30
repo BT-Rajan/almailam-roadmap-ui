@@ -9,7 +9,7 @@ from app.models.client import Client
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
 from app.models.government import GovernmentSubmission
-from app.models.payment import FinancialAgreement, Payment, PaymentObligation
+from app.models.payment import FinancialAgreement, Payment, PaymentObligation, Refund
 from app.models.project import Project
 from app.models.quotation import Quotation
 from app.models.task import Task
@@ -202,8 +202,9 @@ def payment_ledger(
         {c.id: c.company_name for c in db.query(Client).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
     )
 
-    return [
+    entries = [
         {
+            "entryType": "Payment",
             "paymentNo": f"PMT-{payment.id:03d}",
             "date": payment.payment_date.isoformat(),
             "projectNo": project.project_no,
@@ -218,6 +219,42 @@ def payment_ledger(
         }
         for payment, project, agreement in rows
     ]
+
+    # Money paid back is part of the record too: each refund is a negative
+    # row, so the ledger's total is what was actually kept.
+    refund_query = (
+        db.query(Refund, Project, FinancialAgreement)
+        .join(FinancialAgreement, Refund.agreement_id == FinancialAgreement.id)
+        .join(Project, FinancialAgreement.project_id == Project.id)
+    )
+    refund_query = _ledger_project_client_filter(refund_query, project_no, client_id)
+    if start_date:
+        refund_query = refund_query.filter(Refund.refund_date >= start_date)
+    if end_date:
+        refund_query = refund_query.filter(Refund.refund_date <= end_date)
+    refund_rows = refund_query.all()
+    missing_clients = {project.client_id for _, project, _ in refund_rows} - client_names.keys()
+    if missing_clients:
+        client_names.update({c.id: c.company_name for c in db.query(Client).filter(Client.id.in_(missing_clients))})
+    entries.extend(
+        {
+            "entryType": "Refund",
+            "paymentNo": f"RFD-{refund.id:03d}",
+            "date": refund.refund_date.isoformat(),
+            "projectNo": project.project_no,
+            "projectName": project.project_name,
+            "clientName": client_names.get(project.client_id, ""),
+            "service": agreement.stream,
+            "amount": -float(refund.refund_amount),
+            "currency": agreement.currency,
+            "mode": "Refund",
+            "reference": refund.reference or refund.reason,
+            "payer": "",
+        }
+        for refund, project, agreement in refund_rows
+    )
+    entries.sort(key=lambda entry: (entry["date"], entry["paymentNo"]), reverse=True)
+    return entries
 
 
 def _outstanding_obligations_query(db: Session, project_no: str | None, client_id: int | None):
@@ -250,7 +287,9 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
     work, would silently add incompatible amounts together."""
     rows = _outstanding_obligations_query(db, project_no, client_id).all()
 
+    today = kuwait_today()
     by_month: dict[tuple[str, str], float] = {}
+    overdue_by_month: dict[tuple[str, str], float] = {}
     by_project: dict[tuple[str, str], dict] = {}
     by_service: dict[tuple[str, str], float] = {}
 
@@ -259,6 +298,8 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
         currency = agreement.currency
         month_key = obligation.due_date.strftime("%Y-%m")
         by_month[(month_key, currency)] = by_month.get((month_key, currency), 0.0) + outstanding
+        if obligation.due_date < today:
+            overdue_by_month[(month_key, currency)] = overdue_by_month.get((month_key, currency), 0.0) + outstanding
 
         project_key = (project.project_no, currency)
         project_entry = by_project.setdefault(
@@ -272,7 +313,7 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
 
     return {
         "byMonth": [
-            {"month": month, "currency": currency, "amount": amount}
+            {"month": month, "currency": currency, "amount": amount, "overdue": overdue_by_month.get((month, currency), 0.0)}
             for (month, currency), amount in sorted(by_month.items())
         ],
         "byProject": sorted(by_project.values(), key=lambda entry: (entry["projectNo"], entry["currency"])),
@@ -280,145 +321,6 @@ def payment_projections(db: Session, project_no: str | None = None, client_id: i
             {"service": service, "currency": currency, "amount": amount}
             for (service, currency), amount in sorted(by_service.items())
         ],
-    }
-
-
-def employee_performance(db: Session, year: int, month: int) -> list[dict]:
-    """Assigned-vs-completed task counts per employee for one calendar
-    month -- "assigned" is every non-deleted task due that month
-    currently assigned to them (their workload for the month, regardless
-    of when it was created or who it's since been reassigned to/from),
-    "completed" is the subset of those specific tasks that are actually
-    Completed. Only employees with at least one task due in the month
-    appear -- there's nothing to report for someone with zero workload
-    that month."""
-    start = date(year, month, 1)
-    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    rows = (
-        db.query(Task.assigned_to, Task.status, func.count(Task.id))
-        .filter(Task.deleted_at.is_(None), Task.due_date >= start, Task.due_date < end)
-        .group_by(Task.assigned_to, Task.status)
-        .all()
-    )
-
-    by_user: dict[int, dict[str, int]] = {}
-    for assigned_to, status, count in rows:
-        entry = by_user.setdefault(assigned_to, {"assigned": 0, "completed": 0})
-        entry["assigned"] += count
-        if status == "Completed":
-            entry["completed"] += count
-
-    user_ids = list(by_user.keys())
-    names = (
-        {u.id: u.full_name for u in db.query(User.id, User.full_name).filter(User.id.in_(user_ids)).all()}
-        if user_ids
-        else {}
-    )
-
-    results = [
-        {
-            "userId": str(user_id),
-            "employeeName": names.get(user_id, "Unknown"),
-            "assigned": data["assigned"],
-            "completed": data["completed"],
-            "completionRate": round(data["completed"] * 100 / data["assigned"]) if data["assigned"] else 0,
-        }
-        for user_id, data in by_user.items()
-    ]
-    return sorted(results, key=lambda entry: entry["employeeName"])
-
-
-# No table anywhere tracks a person's actual capacity (hours/week,
-# FTE, or anything similar) -- User has no such column, and Task has no
-# estimate/effort field either (see models/user.py, models/task.py). So
-# "how full is this person" can't be measured, only approximated from
-# what we do track: how many tasks are currently open on them. This
-# constant is that approximation's one free parameter -- the open-task
-# count treated as "fully loaded" for allocation-percent purposes. It's
-# a business assumption, not a measured figure, and should be revisited
-# (or the whole allocationPercent field dropped) if it doesn't match
-# how the team actually thinks about workload.
-TASKS_AT_FULL_CAPACITY = 8
-
-
-def team_workload(db: Session) -> dict:
-    """Real per-engineer workload: currently-open task count, overdue
-    task count, and active (status='Active') project count, each read
-    straight from tasks/projects -- no discipline/department breakdown,
-    since no such field exists on User; role is the only real
-    grouping available. allocationPercent is open tasks against
-    TASKS_AT_FULL_CAPACITY above, not a measured utilization figure.
-    Only active, non-deleted Engineers are included -- they're the
-    role tasks/projects actually get assigned to (see
-    core.permissions.ROLES and Project.engineer_id)."""
-    engineers = (
-        db.query(User)
-        .filter(User.role == "Engineer", User.is_active.is_(True), User.deleted_at.is_(None))
-        .all()
-    )
-    if not engineers:
-        return {
-            "members": [],
-            "totalMembers": 0,
-            "averageUtilization": 0,
-            "overallocatedCount": 0,
-            "capacityAvailable": 0,
-        }
-
-    engineer_ids = [engineer.id for engineer in engineers]
-    today = kuwait_today()
-
-    open_tasks_by_user = dict(
-        db.query(Task.assigned_to, func.count(Task.id))
-        .filter(Task.deleted_at.is_(None), Task.status != "Completed", Task.assigned_to.in_(engineer_ids))
-        .group_by(Task.assigned_to)
-        .all()
-    )
-    overdue_by_user = dict(
-        db.query(Task.assigned_to, func.count(Task.id))
-        .filter(
-            Task.deleted_at.is_(None),
-            Task.status != "Completed",
-            Task.due_date < today,
-            Task.assigned_to.in_(engineer_ids),
-        )
-        .group_by(Task.assigned_to)
-        .all()
-    )
-    active_projects_by_user = dict(
-        db.query(Project.engineer_id, func.count(Project.id))
-        .filter(Project.deleted_at.is_(None), Project.status == "Active", Project.engineer_id.in_(engineer_ids))
-        .group_by(Project.engineer_id)
-        .all()
-    )
-
-    members = []
-    for engineer in engineers:
-        open_tasks = open_tasks_by_user.get(engineer.id, 0)
-        allocation_percent = round(open_tasks * 100 / TASKS_AT_FULL_CAPACITY)
-        members.append(
-            {
-                "userId": str(engineer.id),
-                "name": engineer.full_name,
-                "role": engineer.role,
-                "activeProjects": active_projects_by_user.get(engineer.id, 0),
-                "activeTasks": open_tasks,
-                "overdueTasks": overdue_by_user.get(engineer.id, 0),
-                "allocationPercent": allocation_percent,
-                "overallocated": allocation_percent > 100,
-            }
-        )
-    members.sort(key=lambda member: member["name"])
-
-    average_utilization = round(sum(member["allocationPercent"] for member in members) / len(members))
-    overallocated_count = sum(1 for member in members if member["overallocated"])
-
-    return {
-        "members": members,
-        "totalMembers": len(members),
-        "averageUtilization": average_utilization,
-        "overallocatedCount": overallocated_count,
-        "capacityAvailable": max(0, 100 - average_utilization),
     }
 
 
@@ -466,21 +368,37 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
     )
     today = kuwait_today()
     due_by_currency: dict[str, float] = {}
+    collected_by_currency: dict[str, float] = {}
     outstanding_by_currency: dict[str, float] = {}
     overdue_by_currency: dict[str, float] = {}
     for obligation, agreement in obligations_due:
-        currency = agreement.currency
-        due_amount = float(obligation.amount_due)
-        due_by_currency[currency] = due_by_currency.get(currency, 0.0) + due_amount
+        # Cancelled/waived instalments were never really billed -- left
+        # out of "due" as well as outstanding, the same as the Executive
+        # Summary's "Billed" and the Payments page.
         if obligation.manual_status is not None:
             continue
-        remaining = max(due_amount - float(obligation.amount_received), 0.0)
+        currency = agreement.currency
+        due_amount = float(obligation.amount_due)
+        received_amount = float(obligation.amount_received)
+        due_by_currency[currency] = due_by_currency.get(currency, 0.0) + due_amount
+        collected_by_currency[currency] = collected_by_currency.get(currency, 0.0) + min(received_amount, due_amount)
+        remaining = max(due_amount - received_amount, 0.0)
         outstanding_by_currency[currency] = outstanding_by_currency.get(currency, 0.0) + remaining
         if remaining > 0 and obligation.due_date < today:
             overdue_by_currency[currency] = overdue_by_currency.get(currency, 0.0) + remaining
 
+    refunded_by_currency: dict[str, float] = {}
+    for currency, total in (
+        db.query(FinancialAgreement.currency, func.sum(Refund.refund_amount))
+        .join(FinancialAgreement, Refund.agreement_id == FinancialAgreement.id)
+        .filter(Refund.refund_date >= start_date, Refund.refund_date <= end_date)
+        .group_by(FinancialAgreement.currency)
+        .all()
+    ):
+        refunded_by_currency[currency] = float(total or 0)
+
     currencies = sorted(
-        set(received_by_currency) | set(due_by_currency) | set(outstanding_by_currency) | set(overdue_by_currency)
+        set(received_by_currency) | set(due_by_currency) | set(outstanding_by_currency) | set(overdue_by_currency) | set(refunded_by_currency)
     ) or [company_service.get_settings(db).currency]
 
     return {
@@ -490,53 +408,17 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
         "byCurrency": [
             {
                 "currency": currency,
-                "totalReceived": received_by_currency.get(currency, 0.0),
-                "totalDue": due_by_currency.get(currency, 0.0),
-                "totalOutstanding": outstanding_by_currency.get(currency, 0.0),
-                "totalOverdue": overdue_by_currency.get(currency, 0.0),
+                "totalReceived": round(received_by_currency.get(currency, 0.0), 2),
+                "totalRefunded": round(refunded_by_currency.get(currency, 0.0), 2),
+                "netReceived": round(received_by_currency.get(currency, 0.0) - refunded_by_currency.get(currency, 0.0), 2),
+                "totalDue": round(due_by_currency.get(currency, 0.0), 2),
+                "totalCollected": round(collected_by_currency.get(currency, 0.0), 2),
+                "totalOutstanding": round(outstanding_by_currency.get(currency, 0.0), 2),
+                "totalOverdue": round(overdue_by_currency.get(currency, 0.0), 2),
             }
             for currency in currencies
         ],
     }
-
-
-def clients_with_projects(db: Session) -> list[dict]:
-    """Every non-deleted client alongside every one of their non-deleted
-    projects and its current status/stage/progress -- one aggregate query
-    plus one grouping pass in Python, rather than the frontend calling
-    GET /api/projects?clientId=X once per client (an N+1 request pattern
-    that gets slower the more clients exist). Clients with zero projects
-    still appear, with an empty projects list, so the report reflects
-    every client on file, not just the ones with active work."""
-    clients = db.query(Client).filter(Client.deleted_at.is_(None)).order_by(Client.company_name.asc()).all()
-    projects = (
-        db.query(Project)
-        .filter(Project.deleted_at.is_(None))
-        .order_by(Project.project_name.asc())
-        .all()
-    )
-    projects_by_client: dict[int, list[Project]] = {}
-    for project in projects:
-        projects_by_client.setdefault(project.client_id, []).append(project)
-
-    return [
-        {
-            "clientId": str(client.id),
-            "clientName": client.company_name,
-            "clientStatus": client.status,
-            "projects": [
-                {
-                    "projectNo": project.project_no,
-                    "projectName": project.project_name,
-                    "status": project.status,
-                    "currentStage": project.current_stage,
-                    "progress": project.progress,
-                }
-                for project in projects_by_client.get(client.id, [])
-            ],
-        }
-        for client in clients
-    ]
 
 
 def project_report(db: Session, project: Project) -> list[dict]:

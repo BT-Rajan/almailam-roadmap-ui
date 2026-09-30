@@ -37,22 +37,8 @@ class ReportSection(BaseModel):
     metrics: list[ReportMetric] | None = None
 
 
-class ClientProjectSummary(BaseModel):
-    projectNo: str
-    projectName: str
-    status: str
-    currentStage: str
-    progress: int
-
-
-class ClientWithProjects(BaseModel):
-    clientId: str
-    clientName: str
-    clientStatus: str
-    projects: list[ClientProjectSummary]
-
-
 class PaymentLedgerEntry(BaseModel):
+    entryType: str = "Payment"
     paymentNo: str
     date: str
     projectNo: str
@@ -70,6 +56,7 @@ class ProjectionByMonth(BaseModel):
     month: str
     currency: str
     amount: float
+    overdue: float = 0
 
 
 class ProjectionByProject(BaseModel):
@@ -91,37 +78,13 @@ class PaymentProjections(BaseModel):
     byService: list[ProjectionByService]
 
 
-class EmployeePerformance(BaseModel):
-    userId: str
-    employeeName: str
-    assigned: int
-    completed: int
-    completionRate: int
-
-
-class TeamWorkloadMember(BaseModel):
-    userId: str
-    name: str
-    role: str
-    activeProjects: int
-    activeTasks: int
-    overdueTasks: int
-    allocationPercent: int
-    overallocated: bool
-
-
-class TeamWorkload(BaseModel):
-    members: list[TeamWorkloadMember]
-    totalMembers: int
-    averageUtilization: int
-    overallocatedCount: int
-    capacityAvailable: int
-
-
 class FinancialCurrencyBreakdown(BaseModel):
     currency: str
     totalReceived: float
+    totalRefunded: float = 0
+    netReceived: float = 0
     totalDue: float
+    totalCollected: float = 0
     totalOutstanding: float
     totalOverdue: float
 

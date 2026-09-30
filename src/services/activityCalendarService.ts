@@ -13,6 +13,7 @@ export enum ActivityType {
   COMMENTED = 'commented',
   APPROVED = 'approved',
   REJECTED = 'rejected',
+  DELETED = 'deleted',
 }
 
 /**
@@ -43,7 +44,10 @@ export interface ActivityRecord {
   userId: string
   userName: string
   description: string
+  /** UTC instant (ends in Z); render with the browser's local time. */
   timestamp: string
+  /** The Kuwait calendar day it happened on (YYYY-MM-DD). */
+  kuwaitDate: string
   changes?: Record<string, unknown>
 }
 
@@ -60,6 +64,7 @@ export interface DailySummary {
   commented: number
   approved: number
   rejected: number
+  deleted: number
   total: number
   activities: ActivityRecord[]
 }

@@ -13,6 +13,7 @@ class ActivityRecordOut(BaseModel):
     userName: str
     description: str
     timestamp: str
+    kuwaitDate: str
 
 
 class DailySummaryOut(BaseModel):
@@ -25,6 +26,7 @@ class DailySummaryOut(BaseModel):
     commented: int
     approved: int
     rejected: int
+    deleted: int = 0
     total: int
     activities: list[ActivityRecordOut]
 

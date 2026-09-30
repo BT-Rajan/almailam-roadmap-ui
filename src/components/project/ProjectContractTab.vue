@@ -48,20 +48,27 @@ const LANGUAGE_OPTIONS = computed<SelectOption[]>(() => [
   { label: t('governmentFormOptions.language.arabic'), value: 'Arabic' },
 ])
 // See ProjectQuotationTab.vue's documentLanguage for why this is seeded
-// once from the company default and then left alone.
+// once from the company default and then left alone -- and why the
+// already-loaded case is handled up front rather than via a self-
+// stopping `watch(..., { immediate: true })` (that shape throws "Cannot
+// access '...' before initialization" whenever settings are already
+// loaded when this component mounts).
 const documentLanguage = ref<AppLanguage>(companyStore.settings?.defaultLanguage ?? 'English')
 onMounted(() => {
   if (companyStore.settings === undefined) companyStore.loadSettings()
 })
-const stopSeedingDocumentLanguage = watch(
-  () => companyStore.settings,
-  (settings) => {
-    if (!settings) return
-    documentLanguage.value = settings.defaultLanguage
-    stopSeedingDocumentLanguage()
-  },
-  { immediate: true },
-)
+if (companyStore.settings) {
+  documentLanguage.value = companyStore.settings.defaultLanguage
+} else {
+  const stopSeedingDocumentLanguage = watch(
+    () => companyStore.settings,
+    (settings) => {
+      if (!settings) return
+      documentLanguage.value = settings.defaultLanguage
+      stopSeedingDocumentLanguage()
+    },
+  )
+}
 
 const isFinalizing = ref(false)
 
