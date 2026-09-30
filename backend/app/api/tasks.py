@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import PagedResponse
@@ -17,13 +18,25 @@ can_edit = require_permission("Projects", "edit")
 can_delete = require_permission("Projects", "delete")
 
 
-def _project_no(db: Session, project_id: int) -> str:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    return project.project_no if project else ""
+def _project_info(db: Session, project_ids: set[int]) -> dict[int, tuple[str, str, str]]:
+    """project id -> (project_no, project_name, client company name), in
+    one query for the whole batch."""
+    if not project_ids:
+        return {}
+    rows = (
+        db.query(Project.id, Project.project_no, Project.project_name, Client.company_name)
+        .outerjoin(Client, Client.id == Project.client_id)
+        .filter(Project.id.in_(project_ids))
+        .all()
+    )
+    return {row[0]: (row[1], row[2] or "", row[3] or "") for row in rows}
 
 
 def _to_out(db: Session, task) -> TaskOut:
-    return TaskOut.from_model(task, _project_no(db, task.project_id), task_service.user_name(db, task.assigned_to))
+    project_no, project_name, client_name = _project_info(db, {task.project_id}).get(task.project_id, ("", "", ""))
+    return TaskOut.from_model(
+        task, project_no, task_service.user_name(db, task.assigned_to), project_name, client_name,
+    )
 
 
 @router.get("", response_model=PagedResponse[TaskOut])
@@ -42,10 +55,7 @@ def list_tasks(
     result = task_service.list_tasks(db, projectId, status, assignedTo, priority, search, sort, page, pageSize)
     tasks = result["items"]
 
-    project_ids = {t.project_id for t in tasks}
-    project_nos = {
-        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
-    } if project_ids else {}
+    projects = _project_info(db, {t.project_id for t in tasks})
 
     assignee_ids = {t.assigned_to for t in tasks}
     assignee_names = {
@@ -54,7 +64,11 @@ def list_tasks(
 
     result["items"] = [
         TaskOut.from_model(
-            t, project_nos.get(t.project_id, ""), assignee_names.get(t.assigned_to, "Unknown")
+            t,
+            projects.get(t.project_id, ("", "", ""))[0],
+            assignee_names.get(t.assigned_to, "Unknown"),
+            projects.get(t.project_id, ("", "", ""))[1],
+            projects.get(t.project_id, ("", "", ""))[2],
         )
         for t in tasks
     ]

@@ -51,6 +51,11 @@ async function getTasks(): Promise<Task[]> {
   return fetchAllPages<Task>((page, pageSize) => getTasksPage({ page, pageSize }))
 }
 
+/** Every task assigned to one user (server-side filter), all pages. */
+async function getTasksAssignedTo(userId: string): Promise<Task[]> {
+  return fetchAllPages<Task>((page, pageSize) => getTasksPage({ assignedTo: userId, page, pageSize }))
+}
+
 /**
  * Fetch every task for one project as a flat array, walking every page
  * rather than a single capped request. getTasksPage's own pageSize is
@@ -150,6 +155,7 @@ export const taskService = {
   getTasks,
   getTasksPage,
   getTasksForProject,
+  getTasksAssignedTo,
   getTaskById,
   createTask,
   updateTask,

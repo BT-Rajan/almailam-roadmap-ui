@@ -55,6 +55,11 @@ async function getProjectsPage(
  * reference lookups like resolving a project's name elsewhere in the app --
  * don't have to change.
  */
+/** Every project of one client (server-side filter), all pages. */
+async function getProjectsForClient(clientId: string): Promise<Project[]> {
+  return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
+}
+
 async function getProjects(): Promise<Project[]> {
   return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ page, pageSize }))
 }
@@ -451,6 +456,7 @@ async function updateHandoverNotes(projectId: string, notes: string): Promise<Pr
 }
 
 export const projectService = {
+  getProjectsForClient,
   getProjects,
   getProjectsPage,
   getProjectById,

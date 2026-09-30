@@ -217,9 +217,23 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     // Loads a single submission by number into the store's list, for the
     // full-screen workspace page (deep link / refresh, where the list may
     // not be populated yet).
+    // Fetches just this one application (plus the small authorities/forms
+    // catalogues if missing) -- never every application in the company.
     async loadSubmissionByNo(submissionNo: string): Promise<GovernmentSubmission | undefined> {
       if (!this.getSubmissionByNo(submissionNo)) {
-        await this.loadSubmissions()
+        this.error = undefined
+        try {
+          const [submission, authorities, forms] = await Promise.all([
+            governmentSubmissionService.getSubmission(submissionNo),
+            this.authorities.length === 0 ? governmentFormService.getAuthorities() : Promise.resolve(this.authorities),
+            this.forms.length === 0 ? governmentFormService.getForms() : Promise.resolve(this.forms),
+          ])
+          this.authorities = authorities
+          this.forms = forms
+          if (submission && !this.getSubmissionByNo(submissionNo)) this.submissions = [...this.submissions, submission]
+        } catch (error) {
+          this.error = describeStoreError('Unable to load this permit application. Please try again.', error)
+        }
       }
       return this.getSubmissionByNo(submissionNo)
     },

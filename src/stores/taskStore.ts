@@ -144,6 +144,26 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
+    // Just the signed-in user's own tasks (server-side assignee filter) --
+    // what My Tasks shows. Each task carries its project/client names, so
+    // no project or client list is needed either. Merged into `tasks` in
+    // place of this user's old rows; does NOT mark the list fully loaded.
+    async loadMyTasks() {
+      const authStore = useAuthStore()
+      const me = authStore.user
+      if (!me) return
+      this.isLoading = true
+      this.error = undefined
+      try {
+        const mine = await taskService.getTasksAssignedTo(me.id)
+        this.tasks = replaceScope(this.tasks, mine, (task) => task.assignedTo === me.name)
+      } catch (error) {
+        this.error = describeStoreError('Unable to load tasks. Please try again.', error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+
     // Loads just one project's tasks, merging them into `tasks` in place of
     // that project's old rows -- for views scoped to a single project (its
     // workspace), which shouldn't download every task in the company just to

@@ -45,7 +45,8 @@ async function loadData(): Promise<void> {
     // Just this project's tasks, not every task in the company.
     const [tasksForProject] = await Promise.all([
       taskService.getTasksForProject(props.projectId),
-      projectStore.loadProjects(),
+      // Just this project (and its client), not every project.
+      projectStore.ensureProject(props.projectId),
       userStore.users.length === 0 ? userStore.loadUsers() : Promise.resolve(),
     ])
     projectTasks.value = tasksForProject

@@ -7,6 +7,7 @@ import { useClientStore } from '@/stores/clientStore'
 import type { Client } from '@/types/Client'
 import type { AddServicesInput, Project, ProjectStatus, ProjectViewMode, WorkflowStage } from '@/types/Project'
 import { getLoadGate, CACHE_TTL_MS } from '@/utils/loadGate'
+import { replaceScope } from '@/utils/scopedCollection'
 import { describeStoreError } from '@/utils/storeError'
 
 interface ProjectPaginationState {
@@ -275,6 +276,22 @@ export const useProjectStore = defineStore('project', {
       } catch (error) {
         this.error = describeStoreError('Unable to load this project. Please try again.', error)
         return undefined
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    // Always-fresh list of one client's projects (their stage/status can
+    // change elsewhere), merged into the cache in place of that client's
+    // old rows -- for a client's own pages, instead of every project.
+    async loadProjectsForClient(clientId: string): Promise<void> {
+      this.isLoading = true
+      this.error = undefined
+      try {
+        const fresh = await projectService.getProjectsForClient(clientId)
+        this.projects = replaceScope(this.projects, fresh, (project) => project.clientId === clientId)
+      } catch (error) {
+        this.error = describeStoreError('Unable to load projects. Please try again.', error)
       } finally {
         this.isLoading = false
       }

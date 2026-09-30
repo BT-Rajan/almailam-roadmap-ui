@@ -38,6 +38,10 @@ export interface Task {
   // in Project.ts. A task is linked to at most one of the three.
   selectedPermitId?: string
   selectedSupervisionActivityId?: string
+  // Display names sent with every task by the server, so a task list can
+  // label rows without downloading every project and client.
+  projectName?: string
+  clientName?: string
 }
 
 // Every field-changing action on a task (status, reassignment,

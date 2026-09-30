@@ -28,8 +28,13 @@ const COLUMNS = computed<{ status: TaskStatus; label: string }[]>(() => [
   { status: 'Completed', label: t('task.status.completed') },
 ])
 
-function projectName(projectId: string): string {
-  return props.getProjectById(projectId)?.projectName ?? t('task.unknownProject')
+// Prefer the names the server sends with each task; the lookups are only a
+// fallback for tasks created locally before a refetch.
+function projectName(task: Task): string {
+  return task.projectName || props.getProjectById(task.projectId)?.projectName || t('task.unknownProject')
+}
+function clientName(task: Task): string {
+  return task.clientName || props.getClientNameByProjectId(task.projectId)
 }
 </script>
 
@@ -59,8 +64,8 @@ function projectName(projectId: string): string {
             v-for="task in items"
             :key="task.id"
             :task="task"
-            :project-name="projectName(task.projectId)"
-            :client-name="getClientNameByProjectId(task.projectId)"
+            :project-name="projectName(task)"
+            :client-name="clientName(task)"
             @open="emit('open', $event)"
             @advance="emit('advance', $event)"
           />

@@ -57,7 +57,8 @@ async function loadData(): Promise<void> {
   if (!props.client) return
   isLoading.value = true
   try {
-    await Promise.all([clientStore.loadClientDetail(props.client.id), projectStore.loadProjects()])
+    // This client's own projects only -- not every project in the company.
+    await Promise.all([clientStore.loadClientDetail(props.client.id), projectStore.loadProjectsForClient(props.client.id)])
   } finally {
     isLoading.value = false
   }

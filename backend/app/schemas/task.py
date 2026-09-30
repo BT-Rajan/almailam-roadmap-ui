@@ -34,9 +34,14 @@ class TaskOut(BaseModel):
     selectedActivityId: str | None = None
     selectedPermitId: str | None = None
     selectedSupervisionActivityId: str | None = None
+    # Display names, so task lists (Task Board, My Tasks, Calendar,
+    # dashboard) can label each row without the client downloading every
+    # project and client in the company just to look these up.
+    projectName: str = ""
+    clientName: str = ""
 
     @staticmethod
-    def from_model(task, project_no: str, assigned_to_name: str) -> "TaskOut":
+    def from_model(task, project_no: str, assigned_to_name: str, project_name: str = "", client_name: str = "") -> "TaskOut":
         linked_id = str(task.linked_stage_id) if task.linked_stage_id else None
         return TaskOut(
             id=task.task_no,
@@ -52,6 +57,8 @@ class TaskOut(BaseModel):
             selectedActivityId=linked_id if task.linked_stage_type == "Design" else None,
             selectedPermitId=linked_id if task.linked_stage_type == "Permit" else None,
             selectedSupervisionActivityId=linked_id if task.linked_stage_type == "Supervision" else None,
+            projectName=project_name,
+            clientName=client_name,
         )
 
 
