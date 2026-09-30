@@ -15,6 +15,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useLocale } from '@/composables/useLocale'
+import { useRevealedErrors } from '@/composables/useRevealedErrors'
 import { FORM_CATEGORY_OPTIONS, FORM_LANGUAGE_OPTIONS } from '@/constants/governmentFormOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import type { FormInput } from '@/services/governmentFormService'
@@ -102,6 +103,9 @@ const FIELD_TYPE_OPTIONS: SelectOption[] = [
 
 const draft = ref(emptyDraft())
 const errors = ref<Record<string, string>>({})
+// What the page displays: red once a field is edited or Save was
+// attempted, not the moment it opens (see useRevealedErrors).
+const shown = useRevealedErrors(() => errors.value)
 
 // Seeds once loading finishes (from the existing form when editing,
 // blank otherwise) -- guarded so a later reactive update (e.g. another
@@ -117,6 +121,7 @@ watch(
       : emptyDraft()
     isFormSeeded.value = true
     validate()
+    shown.reset()
   },
   { immediate: true },
 )
@@ -184,6 +189,7 @@ async function handleSampleFileSelected(event: Event): Promise<void> {
 
 const isSaving = ref(false)
 async function submitForm(): Promise<void> {
+  shown.reveal()
   if (!validate()) return
 
   const input: FormInput = {
@@ -249,12 +255,12 @@ async function submitForm(): Promise<void> {
 
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-2">
-          <TextInput v-model="draft.title" :label="t('administration.governmentFormDialog.formTitle')" :error="errors.title" required />
+          <TextInput v-model="draft.title" :label="t('administration.governmentFormDialog.formTitle')" :error="shown.errors.value.title" required />
           <TextInput
             v-model="draft.formCode"
             :label="t('administration.governmentFormDialog.formCode')"
             :placeholder="t('administration.governmentFormDialog.formCodePlaceholder')"
-            :error="errors.formCode"
+            :error="shown.errors.value.formCode"
             required
           />
         </div>
@@ -263,7 +269,7 @@ async function submitForm(): Promise<void> {
           v-model="draft.authorityId"
           :label="t('administration.governmentFormDialog.authority')"
           :options="authorityOptions"
-          :error="errors.authorityId"
+          :error="shown.errors.value.authorityId"
           required
         />
 
@@ -274,7 +280,7 @@ async function submitForm(): Promise<void> {
         </div>
 
         <DatePicker v-model="draft.lastUpdated" :label="t('administration.governmentFormDialog.lastUpdated')" />
-        <TextArea v-model="draft.description" :label="t('administration.governmentFormDialog.description')" :rows="3" :error="errors.description" required />
+        <TextArea v-model="draft.description" :label="t('administration.governmentFormDialog.description')" :rows="3" :error="shown.errors.value.description" required />
         <TextArea
           v-model="draft.requiredDocumentsText"
           :label="t('administration.governmentFormDialog.requiredDocuments')"

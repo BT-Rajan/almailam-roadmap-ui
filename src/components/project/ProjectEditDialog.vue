@@ -111,15 +111,12 @@ watch(
   { immediate: true },
 )
 
-// Same "highlight empty mandatory fields immediately" fix as
-// NewProjectWizardPage.vue (see the comment there) -- Project Name/
-// Service/Field Engineer/Target Date were previously only checked
-// inside handleConfirm, so they looked like ordinary optional fields
-// until the first failed "Save Changes" click. Re-runs on every edit
-// and once as soon as the dialog opens (see the watch above), so
-// they're flagged red from the moment they're shown instead.
+// Re-validates on every edit so errors clear as soon as a field is
+// fixed. `reveal: false`: a field only shows its error once it has been
+// changed or a save was attempted (see useFormValidation), so a blank
+// form doesn't open covered in red.
 function revalidate(): void {
-  validateAll(form)
+  validateAll(form, { reveal: false })
 }
 watch(form, revalidate, { deep: true })
 

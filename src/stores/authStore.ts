@@ -2,6 +2,47 @@ import { defineStore } from 'pinia'
 
 import { authService, type CurrentUser, type ProfileUpdatePayload } from '@/services/authService'
 import { ApiError } from '@/services/httpClient'
+import { broadcastLogout, withRefreshLock } from '@/utils/sessionSync'
+
+// Renew the access token this long before it expires rather than waiting
+// for a request to 401. Refreshing only on a 401 meant someone filling in
+// a long form (no API calls, but plenty of typing) could go past the
+// server's idle backstop (INACTIVITY_TIMEOUT_MINUTES, measured from the
+// last refresh) and be signed out on submit despite never being idle.
+const PROACTIVE_REFRESH_LEAD_MS = 60_000
+// After a transient refresh failure (busy server, dropped connection).
+const PROACTIVE_REFRESH_RETRY_MS = 30_000
+const MIN_REFRESH_DELAY_MS = 5_000
+
+// Deliberately outside the store's state: a timer handle is not UI state.
+let refreshTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * How long the access token is valid for (exp - iat), in ms, or null if it
+ * can't be read. Uses the token's own lifetime rather than comparing `exp`
+ * with this computer's clock: an office PC whose clock is off by more than
+ * the token lifetime would otherwise think every new token is already
+ * expired and refresh in a tight loop.
+ */
+function tokenLifetimeMs(token: string): number | null {
+  try {
+    const segment = token.split('.')[1]
+    if (!segment) return null
+    const json = atob(segment.replace(/-/g, '+').replace(/_/g, '/'))
+    const { exp, iat } = JSON.parse(json) as { exp?: unknown; iat?: unknown }
+    if (typeof exp !== 'number' || typeof iat !== 'number' || exp <= iat) return null
+    return (exp - iat) * 1000
+  } catch {
+    return null
+  }
+}
+
+function cancelProactiveRefresh(): void {
+  if (refreshTimer !== undefined) {
+    clearTimeout(refreshTimer)
+    refreshTimer = undefined
+  }
+}
 
 interface AuthState {
   accessToken: string | null
@@ -58,11 +99,23 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout() {
+      // Only a tab that was actually signed in speaks for the others. A tab
+      // whose session already ended (e.g. a late 401 after another tab
+      // logged out) must not announce a logout that could end a session
+      // someone has since started in a different tab.
+      const wasSignedIn = this.accessToken !== null
       try {
         await authService.logout()
       } catch {
         // Best-effort server-side revoke; clear local state regardless.
       }
+      this._clearToken()
+      if (wasSignedIn) broadcastLogout()
+    },
+
+    /** Ends this tab's session because another tab already logged out. No
+     * server call: the other tab already revoked the refresh token. */
+    endSessionFromOtherTab() {
       this._clearToken()
     },
 
@@ -90,6 +143,7 @@ export const useAuthStore = defineStore('auth', {
     async changePassword(currentPassword: string, newPassword: string) {
       await authService.changePassword(currentPassword, newPassword)
       this._clearToken()
+      broadcastLogout()
     },
 
     /** Attempts to exchange the httpOnly refresh cookie for a new access token. Returns success.
@@ -105,7 +159,7 @@ export const useAuthStore = defineStore('auth', {
 
       this.refreshPromise = (async () => {
         try {
-          const tokens = await authService.refresh()
+          const tokens = await withRefreshLock(() => authService.refresh())
           this._setToken(tokens.access_token)
           return true
         } catch (error) {
@@ -159,11 +213,31 @@ export const useAuthStore = defineStore('auth', {
 
     _setToken(accessToken: string) {
       this.accessToken = accessToken
+      this._scheduleProactiveRefresh(accessToken)
     },
 
     _clearToken() {
+      cancelProactiveRefresh()
       this.accessToken = null
       this.user = null
+    },
+
+    _scheduleProactiveRefresh(accessToken: string) {
+      cancelProactiveRefresh()
+      const lifetime = tokenLifetimeMs(accessToken)
+      if (lifetime === null) return
+      const delay = Math.max(lifetime - PROACTIVE_REFRESH_LEAD_MS, MIN_REFRESH_DELAY_MS)
+      const attempt = async (): Promise<void> => {
+        refreshTimer = undefined
+        const refreshed = await this.tryRefresh()
+        // A transient failure keeps the token (see tryRefresh); try again
+        // shortly rather than letting it lapse into a 401 mid-task. A
+        // success reschedules itself through _setToken.
+        if (!refreshed && this.accessToken === accessToken) {
+          refreshTimer = setTimeout(attempt, PROACTIVE_REFRESH_RETRY_MS)
+        }
+      }
+      refreshTimer = setTimeout(attempt, delay)
     },
   },
 })

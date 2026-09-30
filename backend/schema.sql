@@ -1345,7 +1345,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
     address                            VARCHAR(250) NOT NULL DEFAULT '',
     city                               VARCHAR(80)  NOT NULL DEFAULT '',
     country                            VARCHAR(80)  NOT NULL DEFAULT '',
-    brand_color                        VARCHAR(20)  NOT NULL DEFAULT '#3995BE',
+    brand_color                        VARCHAR(20)  NOT NULL DEFAULT '#1D4ED8',
     default_language                   VARCHAR(20)  NOT NULL DEFAULT 'English',
     timezone                           VARCHAR(60)  NOT NULL DEFAULT 'Asia/Dubai',
     date_format                        VARCHAR(20)  NOT NULL DEFAULT 'DD/MM/YYYY',

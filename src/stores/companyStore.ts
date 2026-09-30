@@ -70,7 +70,7 @@ export const useCompanyStore = defineStore('company', {
         this.branding = await companyService.getBranding()
         applyBrandColor(this.branding.brandColor)
       } catch {
-        // Keep whatever's already applied (the #3995be CSS default, or a
+        // Keep whatever's already applied (the #1d4ed8 CSS default, or a
         // previously-loaded branding) -- a failed fetch here shouldn't
         // block the rest of the app from working.
       }

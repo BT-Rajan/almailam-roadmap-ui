@@ -84,7 +84,7 @@ class CompanySettingsIn(BaseModel):
     address: str = Field(default="", max_length=250)
     city: str = Field(default="", max_length=80)
     country: str = Field(default="", max_length=80)
-    brandColor: str = Field(default="#3995BE", max_length=20)
+    brandColor: str = Field(default="#1D4ED8", max_length=20)
     defaultLanguage: str = Field(default="English")
     timezone: str = Field(default="Asia/Dubai", max_length=60)
     dateFormat: str = Field(default="DD/MM/YYYY", max_length=20)
@@ -108,5 +108,5 @@ class CompanySettingsIn(BaseModel):
     @classmethod
     def _validate_brand_color(cls, v: str) -> str:
         if not re.fullmatch(r"#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{6}", v):
-            raise ValueError("brandColor must be a hex color like #3995BE.")
+            raise ValueError("brandColor must be a hex color like #1D4ED8.")
         return v

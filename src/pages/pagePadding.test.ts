@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 // listed with the reason they don't need it.
 const OWN_LAYOUT: Record<string, string> = {
   'LoginPage.vue': 'AuthLayout, no dashboard chrome',
+  'NotFoundPage.vue': 'AuthLayout card, which pads itself',
   'PlaceholderPage.vue': 'full-screen page that pads itself with px-6',
   'SitePortalLoginPage.vue': 'AuthCard inside the site portal layout',
   'SitePortalCalendarPage.vue': 'SitePortalLayout pads <main> with px-4 py-6',

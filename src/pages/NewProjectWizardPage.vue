@@ -287,7 +287,7 @@ const STEP_FIELDS: Record<number, (keyof typeof form)[]> = {
   1: ['projectName', 'siteAddress', 'startDate', 'targetDate'],
 }
 
-function validateStep(step: number): boolean {
+function validateStep(step: number, options: { reveal?: boolean } = {}): boolean {
   const fields = STEP_FIELDS[step]
   if (!fields) return true
 
@@ -295,22 +295,16 @@ function validateStep(step: number): boolean {
   fields.forEach((field) => {
     data[field] = form[field]
   })
-  return validateAll(data)
+  return validateAll(data, options)
 }
 
-// Same "highlight empty mandatory fields immediately" behaviour as the
-// Client wizard (see NewClientWizardPage.vue's basicInfoErrors/
-// contactErrors/etc, each a plain computed re-evaluated on every
-// render) -- there, `errors` isn't only populated after a failed
-// "Next"/"Create Project" click, so a blank required field is never
-// shown looking identical to a blank optional one just because it
-// hasn't been touched yet. Re-runs on every form edit and on step
-// change, and `immediate: true` gets it to run once on mount too, so
-// Client/Service/Field Engineer on Step 1 (and Project Name/Start
-// Date/Target Date on Step 2) are already flagged red the moment the
-// wizard opens, before anything is typed or clicked.
+// Re-validates the current step on every edit and on step change, so
+// errors clear as soon as a field is fixed. `reveal: false`: a field only
+// shows its error once it has been changed, or once "Next"/"Create
+// Project" was attempted (validateStep's default), so a step doesn't
+// open covered in red.
 function revalidateCurrentStep(): void {
-  validateStep(currentStep.value)
+  validateStep(currentStep.value, { reveal: false })
 }
 watch(form, revalidateCurrentStep, { deep: true, immediate: true })
 watch(currentStep, revalidateCurrentStep)

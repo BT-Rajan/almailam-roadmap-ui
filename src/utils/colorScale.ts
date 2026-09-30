@@ -3,7 +3,7 @@
 // properties -- see tailwind.config.js's `accent` color, which resolves
 // each shade via rgb(var(--color-accent-N) / <alpha-value>) instead of a
 // static hex, and src/styles/main.css's :root, which defines the default
-// (pre-branding-load, and pre-login) scale for #3995be. This is what
+// (pre-branding-load, and pre-login) scale for #1d4ed8. This is what
 // makes Administration > Company's brand color picker actually change
 // the app's buttons/badges/links/focus rings instead of only being saved
 // to a database column nothing reads.
@@ -58,7 +58,7 @@ function generateAccentScaleTriplets(baseHex: string): Record<AccentShade, strin
 /**
  * Applies a brand color app-wide by setting --color-accent-50 through
  * --color-accent-900 on the document root. Silently no-ops on an
- * invalid hex (keeps whatever scale -- the #3995be default, or a
+ * invalid hex (keeps whatever scale -- the #1d4ed8 default, or a
  * previously-applied one -- is already in place) rather than throwing,
  * since this runs on app boot and after every admin keystroke in the
  * color picker.

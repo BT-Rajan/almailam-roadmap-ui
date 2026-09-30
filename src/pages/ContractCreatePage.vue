@@ -223,8 +223,12 @@ watch(
   { immediate: true },
 )
 
+// Re-validates on every edit so errors clear as soon as a field is
+// fixed. `reveal: false`: a field only shows its error once it has been
+// changed or a save was attempted (see useFormValidation), so a blank
+// form doesn't open covered in red.
 function revalidate(): void {
-  validateAll(form)
+  validateAll(form, { reveal: false })
 }
 watch(form, revalidate, { deep: true })
 

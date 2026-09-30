@@ -16,6 +16,7 @@ const ClientIdentificationStep = defineAsyncComponent(() => import('@/components
 const ClientReviewStep = defineAsyncComponent(() => import('@/components/client/ClientReviewStep.vue'))
 import { getDocumentCategoryForIdentificationType } from '@/constants/clientOptions'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useRevealedErrors, useRevealedRowErrors } from '@/composables/useRevealedErrors'
 import { useClientStore } from '@/stores/clientStore'
 import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -189,6 +190,28 @@ const identificationErrors = computed<FieldErrors>(() =>
   validateIdentification(form.value.identification, form.value.identificationFile),
 )
 
+// What each step displays: the errors above gate Next/Create exactly as
+// before, but a field only shows red once it has been edited or Next /
+// Create was attempted for its step (see useRevealedErrors).
+const shownBasicInfo = useRevealedErrors(() => basicInfoErrors.value)
+const shownAddress = useRevealedErrors(() => addressErrors.value)
+const shownIdentification = useRevealedErrors(() => identificationErrors.value)
+const shownContactRows = useRevealedRowErrors(
+  () => form.value.contacts,
+  () => contactsValidation.value.rowErrors,
+)
+const contactsFormErrorRevealed = ref(false)
+
+function revealStep(step: number): void {
+  if (step === 0) shownBasicInfo.reveal()
+  if (step === 1) {
+    shownAddress.reveal()
+    shownContactRows.reveal()
+    contactsFormErrorRevealed.value = true
+  }
+  if (step === 2) shownIdentification.reveal()
+}
+
 const contactsStepHasErrors = computed(
   () =>
     contactsValidation.value.rowErrors.some((row) => hasErrors(row)) ||
@@ -210,6 +233,7 @@ const STEP_LABELS = computed(() => [
 ])
 
 function goNext(): void {
+  revealStep(currentStep.value)
   if (stepHasErrors(currentStep.value)) {
     toastStore.show(
       'error',
@@ -264,6 +288,7 @@ async function submitWizard(): Promise<void> {
   // have gone back and broken an earlier step, or jumped here via the
   // stepper. This is the final gate before anything reaches the backend.
   const invalidStep = [0, 1, 2].find((step) => stepHasErrors(step))
+  for (const step of [0, 1, 2]) revealStep(step)
   if (invalidStep !== undefined) {
     toastStore.show(
       'error',
@@ -395,15 +420,15 @@ function goToCreatedClient(): void {
       <Stepper :steps="WIZARD_STEPS" :current-step="currentStep" clickable @select="goToStep" />
 
       <div class="mt-8">
-        <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" :errors="basicInfoErrors" @view-duplicate="viewDuplicate" />
+        <ClientBasicInfoStep v-if="currentStep === 0" v-model="form" :duplicates="duplicates" :errors="shownBasicInfo.errors.value" @view-duplicate="viewDuplicate" />
         <ClientContactAddressStep
           v-else-if="currentStep === 1"
           v-model="form"
-          :contact-errors="contactsValidation.rowErrors"
-          :contacts-form-error="contactsValidation.formError"
-          :address-errors="addressErrors"
+          :contact-errors="shownContactRows.errors.value"
+          :contacts-form-error="contactsFormErrorRevealed ? contactsValidation.formError : undefined"
+          :address-errors="shownAddress.errors.value"
         />
-        <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" :errors="identificationErrors" />
+        <ClientIdentificationStep v-else-if="currentStep === 2" v-model="form" :errors="shownIdentification.errors.value" />
         <ClientReviewStep v-else v-model="form" />
       </div>
 

@@ -57,7 +57,7 @@ const timeLabel = computed(() => formatTime(new Date(props.notification.date)))
         </span>
         <span
           v-if="!notification.read"
-          class="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary-500"
+          class="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent-500"
           aria-hidden="true"
         />
       </span>

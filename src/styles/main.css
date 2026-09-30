@@ -9,11 +9,7 @@
    - Inter (body text): 400/500/600/700 -- see tailwind.config.js's `sans`
    - Noto Naskh Arabic (RTL body text, see main.css's `html[dir='rtl'] body`
      rule below): 400/500/600/700
-   - Playfair Display (headings, `font-display` in tailwind.config.js): 500/600/700
-     (400 was never requested from Google Fonts either -- the few unweighted
-     `font-display` headings already render at the nearest loaded weight, 500,
-     under the normal CSS font-matching algorithm; self-hosting preserves that
-     exact behavior rather than "fixing" it as a side effect of this change). */
+   - Plus Jakarta Sans (headings, `font-display` in tailwind.config.js): 500-800 */
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
@@ -22,9 +18,10 @@
 @import '@fontsource/noto-naskh-arabic/500.css';
 @import '@fontsource/noto-naskh-arabic/600.css';
 @import '@fontsource/noto-naskh-arabic/700.css';
-@import '@fontsource/playfair-display/500.css';
-@import '@fontsource/playfair-display/600.css';
-@import '@fontsource/playfair-display/700.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
 
 @tailwind base;
 @tailwind components;
@@ -39,37 +36,36 @@
     --glass-highlight: rgb(255 255 255 / 0.8);
     --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 55%);
 
-    --color-bg-page: transparent;
-    /* Light surfaces are near-opaque white so cards actually separate from
-       the page (0.6 alpha let the page tint bleed through and read as
-       washed-out grey); a hint of transparency remains for the glass feel. */
-    --color-bg-card: rgb(255 255 255 / 0.88);
-    --color-bg-secondary: rgb(244 245 248 / 0.92);
-    --color-bg-sidebar: rgb(255 255 255 / 0.82);
-    --color-bg-header: rgb(255 255 255 / 0.82);
+    --color-bg-page: #f3f5f9;
+    /* Light theme is solid, not glass: white cards on a cool grey page,
+       separated by hairline borders and soft shadows. The old translucent
+       + blurred surfaces looked washed out and made the browser re-blur
+       every card on every scroll, which is what made scrolling laggy. */
+    --color-bg-card: #ffffff;
+    --color-bg-secondary: #f8fafc;
+    --color-bg-sidebar: #ffffff;
+    --color-bg-header: #ffffff;
     /* Brand accent scale -- "R G B" triplets (not full colors) so
        tailwind.config.js's accent.N can wrap them as rgb(var(...) /
        <alpha-value>) and still support opacity modifiers. This is the
-       default (#3995be) shown before a logged-in session has fetched
-       Administration > Company's brand color and before login, where
-       there's no company context yet -- src/utils/colorScale.ts's
-       applyBrandColor overwrites every one of these at runtime once
-       branding loads. Kept identical between light and dark -- only
-       *which* shade number gets used differs by theme (e.g.
-       --color-text-link below), not the ramp itself. */
-    --color-accent-50: 245 250 252;
-    --color-accent-100: 235 244 249;
-    --color-accent-200: 206 229 239;
-    --color-accent-300: 176 213 229;
-    --color-accent-400: 116 181 210;
-    --color-accent-500: 57 149 190;
-    --color-accent-600: 48 127 162;
-    --color-accent-700: 40 104 133;
-    --color-accent-800: 31 82 105;
-    --color-accent-900: 23 60 76;
+       default corporate blue (#1d4ed8), generated with the same formula
+       as src/utils/colorScale.ts so the page looks identical before and
+       after Administration > Company's brand color loads and overwrites
+       these at runtime. Kept identical between light and dark -- only
+       *which* shade number gets used differs by theme. */
+    --color-accent-50: 244 246 253;
+    --color-accent-100: 232 237 251;
+    --color-accent-200: 199 211 245;
+    --color-accent-300: 165 184 239;
+    --color-accent-400: 97 131 228;
+    --color-accent-500: 29 78 216;
+    --color-accent-600: 25 66 184;
+    --color-accent-700: 20 55 151;
+    --color-accent-800: 16 43 119;
+    --color-accent-900: 12 31 86;
 
-    --color-bg-hover: rgb(16 24 40 / 0.045);
-    --color-bg-selected: rgb(var(--color-accent-500) / 0.12);
+    --color-bg-hover: rgb(15 23 42 / 0.04);
+    --color-bg-selected: rgb(var(--color-accent-500) / 0.08);
 
     /* One step darker than before for secondary/muted text: neutral.500 on
        white is ~4.2:1 and neutral.400 ~2.4:1, which is what made light mode
@@ -88,41 +84,32 @@
        consistently jade the rest of the (dark-mode-tuned) rebrand read. */
     --color-text-link: theme('colors.accent.700');
 
-    --color-border-light: rgb(16 24 40 / 0.08);
-    --color-border-default: rgb(16 24 40 / 0.13);
-    --color-border-strong: rgb(16 24 40 / 0.22);
+    --color-border-light: #e5e9f0;
+    --color-border-default: #d6dce5;
+    --color-border-strong: #b8c1ce;
     --color-border-focus: theme('colors.accent.500');
 
-    /* Elevation. Tuned for surfaces sitting on the light page -- a warm,
-       low-opacity black shadow reads clearly against #f2f2f4. A second,
-       wider layer is added under --shadow-elevated/--shadow-glass (same
-       rgb(23 23 26) base as the layer beside it, just a softer, more
-       diffuse spread) so raised surfaces get the same sense of depth
-       dark mode's own two/three-layer recipe already has, instead of a
-       single tight line that reads flat next to it. */
-    /* Cool slate-tinted, multi-layer shadows (tight contact shadow + wide
-       soft ambient one + a bright inset top edge). The old single warm
-       low-opacity layer was nearly invisible on the pale page. */
-    --shadow-soft: 0 1px 2px 0 rgb(16 24 40 / 0.06), 0 1px 3px 0 rgb(16 24 40 / 0.06);
-    --shadow-medium: 0 6px 14px -4px rgb(16 24 40 / 0.12), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+    /* Elevation: crisp, slate-tinted, low-spread shadows. Cards sit just
+       above the page; menus and dialogs lift clearly off it. */
+    --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+    --shadow-medium: 0 4px 10px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.05);
     --shadow-elevated:
-      0 24px 48px -12px rgb(16 24 40 / 0.20),
-      0 8px 16px -6px rgb(16 24 40 / 0.10);
+      0 20px 40px -12px rgb(15 23 42 / 0.18),
+      0 6px 12px -4px rgb(15 23 42 / 0.08);
     --shadow-glass:
-      0 1px 2px 0 rgb(16 24 40 / 0.05),
-      0 10px 28px -8px rgb(16 24 40 / 0.14),
-      0 28px 56px -20px rgb(16 24 40 / 0.12),
-      inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+      0 1px 2px 0 rgb(15 23 42 / 0.04),
+      0 8px 24px -6px rgb(15 23 42 / 0.10);
     --shadow-glass-sm:
-      0 1px 2px 0 rgb(16 24 40 / 0.06),
-      0 6px 16px -6px rgb(16 24 40 / 0.12),
-      inset 0 1px 0 0 rgb(255 255 255 / 0.9);
-    --shadow-glow-accent: 0 0 0 1px rgb(var(--color-accent-500) / 0.25), 0 6px 18px -4px rgb(var(--color-accent-500) / 0.35);
+      0 1px 2px 0 rgb(15 23 42 / 0.05),
+      0 1px 3px 0 rgb(15 23 42 / 0.04);
+    --shadow-glow-accent: 0 0 0 1px rgb(var(--color-accent-500) / 0.2), 0 6px 16px -4px rgb(var(--color-accent-500) / 0.4);
 
     /* Categorical chart palette (reports). A single source of truth so
        every chart component/page reads the same series colors instead of
        each hardcoding its own hex literals -- see src/constants/chartColors.ts. */
-    --chart-blue: #3b82f6;
+    --chart-primary: rgb(var(--color-accent-500));
+    --chart-info: theme('colors.info.500');
+    --chart-blue: rgb(var(--color-accent-500));
     --chart-purple: #8b5cf6;
     --chart-cyan: #06b6d4;
     --chart-amber: #f59e0b;
@@ -180,6 +167,15 @@
     @apply antialiased;
   }
 
+  /* Display headings read tighter and more confident with a touch of
+     negative tracking -- kept small, or word spaces visibly collapse. */
+  .font-display {
+    letter-spacing: -0.01em;
+    /* This face's word space is narrow; without this, multi-word headings
+       read as one word ("Government FormsLibrary"). */
+    word-spacing: 0.08em;
+  }
+
   /* Arabic (Kuwait) locale: Inter has no Arabic glyphs, so switch the body
      font stack to the Arabic-capable family already loaded for the
      lettered quotation/contract templates (see tailwind.config.js's
@@ -193,26 +189,17 @@
   body {
     @apply font-sans transition-colors duration-normal;
     color: var(--color-text-primary);
-    background-color: #eceef3;
-    /* Same wash the dark theme gets below -- soft accent glows plus a
-       little pure-white lift -- just at a fraction of the opacity so it
-       reads as depth on a light page rather than mud. Without this the
-       light page was a single flat fill with all of the "living
-       background" quality coming only from AmbientBackground.vue's own
-       blurred blobs; this gives the base layer underneath them the same
-       gentle gradient dark mode has instead of flat #f2f2f4. */
-    background-image:
-      radial-gradient(at 12% 0%, rgb(var(--color-accent-500) / 0.10) 0px, transparent 55%),
-      radial-gradient(at 88% 0%, rgb(255 255 255 / 0.7) 0px, transparent 55%),
-      radial-gradient(at 0% 60%, rgb(var(--color-accent-500) / 0.06) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgb(255 255 255 / 0.55) 0px, transparent 50%);
-    background-attachment: fixed;
-    background-size: cover;
+    background-color: var(--color-bg-page);
     min-height: 100vh;
   }
 
   .dark body {
     background-color: #050506;
+    /* Soft accent glows behind the dark theme's glass surfaces. */
+    background-image:
+      radial-gradient(at 12% 0%, rgb(var(--color-accent-500) / 0.10) 0px, transparent 55%),
+      radial-gradient(at 0% 60%, rgb(var(--color-accent-500) / 0.06) 0px, transparent 50%);
+    background-attachment: fixed;
     background-image:
       radial-gradient(at 15% 0%, rgb(var(--color-accent-500) / 0.13) 0px, transparent 55%),
       radial-gradient(at 85% 0%, rgb(255 255 255 / 0.035) 0px, transparent 55%),
@@ -306,16 +293,16 @@
   }
 
   /*
-   * Blanket glassmorphism hook — these are the generated Tailwind class
+   * Blanket glassmorphism hook (dark theme only -- light is solid) — these are the generated Tailwind class
    * names for the bg.card / bg.secondary / bg.sidebar / bg.header tokens.
    * Every component that already uses e.g. `bg-bg-card` (52+ across the
    * app) automatically becomes a frosted glass surface, so we get a
    * consistent theme without having to touch every file.
    */
-  .bg-bg-card,
-  .bg-bg-secondary,
-  .bg-bg-sidebar,
-  .bg-bg-header {
+  .dark .bg-bg-card,
+  .dark .bg-bg-secondary,
+  .dark .bg-bg-sidebar,
+  .dark .bg-bg-header {
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     background-image: var(--glass-sheen);
@@ -504,6 +491,9 @@
    cards on a flat page read as sterile. Purely decorative: fixed,
    inert, and never affects layout or scroll height. */
 .ambient-background {
+  /* Dark theme only: in light the blurred blobs just muddied the page and
+     cost a full-screen blur on every repaint. */
+  display: none;
   position: fixed;
   inset: 0;
   z-index: -10;
@@ -516,6 +506,10 @@
   border-radius: 9999px;
   filter: blur(110px);
   opacity: 0.22;
+}
+
+.dark .ambient-background {
+  display: block;
 }
 
 .dark .ambient-background__blob {
@@ -534,11 +528,15 @@
    (teleported overlays, dropdowns, etc.) */
 .glass-panel {
   background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+}
+
+.dark .glass-panel {
   backdrop-filter: blur(var(--glass-blur-strong));
   -webkit-backdrop-filter: blur(var(--glass-blur-strong));
   background-image: var(--glass-sheen);
   background-blend-mode: overlay;
-  border: 1px solid var(--glass-border);
+  border-color: var(--glass-border);
 }
 
 /* Rich graphite brand surface used for primary brand touches (logo mark,
@@ -548,10 +546,10 @@
    instead of 400->700 -- so it still reads as a deliberate near-black
    surface against a light page rather than washing out). */
 .gradient-luxe {
-  background-image: linear-gradient(135deg, theme('colors.primary.600'), theme('colors.primary.900'));
+  background-image: linear-gradient(135deg, theme('colors.primary.600'), theme('colors.primary.800'));
   box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
-    0 4px 14px -2px rgb(23 23 26 / 0.35);
+    inset 0 1px 0 0 rgb(255 255 255 / 0.14),
+    0 2px 6px -1px rgb(15 23 42 / 0.25);
 }
 
 /* Light mode's own graphite gradient (600->900, just above) reads as a
@@ -575,10 +573,14 @@
    light page while still reading as a raised, deliberate surface
    instead of a single flat fill. */
 .gradient-luxe-accent {
-  background-image: linear-gradient(135deg, theme('colors.accent.400'), theme('colors.accent.600'));
+  /* Solid, saturated corporate blue with a slight top-down sheen -- the
+     primary button and brand chips. The old 400->600 wash read as faded. */
+  background-color: theme('colors.accent.500');
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0));
   box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.35),
-    0 4px 14px -2px rgb(var(--color-accent-500) / 0.35);
+    inset 0 1px 0 0 rgb(255 255 255 / 0.18),
+    0 1px 2px 0 rgb(15 23 42 / 0.10),
+    0 4px 12px -4px rgb(var(--color-accent-500) / 0.55);
 }
 
 /* Deepened for the dark theme relative to light's 400->600 gradient

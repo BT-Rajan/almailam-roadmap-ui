@@ -30,7 +30,7 @@ async function handleSuccess(): Promise<void> {
 
 <template>
   <div>
-    <!-- font-display (Playfair Display), not the plain sans heading this
+    <!-- font-display (Plus Jakarta Sans), not the plain sans heading this
          used to be -- on screens below the split-panel breakpoint the
          brand panel's own serif headline is hidden entirely, so this is
          the ONLY place the premium typographic identity shows up at all;

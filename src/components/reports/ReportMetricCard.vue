@@ -28,25 +28,27 @@ const changeColor = computed(() => {
   return props.change.direction === 'up' ? 'text-success-500' : 'text-danger-500'
 })
 
-const bgColor = computed(() => {
+// Same treatment as the dashboard's StatisticsCard: a white card with a
+// colored top edge (light), a soft tint (dark). 'primary' is the brand blue.
+const accentClasses = computed(() => {
   const colors: Record<string, string> = {
-    primary: 'bg-primary-50',
-    success: 'bg-success-50',
-    warning: 'bg-warning-50',
-    danger: 'bg-danger-50',
-    info: 'bg-info-50',
-    neutral: 'bg-bg-secondary',
+    primary: 'border-t-accent-500 dark:bg-accent-500/10',
+    success: 'border-t-success-500 dark:bg-success-500/10',
+    warning: 'border-t-warning-500 dark:bg-warning-500/10',
+    danger: 'border-t-danger-500 dark:bg-danger-500/10',
+    info: 'border-t-info-500 dark:bg-info-500/10',
+    neutral: 'border-t-neutral-300 dark:border-t-neutral-600',
   }
-  return colors[props.color || 'neutral']
+  return colors[props.color || 'neutral'] ?? colors.neutral
 })
 </script>
 
 <template>
-  <Card :class="bgColor">
+  <Card class="border-t-[3px]" :class="accentClasses">
     <div class="space-y-2">
       <p class="text-sm text-text-secondary">{{ label }}</p>
       <div class="flex items-baseline gap-2">
-        <span class="text-2xl font-bold text-text-primary">{{ value }}</span>
+        <span class="font-display text-2xl font-bold text-text-primary">{{ value }}</span>
         <span v-if="unit" class="text-sm text-text-muted">{{ unit }}</span>
       </div>
       <div v-if="change" class="flex items-center gap-1 pt-1">

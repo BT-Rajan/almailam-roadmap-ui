@@ -250,7 +250,7 @@ const itemStatusVariant = (trackKey: WorkflowStage, status: string) => {
 }
 
 const STATUS_ICON = { complete: CheckCircle2, current: CircleDot, upcoming: Circle } as const
-const STATUS_ICON_CLASS = { complete: 'text-success-500', current: 'text-info-500', upcoming: 'text-text-muted' } as const
+const STATUS_ICON_CLASS = { complete: 'text-success-500', current: 'text-accent-500', upcoming: 'text-text-muted' } as const
 
 const totalItems = computed(() => trackNodes.value.reduce((sum, track) => sum + track.items.length, 0))
 const completeItems = computed(() =>

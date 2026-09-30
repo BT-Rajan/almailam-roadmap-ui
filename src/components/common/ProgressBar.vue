@@ -14,7 +14,7 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, props.value)))
 
 const trackColor = computed(() => {
   if (clampedValue.value >= 100) return 'bg-success-500'
-  if (clampedValue.value >= 50) return 'bg-primary-600'
+  if (clampedValue.value >= 50) return 'bg-accent-500'
   return 'bg-warning-500'
 })
 </script>
@@ -22,7 +22,7 @@ const trackColor = computed(() => {
 <template>
   <div class="flex items-center gap-2">
     <div
-      class="h-1.5 w-full overflow-hidden rounded-full bg-bg-secondary"
+      class="h-1.5 w-full overflow-hidden rounded-full bg-neutral-200/80 dark:bg-bg-secondary"
       role="progressbar"
       :aria-valuenow="clampedValue"
       aria-valuemin="0"

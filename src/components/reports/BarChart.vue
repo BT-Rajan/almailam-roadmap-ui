@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DEFAULT_CHART_COLOR } from '@/constants/chartColors'
+import { resolveChartColor } from '@/constants/chartColors'
 import type { ChartDataPoint } from '@/types/Report'
 
 interface Props {
@@ -83,7 +83,7 @@ const getYPosition = (value: number) => padding.top + chartHeight.value - (value
           :y="getBarY(point.value)"
           :width="barWidth"
           :height="getBarHeight(point.value)"
-          :fill="point.color || DEFAULT_CHART_COLOR"
+          :fill="resolveChartColor(point.color)"
           class="hover:opacity-80 transition-opacity"
         />
       </g>
