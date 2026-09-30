@@ -21,7 +21,7 @@ const { t } = useI18n()
 // overdue, computed server-side with the same rule the Payments page uses
 // -- this tab no longer downloads every agreement, instalment, project and
 // client in the company.
-const { data, error, reload } = useDashboardData(dashboardService.getFinancials)
+const { data, error, isStale, reload } = useDashboardData('financials', dashboardService.getFinancials)
 
 // Real, period-scoped figures from the same backend aggregation the
 // Monthly Financials report uses (report_service.py's
@@ -106,6 +106,10 @@ function handleAgreementClick(projectId: string): void {
 <template>
   <ErrorState v-if="error" :description="error" @retry="reload" />
   <div v-else class="space-y-6">
+    <p v-if="isStale" class="flex flex-wrap items-center gap-2 text-xs text-text-muted" role="status">
+      {{ t('dashboard.staleNotice') }}
+      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="reload">{{ t('dashboard.retry') }}</button>
+    </p>
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick" />
     </div>
