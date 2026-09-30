@@ -507,6 +507,17 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
+# The database must have every table and column this version of the code
+# uses. schema.sql is only loaded into an empty database (section 6), so a
+# column added later never reaches an existing one by itself -- and the API
+# would then fail on every request touching that table. Stop here, before
+# pm2 restarts anything, so the running version stays up.
+log "Checking the database has what this version needs"
+if ! python -m scripts.check_schema; then
+    deactivate || true
+    die "Database is missing tables/columns this version needs (listed above). The running version was NOT restarted. Add them, then re-run install.sh."
+fi
+
 # ----------------------------------------------------------------------------
 # 8. Admin user (idempotent -- skips if it already exists)
 # ----------------------------------------------------------------------------
@@ -530,7 +541,9 @@ cd "$INSTANCE_DIR"
 
 log "Installing frontend dependencies"
 
-npm install
+# Exactly the versions in package-lock.json -- 'npm install' may resolve
+# newer ones on the server than were tested.
+npm ci --no-audit --no-fund
 
 if [[ "$PM2_MODE" == "single" ]]; then
     log "Building frontend"
@@ -740,7 +753,6 @@ done
 if [[ "$BACKEND_UP" == true ]]; then
     log "Backend health check passed"
 else
-    warn "Backend health endpoint did not respond after 20s."
     echo
     echo "Check:"
     echo "  pm2 status"
@@ -749,6 +761,18 @@ else
     else
         echo "  pm2 logs alhadi-test-backend"
     fi
+    # /api/health also checks the database, so this covers "up but can't
+    # reach MariaDB" too. A deploy that isn't serving must not end with
+    # "setup complete".
+    die "Backend did not become healthy within 20s (deployed commit ${DEPLOYED_COMMIT})."
+fi
+
+if [[ "$PM2_MODE" == "single" ]]; then
+    # The built site, served by the backend (see app/main.py).
+    if ! curl -fsS "http://127.0.0.1:${BACKEND_PORT}/" | grep -q '<div id="app"'; then
+        die "Backend is up but the site at http://127.0.0.1:${BACKEND_PORT}/ is not the app. Check that dist/ was built and FRONTEND_DIST_DIR in backend/.env."
+    fi
+    log "Site check passed"
 fi
 
 if [[ "$PM2_MODE" == "split" ]]; then

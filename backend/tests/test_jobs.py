@@ -20,10 +20,14 @@ class ApiOwnsNoSchedulerTest(unittest.TestCase):
     def test_app_imports_and_starts_without_a_scheduler(self):
         from fastapi.testclient import TestClient
 
+        from sqlalchemy import create_engine
+
         from app.main import app
 
         self.assertNotIn("apscheduler", sys.modules)
-        with mock.patch("app.core.database.SessionLocal") as session_factory:
+        # /api/health pings the database; an in-memory one stands in for it.
+        with mock.patch("app.core.database.SessionLocal") as session_factory, \
+                mock.patch("app.main.engine", create_engine("sqlite://")):
             with TestClient(app) as client:  # runs startup/shutdown
                 self.assertEqual(client.get("/api/health").status_code, 200)
         session_factory.assert_not_called()  # startup no longer runs any job
