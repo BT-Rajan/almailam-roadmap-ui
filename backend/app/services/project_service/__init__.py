@@ -912,12 +912,13 @@ def update_project(db: Session, project_no: str, payload, user_id: int | None) -
     return project
 
 
-# Per-transition exit criteria -- see docs/PROJECT_WORKFLOW_MAP for the
-# source diagram this implements. Keyed by the target stage, since each
-# entry describes what must be true of the stage being LEFT before the
-# move is allowed; PROJECT_STAGE_ALLOWED_TRANSITIONS already guarantees
-# only one stage can be "previous_stage" for any given new_stage, so the
-# target alone is enough to know which check applies.
+# Per-transition exit criteria (see _assert_stage_exit_criteria's
+# docstring for the workflow this implements). Keyed by the target
+# stage, since each entry describes what must be true of the stage
+# being LEFT before the move is allowed;
+# PROJECT_STAGE_ALLOWED_TRANSITIONS already guarantees only one stage
+# can be "previous_stage" for any given new_stage, so the target alone
+# is enough to know which check applies.
 def _checklist_problem_for_track(db: Session, project: Project, target_type: str, label: str, items: list) -> str | None:
     """One "every X's handover document checklist complete" problem
     string for _assert_stage_exit_criteria's Handover branch below --
@@ -945,7 +946,7 @@ def _checklist_problem_for_track(db: Session, project: Project, target_type: str
 
 
 def _assert_stage_exit_criteria(db: Session, project: Project, previous_stage: str, new_stage: str) -> None:
-    """See docs/PROJECT_WORKFLOW_MAP for the source diagram (migration
+    """The project workflow (migration
     0089). Requirement -> Quotation -> Payment Plan -> Contract is a
     straight line for every project; from Contract, Design, Government
     Submission (Permits, shown as "Approvals & Permits"), and
