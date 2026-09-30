@@ -1,62 +1,72 @@
 <script setup lang="ts">
 import { CheckCircle2, Circle, CircleDot, XCircle } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import Card from '@/components/common/Card.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
-import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import ReportDateRange from '@/components/reports/ReportDateRange.vue'
+import ReportHeader from '@/components/reports/ReportHeader.vue'
+import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
+import ReportProjectPicker from '@/components/reports/ReportProjectPicker.vue'
+import { useReportRange } from '@/composables/useReportRange'
 import { clientService } from '@/services/clientService'
 import { projectService } from '@/services/projectService'
 import { taskService } from '@/services/taskService'
 import { getClientDisplayName } from '@/utils/clientHelpers'
-import { formatDate } from '@/utils/dateFormatter'
+import { downloadCsv } from '@/utils/csvExport'
+import { formatDate, formatDateTime, todayIso } from '@/utils/dateFormatter'
 import { getSelectedActivityStatusVariant, getSelectedPermitStatusVariant, getWorkflowStageLabel } from '@/utils/projectHelpers'
+import { useEnumLabel } from '@/utils/reportLabels'
+import { formatRange } from '@/utils/reportRange'
 import { getTaskStatusVariant } from '@/utils/taskHelpers'
 import type { Project, SelectedPermit, SelectedSupervisionActivity, WorkflowStage } from '@/types/Project'
 import type { SelectedActivityStatus, SelectedServiceActivity } from '@/types/ServiceCatalog'
 import type { Task } from '@/types/Task'
-import type { SelectOption } from '@/types/Ui'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const enumLabel = useEnumLabel()
+const pt = (key: string, values?: Record<string, unknown>) => t(`report.projectTreePage.${key}`, values ?? {})
 
-// --- Project picker --------------------------------------------------------
+// --- Project and period, both kept in the URL --------------------------------
 
-const projectOptions = ref<SelectOption[]>([])
-const selectedProjectId = ref('')
-const isLoadingProjects = ref(false)
+const rangeState = useReportRange('this-month')
+const periodLabel = computed(() => formatRange(rangeState.range.value))
+const selectedProjectId = computed(() => (typeof route.query.project === 'string' ? route.query.project : undefined))
+const onlyDueInPeriod = computed(() => route.query.due === 'period')
 
-onMounted(async () => {
-  isLoadingProjects.value = true
-  try {
-    // getProjects() walks every page rather than a single capped request
-    // -- projectService.getProjectsPage's own pageSize is bounded by the
-    // server's MAX_PAGE_SIZE (200), so a company with more than 200
-    // projects on record (plausible after a few years) would otherwise
-    // silently drop the rest from this picker with no way to select
-    // them for a report at all.
-    const projects = await projectService.getProjects()
-    projects.sort((a, b) => a.projectName.localeCompare(b.projectName))
-    projectOptions.value = projects.map((p) => ({ label: `${p.projectNo} — ${p.projectName}`, value: p.id }))
-    if (projectOptions.value.length > 0) selectedProjectId.value = projectOptions.value[0].value as string
-  } finally {
-    isLoadingProjects.value = false
-  }
-})
+function pickProject(projectNo: string): void {
+  void router.replace({ query: { ...route.query, project: projectNo } })
+}
+function setOnlyDueInPeriod(value: boolean): void {
+  const query = { ...route.query }
+  if (value) query.due = 'period'
+  else delete query.due
+  void router.replace({ query })
+}
 
 // --- Project + task data ----------------------------------------------------
 
 const project = ref<Project>()
-const tasks = ref<Task[]>([])
+const allTasks = ref<Task[]>([])
 const clientName = ref('')
 const isLoading = ref(false)
 const loadError = ref('')
+const generatedAt = ref('')
+let requestId = 0
 
 async function loadTree(): Promise<void> {
-  if (!selectedProjectId.value) return
+  const current = ++requestId
+  if (!selectedProjectId.value) {
+    project.value = undefined
+    return
+  }
   isLoading.value = true
   loadError.value = ''
   try {
@@ -64,23 +74,34 @@ async function loadTree(): Promise<void> {
       projectService.getProjectById(selectedProjectId.value),
       taskService.getTasksForProject(selectedProjectId.value),
     ])
+    if (current !== requestId) return
     project.value = loadedProject
-    tasks.value = projectTasks
+    allTasks.value = projectTasks
     clientName.value = ''
+    generatedAt.value = formatDateTime(new Date().toISOString())
     if (loadedProject) {
-      const client = await clientService.getClientById(loadedProject.clientId)
-      clientName.value = client ? getClientDisplayName(client) : ''
+      const client = await clientService.getClientById(loadedProject.clientId).catch(() => undefined)
+      if (current === requestId) clientName.value = client ? getClientDisplayName(client) : ''
     }
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : t('report.projectTreePage.loadFailed')
+    if (current !== requestId) return
+    loadError.value = error instanceof Error ? error.message : pt('loadFailed')
     project.value = undefined
-    tasks.value = []
+    allTasks.value = []
   } finally {
-    isLoading.value = false
+    if (current === requestId) isLoading.value = false
   }
 }
 
-watch(selectedProjectId, loadTree)
+watch(selectedProjectId, loadTree, { immediate: true })
+
+const today = computed(() => todayIso())
+const inPeriod = (task: Task) => task.dueDate >= rangeState.range.value.from && task.dueDate <= rangeState.range.value.to
+// The tree shows every task, or only those due within the chosen period.
+const tasks = computed(() => (onlyDueInPeriod.value ? allTasks.value.filter(inPeriod) : allTasks.value))
+const isOverdue = (task: { status: string; dueDate: string }) => task.status !== 'Completed' && task.dueDate < today.value
+const daysLate = (dueDate: string) =>
+  Math.round((Date.parse(`${today.value}T00:00:00Z`) - Date.parse(`${dueDate}T00:00:00Z`)) / 86_400_000)
 
 // --- Stage-status computation ----------------------------------------------
 // Mirrors WorkflowProgress.vue's own stage-status rules (see its
@@ -137,6 +158,7 @@ interface TaskNode {
   status: Task['status']
   assignedTo: string
   dueDate: string
+  overdue: boolean
 }
 interface ItemNode {
   id: string
@@ -157,7 +179,7 @@ interface StageNode {
 }
 
 function toTaskNode(task: Task): TaskNode {
-  return { id: task.id, title: task.title, status: task.status, assignedTo: task.assignedTo, dueDate: task.dueDate }
+  return { id: task.id, title: task.title, status: task.status, assignedTo: task.assignedTo, dueDate: task.dueDate, overdue: isOverdue(task) }
 }
 
 function buildItems<T extends { id?: string; status?: string }>(
@@ -256,47 +278,83 @@ const totalItems = computed(() => trackNodes.value.reduce((sum, track) => sum + 
 const completeItems = computed(() =>
   trackNodes.value.reduce((sum, track) => sum + track.items.filter((i) => i.status === 'Complete' || i.status === 'Cancelled').length, 0),
 )
-const totalTasks = computed(() => tasks.value.length)
-const completeTasks = computed(() => tasks.value.filter((task) => task.status === 'Completed').length)
+const totalTasks = computed(() => allTasks.value.length)
+const completeTasks = computed(() => allTasks.value.filter((task) => task.status === 'Completed').length)
+const overdueTasks = computed(() => allTasks.value.filter(isOverdue).length)
+const dueInPeriod = computed(() => allTasks.value.filter(inPeriod))
+
+const stageStatusVariant = (status: NodeStatus) => (status === 'complete' ? 'success' : status === 'current' ? 'info' : 'neutral')
+
+function exportCsv(): void {
+  const p = project.value
+  if (!p) return
+  const rows: (string | number)[][] = []
+  const taskRow = (stage: string, item: string, itemStatus: string, task?: TaskNode) =>
+    rows.push([stage, item, itemStatus, task?.title ?? '', task?.status ?? '', task?.assignedTo ?? '', task?.dueDate ?? '', task?.overdue ? daysLate(task.dueDate) : ''])
+  for (const stage of linearStageNodes.value) taskRow(stage.label, '', pt(`status.${stage.status}`))
+  for (const track of trackNodes.value) {
+    taskRow(track.label, '', pt(`status.${track.status}`))
+    for (const item of track.items) {
+      if (item.tasks.length === 0) taskRow(track.label, item.name, item.status)
+      for (const task of item.tasks) taskRow(track.label, item.name, item.status, task)
+    }
+  }
+  if (handoverNode.value) taskRow(handoverNode.value.label, '', pt(`status.${handoverNode.value.status}`))
+  for (const task of generalTasks.value) taskRow(pt('generalTasks'), '', '', task)
+  downloadCsv(`project-tree-${p.projectNo}.csv`, [
+    {
+      title: `${pt('pageTitle')} -- ${p.projectNo} ${p.projectName}${onlyDueInPeriod.value ? ` -- ${pt('onlyDueInPeriod')}: ${periodLabel.value}` : ''}`,
+      headers: [pt('columnStage'), pt('columnItem'), pt('columnItemStatus'), pt('columnTask'), pt('columnTaskStatus'), pt('columnAssignee'), pt('columnDue'), t('report.projectPerformancePage.columnDaysLate')],
+      rows,
+    },
+  ])
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader :title="t('report.projectTreePage.pageTitle')" :subtitle="t('report.projectTreePage.pageSubtitle')" />
+  <div class="mx-auto flex max-w-6xl flex-col gap-6 p-6 laptop:p-8">
+    <BaseButton variant="ghost" size="sm" class="self-start print:hidden" @click="router.back()">← {{ t('report.back') }}</BaseButton>
 
-    <Card>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <SelectBox v-model="selectedProjectId" :label="t('report.projectTreePage.project')" :options="projectOptions" :disabled="isLoadingProjects" />
+    <ReportHeader
+      :title="project ? `${project.projectNo} — ${project.projectName}` : pt('pageTitle')"
+      :subtitle="project ? `${pt('pageTitle')} · ${clientName || pt('unknownClient')}` : pt('pageSubtitle')"
+      :period="project && onlyDueInPeriod ? periodLabel : undefined"
+      :generated-date="project ? generatedAt : undefined"
+      :exportable="Boolean(project)"
+      @download="exportCsv"
+    />
+
+    <div class="flex flex-wrap items-end gap-4">
+      <ReportProjectPicker :model-value="selectedProjectId" @update:model-value="pickProject" />
+      <ReportDateRange :state="rangeState" />
+      <label class="flex items-center gap-2 pb-2.5 text-sm text-text-secondary print:hidden">
+        <input type="checkbox" class="h-4 w-4 rounded border-border-default" :checked="onlyDueInPeriod" @change="setOnlyDueInPeriod(($event.target as HTMLInputElement).checked)" />
+        {{ pt('onlyDueInPeriod') }}
+      </label>
+    </div>
+
+    <Card v-if="!selectedProjectId"><p class="py-8 text-center text-sm text-text-muted">{{ pt('pickProject') }}</p></Card>
+    <ErrorState v-else-if="loadError" :description="loadError" @retry="loadTree" />
+    <Card v-else-if="isLoading && !project"><SkeletonLoader v-for="n in 6" :key="n" class="mb-2 h-8" /></Card>
+
+    <div v-else-if="project" class="flex flex-col gap-6 transition-opacity" :class="isLoading ? 'opacity-50' : ''">
+      <div class="flex flex-wrap items-center gap-2">
+        <StatusBadge :label="enumLabel('project.status', project.status)" variant="info" />
+        <StatusBadge :label="getWorkflowStageLabel(project.currentStage)" variant="neutral" />
+        <span class="text-sm text-text-muted">{{ pt('progress', { percent: project.progress }) }}</span>
       </div>
-    </Card>
 
-    <ErrorState v-if="loadError" :description="loadError" @retry="loadTree" />
-    <Card v-else-if="isLoading"><SkeletonLoader v-for="n in 6" :key="n" class="mb-2 h-8" /></Card>
-
-    <template v-else-if="project">
-      <Card>
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 class="text-lg font-semibold text-text-primary">{{ project.projectNo }} — {{ project.projectName }}</h2>
-            <p class="text-sm text-text-muted">{{ clientName || t('report.projectTreePage.unknownClient') }}</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <StatusBadge :label="project.status" variant="info" />
-            <StatusBadge :label="getWorkflowStageLabel(project.currentStage)" variant="neutral" />
-            <span class="text-sm text-text-muted">{{ t('report.projectTreePage.progress', { percent: project.progress }) }}</span>
-          </div>
-        </div>
-        <div class="mt-4 grid grid-cols-2 gap-4 border-t border-border-light pt-4 sm:grid-cols-4">
-          <div>
-            <p class="text-xs uppercase text-text-muted">{{ t('report.projectTreePage.trackItems') }}</p>
-            <p class="text-lg font-semibold text-text-primary">{{ completeItems }} / {{ totalItems }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase text-text-muted">{{ t('report.projectTreePage.tasks') }}</p>
-            <p class="text-lg font-semibold text-text-primary">{{ completeTasks }} / {{ totalTasks }}</p>
-          </div>
-        </div>
-      </Card>
+      <div class="grid grid-cols-2 gap-4 laptop:grid-cols-4">
+        <ReportMetricCard :label="pt('summaryItems')" :value="`${completeItems} / ${totalItems}`" color="primary" />
+        <ReportMetricCard :label="pt('summaryTasks')" :value="`${completeTasks} / ${totalTasks}`" color="success" />
+        <ReportMetricCard :label="pt('summaryOverdue')" :value="overdueTasks" :color="overdueTasks > 0 ? 'danger' : 'neutral'" />
+        <ReportMetricCard
+          :label="pt('summaryDueInPeriod')"
+          :value="dueInPeriod.length"
+          :hint="`${periodLabel} · ${pt('summaryDueInPeriodHint', { done: dueInPeriod.filter((task) => task.status === 'Completed').length })}`"
+          color="info"
+        />
+      </div>
 
       <!-- Tree -->
       <Card :padded="false">
@@ -305,12 +363,7 @@ const completeTasks = computed(() => tasks.value.filter((task) => task.status ==
           <div v-for="stage in linearStageNodes" :key="stage.key" class="flex items-center gap-3 px-4 py-3">
             <component :is="STATUS_ICON[stage.status]" :class="['h-5 w-5 shrink-0', STATUS_ICON_CLASS[stage.status]]" />
             <span class="text-sm font-medium text-text-primary">{{ stage.label }}</span>
-            <StatusBadge
-              class="ms-auto"
-              size="sm"
-              :label="t(`report.projectTreePage.status.${stage.status}`)"
-              :variant="stage.status === 'complete' ? 'success' : stage.status === 'current' ? 'info' : 'neutral'"
-            />
+            <StatusBadge class="ms-auto" size="sm" :label="pt(`status.${stage.status}`)" :variant="stageStatusVariant(stage.status)" />
           </div>
 
           <!-- Parallel band -->
@@ -318,36 +371,25 @@ const completeTasks = computed(() => tasks.value.filter((task) => task.status ==
             <div class="flex items-center gap-3">
               <component :is="STATUS_ICON[track.status]" :class="['h-5 w-5 shrink-0', STATUS_ICON_CLASS[track.status]]" />
               <span class="text-sm font-medium text-text-primary">{{ track.label }}</span>
-              <StatusBadge
-                class="ms-auto"
-                size="sm"
-                :label="t(`report.projectTreePage.status.${track.status}`)"
-                :variant="track.status === 'complete' ? 'success' : track.status === 'current' ? 'info' : 'neutral'"
-              />
+              <StatusBadge class="ms-auto" size="sm" :label="pt(`status.${track.status}`)" :variant="stageStatusVariant(track.status)" />
             </div>
 
-            <div v-if="track.items.length === 0" class="ms-8 mt-2 text-xs text-text-muted">
-              {{ t('report.projectTreePage.noItems') }}
-            </div>
+            <div v-if="track.items.length === 0" class="ms-8 mt-2 text-xs text-text-muted">{{ pt('noItems') }}</div>
 
-            <details v-for="item in track.items" :key="item.id" class="ms-8 mt-2 rounded-lg border border-border-light">
+            <details v-for="item in track.items" :key="item.id" class="ms-8 mt-2 rounded-lg border border-border-light" :open="item.tasks.some((task) => task.overdue)">
               <summary class="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
                 <span class="flex-1 text-text-secondary">{{ item.name }}</span>
                 <StatusBadge size="sm" :label="item.status" :variant="itemStatusVariant(track.key, item.status)" />
-                <span class="text-xs text-text-muted">{{ t('report.projectTreePage.taskCount', { count: item.tasks.length }) }}</span>
+                <span class="text-xs text-text-muted">{{ t('report.projectTreePage.taskCount', { count: item.tasks.length }, item.tasks.length) }}</span>
               </summary>
-              <div v-if="item.tasks.length === 0" class="border-t border-border-light px-4 py-2 text-xs text-text-muted">
-                {{ t('report.projectTreePage.noTasks') }}
-              </div>
-              <div
-                v-for="taskNode in item.tasks"
-                :key="taskNode.id"
-                class="flex items-center justify-between gap-3 border-t border-border-light px-4 py-2 text-sm"
-              >
-                <span class="text-text-secondary">{{ taskNode.title }}</span>
+              <div v-if="item.tasks.length === 0" class="border-t border-border-light px-4 py-2 text-xs text-text-muted">{{ pt('noTasks') }}</div>
+              <div v-for="taskNode in item.tasks" :key="taskNode.id" class="flex items-center justify-between gap-3 border-t border-border-light px-4 py-2 text-sm">
+                <RouterLink :to="{ name: 'task-workspace', params: { taskId: taskNode.id } }" class="text-accent-600 hover:underline">{{ taskNode.title }}</RouterLink>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-text-muted">{{ taskNode.assignedTo }} · {{ formatDate(taskNode.dueDate) }}</span>
-                  <StatusBadge size="sm" :label="taskNode.status" :variant="getTaskStatusVariant(taskNode.status)" />
+                  <span class="text-xs" :class="taskNode.overdue ? 'font-medium text-danger-600' : 'text-text-muted'">
+                    {{ taskNode.assignedTo }} · {{ formatDate(taskNode.dueDate) }}<template v-if="taskNode.overdue"> · {{ pt('daysLate', { count: daysLate(taskNode.dueDate) }) }}</template>
+                  </span>
+                  <StatusBadge size="sm" :label="enumLabel('task.status', taskNode.status)" :variant="getTaskStatusVariant(taskNode.status)" />
                 </div>
               </div>
             </details>
@@ -357,34 +399,27 @@ const completeTasks = computed(() => tasks.value.filter((task) => task.status ==
           <div v-if="handoverNode" class="flex items-center gap-3 px-4 py-3">
             <component :is="STATUS_ICON[handoverNode.status]" :class="['h-5 w-5 shrink-0', STATUS_ICON_CLASS[handoverNode.status]]" />
             <span class="text-sm font-medium text-text-primary">{{ handoverNode.label }}</span>
-            <StatusBadge
-              class="ms-auto"
-              size="sm"
-              :label="t(`report.projectTreePage.status.${handoverNode.status}`)"
-              :variant="handoverNode.status === 'complete' ? 'success' : handoverNode.status === 'current' ? 'info' : 'neutral'"
-            />
+            <StatusBadge class="ms-auto" size="sm" :label="pt(`status.${handoverNode.status}`)" :variant="stageStatusVariant(handoverNode.status)" />
           </div>
 
           <!-- General / unlinked tasks -->
           <div v-if="generalTasks.length > 0" class="px-4 py-3">
             <div class="flex items-center gap-3">
               <XCircle class="h-5 w-5 shrink-0 text-text-muted" />
-              <span class="text-sm font-medium text-text-primary">{{ t('report.projectTreePage.generalTasks') }}</span>
+              <span class="text-sm font-medium text-text-primary">{{ pt('generalTasks') }}</span>
             </div>
-            <div
-              v-for="taskNode in generalTasks"
-              :key="taskNode.id"
-              class="ms-8 mt-2 flex items-center justify-between gap-3 border-t border-border-light px-3 py-2 text-sm"
-            >
-              <span class="text-text-secondary">{{ taskNode.title }}</span>
+            <div v-for="taskNode in generalTasks" :key="taskNode.id" class="ms-8 mt-2 flex items-center justify-between gap-3 border-t border-border-light px-3 py-2 text-sm">
+              <RouterLink :to="{ name: 'task-workspace', params: { taskId: taskNode.id } }" class="text-accent-600 hover:underline">{{ taskNode.title }}</RouterLink>
               <div class="flex items-center gap-2">
-                <span class="text-xs text-text-muted">{{ taskNode.assignedTo }} · {{ formatDate(taskNode.dueDate) }}</span>
-                <StatusBadge size="sm" :label="taskNode.status" :variant="getTaskStatusVariant(taskNode.status)" />
+                <span class="text-xs" :class="taskNode.overdue ? 'font-medium text-danger-600' : 'text-text-muted'">
+                  {{ taskNode.assignedTo }} · {{ formatDate(taskNode.dueDate) }}<template v-if="taskNode.overdue"> · {{ pt('daysLate', { count: daysLate(taskNode.dueDate) }) }}</template>
+                </span>
+                <StatusBadge size="sm" :label="enumLabel('task.status', taskNode.status)" :variant="getTaskStatusVariant(taskNode.status)" />
               </div>
             </div>
           </div>
         </div>
       </Card>
-    </template>
+    </div>
   </div>
 </template>
