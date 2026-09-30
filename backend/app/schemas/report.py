@@ -37,21 +37,6 @@ class ReportSection(BaseModel):
     metrics: list[ReportMetric] | None = None
 
 
-class ClientProjectSummary(BaseModel):
-    projectNo: str
-    projectName: str
-    status: str
-    currentStage: str
-    progress: int
-
-
-class ClientWithProjects(BaseModel):
-    clientId: str
-    clientName: str
-    clientStatus: str
-    projects: list[ClientProjectSummary]
-
-
 class PaymentLedgerEntry(BaseModel):
     paymentNo: str
     date: str

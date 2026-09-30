@@ -7,7 +7,6 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.schemas.report import (
     ChartDataPoint,
-    ClientWithProjects,
     EmployeePerformance,
     FinancialPeriodSummary,
     PaymentLedgerEntry,
@@ -16,9 +15,16 @@ from app.schemas.report import (
     ReportMetric,
     ReportSection,
 )
-from app.schemas.report_period import EmployeeActivityOut, ExecutiveSummaryOut, ProjectPerformanceOut, TeamWorkloadOut
+from app.schemas.report_period import (
+    ClientPortfolioOut,
+    EmployeeActivityOut,
+    ExecutiveSummaryOut,
+    ProjectPerformanceOut,
+    TeamWorkloadOut,
+)
 from app.services import (
     activity_report_service,
+    client_report_service,
     client_service,
     executive_report_service,
     project_report_service,
@@ -106,11 +112,6 @@ def payments_received_by_month(months: int = 6, db: Session = Depends(get_db), _
     return report_service.payments_received_by_month(db, months)
 
 
-@router.get("/clients-projects", response_model=list[ClientWithProjects])
-def clients_projects(db: Session = Depends(get_db), _=Depends(can_view)):
-    return report_service.clients_with_projects(db)
-
-
 @router.get("/payment-ledger", response_model=list[PaymentLedgerEntry])
 def payment_ledger(
     projectNo: str | None = None,
@@ -150,6 +151,11 @@ def employee_activity(
     _=Depends(require_permission("Administration", "view")),
 ):
     return activity_report_service.employee_activity(db, period, userId)
+
+
+@router.get("/client-portfolio", response_model=ClientPortfolioOut)
+def client_portfolio(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
+    return client_report_service.client_portfolio(db, period)
 
 
 @router.get("/team-workload", response_model=TeamWorkloadOut)

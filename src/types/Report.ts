@@ -91,6 +91,53 @@ export interface ProjectPerformance {
   submissions: { label: string; value: number }[]
 }
 
+export interface ClientPortfolioProject {
+  projectNo: string
+  projectName: string
+  status: string
+  currentStage: string
+  progress: number
+  newInPeriod: boolean
+  receivedInPeriod: number
+  outstanding: number
+  overdue: number
+}
+
+export interface ClientPortfolioRow {
+  clientId: string
+  clientName: string
+  clientStatus: string
+  newClient: boolean
+  totalProjects: number
+  activeProjects: number
+  onHoldProjects: number
+  completedProjects: number
+  cancelledProjects: number
+  newProjectsInPeriod: number
+  receivedInPeriod: number
+  outstanding: number
+  overdue: number
+  projects: ClientPortfolioProject[]
+}
+
+export interface ClientPortfolio {
+  period: ReportPeriod
+  currency: string
+  totals: {
+    clients: number
+    clientsWithActiveWork: number
+    newClients: number
+    clientsWithoutProjects: number
+    projects: number
+    newProjects: number
+    receivedInPeriod: number
+    outstanding: number
+    overdue: number
+    clientsWithOverdue: number
+  }
+  clients: ClientPortfolioRow[]
+}
+
 export interface ActivityMember {
   userId: string
   name: string
@@ -170,21 +217,6 @@ export interface ReportSection {
   title: string
   description?: string
   metrics?: ReportMetric[]
-}
-
-export interface ClientProjectSummary {
-  projectNo: string
-  projectName: string
-  status: string
-  currentStage: string
-  progress: number
-}
-
-export interface ClientWithProjects {
-  clientId: string
-  clientName: string
-  clientStatus: string
-  projects: ClientProjectSummary[]
 }
 
 export interface PaymentLedgerEntry {

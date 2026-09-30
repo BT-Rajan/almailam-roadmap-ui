@@ -206,6 +206,55 @@ class EmployeeActivityOut(BaseModel):
     members: list[ActivityMemberOut]
 
 
+class ClientProjectOut(BaseModel):
+    projectNo: str
+    projectName: str
+    status: str
+    currentStage: str
+    progress: int
+    newInPeriod: bool
+    receivedInPeriod: float
+    outstanding: float
+    overdue: float
+
+
+class ClientRowOut(BaseModel):
+    clientId: str
+    clientName: str
+    clientStatus: str
+    newClient: bool
+    totalProjects: int
+    activeProjects: int
+    onHoldProjects: int
+    completedProjects: int
+    cancelledProjects: int
+    newProjectsInPeriod: int
+    receivedInPeriod: float
+    outstanding: float
+    overdue: float
+    projects: list[ClientProjectOut]
+
+
+class ClientTotalsOut(BaseModel):
+    clients: int
+    clientsWithActiveWork: int
+    newClients: int
+    clientsWithoutProjects: int
+    projects: int
+    newProjects: int
+    receivedInPeriod: float
+    outstanding: float
+    overdue: float
+    clientsWithOverdue: int
+
+
+class ClientPortfolioOut(BaseModel):
+    period: PeriodOut
+    currency: str
+    totals: ClientTotalsOut
+    clients: list[ClientRowOut]
+
+
 class ExecutiveSummaryOut(BaseModel):
     period: PeriodOut
     bucket: Literal["day", "week", "month", "year"]

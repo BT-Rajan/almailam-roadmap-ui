@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/httpClient'
 import type {
   ChartDataPoint,
-  ClientWithProjects,
+  ClientPortfolio,
   EmployeePerformance,
   EmployeeActivityReport,
   ExecutiveSummary,
@@ -58,10 +58,6 @@ async function getPaymentsReceivedByMonth(months = 6): Promise<PaymentsReceivedB
   return apiClient.get<PaymentsReceivedByMonth>(`/api/reports/payments-received-by-month?months=${months}`)
 }
 
-async function getClientsWithProjects(): Promise<ClientWithProjects[]> {
-  return apiClient.get<ClientWithProjects[]>('/api/reports/clients-projects')
-}
-
 function buildLedgerQuery(filter: PaymentLedgerFilter): string {
   const params = new URLSearchParams()
   if (filter.projectNo) params.set('projectNo', filter.projectNo)
@@ -100,6 +96,10 @@ async function getExecutiveSummary(range: DateRange): Promise<ExecutiveSummary> 
   return apiClient.get<ExecutiveSummary>(`/api/reports/executive?${periodQuery(range)}`)
 }
 
+async function getClientPortfolio(range: DateRange): Promise<ClientPortfolio> {
+  return apiClient.get<ClientPortfolio>(`/api/reports/client-portfolio?${periodQuery(range)}`)
+}
+
 async function getEmployeeActivity(range: DateRange, userId?: string): Promise<EmployeeActivityReport> {
   const query = periodQuery(range) + (userId ? `&userId=${encodeURIComponent(userId)}` : '')
   return apiClient.get<EmployeeActivityReport>(`/api/reports/employee-activity?${query}`)
@@ -119,7 +119,6 @@ export const reportService = {
   getContractsByStatus,
   getDocumentsByStatus,
   getPaymentsReceivedByMonth,
-  getClientsWithProjects,
   getPaymentLedger,
   getPaymentProjections,
   getEmployeePerformance,
@@ -128,4 +127,5 @@ export const reportService = {
   getExecutiveSummary,
   getProjectPerformance,
   getEmployeeActivity,
+  getClientPortfolio,
 }

@@ -8,6 +8,8 @@ export interface ReportRange {
   range: ComputedRef<DateRange>
   /** Switch to a preset, or to a custom from/to (inclusive). */
   setRange: (preset: RangePreset, custom?: DateRange) => void
+  /** The period as URL query, to open another report on the same period. */
+  urlQuery: () => Record<string, string>
 }
 
 /**
@@ -45,5 +47,9 @@ export function useReportRange(defaultPreset: Exclude<RangePreset, 'custom'> = '
     void router.replace({ query })
   }
 
-  return { preset, range, setRange }
+  function urlQuery(): Record<string, string> {
+    return preset.value === 'custom' ? { range: 'custom', from: range.value.from, to: range.value.to } : { range: preset.value }
+  }
+
+  return { preset, range, setRange, urlQuery }
 }
