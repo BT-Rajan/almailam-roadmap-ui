@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.core.exceptions import AppError, NotFoundError, ValidationAppError
-from app.core.file_storage import assert_pdf_upload, resolve_path, save_upload
+from app.core.file_storage import SIGNED_PDF_OR_IMAGE_EXTENSIONS, assert_signed_upload, resolve_path, save_upload
 from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     PROJECT_STAGE_ALLOWED_TRANSITIONS,
@@ -2120,7 +2120,8 @@ def confirm_project_handover(db: Session, project_no: str, file: UploadFile, use
         raise ValidationAppError("This project isn't ready for hand-over yet.")
     if project.handover_payment_confirmed_at is None:
         raise ValidationAppError("Confirm payment received (Payment Confirmation tab) before completing hand-over.")
-    assert_pdf_upload(file)
+    # Same as quotation approval: a scan (PDF) or a photo (JPG/JPEG).
+    assert_signed_upload(file, SIGNED_PDF_OR_IMAGE_EXTENSIONS)
 
     document_service.create_document(
         db, project.project_no, f"Signed Hand-over Acknowledgment {project.project_no}", "Report", file, user_id,

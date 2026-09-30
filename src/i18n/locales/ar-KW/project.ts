@@ -250,7 +250,7 @@ export default {
       acknowledgedOnFragment: 'أكّد العميل التسليم في {date}.',
       confirmHandover: 'تأكيد التسليم',
       confirmDialogTitle: 'تأكيد التسليم',
-      confirmDialogDescription: 'ارفع نسخة ممسوحة ضوئياً من إقرار التسليم الموقّع فعلياً من العميل لتأكيد المشروع وإنهائه.',
+      confirmDialogDescription: 'ارفع نسخة ممسوحة ضوئياً أو صورة من إقرار التسليم الموقّع فعلياً من العميل لتأكيد المشروع وإنهائه.',
       confirmedTitle: 'تم تأكيد التسليم',
       confirmedDescription: 'أصبح المشروع الآن مكتملاً.',
       failedToConfirm: 'فشل تأكيد التسليم',
@@ -446,7 +446,7 @@ export default {
     contractAlreadySignedDescription: 'يحتوي هذا المشروع بالفعل على عقد موقّع — تم تثبيت بنوده.',
     signingDialog: {
       title: 'توقيع العقد',
-      description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل لتأكيد توقيعه على العقد.',
+      description: 'ارفع نسخة ممسوحة ضوئياً أو صورة من النسخة الموقّعة فعلياً من العميل لتأكيد توقيعه على العقد.',
       failedToConfirm: 'فشل تأكيد التوقيع',
       signedTitle: 'تم توقيع العقد',
       signedDescription: 'تم تسجيل توقيع العميل. تم إرسال نسخة من العقد الموقّع إليه عبر البريد الإلكتروني.',

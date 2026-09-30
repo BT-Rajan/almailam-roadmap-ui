@@ -104,6 +104,7 @@ export default {
     title: 'Upload Signed Document',
     description: 'Upload a scan of the client\'s physically signed copy to confirm.',
     hint: 'PDF only',
+    pdfOrImageHint: 'PDF, JPG or JPEG',
     fileRequired: 'Upload the signed document to continue.',
     confirm: 'Confirm',
   },

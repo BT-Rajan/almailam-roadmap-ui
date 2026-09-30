@@ -462,6 +462,8 @@ async function handleRevertToDraft(): Promise<void> {
     :loading="isSigningSaving"
     :title="t('project.contractTab.signingDialog.title')"
     :description="t('project.contractTab.signingDialog.description')"
+    :allowed-extensions="['.pdf', '.jpg', '.jpeg']"
+    :hint="t('common.signedDocumentUploadDialog.pdfOrImageHint')"
     @confirm="handleConfirmSigning"
   />
 

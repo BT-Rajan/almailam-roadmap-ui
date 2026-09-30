@@ -250,7 +250,7 @@ export default {
       acknowledgedOnFragment: 'Client acknowledged hand-over on {date}.',
       confirmHandover: 'Confirm Hand-over',
       confirmDialogTitle: 'Confirm Hand-over',
-      confirmDialogDescription: "Upload a scan of the client's physically signed hand-over acknowledgment to confirm and complete the project.",
+      confirmDialogDescription: "Upload a scan or photo of the client's physically signed hand-over acknowledgment to confirm and complete the project.",
       confirmedTitle: 'Hand-over confirmed',
       confirmedDescription: 'The project is now marked Completed.',
       failedToConfirm: 'Failed to confirm hand-over',
@@ -450,7 +450,7 @@ export default {
     contractAlreadySignedDescription: 'This project already has a signed contract -- its terms are locked in.',
     signingDialog: {
       title: 'Sign Contract',
-      description: "Upload a scan of the client's physically signed copy to confirm their signature on the contract.",
+      description: "Upload a scan or photo of the client's physically signed copy to confirm their signature on the contract.",
       failedToConfirm: 'Failed to confirm signing',
       signedTitle: 'Contract signed',
       signedDescription: "The client's signature was recorded. A copy of the signed contract was emailed to them.",
