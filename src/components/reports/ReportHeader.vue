@@ -61,7 +61,7 @@ const handlePrint = () => {
           <p v-if="generatedDate" class="text-xs text-text-muted mt-1">{{ t('report.header.generatedLabel', { date: generatedDate }) }}</p>
         </div>
       </div>
-      <div v-if="showActions" class="flex gap-2 print:hidden">
+      <div v-if="showActions" class="flex shrink-0 gap-2 whitespace-nowrap print:hidden">
         <BaseButton variant="ghost" size="sm" @click="handlePrint">
           <Printer class="h-4 w-4" />
           {{ t('report.header.print') }}

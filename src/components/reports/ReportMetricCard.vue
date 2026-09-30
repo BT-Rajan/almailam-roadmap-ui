@@ -15,12 +15,15 @@ interface Props {
     percentage: number
   }
   color?: string
+  /** One short line saying what the figure counts, e.g. "of 2,000 billed". */
+  hint?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   unit: undefined,
   change: undefined,
   color: 'neutral',
+  hint: undefined,
 })
 
 const changeColor = computed(() => {
@@ -51,6 +54,7 @@ const accentClasses = computed(() => {
         <span class="font-display text-2xl font-bold text-text-primary">{{ value }}</span>
         <span v-if="unit" class="text-sm text-text-muted">{{ unit }}</span>
       </div>
+      <p v-if="hint" class="text-xs text-text-muted">{{ hint }}</p>
       <div v-if="change" class="flex items-center gap-1 pt-1">
         <component :is="change.direction === 'up' ? TrendingUp : TrendingDown" :class="['h-4 w-4', changeColor]" />
         <span :class="['text-sm font-medium', changeColor]">{{ t('report.metricCard.vsLastPeriod', { percentage: change.percentage }) }}</span>

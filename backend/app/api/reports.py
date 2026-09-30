@@ -17,11 +17,23 @@ from app.schemas.report import (
     ReportSection,
     TeamWorkload,
 )
-from app.services import client_service, project_service, report_service
+from app.schemas.report_period import ExecutiveSummaryOut
+from app.services import client_service, executive_report_service, project_service, report_service
+from app.services.report_period import Period, make_period
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 can_view = require_permission("Reports", "view")
+
+
+def period_query(startDate: date, endDate: date) -> Period:
+    """?startDate=&endDate= (inclusive Kuwait dates) for any date-ranged report."""
+    return make_period(startDate, endDate)
+
+
+@router.get("/executive", response_model=ExecutiveSummaryOut)
+def executive(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
+    return executive_report_service.executive_summary(db, period)
 
 
 @router.get("/summary", response_model=list[ReportMetric])

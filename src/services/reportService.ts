@@ -3,6 +3,7 @@ import type {
   ChartDataPoint,
   ClientWithProjects,
   EmployeePerformance,
+  ExecutiveSummary,
   FinancialPeriodSummary,
   PaymentLedgerEntry,
   PaymentProjections,
@@ -11,6 +12,7 @@ import type {
   ReportSection,
   TeamWorkload,
 } from '@/types/Report'
+import type { DateRange } from '@/utils/reportRange'
 
 interface PaymentLedgerFilter {
   projectNo?: string
@@ -93,6 +95,14 @@ async function getTeamWorkload(): Promise<TeamWorkload> {
   return apiClient.get<TeamWorkload>('/api/reports/team-workload')
 }
 
+function periodQuery(range: DateRange): string {
+  return new URLSearchParams({ startDate: range.from, endDate: range.to }).toString()
+}
+
+async function getExecutiveSummary(range: DateRange): Promise<ExecutiveSummary> {
+  return apiClient.get<ExecutiveSummary>(`/api/reports/executive?${periodQuery(range)}`)
+}
+
 export const reportService = {
   getSummary,
   getProjectsByStatus,
@@ -110,4 +120,5 @@ export const reportService = {
   getEmployeePerformance,
   getFinancialSummary,
   getTeamWorkload,
+  getExecutiveSummary,
 }
