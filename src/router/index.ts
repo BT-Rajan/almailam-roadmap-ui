@@ -1,7 +1,9 @@
 import { nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { DEFAULT_DASHBOARD_TAB, prefetchDashboardData } from '@/composables/useDashboardData'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { dashboardService } from '@/services/dashboardService'
 import { useAuthStore } from '@/stores/authStore'
 import { useServerTimeStore } from '@/stores/serverTimeStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -869,7 +871,25 @@ router.beforeEach(async (to) => {
   // the refresh cookie itself is session-only (no max_age) -- and every
   // server-side limit (expiry, rotation, idle timeout) still applies
   // exactly as before; see authStore.hydrate()/tryRefresh().
+  //
+  // On that first navigation, don't leave the page's code or its data
+  // queued behind sign-in: download the page's code alongside it (the
+  // router's own import later finds it already loaded), and on the
+  // Dashboard -- where everyone lands -- ask for its figures the moment
+  // the session is back rather than after the page has mounted.
+  if (!authStore.hasHydrated) {
+    for (const record of to.matched) {
+      const component = record.components?.default
+      // Every route here is a lazy `() => import(...)`; a failure surfaces
+      // through the router's own import (router.onError in main.ts).
+      if (typeof component === 'function') void Promise.resolve((component as () => unknown)()).catch(() => undefined)
+    }
+  }
+  const firstLoad = !authStore.hasHydrated
   await authStore.hydrate()
+  if (firstLoad && to.name === ROUTE_NAMES.DASHBOARD && authStore.isAuthenticated) {
+    prefetchDashboardData(DEFAULT_DASHBOARD_TAB, dashboardService.getProjects)
+  }
 
   // Loaded once per app session, right after auth resolves and before
   // any authenticated page can mount -- see serverTimeStore.ts. Every

@@ -47,8 +47,8 @@ class ModulePermissionsOut(BaseModel):
 
 class CurrentUserOut(UserOut):
     """UserOut plus the caller's own effective permissions, keyed by
-    module (e.g. permissions["Projects"].edit). Only /api/auth/me returns
-    this: GET /api/roles needs Administration:view, so without it ordinary
+    module (e.g. permissions["Projects"].edit). Returned by /api/auth/me
+    and with every new token (login/refresh): GET /api/roles needs Administration:view, so without it ordinary
     users had no way to learn what the server would let them do, and the
     frontend could only guess from a hardcoded table that drifts from the
     database-driven (and admin-editable) role matrix."""

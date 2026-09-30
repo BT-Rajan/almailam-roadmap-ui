@@ -110,3 +110,27 @@ describe('authStore: cross-tab logout', () => {
     expect(broadcastLogout).not.toHaveBeenCalled()
   })
 })
+
+// The server sends the signed-in user with every new token, so resuming a
+// session on page load is one round trip, not refresh then /me.
+describe('authStore: session restore in one round trip', () => {
+  const user = { id: 'USR-1', name: 'Ahmed Rashid', designation: null, email: 'a@example.com', mobile: null, role: 'Administrator', avatar: 'AR', status: 'Active' }
+
+  it('takes the user from the refresh response instead of calling /me', async () => {
+    refreshMock.mockResolvedValue({ access_token: 'token', token_type: 'bearer', user })
+    const store = useAuthStore()
+    await store.hydrate()
+    expect(store.user).toEqual(user)
+    expect(store.isAuthenticated).toBe(true)
+    expect(authService.me).not.toHaveBeenCalled()
+  })
+
+  it('still asks /me when the server sends no user', async () => {
+    refreshMock.mockResolvedValue({ access_token: 'token', token_type: 'bearer' })
+    vi.mocked(authService.me).mockResolvedValue(user)
+    const store = useAuthStore()
+    await store.hydrate()
+    expect(authService.me).toHaveBeenCalledTimes(1)
+    expect(store.user).toEqual(user)
+  })
+})

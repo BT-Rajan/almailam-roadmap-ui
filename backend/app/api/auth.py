@@ -51,11 +51,25 @@ def clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
 
 
+def _current_user_out(db: Session, user: User) -> CurrentUserOut:
+    return CurrentUserOut.from_model_with_permissions(user, role_service.get_role_permissions(db, user.role))
+
+
+def _token_response(db: Session, tokens: dict) -> TokenResponse:
+    """The new access token plus the signed-in user, so the app doesn't
+    need a second round trip to /me before it can show anything."""
+    return TokenResponse(
+        access_token=tokens["access_token"],
+        token_type=tokens["token_type"],
+        user=_current_user_out(db, tokens["user"]),
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     tokens = auth_service.login(db, payload.username, payload.password, client_ip(request))
     set_refresh_cookie(response, tokens["refresh_token"])
-    return tokens
+    return _token_response(db, tokens)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -65,7 +79,7 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
         raise AuthError("Session expired. Please log in again.")
     tokens = auth_service.refresh(db, refresh_token)
     set_refresh_cookie(response, tokens["refresh_token"])
-    return tokens
+    return _token_response(db, tokens)
 
 
 @router.post("/logout")
@@ -91,9 +105,7 @@ def change_password(
 
 @router.get("/me", response_model=CurrentUserOut)
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return CurrentUserOut.from_model_with_permissions(
-        current_user, role_service.get_role_permissions(db, current_user.role)
-    )
+    return _current_user_out(db, current_user)
 
 
 # Same shape as GET /me on purpose: the frontend replaces its whole
@@ -106,4 +118,4 @@ def update_me(
     current_user: User = Depends(get_current_user),
 ):
     user = user_service.update_own_profile(db, current_user, payload)
-    return CurrentUserOut.from_model_with_permissions(user, role_service.get_role_permissions(db, user.role))
+    return _current_user_out(db, user)
