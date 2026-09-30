@@ -51,7 +51,7 @@ function escapeHtml(value: string): string {
 }
 
 /** One paragraph per scope line. Scope Summary is rich text (rendered
- * with v-html and edited in RichTextEditor), so plain lines joined with
+ * with v-html), so plain lines joined with
  * "\n" would collapse into a single run-on line -- this keeps each
  * line on its own row everywhere it's shown. */
 export function scopeSummaryToHtml(lines: string[]): string {

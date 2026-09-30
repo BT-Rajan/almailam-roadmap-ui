@@ -42,12 +42,16 @@ there permanently (there's no cleanup step).
 
 Usage
 -----
-Run from the backend/ directory, with the same environment variables
-you already use to run the app itself:
+Run from the backend/ directory -- it reads backend/.env like the app
+does (any DB_* variable set in the environment overrides it). An
+Administrator must already exist (install.sh creates one, or run
+`python -m scripts.create_admin --quick-start`):
 
   cd backend
-  DB_HOST=... DB_PORT=... DB_USER=... DB_PASSWORD=... DB_NAME=... \
-  JWT_SECRET_KEY=... python create_test_data.py
+  python scripts/create_test_data.py
+  DB_NAME=some_other_db python scripts/create_test_data.py   # another database
+
+Every date is relative to today, so it keeps working whenever it's run.
 
 At the end it prints every credential, project number, and which stage
 each project demonstrates.
@@ -56,7 +60,8 @@ each project demonstrates.
 import io
 import sys
 import time
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 from datetime import time as time_of_day
 from unittest.mock import patch
 
@@ -66,12 +71,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import get_settings
+from app.core.kuwait_time import kuwait_today
 from app.core.security import hash_password
 from fastapi import UploadFile
 from app.models import user as user_models
 from app.models.government import GovernmentAuthority, GovernmentForm
 from app.models.permit_catalog import PermitCatalogItem
 from app.models.service_catalog import ServiceCatalogItem
+from app.models.task import Task
 from app.schemas import client as cs
 from app.schemas import contract as cons
 from app.schemas import government as gs
@@ -92,6 +99,16 @@ from app.services import (
     submission_service,
     task_service,
 )
+
+# Every date is relative to today (Kuwait), not fixed: the API refuses a
+# project start or supervision end in the past, so fixed dates stopped
+# working as soon as they went by.
+TODAY = kuwait_today()
+
+
+def day(offset: int) -> date:
+    return TODAY + timedelta(days=offset)
+
 
 settings = get_settings()
 engine = create_engine(settings.database_url)
@@ -304,12 +321,9 @@ def create_ready_client(actor: user_models.User, label: str):
             "countryOfResidence": "Kuwait",
         },
     )
-    client = client_service.create_client(db, payload, actor.id)
-    # The lightweight onboarding path -- goes straight from create_client's
-    # actual starting state ("Pending Verification") to "Ready" in one
-    # hop, rather than the full signed-document-upload confirmation.
-    client_service.set_onboarding_state(db, client.id, "Ready", None, actor.id)
-    return client
+    # Active on creation, which is all a project needs of its client --
+    # onboarding state no longer gates anything (see client_service).
+    return client_service.create_client(db, payload, actor.id)
 
 
 def add_identification(actor: user_models.User, client) -> None:
@@ -319,8 +333,8 @@ def add_identification(actor: user_models.User, client) -> None:
         cs.ClientIdentificationCreate(
             documentType="Civil ID",
             documentNumber=f"280010199{client.id:05d}",
-            issueDate=date(2023, 1, 1),
-            expiryDate=date(2033, 1, 1),
+            issueDate=day(-1096),
+            expiryDate=day(2557),
             issuingCountry="Kuwait",
         ),
         actor.id,
@@ -354,7 +368,7 @@ def permit_payload(permit: PermitCatalogItem) -> dict:
     return {"permitId": f"PER-{permit.id:03d}", "permitName": permit.name}
 
 
-SUPERVISION_WINDOW = (date(2026, 4, 1), date(2026, 6, 30))
+SUPERVISION_WINDOW = (day(91), day(181))
 SCOPE_TEXT = (
     "Full architectural and structural design for a 3-storey residential building, including MEP "
     "coordination, municipal permit filing, and construction-phase site supervision -- per the "
@@ -380,8 +394,8 @@ def create_demo_project(
         clientId=f"CLT-{client.id:03d}",
         service="Civil Engineering",
         engineerId=f"USR-{engineer.id:03d}",
-        startDate=date(2026, 1, 1),
-        targetDate=date(2026, 12, 31),
+        startDate=day(0),
+        targetDate=day(365),
         selectedActivities=[design_activity_payload(design_service, activity) for activity in design_activities],
         selectedSupervisionActivities=[supervision_activity_payload(supervision_activity, *SUPERVISION_WINDOW)],
         supervisionStartDate=SUPERVISION_WINDOW[0],
@@ -420,7 +434,7 @@ def do_quotation(actor: user_models.User, project, *, approve: bool):
         db,
         qs.QuotationCreate(
             projectId=project.project_no,
-            validity=date(2026, 3, 1),
+            validity=day(60),
             currency="KWD",
             lineItems=[
                 {"description": "Architectural & structural design", "quantity": 1, "unitPrice": 8000},
@@ -450,9 +464,9 @@ def do_payment_plan(actor: user_models.User, project, quotation, *, approve: boo
             projectId=project.project_no,
             stream="Design",
             contractAmount=design_amount,
-            contractStartDate=date(2026, 3, 10),
+            contractStartDate=day(0),
             paymentFrequency="One-time",
-            agreementDate=date(2026, 3, 5),
+            agreementDate=day(0),
             quotationReference=quotation.quotation_no,
             paymentMode="Bank Transfer",
         ),
@@ -463,7 +477,7 @@ def do_payment_plan(actor: user_models.User, project, quotation, *, approve: boo
         pays.FinancialAgreementCreate(
             projectId=project.project_no,
             stream="Supervision",
-            agreementDate=date(2026, 3, 5),
+            agreementDate=day(0),
             paymentMode="Bank Transfer",
         ),
         actor.id,
@@ -487,7 +501,7 @@ def do_contract(actor: user_models.User, project, quotation, *, sign: bool):
             quotationId=quotation.quotation_no,
             currency="KWD",
             contractValue=float(quotation.amount),
-            expiryDate=date(2026, 12, 31),
+            expiryDate=day(365),
             clientRepresentative="Stage Demo Client",
             scopeSummary="Design, municipal permit filing, and construction-phase supervision per the approved quotation.",
             clauses=[{"title": "Payment Terms", "content": "As per the agreed payment plan."}],
@@ -502,24 +516,41 @@ def do_contract(actor: user_models.User, project, quotation, *, sign: bool):
 
 def close_design_activity_via_tasks(actor: user_models.User, project, engineer: user_models.User, activity_row_id: int, title: str) -> None:
     """Closes a Design activity the real, task-driven way: creates a
-    task linked to it, drives the task Pending -> In Progress ->
-    Completed (the only allowed path), and lets project_service.
-    maybe_auto_close_design_activity close the activity once every one
-    of its linked tasks is Completed."""
+    task linked to it, then drives every task linked to the activity --
+    this one and the one the project got automatically for it when it
+    was created -- Pending -> In Progress -> Completed (the only allowed
+    path), and lets project_service.maybe_auto_close_design_activity
+    close the activity once every one of its linked tasks is Completed."""
     task = task_service.create_task(
         db,
         ts.TaskCreate(
             projectId=project.project_no,
             title=title,
             assignedTo=f"USR-{engineer.id:03d}",
-            dueDate=date(2026, 4, 1),
+            dueDate=day(91),
             dueTime=time_of_day(17, 0),
             selectedActivityId=str(activity_row_id),
         ),
         actor.id,
     )
-    task_service.set_status(db, task.task_no, "In Progress", None, actor.id)
-    task_service.set_status(db, task.task_no, "Completed", None, actor.id)
+    for linked in _open_tasks_linked_to_design_activity(activity_row_id):
+        if linked.status == "Pending":
+            task_service.set_status(db, linked.task_no, "In Progress", None, actor.id)
+        task_service.set_status(db, linked.task_no, "Completed", None, actor.id)
+
+
+def _open_tasks_linked_to_design_activity(activity_row_id: int) -> list[Task]:
+    return (
+        db.query(Task)
+        .filter(
+            Task.linked_stage_type == "Design",
+            Task.linked_stage_id == activity_row_id,
+            Task.deleted_at.is_(None),
+            Task.status != "Completed",
+        )
+        .order_by(Task.id.asc())
+        .all()
+    )
 
 
 def open_design_activity_via_task(actor: user_models.User, project, engineer: user_models.User, activity_row_id: int, title: str) -> None:
@@ -532,7 +563,7 @@ def open_design_activity_via_task(actor: user_models.User, project, engineer: us
             projectId=project.project_no,
             title=title,
             assignedTo=f"USR-{engineer.id:03d}",
-            dueDate=date(2026, 5, 15),
+            dueDate=day(135),
             dueTime=time_of_day(17, 0),
             selectedActivityId=str(activity_row_id),
         ),
@@ -545,8 +576,8 @@ def do_government_submission(
     actor: user_models.User, project, authority: GovernmentAuthority, form: GovernmentForm, selected_permit_row_id: int, *, approve: bool
 ):
     """Files a permit application against the project's own planned
-    permit, progresses it to Under Review with its one required
-    document uploaded, and optionally approves it -- which auto-
+    permit, files it (Prepare -> Apply -> Track) with its one required
+    document uploaded, and optionally closes it as Approved -- which auto-
     advances the project to Supervision, but does NOT itself close the
     linked ProjectSelectedPermit (that's always a separate, direct
     user action, see close_permit below)."""
@@ -556,22 +587,28 @@ def do_government_submission(
             projectId=project.project_no,
             authorityId=f"AUTH-{authority.id:03d}",
             formId=f"FORM-{form.id:03d}",
-            expectedDecisionDate=date(2026, 6, 1),
+            expectedDecisionDate=day(152),
             notes="Filed as part of the stage-coverage test data.",
             selectedPermitId=str(selected_permit_row_id),
         ),
         actor.id,
     )
-    # Required documents can only be attached while still Draft.
+    # Required documents are attached in Prepare.
     documents = submission_service.get_documents(db, submission.id)
     upload = UploadFile(io.BytesIO(MINI_PDF_BYTES), filename="site-plan.pdf")
     submission_service.upload_document(db, submission.submission_no, documents[0].id, upload, actor.id)
 
-    submission_service.set_status(db, submission.submission_no, "Submitted", None, actor.id)
-    submission_service.set_status(db, submission.submission_no, "Under Review", None, actor.id)
+    # Prepare -> Apply -> Track: filed with the authority, awaiting a decision.
+    submission_service.confirm_readiness(db, submission.submission_no, actor.id)
+    acknowledgement = UploadFile(io.BytesIO(MINI_PDF_BYTES), filename="acknowledgement.pdf")
+    submission_service.record_acknowledgement(
+        db, submission.submission_no, acknowledgement, f"ACK-{submission.submission_no}", None, None, actor.id
+    )
 
     if approve:
-        submission_service.set_status(db, submission.submission_no, "Approved", None, actor.id)
+        submission_service.close_application(
+            db, submission.submission_no, "Approved", "Permit issued (stage-coverage test data).", None, actor.id
+        )
     return submission
 
 
@@ -591,7 +628,12 @@ def advance_past_design(actor: user_models.User, project) -> None:
 
 
 def close_permit(actor: user_models.User, project, permit_row_id: int) -> None:
-    project_service.set_permit_status(db, project.project_no, permit_row_id, "Complete", actor.id)
+    # Completing needs a Project Closure document link as proof, or the
+    # "confirm without one" override a user can tick -- test data has no
+    # real closure document, so it takes the override.
+    project_service.set_permit_status(
+        db, project.project_no, permit_row_id, "Complete", actor.id, override_no_document=True
+    )
 
 
 def set_supervision_in_progress(actor: user_models.User, project, activity_row_id: int) -> None:
@@ -599,13 +641,18 @@ def set_supervision_in_progress(actor: user_models.User, project, activity_row_i
 
 
 def close_supervision_activity(actor: user_models.User, project, activity_row_id: int) -> None:
-    project_service.set_supervision_status(db, project.project_no, activity_row_id, "Complete", actor.id)
+    # Same closure-document rule as close_permit above.
+    project_service.set_supervision_status(
+        db, project.project_no, activity_row_id, "Complete", actor.id, override_no_document=True
+    )
 
 
 def pay_agreement_in_full(actor: user_models.User, agreement) -> None:
     obligations = payment_service.get_obligations(db, agreement.id)
     allocations = [{"obligationId": f"OBL-{agreement.id:03d}-{o.sequence_number:02d}", "amount": float(o.amount_due)} for o in obligations]
-    total = sum(a["amount"] for a in allocations)
+    # Summed exactly: float addition can land a hair under the server's
+    # exact (Decimal) total of the same allocations, which it rejects.
+    total = float(sum(Decimal(str(a["amount"])) for a in allocations))
     if total <= 0:
         return
     payment_service.record_payment(
@@ -613,7 +660,7 @@ def pay_agreement_in_full(actor: user_models.User, agreement) -> None:
         pays.RecordPaymentInput(
             agreementId=f"FA-{agreement.id:03d}",
             amountReceived=total,
-            paymentDate=date(2026, 7, 1),
+            paymentDate=day(0),
             paymentMode="Bank Transfer",
             payer="Stage Demo Client",
             allocations=allocations,
@@ -622,12 +669,30 @@ def pay_agreement_in_full(actor: user_models.User, agreement) -> None:
     )
 
 
+def tick_handover_checklist(actor: user_models.User, project) -> None:
+    """Ticks every document the hand-over checklist asks for (the
+    requirements linked to the project's Design activities, Permits and
+    Supervision activities) -- as staff do on the Handover tab once the
+    documents are on file. Handover can't be reached with any unticked."""
+    tracks = (
+        ("Design", project_service.get_selected_activities(db, project.id)),
+        ("Permit", project_service.get_selected_permits(db, project.id)),
+        ("Supervision", project_service.get_selected_supervision_activities(db, project.id)),
+    )
+    for target_type, items in tracks:
+        for item in items:
+            for link in document_requirement_service.list_links_for_selected_item(db, target_type, item):
+                document_requirement_service.set_fulfillment(db, project, link.id, True, None, actor.id)
+
+
 def complete_handover(actor: user_models.User, project) -> None:
     """try_complete_project (fired automatically by the last track close
     or payment above) already generated the hand-over checklist and
     notified Administrators it's ready -- this is staff confirming the
     client's signed acknowledgment, the only path to Project.status ==
     'Completed'."""
+    # Staff confirm the money is in (Payment Confirmation tab) first.
+    project_service.confirm_handover_payment(db, project.project_no, actor.id)
     project_service.confirm_project_handover(db, project.project_no, _pdf_upload("signed-handover.pdf"), actor.id)
 
 
@@ -745,7 +810,7 @@ def main() -> None:
     advance_past_design(actor, project_6)
     permit_row_6 = project_service.get_selected_permits(db, project_6.id)[0]
     do_government_submission(actor, project_6, authority, demo_form, permit_row_6.id, approve=False)
-    results.append((project_6.project_no, "Government Submission (permit application Under Review)"))
+    results.append((project_6.project_no, "Government Submission (permit application filed, awaiting decision)"))
 
     # 7. Supervision -- permit closed, one supervision activity still open.
     client_7, project_7 = new_project("Supervision")
@@ -769,6 +834,7 @@ def main() -> None:
     quotation_8 = do_quotation(actor, project_8, approve=True)
     design_agreement_8, supervision_agreement_8 = do_payment_plan(actor, project_8, quotation_8, approve=True)
     do_contract(actor, project_8, quotation_8, sign=True)
+    tick_handover_checklist(actor, project_8)
     for activity in project_service.get_selected_activities(db, project_8.id):
         close_design_activity_via_tasks(actor, project_8, engineer, activity.id, f"Complete {activity.activity_name}")
     advance_past_design(actor, project_8)
