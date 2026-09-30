@@ -6,6 +6,7 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.exceptions import ValidationAppError
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import PagedResponse
 from app.schemas.document_requirement import ChecklistItemOut, SetChecklistItemRequest
@@ -106,6 +107,21 @@ def list_projects(
 
     result["items"] = [_out(p) for p in result["items"]]
     return result
+
+
+@router.get("/options")
+def list_project_options(db: Session = Depends(get_db), _=Depends(can_view)) -> list[dict]:
+    """Just id + name of every live project, for filter/picker dropdowns
+    (Task Board, Documents, Payments, ...) -- instead of the client
+    downloading every full project record to fill one <select>. Declared
+    before /{project_no} so "options" isn't taken as a project number."""
+    rows = (
+        db.query(Project.project_no, Project.project_name)
+        .filter(Project.deleted_at.is_(None))
+        .order_by(Project.project_name.asc())
+        .all()
+    )
+    return [{"id": project_no, "name": name} for project_no, name in rows]
 
 
 @router.get("/{project_no}", response_model=ProjectOut)

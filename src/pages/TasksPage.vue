@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from '@lucide/vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -12,6 +12,7 @@ import SelectBox from '@/components/common/SelectBox.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { projectService } from '@/services/projectService'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUserStore } from '@/stores/userStore'
 import { getNextTaskStatus } from '@/utils/taskHelpers'
@@ -25,27 +26,32 @@ onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
 })
 
+// Project filter: id + name only (not every full project record).
+const projects = ref<{ id: string; name: string }[]>([])
 const projectOptions = computed<SelectOption[]>(() => [
   { label: 'All Projects', value: 'All', labelKey: 'task.tasksPage.allProjects' },
-  ...taskStore.projects.map((project) => ({ label: project.projectName, value: project.id })),
+  ...projects.value.map((project) => ({ label: project.name, value: project.id })),
 ])
 
-// Values here are display names, not user ids -- this only filters the
-// already-loaded task list client-side (taskStore.filteredTasks
-// compares task.assignedTo, which is always a resolved name), unlike
-// TaskCreatePage/TaskAssignmentCard which write an assignment back to
-// the backend and need real ids for that.
+// User ids -- the server filters the board by assignee.
 const assigneeOptions = computed<SelectOption[]>(() => [
   { label: 'All Assignees', value: 'All', labelKey: 'task.tasksPage.allAssignees' },
-  ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.name })),
+  ...userStore.users.filter((user) => user.status === 'Active').map((user) => ({ label: user.name, value: user.id })),
 ])
 
+// Each column is loaded from the server a page at a time, filtered there
+// -- not every task ever created downloaded and filtered here.
 function loadData(): void {
-  taskStore.loadTasks()
+  void taskStore.loadBoard()
 }
 
-onMounted(() => {
-  if (taskStore.needsFullLoad) loadData()
+onMounted(async () => {
+  loadData()
+  try {
+    projects.value = await projectService.getProjectOptions()
+  } catch {
+    projects.value = []
+  }
 })
 
 function openTask(taskId: string): void {
@@ -53,7 +59,7 @@ function openTask(taskId: string): void {
 }
 
 function advanceTask(taskId: string): void {
-  const task = taskStore.tasks.find((item) => item.id === taskId)
+  const task = Object.values(taskStore.tasksByStatus).flat().find((item) => item.id === taskId)
   if (!task) return
   const next = getNextTaskStatus(task.status)
   if (next) taskStore.updateTaskStatus(taskId, next)
@@ -96,7 +102,7 @@ function advanceTask(taskId: string): void {
 
     <ErrorState v-if="taskStore.error" :description="taskStore.error" @retry="loadData" />
 
-    <div v-else-if="taskStore.isLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
+    <div v-else-if="taskStore.isBoardLoading" class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
       <div v-for="placeholder in 3" :key="placeholder" class="rounded-xl border border-border-light bg-bg-card p-4">
         <SkeletonLoader :rows="5" />
       </div>
@@ -105,10 +111,12 @@ function advanceTask(taskId: string): void {
     <TaskBoard
       v-else
       :tasks-by-status="taskStore.tasksByStatus"
+      :totals="taskStore.boardTotals"
       :get-project-by-id="taskStore.getProjectById"
       :get-client-name-by-project-id="taskStore.getClientNameByProjectId"
       @open="openTask"
       @advance="advanceTask"
+      @load-more="taskStore.loadMoreBoard"
     />
   </div>
 </template>

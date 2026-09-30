@@ -61,6 +61,7 @@ export default {
   board: {
     noTasksTitle: 'لا توجد مهام',
     noTasksDescription: 'لا يوجد شيء هنا حالياً.',
+    loadMore: 'تحميل المزيد ({count} متبقية)',
   },
 
   list: {

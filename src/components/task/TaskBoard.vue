@@ -3,13 +3,16 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import EmptyState from '@/components/common/EmptyState.vue'
-import PaginatedList from '@/components/common/PaginatedList.vue'
+import BaseButton from '@/components/common/BaseButton.vue'
 import TaskCard from '@/components/task/TaskCard.vue'
 import type { Project } from '@/types/Project'
 import type { Task, TaskStatus } from '@/types/Task'
 
 const props = defineProps<{
   tasksByStatus: Record<TaskStatus, Task[]>
+  // How many tasks each column really has on the server -- the column
+  // shows the first page and loads more on demand.
+  totals: Record<TaskStatus, number>
   getProjectById: (projectId: string) => Project | undefined
   getClientNameByProjectId: (projectId: string) => string
 }>()
@@ -17,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   open: [taskId: string]
   advance: [taskId: string]
+  loadMore: [status: TaskStatus]
 }>()
 
 const { t } = useI18n()
@@ -48,7 +52,7 @@ function clientName(task: Task): string {
       <div class="flex items-center justify-between px-1">
         <h3 class="text-sm font-semibold text-text-secondary">{{ column.label }}</h3>
         <span class="rounded-full bg-bg-card px-2 py-0.5 text-xs font-medium text-text-muted">
-          {{ tasksByStatus[column.status].length }}
+          {{ totals[column.status] }}
         </span>
       </div>
 
@@ -58,19 +62,26 @@ function clientName(task: Task): string {
         :description="t('task.board.noTasksDescription')"
       />
 
-      <PaginatedList :items="tasksByStatus[column.status]" :page-size="10" stacked pager-class="rounded-lg bg-bg-card" pager-inset="table">
-        <template #default="{ items }">
-          <TaskCard
-            v-for="task in items"
-            :key="task.id"
-            :task="task"
-            :project-name="projectName(task)"
-            :client-name="clientName(task)"
-            @open="emit('open', $event)"
-            @advance="emit('advance', $event)"
-          />
-        </template>
-      </PaginatedList>
+      <div class="flex flex-col gap-3">
+        <TaskCard
+          v-for="task in tasksByStatus[column.status]"
+          :key="task.id"
+          :task="task"
+          :project-name="projectName(task)"
+          :client-name="clientName(task)"
+          @open="emit('open', $event)"
+          @advance="emit('advance', $event)"
+        />
+      </div>
+      <BaseButton
+        v-if="tasksByStatus[column.status].length < totals[column.status]"
+        variant="ghost"
+        size="sm"
+        class="self-center no-print"
+        @click="emit('loadMore', column.status)"
+      >
+        {{ t('task.board.loadMore', { count: totals[column.status] - tasksByStatus[column.status].length }) }}
+      </BaseButton>
     </div>
   </div>
 </template>

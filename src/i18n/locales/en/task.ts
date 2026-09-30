@@ -61,6 +61,7 @@ export default {
   board: {
     noTasksTitle: 'No tasks',
     noTasksDescription: 'Nothing here right now.',
+    loadMore: 'Load more ({count} more)',
   },
 
   list: {

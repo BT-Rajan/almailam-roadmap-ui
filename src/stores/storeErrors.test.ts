@@ -88,6 +88,8 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['taskStore.loadTasks', async () => { const s = useTaskStore(); await s.loadTasks(); return s.error }],
   // Returns early with no signed-in user, so seed one.
   ['taskStore.loadMyTasks', async () => { useAuthStore().$patch({ user: testUser('Engineer') }); const s = useTaskStore(); await s.loadMyTasks(); return s.error }],
+  ['taskStore.loadBoard', async () => { const s = useTaskStore(); await s.loadBoard(); return s.error }],
+  ['taskStore.loadMoreBoard', async () => { const s = useTaskStore(); await s.loadMoreBoard('Pending'); return s.error }],
   ['taskStore.loadTasksForProject', async () => { const s = useTaskStore(); await s.loadTasksForProject('P-1'); return s.error }],
   ['taskStore.loadAuditEvents', async () => { const s = useTaskStore(); await s.loadAuditEvents('T-1'); return s.historyError }],
   ['userStore.loadUsers', async () => { const s = useUserStore(); await s.loadUsers(); return s.error }],
