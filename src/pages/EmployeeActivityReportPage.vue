@@ -1,291 +1,285 @@
 <script setup lang="ts">
-import { Download } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Card from '@/components/common/Card.vue'
-import DatePicker from '@/components/common/DatePicker.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import PageHeader from '@/components/common/PageHeader.vue'
 import SelectBox from '@/components/common/SelectBox.vue'
+import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
+import BarChart from '@/components/reports/BarChart.vue'
+import LineChart from '@/components/reports/LineChart.vue'
+import ReportDateRange from '@/components/reports/ReportDateRange.vue'
+import ReportHeader from '@/components/reports/ReportHeader.vue'
 import ReportMetricCard from '@/components/reports/ReportMetricCard.vue'
+import ReportSection from '@/components/reports/ReportSection.vue'
+import { formatValue } from '@/components/reports/chartUtils'
+import { useReportRange } from '@/composables/useReportRange'
 import { activityCalendarService, type ActivityRecord } from '@/services/activityCalendarService'
-import { useToastStore } from '@/stores/toastStore'
+import { reportService } from '@/services/reportService'
+import type { ActivityMember, EmployeeActivityReport } from '@/types/Report'
 import type { SmartTableColumn } from '@/types/Table'
 import type { SelectOption } from '@/types/Ui'
-import { formatDateTime } from '@/utils/dateFormatter'
+import { downloadCsv } from '@/utils/csvExport'
+import { addDaysIso, formatDateTime } from '@/utils/dateFormatter'
+import { formatRange } from '@/utils/reportRange'
 
+const router = useRouter()
 const { t } = useI18n()
-const toastStore = useToastStore()
+const e = (key: string, values?: Record<string, unknown>) => t(`report.employeeActivityPage.${key}`, values ?? {})
 
-// Same "isoDate" shape as ActivityCalendarPage.vue's formatDateKey, kept
-// local here since this page deals in plain from/to bounds rather than a
-// calendar grid.
-function isoDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-function addDays(date: Date, days: number): Date {
-  const copy = new Date(date)
-  copy.setDate(copy.getDate() + days)
-  return copy
-}
+const rangeState = useReportRange('this-month')
+const periodLabel = computed(() => formatRange(rangeState.range.value))
 
-type Preset = 'today' | 'week' | 'month' | 'custom'
-const preset = ref<Preset>('today')
-const customFrom = ref(isoDate(addDays(new Date(), -6)))
-const customTo = ref(isoDate(new Date()))
-
-// activity_service._fetch_rows filters "changed_at >= start AND < end" --
-// end is exclusive (see get_day_activity's own +1 day), so every preset
-// below sends the day AFTER the last day it means to include.
-const requestRange = computed<{ startDate: string; endDate: string; rangeLabel: string }>(() => {
-  const today = new Date()
-  if (preset.value === 'today') {
-    const day = isoDate(today)
-    return { startDate: day, endDate: isoDate(addDays(today, 1)), rangeLabel: t('report.employeeActivityPage.presetToday') }
-  }
-  if (preset.value === 'week') {
-    return {
-      startDate: isoDate(addDays(today, -6)),
-      endDate: isoDate(addDays(today, 1)),
-      rangeLabel: t('report.employeeActivityPage.presetWeek'),
-    }
-  }
-  if (preset.value === 'month') {
-    return {
-      startDate: isoDate(addDays(today, -29)),
-      endDate: isoDate(addDays(today, 1)),
-      rangeLabel: t('report.employeeActivityPage.presetMonth'),
-    }
-  }
-  const from = customFrom.value || isoDate(today)
-  const to = customTo.value || isoDate(today)
-  const endExclusive = isoDate(addDays(new Date(`${to}T00:00:00`), 1))
-  return { startDate: from, endDate: endExclusive, rangeLabel: `${from} – ${to}` }
-})
-
-const userOptions = ref<SelectOption[]>([])
-const selectedUserId = ref('')
-const isLoading = ref(false)
-const loadError = ref('')
-const activities = ref<ActivityRecord[]>([])
-
-async function loadUsers(): Promise<void> {
+const ALL = 'all'
+const userOptions = ref<SelectOption[]>([{ label: e('allEmployees'), value: ALL }])
+const selectedUserId = ref(ALL)
+onMounted(async () => {
   try {
     const users = await activityCalendarService.getUsersForFiltering()
-    userOptions.value = [{ label: t('report.employeeActivityPage.allEmployees'), value: '' }, ...users.map((u) => ({ label: u.name, value: u.id }))]
+    userOptions.value = [{ label: e('allEmployees'), value: ALL }, ...users.map((user) => ({ label: user.name, value: user.id }))]
   } catch {
-    // The employee filter is a convenience, not load-bearing -- an admin
-    // who can already see this report can still read it with no filter.
-    userOptions.value = [{ label: t('report.employeeActivityPage.allEmployees'), value: '' }]
+    // The filter is a convenience; the report still works for everyone.
   }
-}
+})
 
-async function loadActivities(): Promise<void> {
+const report = ref<EmployeeActivityReport>()
+const isLoading = ref(false)
+const error = ref<string>()
+const generatedAt = ref('')
+let requestId = 0
+
+async function load(): Promise<void> {
+  const current = ++requestId
   isLoading.value = true
-  loadError.value = ''
+  error.value = undefined
   try {
-    const { startDate, endDate } = requestRange.value
-    activities.value = await activityCalendarService.getFilteredActivities({
-      startDate,
-      endDate,
-      userId: selectedUserId.value || undefined,
-    })
-  } catch (error) {
-    loadError.value = error instanceof Error ? error.message : t('report.employeeActivityPage.loadFailed')
-    activities.value = []
+    const result = await reportService.getEmployeeActivity(rangeState.range.value, selectedUserId.value === ALL ? undefined : selectedUserId.value)
+    if (current !== requestId) return
+    report.value = result
+    generatedAt.value = formatDateTime(new Date().toISOString())
+  } catch (loadError) {
+    if (current === requestId) error.value = loadError instanceof Error ? loadError.message : e('loadFailed')
   } finally {
-    isLoading.value = false
+    if (current === requestId) isLoading.value = false
   }
 }
 
-onMounted(async () => {
-  await Promise.all([loadUsers(), loadActivities()])
+watch(() => [rangeState.range.value, selectedUserId.value] as const, load, { immediate: true })
+
+const count = (value: number) => formatValue(value, 'number')
+const nameOf = (member: ActivityMember) => (member.system ? e('systemName') : member.name)
+const bucketName = computed(() => {
+  const bucket = report.value?.bucket ?? 'month'
+  return t(`report.executivePage.bucket${bucket.charAt(0).toUpperCase()}${bucket.slice(1)}`)
 })
+const areaLabel = (area: string) => e(`areas.${area}`)
 
-function applyFilters(): void {
-  void loadActivities()
-}
-
-// --- Employeewise grouping ------------------------------------------------
-
-interface EmployeeSummaryRow {
-  [key: string]: unknown
-  userId: string
-  employee: string
-  total: number
-  new: number
-  updated: number
-  completed: number
-  approved: number
-  rejected: number
-  assigned: number
-  commented: number
-}
-
-const employeeSummaries = computed<EmployeeSummaryRow[]>(() => {
-  const byUser = new Map<string, EmployeeSummaryRow>()
-  for (const activity of activities.value) {
-    const key = activity.userId || '0'
-    let row = byUser.get(key)
-    if (!row) {
-      row = { userId: key, employee: activity.userName, total: 0, new: 0, updated: 0, completed: 0, approved: 0, rejected: 0, assigned: 0, commented: 0 }
-      byUser.set(key, row)
-    }
-    row.total += 1
-    if (activity.type in row) row[activity.type] = (row[activity.type] as number) + 1
-  }
-  return [...byUser.values()].sort((a, b) => b.total - a.total)
-})
-
-const summaryColumns = computed<SmartTableColumn<EmployeeSummaryRow>[]>(() => [
-  { key: 'employee', label: t('report.employeeActivityPage.columnEmployee') },
-  { key: 'total', label: t('report.employeeActivityPage.columnTotal'), align: 'right', sortable: true },
-  { key: 'new', label: t('report.employeeActivityPage.columnNew'), align: 'right' },
-  { key: 'updated', label: t('report.employeeActivityPage.columnUpdated'), align: 'right' },
-  { key: 'assigned', label: t('report.employeeActivityPage.columnAssigned'), align: 'right' },
-  { key: 'commented', label: t('report.employeeActivityPage.columnCommented'), align: 'right' },
-  { key: 'completed', label: t('report.employeeActivityPage.columnCompleted'), align: 'right' },
-  { key: 'approved', label: t('report.employeeActivityPage.columnApproved'), align: 'right' },
-  { key: 'rejected', label: t('report.employeeActivityPage.columnRejected'), align: 'right' },
-])
-
-// SmartTable's generic requires an index signature -- ActivityRecord (a
-// plain interface) doesn't have one, so every row list handed to it below
-// is typed through this instead of the bare service type.
-type ActivityRow = ActivityRecord & Record<string, unknown>
-
-const activityDetailColumns = computed<SmartTableColumn<ActivityRow>[]>(() => [
-  { key: 'timestamp', label: t('report.employeeActivityPage.columnWhen') },
-  { key: 'description', label: t('report.employeeActivityPage.columnActivity') },
-  { key: 'entityName', label: t('report.employeeActivityPage.columnItem') },
-  { key: 'projectName', label: t('report.employeeActivityPage.columnProject') },
-])
-
-const isDrawerOpen = ref(false)
-const drawerEmployeeName = ref('')
-const drawerActivities = ref<ActivityRow[]>([])
-
-function openEmployee(row: EmployeeSummaryRow): void {
-  drawerEmployeeName.value = row.employee
-  drawerActivities.value = activities.value
-    .filter((a) => (a.userId || '0') === row.userId)
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-  isDrawerOpen.value = true
-}
-
-// When a single employee is already selected via the filter, skip the
-// grouping table entirely and show their activity list directly -- a
-// one-row summary table would just be an extra click for no reason.
-const singleEmployeeActivities = computed<ActivityRow[]>(() =>
-  [...activities.value].sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
+const areaPoints = computed(() =>
+  [...(report.value?.areas ?? [])].sort((a, b) => b.value - a.value).map((row) => ({ label: areaLabel(row.label), value: row.value })),
 )
 
-const totalActivities = computed(() => activities.value.length)
-const activeEmployeeCount = computed(() => employeeSummaries.value.length)
+// Four series at most (the validated palette has four slots): the three
+// areas people work in most, everything else folded into "Other".
+const FOLDED_AREAS = ['task', 'project', 'document'] as const
+const people = computed(() => (report.value?.members ?? []).filter((member) => !member.system))
+const perPersonSeries = computed(() => {
+  const other = (member: ActivityMember) =>
+    Object.entries(member.byArea).reduce((sum, [area, value]) => sum + ((FOLDED_AREAS as readonly string[]).includes(area) ? 0 : value), 0)
+  return [
+    ...FOLDED_AREAS.map((area) => ({ name: areaLabel(area), values: people.value.map((member) => member.byArea[area] ?? 0) })),
+    { name: t('report.chart.other'), values: people.value.map(other) },
+  ]
+})
 
-async function handleExport(): Promise<void> {
+// ---- Drill-down: one person's full list -------------------------------------
+type ActivityRow = ActivityRecord & Record<string, unknown>
+const detailColumns = computed<SmartTableColumn<ActivityRow>[]>(() => [
+  { key: 'timestamp', label: e('columnWhen') },
+  { key: 'description', label: e('columnActivity') },
+  { key: 'entityName', label: e('columnItem') },
+  { key: 'projectName', label: e('columnProject') },
+])
+const drawerOpen = ref(false)
+const drawerMember = ref<ActivityMember>()
+const drawerRows = ref<ActivityRow[]>([])
+const drawerLoading = ref(false)
+const drawerError = ref<string>()
+
+async function openMember(member: ActivityMember): Promise<void> {
+  if (member.system) return
+  drawerMember.value = member
+  drawerOpen.value = true
+  drawerLoading.value = true
+  drawerError.value = undefined
+  drawerRows.value = []
   try {
-    const { startDate, endDate } = requestRange.value
-    const blob = await activityCalendarService.exportActivitiesCSV({
-      startDate,
-      endDate,
-      userId: selectedUserId.value || undefined,
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `employee-activity-${requestRange.value.startDate}-to-${requestRange.value.endDate}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    const { from, to } = rangeState.range.value
+    // This endpoint's end date is exclusive.
+    const rows = await activityCalendarService.getFilteredActivities({ startDate: from, endDate: addDaysIso(to, 1), userId: member.userId })
+    drawerRows.value = rows as ActivityRow[]
   } catch {
-    toastStore.show('error', t('report.employeeActivityPage.exportFailed'))
+    drawerError.value = e('detailFailed')
+  } finally {
+    drawerLoading.value = false
   }
+}
+
+function exportDrawer(): void {
+  if (!drawerMember.value) return
+  const { from, to } = rangeState.range.value
+  downloadCsv(`activity-${drawerMember.value.name.replace(/\s+/g, '-')}-${from}-to-${to}.csv`, [
+    {
+      title: `${drawerMember.value.name} -- ${periodLabel.value}`,
+      headers: [e('columnWhen'), e('columnActivity'), e('columnItem'), e('columnProject')],
+      rows: drawerRows.value.map((row) => [formatDateTime(row.timestamp), row.description, row.entityName, row.projectName ?? '']),
+    },
+  ])
+}
+
+function exportCsv(): void {
+  const data = report.value
+  if (!data) return
+  const areas = ['task', 'project', 'document', 'payment', 'client', 'quotation', 'contract', 'workflow']
+  downloadCsv(`employee-activity-${data.period.startDate}-to-${data.period.endDate}.csv`, [
+    {
+      title: `${e('pageTitle')} -- ${periodLabel.value}`,
+      headers: [
+        e('columnEmployee'), e('columnActions'), e('columnDays'), e('columnProjects'), e('columnCreated'), e('columnUpdated'),
+        e('columnCompleted'), e('columnRejected'), e('columnDeleted'), ...areas.map(areaLabel), e('columnLast'),
+      ],
+      rows: data.members.map((m) => [
+        nameOf(m), m.actions, m.activeDays, m.projectsTouched, m.created, m.updated, m.completed, m.rejected, m.deleted,
+        ...areas.map((area) => m.byArea[area] ?? 0), formatDateTime(m.lastActivity),
+      ]),
+    },
+    {
+      title: e('trendTitle'),
+      headers: ['Period', e('seriesActions')],
+      rows: data.series.categories.map((label, i) => [label, data.series.actions[i]]),
+    },
+  ])
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 laptop:p-8">
-    <PageHeader :title="t('report.employeeActivityPage.pageTitle')" :subtitle="t('report.employeeActivityPage.pageSubtitle')">
-      <template #actions>
-        <BaseButton :icon="Download" variant="secondary" @click="handleExport">{{ t('report.employeeActivityPage.exportCsv') }}</BaseButton>
-      </template>
-    </PageHeader>
+  <div class="mx-auto max-w-6xl space-y-8 p-6 laptop:p-8">
+    <BaseButton variant="ghost" size="sm" class="print:hidden" @click="router.back()">← {{ t('report.back') }}</BaseButton>
 
-    <Card>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <SelectBox v-model="selectedUserId" :label="t('report.employeeActivityPage.employee')" :options="userOptions" @update:model-value="applyFilters" />
-        <SelectBox
-          v-model="preset"
-          :label="t('report.employeeActivityPage.range')"
-          :options="[
-            { label: t('report.employeeActivityPage.presetToday'), value: 'today' },
-            { label: t('report.employeeActivityPage.presetWeek'), value: 'week' },
-            { label: t('report.employeeActivityPage.presetMonth'), value: 'month' },
-            { label: t('report.employeeActivityPage.presetCustom'), value: 'custom' },
-          ]"
-          @update:model-value="applyFilters"
-        />
-        <template v-if="preset === 'custom'">
-          <DatePicker v-model="customFrom" :label="t('report.employeeActivityPage.from')" :max="customTo" @update:model-value="applyFilters" />
-          <DatePicker v-model="customTo" :label="t('report.employeeActivityPage.to')" :min="customFrom" @update:model-value="applyFilters" />
-        </template>
-        <div class="flex items-end">
-          <BaseButton full-width variant="secondary" :loading="isLoading" @click="applyFilters">{{ t('report.employeeActivityPage.refresh') }}</BaseButton>
+    <ReportHeader
+      :title="e('pageTitle')"
+      :subtitle="e('pageSubtitle')"
+      :period="periodLabel"
+      :generated-date="generatedAt"
+      :exportable="Boolean(report)"
+      @download="exportCsv"
+    />
+
+    <div class="flex flex-wrap items-end gap-4">
+      <div class="w-56 print:hidden"><SelectBox v-model="selectedUserId" :label="e('employee')" :options="userOptions" /></div>
+      <ReportDateRange :state="rangeState" />
+    </div>
+
+    <ErrorState v-if="error" :description="error" @retry="load" />
+
+    <div v-else-if="!report" class="rounded-xl border border-border-light bg-bg-card p-5">
+      <SkeletonLoader :rows="6" />
+    </div>
+
+    <EmptyState v-else-if="report.members.length === 0" :title="e('noActivity')" />
+
+    <div v-else class="space-y-8 transition-opacity" :class="isLoading ? 'opacity-50' : ''">
+      <ReportSection :title="e('overviewTitle')" :description="e('overviewDescription')" full-width>
+        <div class="grid grid-cols-2 gap-4 laptop:grid-cols-5">
+          <ReportMetricCard
+            :label="e('metricActions')"
+            :value="count(report.totals.actions)"
+            :hint="report.totals.systemActions ? e('metricActionsHint', { count: count(report.totals.systemActions) }) : undefined"
+            color="primary"
+          />
+          <ReportMetricCard :label="e('metricPeople')" :value="count(report.totals.peopleActive)" color="info" />
+          <ReportMetricCard :label="e('metricCreated')" :value="count(report.totals.created)" color="success" />
+          <ReportMetricCard :label="e('metricCompleted')" :value="count(report.totals.completed)" color="success" />
+          <ReportMetricCard :label="e('metricDeleted')" :value="count(report.totals.deleted)" :color="report.totals.deleted ? 'warning' : 'neutral'" />
         </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 laptop:grid-cols-2">
+          <Card>
+            <h3 class="text-sm font-semibold text-text-primary">{{ e('trendTitle') }}</h3>
+            <p class="mb-3 text-xs text-text-muted">{{ e('trendDescription', { bucket: bucketName }) }}</p>
+            <LineChart :categories="report.series.categories" :series="[{ name: e('seriesActions'), values: report.series.actions }]" :series-name="e('seriesActions')" show-total />
+          </Card>
+          <Card>
+            <h3 class="text-sm font-semibold text-text-primary">{{ e('areasTitle') }}</h3>
+            <p class="mb-3 text-xs text-text-muted">{{ e('areasDescription') }}</p>
+            <BarChart :data="areaPoints" horizontal :series-name="e('seriesActions')" show-total />
+          </Card>
+        </div>
+      </ReportSection>
+
+      <ReportSection :title="e('perPersonTitle')" :description="e('perPersonDescription')" full-width>
+        <Card v-if="people.length > 1">
+          <BarChart :categories="people.map(nameOf)" :series="perPersonSeries" horizontal stacked :category-label="e('columnEmployee')" show-total />
+        </Card>
+        <Card class="mt-4">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border-light text-left text-xs uppercase tracking-wide text-text-muted">
+                  <th class="py-2 pe-3 font-medium">{{ e('columnEmployee') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnActions') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnDays') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnProjects') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnCreated') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnUpdated') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnCompleted') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnDeleted') }}</th>
+                  <th class="py-2 ps-3 text-end font-medium">{{ e('columnLast') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="member in report.members"
+                  :key="member.userId || 'system'"
+                  class="border-b border-border-light/60 last:border-0"
+                  :class="member.system ? 'text-text-muted' : 'cursor-pointer hover:bg-bg-hover'"
+                  :tabindex="member.system ? -1 : 0"
+                  @click="openMember(member)"
+                  @keydown.enter="openMember(member)"
+                >
+                  <td class="py-2 pe-3 font-medium" :class="member.system ? '' : 'text-accent-600'">{{ nameOf(member) }}</td>
+                  <td class="py-2 ps-3 text-end font-semibold tabular-nums">{{ count(member.actions) }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.activeDays }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ member.projectsTouched }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ count(member.created) }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ count(member.updated) }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ count(member.completed) }}</td>
+                  <td class="py-2 ps-3 text-end tabular-nums">{{ count(member.deleted) }}</td>
+                  <td class="whitespace-nowrap py-2 ps-3 text-end text-text-secondary">{{ formatDateTime(member.lastActivity) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </ReportSection>
+    </div>
+
+    <BaseDrawer v-model="drawerOpen" :title="drawerMember ? `${drawerMember.name} · ${periodLabel}` : ''" width="lg">
+      <div class="mb-3 flex justify-end">
+        <BaseButton size="sm" variant="secondary" :disabled="drawerRows.length === 0" @click="exportDrawer">{{ t('report.header.export') }}</BaseButton>
       </div>
-    </Card>
-
-    <ErrorState v-if="loadError" :description="loadError" @retry="loadActivities" />
-
-    <template v-else>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <ReportMetricCard :label="t('report.employeeActivityPage.metricTotal')" :value="totalActivities" color="primary" />
-        <ReportMetricCard :label="t('report.employeeActivityPage.metricEmployees')" :value="activeEmployeeCount" color="info" />
-        <ReportMetricCard :label="t('report.employeeActivityPage.metricRange')" :value="requestRange.rangeLabel" color="neutral" />
-      </div>
-
-      <!-- All employees: employeewise summary table, drill into a drawer per row -->
-      <SmartTable
-        v-if="!selectedUserId"
-        :columns="summaryColumns"
-        :rows="employeeSummaries"
-        row-key="userId"
-        :loading="isLoading"
-        :searchable="true"
-        :search-placeholder="t('report.employeeActivityPage.searchEmployee')"
-        :empty-title="t('report.employeeActivityPage.noActivity')"
-        @row-click="openEmployee"
-      />
-
-      <!-- One employee already selected: show their activity list directly -->
+      <ErrorState v-if="drawerError" :description="drawerError" />
       <SmartTable
         v-else
-        :columns="activityDetailColumns"
-        :rows="singleEmployeeActivities"
+        :columns="detailColumns"
+        :rows="drawerRows"
         row-key="id"
-        :loading="isLoading"
+        :loading="drawerLoading"
         :searchable="true"
-        :empty-title="t('report.employeeActivityPage.noActivity')"
-      >
-        <template #cell-timestamp="{ value }">{{ formatDateTime(value as string) }}</template>
-        <template #cell-projectName="{ value }">{{ value || '—' }}</template>
-      </SmartTable>
-    </template>
-
-    <BaseDrawer v-model="isDrawerOpen" :title="drawerEmployeeName" width="lg">
-      <SmartTable
-        :columns="activityDetailColumns"
-        :rows="drawerActivities"
-        row-key="id"
-        :searchable="false"
-        :empty-title="t('report.employeeActivityPage.noActivity')"
+        :empty-title="e('noActivity')"
       >
         <template #cell-timestamp="{ value }">{{ formatDateTime(value as string) }}</template>
         <template #cell-projectName="{ value }">{{ value || '—' }}</template>

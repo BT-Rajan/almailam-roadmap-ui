@@ -1,8 +1,10 @@
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.services.report_period import KUWAIT_UTC_OFFSET, kuwait_date
 
 # The entity types that make sense as "team activity" for this admin view
 # -- deliberately excludes purely-system-configuration entities (company
@@ -30,10 +32,10 @@ ENTITY_TYPE_TO_FRONTEND = {
     "WORKFLOW_TEMPLATE": "workflow",
 }
 
-ACTIVITY_TYPES = ("new", "updated", "delayed", "completed", "assigned", "commented", "approved", "rejected")
+ACTIVITY_TYPES = ("new", "updated", "delayed", "completed", "assigned", "commented", "approved", "rejected", "deleted")
 
 
-def _infer_activity_type(event_label: str) -> str:
+def _infer_activity_type(event_label: str, new_value: str | None = None) -> str:
     """audit_log stores a free-text event label (e.g. "Project created",
     "Task deleted"), not a discrete activity-type code, so this infers one
     from the label text. Note "delayed" is never inferred here -- there is
@@ -43,10 +45,19 @@ def _infer_activity_type(event_label: str) -> str:
     daily summaries below rather than faked from a text match that would
     just be wrong."""
     lower = event_label.lower()
+    # A status change says what happened in its new value ("Status
+    # changed" -> "Completed"), not in its label.
+    outcome = (new_value or "").strip().lower()
+    if outcome in ("completed", "signed"):
+        return "completed"
+    if outcome == "approved":
+        return "approved"
+    if outcome == "rejected":
+        return "rejected"
     if any(word in lower for word in ("created", "onboarded", "added", "uploaded", "recorded", "submitted")):
         return "new"
     if "deleted" in lower or "removed" in lower:
-        return "rejected"
+        return "deleted"
     if "approved" in lower:
         return "approved"
     if "rejected" in lower:
@@ -109,21 +120,31 @@ def _resolve_projects(db: Session, rows: list[dict]) -> dict[tuple[str, int], tu
     return result
 
 
+def _utc_midnight(day: date) -> datetime:
+    """00:00 Kuwait on `day`, as the naive UTC the database stores."""
+    return datetime.combine(day, time.min) - KUWAIT_UTC_OFFSET
+
+
 def _fetch_rows(
     db: Session,
-    start_date: str,
-    end_date: str,
+    start_date: date,
+    end_date: date,
     project_no: str | None = None,
     changed_by: int | None = None,
     activity_type: str | None = None,
 ) -> list[dict]:
+    """Audit rows from the start of Kuwait day `start_date` up to (not
+    including) the start of Kuwait day `end_date`. changed_at is stored in
+    UTC, so the day boundaries are converted rather than compared as-is --
+    otherwise anything done between midnight and 3am Kuwait time lands on
+    the previous day."""
     placeholders = ", ".join(f"'{t}'" for t in ACTIVITY_ENTITY_TYPES)
     conditions = [
         f"entity_type IN ({placeholders})",
         "changed_at >= :start_date",
         "changed_at < :end_date",
     ]
-    params: dict = {"start_date": start_date, "end_date": end_date}
+    params: dict = {"start_date": _utc_midnight(start_date), "end_date": _utc_midnight(end_date)}
     if changed_by is not None:
         conditions.append("changed_by = :changed_by")
         params["changed_by"] = changed_by
@@ -159,13 +180,15 @@ def _fetch_rows(
 
     activities = []
     for row in rows:
-        inferred_type = _infer_activity_type(row["event_label"])
+        inferred_type = _infer_activity_type(row["event_label"], row["new_value"])
         if activity_type and inferred_type != activity_type:
             continue
         project_no_val, project_name_val = projects.get((row["entity_type"], row["entity_id"]), (None, None))
         if project_no and project_no_val != project_no:
             continue
         timestamp = row["changed_at"]
+        if not isinstance(timestamp, datetime):
+            timestamp = datetime.fromisoformat(str(timestamp))
         activities.append(
             {
                 "id": str(row["id"]),
@@ -182,7 +205,9 @@ def _fetch_rows(
                 "userId": str(row["changed_by"]) if row["changed_by"] is not None else "",
                 "userName": names.get(row["changed_by"], "System"),
                 "description": row["event_label"],
-                "timestamp": timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp),
+                # Explicitly UTC, so every browser shows it in its own local time.
+                "timestamp": timestamp.replace(microsecond=0).isoformat() + "Z",
+                "kuwaitDate": kuwait_date(timestamp).isoformat(),
             }
         )
     return activities
@@ -201,20 +226,18 @@ def _summarize(day: date, activities: list[dict]) -> dict:
 
 
 def get_day_activity(db: Session, day: date, changed_by: int | None = None) -> dict:
-    start = day.isoformat()
-    end = (day + timedelta(days=1)).isoformat()
-    activities = _fetch_rows(db, start, end, changed_by=changed_by)
+    activities = _fetch_rows(db, day, day + timedelta(days=1), changed_by=changed_by)
     return _summarize(day, activities)
 
 
 def get_month_activity(db: Session, year: int, month: int, changed_by: int | None = None) -> list[dict]:
     start = date(year, month, 1)
     end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    activities = _fetch_rows(db, start.isoformat(), end.isoformat(), changed_by=changed_by)
+    activities = _fetch_rows(db, start, end, changed_by=changed_by)
 
     by_day: dict[str, list[dict]] = defaultdict(list)
     for activity in activities:
-        day_key = activity["timestamp"][:10]
+        day_key = activity["kuwaitDate"]
         by_day[day_key].append(activity)
 
     return [_summarize(date.fromisoformat(day_key), items) for day_key, items in sorted(by_day.items())]
@@ -222,8 +245,8 @@ def get_month_activity(db: Session, year: int, month: int, changed_by: int | Non
 
 def get_filtered_activities(
     db: Session,
-    start_date: str,
-    end_date: str,
+    start_date: date,
+    end_date: date,
     project_no: str | None = None,
     changed_by: int | None = None,
     activity_type: str | None = None,

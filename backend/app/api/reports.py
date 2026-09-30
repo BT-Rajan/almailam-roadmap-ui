@@ -16,8 +16,9 @@ from app.schemas.report import (
     ReportMetric,
     ReportSection,
 )
-from app.schemas.report_period import ExecutiveSummaryOut, ProjectPerformanceOut, TeamWorkloadOut
+from app.schemas.report_period import EmployeeActivityOut, ExecutiveSummaryOut, ProjectPerformanceOut, TeamWorkloadOut
 from app.services import (
+    activity_report_service,
     client_service,
     executive_report_service,
     project_report_service,
@@ -137,6 +138,18 @@ def payment_projections(
 @router.get("/employee-performance", response_model=list[EmployeePerformance])
 def employee_performance(year: int, month: int, db: Session = Depends(get_db), _=Depends(can_view)):
     return report_service.employee_performance(db, year, month)
+
+
+@router.get("/employee-activity", response_model=EmployeeActivityOut)
+def employee_activity(
+    userId: int | None = None,
+    period: Period = Depends(period_query),
+    db: Session = Depends(get_db),
+    # Everyone's activity is Administration-level, like the Audit Log it
+    # summarises (see api/activity.py).
+    _=Depends(require_permission("Administration", "view")),
+):
+    return activity_report_service.employee_activity(db, period, userId)
 
 
 @router.get("/team-workload", response_model=TeamWorkloadOut)

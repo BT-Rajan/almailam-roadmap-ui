@@ -18,6 +18,7 @@ KUWAIT_UTC_OFFSET = timedelta(hours=3)
 # Long enough for a multi-year trend; short enough that a typo like
 # 1026-01-01 can't make one request scan and bucket a thousand years.
 MAX_PERIOD_DAYS = 366 * 10
+DAILY_UP_TO_DAYS = 14
 WEEKLY_UP_TO_DAYS = 62
 MONTHLY_UP_TO_MONTHS = 36
 
@@ -67,7 +68,9 @@ def _add_months(year: int, month: int, count: int) -> tuple[int, int]:
 
 
 def granularity(period: Period) -> str:
-    """'week', 'month' or 'year' -- the bucket size buckets() uses."""
+    """'day', 'week', 'month' or 'year' -- the bucket size buckets() uses."""
+    if (period.end - period.start).days + 1 <= DAILY_UP_TO_DAYS:
+        return "day"
     if (period.end - period.start).days + 1 <= WEEKLY_UP_TO_DAYS:
         return "week"
     months = (period.end.year - period.start.year) * 12 + period.end.month - period.start.month + 1
@@ -75,11 +78,17 @@ def granularity(period: Period) -> str:
 
 
 def buckets(period: Period) -> list[Bucket]:
-    """Chart buckets for the period: weeks for up to ~2 months, months for
-    up to 3 years, years beyond that. The first and last buckets are
-    clipped to the period, so every bucket only counts in-period days."""
+    """Chart buckets for the period: days for up to two weeks, weeks for
+    up to ~2 months, months for up to 3 years, years beyond that. The first
+    and last buckets are clipped to the period, so every bucket only counts
+    in-period days."""
     days = (period.end - period.start).days + 1
     result: list[Bucket] = []
+    if days <= DAILY_UP_TO_DAYS:
+        for offset in range(days):
+            day = period.start + timedelta(days=offset)
+            result.append(Bucket(f"{day.day} {month_abbr[day.month]}", day, day))
+        return result
     if days <= WEEKLY_UP_TO_DAYS:
         cursor = period.start
         while cursor <= period.end:

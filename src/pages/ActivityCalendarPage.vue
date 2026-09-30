@@ -83,6 +83,7 @@ const activityTypeVariants: Record<ActivityType, BadgeVariant> = {
   [ActivityType.COMMENTED]: 'warning',
   [ActivityType.APPROVED]: 'success',
   [ActivityType.REJECTED]: 'danger',
+  [ActivityType.DELETED]: 'neutral',
 }
 
 // Initialize
@@ -223,8 +224,11 @@ const weekDays = computed(() => [
 
 async function exportToCSV() {
   try {
+    // The export's end date is exclusive: the 1st of the following month
+    // (a literal "-31" isn't a real date in 30-day months or February).
+    const [year, month] = currentMonth.value.split('-').map(Number)
     const startDate = `${currentMonth.value}-01`
-    const endDate = `${currentMonth.value}-31`
+    const endDate = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
     const blob = await activityCalendarService.exportActivitiesCSV({
       startDate,
       endDate,

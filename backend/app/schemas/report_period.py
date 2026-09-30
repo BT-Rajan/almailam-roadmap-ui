@@ -122,7 +122,7 @@ class ProjectMoneyOut(BaseModel):
 
 class ProjectPerformanceOut(BaseModel):
     period: PeriodOut
-    bucket: Literal["week", "month", "year"]
+    bucket: Literal["day", "week", "month", "year"]
     project: ProjectInfoOut
     schedule: ScheduleOut
     tasks: ProjectTasksOut
@@ -167,9 +167,48 @@ class TeamWorkloadOut(BaseModel):
     members: list[WorkloadMemberOut]
 
 
+class ActivityMemberOut(BaseModel):
+    userId: str
+    name: str
+    system: bool
+    actions: int
+    activeDays: int
+    projectsTouched: int
+    created: int
+    updated: int
+    completed: int
+    rejected: int
+    deleted: int
+    byArea: dict[str, int]
+    lastActivity: str
+
+
+class ActivityTotalsOut(BaseModel):
+    actions: int
+    systemActions: int
+    peopleActive: int
+    created: int
+    completed: int
+    deleted: int
+
+
+class ActivitySeriesOut(BaseModel):
+    categories: list[str]
+    actions: list[int]
+
+
+class EmployeeActivityOut(BaseModel):
+    period: PeriodOut
+    bucket: Literal["day", "week", "month", "year"]
+    totals: ActivityTotalsOut
+    series: ActivitySeriesOut
+    areas: list[LabelValueOut]
+    members: list[ActivityMemberOut]
+
+
 class ExecutiveSummaryOut(BaseModel):
     period: PeriodOut
-    bucket: Literal["week", "month", "year"]
+    bucket: Literal["day", "week", "month", "year"]
     currency: str
     kpis: ExecutiveKpisOut
     cashFlow: CashFlowOut

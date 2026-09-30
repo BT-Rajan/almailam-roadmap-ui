@@ -3,6 +3,7 @@ import type {
   ChartDataPoint,
   ClientWithProjects,
   EmployeePerformance,
+  EmployeeActivityReport,
   ExecutiveSummary,
   ProjectPerformance,
   FinancialPeriodSummary,
@@ -99,6 +100,11 @@ async function getExecutiveSummary(range: DateRange): Promise<ExecutiveSummary> 
   return apiClient.get<ExecutiveSummary>(`/api/reports/executive?${periodQuery(range)}`)
 }
 
+async function getEmployeeActivity(range: DateRange, userId?: string): Promise<EmployeeActivityReport> {
+  const query = periodQuery(range) + (userId ? `&userId=${encodeURIComponent(userId)}` : '')
+  return apiClient.get<EmployeeActivityReport>(`/api/reports/employee-activity?${query}`)
+}
+
 async function getProjectPerformance(projectNo: string, range: DateRange): Promise<ProjectPerformance> {
   return apiClient.get<ProjectPerformance>(`/api/reports/project-performance/${encodeURIComponent(projectNo)}?${periodQuery(range)}`)
 }
@@ -121,4 +127,5 @@ export const reportService = {
   getTeamWorkload,
   getExecutiveSummary,
   getProjectPerformance,
+  getEmployeeActivity,
 }

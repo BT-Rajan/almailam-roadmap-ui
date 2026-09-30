@@ -15,7 +15,7 @@ export interface ReportPeriod {
   endDate: string
 }
 
-export type ReportBucket = 'week' | 'month' | 'year'
+export type ReportBucket = 'day' | 'week' | 'month' | 'year'
 
 export interface ExecutiveSummary {
   period: ReportPeriod
@@ -89,6 +89,31 @@ export interface ProjectPerformance {
   }
   documents: { label: string; value: number }[]
   submissions: { label: string; value: number }[]
+}
+
+export interface ActivityMember {
+  userId: string
+  name: string
+  system: boolean
+  actions: number
+  activeDays: number
+  projectsTouched: number
+  created: number
+  updated: number
+  completed: number
+  rejected: number
+  deleted: number
+  byArea: Record<string, number>
+  lastActivity: string
+}
+
+export interface EmployeeActivityReport {
+  period: ReportPeriod
+  bucket: ReportBucket
+  totals: { actions: number; systemActions: number; peopleActive: number; created: number; completed: number; deleted: number }
+  series: { categories: string[]; actions: number[] }
+  areas: { label: string; value: number }[]
+  members: ActivityMember[]
 }
 
 export interface WorkloadMember {

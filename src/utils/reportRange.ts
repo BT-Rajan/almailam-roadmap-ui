@@ -5,6 +5,9 @@
 import { todayIso } from '@/utils/dateFormatter'
 
 export type RangePreset =
+  | 'today'
+  | 'last-7-days'
+  | 'last-30-days'
   | 'this-month'
   | 'last-month'
   | 'this-quarter'
@@ -15,6 +18,9 @@ export type RangePreset =
   | 'custom'
 
 export const RANGE_PRESETS: Exclude<RangePreset, 'custom'>[] = [
+  'today',
+  'last-7-days',
+  'last-30-days',
   'this-month',
   'last-month',
   'this-quarter',
@@ -43,10 +49,16 @@ function iso(year: number, monthIndex: number, day: number): string {
 }
 
 export function presetRange(preset: Exclude<RangePreset, 'custom'>, today: string = todayIso()): DateRange {
-  const [year, month] = today.split('-').map(Number)
+  const [year, month, day] = today.split('-').map(Number)
   const monthIndex = month - 1
   const quarterStart = monthIndex - (monthIndex % 3)
   switch (preset) {
+    case 'today':
+      return { from: today, to: today }
+    case 'last-7-days':
+      return { from: iso(year, monthIndex, day - 6), to: today }
+    case 'last-30-days':
+      return { from: iso(year, monthIndex, day - 29), to: today }
     case 'this-month':
       return { from: iso(year, monthIndex, 1), to: iso(year, monthIndex + 1, 0) }
     case 'last-month':
