@@ -28,7 +28,7 @@ const documentStore = useDocumentStore()
 // (which unmounts and remounts this panel -- see DashboardPage.vue) never
 // re-issues a request the first mount already made or has in flight.
 onMounted(() => {
-  if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
+  if (!projectStore.isFullyLoaded && !projectStore.isLoading) void projectStore.loadProjects()
   if (taskStore.needsFullLoad) void taskStore.loadTasks()
   if (documentStore.needsFullLoad) void documentStore.loadDocuments()
 })

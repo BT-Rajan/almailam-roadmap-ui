@@ -89,11 +89,14 @@ const isLoading = ref(true)
 
 async function loadData(): Promise<void> {
   isLoading.value = true
-  if (isProjectLocked.value && projectStore.projects.length === 0) await projectStore.loadProjects()
+  if (isProjectLocked.value && queryProjectId.value) await projectStore.ensureProject(queryProjectId.value)
   if (isEditMode.value && editSubmissionNo.value) {
     await submissionStore.loadSubmissionByNo(editSubmissionNo.value)
   } else if (submissionStore.authorities.length === 0 || submissionStore.forms.length === 0) {
-    await submissionStore.loadSubmissions()
+    // Opened from a project: its own applications bring the authorities/
+    // forms catalogs too, without downloading every application.
+    if (isProjectLocked.value && queryProjectId.value) await submissionStore.loadSubmissionsForProject(queryProjectId.value)
+    else await submissionStore.loadSubmissions()
   }
   isLoading.value = false
 }

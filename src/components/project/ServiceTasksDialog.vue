@@ -285,7 +285,7 @@ watch(
     resetQuickAdd()
     void taskStore.loadTasksForProject(props.project.id)
     if (userStore.users.length === 0) void userStore.loadUsers()
-    if (clientStore.clients.length === 0) void clientStore.loadClients()
+    void clientStore.ensureClient(props.project.clientId)
   },
   { immediate: true },
 )

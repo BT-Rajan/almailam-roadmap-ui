@@ -89,6 +89,9 @@ function defaultRoute(method: string, path: string): unknown {
     if ((m = pathname.match(/^\/api\/projects\/[^/]+\/handover$/))) return fixture.handover
     if (/^\/api\/projects\/[^/]+$/.test(pathname)) return project
     if (pathname === '/api/clients') return fixture.clientsPage
+    if ((m = pathname.match(/^\/api\/clients\/([^/]+)$/))) {
+      return fixture.clientsPage.items.find((c: { id: string }) => c.id === m![1]) ?? null
+    }
     if (pathname === '/api/service-catalog/services') return fixture.serviceCatalog
     if (pathname === '/api/financial-agreements') return fixture.agreements
     if ((m = pathname.match(/^\/api\/financial-agreements\/by-project\/[^/]+$/))) {

@@ -76,7 +76,7 @@ async function loadData(): Promise<void> {
   isLoading.value = true
   loadError.value = undefined
   try {
-    if (originProjectId.value && projectStore.projects.length === 0) await projectStore.loadProjects()
+    if (originProjectId.value) await projectStore.ensureProject(originProjectId.value)
     const loaded = await submissionStore.loadSubmissionByNo(submissionNo.value)
     if (loaded) {
       if (loaded.stage === 'Track' || loaded.stage === 'Close') {

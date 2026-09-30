@@ -126,7 +126,7 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
         const projectStore = useProjectStore()
         const [submissions, , authorities, forms] = await Promise.all([
           governmentSubmissionService.getSubmissions(),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
           governmentFormService.getAuthorities(),
           governmentFormService.getForms(),
         ])

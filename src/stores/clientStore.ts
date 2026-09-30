@@ -34,7 +34,11 @@ interface ClientPaginationState {
 }
 
 interface ClientStoreState {
+  // A cache, NOT necessarily the full list -- ensureClient puts single
+  // clients here for project-scoped pages. Check isFullyLoaded, never
+  // `clients.length`, to know whether this is every client.
   clients: Client[]
+  isFullyLoaded: boolean
   isLoading: boolean
   error: string | undefined
   typeFilter: ClientType | 'All'
@@ -63,6 +67,7 @@ interface ClientStoreState {
 export const useClientStore = defineStore('client', {
   state: (): ClientStoreState => ({
     clients: [],
+    isFullyLoaded: false,
     isLoading: false,
     error: undefined,
     typeFilter: 'All',
@@ -113,7 +118,10 @@ export const useClientStore = defineStore('client', {
         this.error = undefined
         try {
           const clients = await clientService.getClients()
-          if (isCurrent()) this.clients = clients
+          if (isCurrent()) {
+            this.clients = clients
+            this.isFullyLoaded = true
+          }
           return true
         } catch (error) {
           if (isCurrent()) this.error = describeStoreError('Unable to load clients. Please try again.', error)
@@ -122,6 +130,22 @@ export const useClientStore = defineStore('client', {
           if (isCurrent()) this.isLoading = false
         }
       }, options)
+    },
+
+    // Makes sure this one client is in the cache, fetching just that
+    // record (see projectStore.ensureProject). Failures are swallowed --
+    // a missing client only blanks a name, it shouldn't break the page.
+    async ensureClient(clientId: string | undefined): Promise<Client | undefined> {
+      if (!clientId) return undefined
+      const cached = this.getClientById(clientId)
+      if (cached) return cached
+      try {
+        const client = await clientService.getClientById(clientId)
+        if (client && !this.getClientById(clientId)) this.clients = [...this.clients, client]
+        return client
+      } catch {
+        return undefined
+      }
     },
 
     // Fetches just the current page/filter/sort combination from the

@@ -57,7 +57,7 @@ const clientStore = useClientStore()
 const { t } = useI18n()
 const { isRtl } = useLocale()
 onMounted(() => {
-  if (clientStore.clients.length === 0) clientStore.loadClients()
+  void clientStore.ensureClient(props.project.clientId)
 })
 
 const rowChevron = computed(() => (isRtl.value ? ChevronLeft : ChevronRight))

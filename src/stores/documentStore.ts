@@ -99,7 +99,7 @@ export const useDocumentStore = defineStore('document', {
             this.documents = documents
             this.isFullyLoaded = true
           }),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
         ])
       } catch (error) {
         this.error = describeStoreError('Unable to load documents. Please try again.', error)
@@ -143,7 +143,7 @@ export const useDocumentStore = defineStore('document', {
       this.error = undefined
       try {
         const projectStore = useProjectStore()
-        if (projectStore.projects.length === 0) {
+        if (!projectStore.isFullyLoaded) {
           await projectStore.loadProjects()
         }
         const result = await documentService.getDocumentsPage({
@@ -188,10 +188,8 @@ export const useDocumentStore = defineStore('document', {
         ])
         this.currentDocument = document
         this.currentVersions = versions
-        const projectStore = useProjectStore()
-        if (projectStore.projects.length === 0) {
-          await projectStore.loadProjects()
-        }
+        // Only this document's own project (for its name) -- not every project.
+        if (document?.projectId) await useProjectStore().ensureProject(document.projectId)
       } catch (error) {
         this.error = describeStoreError('Unable to load document. Please try again.', error)
       } finally {

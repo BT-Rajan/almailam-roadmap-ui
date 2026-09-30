@@ -18,7 +18,7 @@ const clientStore = useClientStore()
 // visited earlier this session) or already mid-fetch (this tab was
 // switched away from and back to before the first load resolved).
 onMounted(() => {
-  if (clientStore.clients.length === 0 && !clientStore.isLoading) void clientStore.loadClients()
+  if (!clientStore.isFullyLoaded && !clientStore.isLoading) void clientStore.loadClients()
 })
 
 // Onboarding still in progress -- anything short of 'Ready' (or already

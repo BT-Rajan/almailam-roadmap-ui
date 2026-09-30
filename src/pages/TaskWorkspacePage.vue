@@ -55,17 +55,14 @@ const isLoading = ref(true)
 const loadError = ref<string | undefined>(undefined)
 
 async function loadData(): Promise<void> {
-  // Skip the fetch when every task is already here, or when at least this one
-  // is (opened from its own project's Tasks tab, which loads only that
-  // project's tasks -- so a non-empty list alone doesn't mean this task is in it).
-  if (taskStore.isFullyLoaded || taskStore.tasks.some((item) => item.id === taskId.value)) {
-    isLoading.value = false
-    return
-  }
-  isLoading.value = true
+  // Just this task, plus its project and client for the header -- never
+  // every task/project in the company.
+  const cached = taskStore.tasks.find((item) => item.id === taskId.value)
+  isLoading.value = !cached
   loadError.value = undefined
   try {
-    await taskStore.loadTasks()
+    const loaded = cached ?? (await taskStore.ensureTask(taskId.value))
+    if (loaded) await projectStore.ensureProject(loaded.projectId)
   } catch {
     loadError.value = t('common.pleaseTryAgain')
   } finally {

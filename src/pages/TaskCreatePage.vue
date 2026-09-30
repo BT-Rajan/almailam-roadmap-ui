@@ -14,6 +14,7 @@ import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
 import { useClientStore } from '@/stores/clientStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
@@ -33,6 +34,7 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 const clientStore = useClientStore()
 const taskStore = useTaskStore()
+const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
@@ -56,8 +58,11 @@ const queryTitle = computed(() => {
 
 onMounted(() => {
   if (userStore.users.length === 0) userStore.loadUsers()
-  if (clientStore.clients.length === 0) clientStore.loadClients()
-  if (taskStore.projects.length === 0) taskStore.loadTasks()
+  // Locked to one project (opened from inside it): fetch just that one.
+  // Otherwise the Project picker needs the list -- but only the list,
+  // not every task in the company as this used to load for it.
+  if (isProjectLocked.value && queryProjectId.value) void projectStore.ensureProject(queryProjectId.value)
+  else if (!projectStore.isFullyLoaded) void projectStore.loadProjects()
   form.title = queryTitle.value ?? ''
   form.projectId = queryProjectId.value ?? ''
   form.assignedTo = authStore.user?.id ?? ''

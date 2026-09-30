@@ -74,6 +74,7 @@ const CASES: [name: string, run: () => Promise<string | undefined>][] = [
   ['projectFormStore.load', async () => { const s = useProjectFormStore(); await s.load('P-1'); return s.error }],
   ['projectLinkDocumentStore.loadForProject', async () => { const s = useProjectLinkDocumentStore(); await s.loadForProject('P-1'); return s.error }],
   ['projectStore.loadProjects', async () => { const s = useProjectStore(); await s.loadProjects(); return s.error }],
+  ['projectStore.ensureProject', async () => { const s = useProjectStore(); await s.ensureProject('P-1'); return s.error }],
   ['projectStore.loadProjectsPage', async () => { const s = useProjectStore(); await s.loadProjectsPage(); return s.error }],
   ['quotationStore.loadQuotationsForProject', async () => { const s = useQuotationStore(); await s.loadQuotationsForProject('P-1'); return s.error }],
   ['serviceCatalogStore.loadServices', async () => { const s = useServiceCatalogStore(); await s.loadServices(); return s.error }],

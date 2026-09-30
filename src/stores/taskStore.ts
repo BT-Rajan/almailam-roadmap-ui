@@ -133,8 +133,8 @@ export const useTaskStore = defineStore('task', {
             this.tasks = tasks
             this.isFullyLoaded = true
           }),
-          projectStore.projects.length === 0 ? projectStore.loadProjects() : Promise.resolve(),
-          clientStore.clients.length === 0 ? clientStore.loadClients() : Promise.resolve(),
+          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
+          !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
         ])
       } catch (error) {
         this.error = describeStoreError('Unable to load tasks. Please try again.', error)
@@ -180,6 +180,16 @@ export const useTaskStore = defineStore('task', {
     // longer editable from the UI at all -- see updateTaskPriority/
     // updateTaskSeverity removal -- but the fields themselves still
     // exist on Task, defaulted server-side.)
+    // One task by id, fetching just it when not cached -- for the task
+    // page opened from a link, instead of downloading every task.
+    async ensureTask(taskId: string): Promise<Task | undefined> {
+      const cached = this.tasks.find((task) => task.id === taskId)
+      if (cached) return cached
+      const task = await taskService.getTaskById(taskId)
+      if (task && !this.tasks.some((item) => item.id === taskId)) this.tasks = [...this.tasks, task]
+      return task
+    },
+
     async updateTaskTitle(taskId: string, title: string) {
       const updated = await taskService.updateTask(taskId, { title })
       this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))

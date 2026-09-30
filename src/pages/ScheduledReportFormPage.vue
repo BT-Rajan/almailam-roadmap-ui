@@ -56,7 +56,7 @@ const isLoading = ref(true)
 async function loadData(): Promise<void> {
   isLoading.value = true
   if (scheduledReportStore.schedules.length === 0) await scheduledReportStore.loadSchedules()
-  if (projectStore.projects.length === 0) await projectStore.loadProjects()
+  if (!projectStore.isFullyLoaded) await projectStore.loadProjects()
   isLoading.value = false
 }
 onMounted(loadData)

@@ -24,7 +24,7 @@ const contractRenewalsWidget = ref<InstanceType<typeof UpcomingDeadlinesWidget> 
 // needs projectStore -- guarded the same way as the other tabs.
 onMounted(() => {
   if (taskStore.needsFullLoad) void taskStore.loadTasks()
-  if (projectStore.projects.length === 0 && !projectStore.isLoading) void projectStore.loadProjects()
+  if (!projectStore.isFullyLoaded && !projectStore.isLoading) void projectStore.loadProjects()
 })
 
 function projectNameFor(projectId: string): string {

@@ -139,7 +139,7 @@ const contactDetailItems = computed(() => {
 })
 
 async function loadData(): Promise<void> {
-  if (clientStore.clients.length === 0) {
+  if (!clientStore.isFullyLoaded) {
     await clientStore.loadClients()
   }
   await clientStore.loadClientDetail(clientId.value)
