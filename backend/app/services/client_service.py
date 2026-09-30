@@ -655,6 +655,10 @@ def merge_clients(db: Session, source_client_id: int, target_client_id: int, use
     return target
 
 
+DUPLICATE_NAME_CANDIDATES = 50
+DUPLICATE_MATCHES_LIMIT = 10
+
+
 def find_possible_duplicates(
     db: Session, name: str, mobile: str, email: str, registration_number: str = ""
 ) -> list[dict]:
@@ -666,16 +670,27 @@ def find_possible_duplicates(
     # Name/email/registration have no formatting ambiguity, so they can be
     # filtered reliably in SQL rather than loading every client row on
     # every debounced keystroke while filling in the onboarding wizard.
-    sql_conditions = []
+    candidates: dict[int, Client] = {}
     if len(name_term) > 2:
-        sql_conditions.append(func.lower(Client.company_name).contains(name_term))
+        # A short partial name can match most of the client list; a
+        # handful of name matches is enough to warn about, so fetch a
+        # bounded set rather than hydrating thousands of rows per
+        # keystroke.
+        for client in (
+            db.query(Client)
+            .filter(Client.deleted_at.is_(None), func.lower(Client.company_name).contains(name_term))
+            .order_by(Client.id.desc())
+            .limit(DUPLICATE_NAME_CANDIDATES)
+        ):
+            candidates[client.id] = client
+
+    sql_conditions = []
     if len(email_term) > 3:
         sql_conditions.append(func.lower(Client.email) == email_term)
     if reg_term:
         sql_conditions.append(func.lower(Client.org_registration_number) == reg_term)
         sql_conditions.append(func.lower(Client.org_trade_licence_number) == reg_term)
 
-    candidates: dict[int, Client] = {}
     if sql_conditions:
         for client in db.query(Client).filter(Client.deleted_at.is_(None), or_(*sql_conditions)).all():
             candidates[client.id] = client
@@ -714,7 +729,10 @@ def find_possible_duplicates(
             matched_on.append("Trade licence number")
         if matched_on:
             matches.append({"client": client, "matchedOn": matched_on})
-    return matches
+    # Strongest first: an exact mobile/email/registration match outranks
+    # a partial name match; the alert only needs the top few.
+    matches.sort(key=lambda m: (len(m["matchedOn"]), m["matchedOn"] != ["Name"]), reverse=True)
+    return matches[:DUPLICATE_MATCHES_LIMIT]
 
 
 # --- child records -----------------------------------------------------

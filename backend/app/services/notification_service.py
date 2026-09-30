@@ -62,11 +62,22 @@ def notify_role(
     return len(recipients)
 
 
+# Read notifications only accumulate (the daily checks add more every
+# day), so the drawer gets the most recent ones, not the whole history.
+READ_NOTIFICATIONS_LIMIT = 100
+
+
 def list_for_user(db: Session, user_id: int, unread_only: bool = False) -> list[Notification]:
-    query = db.query(Notification).filter(Notification.user_id == user_id)
+    """Every unread notification (the header badge counts these, so none
+    may be left out) plus the READ_NOTIFICATIONS_LIMIT most recent read
+    ones, newest first."""
+    base = db.query(Notification).filter(Notification.user_id == user_id)
+    newest_first = (Notification.created_at.desc(), Notification.id.desc())
+    unread = base.filter(Notification.read.is_(False)).order_by(*newest_first).all()
     if unread_only:
-        query = query.filter(Notification.read.is_(False))
-    return query.order_by(Notification.created_at.desc()).all()
+        return unread
+    read = base.filter(Notification.read.is_(True)).order_by(*newest_first).limit(READ_NOTIFICATIONS_LIMIT).all()
+    return sorted(unread + read, key=lambda n: (n.created_at, n.id), reverse=True)
 
 
 def mark_as_read(db: Session, user_id: int, notification_no: str) -> None:

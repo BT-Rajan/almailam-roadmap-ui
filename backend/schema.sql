@@ -1113,7 +1113,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     link_query          JSON NULL,
     CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_notifications_user (user_id),
-    INDEX idx_notifications_user_read (user_id, `read`)
+    -- Unread/read lists newest-first (notification_service.list_for_user).
+    INDEX idx_notifications_user_read (user_id, `read`, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS message_templates (
@@ -1143,7 +1144,8 @@ CREATE TABLE IF NOT EXISTS message_log (
     CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_message_log_template FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE SET NULL,
     CONSTRAINT fk_message_log_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-    INDEX idx_message_log_client (client_id)
+    INDEX idx_message_log_client (client_id),
+    INDEX idx_message_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Files attached to an Email-channel message_log row (migration 0098)
