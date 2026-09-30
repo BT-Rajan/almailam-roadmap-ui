@@ -47,8 +47,8 @@ const emit = defineEmits<{
 // the card header (replacing the plain status text), `service-footer`
 // right under it.
 defineSlots<{
-  'service-actions'?: (props: { service: ServiceRef }) => unknown
-  'service-footer'?: (props: { service: ServiceRef }) => unknown
+  'service-actions'?: (props: { service: ServiceRef; soleTask?: Task }) => unknown
+  'service-footer'?: (props: { service: ServiceRef; soleTask?: Task }) => unknown
 }>()
 
 const taskStore = useTaskStore()
@@ -89,6 +89,18 @@ interface TaskGroup {
   service: ServiceRef | null
   tasks: Task[]
   done: number
+  // The task the system auto-created for this service (same title as the
+  // service -- see project_service._create_service_tasks), if still here.
+  mainTask?: Task
+  // Set while that main task is the service's ONLY task: the card then
+  // shows it folded into the service line (owner, due date, status)
+  // instead of repeating the same name as a separate row -- the list
+  // only appears once there's more than one piece of work.
+  soleTask?: Task
+}
+
+function isMainTaskOf(task: Task, service: ServiceRef): boolean {
+  return task.title.trim().toLowerCase() === service.name.trim().toLowerCase()
 }
 
 function sortTasks(tasks: Task[]): Task[] {
@@ -111,7 +123,9 @@ const groups = computed<TaskGroup[]>(() => {
   const result: TaskGroup[] = projectServices(props.project, scopedKinds.value).map((service) => {
     const key = serviceKey(service.kind, service.id)
     const tasks = sortTasks(byKey.get(key) ?? [])
-    return { key, service, tasks, done: tasks.filter((task) => task.status === 'Completed').length }
+    const mainTask = tasks.find((task) => isMainTaskOf(task, service))
+    const soleTask = tasks.length === 1 ? mainTask : undefined
+    return { key, service, tasks, done: tasks.filter((task) => task.status === 'Completed').length, mainTask, soleTask }
   })
   const general = sortTasks(byKey.get('') ?? [])
   result.push({ key: 'general', service: null, tasks: general, done: general.filter((task) => task.status === 'Completed').length })
@@ -168,19 +182,27 @@ function openGeneral(): void {
             type="button"
             class="flex min-w-0 flex-1 flex-col items-start gap-1 text-start"
             :aria-label="t('project.serviceTasks.openTasksFor', { service: group.service?.name ?? t('project.tasksTab.generalGroup') })"
-            @click="openGroup(group)"
+            @click="openGroup(group, group.soleTask?.id)"
           >
             <span class="truncate text-sm font-semibold text-text-primary hover:text-primary-600">
               {{ group.service?.name ?? t('project.tasksTab.generalGroup') }}
             </span>
-            <span class="text-xs text-text-muted">
+            <span v-if="group.soleTask" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+              <span>{{ group.soleTask.assignedTo }}</span>
+              <span>&middot;</span>
+              <span :class="{ 'font-medium text-danger-700': isTaskOverdue(group.soleTask) }">
+                {{ t('project.tasksTab.due', { date: formatTaskDueDateTime(group.soleTask) }) }}
+              </span>
+              <TaskStatusBadge :status="group.soleTask.status" />
+            </span>
+            <span v-else class="text-xs text-text-muted">
               {{ group.service ? t(KIND_LABEL_KEYS[group.service.kind]) : t('project.tasksTab.generalGroupHint') }}
               <template v-if="group.service?.status && !$slots['service-actions']"> &middot; {{ group.service.status }}</template>
             </span>
           </button>
           <div class="flex flex-wrap items-center gap-3">
-            <slot v-if="group.service" name="service-actions" :service="group.service" />
-            <div v-if="group.tasks.length > 0" class="flex w-32 flex-col gap-1">
+            <slot v-if="group.service" name="service-actions" :service="group.service" :sole-task="group.soleTask" />
+            <div v-if="group.tasks.length > 0 && !group.soleTask" class="flex w-32 flex-col gap-1">
               <span class="text-end text-xs font-medium text-text-secondary">
                 {{ t('project.serviceTasks.tasksChip', { done: group.done, total: group.tasks.length }) }}
               </span>
@@ -192,9 +214,9 @@ function openGeneral(): void {
           </div>
         </div>
 
-        <slot v-if="group.service" name="service-footer" :service="group.service" />
+        <slot v-if="group.service" name="service-footer" :service="group.service" :sole-task="group.soleTask" />
         <p v-if="group.tasks.length === 0" class="px-5 py-3 text-xs text-text-muted">{{ t('project.tasksTab.noServiceTasksYet') }}</p>
-        <ul v-else class="divide-y divide-border-light">
+        <ul v-else-if="!group.soleTask" class="divide-y divide-border-light">
           <li v-for="task in group.tasks" :key="task.id">
             <button
               type="button"
@@ -206,7 +228,12 @@ function openGeneral(): void {
                   class="truncate text-sm font-medium"
                   :class="task.status === 'Completed' ? 'text-text-muted line-through' : 'text-text-primary'"
                 >{{ task.title }}</p>
-                <p class="truncate text-xs text-text-muted">{{ task.assignedTo }}</p>
+                <p class="truncate text-xs text-text-muted">
+                  <span
+                    v-if="task.id === group.mainTask?.id"
+                    class="me-1.5 rounded bg-primary-500/15 px-1.5 py-0.5 font-medium text-primary-600"
+                  >{{ t('project.tasksTab.mainTask') }}</span>{{ task.assignedTo }}
+                </p>
               </div>
               <TaskStatusBadge :status="task.status" />
               <span

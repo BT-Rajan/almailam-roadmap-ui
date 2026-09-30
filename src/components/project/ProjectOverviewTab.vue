@@ -37,6 +37,7 @@ import type { AgreementStream } from '@/types/Payment'
 import type { Client } from '@/types/Client'
 import type { GovernmentForm } from '@/types/Government'
 import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Project'
+import type { Task } from '@/types/Task'
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
@@ -116,6 +117,40 @@ function designActivityTasksComplete(activityId: string): boolean {
 function canMarkComplete(kind: CompletionKind, id: string): boolean {
   if (kind === 'design' && !designActivityTasksComplete(id)) return false
   return hasProjectClosureDocument.value || Boolean(overrides[overrideKey(kind, id)])
+}
+// When an activity's only task is its own auto-created one (shown folded
+// into the activity line -- see ProjectTasksTab.vue's soleTask), that
+// task doesn't block Mark Complete: Mark Complete completes it along
+// with the activity in one click (completeDesignActivity below). With
+// more than one task, every one must still be done first.
+function tasksBlockDesignCompletion(activityId: string, soleTask?: Task): boolean {
+  return !soleTask && !designActivityTasksComplete(activityId)
+}
+function canCompleteDesignActivity(activityId: string, soleTask?: Task): boolean {
+  if (tasksBlockDesignCompletion(activityId, soleTask)) return false
+  return hasProjectClosureDocument.value || Boolean(overrides[overrideKey('design', activityId)])
+}
+async function completeDesignActivity(activityId: string, soleTask?: Task): Promise<void> {
+  if (soleTask && soleTask.status !== 'Completed') {
+    activityActionPendingId.value = activityId
+    try {
+      // Completing the activity's last open task auto-closes the
+      // activity server-side (project_service.maybe_auto_close_design_activity).
+      await taskStore.updateTaskStatus(soleTask.id, 'Completed')
+      await projectStore.refreshProject(props.project.id)
+    } catch (error) {
+      toastStore.show('error', t('project.overviewTab.failedToCloseActivity'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+      activityActionPendingId.value = undefined
+      return
+    }
+    activityActionPendingId.value = undefined
+    if (designActivityById(activityId)?.status === 'Complete') {
+      await handoverCardRef.value?.reload()
+      toastStore.show('success', t('project.overviewTab.activityClosed'))
+      return
+    }
+  }
+  await closeDesignActivity(activityId, 'Complete')
 }
 function setOverride(kind: CompletionKind, id: string, checked: boolean): void {
   overrides[overrideKey(kind, id)] = checked
@@ -825,7 +860,7 @@ function verificationResultLabel(result: string): string {
         {{ t('project.overviewTab.noDesignActivitiesYet') }}
       </p>
       <ProjectTasksTab :project="project" stage-context="Design" @changed="handleServiceTasksChanged">
-        <template #service-actions="{ service }">
+        <template #service-actions="{ service, soleTask }">
           <template v-for="activity in [designActivityById(service.id)]" :key="activity?.id ?? service.id">
             <template v-if="activity?.id">
               <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
@@ -844,15 +879,15 @@ function verificationResultLabel(result: string): string {
                 <BaseButton
                   variant="primary" size="sm" class="no-print"
                   :loading="activityActionPendingId === activity.id"
-                  :disabled="!canMarkComplete('design', activity.id)"
-                  :title="!designActivityTasksComplete(activity.id) ? t('project.overviewTab.tasksMustBeCompleteFirst') : undefined"
-                  @click="closeDesignActivity(activity.id, 'Complete')"
+                  :disabled="!canCompleteDesignActivity(activity.id, soleTask)"
+                  :title="tasksBlockDesignCompletion(activity.id, soleTask) ? t('project.overviewTab.tasksMustBeCompleteFirst') : undefined"
+                  @click="completeDesignActivity(activity.id, soleTask)"
                 >{{ t('project.overviewTab.markComplete') }}</BaseButton>
               </template>
             </template>
           </template>
         </template>
-        <template #service-footer="{ service }">
+        <template #service-footer="{ service, soleTask }">
           <template v-for="activity in [designActivityById(service.id)]" :key="activity?.id ?? service.id">
             <div v-if="activity?.id" class="flex flex-col gap-2 border-b border-border-light px-5 py-2 text-xs no-print">
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -862,10 +897,10 @@ function verificationResultLabel(result: string): string {
                   @click="toggleReferenceDocs('Design', activity.activityId)"
                 >{{ t('project.overviewTab.referenceDocuments') }}</button>
                 <template v-if="activity.status !== 'Complete' && activity.status !== 'Cancelled'">
-                  <span v-if="!designActivityTasksComplete(activity.id)" class="text-text-muted">
+                  <span v-if="tasksBlockDesignCompletion(activity.id, soleTask)" class="text-text-muted">
                     {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
                   </span>
-                  <template v-else-if="!canMarkComplete('design', activity.id)">
+                  <template v-else-if="!canCompleteDesignActivity(activity.id, soleTask)">
                     <label class="inline-flex items-center gap-1.5 text-text-muted">
                       <input
                         type="checkbox"

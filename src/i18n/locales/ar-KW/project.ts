@@ -465,6 +465,8 @@ export default {
     generalGroupHint: 'غير مرتبطة بخدمة محددة',
     openService: 'فتح',
     addTask: 'إضافة مهمة',
+    due: 'الاستحقاق {date}',
+    mainTask: 'المهمة الرئيسية',
     noServiceTasksYet: 'لا توجد مهام بعد',
     emptyTitle: 'لا توجد خدمات أو مهام بعد',
     emptyDescription: 'تظهر هنا الخدمات المختارة لهذا المشروع مع مهامها. استخدم "مهمة جديدة" لإضافة مهمة عامة.',

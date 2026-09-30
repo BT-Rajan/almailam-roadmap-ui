@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import ProjectOverviewTab from '@/components/project/ProjectOverviewTab.vue'
 import { i18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { fixture, testUser } from '@/test-utils/mockApi'
 import { settleFor } from '@/test-utils/waitFor'
@@ -45,5 +46,64 @@ describe('ProjectOverviewTab -- Design stage', () => {
     expect(text).toContain('Mark Complete')
     expect(text).not.toContain('No permits selected for this project.')
     expect(text).not.toContain('No design documents delivered yet.')
+  })
+})
+
+describe('ProjectOverviewTab -- Design activity with its own auto-created task', () => {
+  const baseTask = { projectId: '', assignedTo: 'Ahmed Rashid', priority: 'Medium', severity: 'Minor', dueDate: '2026-10-31', dueTime: '17:00', selectedActivityId: '11' } as const
+
+  async function mountWith(tasks: Array<{ id: string; title: string; status: 'Preset' | 'Pending' | 'Completed' }>) {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().$patch({ accessToken: 'token', user: testUser('Administrator'), hasHydrated: true })
+    const project = {
+      ...fixture.project,
+      selectedActivities: [{ id: '11', activityId: 'A1', activityName: 'Architectural Design', status: 'Not Started' }],
+    } as Project
+    const taskStore = useTaskStore()
+    vi.spyOn(taskStore, 'loadTasksForProject').mockResolvedValue()
+    taskStore.$patch({ tasks: tasks.map((task) => ({ ...baseTask, ...task, projectId: project.id })) })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
+    const w = mount(ProjectOverviewTab, {
+      props: { project, client: undefined, stageContext: 'Design' },
+      global: { plugins: [pinia, i18n, router], stubs: { teleport: true } },
+    })
+    await settleFor(60)
+    return { w, taskStore, project }
+  }
+
+  it('folds the only, same-named task into the activity line instead of repeating it', async () => {
+    const { w } = await mountWith([{ id: 'T-main', title: 'Architectural Design', status: 'Preset' }])
+    expect(w.text().match(/Architectural Design/g)?.length).toBe(1)
+    expect(w.text()).toContain('Ahmed Rashid')
+    expect(w.text()).not.toContain('0/1 tasks')
+    expect(w.text()).not.toContain('Complete all tasks linked to this activity')
+  })
+
+  it('Mark Complete completes that task and the activity in one click', async () => {
+    const { w, taskStore, project } = await mountWith([{ id: 'T-main', title: 'Architectural Design', status: 'Preset' }])
+    const update = vi.spyOn(taskStore, 'updateTaskStatus').mockResolvedValue()
+    const projectStore = useProjectStore()
+    vi.spyOn(projectStore, 'refreshProject').mockImplementation(async () => {
+      await w.setProps({ project: { ...project, selectedActivities: [{ ...project.selectedActivities![0], status: 'Complete' }] } })
+    })
+    const markComplete = () => w.findAll('button').find((b) => b.text() === 'Mark Complete')!
+    expect(markComplete().attributes('disabled')).toBeDefined() // still needs a closure document or the override
+    await w.find('input[type="checkbox"]').setValue(true)
+    expect(markComplete().attributes('disabled')).toBeUndefined()
+    await markComplete().trigger('click')
+    await settleFor(60)
+    expect(update).toHaveBeenCalledWith('T-main', 'Completed')
+  })
+
+  it('shows the full checklist, main task labelled, once there is more than one task', async () => {
+    const { w } = await mountWith([
+      { id: 'T-main', title: 'Architectural Design', status: 'Preset' },
+      { id: 'T-2', title: 'Check setbacks', status: 'Pending' },
+    ])
+    expect(w.text()).toContain('Main task')
+    expect(w.text()).toContain('Check setbacks')
+    expect(w.text()).toContain('0/2 tasks')
+    expect(w.text()).toContain('Complete all tasks linked to this activity')
   })
 })

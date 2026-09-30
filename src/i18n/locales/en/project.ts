@@ -469,6 +469,8 @@ export default {
     generalGroupHint: 'Not linked to a specific service',
     openService: 'Open',
     addTask: 'Add task',
+    due: 'Due {date}',
+    mainTask: 'Main task',
     noServiceTasksYet: 'No tasks yet',
     emptyTitle: 'No services or tasks yet',
     emptyDescription: 'Services selected for this project appear here with their tasks. Use New Task to add a general task.',
