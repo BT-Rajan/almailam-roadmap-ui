@@ -340,6 +340,10 @@ class SubmissionOut(BaseModel):
     # still be filed ad hoc with no permit selection behind it.
     selectedPermitId: str | None = None
 
+    # Display name, so application lists can label rows without the client
+    # downloading every project to look it up.
+    projectName: str = ""
+
     @staticmethod
     def from_model(
         submission,

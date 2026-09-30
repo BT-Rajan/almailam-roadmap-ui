@@ -94,13 +94,15 @@ export const useMessageCentreStore = defineStore('messageCentre', {
       this.isLoading = true
       this.error = undefined
       try {
+        // The client directory is this page's purpose, so it loads every
+        // client. Projects are NOT all downloaded: the log carries its
+        // project names, and a client's projects are fetched when a message
+        // to that client is composed (loadProjectsForClient below).
         const clientStore = useClientStore()
-        const projectStore = useProjectStore()
         const [templates, log] = await Promise.all([
           messageService.getTemplates(),
           messageService.getMessageLog(),
           !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
-          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
         ])
         this.templates = templates
         this.log = log
@@ -122,6 +124,12 @@ export const useMessageCentreStore = defineStore('messageCentre', {
     openCompose(clientId: string) {
       this.selectedClientId = clientId
       this.isComposeOpen = true
+    },
+
+    // Just the selected client's projects, for the compose form's
+    // "related project" picker.
+    async loadProjectsForClient(clientId: string) {
+      await useProjectStore().loadProjectsForClient(clientId)
     },
 
     closeCompose() {

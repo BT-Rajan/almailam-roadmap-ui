@@ -142,10 +142,8 @@ export const useDocumentStore = defineStore('document', {
       this.isPageLoading = true
       this.error = undefined
       try {
-        const projectStore = useProjectStore()
-        if (!projectStore.isFullyLoaded) {
-          await projectStore.loadProjects()
-        }
+        // Each document carries its project's name -- no need to download
+        // every project just to label the rows.
         const result = await documentService.getDocumentsPage({
           page: this.pagination.page,
           pageSize: this.pagination.pageSize,

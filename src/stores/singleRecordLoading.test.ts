@@ -55,3 +55,24 @@ describe('scoped loading -- no company-wide downloads', () => {
     expect(mockCalls.length).toBeLessThanOrEqual(3) // the application + authorities/forms catalogues
   })
 })
+
+describe('list pages label rows from server-sent names, not the full project list', () => {
+  beforeEach(() => {
+    resetMockApi()
+    setActivePinia(createPinia())
+  })
+
+  it('Documents, Permit applications and Messages never download every project', async () => {
+    overrideMockApi(/^\/api\/documents\?/, () => page([]))
+    overrideMockApi(/^\/api\/submissions(\?|$)/, () => [])
+    overrideMockApi(/^\/api\/government\//, () => [])
+    overrideMockApi(/^\/api\/messages\//, () => [])
+    overrideMockApi(/^\/api\/clients\?/, () => page([]))
+    const { useDocumentStore } = await import('@/stores/documentStore')
+    const { useMessageCentreStore } = await import('@/stores/messageCentreStore')
+    await useDocumentStore().loadDocumentsPage()
+    await useGovernmentSubmissionStore().loadSubmissions()
+    await useMessageCentreStore().loadAll()
+    expect(countCalls(LIST.projects), 'downloaded every project').toBe(0)
+  })
+})

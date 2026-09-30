@@ -27,6 +27,8 @@ export interface MessageLogEntry {
   errorMessage?: string | null
   attachments: MessageAttachment[]
   sentAt: string
+  // Sent by the server, so the log needn't download every project.
+  projectName?: string | null
 }
 
 export interface SendMessagePayload {

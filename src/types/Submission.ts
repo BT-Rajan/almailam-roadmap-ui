@@ -101,4 +101,7 @@ export interface GovernmentSubmission {
   // fulfilling, if any -- a submission can still be filed ad hoc with
   // no such link.
   selectedPermitId?: string | null
+  // Sent by the server with every application, so lists needn't download
+  // every project to label or search rows.
+  projectName?: string
 }

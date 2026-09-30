@@ -58,6 +58,9 @@ class MessageLogEntryOut(BaseModel):
     errorMessage: str | None
     attachments: list[MessageAttachmentOut]
     sentAt: datetime
+    # Display name, so the log can label rows without the client
+    # downloading every project to look it up.
+    projectName: str | None = None
 
     @staticmethod
     def from_model(

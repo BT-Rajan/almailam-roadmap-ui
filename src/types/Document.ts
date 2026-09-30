@@ -35,6 +35,9 @@ export interface ProjectDocument {
   // Documents checklist check "has this form been filled for this
   // project" via a real link instead of guessing from the title.
   sourceFormId: string | null
+  // Sent by the server with every document, so lists needn't download
+  // every project to label rows.
+  projectName?: string
 }
 
 export type DocumentViewMode = 'grid' | 'table'

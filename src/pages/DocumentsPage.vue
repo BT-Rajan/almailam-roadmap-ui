@@ -106,7 +106,7 @@ const tableRows = computed<DocumentTableRow[]>(() =>
     id: document.id,
     title: document.title,
     type: document.type,
-    projectName: documentStore.getProjectById(document.projectId)?.projectName ?? t('document.unknownProject'),
+    projectName: document.projectName || documentStore.getProjectById(document.projectId)?.projectName || t('document.unknownProject'),
     revision: document.revision,
     uploadedBy: document.uploadedBy,
     uploadDate: document.uploadDate,

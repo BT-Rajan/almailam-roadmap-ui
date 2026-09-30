@@ -34,7 +34,7 @@ def _to_out(db: Session, submission) -> SubmissionOut:
     project = db.query(Project).filter(Project.id == submission.project_id).first()
     documents = submission_service.get_documents(db, submission.id)
     uploader_names = {d.id: submission_service.user_name(db, d.uploaded_by) for d in documents if d.uploaded_by}
-    return SubmissionOut.from_model(
+    out = SubmissionOut.from_model(
         submission,
         project.project_no if project else "",
         documents,
@@ -46,6 +46,8 @@ def _to_out(db: Session, submission) -> SubmissionOut:
         if submission.proof_of_response_uploaded_by
         else None,
     )
+    out.projectName = project.project_name if project else ""
+    return out
 
 
 def _to_out_batch(db: Session, submissions: list) -> list[SubmissionOut]:
@@ -58,8 +60,9 @@ def _to_out_batch(db: Session, submissions: list) -> list[SubmissionOut]:
         return []
 
     project_ids = {s.project_id for s in submissions}
-    project_nos = {
-        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
+    projects = {
+        row[0]: (row[1], row[2])
+        for row in db.query(Project.id, Project.project_no, Project.project_name).filter(Project.id.in_(project_ids)).all()
     }
 
     documents_by_submission = submission_service.get_documents_by_submission(db, [s.id for s in submissions])
@@ -80,18 +83,19 @@ def _to_out_batch(db: Session, submissions: list) -> list[SubmissionOut]:
     out = []
     for submission in submissions:
         documents = documents_by_submission.get(submission.id, [])
-        out.append(
-            SubmissionOut.from_model(
-                submission,
-                project_nos.get(submission.project_id, ""),
-                documents,
-                document_uploader_names={
-                    d.id: names.get(d.uploaded_by, "Unknown") for d in documents if d.uploaded_by
-                },
-                proof_of_submission_uploader_name=_name(submission.proof_of_submission_uploaded_by),
-                proof_of_response_uploader_name=_name(submission.proof_of_response_uploaded_by),
-            )
+        project_no, project_name = projects.get(submission.project_id, ("", ""))
+        row = SubmissionOut.from_model(
+            submission,
+            project_no,
+            documents,
+            document_uploader_names={
+                d.id: names.get(d.uploaded_by, "Unknown") for d in documents if d.uploaded_by
+            },
+            proof_of_submission_uploader_name=_name(submission.proof_of_submission_uploaded_by),
+            proof_of_response_uploader_name=_name(submission.proof_of_response_uploaded_by),
         )
+        row.projectName = project_name
+        out.append(row)
     return out
 
 

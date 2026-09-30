@@ -24,7 +24,7 @@ defineEmits<{
 
 const { t } = useI18n()
 
-const projectName = computed(() => props.project?.projectName ?? t('document.unknownProject'))
+const projectName = computed(() => props.document.projectName || props.project?.projectName || t('document.unknownProject'))
 const typeIcon = computed(() => getDocumentTypeIcon(props.document.type))
 
 const STATUS_LABEL_KEYS: Record<string, string> = {

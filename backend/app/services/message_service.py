@@ -119,6 +119,14 @@ def project_nos_for(db: Session, project_ids: set[int]) -> dict[int, str]:
     return {project_id: project_no for project_id, project_no in rows}
 
 
+def project_names_for(db: Session, project_ids: set[int]) -> dict[int, str]:
+    """project id -> project name, one query for the whole log."""
+    if not project_ids:
+        return {}
+    rows = db.query(Project.id, Project.project_name).filter(Project.id.in_(project_ids)).all()
+    return {project_id: name for project_id, name in rows}
+
+
 def attachments_by_entry(db: Session, message_log_ids: list[int]) -> dict[int, list[MessageAttachment]]:
     """Batched list_attachments: one query for many log entries."""
     grouped: dict[int, list[MessageAttachment]] = {entry_id: [] for entry_id in message_log_ids}

@@ -22,12 +22,15 @@ can_edit = require_permission("Projects", "edit")
 
 def _message_log_out(db: Session, entry) -> MessageLogEntryOut:
     attachments = [MessageAttachmentOut.from_model(a) for a in message_service.list_attachments(db, entry.id)]
-    return MessageLogEntryOut.from_model(
+    out = MessageLogEntryOut.from_model(
         entry,
         message_service.client_display_id(entry.client_id),
         message_service.project_no_for(db, entry.project_id),
         attachments,
     )
+    if entry.project_id is not None:
+        out.projectName = message_service.project_names_for(db, {entry.project_id}).get(entry.project_id)
+    return out
 
 
 @router.get("/templates", response_model=list[MessageTemplateOut])
@@ -50,17 +53,21 @@ def list_log(
     client_id = client_service.parse_client_id(clientId) if clientId else None
     entries = message_service.list_log(db, client_id, projectId)
     # Two batched lookups for the whole log, not two queries per entry.
-    project_nos = message_service.project_nos_for(db, {e.project_id for e in entries if e.project_id is not None})
+    project_ids = {e.project_id for e in entries if e.project_id is not None}
+    project_nos = message_service.project_nos_for(db, project_ids)
+    project_names = message_service.project_names_for(db, project_ids)
     attachments = message_service.attachments_by_entry(db, [e.id for e in entries])
-    return [
-        MessageLogEntryOut.from_model(
+    out = []
+    for e in entries:
+        row = MessageLogEntryOut.from_model(
             e,
             message_service.client_display_id(e.client_id),
             project_nos.get(e.project_id) if e.project_id is not None else None,
             [MessageAttachmentOut.from_model(a) for a in attachments[e.id]],
         )
-        for e in entries
-    ]
+        row.projectName = project_names.get(e.project_id) if e.project_id is not None else None
+        out.append(row)
+    return out
 
 
 @router.post("/send", response_model=MessageLogEntryOut, status_code=201)
