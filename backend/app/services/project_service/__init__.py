@@ -1372,7 +1372,7 @@ def _create_service_tasks(db: Session, project: Project, user_id: int | None) ->
         db.flush()
         notification_service.create_notification(
             db, project.engineer_id, "New task assigned", f"You've been assigned: {title}", "Task",
-            link_route_name="tasks",
+            link_route_name="task-workspace", link_params={"taskId": task.task_no},
         )
 
     created_count = 0

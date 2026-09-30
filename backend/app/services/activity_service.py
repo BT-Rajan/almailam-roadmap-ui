@@ -147,6 +147,15 @@ def _fetch_rows(
             names[user_id] = full_name
 
     projects = _resolve_projects(db, rows)
+    # Tasks are addressed everywhere in the app by their task number
+    # (/tasks/2600007-001), not the internal row id the audit log keeps --
+    # so hand the calendar the number it can actually open.
+    from app.models.task import Task
+
+    task_row_ids = {row["entity_id"] for row in rows if row["entity_type"] == "TASK"}
+    task_nos = (
+        dict(db.query(Task.id, Task.task_no).filter(Task.id.in_(task_row_ids)).all()) if task_row_ids else {}
+    )
 
     activities = []
     for row in rows:
@@ -162,7 +171,11 @@ def _fetch_rows(
                 "id": str(row["id"]),
                 "type": inferred_type,
                 "entityType": ENTITY_TYPE_TO_FRONTEND.get(row["entity_type"], row["entity_type"].lower()),
-                "entityId": str(row["entity_id"]),
+                "entityId": (
+                    task_nos.get(row["entity_id"], str(row["entity_id"]))
+                    if row["entity_type"] == "TASK"
+                    else str(row["entity_id"])
+                ),
                 "entityName": row["new_value"] or row["previous_value"] or f"{row['entity_type']} #{row['entity_id']}",
                 "projectId": project_no_val,
                 "projectName": project_name_val,

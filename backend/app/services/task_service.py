@@ -163,7 +163,7 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     )
     notification_service.create_notification(
         db, assignee_id, "New task assigned", f"You've been assigned: {payload.title}", "Task",
-        link_route_name="tasks",
+        link_route_name="task-workspace", link_params={"taskId": task.task_no},
     )
     db.commit()
     db.refresh(task)
@@ -196,7 +196,7 @@ def update_task(db: Session, task_no: str, payload, user_id: int) -> Task:
             task.assigned_to = new_assignee_id
             notification_service.create_notification(
                 db, new_assignee_id, "Task reassigned to you", f"You've been assigned: {task.title}", "Task",
-                link_route_name="tasks",
+                link_route_name="task-workspace", link_params={"taskId": task.task_no},
             )
 
     if payload.selectedActivityId is not None:

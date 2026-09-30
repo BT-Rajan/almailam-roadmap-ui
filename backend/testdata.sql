@@ -741,10 +741,10 @@ INSERT INTO notifications (notification_no, user_id, title, message, category, c
 ('NTF-2026-002', @u_pm,    'Payment received',             'AED 82,000 received for Falcon Heights Warehouse Expansion (Instalment 1).', 'Project', '2026-06-01 10:05:00', 1, 'project-workspace', JSON_OBJECT('projectId', '2600005')),
 ('NTF-2026-003', @u_pm,    'Government submission update', 'Fire Safety Approval for Ahmadi Industrial Facility is now Under Review.', 'Government', '2026-06-15 11:30:00', 0, 'government-submissions', NULL),
 ('NTF-2026-004', @u_admin, 'New client onboarded',         'Ahmadi Industrial Holdings has completed onboarding and is pending verification.', 'Project', '2026-03-01 10:05:00', 0, 'client-workspace', JSON_OBJECT('clientId', 'CLT-004')),
-('NTF-2026-005', @u_layla, 'Task due soon',                'Draft preliminary structural calculations is due on 2026-09-20.', 'Task', '2026-09-08 08:00:00', 0, 'tasks', NULL),
+('NTF-2026-005', @u_layla, 'Task due soon',                'Draft preliminary structural calculations is due on 2026-09-20.', 'Task', '2026-09-08 08:00:00', 0, 'task-workspace', JSON_OBJECT('taskId', 'TSK-2026-002')),
 ('NTF-2026-006', @u_admin, 'Project ready for hand-over',   'Marina Bay Banquet Hall Refurb has every planned item closed and is awaiting payment confirmation.', 'Project', '2026-08-01 09:00:00', 0, 'project-workspace', JSON_OBJECT('projectId', '2600011')),
 ('NTF-2026-007', @u_admin, 'Project ready for hand-over',   'Marina Bay Rooftop Lounge has every planned item closed and payment confirmed -- collect the signed acknowledgment.', 'Project', '2026-05-10 09:00:00', 0, 'project-workspace', JSON_OBJECT('projectId', '2600012')),
-('NTF-2026-008', @u_ahmed, 'Task overdue',                  'Admin Building Fire Exit Design was due on 2026-08-15 and is still open.', 'Task', '2026-08-16 08:00:00', 0, 'tasks', NULL);
+('NTF-2026-008', @u_ahmed, 'Task overdue',                  'Admin Building Fire Exit Design was due on 2026-08-15 and is still open.', 'Task', '2026-08-16 08:00:00', 0, 'task-workspace', JSON_OBJECT('taskId', 'TSK-2026-029'));
 
 -- ----------------------------------------------------------------------------
 -- Message templates and log

@@ -195,7 +195,7 @@ def _transfer_open_tasks_to_new_manager(
         f"{len(open_tasks)} open task(s) on {client.company_name} were transferred to you "
         f"after you became the account manager.",
         "Task",
-        link_route_name="tasks",
+        link_route_name="my-tasks",
     )
 
 
