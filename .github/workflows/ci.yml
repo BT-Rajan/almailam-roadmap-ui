@@ -1,0 +1,53 @@
+# Runs on every pull request and every push to main: the same checks a
+# contributor runs locally. install.sh deploys whatever is on main, so a
+# red check here is the warning before a server pulls it.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # same as install.sh
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npx eslint . --max-warnings=0
+      - name: Type check and build
+        run: npm run build
+      - name: Unit and component tests
+        run: npx vitest run
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: System libraries for WeasyPrint (PDF output)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0
+      - run: pip install -r requirements.txt
+      - name: Tests (in-memory SQLite, no .env needed)
+        run: python -m unittest discover -s tests -t .
+      - name: Shell scripts parse
+        working-directory: .
+        run: bash -n install.sh && bash -n reset_db_from_schema.sh

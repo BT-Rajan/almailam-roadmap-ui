@@ -6,6 +6,8 @@ export default {
   greetingEvening: 'مساء الخير{name}',
   tabsAriaLabel: 'أقسام لوحة التحكم',
   clientsTab: 'العملاء',
+  staleNotice: 'تعذّر التحديث -- يتم عرض الأرقام من زيارتك السابقة.',
+  retry: 'إعادة المحاولة',
   projectsTab: 'المشاريع',
   deadlinesTab: 'المواعيد النهائية',
   financialsTab: 'الشؤون المالية',

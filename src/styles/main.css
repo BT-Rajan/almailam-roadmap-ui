@@ -358,9 +358,8 @@
   }
 }
 
-/* Shared by RichTextEditor.vue (while editing) and the read-only v-html
-   rendering in QuotationPreview.vue/ContractPreview.vue, so a clause or
-   notes field looks identical editing, viewing, and printed. */
+/* The read-only v-html rendering in QuotationPreview.vue/ContractPreview.vue,
+   so a clause or notes field looks the same on screen and printed. */
 .rich-text-content {
   line-height: 1.6;
 }
@@ -453,8 +452,11 @@
   top: 1rem;
 }
 
-.page-fade-enter-active,
-.page-fade-leave-active {
+/* Page change: the new page appears at once and fades in. The old page
+   is NOT faded out first -- the layouts use mode="out-in", so a leave
+   animation held every navigation for its full length before the next
+   page could even start (150 ms on every click, measured). */
+.page-fade-enter-active {
   transition:
     opacity 150ms ease,
     transform 150ms ease;
@@ -463,10 +465,6 @@
 .page-fade-enter-from {
   opacity: 0;
   transform: translateY(4px);
-}
-
-.page-fade-leave-to {
-  opacity: 0;
 }
 
 .toast-enter-active,

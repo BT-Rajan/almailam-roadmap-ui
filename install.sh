@@ -355,6 +355,29 @@ fi
 
 log "Backend port: $BACKEND_PORT (from $ENV_FILE)"
 
+# API worker processes. One process handles one request at a time per
+# thread pool slot, so a slow request (a report, a big upload, a PDF)
+# used to hold up everyone else behind it. Several workers share the port
+# and take requests side by side. WORKERS in backend/.env overrides;
+# otherwise the main instance uses one per CPU core, between 2 and 4, and
+# the test instance 2. Each worker keeps its own database connection pool
+# (DB_POOL_SIZE + DB_MAX_OVERFLOW), so more workers means more MariaDB
+# connections at peak -- keep workers x (pool + overflow), summed over
+# both instances, under the server's max_connections (151 by default).
+# Background jobs are not affected: they run once per instance under
+# systemd (section 11b), never inside the API workers.
+CPU_CORES="$(nproc 2>/dev/null || echo 2)"
+if [[ "$PM2_MODE" == "single" ]]; then
+    DEFAULT_WORKERS=$(( CPU_CORES < 2 ? 2 : (CPU_CORES > 4 ? 4 : CPU_CORES) ))
+else
+    DEFAULT_WORKERS=2
+fi
+BACKEND_WORKERS="$(get_env WORKERS "$DEFAULT_WORKERS")"
+if ! [[ "$BACKEND_WORKERS" =~ ^[1-9][0-9]*$ ]]; then
+    die "WORKERS in $ENV_FILE must be a whole number of 1 or more (got '$BACKEND_WORKERS')."
+fi
+log "API workers: $BACKEND_WORKERS"
+
 # ----------------------------------------------------------------------------
 # 5. MariaDB / MySQL
 # ----------------------------------------------------------------------------
@@ -495,6 +518,17 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
+# The database must have every table and column this version of the code
+# uses. schema.sql is only loaded into an empty database (section 6), so a
+# column added later never reaches an existing one by itself -- and the API
+# would then fail on every request touching that table. Stop here, before
+# pm2 restarts anything, so the running version stays up.
+log "Checking the database has what this version needs"
+if ! python -m scripts.check_schema; then
+    deactivate || true
+    die "Database is missing tables/columns this version needs (listed above). The running version was NOT restarted. Add them, then re-run install.sh."
+fi
+
 # ----------------------------------------------------------------------------
 # 8. Admin user (idempotent -- skips if it already exists)
 # ----------------------------------------------------------------------------
@@ -518,7 +552,9 @@ cd "$INSTANCE_DIR"
 
 log "Installing frontend dependencies"
 
-npm install
+# Exactly the versions in package-lock.json -- 'npm install' may resolve
+# newer ones on the server than were tested.
+npm ci --no-audit --no-fund
 
 if [[ "$PM2_MODE" == "single" ]]; then
     log "Building frontend"
@@ -569,13 +605,16 @@ module.exports = {
             name: "serviceos",
             cwd: "${BACKEND_DIR}",
             script: "${BACKEND_DIR}/venv/bin/uvicorn",
-            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT} --workers ${BACKEND_WORKERS}",
             interpreter: "none",
 
             env: {
                 PORT: "${BACKEND_PORT}"
             },
 
+            // Let uvicorn stop its workers cleanly (requests in flight
+            // finish) before pm2 force-kills the process on restart.
+            kill_timeout: 30000,
             autorestart: true,
             max_restarts: 10,
             restart_delay: 3000
@@ -605,8 +644,9 @@ module.exports = {
             name: "${PM2_BACKEND_NAME}",
             cwd: "${BACKEND_DIR}",
             script: "${BACKEND_DIR}/venv/bin/uvicorn",
-            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT}",
+            args: "app.main:app --host 0.0.0.0 --port ${BACKEND_PORT} --workers ${BACKEND_WORKERS}",
             interpreter: "none",
+            kill_timeout: 30000,
             autorestart: true,
             max_restarts: 10,
             restart_delay: 3000
@@ -724,7 +764,6 @@ done
 if [[ "$BACKEND_UP" == true ]]; then
     log "Backend health check passed"
 else
-    warn "Backend health endpoint did not respond after 20s."
     echo
     echo "Check:"
     echo "  pm2 status"
@@ -733,6 +772,18 @@ else
     else
         echo "  pm2 logs alhadi-test-backend"
     fi
+    # /api/health also checks the database, so this covers "up but can't
+    # reach MariaDB" too. A deploy that isn't serving must not end with
+    # "setup complete".
+    die "Backend did not become healthy within 20s (deployed commit ${DEPLOYED_COMMIT})."
+fi
+
+if [[ "$PM2_MODE" == "single" ]]; then
+    # The built site, served by the backend (see app/main.py).
+    if ! curl -fsS "http://127.0.0.1:${BACKEND_PORT}/" | grep -q '<div id="app"'; then
+        die "Backend is up but the site at http://127.0.0.1:${BACKEND_PORT}/ is not the app. Check that dist/ was built and FRONTEND_DIST_DIR in backend/.env."
+    fi
+    log "Site check passed"
 fi
 
 if [[ "$PM2_MODE" == "split" ]]; then

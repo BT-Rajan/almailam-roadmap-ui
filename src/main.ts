@@ -5,6 +5,7 @@ import App from './App.vue'
 import { i18n } from './i18n'
 import router from './router'
 import { useLocaleStore } from './stores/localeStore'
+import { installSessionBootstrap } from './stores/sessionBootstrap'
 import { useThemeStore } from './stores/themeStore'
 import { isChunkLoadError, reloadForNewBuild } from './utils/chunkReload'
 
@@ -28,6 +29,7 @@ app.config.errorHandler = (error, _instance, info) => {
 }
 
 app.use(createPinia())
+installSessionBootstrap()
 app.use(router)
 app.use(i18n)
 

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { usePermissions } from '@/composables/usePermissions'
 import { useAuthStore } from '@/stores/authStore'
 import DashboardTabs from '@/components/dashboard/DashboardTabs.vue'
+import { DEFAULT_DASHBOARD_TAB } from '@/composables/useDashboardData'
 import type { DashboardTab, DashboardTabKey } from '@/components/dashboard/DashboardTabs.vue'
 import DashboardClientsTab from '@/components/dashboard/DashboardClientsTab.vue'
 import DashboardProjectsTab from '@/components/dashboard/DashboardProjectsTab.vue'
@@ -25,7 +26,7 @@ const authStore = useAuthStore()
 // quotation loads) all on first mount, every time. Now a visit that only
 // ever opens the Projects tab, say, issues a fraction of those requests,
 // and switching tabs re-triggers nothing for data that's already loaded.
-const activeTab = ref<DashboardTabKey>('projects')
+const activeTab = ref<DashboardTabKey>(DEFAULT_DASHBOARD_TAB)
 
 // Financials shows real company-wide revenue/collection figures, not
 // just this user's own projects -- gated on the same Reports:view

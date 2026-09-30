@@ -56,7 +56,7 @@ def _issue_tokens(db: Session, user: User) -> dict:
     )
     db.commit()
 
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
 
 
 def _is_locked(user: User) -> bool:

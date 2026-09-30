@@ -25,7 +25,7 @@ const contractRenewalsWidget = ref<InstanceType<typeof UpcomingDeadlinesWidget> 
 // contracts count down; "expiring soon" = expires within 7 days; "not
 // renewed" = already past expiry while its project isn't Completed -- a
 // callout for staff to act on, not an automatic status change.
-const { data, error, reload } = useDashboardData(dashboardService.getDeadlines)
+const { data, error, isStale, reload } = useDashboardData('deadlines', dashboardService.getDeadlines)
 
 const statistics = computed<StatisticItem[]>(() => [
   { id: 'overdue', label: t('dashboard.overdueTasks'), value: data.value?.overdueTasks ?? 0, icon: Clock, color: 'danger' },
@@ -91,6 +91,10 @@ function handleContractRenewalClick(projectId: string): void {
 <template>
   <ErrorState v-if="error" :description="error" @retry="reload" />
   <div v-else class="space-y-6">
+    <p v-if="isStale" class="flex flex-wrap items-center gap-2 text-xs text-text-muted" role="status">
+      {{ t('dashboard.staleNotice') }}
+      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="reload">{{ t('dashboard.retry') }}</button>
+    </p>
     <div class="grid grid-cols-1 tablet:grid-cols-3 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleStatisticClick(stat.id)" />
     </div>

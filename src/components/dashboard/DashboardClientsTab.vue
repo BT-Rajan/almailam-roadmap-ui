@@ -16,7 +16,7 @@ const { t } = useI18n()
 
 // Counts and the newest clients come ready-made from the server -- this
 // tab no longer downloads every client to count them in the browser.
-const { data, error, reload } = useDashboardData(dashboardService.getClients)
+const { data, error, isStale, reload } = useDashboardData('clients', dashboardService.getClients)
 
 // One consistent tile (StatisticsCard) for every figure here, same as
 // DashboardFinancialsTab.vue's own.
@@ -42,6 +42,10 @@ function handleClientClick(clientId: string): void {
 <template>
   <ErrorState v-if="error" :description="error" @retry="reload" />
   <div v-else class="space-y-6">
+    <p v-if="isStale" class="flex flex-wrap items-center gap-2 text-xs text-text-muted" role="status">
+      {{ t('dashboard.staleNotice') }}
+      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="reload">{{ t('dashboard.retry') }}</button>
+    </p>
     <div class="grid grid-cols-1 tablet:grid-cols-2 laptop:grid-cols-4 gap-4">
       <StatisticsCard v-for="stat in statistics" :key="stat.id" :statistic="stat" @click="handleKpiClick" />
     </div>

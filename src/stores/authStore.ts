@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 
-import { authService, type CurrentUser, type ProfileUpdatePayload } from '@/services/authService'
+import { authService, type CurrentUser, type ProfileUpdatePayload, type SessionBootstrap } from '@/services/authService'
 import { ApiError } from '@/services/httpClient'
+import { clearDashboardCache } from '@/utils/dashboardCache'
 import { broadcastLogout, withRefreshLock } from '@/utils/sessionSync'
 
 // Renew the access token this long before it expires rather than waiting
@@ -75,6 +76,13 @@ interface AuthState {
    * reload" convention already used for the session itself.
    */
   logoutReason: string | null
+  /**
+   * The server date, branding and knowledgebase switch sent with the
+   * latest token (see stores/sessionBootstrap.ts), so the app doesn't ask
+   * for them one by one after sign-in. Null until then, or from an older
+   * server -- each store then loads its own as before.
+   */
+  session: SessionBootstrap | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -85,6 +93,7 @@ export const useAuthStore = defineStore('auth', {
     hydrationPromise: null,
     hasHydrated: false,
     logoutReason: null,
+    session: null,
   }),
 
   getters: {
@@ -95,7 +104,8 @@ export const useAuthStore = defineStore('auth', {
     async login(username: string, password: string) {
       const tokens = await authService.login(username, password)
       this._setToken(tokens.access_token)
-      this.user = await authService.me()
+      this._applySession(tokens.session)
+      this.user = tokens.user ?? (await authService.me())
     },
 
     async logout() {
@@ -166,6 +176,11 @@ export const useAuthStore = defineStore('auth', {
         try {
           const tokens = await withRefreshLock(() => authService.refresh())
           this._setToken(tokens.access_token)
+          // The server sends the user with the token: on a fresh page load
+          // that is the profile hydrate() needs, with no separate /me call,
+          // and mid-session it keeps name and permissions current.
+          if (tokens.user) this.user = tokens.user
+          this._applySession(tokens.session)
           return true
         } catch (error) {
           // Only a definite "no" from the server (401/403: cookie missing,
@@ -193,16 +208,16 @@ export const useAuthStore = defineStore('auth', {
      * the cookie is already designed to be safely redeemable this way (rotated, revocable,
      * capped by both absolute expiry and the idle-timeout backstop), so this only changes
      * *when* it gets redeemed, not what it's trusted to do.
-     * tryRefresh() only returns a new access token, not the profile, so a successful
-     * hydration also fetches /me; if that fails (e.g. the account was deactivated in the
-     * meantime) the session is dropped the same as any other failed refresh. */
+     * The refresh response carries the profile too (tryRefresh stores it), so a resumed
+     * session is one round trip; only an older server without it needs the /me fallback,
+     * and if that fails the session is dropped the same as any other failed refresh. */
     async hydrate(): Promise<void> {
       if (this.hasHydrated) return
       if (this.hydrationPromise) return this.hydrationPromise
 
       this.hydrationPromise = (async () => {
         const refreshed = await this.tryRefresh()
-        if (refreshed) {
+        if (refreshed && !this.user) {
           try {
             this.user = await authService.me()
           } catch {
@@ -216,6 +231,12 @@ export const useAuthStore = defineStore('auth', {
       return this.hydrationPromise
     },
 
+    /** Keeps what the server sent with the token; sessionBootstrap.ts
+     * hands it to the stores that need it. */
+    _applySession(session: SessionBootstrap | undefined) {
+      if (session) this.session = session
+    },
+
     _setToken(accessToken: string) {
       this.accessToken = accessToken
       this._scheduleProactiveRefresh(accessToken)
@@ -225,6 +246,10 @@ export const useAuthStore = defineStore('auth', {
       cancelProactiveRefresh()
       this.accessToken = null
       this.user = null
+      this.session = null
+      // Every way a session ends lands here -- saved Dashboard figures
+      // (incl. Financials) must not outlive it.
+      clearDashboardCache()
     },
 
     _scheduleProactiveRefresh(accessToken: string) {
