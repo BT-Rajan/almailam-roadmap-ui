@@ -242,7 +242,6 @@ const TABS = computed<ProjectWorkspaceTab[]>(() => {
       return [
         { key: 'overview', label: t('project.workspaceTabs.overview') },
         { key: 'design', label: t('project.workspaceTabs.documents') },
-        { key: 'tasks', label: t('project.workspaceTabs.tasks') },
       ]
     case 'Supervision':
       // 'supervision' tab key now renders SupervisionStatusReportsTab.vue --

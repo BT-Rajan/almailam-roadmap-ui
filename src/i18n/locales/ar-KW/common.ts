@@ -106,6 +106,7 @@ export default {
     title: 'رفع المستند الموقّع',
     description: 'ارفع نسخة ممسوحة ضوئياً من النسخة الموقّعة فعلياً من العميل للتأكيد.',
     hint: 'ملفات PDF فقط',
+    pdfOrImageHint: 'PDF أو JPG أو JPEG',
     fileRequired: 'ارفع المستند الموقّع للمتابعة.',
     confirm: 'تأكيد',
   },

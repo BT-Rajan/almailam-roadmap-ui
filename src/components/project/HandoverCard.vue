@@ -233,6 +233,8 @@ watch(() => props.project.id, loadHandoverStatus)
       :loading="isHandoverSaving"
       :title="t('project.overviewTab.handover.confirmDialogTitle')"
       :description="t('project.overviewTab.handover.confirmDialogDescription')"
+      :allowed-extensions="['.pdf', '.jpg', '.jpeg']"
+      :hint="t('common.signedDocumentUploadDialog.pdfOrImageHint')"
       @confirm="handleConfirmHandover"
     />
 

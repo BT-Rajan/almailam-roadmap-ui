@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.display_format import format_display_date
-from app.core.file_storage import assert_pdf_upload
+from app.core.file_storage import SIGNED_PDF_OR_IMAGE_EXTENSIONS, assert_signed_upload
 from app.core.kuwait_time import kuwait_today
 from app.core.status_transitions import (
     CONTRACT_ALLOWED_TRANSITIONS,
@@ -523,7 +523,8 @@ def confirm_contract_signing(db: Session, contract_no: str, file: UploadFile, us
     contract = get_contract(db, contract_no)
     if contract.status != "Draft" or contract.finalized_at is None:
         raise ValidationAppError("This contract isn't awaiting signature.")
-    assert_pdf_upload(file)
+    # Same as quotation approval: a scan (PDF) or a photo (JPG/JPEG).
+    assert_signed_upload(file, SIGNED_PDF_OR_IMAGE_EXTENSIONS)
 
     project = db.query(Project).filter(Project.id == contract.project_id).first()
     if project is None:

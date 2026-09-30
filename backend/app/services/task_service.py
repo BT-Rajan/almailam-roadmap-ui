@@ -49,6 +49,29 @@ def _resolve_selected_activity(db: Session, project_id: int, raw_activity_id: st
     return activity.id
 
 
+def _resolve_service_link(db: Session, project_id: int, payload) -> tuple[str | None, int | None]:
+    """Which one service row (Design activity / Permit / Supervision
+    activity) a new task is linked to, if any -- as the (linked_stage_type,
+    linked_stage_id) pair the model stores. Each id is validated against
+    the task's own project, same as _resolve_selected_activity. A task is
+    linked to at most one of the three, so passing more than one is
+    rejected rather than silently picking one."""
+    links = [
+        ("Design", payload.selectedActivityId, project_service.get_selected_activity),
+        ("Permit", getattr(payload, "selectedPermitId", None), project_service.get_selected_permit),
+        ("Supervision", getattr(payload, "selectedSupervisionActivityId", None), project_service.get_selected_supervision_activity),
+    ]
+    given = [(stage_type, raw, getter) for stage_type, raw, getter in links if raw is not None]
+    if not given:
+        return None, None
+    if len(given) > 1:
+        raise ValidationAppError("A task can be linked to only one service.")
+    stage_type, raw_id, getter = given[0]
+    if not str(raw_id).isdigit():
+        raise ValidationAppError("The linked service id must be a valid id.")
+    return stage_type, getter(db, project_id, int(raw_id)).id
+
+
 TASK_SORTABLE_FIELDS = {
     "title": Task.title,
     "status": Task.status,
@@ -100,11 +123,7 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     project = _project_by_no(db, payload.projectId)
     project_service.assert_project_open_for_new_work(project)
     assignee_id = _resolve_assignee(db, payload.assignedTo)
-    selected_activity_id = (
-        _resolve_selected_activity(db, project.id, payload.selectedActivityId)
-        if payload.selectedActivityId is not None
-        else None
-    )
+    linked_stage_type, linked_stage_id = _resolve_service_link(db, project.id, payload)
     if payload.startDate is not None and payload.startDate > payload.dueDate:
         # Nothing checked this at all (frontend or backend) -- a task
         # could be created with a start date after its own due date,
@@ -117,8 +136,8 @@ def create_task(db: Session, payload, user_id: int) -> Task:
     task = Task(
         task_no=next_task_number(db, project.id, project.project_no),
         project_id=project.id,
-        linked_stage_type="Design" if selected_activity_id is not None else None,
-        linked_stage_id=selected_activity_id,
+        linked_stage_type=linked_stage_type,
+        linked_stage_id=linked_stage_id,
         title=payload.title,
         assigned_to=assignee_id,
         priority=payload.priority,

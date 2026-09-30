@@ -70,6 +70,12 @@ class TaskCreate(BaseModel):
     # project_service.maybe_auto_close_design_activity). Omitted/None
     # for a plain, unlinked to-do -- the vast majority of tasks.
     selectedActivityId: str | None = None
+    # Same idea for a Permit / Supervision activity row -- lets a task
+    # added by hand sit alongside that service's auto-created tasks
+    # (project_service._create_service_tasks) instead of in a separate
+    # unlinked list. At most one of the three may be set.
+    selectedPermitId: str | None = None
+    selectedSupervisionActivityId: str | None = None
 
     _check_priority = field_validator("priority")(_enum_validator(TASK_PRIORITIES, "priority"))
     _check_severity = field_validator("severity")(_enum_validator(TASK_SEVERITIES, "severity"))

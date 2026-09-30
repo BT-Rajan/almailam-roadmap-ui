@@ -19,6 +19,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { useUserStore } from '@/stores/userStore'
 import type { TaskPriority, TaskSeverity } from '@/types/Task'
 import type { SelectOption } from '@/types/Ui'
+import { projectServices, serviceKey, serviceLinkFields, type ServiceKind } from '@/utils/serviceTaskLinks'
 import { validators } from '@/utils/validators'
 
 // Dedicated route (/tasks/new) for creating a task, used from TasksPage,
@@ -76,9 +77,11 @@ const form = reactive({
   dueDate: '',
   dueTime: '17:00',
   // Optional -- links this task to one of the chosen project's own
-  // Design activities, so closing every task linked to it can auto-close
-  // the activity (see project_service.maybe_auto_close_design_activity).
-  selectedActivityId: '',
+  // services (Design activity / Permit / Supervision activity), as a
+  // serviceKey ("design:12"), so it sits in that service's one task list
+  // alongside its system-created task and counts towards auto-closing it
+  // (see project_service.maybe_auto_close_*).
+  serviceKey: '',
 })
 const isSubmitting = ref(false)
 
@@ -116,11 +119,21 @@ const projectOptions = computed<SelectOption[]>(() =>
 
 const selectedProject = computed(() => taskStore.projects.find((project) => project.id === form.projectId))
 
-const designActivityOptions = computed<SelectOption[]>(() =>
-  (selectedProject.value?.selectedActivities ?? [])
-    .filter((activity) => activity.id)
-    .map((activity) => ({ label: activity.activityName, value: activity.id as string })),
+const SERVICE_KIND_LABEL_KEYS: Record<ServiceKind, string> = {
+  design: 'project.serviceTasks.kind.design',
+  permit: 'project.serviceTasks.kind.permit',
+  supervision: 'project.serviceTasks.kind.supervision',
+}
+const projectServiceRefs = computed(() => (selectedProject.value ? projectServices(selectedProject.value) : []))
+const serviceOptions = computed<SelectOption[]>(() =>
+  projectServiceRefs.value.map((service) => ({
+    label: `${service.name} (${t(SERVICE_KIND_LABEL_KEYS[service.kind])})`,
+    value: serviceKey(service.kind, service.id),
+  })),
 )
+watch(() => form.projectId, () => {
+  form.serviceKey = ''
+})
 
 // Every task must belong to exactly one project, and through it, one
 // client -- resolving and showing the client here (read-only) as soon
@@ -164,7 +177,7 @@ async function submitTask(): Promise<void> {
       dueDate: form.dueDate,
       dueTime: form.dueTime,
       status: 'Pending',
-      selectedActivityId: form.selectedActivityId || undefined,
+      ...serviceLinkFields(projectServiceRefs.value.find((service) => serviceKey(service.kind, service.id) === form.serviceKey) ?? null),
     })
     toastStore.show('success', t('task.taskActions.taskCreatedTitle'), t('task.taskActions.taskCreatedDescription', { title: task.title, assignee: task.assignedTo }))
     router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: task.id } })
@@ -220,11 +233,11 @@ async function submitTask(): Promise<void> {
         </div>
 
         <SelectBox
-          v-if="designActivityOptions.length > 0"
-          v-model="form.selectedActivityId"
+          v-if="serviceOptions.length > 0"
+          v-model="form.serviceKey"
           :label="t('task.formDialog.designActivity')"
           :placeholder="t('task.formDialog.designActivityPlaceholder')"
-          :options="designActivityOptions"
+          :options="serviceOptions"
         />
 
         <div class="grid grid-cols-1 gap-4 tablet:grid-cols-3">
