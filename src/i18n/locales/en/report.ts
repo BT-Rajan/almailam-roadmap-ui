@@ -74,7 +74,7 @@ export default {
     clientProjectsDescription: 'Every client: projects by status, new work and cash received in the period, and what each still owes (overdue split out).',
     clientProjectsMetric1: 'One row per client',
     clientProjectsMetric2: 'Drill into any client\'s projects',
-    clientProjectsMetric3: 'Active / On Hold / Completed counts',
+    clientProjectsMetric3: 'Received, outstanding and overdue per client',
     paymentLedgerTitle: 'Payment Ledger',
     paymentLedgerDescription: 'Every payment and refund in any period, by project, client and payment mode, plus what is still to come in (overdue split out).',
     paymentLedgerMetric1: 'Project / client filters',

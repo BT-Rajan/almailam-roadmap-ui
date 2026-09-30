@@ -72,7 +72,7 @@ export default {
     clientProjectsDescription: 'كل عميل: المشاريع حسب الحالة، والأعمال الجديدة والنقد المستلم خلال الفترة، وما يزال مستحقًا عليه (مع فصل المتأخر).',
     clientProjectsMetric1: 'صف واحد لكل عميل',
     clientProjectsMetric2: 'تصفّح مشاريع أي عميل',
-    clientProjectsMetric3: 'عدد النشط / المعلّق / المكتمل',
+    clientProjectsMetric3: 'المستلم والمستحق والمتأخر لكل عميل',
     paymentLedgerTitle: 'سجل المدفوعات',
     paymentLedgerDescription: 'كل دفعة واسترداد في أي فترة، حسب المشروع والعميل وطريقة الدفع، إضافة إلى ما يزال متوقعًا (مع فصل المتأخر).',
     paymentLedgerMetric1: 'فلاتر المشروع / العميل',
